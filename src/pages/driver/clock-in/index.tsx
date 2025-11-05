@@ -14,6 +14,7 @@ import {
 } from '@/db/api'
 import type {AttendanceRecord, AttendanceStatus, WarehouseWithRule} from '@/db/types'
 import {getSmartLocation, LocationMethod} from '@/utils/geocoding'
+import {checkLocationReady} from '@/utils/permission'
 
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -62,6 +63,18 @@ const ClockIn: React.FC = () => {
     method: LocationMethod
   } | null> => {
     try {
+      // 1. 先检查定位权限和GPS状态
+      const locationCheck = await checkLocationReady()
+      if (!locationCheck.ready) {
+        showToast({
+          title: locationCheck.message || '定位检查失败',
+          icon: 'none',
+          duration: 2000
+        })
+        return null
+      }
+
+      // 2. 开始智能定位
       showLoading({title: '智能定位中...'})
 
       // 使用智能定位功能（自动切换百度API和本机GPS）
@@ -345,6 +358,21 @@ const ClockIn: React.FC = () => {
                 </Text>
               </View>
             )}
+          </View>
+
+          {/* 权限说明 */}
+          <View className="bg-blue-50 rounded-lg p-4 mb-6">
+            <View className="flex items-center mb-2">
+              <View className="i-mdi-shield-check text-blue-600 text-xl mr-2" />
+              <Text className="text-blue-800 text-sm font-bold">位置权限说明</Text>
+            </View>
+            <Text className="text-blue-700 text-xs leading-relaxed mb-2">打卡功能需要获取您的位置信息，用于：</Text>
+            <Text className="text-blue-600 text-xs leading-relaxed ml-2">• 记录上下班打卡位置</Text>
+            <Text className="text-blue-600 text-xs leading-relaxed ml-2">• 验证是否在仓库范围内</Text>
+            <Text className="text-blue-600 text-xs leading-relaxed ml-2">• 自动选择最近的仓库</Text>
+            <View className="mt-3 bg-blue-100 rounded px-3 py-2">
+              <Text className="text-blue-800 text-xs">💡 首次打卡时会请求位置权限，请点击"允许"</Text>
+            </View>
           </View>
 
           {/* 今日打卡记录 */}

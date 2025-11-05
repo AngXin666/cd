@@ -257,6 +257,7 @@ TARO_APP_APP_ID=app-7cdqf07mbu9t
 ## 相关文档
 
 - 📖 [登录指南](docs/LOGIN_GUIDE.md) - 详细的登录功能说明和测试账号
+- 📖 [定位权限使用指南](docs/LOCATION_PERMISSION_GUIDE.md) - 如何授权和管理位置权限
 - 📖 [仓库考勤系统使用指南](docs/WAREHOUSE_ATTENDANCE_GUIDE.md) - 仓库管理和GPS打卡功能说明
 - 📖 [智能定位系统使用指南](docs/SMART_LOCATION_GUIDE.md) - 多重GPS调用智能切换功能说明
 - 📖 [智能定位系统集成说明](docs/GEOCODING_INTEGRATION.md) - 地理编码功能技术文档
@@ -265,6 +266,13 @@ TARO_APP_APP_ID=app-7cdqf07mbu9t
 ---
 
 ## 版本历史
+
+### v1.3.1 (2025-11-05)
+- ✅ 添加完整的位置权限检查机制
+- ✅ 实现智能权限引导和用户提示
+- ✅ 优化权限拒绝后的处理流程
+- ✅ 添加GPS状态检查功能
+- ✅ 改进权限说明和用户体验
 
 ### v1.3.0 (2025-11-05)
 - ✅ 实现智能定位系统，支持多重GPS调用
