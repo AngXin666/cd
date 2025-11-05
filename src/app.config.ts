@@ -9,6 +9,7 @@ const pages = [
   'pages/driver/attendance/index',
   'pages/driver/warehouse-stats/index',
   'pages/driver/piece-work/index',
+  'pages/driver/piece-work-entry/index',
   'pages/manager/data-summary/index',
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/driver-warehouse-assignment/index',

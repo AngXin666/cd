@@ -122,9 +122,9 @@ const DriverHome: React.FC = () => {
               </View>
               <View
                 className="flex flex-col items-center p-3 bg-orange-50 rounded-lg"
-                onClick={() => navigateTo({url: '/pages/driver/piece-work/index'})}>
-                <View className="i-mdi-clipboard-list text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">计件功能</Text>
+                onClick={() => navigateTo({url: '/pages/driver/piece-work-entry/index'})}>
+                <View className="i-mdi-clipboard-edit text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">计件录入</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
                 <View className="i-mdi-gas-station text-3xl text-blue-900 mb-2" />

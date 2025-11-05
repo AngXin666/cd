@@ -1,10 +1,9 @@
 import {Picker, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {useDidShow} from '@tarojs/taro'
+import {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
-  deletePieceWorkRecord,
   getActiveCategories,
   getAllWarehouses,
   getCurrentUserProfile,
@@ -126,33 +125,6 @@ const DataSummary: React.FC = () => {
   useDidShow(() => {
     loadData()
   })
-
-  // 删除记录
-  const handleDelete = async (id: string) => {
-    const result = await Taro.showModal({
-      title: '确认删除',
-      content: '确定要删除这条计件记录吗？',
-      confirmText: '删除',
-      confirmColor: '#EF4444'
-    })
-
-    if (result.confirm) {
-      const success = await deletePieceWorkRecord(id)
-
-      if (success) {
-        Taro.showToast({
-          title: '删除成功',
-          icon: 'success'
-        })
-        loadRecords()
-      } else {
-        Taro.showToast({
-          title: '删除失败',
-          icon: 'error'
-        })
-      }
-    }
-  }
 
   // 计算统计数据
   const totalQuantity = records.reduce((sum, r) => sum + r.quantity, 0)
@@ -382,19 +354,10 @@ const DataSummary: React.FC = () => {
                     </View>
 
                     {record.notes && (
-                      <View className="mb-2 pt-2 border-t border-gray-200">
+                      <View className="pt-2 border-t border-gray-200">
                         <Text className="text-xs text-gray-500">{record.notes}</Text>
                       </View>
                     )}
-
-                    <View className="flex items-center justify-end pt-2 border-t border-gray-200">
-                      <View
-                        className="flex items-center bg-red-50 px-3 py-1 rounded"
-                        onClick={() => handleDelete(record.id)}>
-                        <View className="i-mdi-delete text-red-600 text-sm mr-1" />
-                        <Text className="text-xs text-red-600">删除</Text>
-                      </View>
-                    </View>
                   </View>
                 ))}
               </View>
