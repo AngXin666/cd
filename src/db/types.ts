@@ -124,3 +124,41 @@ export interface DriverWarehouseInput {
   driver_id: string
   warehouse_id: string
 }
+
+// 计件记录接口
+export interface PieceWorkRecord {
+  id: string
+  user_id: string
+  warehouse_id: string
+  work_date: string
+  piece_type: string
+  quantity: number
+  unit_price: number
+  total_amount: number
+  notes?: string
+  created_at: string
+}
+
+// 创建计件记录的输入接口
+export interface PieceWorkRecordInput {
+  user_id: string
+  warehouse_id: string
+  work_date: string
+  piece_type: string
+  quantity: number
+  unit_price: number
+  total_amount: number
+  notes?: string
+}
+
+// 计件统计接口
+export interface PieceWorkStats {
+  total_orders: number
+  total_quantity: number
+  total_amount: number
+  by_type: {
+    piece_type: string
+    quantity: number
+    amount: number
+  }[]
+}

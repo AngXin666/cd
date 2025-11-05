@@ -7,6 +7,7 @@ const pages = [
   'pages/admin-dashboard/index',
   'pages/driver/clock-in/index',
   'pages/driver/attendance/index',
+  'pages/driver/warehouse-stats/index',
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/driver-warehouse-assignment/index'
 ]

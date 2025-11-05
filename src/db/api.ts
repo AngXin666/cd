@@ -8,6 +8,9 @@ import type {
   AttendanceRuleUpdate,
   DriverWarehouse,
   DriverWarehouseInput,
+  PieceWorkRecord,
+  PieceWorkRecordInput,
+  PieceWorkStats,
   Profile,
   ProfileUpdate,
   Warehouse,
@@ -185,6 +188,39 @@ export async function getAllAttendanceRecords(year?: number, month?: number): Pr
 
   if (error) {
     console.error('获取所有考勤记录失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取用户在指定仓库的考勤记录
+ */
+export async function getAttendanceRecordsByUserAndWarehouse(
+  userId: string,
+  warehouseId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<AttendanceRecord[]> {
+  let query = supabase
+    .from('attendance_records')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('warehouse_id', warehouseId)
+    .order('work_date', {ascending: false})
+
+  if (startDate) {
+    query = query.gte('work_date', startDate)
+  }
+  if (endDate) {
+    query = query.lte('work_date', endDate)
+  }
+
+  const {data, error} = await query
+
+  if (error) {
+    console.error('获取用户仓库考勤记录失败:', error)
     return []
   }
 
@@ -505,4 +541,154 @@ export async function setDriverWarehouses(driverId: string, warehouseIds: string
     console.error('设置司机仓库失败:', error)
     return false
   }
+}
+
+// ==================== 计件记录相关 API ====================
+
+// 获取用户的计件记录
+export async function getPieceWorkRecordsByUser(
+  userId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<PieceWorkRecord[]> {
+  let query = supabase
+    .from('piece_work_records')
+    .select('*')
+    .eq('user_id', userId)
+    .order('work_date', {ascending: false})
+
+  if (startDate) {
+    query = query.gte('work_date', startDate)
+  }
+  if (endDate) {
+    query = query.lte('work_date', endDate)
+  }
+
+  const {data, error} = await query
+
+  if (error) {
+    console.error('获取计件记录失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+// 获取仓库的计件记录
+export async function getPieceWorkRecordsByWarehouse(
+  warehouseId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<PieceWorkRecord[]> {
+  let query = supabase
+    .from('piece_work_records')
+    .select('*')
+    .eq('warehouse_id', warehouseId)
+    .order('work_date', {ascending: false})
+
+  if (startDate) {
+    query = query.gte('work_date', startDate)
+  }
+  if (endDate) {
+    query = query.lte('work_date', endDate)
+  }
+
+  const {data, error} = await query
+
+  if (error) {
+    console.error('获取仓库计件记录失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+// 获取用户在指定仓库的计件记录
+export async function getPieceWorkRecordsByUserAndWarehouse(
+  userId: string,
+  warehouseId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<PieceWorkRecord[]> {
+  let query = supabase
+    .from('piece_work_records')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('warehouse_id', warehouseId)
+    .order('work_date', {ascending: false})
+
+  if (startDate) {
+    query = query.gte('work_date', startDate)
+  }
+  if (endDate) {
+    query = query.lte('work_date', endDate)
+  }
+
+  const {data, error} = await query
+
+  if (error) {
+    console.error('获取用户仓库计件记录失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+// 创建计件记录
+export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promise<boolean> {
+  const {error} = await supabase.from('piece_work_records').insert(record)
+
+  if (error) {
+    console.error('创建计件记录失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// 计算计件统计
+export async function calculatePieceWorkStats(
+  userId: string,
+  warehouseId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<PieceWorkStats> {
+  const records = await getPieceWorkRecordsByUserAndWarehouse(userId, warehouseId, startDate, endDate)
+
+  const stats: PieceWorkStats = {
+    total_orders: records.length,
+    total_quantity: 0,
+    total_amount: 0,
+    by_type: []
+  }
+
+  const typeMap = new Map<
+    string,
+    {
+      piece_type: string
+      quantity: number
+      amount: number
+    }
+  >()
+
+  for (const record of records) {
+    stats.total_quantity += record.quantity
+    stats.total_amount += Number(record.total_amount)
+
+    const existing = typeMap.get(record.piece_type)
+    if (existing) {
+      existing.quantity += record.quantity
+      existing.amount += Number(record.total_amount)
+    } else {
+      typeMap.set(record.piece_type, {
+        piece_type: record.piece_type,
+        quantity: record.quantity,
+        amount: Number(record.total_amount)
+      })
+    }
+  }
+
+  stats.by_type = Array.from(typeMap.values())
+
+  return stats
 }

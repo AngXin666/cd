@@ -74,14 +74,20 @@ const DriverHome: React.FC = () => {
             {warehouses.length > 0 ? (
               <View className="space-y-2">
                 {warehouses.map((warehouse) => (
-                  <View key={warehouse.id} className="flex items-center bg-blue-50 rounded-lg p-3">
+                  <View
+                    key={warehouse.id}
+                    className="flex items-center bg-blue-50 rounded-lg p-3"
+                    onClick={() =>
+                      navigateTo({url: `/pages/driver/warehouse-stats/index?warehouseId=${warehouse.id}`})
+                    }>
                     <View className="i-mdi-map-marker text-blue-600 text-xl mr-2" />
                     <Text className="text-gray-800 text-sm flex-1">{warehouse.name}</Text>
-                    <View className={`px-2 py-1 rounded ${warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    <View className={`px-2 py-1 rounded mr-2 ${warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
                       <Text className={`text-xs ${warehouse.is_active ? 'text-green-600' : 'text-gray-500'}`}>
                         {warehouse.is_active ? '启用中' : '已禁用'}
                       </Text>
                     </View>
+                    <View className="i-mdi-chevron-right text-gray-400 text-xl" />
                   </View>
                 ))}
               </View>

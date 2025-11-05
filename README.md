@@ -7,7 +7,7 @@
 ## 功能特性
 
 ### 多角色权限管理
-- **司机端**：个人工作台、基础信息展示、今日统计、仓库打卡、当月考勤统计、查看所属仓库
+- **司机端**：个人工作台、基础信息展示、今日统计、仓库打卡、当月考勤统计、查看所属仓库、仓库统计详情（考勤+计件）
 - **普通管理端**：管理员工作台、司机管理、基础管理功能
 - **超级管理端**：超级管理员控制台、系统管理、用户权限管理、仓库管理、考勤规则配置、司机仓库分配
 
@@ -79,6 +79,14 @@
 - **灵活管理**：可随时调整司机的仓库分配
 - **权限控制**：司机只能在被分配的仓库打卡
 
+### 仓库统计系统（司机端）
+- **仓库入口**：司机工作台显示所属仓库列表，点击进入统计详情
+- **考勤统计**：查看指定仓库的考勤记录、出勤天数、正常天数、迟到次数、总工时
+- **计件统计**：查看完成订单数、总数量、总金额、按类型统计
+- **日期筛选**：支持按最近一周、本月、全部时间范围筛选数据
+- **详细记录**：展示每条考勤记录和计件记录的详细信息
+- **数据可视化**：清晰的卡片式布局，直观展示统计数据
+
 ---
 
 ## 页面路由
@@ -89,6 +97,7 @@
 | `/pages/driver/index` | 司机工作台 | 司机端主页（tabBar） |
 | `/pages/driver/clock-in/index` | 上下班打卡 | 仓库选择打卡功能 |
 | `/pages/driver/attendance/index` | 当月考勤 | 查看当月考勤记录和统计 |
+| `/pages/driver/warehouse-stats/index` | 仓库统计详情 | 查看指定仓库的考勤和计件统计 |
 | `/pages/manager/index` | 管理员工作台 | 普通管理端主页（tabBar） |
 | `/pages/super-admin/index` | 超级管理员控制台 | 超级管理端主页（tabBar） |
 | `/pages/super-admin/warehouse-management/index` | 仓库管理 | 仓库和考勤规则管理 |
@@ -144,7 +153,8 @@
         ├── 05_create_attendance_table.sql
         ├── 06_create_warehouse_and_attendance_rules.sql
         ├── 07_simplify_attendance_system.sql
-        └── 08_create_driver_warehouses.sql
+        ├── 08_create_driver_warehouses.sql
+        └── 09_create_piece_work_records.sql
 ```
 
 ---
@@ -208,6 +218,20 @@
 | created_at | timestamptz | 创建时间 |
 | 唯一约束 | (driver_id, warehouse_id) | 防止重复分配 |
 
+### piece_work_records 表（计件记录）
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键，记录ID |
+| user_id | uuid | 用户ID（外键 -> profiles.id） |
+| warehouse_id | uuid | 仓库ID（外键 -> warehouses.id） |
+| work_date | date | 工作日期 |
+| piece_type | text | 计件类型（装卸、搬运、分拣等） |
+| quantity | integer | 数量 |
+| unit_price | numeric | 单价 |
+| total_amount | numeric | 总金额 |
+| notes | text | 备注 |
+| created_at | timestamptz | 创建时间 |
+
 ---
 
 ## 安装和运行
@@ -265,6 +289,17 @@ TARO_APP_APP_ID=app-7cdqf07mbu9t
 ---
 
 ## 版本历史
+
+### v2.2.0 (2025-11-06)
+- ✅ 新增计件记录系统
+- ✅ 创建计件记录表（piece_work_records）
+- ✅ 新增仓库统计详情页面
+- ✅ 支持查看指定仓库的考勤和计件统计
+- ✅ 支持按时间范围筛选数据（最近一周、本月、全部）
+- ✅ 司机工作台仓库列表可点击进入统计详情
+- ✅ 展示考勤统计（出勤天数、正常天数、迟到次数、总工时）
+- ✅ 展示计件统计（完成订单数、总数量、总金额、按类型统计）
+- ✅ 详细记录列表展示
 
 ### v2.1.0 (2025-11-06)
 - ✅ 新增司机仓库分配功能
