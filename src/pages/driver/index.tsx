@@ -1,5 +1,5 @@
 import {ScrollView, Text, View} from '@tarojs/components'
-import {useDidShow} from '@tarojs/taro'
+import {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -64,13 +64,17 @@ const DriverHome: React.FC = () => {
                 <View className="i-mdi-car text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">车辆信息</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-map-marker text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">行程记录</Text>
+              <View
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg"
+                onClick={() => navigateTo({url: '/pages/driver/clock-in/index'})}>
+                <View className="i-mdi-clock-check text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">上下班打卡</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                <View className="i-mdi-calendar-clock text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">工作日程</Text>
+              <View
+                className="flex flex-col items-center p-3 bg-blue-50 rounded-lg"
+                onClick={() => navigateTo({url: '/pages/driver/attendance/index'})}>
+                <View className="i-mdi-calendar-month text-3xl text-blue-900 mb-2" />
+                <Text className="text-xs text-gray-700">当月考勤</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
                 <View className="i-mdi-file-document text-3xl text-orange-600 mb-2" />

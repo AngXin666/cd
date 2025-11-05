@@ -7,7 +7,7 @@
 ## 功能特性
 
 ### 多角色权限管理
-- **司机端**：个人工作台、基础信息展示、今日统计
+- **司机端**：个人工作台、基础信息展示、今日统计、上下班打卡、当月考勤
 - **普通管理端**：管理员工作台、司机管理、基础管理功能
 - **超级管理端**：超级管理员控制台、系统管理、用户权限管理
 
@@ -67,6 +67,8 @@
 |------|---------|------|
 | `/pages/login/index` | 登录页 | 用户登录入口 |
 | `/pages/driver/index` | 司机工作台 | 司机端主页（tabBar） |
+| `/pages/driver/clock-in/index` | 上下班打卡 | GPS定位打卡功能 |
+| `/pages/driver/attendance/index` | 当月考勤 | 查看当月考勤记录和统计 |
 | `/pages/manager/index` | 管理员工作台 | 普通管理端主页（tabBar） |
 | `/pages/super-admin/index` | 超级管理员控制台 | 超级管理端主页（tabBar） |
 | `/pages/profile/index` | 个人中心 | 用户个人信息管理（tabBar） |
@@ -102,7 +104,10 @@
 │   │   └── types.ts                # 数据库类型定义
 │   ├── pages/                      # 页面目录
 │   │   ├── login/                  # 登录页
-│   │   ├── driver/                 # 司机工作台
+│   │   ├── driver/                 # 司机端
+│   │   │   ├── index.tsx           # 司机工作台
+│   │   │   ├── clock-in/           # 上下班打卡
+│   │   │   └── attendance/         # 当月考勤
 │   │   ├── manager/                # 管理员工作台
 │   │   ├── super-admin/            # 超级管理员控制台
 │   │   ├── profile/                # 个人中心
@@ -110,14 +115,18 @@
 │   └── types/                      # TypeScript类型定义
 └── supabase/
     └── migrations/                 # 数据库迁移文件
-        └── 01_create_profiles_table.sql
+        ├── 01_create_profiles_table.sql
+        ├── 02_create_test_accounts.sql
+        ├── 03_create_auth_test_users.sql
+        ├── 04_fix_test_accounts_password.sql
+        └── 05_create_attendance_table.sql
 ```
 
 ---
 
 ## 数据库设计
 
-### profiles 表
+### profiles 表（用户档案）
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | uuid | 主键，用户ID |
@@ -127,6 +136,25 @@
 | role | user_role | 用户角色（driver/manager/super_admin） |
 | created_at | timestamptz | 创建时间 |
 | updated_at | timestamptz | 更新时间 |
+
+### attendance_records 表（考勤记录）
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键，记录ID |
+| user_id | uuid | 用户ID（外键） |
+| clock_in_time | timestamptz | 上班打卡时间 |
+| clock_in_location | text | 上班打卡地点 |
+| clock_in_latitude | numeric | 上班打卡纬度 |
+| clock_in_longitude | numeric | 上班打卡经度 |
+| clock_out_time | timestamptz | 下班打卡时间 |
+| clock_out_location | text | 下班打卡地点 |
+| clock_out_latitude | numeric | 下班打卡纬度 |
+| clock_out_longitude | numeric | 下班打卡经度 |
+| work_date | date | 工作日期 |
+| work_hours | numeric | 工作时长（小时） |
+| status | text | 状态（normal/late/early/absent） |
+| notes | text | 备注 |
+| created_at | timestamptz | 创建时间 |
 
 ---
 
