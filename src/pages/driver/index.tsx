@@ -3,24 +3,33 @@ import {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getCurrentUserProfile} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {getCurrentUserProfile, getDriverWarehouses} from '@/db/api'
+import type {Profile, Warehouse} from '@/db/types'
 
 const DriverHome: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
 
   const loadProfile = useCallback(async () => {
     const data = await getCurrentUserProfile()
     setProfile(data)
   }, [])
 
+  const loadWarehouses = useCallback(async () => {
+    if (!user?.id) return
+    const data = await getDriverWarehouses(user.id)
+    setWarehouses(data)
+  }, [user?.id])
+
   useEffect(() => {
     loadProfile()
-  }, [loadProfile])
+    loadWarehouses()
+  }, [loadProfile, loadWarehouses])
 
   useDidShow(() => {
     loadProfile()
+    loadWarehouses()
   })
 
   return (
@@ -54,6 +63,35 @@ const DriverHome: React.FC = () => {
                 <Text className="text-xs text-gray-400">{user?.id?.substring(0, 8)}...</Text>
               </View>
             </View>
+          </View>
+
+          {/* 所属仓库卡片 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow">
+            <View className="flex items-center mb-3">
+              <View className="i-mdi-warehouse text-xl text-blue-900 mr-2" />
+              <Text className="text-lg font-bold text-gray-800">所属仓库</Text>
+            </View>
+            {warehouses.length > 0 ? (
+              <View className="space-y-2">
+                {warehouses.map((warehouse) => (
+                  <View key={warehouse.id} className="flex items-center bg-blue-50 rounded-lg p-3">
+                    <View className="i-mdi-map-marker text-blue-600 text-xl mr-2" />
+                    <Text className="text-gray-800 text-sm flex-1">{warehouse.name}</Text>
+                    <View className={`px-2 py-1 rounded ${warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
+                      <Text className={`text-xs ${warehouse.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+                        {warehouse.is_active ? '启用中' : '已禁用'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View className="text-center py-6">
+                <View className="i-mdi-alert-circle text-gray-300 text-4xl mb-2" />
+                <Text className="text-gray-400 text-sm block">暂未分配仓库</Text>
+                <Text className="text-gray-400 text-xs block mt-1">请联系管理员分配仓库</Text>
+              </View>
+            )}
           </View>
 
           {/* 功能卡片 */}

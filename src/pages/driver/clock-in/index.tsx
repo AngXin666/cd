@@ -6,19 +6,20 @@ import {useCallback, useEffect, useState} from 'react'
 import {
   createClockIn,
   getAttendanceRuleByWarehouseId,
+  getDriverWarehouses,
   getTodayAttendance,
-  getWarehousesWithRules,
   updateClockOut
 } from '@/db/api'
-import type {AttendanceRecord, AttendanceStatus, WarehouseWithRule} from '@/db/types'
+import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
 
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
+  const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
 
   // 更新当前时间
   useEffect(() => {
@@ -29,11 +30,13 @@ const ClockIn: React.FC = () => {
     return () => clearInterval(timer)
   }, [])
 
-  // 加载仓库列表
+  // 加载仓库列表（只加载司机被分配的仓库）
   const loadWarehouses = useCallback(async () => {
-    const data = await getWarehousesWithRules()
-    setWarehouses(data)
-  }, [])
+    if (!user?.id) return
+    const data = await getDriverWarehouses(user.id)
+    // 只显示启用的仓库
+    setWarehouses(data.filter((w) => w.is_active))
+  }, [user?.id])
 
   // 加载今日打卡记录
   const loadTodayRecord = useCallback(async () => {
@@ -42,10 +45,26 @@ const ClockIn: React.FC = () => {
     setTodayRecord(record)
   }, [user?.id])
 
+  // 加载当前选中仓库的规则
+  const loadCurrentRule = useCallback(async () => {
+    const selectedWarehouse = warehouses[selectedWarehouseIndex]
+    if (!selectedWarehouse) {
+      setCurrentRule(null)
+      return
+    }
+    const rule = await getAttendanceRuleByWarehouseId(selectedWarehouse.id)
+    setCurrentRule(rule)
+  }, [warehouses, selectedWarehouseIndex])
+
   useEffect(() => {
     loadWarehouses()
     loadTodayRecord()
   }, [loadWarehouses, loadTodayRecord])
+
+  // 当选中的仓库变化时，加载对应的规则
+  useEffect(() => {
+    loadCurrentRule()
+  }, [loadCurrentRule])
 
   // 页面显示时刷新数据
   useDidShow(() => {
@@ -186,8 +205,8 @@ const ClockIn: React.FC = () => {
     if (!user?.id || !todayRecord) return
 
     // 检查是否需要打下班卡
-    const selectedWarehouse = warehouses.find((w) => w.id === todayRecord.warehouse_id)
-    if (!selectedWarehouse?.rule?.require_clock_out) {
+    const warehouseRule = await getAttendanceRuleByWarehouseId(todayRecord.warehouse_id)
+    if (!warehouseRule?.require_clock_out) {
       showToast({
         title: '该仓库不需要打下班卡',
         icon: 'none',
@@ -312,7 +331,7 @@ const ClockIn: React.FC = () => {
   const hasClockIn = !!todayRecord?.clock_in_time
   const hasClockOut = !!todayRecord?.clock_out_time
   const selectedWarehouse = warehouses[selectedWarehouseIndex]
-  const requireClockOut = selectedWarehouse?.rule?.require_clock_out ?? true
+  const requireClockOut = currentRule?.require_clock_out ?? true
 
   return (
     <View style={{background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)', minHeight: '100vh'}}>
@@ -340,14 +359,10 @@ const ClockIn: React.FC = () => {
                 <View className="i-mdi-chevron-down text-blue-600 text-xl" />
               </View>
             </Picker>
-            {selectedWarehouse?.rule && (
+            {currentRule && (
               <View className="mt-3 bg-gray-50 rounded p-3">
-                <Text className="text-gray-600 text-xs block mb-1">
-                  上班时间：{selectedWarehouse.rule.work_start_time}
-                </Text>
-                <Text className="text-gray-600 text-xs block mb-1">
-                  下班时间：{selectedWarehouse.rule.work_end_time}
-                </Text>
+                <Text className="text-gray-600 text-xs block mb-1">上班时间：{currentRule.work_start_time}</Text>
+                <Text className="text-gray-600 text-xs block mb-1">下班时间：{currentRule.work_end_time}</Text>
                 <Text className="text-gray-600 text-xs block">{requireClockOut ? '需要打下班卡' : '无需打下班卡'}</Text>
               </View>
             )}

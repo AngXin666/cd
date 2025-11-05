@@ -110,3 +110,17 @@ export interface AttendanceRuleUpdate {
 export interface WarehouseWithRule extends Warehouse {
   rule?: AttendanceRule
 }
+
+// 司机仓库关联接口
+export interface DriverWarehouse {
+  id: string
+  driver_id: string
+  warehouse_id: string
+  created_at: string
+}
+
+// 创建司机仓库关联的输入接口
+export interface DriverWarehouseInput {
+  driver_id: string
+  warehouse_id: string
+}

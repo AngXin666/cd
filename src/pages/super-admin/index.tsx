@@ -35,6 +35,10 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/warehouse-management/index'})
   }
 
+  const handleDriverWarehouseAssignment = () => {
+    navigateTo({url: '/pages/super-admin/driver-warehouse-assignment/index'})
+  }
+
   const driverCount = allUsers.filter((u) => u.role === 'driver').length
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
@@ -146,6 +150,21 @@ const SuperAdminHome: React.FC = () => {
               <View className="flex items-center justify-center">
                 <View className="i-mdi-warehouse mr-2" />
                 <Text>仓库管理</Text>
+              </View>
+            </Button>
+            <Button
+              className="w-full mb-3 text-sm break-keep"
+              size="default"
+              style={{
+                backgroundColor: '#F97316',
+                color: 'white',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+              onClick={handleDriverWarehouseAssignment}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-account-arrow-right mr-2" />
+                <Text>司机仓库分配</Text>
               </View>
             </Button>
             <Button

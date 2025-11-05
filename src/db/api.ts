@@ -6,6 +6,8 @@ import type {
   AttendanceRule,
   AttendanceRuleInput,
   AttendanceRuleUpdate,
+  DriverWarehouse,
+  DriverWarehouseInput,
   Profile,
   ProfileUpdate,
   Warehouse,
@@ -385,4 +387,122 @@ export async function getWarehousesWithRules(): Promise<WarehouseWithRule[]> {
     ...warehouse,
     rule: rules.find((rule) => rule.warehouse_id === warehouse.id && rule.is_active)
   }))
+}
+
+/**
+ * 获取司机的仓库列表
+ */
+export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]> {
+  const {data, error} = await supabase
+    .from('driver_warehouses')
+    .select('warehouse_id, warehouses(*)')
+    .eq('driver_id', driverId)
+
+  if (error) {
+    console.error('获取司机仓库失败:', error)
+    return []
+  }
+
+  if (!data) return []
+
+  // 提取仓库信息
+  return data.map((item: any) => item.warehouses).filter(Boolean)
+}
+
+/**
+ * 获取司机的仓库ID列表
+ */
+export async function getDriverWarehouseIds(driverId: string): Promise<string[]> {
+  const {data, error} = await supabase.from('driver_warehouses').select('warehouse_id').eq('driver_id', driverId)
+
+  if (error) {
+    console.error('获取司机仓库ID失败:', error)
+    return []
+  }
+
+  return data?.map((item) => item.warehouse_id) || []
+}
+
+/**
+ * 为司机分配仓库
+ */
+export async function assignWarehouseToDriver(input: DriverWarehouseInput): Promise<boolean> {
+  const {error} = await supabase.from('driver_warehouses').insert(input)
+
+  if (error) {
+    console.error('分配仓库失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 取消司机的仓库分配
+ */
+export async function removeWarehouseFromDriver(driverId: string, warehouseId: string): Promise<boolean> {
+  const {error} = await supabase
+    .from('driver_warehouses')
+    .delete()
+    .eq('driver_id', driverId)
+    .eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('取消仓库分配失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取所有司机仓库关联
+ */
+export async function getAllDriverWarehouses(): Promise<DriverWarehouse[]> {
+  const {data, error} = await supabase.from('driver_warehouses').select('*').order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取司机仓库关联失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 批量设置司机的仓库
+ */
+export async function setDriverWarehouses(driverId: string, warehouseIds: string[]): Promise<boolean> {
+  try {
+    // 先删除该司机的所有仓库分配
+    const {error: deleteError} = await supabase.from('driver_warehouses').delete().eq('driver_id', driverId)
+
+    if (deleteError) {
+      console.error('删除旧仓库分配失败:', deleteError)
+      return false
+    }
+
+    // 如果没有新的仓库分配，直接返回成功
+    if (warehouseIds.length === 0) {
+      return true
+    }
+
+    // 批量插入新的仓库分配
+    const insertData = warehouseIds.map((warehouseId) => ({
+      driver_id: driverId,
+      warehouse_id: warehouseId
+    }))
+
+    const {error: insertError} = await supabase.from('driver_warehouses').insert(insertData)
+
+    if (insertError) {
+      console.error('插入新仓库分配失败:', insertError)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('设置司机仓库失败:', error)
+    return false
+  }
 }
