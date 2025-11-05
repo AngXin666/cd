@@ -1,5 +1,5 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {getLocation, showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -13,6 +13,7 @@ import {
   updateClockOut
 } from '@/db/api'
 import type {AttendanceRecord, AttendanceStatus, WarehouseWithRule} from '@/db/types'
+import {getCurrentLocationWithAddress} from '@/utils/geocoding'
 
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -52,7 +53,7 @@ const ClockIn: React.FC = () => {
     loadTodayRecord()
   })
 
-  // 获取GPS位置
+  // 获取GPS位置和详细地址
   const getGPSLocation = async (): Promise<{
     latitude: number
     longitude: number
@@ -60,17 +61,25 @@ const ClockIn: React.FC = () => {
   } | null> => {
     try {
       showLoading({title: '获取位置中...'})
-      const res = await getLocation({type: 'gcj02'})
+
+      // 使用百度地图API获取位置和详细地址
+      const location = await getCurrentLocationWithAddress()
+
       Taro.hideLoading()
 
-      return {
-        latitude: res.latitude,
-        longitude: res.longitude,
-        address: `${res.latitude.toFixed(6)}, ${res.longitude.toFixed(6)}`
-      }
-    } catch (_error) {
+      return location
+    } catch (error) {
       Taro.hideLoading()
-      showToast({title: '获取位置失败，请检查位置权限', icon: 'none', duration: 2000})
+
+      // 显示详细的错误信息
+      const errorMessage = error instanceof Error ? error.message : '获取位置失败'
+
+      showToast({
+        title: errorMessage,
+        icon: 'none',
+        duration: 3000
+      })
+
       return null
     }
   }

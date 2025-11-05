@@ -37,5 +37,11 @@ export default defineAppConfig({
     navigationBarBackgroundColor: '#1E3A8A',
     navigationBarTitleText: '车队管家',
     navigationBarTextStyle: 'white'
+  },
+  requiredPrivateInfos: ['getLocation'],
+  permission: {
+    'scope.userLocation': {
+      desc: '您的位置信息将用于上下班打卡定位'
+    }
   }
 })
