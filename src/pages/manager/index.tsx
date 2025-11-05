@@ -27,8 +27,8 @@ const ManagerHome: React.FC = () => {
     loadData()
   })
 
-  const handlePieceWorkManagement = () => {
-    navigateTo({url: '/pages/manager/piece-work-management/index'})
+  const handleDataSummary = () => {
+    navigateTo({url: '/pages/manager/data-summary/index'})
   }
 
   return (
@@ -111,15 +111,15 @@ const ManagerHome: React.FC = () => {
               className="w-full text-sm break-keep"
               size="default"
               style={{
-                backgroundColor: '#EA580C',
+                backgroundColor: '#1E3A8A',
                 color: 'white',
                 borderRadius: '8px',
                 border: 'none'
               }}
-              onClick={handlePieceWorkManagement}>
+              onClick={handleDataSummary}>
               <View className="flex items-center justify-center">
-                <View className="i-mdi-clipboard-list mr-2" />
-                <Text>计件管理</Text>
+                <View className="i-mdi-chart-box mr-2" />
+                <Text>数据汇总</Text>
               </View>
             </Button>
           </View>
