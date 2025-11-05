@@ -5,11 +5,12 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   calculatePieceWorkStats,
+  getActiveCategories,
   getAttendanceRecordsByUserAndWarehouse,
   getPieceWorkRecordsByUserAndWarehouse,
   getWarehouseById
 } from '@/db/api'
-import type {AttendanceRecord, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
+import type {AttendanceRecord, PieceWorkCategory, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
 
 const WarehouseStats: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -17,6 +18,7 @@ const WarehouseStats: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [pieceWorkRecords, setPieceWorkRecords] = useState<PieceWorkRecord[]>([])
   const [pieceWorkStats, setPieceWorkStats] = useState<PieceWorkStats | null>(null)
+  const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'all'>('month')
 
   // 获取URL参数
@@ -47,6 +49,10 @@ const WarehouseStats: React.FC = () => {
     // 加载仓库信息
     const warehouseData = await getWarehouseById(warehouseId)
     setWarehouse(warehouseData)
+
+    // 加载品类数据
+    const categoriesData = await getActiveCategories()
+    setCategories(categoriesData)
 
     const {startDate, endDate} = getDateRange()
 
@@ -258,15 +264,17 @@ const WarehouseStats: React.FC = () => {
                 </View>
 
                 {/* 按类型统计 */}
-                {pieceWorkStats.by_type.length > 0 && (
+                {pieceWorkStats.by_category.length > 0 && (
                   <View className="mt-3">
-                    <Text className="text-sm text-gray-700 font-medium block mb-2">按类型统计</Text>
+                    <Text className="text-sm text-gray-700 font-medium block mb-2">按品类统计</Text>
                     <View className="space-y-2">
-                      {pieceWorkStats.by_type.map((item, index) => (
-                        <View key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      {pieceWorkStats.by_category.map((item) => (
+                        <View
+                          key={item.category_id}
+                          className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
                           <View className="flex items-center">
                             <View className="i-mdi-tag text-orange-600 text-lg mr-2" />
-                            <Text className="text-sm text-gray-800">{item.piece_type}</Text>
+                            <Text className="text-sm text-gray-800">{item.category_name}</Text>
                           </View>
                           <View className="flex items-center">
                             <Text className="text-sm text-gray-600 mr-3">数量: {item.quantity}</Text>
@@ -289,31 +297,46 @@ const WarehouseStats: React.FC = () => {
             </View>
             {pieceWorkRecords.length > 0 ? (
               <View className="space-y-2">
-                {pieceWorkRecords.map((record) => (
-                  <View key={record.id} className="bg-gray-50 rounded-lg p-3">
-                    <View className="flex items-center justify-between mb-2">
-                      <View className="flex items-center">
-                        <View className="i-mdi-tag text-orange-600 text-lg mr-2" />
-                        <Text className="text-gray-800 text-sm font-medium">{record.piece_type}</Text>
+                {pieceWorkRecords.map((record) => {
+                  const category = categories.find((c) => c.id === record.category_id)
+                  return (
+                    <View key={record.id} className="bg-gray-50 rounded-lg p-3">
+                      <View className="flex items-center justify-between mb-2">
+                        <View className="flex items-center">
+                          <View className="i-mdi-tag text-orange-600 text-lg mr-2" />
+                          <Text className="text-gray-800 text-sm font-medium">{category?.name || '未知品类'}</Text>
+                          {record.need_upstairs && (
+                            <View className="ml-2 px-2 py-0.5 bg-blue-100 rounded">
+                              <Text className="text-xs text-blue-600">需上楼</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text className="text-xs text-gray-500">{formatDate(record.work_date)}</Text>
                       </View>
-                      <Text className="text-xs text-gray-500">{formatDate(record.work_date)}</Text>
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center">
+                          <Text className="text-xs text-gray-600 mr-3">数量: {record.quantity}</Text>
+                          <Text className="text-xs text-gray-600 mr-3">
+                            单价: ¥{Number(record.unit_price).toFixed(2)}
+                          </Text>
+                          {record.need_upstairs && (
+                            <Text className="text-xs text-gray-600">
+                              上楼: ¥{Number(record.upstairs_price).toFixed(2)}
+                            </Text>
+                          )}
+                        </View>
+                        <Text className="text-sm text-green-600 font-medium">
+                          ¥{Number(record.total_amount).toFixed(2)}
+                        </Text>
+                      </View>
+                      {record.notes && (
+                        <View className="mt-2 pt-2 border-t border-gray-200">
+                          <Text className="text-xs text-gray-500">{record.notes}</Text>
+                        </View>
+                      )}
                     </View>
-                    <View className="flex items-center justify-between">
-                      <View className="flex items-center">
-                        <Text className="text-xs text-gray-600 mr-3">数量: {record.quantity}</Text>
-                        <Text className="text-xs text-gray-600">单价: ¥{Number(record.unit_price).toFixed(2)}</Text>
-                      </View>
-                      <Text className="text-sm text-green-600 font-medium">
-                        ¥{Number(record.total_amount).toFixed(2)}
-                      </Text>
-                    </View>
-                    {record.notes && (
-                      <View className="mt-2 pt-2 border-t border-gray-200">
-                        <Text className="text-xs text-gray-500">{record.notes}</Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
+                  )
+                })}
               </View>
             ) : (
               <View className="text-center py-8">

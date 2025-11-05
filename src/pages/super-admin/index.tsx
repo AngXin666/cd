@@ -39,6 +39,14 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/driver-warehouse-assignment/index'})
   }
 
+  const handleCategoryManagement = () => {
+    navigateTo({url: '/pages/super-admin/category-management/index'})
+  }
+
+  const handleManagerWarehouseAssignment = () => {
+    navigateTo({url: '/pages/super-admin/manager-warehouse-assignment/index'})
+  }
+
   const driverCount = allUsers.filter((u) => u.role === 'driver').length
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
@@ -165,6 +173,36 @@ const SuperAdminHome: React.FC = () => {
               <View className="flex items-center justify-center">
                 <View className="i-mdi-account-arrow-right mr-2" />
                 <Text>司机仓库分配</Text>
+              </View>
+            </Button>
+            <Button
+              className="w-full mb-3 text-sm break-keep"
+              size="default"
+              style={{
+                backgroundColor: '#1E3A8A',
+                color: 'white',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+              onClick={handleCategoryManagement}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-tag-multiple mr-2" />
+                <Text>计件品类管理</Text>
+              </View>
+            </Button>
+            <Button
+              className="w-full mb-3 text-sm break-keep"
+              size="default"
+              style={{
+                backgroundColor: '#F97316',
+                color: 'white',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+              onClick={handleManagerWarehouseAssignment}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-account-cog mr-2" />
+                <Text>管理员仓库分配</Text>
               </View>
             </Button>
             <Button

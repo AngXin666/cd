@@ -125,15 +125,46 @@ export interface DriverWarehouseInput {
   warehouse_id: string
 }
 
+// 计件品类接口
+export interface PieceWorkCategory {
+  id: string
+  name: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// 创建计件品类的输入接口
+export interface PieceWorkCategoryInput {
+  name: string
+  is_active?: boolean
+}
+
+// 管理员仓库关联接口
+export interface ManagerWarehouse {
+  id: string
+  manager_id: string
+  warehouse_id: string
+  created_at: string
+}
+
+// 创建管理员仓库关联的输入接口
+export interface ManagerWarehouseInput {
+  manager_id: string
+  warehouse_id: string
+}
+
 // 计件记录接口
 export interface PieceWorkRecord {
   id: string
   user_id: string
   warehouse_id: string
   work_date: string
-  piece_type: string
+  category_id: string
   quantity: number
   unit_price: number
+  need_upstairs: boolean
+  upstairs_price: number
   total_amount: number
   notes?: string
   created_at: string
@@ -144,9 +175,11 @@ export interface PieceWorkRecordInput {
   user_id: string
   warehouse_id: string
   work_date: string
-  piece_type: string
+  category_id: string
   quantity: number
   unit_price: number
+  need_upstairs: boolean
+  upstairs_price: number
   total_amount: number
   notes?: string
 }
@@ -156,8 +189,9 @@ export interface PieceWorkStats {
   total_orders: number
   total_quantity: number
   total_amount: number
-  by_type: {
-    piece_type: string
+  by_category: {
+    category_id: string
+    category_name: string
     quantity: number
     amount: number
   }[]

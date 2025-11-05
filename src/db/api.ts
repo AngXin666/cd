@@ -8,6 +8,8 @@ import type {
   AttendanceRuleUpdate,
   DriverWarehouse,
   DriverWarehouseInput,
+  PieceWorkCategory,
+  PieceWorkCategoryInput,
   PieceWorkRecord,
   PieceWorkRecordInput,
   PieceWorkStats,
@@ -646,6 +648,34 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
   return true
 }
 
+/**
+ * 更新计件记录
+ */
+export async function updatePieceWorkRecord(id: string, record: Partial<PieceWorkRecordInput>): Promise<boolean> {
+  const {error} = await supabase.from('piece_work_records').update(record).eq('id', id)
+
+  if (error) {
+    console.error('更新计件记录失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 删除计件记录
+ */
+export async function deletePieceWorkRecord(id: string): Promise<boolean> {
+  const {error} = await supabase.from('piece_work_records').delete().eq('id', id)
+
+  if (error) {
+    console.error('删除计件记录失败:', error)
+    return false
+  }
+
+  return true
+}
+
 // 计算计件统计
 export async function calculatePieceWorkStats(
   userId: string,
@@ -655,17 +685,22 @@ export async function calculatePieceWorkStats(
 ): Promise<PieceWorkStats> {
   const records = await getPieceWorkRecordsByUserAndWarehouse(userId, warehouseId, startDate, endDate)
 
+  // 获取所有品类信息
+  const {data: categories} = await supabase.from('piece_work_categories').select('*')
+  const categoryMap = new Map(categories?.map((c) => [c.id, c.name]) || [])
+
   const stats: PieceWorkStats = {
     total_orders: records.length,
     total_quantity: 0,
     total_amount: 0,
-    by_type: []
+    by_category: []
   }
 
-  const typeMap = new Map<
+  const categoryStatsMap = new Map<
     string,
     {
-      piece_type: string
+      category_id: string
+      category_name: string
       quantity: number
       amount: number
     }
@@ -675,20 +710,218 @@ export async function calculatePieceWorkStats(
     stats.total_quantity += record.quantity
     stats.total_amount += Number(record.total_amount)
 
-    const existing = typeMap.get(record.piece_type)
+    const categoryId = record.category_id
+    const categoryName = categoryMap.get(categoryId) || '未知品类'
+
+    const existing = categoryStatsMap.get(categoryId)
     if (existing) {
       existing.quantity += record.quantity
       existing.amount += Number(record.total_amount)
     } else {
-      typeMap.set(record.piece_type, {
-        piece_type: record.piece_type,
+      categoryStatsMap.set(categoryId, {
+        category_id: categoryId,
+        category_name: categoryName,
         quantity: record.quantity,
         amount: Number(record.total_amount)
       })
     }
   }
 
-  stats.by_type = Array.from(typeMap.values())
+  stats.by_category = Array.from(categoryStatsMap.values())
 
   return stats
+}
+
+// ==================== 计件品类管理 API ====================
+
+// 获取所有启用的品类
+export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
+  const {data, error} = await supabase
+    .from('piece_work_categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('name', {ascending: true})
+
+  if (error) {
+    console.error('获取启用品类失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+// 获取所有品类（包括禁用的）
+export async function getAllCategories(): Promise<PieceWorkCategory[]> {
+  const {data, error} = await supabase.from('piece_work_categories').select('*').order('name', {ascending: true})
+
+  if (error) {
+    console.error('获取所有品类失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+// 创建品类
+export async function createCategory(category: PieceWorkCategoryInput): Promise<boolean> {
+  const {error} = await supabase.from('piece_work_categories').insert(category)
+
+  if (error) {
+    console.error('创建品类失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// 更新品类
+export async function updateCategory(id: string, updates: Partial<PieceWorkCategoryInput>): Promise<boolean> {
+  const {error} = await supabase
+    .from('piece_work_categories')
+    .update({...updates, updated_at: new Date().toISOString()})
+    .eq('id', id)
+
+  if (error) {
+    console.error('更新品类失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// 删除品类
+export async function deleteCategory(id: string): Promise<boolean> {
+  const {error} = await supabase.from('piece_work_categories').delete().eq('id', id)
+
+  if (error) {
+    console.error('删除品类失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// ==================== 管理员仓库关联 API ====================
+
+// 获取管理员的仓库列表
+export async function getManagerWarehouses(managerId: string): Promise<Warehouse[]> {
+  const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
+
+  if (error) {
+    console.error('获取管理员仓库失败:', error)
+    return []
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  const warehouseIds = data.map((item) => item.warehouse_id)
+  const {data: warehouses, error: warehouseError} = await supabase
+    .from('warehouses')
+    .select('*')
+    .in('id', warehouseIds)
+    .order('name', {ascending: true})
+
+  if (warehouseError) {
+    console.error('获取仓库信息失败:', warehouseError)
+    return []
+  }
+
+  return Array.isArray(warehouses) ? warehouses : []
+}
+
+// 获取仓库的管理员列表
+export async function getWarehouseManagers(warehouseId: string): Promise<Profile[]> {
+  const {data, error} = await supabase.from('manager_warehouses').select('manager_id').eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('获取仓库管理员失败:', error)
+    return []
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  const managerIds = data.map((item) => item.manager_id)
+  const {data: managers, error: managerError} = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', managerIds)
+    .order('name', {ascending: true})
+
+  if (managerError) {
+    console.error('获取管理员信息失败:', managerError)
+    return []
+  }
+
+  return Array.isArray(managers) ? managers : []
+}
+
+// 设置管理员的仓库（替换现有分配）
+export async function setManagerWarehouses(managerId: string, warehouseIds: string[]): Promise<boolean> {
+  try {
+    // 删除现有分配
+    const {error: deleteError} = await supabase.from('manager_warehouses').delete().eq('manager_id', managerId)
+
+    if (deleteError) {
+      console.error('删除现有仓库分配失败:', deleteError)
+      return false
+    }
+
+    // 如果没有新的仓库分配，直接返回成功
+    if (warehouseIds.length === 0) {
+      return true
+    }
+
+    // 插入新的分配
+    const insertData = warehouseIds.map((warehouseId) => ({
+      manager_id: managerId,
+      warehouse_id: warehouseId
+    }))
+
+    const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
+
+    if (insertError) {
+      console.error('插入新仓库分配失败:', insertError)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('设置管理员仓库失败:', error)
+    return false
+  }
+}
+
+// 添加管理员仓库关联
+export async function addManagerWarehouse(managerId: string, warehouseId: string): Promise<boolean> {
+  const {error} = await supabase.from('manager_warehouses').insert({
+    manager_id: managerId,
+    warehouse_id: warehouseId
+  })
+
+  if (error) {
+    console.error('添加管理员仓库关联失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// 删除管理员仓库关联
+export async function removeManagerWarehouse(managerId: string, warehouseId: string): Promise<boolean> {
+  const {error} = await supabase
+    .from('manager_warehouses')
+    .delete()
+    .eq('manager_id', managerId)
+    .eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('删除管理员仓库关联失败:', error)
+    return false
+  }
+
+  return true
 }

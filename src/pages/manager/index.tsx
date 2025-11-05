@@ -1,5 +1,5 @@
-import {ScrollView, Text, View} from '@tarojs/components'
-import {useDidShow} from '@tarojs/taro'
+import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -26,6 +26,10 @@ const ManagerHome: React.FC = () => {
   useDidShow(() => {
     loadData()
   })
+
+  const handlePieceWorkManagement = () => {
+    navigateTo({url: '/pages/manager/piece-work-management/index'})
+  }
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -98,6 +102,26 @@ const ManagerHome: React.FC = () => {
                 <Text className="text-xs text-gray-700">异常处理</Text>
               </View>
             </View>
+          </View>
+
+          {/* 快捷操作 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow">
+            <Text className="text-lg font-bold text-gray-800 block mb-4">快捷操作</Text>
+            <Button
+              className="w-full text-sm break-keep"
+              size="default"
+              style={{
+                backgroundColor: '#EA580C',
+                color: 'white',
+                borderRadius: '8px',
+                border: 'none'
+              }}
+              onClick={handlePieceWorkManagement}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-clipboard-list mr-2" />
+                <Text>计件管理</Text>
+              </View>
+            </Button>
           </View>
 
           {/* 司机列表 */}
