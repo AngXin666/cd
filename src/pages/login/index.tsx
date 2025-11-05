@@ -7,7 +7,7 @@ import {getCurrentUserProfile} from '@/db/api'
 
 const Login: React.FC = () => {
   const [loginType, setLoginType] = useState<'otp' | 'password'>('password')
-  const [phone, setPhone] = useState('')
+  const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,7 +31,7 @@ const Login: React.FC = () => {
   }
 
   const handleSendOtp = async () => {
-    if (!phone) {
+    if (!account) {
       showToast({title: '请输入手机号', icon: 'none'})
       return
     }
@@ -41,7 +41,7 @@ const Login: React.FC = () => {
     setLoading(true)
     try {
       const {error} = await supabase.auth.signInWithOtp({
-        phone,
+        phone: account,
         options: {
           channel: 'sms'
         }
@@ -70,7 +70,7 @@ const Login: React.FC = () => {
   }
 
   const handleOtpLogin = async () => {
-    if (!phone || !otp) {
+    if (!account || !otp) {
       showToast({title: '请输入手机号和验证码', icon: 'none'})
       return
     }
@@ -78,7 +78,7 @@ const Login: React.FC = () => {
     setLoading(true)
     try {
       const {error} = await supabase.auth.verifyOtp({
-        phone,
+        phone: account,
         token: otp,
         type: 'sms'
       })
@@ -97,15 +97,15 @@ const Login: React.FC = () => {
   }
 
   const handlePasswordLogin = async () => {
-    if (!phone || !password) {
-      showToast({title: '请输入手机号和密码', icon: 'none'})
+    if (!account || !password) {
+      showToast({title: '请输入账号和密码', icon: 'none'})
       return
     }
 
     setLoading(true)
     try {
       const {error} = await supabase.auth.signInWithPassword({
-        phone,
+        phone: account,
         password
       })
 
@@ -154,16 +154,16 @@ const Login: React.FC = () => {
             </View>
           </View>
 
-          {/* 手机号输入 */}
+          {/* 账号输入 */}
           <View className="mb-4">
             <View className="flex items-center bg-gray-50 rounded-lg px-4 py-3">
-              <View className="i-mdi-phone text-xl text-gray-400 mr-3" />
+              <View className="i-mdi-account text-xl text-gray-400 mr-3" />
               <Input
                 className="flex-1 text-sm"
                 type="text"
-                placeholder="请输入手机号"
-                value={phone}
-                onInput={(e) => setPhone(e.detail.value)}
+                placeholder="请输入手机号或账号"
+                value={account}
+                onInput={(e) => setAccount(e.detail.value)}
               />
             </View>
           </View>
