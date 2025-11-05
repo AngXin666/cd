@@ -1,16 +1,25 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {getLocation, showLoading, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {getLocation, showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {createClockIn, getTodayAttendance, updateClockOut} from '@/db/api'
-import type {AttendanceRecord} from '@/db/types'
+import {
+  createClockIn,
+  findNearestWarehouse,
+  getAttendanceRuleByWarehouseId,
+  getTodayAttendance,
+  getWarehousesWithRules,
+  isWithinWarehouseRange,
+  updateClockOut
+} from '@/db/api'
+import type {AttendanceRecord, AttendanceStatus, WarehouseWithRule} from '@/db/types'
 
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
 
   // 更新当前时间
   useEffect(() => {
@@ -18,6 +27,12 @@ const ClockIn: React.FC = () => {
       setCurrentTime(new Date())
     }, 1000)
     return () => clearInterval(timer)
+  }, [])
+
+  // 加载仓库列表
+  const loadWarehouses = useCallback(async () => {
+    const data = await getWarehousesWithRules()
+    setWarehouses(data)
   }, [])
 
   // 加载今日打卡记录
@@ -28,10 +43,12 @@ const ClockIn: React.FC = () => {
   }, [user?.id])
 
   useEffect(() => {
+    loadWarehouses()
     loadTodayRecord()
-  }, [loadTodayRecord])
+  }, [loadWarehouses, loadTodayRecord])
 
   useDidShow(() => {
+    loadWarehouses()
     loadTodayRecord()
   })
 
@@ -53,42 +70,105 @@ const ClockIn: React.FC = () => {
       }
     } catch (_error) {
       Taro.hideLoading()
-      showToast({title: '获取位置失败', icon: 'none'})
+      showToast({title: '获取位置失败，请检查位置权限', icon: 'none', duration: 2000})
       return null
     }
+  }
+
+  // 判断考勤状态
+  const determineAttendanceStatus = (
+    clockTime: Date,
+    workStartTime: string,
+    lateThreshold: number
+  ): AttendanceStatus => {
+    const [hours, minutes] = workStartTime.split(':').map(Number)
+    const workStart = new Date(clockTime)
+    workStart.setHours(hours, minutes, 0, 0)
+
+    const diffMinutes = (clockTime.getTime() - workStart.getTime()) / 1000 / 60
+
+    if (diffMinutes <= lateThreshold) {
+      return 'normal'
+    }
+    return 'late'
   }
 
   // 上班打卡
   const handleClockIn = async () => {
     if (!user?.id) return
+
     if (todayRecord) {
       showToast({title: '今日已打卡', icon: 'none'})
       return
     }
 
+    if (warehouses.length === 0) {
+      showToast({title: '暂无可用仓库，请联系管理员', icon: 'none', duration: 2000})
+      return
+    }
+
     setLoading(true)
+
+    // 获取当前位置
     const location = await getGPSLocation()
     if (!location) {
       setLoading(false)
       return
     }
 
+    // 查找最近的仓库
+    const nearest = await findNearestWarehouse(location.latitude, location.longitude)
+
+    if (!nearest) {
+      setLoading(false)
+      showToast({title: '未找到可用仓库', icon: 'none'})
+      return
+    }
+
+    const {warehouse, distance} = nearest
+
+    // 检查是否在范围内
+    if (!isWithinWarehouseRange(location.latitude, location.longitude, warehouse)) {
+      setLoading(false)
+      showModal({
+        title: '打卡失败',
+        content: `您距离最近的仓库"${warehouse.name}"还有${Math.round(distance)}米，超出打卡范围（${warehouse.radius}米）。请到仓库附近打卡。`,
+        showCancel: false
+      })
+      return
+    }
+
+    // 获取考勤规则
+    const rule = await getAttendanceRuleByWarehouseId(warehouse.id)
+    let status: AttendanceStatus = 'normal'
+
+    if (rule) {
+      status = determineAttendanceStatus(new Date(), rule.work_start_time, rule.late_threshold)
+    }
+
+    // 创建打卡记录
     const record = await createClockIn({
       user_id: user.id,
-      clock_in_location: location.address,
+      warehouse_id: warehouse.id,
+      clock_in_location: `${warehouse.name} (${location.address})`,
       clock_in_latitude: location.latitude,
       clock_in_longitude: location.longitude,
       work_date: new Date().toISOString().split('T')[0],
-      status: 'normal'
+      status
     })
 
     setLoading(false)
 
     if (record) {
-      showToast({title: '上班打卡成功', icon: 'success'})
+      const statusText = status === 'late' ? '（迟到）' : ''
+      showToast({
+        title: `上班打卡成功${statusText}`,
+        icon: 'success',
+        duration: 2000
+      })
       setTodayRecord(record)
     } else {
-      showToast({title: '打卡失败', icon: 'none'})
+      showToast({title: '打卡失败，请重试', icon: 'none'})
     }
   }
 
@@ -105,19 +185,40 @@ const ClockIn: React.FC = () => {
     }
 
     setLoading(true)
+
+    // 获取当前位置
     const location = await getGPSLocation()
     if (!location) {
       setLoading(false)
       return
     }
 
+    // 检查是否在仓库范围内
+    if (todayRecord.warehouse_id) {
+      const nearest = await findNearestWarehouse(location.latitude, location.longitude)
+
+      if (nearest) {
+        const {warehouse, distance} = nearest
+
+        if (!isWithinWarehouseRange(location.latitude, location.longitude, warehouse)) {
+          setLoading(false)
+          showModal({
+            title: '打卡失败',
+            content: `您距离最近的仓库"${warehouse.name}"还有${Math.round(distance)}米，超出打卡范围（${warehouse.radius}米）。请到仓库附近打卡。`,
+            showCancel: false
+          })
+          return
+        }
+      }
+    }
+
     // 计算工作时长
     const clockInTime = new Date(todayRecord.clock_in_time)
     const clockOutTime = new Date()
-    const workHours = (clockOutTime.getTime() - clockInTime.getTime()) / (1000 * 60 * 60)
+    const workHours = (clockOutTime.getTime() - clockInTime.getTime()) / 1000 / 60 / 60
 
+    // 更新打卡记录
     const success = await updateClockOut(todayRecord.id, {
-      clock_out_time: clockOutTime.toISOString(),
       clock_out_location: location.address,
       clock_out_latitude: location.latitude,
       clock_out_longitude: location.longitude,
@@ -130,7 +231,7 @@ const ClockIn: React.FC = () => {
       showToast({title: '下班打卡成功', icon: 'success'})
       await loadTodayRecord()
     } else {
-      showToast({title: '打卡失败', icon: 'none'})
+      showToast({title: '打卡失败，请重试', icon: 'none'})
     }
   }
 
@@ -158,109 +259,104 @@ const ClockIn: React.FC = () => {
     return formatTime(date)
   }
 
+  const hasClockIn = !!todayRecord
+  const hasClockOut = !!todayRecord?.clock_out_time
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #1E3A8A, #3B82F6)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 时间显示卡片 */}
-          <View className="bg-white/10 backdrop-blur rounded-2xl p-6 mb-4 text-center">
-            <Text className="text-white/80 text-sm block mb-2">{formatDate(currentTime)}</Text>
-            <Text className="text-white text-5xl font-bold block mb-4">{formatTime(currentTime)}</Text>
-            <View className="flex justify-center items-center">
-              <View className="i-mdi-map-marker text-white/80 text-lg mr-1" />
-              <Text className="text-white/80 text-xs">GPS定位打卡</Text>
-            </View>
+      <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
+        <View className="p-6">
+          {/* 时间显示 */}
+          <View className="text-center mb-8">
+            <Text className="text-white text-lg mb-2 block">{formatDate(currentTime)}</Text>
+            <Text className="text-white text-5xl font-bold mb-4 block">{formatTime(currentTime)}</Text>
+            <Text className="text-white/80 text-sm block">📍 GPS定位打卡</Text>
           </View>
 
+          {/* 仓库选择提示 */}
+          {warehouses.length > 0 && (
+            <View className="bg-white/10 rounded-lg p-4 mb-6">
+              <Text className="text-white text-sm mb-2 block">💡 打卡提示</Text>
+              <Text className="text-white/80 text-xs block">
+                系统将自动选择您最近的仓库进行打卡，请确保在仓库打卡范围内（{warehouses[0]?.radius || 500}米）
+              </Text>
+            </View>
+          )}
+
           {/* 打卡按钮 */}
-          <View className="grid grid-cols-2 gap-4 mb-4">
+          <View className="flex justify-around mb-8">
             <Button
-              className="bg-white text-blue-900 font-bold py-8 rounded-xl shadow-lg"
-              disabled={loading || !!todayRecord}
+              size="default"
+              className={`w-36 h-36 rounded-2xl text-lg font-bold break-keep ${
+                hasClockIn ? 'bg-gray-300 text-gray-500' : 'bg-white text-blue-600'
+              }`}
+              disabled={hasClockIn || loading}
               onClick={handleClockIn}>
-              <View className="flex flex-col items-center">
-                <View className="i-mdi-login text-4xl mb-2" />
-                <Text className="text-base">上班打卡</Text>
-              </View>
+              {hasClockIn ? '✓ 已打卡' : '上班打卡'}
             </Button>
+
             <Button
-              className="bg-white text-orange-600 font-bold py-8 rounded-xl shadow-lg"
-              disabled={loading || !todayRecord || !!todayRecord?.clock_out_time}
+              size="default"
+              className={`w-36 h-36 rounded-2xl text-lg font-bold break-keep ${
+                !hasClockIn || hasClockOut ? 'bg-gray-300 text-gray-500' : 'bg-white text-orange-600'
+              }`}
+              disabled={!hasClockIn || hasClockOut || loading}
               onClick={handleClockOut}>
-              <View className="flex flex-col items-center">
-                <View className="i-mdi-logout text-4xl mb-2" />
-                <Text className="text-base">下班打卡</Text>
-              </View>
+              {hasClockOut ? '✓ 已打卡' : '下班打卡'}
             </Button>
           </View>
 
           {/* 今日打卡记录 */}
           {todayRecord && (
-            <View className="bg-white rounded-xl p-4 shadow-lg">
-              <Text className="text-lg font-bold text-gray-800 block mb-4">今日打卡记录</Text>
+            <View className="bg-white rounded-lg p-6 shadow-lg">
+              <Text className="text-gray-800 text-lg font-bold mb-4 block">今日打卡记录</Text>
 
-              {/* 上班打卡信息 */}
-              <View className="mb-4 pb-4 border-b border-gray-200">
+              {/* 上班打卡 */}
+              <View className="mb-4">
                 <View className="flex items-center mb-2">
-                  <View className="i-mdi-login text-2xl text-blue-900 mr-2" />
-                  <Text className="text-base font-bold text-gray-800">上班打卡</Text>
+                  <Text className="text-green-600 text-base font-bold mr-2">✓ 上班打卡</Text>
+                  {todayRecord.status === 'late' && (
+                    <View className="bg-orange-100 px-2 py-1 rounded">
+                      <Text className="text-orange-600 text-xs">迟到</Text>
+                    </View>
+                  )}
                 </View>
-                <View className="ml-8">
-                  <View className="flex items-center mb-1">
-                    <View className="i-mdi-clock text-sm text-gray-500 mr-1" />
-                    <Text className="text-sm text-gray-600">时间：{formatClockTime(todayRecord.clock_in_time)}</Text>
-                  </View>
-                  <View className="flex items-center">
-                    <View className="i-mdi-map-marker text-sm text-gray-500 mr-1" />
-                    <Text className="text-sm text-gray-600">位置：{todayRecord.clock_in_location || '未记录'}</Text>
-                  </View>
-                </View>
+                <Text className="text-gray-600 text-sm mb-1 block">
+                  时间：{formatClockTime(todayRecord.clock_in_time)}
+                </Text>
+                {todayRecord.clock_in_location && (
+                  <Text className="text-gray-500 text-xs block">位置：{todayRecord.clock_in_location}</Text>
+                )}
               </View>
 
-              {/* 下班打卡信息 */}
+              {/* 下班打卡 */}
               {todayRecord.clock_out_time ? (
                 <View>
-                  <View className="flex items-center mb-2">
-                    <View className="i-mdi-logout text-2xl text-orange-600 mr-2" />
-                    <Text className="text-base font-bold text-gray-800">下班打卡</Text>
-                  </View>
-                  <View className="ml-8">
-                    <View className="flex items-center mb-1">
-                      <View className="i-mdi-clock text-sm text-gray-500 mr-1" />
-                      <Text className="text-sm text-gray-600">时间：{formatClockTime(todayRecord.clock_out_time)}</Text>
-                    </View>
-                    <View className="flex items-center mb-1">
-                      <View className="i-mdi-map-marker text-sm text-gray-500 mr-1" />
-                      <Text className="text-sm text-gray-600">位置：{todayRecord.clock_out_location || '未记录'}</Text>
-                    </View>
-                    <View className="flex items-center">
-                      <View className="i-mdi-timer text-sm text-gray-500 mr-1" />
-                      <Text className="text-sm text-gray-600">
-                        工作时长：{todayRecord.work_hours?.toFixed(1) || '0'} 小时
-                      </Text>
-                    </View>
+                  <Text className="text-green-600 text-base font-bold mb-2 block">✓ 下班打卡</Text>
+                  <Text className="text-gray-600 text-sm mb-1 block">
+                    时间：{formatClockTime(todayRecord.clock_out_time)}
+                  </Text>
+                  {todayRecord.clock_out_location && (
+                    <Text className="text-gray-500 text-xs mb-2 block">位置：{todayRecord.clock_out_location}</Text>
+                  )}
+                  <View className="bg-blue-50 p-3 rounded mt-2">
+                    <Text className="text-blue-600 text-sm font-bold">
+                      工作时长：{todayRecord.work_hours?.toFixed(1) || '0.0'} 小时
+                    </Text>
                   </View>
                 </View>
               ) : (
-                <View className="text-center py-4">
-                  <Text className="text-sm text-gray-400">等待下班打卡...</Text>
+                <View className="bg-gray-50 p-4 rounded">
+                  <Text className="text-gray-400 text-sm text-center">等待下班打卡...</Text>
                 </View>
               )}
             </View>
           )}
 
-          {/* 提示信息 */}
+          {/* 无打卡记录提示 */}
           {!todayRecord && (
-            <View className="bg-white/10 backdrop-blur rounded-xl p-4 mt-4">
-              <View className="flex items-start">
-                <View className="i-mdi-information text-white text-xl mr-2 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-white text-sm block mb-1">打卡说明</Text>
-                  <Text className="text-white/80 text-xs block">
-                    • 打卡时会自动获取您的GPS位置信息{'\n'}• 请确保已开启位置权限{'\n'}• 每天只能打卡一次，请准时打卡
-                  </Text>
-                </View>
-              </View>
+            <View className="bg-white/10 rounded-lg p-6">
+              <Text className="text-white/60 text-sm text-center">今日尚未打卡</Text>
             </View>
           )}
         </View>

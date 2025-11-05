@@ -31,6 +31,10 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/admin-dashboard/index'})
   }
 
+  const handleManageWarehouses = () => {
+    navigateTo({url: '/pages/super-admin/warehouse-management/index'})
+  }
+
   const driverCount = allUsers.filter((u) => u.role === 'driver').length
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
@@ -137,6 +141,21 @@ const SuperAdminHome: React.FC = () => {
                 color: 'white',
                 borderRadius: '8px',
                 border: 'none'
+              }}
+              onClick={handleManageWarehouses}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-warehouse mr-2" />
+                <Text>仓库管理</Text>
+              </View>
+            </Button>
+            <Button
+              className="w-full mb-3 text-sm break-keep"
+              size="default"
+              style={{
+                backgroundColor: '#1E3A8A',
+                color: 'white',
+                borderRadius: '8px',
+                border: 'none'
               }}>
               <View className="flex items-center justify-center">
                 <View className="i-mdi-car-multiple mr-2" />
@@ -147,7 +166,7 @@ const SuperAdminHome: React.FC = () => {
               className="w-full text-sm break-keep"
               size="default"
               style={{
-                backgroundColor: '#1E3A8A',
+                backgroundColor: '#F97316',
                 color: 'white',
                 borderRadius: '8px',
                 border: 'none'

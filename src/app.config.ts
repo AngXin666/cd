@@ -6,7 +6,8 @@ const pages = [
   'pages/profile/index',
   'pages/admin-dashboard/index',
   'pages/driver/clock-in/index',
-  'pages/driver/attendance/index'
+  'pages/driver/attendance/index',
+  'pages/super-admin/warehouse-management/index'
 ]
 
 export default defineAppConfig({
