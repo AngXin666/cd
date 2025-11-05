@@ -30,12 +30,13 @@
 - 设置 phone 字段为账号名（用于账号名登录）
 - 标记手机号已确认
 
-### 04_update_test_accounts_password.sql
-更新测试账号的密码为正确的 bcrypt 哈希值。
+### 04_fix_test_accounts_password.sql
+使用 PostgreSQL 的 crypt() 函数为测试账号设置正确的密码。
 
 **密码信息**：
 - 明文密码：123456
-- bcrypt 哈希：$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+- 使用 crypt() 函数自动生成 bcrypt 哈希
+- 这是设置密码的正确方式，确保密码可以被 Supabase Auth 正确验证
 
 ## 登录机制说明
 
