@@ -3,6 +3,25 @@ import Taro from '@tarojs/taro'
 const APP_ID = process.env.TARO_APP_APP_ID || ''
 
 /**
+ * 定位方式枚举
+ */
+export enum LocationMethod {
+  BAIDU = 'baidu', // 百度地图API
+  NATIVE = 'native' // 本机GPS定位
+}
+
+/**
+ * 定位结果接口
+ */
+export interface LocationResult {
+  latitude: number
+  longitude: number
+  address: string
+  method: LocationMethod // 使用的定位方式
+  accuracy?: number // 定位精度（米）
+}
+
+/**
  * 百度地图逆地理编码接口响应类型
  */
 interface BaiduGeocodingResponse {
@@ -95,7 +114,129 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
 }
 
 /**
- * 获取当前位置的GPS坐标和详细地址
+ * 获取当前位置的GPS坐标（不包含地址解析）
+ * @returns GPS坐标和精度信息
+ */
+async function getNativeLocation(): Promise<{
+  latitude: number
+  longitude: number
+  accuracy: number
+}> {
+  try {
+    const location = await Taro.getLocation({
+      type: 'gcj02', // 使用国测局坐标系
+      isHighAccuracy: true, // 开启高精度定位
+      highAccuracyExpireTime: 3000 // 高精度定位超时时间
+    })
+
+    return {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy || 0
+    }
+  } catch (error) {
+    console.error('本机GPS定位失败:', error)
+    throw new Error('获取位置失败，请检查GPS和位置权限')
+  }
+}
+
+/**
+ * 使用百度地图API获取位置和地址
+ * @returns 位置信息和详细地址
+ */
+async function getLocationWithBaiduAPI(): Promise<LocationResult> {
+  try {
+    // 先获取GPS坐标
+    const location = await getNativeLocation()
+
+    // 调用百度地图逆地理编码API
+    const address = await reverseGeocode(location.latitude, location.longitude)
+
+    return {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      address,
+      method: LocationMethod.BAIDU,
+      accuracy: location.accuracy
+    }
+  } catch (error) {
+    console.error('百度地图API定位失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 使用本机GPS定位（降级方案）
+ * @returns 位置信息（只有坐标，无详细地址）
+ */
+async function getLocationWithNativeGPS(): Promise<LocationResult> {
+  try {
+    const location = await getNativeLocation()
+
+    // 生成简单的坐标描述
+    const address = `GPS坐标: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
+
+    return {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      address,
+      method: LocationMethod.NATIVE,
+      accuracy: location.accuracy
+    }
+  } catch (error) {
+    console.error('本机GPS定位失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 智能获取当前位置和地址
+ * 优先级：百度地图API -> 本机GPS定位
+ * @returns 位置信息和详细地址
+ */
+export async function getSmartLocation(): Promise<LocationResult> {
+  const errors: string[] = []
+
+  // 方法1：尝试使用百度地图API
+  try {
+    console.log('尝试使用百度地图API获取位置...')
+    const result = await getLocationWithBaiduAPI()
+    console.log('百度地图API定位成功:', result.method)
+    return result
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : '百度地图API失败'
+    errors.push(`百度地图: ${errorMsg}`)
+    console.warn('百度地图API失败，尝试降级方案')
+  }
+
+  // 方法2：降级到本机GPS定位
+  try {
+    console.log('尝试使用本机GPS定位...')
+    const result = await getLocationWithNativeGPS()
+    console.log('本机GPS定位成功:', result.method)
+
+    // 显示降级提示
+    Taro.showToast({
+      title: '使用GPS坐标定位',
+      icon: 'none',
+      duration: 2000
+    })
+
+    return result
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : '本机GPS定位失败'
+    errors.push(`本机GPS: ${errorMsg}`)
+  }
+
+  // 所有方法都失败
+  const errorMessage = `定位失败，已尝试以下方式：\n${errors.join('\n')}`
+  console.error(errorMessage)
+  throw new Error('所有定位方式均失败，请检查GPS和网络连接')
+}
+
+/**
+ * 获取当前位置的GPS坐标和详细地址（兼容旧接口）
+ * @deprecated 建议使用 getSmartLocation() 代替
  * @returns GPS坐标和详细地址
  */
 export async function getCurrentLocationWithAddress(): Promise<{
@@ -103,24 +244,10 @@ export async function getCurrentLocationWithAddress(): Promise<{
   longitude: number
   address: string
 }> {
-  try {
-    // 获取GPS坐标
-    const location = await Taro.getLocation({
-      type: 'gcj02', // 使用国测局坐标系
-      isHighAccuracy: true, // 开启高精度定位
-      highAccuracyExpireTime: 3000 // 高精度定位超时时间
-    })
-
-    // 调用逆地理编码API获取详细地址
-    const address = await reverseGeocode(location.latitude, location.longitude)
-
-    return {
-      latitude: location.latitude,
-      longitude: location.longitude,
-      address
-    }
-  } catch (error) {
-    console.error('获取位置信息失败:', error)
-    throw error
+  const result = await getSmartLocation()
+  return {
+    latitude: result.latitude,
+    longitude: result.longitude,
+    address: result.address
   }
 }

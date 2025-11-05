@@ -13,7 +13,7 @@ import {
   updateClockOut
 } from '@/db/api'
 import type {AttendanceRecord, AttendanceStatus, WarehouseWithRule} from '@/db/types'
-import {getCurrentLocationWithAddress} from '@/utils/geocoding'
+import {getSmartLocation, LocationMethod} from '@/utils/geocoding'
 
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -21,6 +21,7 @@ const ClockIn: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
+  const [locationMethod, setLocationMethod] = useState<LocationMethod | null>(null) // 记录使用的定位方式
 
   // 更新当前时间
   useEffect(() => {
@@ -53,21 +54,34 @@ const ClockIn: React.FC = () => {
     loadTodayRecord()
   })
 
-  // 获取GPS位置和详细地址
+  // 获取GPS位置和详细地址（智能切换）
   const getGPSLocation = async (): Promise<{
     latitude: number
     longitude: number
     address: string
+    method: LocationMethod
   } | null> => {
     try {
-      showLoading({title: '获取位置中...'})
+      showLoading({title: '智能定位中...'})
 
-      // 使用百度地图API获取位置和详细地址
-      const location = await getCurrentLocationWithAddress()
+      // 使用智能定位功能（自动切换百度API和本机GPS）
+      const location = await getSmartLocation()
 
       Taro.hideLoading()
 
-      return location
+      // 记录使用的定位方式
+      setLocationMethod(location.method)
+
+      // 显示定位方式提示
+      const methodName = location.method === LocationMethod.BAIDU ? '百度地图' : 'GPS坐标'
+      console.log(`定位成功，使用方式：${methodName}`)
+
+      return {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.address,
+        method: location.method
+      }
     } catch (error) {
       Taro.hideLoading()
 
@@ -313,6 +327,24 @@ const ClockIn: React.FC = () => {
               onClick={handleClockOut}>
               {hasClockOut ? '✓ 已打卡' : '下班打卡'}
             </Button>
+          </View>
+
+          {/* 定位方式说明 */}
+          <View className="bg-white/10 rounded-lg p-4 mb-6">
+            <View className="flex items-center mb-2">
+              <View className="i-mdi-map-marker text-white text-xl mr-2" />
+              <Text className="text-white text-sm font-bold">智能定位系统</Text>
+            </View>
+            <Text className="text-white/80 text-xs leading-relaxed">系统将自动尝试以下定位方式：</Text>
+            <Text className="text-white/80 text-xs leading-relaxed ml-2">1. 百度地图API（详细地址）</Text>
+            <Text className="text-white/80 text-xs leading-relaxed ml-2">2. 本机GPS定位（坐标）</Text>
+            {locationMethod && (
+              <View className="mt-2 bg-white/20 rounded px-3 py-2">
+                <Text className="text-white text-xs">
+                  当前使用：{locationMethod === LocationMethod.BAIDU ? '百度地图API' : '本机GPS定位'}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* 今日打卡记录 */}
