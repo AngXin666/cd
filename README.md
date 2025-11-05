@@ -105,6 +105,7 @@
 | `/pages/driver/clock-in/index` | 上下班打卡 | 仓库选择打卡功能 |
 | `/pages/driver/attendance/index` | 当月考勤 | 查看当月考勤记录和统计 |
 | `/pages/driver/warehouse-stats/index` | 仓库统计详情 | 查看指定仓库的考勤和计件统计 |
+| `/pages/driver/piece-work/index` | 我的计件 | 查看个人计件工作记录和收入统计 |
 | `/pages/manager/index` | 管理员工作台 | 普通管理端主页（tabBar） |
 | `/pages/manager/piece-work-management/index` | 计件管理 | 录入和管理计件工作数据 |
 | `/pages/super-admin/index` | 超级管理员控制台 | 超级管理端主页（tabBar） |

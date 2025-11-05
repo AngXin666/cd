@@ -120,9 +120,11 @@ const DriverHome: React.FC = () => {
                 <View className="i-mdi-calendar-month text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">当月考勤</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-file-document text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">任务单</Text>
+              <View
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg"
+                onClick={() => navigateTo({url: '/pages/driver/piece-work/index'})}>
+                <View className="i-mdi-clipboard-list text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">计件功能</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
                 <View className="i-mdi-gas-station text-3xl text-blue-900 mb-2" />
