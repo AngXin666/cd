@@ -1,25 +1,38 @@
-const pages = ['pages/home/index', 'pages/login/index']
+const pages = [
+  'pages/login/index',
+  'pages/driver/index',
+  'pages/manager/index',
+  'pages/super-admin/index',
+  'pages/profile/index',
+  'pages/admin-dashboard/index'
+]
 
-//  To fully leverage TypeScript's type safety and ensure its correctness, always enclose the configuration object within the global defineAppConfig helper function.
 export default defineAppConfig({
   pages,
   tabBar: {
-    // at least two items are required
+    color: '#64748b',
+    selectedColor: '#1E3A8A',
+    backgroundColor: '#ffffff',
+    borderStyle: 'white',
     list: [
       {
-        pagePath: 'pages/home/index',
-        text: 'Home'
+        pagePath: 'pages/driver/index',
+        text: '工作台',
+        iconPath: './assets/images/unselected/workspace.png',
+        selectedIconPath: './assets/images/selected/workspace.png'
+      },
+      {
+        pagePath: 'pages/profile/index',
+        text: '我的',
+        iconPath: './assets/images/unselected/profile.png',
+        selectedIconPath: './assets/images/selected/profile.png'
       }
-      // {
-      //     pagePath: 'pages/welcome/index',
-      //     text: 'welcome'
-      // }
     ]
   },
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: 'WeChat',
-    navigationBarTextStyle: 'black'
+    navigationBarBackgroundColor: '#1E3A8A',
+    navigationBarTitleText: '车队管家',
+    navigationBarTextStyle: 'white'
   }
 })

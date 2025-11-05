@@ -1,6 +1,5 @@
 import {createClient} from '@supabase/supabase-js'
-import Taro from '@tarojs/taro'
-import {showToast} from '@tarojs/taro'
+import Taro, {showToast} from '@tarojs/taro'
 
 const supabaseUrl: string = process.env.TARO_APP_SUPABASE_URL
 const supabaseAnonKey: string = process.env.TARO_APP_SUPABASE_ANON_KEY || 'TOKEN'
