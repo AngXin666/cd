@@ -25,13 +25,7 @@ export interface AttendanceRecord {
   user_id: string
   warehouse_id: string | null
   clock_in_time: string
-  clock_in_location: string | null
-  clock_in_latitude: number | null
-  clock_in_longitude: number | null
   clock_out_time: string | null
-  clock_out_location: string | null
-  clock_out_latitude: number | null
-  clock_out_longitude: number | null
   work_date: string
   work_hours: number | null
   status: AttendanceStatus
@@ -43,9 +37,6 @@ export interface AttendanceRecord {
 export interface AttendanceRecordInput {
   user_id: string
   warehouse_id?: string
-  clock_in_location?: string
-  clock_in_latitude?: number
-  clock_in_longitude?: number
   work_date?: string
   status?: AttendanceStatus
   notes?: string
@@ -54,9 +45,6 @@ export interface AttendanceRecordInput {
 // 更新考勤记录的输入接口（用于下班打卡）
 export interface AttendanceRecordUpdate {
   clock_out_time?: string
-  clock_out_location?: string
-  clock_out_latitude?: number
-  clock_out_longitude?: number
   work_hours?: number
   status?: AttendanceStatus
   notes?: string
@@ -66,10 +54,6 @@ export interface AttendanceRecordUpdate {
 export interface Warehouse {
   id: string
   name: string
-  address: string
-  latitude: number
-  longitude: number
-  radius: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -78,20 +62,12 @@ export interface Warehouse {
 // 创建仓库的输入接口
 export interface WarehouseInput {
   name: string
-  address: string
-  latitude: number
-  longitude: number
-  radius?: number
   is_active?: boolean
 }
 
 // 更新仓库的输入接口
 export interface WarehouseUpdate {
   name?: string
-  address?: string
-  latitude?: number
-  longitude?: number
-  radius?: number
   is_active?: boolean
 }
 
@@ -103,6 +79,7 @@ export interface AttendanceRule {
   work_end_time: string
   late_threshold: number
   early_threshold: number
+  require_clock_out: boolean
   is_active: boolean
   created_at: string
   updated_at: string
@@ -115,6 +92,7 @@ export interface AttendanceRuleInput {
   work_end_time: string
   late_threshold?: number
   early_threshold?: number
+  require_clock_out?: boolean
   is_active?: boolean
 }
 
@@ -124,6 +102,7 @@ export interface AttendanceRuleUpdate {
   work_end_time?: string
   late_threshold?: number
   early_threshold?: number
+  require_clock_out?: boolean
   is_active?: boolean
 }
 

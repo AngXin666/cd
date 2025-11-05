@@ -245,10 +245,6 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
     .from('warehouses')
     .insert({
       name: input.name,
-      address: input.address,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      radius: input.radius || 500,
       is_active: input.is_active !== undefined ? input.is_active : true
     })
     .select()
@@ -389,56 +385,4 @@ export async function getWarehousesWithRules(): Promise<WarehouseWithRule[]> {
     ...warehouse,
     rule: rules.find((rule) => rule.warehouse_id === warehouse.id && rule.is_active)
   }))
-}
-
-/**
- * 计算两点之间的距离（米）
- * 使用Haversine公式
- */
-export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3 // 地球半径（米）
-  const φ1 = (lat1 * Math.PI) / 180
-  const φ2 = (lat2 * Math.PI) / 180
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180
-
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-  return R * c // 返回距离（米）
-}
-
-/**
- * 检查位置是否在仓库范围内
- */
-export function isWithinWarehouseRange(userLat: number, userLon: number, warehouse: Warehouse): boolean {
-  const distance = calculateDistance(userLat, userLon, warehouse.latitude, warehouse.longitude)
-  return distance <= warehouse.radius
-}
-
-/**
- * 查找用户当前位置最近的仓库
- */
-export async function findNearestWarehouse(
-  userLat: number,
-  userLon: number
-): Promise<{warehouse: Warehouse; distance: number} | null> {
-  const warehouses = await getActiveWarehouses()
-
-  if (warehouses.length === 0) {
-    return null
-  }
-
-  let nearest: {warehouse: Warehouse; distance: number} | null = null
-
-  for (const warehouse of warehouses) {
-    const distance = calculateDistance(userLat, userLon, warehouse.latitude, warehouse.longitude)
-
-    if (!nearest || distance < nearest.distance) {
-      nearest = {warehouse, distance}
-    }
-  }
-
-  return nearest
 }

@@ -7,7 +7,7 @@
 ## 功能特性
 
 ### 多角色权限管理
-- **司机端**：个人工作台、基础信息展示、今日统计、GPS定位打卡（仓库范围限制）、当月考勤统计
+- **司机端**：个人工作台、基础信息展示、今日统计、仓库打卡、当月考勤统计
 - **普通管理端**：管理员工作台、司机管理、基础管理功能
 - **超级管理端**：超级管理员控制台、系统管理、用户权限管理、仓库管理、考勤规则配置
 
@@ -57,25 +57,21 @@
 ### 权限控制
 - 超级管理员：拥有所有权限，可管理所有用户和修改任何角色，可管理仓库和考勤规则
 - 普通管理员：可查看所有用户，可修改司机角色，可查看考勤记录
-- 司机：只能查看和修改自己的信息，只能在指定仓库范围内打卡
+- 司机：只能查看和修改自己的信息，可在任意仓库打卡
 
 ### 考勤打卡系统
-- **智能定位系统**：支持多种定位方式自动切换（百度地图API → 本机GPS）
-- **GPS定位打卡**：自动获取并记录打卡位置的经纬度
-- **详细地址解析**：优先使用百度地图API，将GPS坐标转换为详细地址（省市区街道门牌号）
-- **容错机制**：API失败时自动降级到本机GPS定位，确保打卡成功
-- **仓库范围限制**：司机必须在管理员设置的仓库打卡范围内才能打卡
-- **自动选择仓库**：系统自动选择距离司机最近的仓库进行打卡
+- **仓库选择打卡**：司机选择所在仓库进行打卡
 - **考勤状态判定**：根据管理员设置的考勤规则自动判定迟到、早退等状态
 - **工时自动计算**：下班打卡时自动计算工作时长
 - **考勤统计分析**：查看当月出勤天数、正常天数、迟到次数、总工时等统计数据
+- **灵活打卡设置**：支持设置是否需要打下班卡
 
 ### 仓库管理系统（超级管理员）
 - **仓库信息管理**：添加、编辑、删除仓库信息
-- **定位范围设置**：为每个仓库设置打卡有效范围（米）
 - **考勤规则配置**：设置上下班时间、迟到阈值、早退阈值
+- **下班卡设置**：设置是否需要打下班卡
 - **仓库状态管理**：启用或禁用仓库
-- **实时预览**：查看仓库位置、范围和考勤规则
+- **实时预览**：查看仓库考勤规则
 
 ---
 
@@ -85,7 +81,7 @@
 |------|---------|------|
 | `/pages/login/index` | 登录页 | 用户登录入口 |
 | `/pages/driver/index` | 司机工作台 | 司机端主页（tabBar） |
-| `/pages/driver/clock-in/index` | 上下班打卡 | GPS定位打卡功能（仓库范围限制） |
+| `/pages/driver/clock-in/index` | 上下班打卡 | 仓库选择打卡功能 |
 | `/pages/driver/attendance/index` | 当月考勤 | 查看当月考勤记录和统计 |
 | `/pages/manager/index` | 管理员工作台 | 普通管理端主页（tabBar） |
 | `/pages/super-admin/index` | 超级管理员控制台 | 超级管理端主页（tabBar） |
@@ -100,7 +96,6 @@
 - **前端框架**：Taro + React + TypeScript
 - **样式方案**：Tailwind CSS
 - **后端服务**：Supabase（数据库 + 认证）
-- **地图服务**：百度地图API（逆地理编码）
 - **状态管理**：React Hooks
 - **包管理器**：pnpm
 
@@ -122,8 +117,6 @@
 │   ├── db/                         # 数据库操作
 │   │   ├── api.ts                  # 数据库API封装
 │   │   └── types.ts                # 数据库类型定义
-│   ├── utils/                      # 工具函数
-│   │   └── geocoding.ts            # 地理编码工具（百度地图API）
 │   ├── pages/                      # 页面目录
 │   │   ├── login/                  # 登录页
 │   │   ├── driver/                 # 司机端
@@ -142,7 +135,8 @@
         ├── 03_create_auth_test_users.sql
         ├── 04_fix_test_accounts_password.sql
         ├── 05_create_attendance_table.sql
-        └── 06_create_warehouse_and_attendance_rules.sql
+        ├── 06_create_warehouse_and_attendance_rules.sql
+        └── 07_simplify_attendance_system.sql
 ```
 
 ---
@@ -167,13 +161,7 @@
 | user_id | uuid | 用户ID（外键） |
 | warehouse_id | uuid | 仓库ID（外键） |
 | clock_in_time | timestamptz | 上班打卡时间 |
-| clock_in_location | text | 上班打卡地点 |
-| clock_in_latitude | numeric | 上班打卡纬度 |
-| clock_in_longitude | numeric | 上班打卡经度 |
 | clock_out_time | timestamptz | 下班打卡时间 |
-| clock_out_location | text | 下班打卡地点 |
-| clock_out_latitude | numeric | 下班打卡纬度 |
-| clock_out_longitude | numeric | 下班打卡经度 |
 | work_date | date | 工作日期 |
 | work_hours | numeric | 工作时长（小时） |
 | status | text | 状态（normal/late/early/absent） |
@@ -185,10 +173,6 @@
 |------|------|------|
 | id | uuid | 主键，仓库ID |
 | name | text | 仓库名称 |
-| address | text | 仓库地址 |
-| latitude | numeric | 仓库纬度 |
-| longitude | numeric | 仓库经度 |
-| radius | numeric | 打卡有效范围（米） |
 | is_active | boolean | 是否启用 |
 | created_at | timestamptz | 创建时间 |
 | updated_at | timestamptz | 更新时间 |
@@ -202,6 +186,7 @@
 | work_end_time | time | 下班时间 |
 | late_threshold | integer | 迟到阈值（分钟） |
 | early_threshold | integer | 早退阈值（分钟） |
+| require_clock_out | boolean | 是否需要打下班卡 |
 | is_active | boolean | 是否启用 |
 | created_at | timestamptz | 创建时间 |
 | updated_at | timestamptz | 更新时间 |
@@ -257,15 +242,19 @@ TARO_APP_APP_ID=app-7cdqf07mbu9t
 ## 相关文档
 
 - 📖 [登录指南](docs/LOGIN_GUIDE.md) - 详细的登录功能说明和测试账号
-- 📖 [定位权限使用指南](docs/LOCATION_PERMISSION_GUIDE.md) - 如何授权和管理位置权限
-- 📖 [仓库考勤系统使用指南](docs/WAREHOUSE_ATTENDANCE_GUIDE.md) - 仓库管理和GPS打卡功能说明
-- 📖 [智能定位系统使用指南](docs/SMART_LOCATION_GUIDE.md) - 多重GPS调用智能切换功能说明
-- 📖 [智能定位系统集成说明](docs/GEOCODING_INTEGRATION.md) - 地理编码功能技术文档
+- 📖 [仓库考勤系统使用指南](docs/WAREHOUSE_ATTENDANCE_GUIDE.md) - 仓库管理和打卡功能说明
 - 📖 [快速开始指南](docs/QUICK_START.md) - 快速体验打卡功能
 
 ---
 
 ## 版本历史
+
+### v2.0.0 (2025-11-06)
+- ✅ 简化考勤系统，移除GPS定位功能
+- ✅ 改为仓库选择打卡方式
+- ✅ 新增"是否需要打下班卡"设置
+- ✅ 优化仓库管理界面
+- ✅ 简化数据库表结构
 
 ### v1.3.1 (2025-11-05)
 - ✅ 添加完整的位置权限检查机制

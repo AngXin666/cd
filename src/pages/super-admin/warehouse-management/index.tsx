@@ -1,4 +1,4 @@
-import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -6,50 +6,43 @@ import {useCallback, useState} from 'react'
 import {
   createAttendanceRule,
   createWarehouse,
+  deleteAttendanceRule,
   deleteWarehouse,
-  getAllWarehouses,
-  getAttendanceRuleByWarehouseId,
+  getWarehousesWithRules,
+  updateAttendanceRule,
   updateWarehouse
 } from '@/db/api'
-import type {AttendanceRule, Warehouse} from '@/db/types'
-
-interface WarehouseWithRule extends Warehouse {
-  rule?: AttendanceRule
-}
+import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null)
+  const [showAddWarehouse, setShowAddWarehouse] = useState(false)
+  const [showEditWarehouse, setShowEditWarehouse] = useState(false)
+  const [showEditRule, setShowEditRule] = useState(false)
+  const [currentWarehouse, setCurrentWarehouse] = useState<WarehouseWithRule | null>(null)
+  const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
 
-  // 表单数据
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    latitude: '',
-    longitude: '',
-    radius: '500',
-    workStartTime: '09:00',
-    workEndTime: '18:00',
-    lateThreshold: '15',
-    earlyThreshold: '15'
-  })
+  // 新仓库表单
+  const [newWarehouseName, setNewWarehouseName] = useState('')
+
+  // 编辑仓库表单
+  const [editWarehouseName, setEditWarehouseName] = useState('')
+  const [editWarehouseActive, setEditWarehouseActive] = useState(true)
+
+  // 考勤规则表单
+  const [ruleStartTime, setRuleStartTime] = useState('09:00')
+  const [ruleEndTime, setRuleEndTime] = useState('18:00')
+  const [ruleLateThreshold, setRuleLateThreshold] = useState('15')
+  const [ruleEarlyThreshold, setRuleEarlyThreshold] = useState('15')
+  const [ruleRequireClockOut, setRuleRequireClockOut] = useState(true)
+  const [ruleActive, setRuleActive] = useState(true)
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     showLoading({title: '加载中...'})
-    const data = await getAllWarehouses()
-
-    // 加载每个仓库的规则
-    const warehousesWithRules = await Promise.all(
-      data.map(async (warehouse) => {
-        const rule = await getAttendanceRuleByWarehouseId(warehouse.id)
-        return {...warehouse, rule}
-      })
-    )
-
-    setWarehouses(warehousesWithRules)
+    const data = await getWarehousesWithRules()
+    setWarehouses(data)
     Taro.hideLoading()
   }, [])
 
@@ -57,348 +50,545 @@ const WarehouseManagement: React.FC = () => {
     loadWarehouses()
   })
 
-  // 重置表单
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      address: '',
-      latitude: '',
-      longitude: '',
-      radius: '500',
-      workStartTime: '09:00',
-      workEndTime: '18:00',
-      lateThreshold: '15',
-      earlyThreshold: '15'
-    })
-    setEditingWarehouse(null)
-    setShowAddForm(false)
+  // 显示添加仓库对话框
+  const handleShowAddWarehouse = () => {
+    setNewWarehouseName('')
+    setShowAddWarehouse(true)
   }
 
-  // 显示添加表单
-  const handleShowAddForm = () => {
-    resetForm()
-    setShowAddForm(true)
-  }
-
-  // 显示编辑表单
-  const handleShowEditForm = (warehouse: WarehouseWithRule) => {
-    setEditingWarehouse(warehouse)
-    setFormData({
-      name: warehouse.name,
-      address: warehouse.address,
-      latitude: warehouse.latitude.toString(),
-      longitude: warehouse.longitude.toString(),
-      radius: warehouse.radius.toString(),
-      workStartTime: warehouse.rule?.work_start_time || '09:00',
-      workEndTime: warehouse.rule?.work_end_time || '18:00',
-      lateThreshold: warehouse.rule?.late_threshold.toString() || '15',
-      earlyThreshold: warehouse.rule?.early_threshold.toString() || '15'
-    })
-    setShowAddForm(true)
-  }
-
-  // 保存仓库
-  const handleSave = async () => {
-    // 验证表单
-    if (!formData.name || !formData.address || !formData.latitude || !formData.longitude) {
-      showToast({title: '请填写完整信息', icon: 'none'})
-      return
-    }
-
-    const lat = Number.parseFloat(formData.latitude)
-    const lon = Number.parseFloat(formData.longitude)
-    const radius = Number.parseFloat(formData.radius)
-
-    if (Number.isNaN(lat) || Number.isNaN(lon) || Number.isNaN(radius)) {
-      showToast({title: '经纬度或范围格式错误', icon: 'none'})
-      return
-    }
-
-    showLoading({title: '保存中...'})
-
-    if (editingWarehouse) {
-      // 更新仓库
-      const success = await updateWarehouse(editingWarehouse.id, {
-        name: formData.name,
-        address: formData.address,
-        latitude: lat,
-        longitude: lon,
-        radius
+  // 添加仓库
+  const handleAddWarehouse = async () => {
+    if (!newWarehouseName.trim()) {
+      showToast({
+        title: '请输入仓库名称',
+        icon: 'none',
+        duration: 2000
       })
+      return
+    }
 
-      if (success) {
-        showToast({title: '更新成功', icon: 'success'})
-        resetForm()
-        await loadWarehouses()
-      } else {
-        showToast({title: '更新失败', icon: 'none'})
-      }
-    } else {
-      // 创建仓库
+    try {
+      showLoading({title: '创建中...'})
+
       const warehouse = await createWarehouse({
-        name: formData.name,
-        address: formData.address,
-        latitude: lat,
-        longitude: lon,
-        radius
+        name: newWarehouseName.trim()
       })
 
       if (warehouse) {
-        // 创建考勤规则
+        // 为新仓库创建默认考勤规则
         await createAttendanceRule({
           warehouse_id: warehouse.id,
-          work_start_time: formData.workStartTime,
-          work_end_time: formData.workEndTime,
-          late_threshold: Number.parseInt(formData.lateThreshold, 10),
-          early_threshold: Number.parseInt(formData.earlyThreshold, 10)
+          work_start_time: '09:00:00',
+          work_end_time: '18:00:00',
+          late_threshold: 15,
+          early_threshold: 15,
+          require_clock_out: true
         })
 
-        showToast({title: '创建成功', icon: 'success'})
-        resetForm()
+        showToast({
+          title: '创建成功',
+          icon: 'success',
+          duration: 1500
+        })
+
+        setShowAddWarehouse(false)
         await loadWarehouses()
-      } else {
-        showToast({title: '创建失败', icon: 'none'})
       }
+    } catch (_error) {
+      showToast({
+        title: '创建失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 显示编辑仓库对话框
+  const handleShowEditWarehouse = (warehouse: WarehouseWithRule) => {
+    setCurrentWarehouse(warehouse)
+    setEditWarehouseName(warehouse.name)
+    setEditWarehouseActive(warehouse.is_active)
+    setShowEditWarehouse(true)
+  }
+
+  // 更新仓库
+  const handleUpdateWarehouse = async () => {
+    if (!currentWarehouse) return
+
+    if (!editWarehouseName.trim()) {
+      showToast({
+        title: '请输入仓库名称',
+        icon: 'none',
+        duration: 2000
+      })
+      return
     }
 
-    Taro.hideLoading()
+    try {
+      showLoading({title: '更新中...'})
+
+      const success = await updateWarehouse(currentWarehouse.id, {
+        name: editWarehouseName.trim(),
+        is_active: editWarehouseActive
+      })
+
+      if (success) {
+        showToast({
+          title: '更新成功',
+          icon: 'success',
+          duration: 1500
+        })
+
+        setShowEditWarehouse(false)
+        await loadWarehouses()
+      }
+    } catch (_error) {
+      showToast({
+        title: '更新失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      Taro.hideLoading()
+    }
   }
 
   // 删除仓库
-  const handleDelete = async (warehouse: Warehouse) => {
-    const res = await showModal({
+  const handleDeleteWarehouse = async (warehouse: WarehouseWithRule) => {
+    const result = await showModal({
       title: '确认删除',
-      content: `确定要删除仓库"${warehouse.name}"吗？删除后无法恢复。`
+      content: `确定要删除仓库"${warehouse.name}"吗？\n删除后相关考勤规则和打卡记录也将被删除。`,
+      confirmText: '删除',
+      cancelText: '取消'
     })
 
-    if (res.confirm) {
+    if (!result.confirm) return
+
+    try {
       showLoading({title: '删除中...'})
+
       const success = await deleteWarehouse(warehouse.id)
-      Taro.hideLoading()
 
       if (success) {
-        showToast({title: '删除成功', icon: 'success'})
+        showToast({
+          title: '删除成功',
+          icon: 'success',
+          duration: 1500
+        })
+
         await loadWarehouses()
-      } else {
-        showToast({title: '删除失败', icon: 'none'})
       }
+    } catch (_error) {
+      showToast({
+        title: '删除失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      Taro.hideLoading()
     }
   }
 
-  // 切换仓库状态
-  const handleToggleStatus = async (warehouse: Warehouse) => {
-    showLoading({title: '更新中...'})
-    const success = await updateWarehouse(warehouse.id, {
-      is_active: !warehouse.is_active
-    })
-    Taro.hideLoading()
+  // 显示编辑考勤规则对话框
+  const handleShowEditRule = (warehouse: WarehouseWithRule) => {
+    setCurrentWarehouse(warehouse)
 
-    if (success) {
-      showToast({title: '更新成功', icon: 'success'})
-      await loadWarehouses()
+    if (warehouse.rule) {
+      setCurrentRule(warehouse.rule)
+      setRuleStartTime(warehouse.rule.work_start_time.substring(0, 5))
+      setRuleEndTime(warehouse.rule.work_end_time.substring(0, 5))
+      setRuleLateThreshold(warehouse.rule.late_threshold.toString())
+      setRuleEarlyThreshold(warehouse.rule.early_threshold.toString())
+      setRuleRequireClockOut(warehouse.rule.require_clock_out)
+      setRuleActive(warehouse.rule.is_active)
     } else {
-      showToast({title: '更新失败', icon: 'none'})
+      setCurrentRule(null)
+      setRuleStartTime('09:00')
+      setRuleEndTime('18:00')
+      setRuleLateThreshold('15')
+      setRuleEarlyThreshold('15')
+      setRuleRequireClockOut(true)
+      setRuleActive(true)
+    }
+
+    setShowEditRule(true)
+  }
+
+  // 保存考勤规则
+  const handleSaveRule = async () => {
+    if (!currentWarehouse) return
+
+    // 验证输入
+    const lateThreshold = Number.parseInt(ruleLateThreshold, 10)
+    const earlyThreshold = Number.parseInt(ruleEarlyThreshold, 10)
+
+    if (Number.isNaN(lateThreshold) || lateThreshold < 0) {
+      showToast({
+        title: '请输入有效的迟到阈值',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    if (Number.isNaN(earlyThreshold) || earlyThreshold < 0) {
+      showToast({
+        title: '请输入有效的早退阈值',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    try {
+      showLoading({title: '保存中...'})
+
+      if (currentRule) {
+        // 更新现有规则
+        const success = await updateAttendanceRule(currentRule.id, {
+          work_start_time: `${ruleStartTime}:00`,
+          work_end_time: `${ruleEndTime}:00`,
+          late_threshold: lateThreshold,
+          early_threshold: earlyThreshold,
+          require_clock_out: ruleRequireClockOut,
+          is_active: ruleActive
+        })
+
+        if (success) {
+          showToast({
+            title: '更新成功',
+            icon: 'success',
+            duration: 1500
+          })
+        }
+      } else {
+        // 创建新规则
+        const rule = await createAttendanceRule({
+          warehouse_id: currentWarehouse.id,
+          work_start_time: `${ruleStartTime}:00`,
+          work_end_time: `${ruleEndTime}:00`,
+          late_threshold: lateThreshold,
+          early_threshold: earlyThreshold,
+          require_clock_out: ruleRequireClockOut,
+          is_active: ruleActive
+        })
+
+        if (rule) {
+          showToast({
+            title: '创建成功',
+            icon: 'success',
+            duration: 1500
+          })
+        }
+      }
+
+      setShowEditRule(false)
+      await loadWarehouses()
+    } catch (_error) {
+      showToast({
+        title: '保存失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 删除考勤规则
+  const handleDeleteRule = async () => {
+    if (!currentRule) return
+
+    const result = await showModal({
+      title: '确认删除',
+      content: '确定要删除该考勤规则吗？',
+      confirmText: '删除',
+      cancelText: '取消'
+    })
+
+    if (!result.confirm) return
+
+    try {
+      showLoading({title: '删除中...'})
+
+      const success = await deleteAttendanceRule(currentRule.id)
+
+      if (success) {
+        showToast({
+          title: '删除成功',
+          icon: 'success',
+          duration: 1500
+        })
+
+        setShowEditRule(false)
+        await loadWarehouses()
+      }
+    } catch (_error) {
+      showToast({
+        title: '删除失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      Taro.hideLoading()
     }
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(to bottom, #f8fafc, #e2e8f0)', minHeight: '100vh'}}>
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
-        <View className="p-4">
-          {/* 添加按钮 */}
-          {!showAddForm && (
-            <Button size="default" className="bg-blue-600 text-white mb-4 text-base" onClick={handleShowAddForm}>
-              + 添加仓库
-            </Button>
-          )}
+        <View className="p-6">
+          {/* 页面标题 */}
+          <View className="mb-6">
+            <Text className="text-gray-800 text-2xl font-bold block mb-2">仓库管理</Text>
+            <Text className="text-gray-600 text-sm block">管理仓库信息和考勤规则</Text>
+          </View>
 
-          {/* 添加/编辑表单 */}
-          {showAddForm && (
-            <View className="bg-white rounded-lg p-4 mb-4 shadow">
-              <Text className="text-gray-800 text-lg font-bold mb-4 block">
-                {editingWarehouse ? '编辑仓库' : '添加仓库'}
-              </Text>
-
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm mb-1 block">仓库名称</Text>
-                <Input
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="请输入仓库名称"
-                  value={formData.name}
-                  onInput={(e) => setFormData({...formData, name: e.detail.value})}
-                />
-              </View>
-
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm mb-1 block">仓库地址</Text>
-                <Input
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="请输入仓库地址"
-                  value={formData.address}
-                  onInput={(e) => setFormData({...formData, address: e.detail.value})}
-                />
-              </View>
-
-              <View className="flex gap-2 mb-3">
-                <View className="flex-1">
-                  <Text className="text-gray-700 text-sm mb-1 block">纬度</Text>
-                  <Input
-                    className="border border-gray-300 rounded px-3 py-2 text-sm"
-                    placeholder="39.9042"
-                    type="digit"
-                    value={formData.latitude}
-                    onInput={(e) => setFormData({...formData, latitude: e.detail.value})}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-gray-700 text-sm mb-1 block">经度</Text>
-                  <Input
-                    className="border border-gray-300 rounded px-3 py-2 text-sm"
-                    placeholder="116.4074"
-                    type="digit"
-                    value={formData.longitude}
-                    onInput={(e) => setFormData({...formData, longitude: e.detail.value})}
-                  />
-                </View>
-              </View>
-
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm mb-1 block">打卡范围（米）</Text>
-                <Input
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="500"
-                  type="number"
-                  value={formData.radius}
-                  onInput={(e) => setFormData({...formData, radius: e.detail.value})}
-                />
-              </View>
-
-              {!editingWarehouse && (
-                <>
-                  <View className="border-t border-gray-200 my-4" />
-                  <Text className="text-gray-800 text-base font-bold mb-3 block">考勤规则</Text>
-
-                  <View className="flex gap-2 mb-3">
-                    <View className="flex-1">
-                      <Text className="text-gray-700 text-sm mb-1 block">上班时间</Text>
-                      <Input
-                        className="border border-gray-300 rounded px-3 py-2 text-sm"
-                        placeholder="09:00"
-                        value={formData.workStartTime}
-                        onInput={(e) => setFormData({...formData, workStartTime: e.detail.value})}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-gray-700 text-sm mb-1 block">下班时间</Text>
-                      <Input
-                        className="border border-gray-300 rounded px-3 py-2 text-sm"
-                        placeholder="18:00"
-                        value={formData.workEndTime}
-                        onInput={(e) => setFormData({...formData, workEndTime: e.detail.value})}
-                      />
-                    </View>
-                  </View>
-
-                  <View className="flex gap-2 mb-3">
-                    <View className="flex-1">
-                      <Text className="text-gray-700 text-sm mb-1 block">迟到阈值（分钟）</Text>
-                      <Input
-                        className="border border-gray-300 rounded px-3 py-2 text-sm"
-                        placeholder="15"
-                        type="number"
-                        value={formData.lateThreshold}
-                        onInput={(e) => setFormData({...formData, lateThreshold: e.detail.value})}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-gray-700 text-sm mb-1 block">早退阈值（分钟）</Text>
-                      <Input
-                        className="border border-gray-300 rounded px-3 py-2 text-sm"
-                        placeholder="15"
-                        type="number"
-                        value={formData.earlyThreshold}
-                        onInput={(e) => setFormData({...formData, earlyThreshold: e.detail.value})}
-                      />
-                    </View>
-                  </View>
-                </>
-              )}
-
-              <View className="flex gap-2">
-                <Button size="default" className="flex-1 bg-gray-300 text-gray-700 text-sm" onClick={resetForm}>
-                  取消
-                </Button>
-                <Button size="default" className="flex-1 bg-blue-600 text-white text-sm" onClick={handleSave}>
-                  保存
-                </Button>
-              </View>
+          {/* 添加仓库按钮 */}
+          <Button
+            size="default"
+            className="w-full bg-blue-600 text-white text-base font-bold mb-6 break-keep"
+            onClick={handleShowAddWarehouse}>
+            <View className="flex items-center justify-center">
+              <View className="i-mdi-plus text-xl mr-2" />
+              <Text>添加仓库</Text>
             </View>
-          )}
+          </Button>
 
           {/* 仓库列表 */}
-          <View>
-            {warehouses.map((warehouse) => (
-              <View key={warehouse.id} className="bg-white rounded-lg p-4 mb-3 shadow">
-                <View className="flex items-center justify-between mb-2">
-                  <Text className="text-gray-800 text-lg font-bold">{warehouse.name}</Text>
-                  <View className={`px-2 py-1 rounded ${warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    <Text className={`text-xs ${warehouse.is_active ? 'text-green-600' : 'text-gray-500'}`}>
-                      {warehouse.is_active ? '启用' : '禁用'}
-                    </Text>
+          {warehouses.length === 0 ? (
+            <View className="bg-white rounded-lg p-8 text-center">
+              <View className="i-mdi-warehouse text-gray-300 text-6xl mb-4" />
+              <Text className="text-gray-400 text-base block">暂无仓库</Text>
+            </View>
+          ) : (
+            <View className="space-y-4">
+              {warehouses.map((warehouse) => (
+                <View key={warehouse.id} className="bg-white rounded-lg p-4 shadow">
+                  {/* 仓库信息 */}
+                  <View className="flex items-center justify-between mb-3">
+                    <View className="flex items-center flex-1">
+                      <View className="i-mdi-warehouse text-blue-600 text-2xl mr-3" />
+                      <View className="flex-1">
+                        <Text className="text-gray-800 text-lg font-bold block">{warehouse.name}</Text>
+                        <Text className="text-gray-500 text-xs block">{warehouse.is_active ? '启用中' : '已禁用'}</Text>
+                      </View>
+                    </View>
+                    <View className="flex gap-2">
+                      <Button
+                        size="mini"
+                        className="bg-blue-50 text-blue-600 text-xs break-keep"
+                        onClick={() => handleShowEditWarehouse(warehouse)}>
+                        编辑
+                      </Button>
+                      <Button
+                        size="mini"
+                        className="bg-red-50 text-red-600 text-xs break-keep"
+                        onClick={() => handleDeleteWarehouse(warehouse)}>
+                        删除
+                      </Button>
+                    </View>
+                  </View>
+
+                  {/* 考勤规则 */}
+                  <View className="bg-gray-50 rounded-lg p-3">
+                    <View className="flex items-center justify-between mb-2">
+                      <Text className="text-gray-700 text-sm font-bold">考勤规则</Text>
+                      <Button
+                        size="mini"
+                        className="bg-green-50 text-green-600 text-xs break-keep"
+                        onClick={() => handleShowEditRule(warehouse)}>
+                        {warehouse.rule ? '编辑规则' : '添加规则'}
+                      </Button>
+                    </View>
+                    {warehouse.rule ? (
+                      <View>
+                        <Text className="text-gray-600 text-xs block mb-1">
+                          上班时间：{warehouse.rule.work_start_time}
+                        </Text>
+                        <Text className="text-gray-600 text-xs block mb-1">
+                          下班时间：{warehouse.rule.work_end_time}
+                        </Text>
+                        <Text className="text-gray-600 text-xs block mb-1">
+                          迟到阈值：{warehouse.rule.late_threshold}分钟
+                        </Text>
+                        <Text className="text-gray-600 text-xs block mb-1">
+                          早退阈值：{warehouse.rule.early_threshold}分钟
+                        </Text>
+                        <Text className="text-gray-600 text-xs block">
+                          {warehouse.rule.require_clock_out ? '需要打下班卡' : '无需打下班卡'}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text className="text-gray-400 text-xs">未设置考勤规则</Text>
+                    )}
                   </View>
                 </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
-                <Text className="text-gray-600 text-sm mb-1 block">📍 {warehouse.address}</Text>
-                <Text className="text-gray-500 text-xs mb-1 block">
-                  坐标：{warehouse.latitude.toFixed(6)}, {warehouse.longitude.toFixed(6)}
-                </Text>
-                <Text className="text-gray-500 text-xs mb-3 block">打卡范围：{warehouse.radius}米</Text>
+      {/* 添加仓库对话框 */}
+      {showAddWarehouse && (
+        <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md">
+            <Text className="text-gray-800 text-lg font-bold block mb-4">添加仓库</Text>
 
-                {warehouse.rule && (
-                  <View className="bg-blue-50 p-3 rounded mb-3">
-                    <Text className="text-blue-800 text-xs font-bold mb-1 block">考勤规则</Text>
-                    <Text className="text-blue-600 text-xs block">
-                      上班：{warehouse.rule.work_start_time} | 下班：{warehouse.rule.work_end_time}
-                    </Text>
-                    <Text className="text-blue-600 text-xs block">
-                      迟到阈值：{warehouse.rule.late_threshold}分钟 | 早退阈值：{warehouse.rule.early_threshold}分钟
-                    </Text>
-                  </View>
-                )}
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
+              <Input
+                className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                placeholder="请输入仓库名称"
+                value={newWarehouseName}
+                onInput={(e) => setNewWarehouseName(e.detail.value)}
+              />
+            </View>
 
-                <View className="flex gap-2">
-                  <Button
-                    size="default"
-                    className="flex-1 bg-blue-50 text-blue-600 text-xs"
-                    onClick={() => handleShowEditForm(warehouse)}>
-                    编辑
-                  </Button>
-                  <Button
-                    size="default"
-                    className={`flex-1 text-xs ${
-                      warehouse.is_active ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'
-                    }`}
-                    onClick={() => handleToggleStatus(warehouse)}>
-                    {warehouse.is_active ? '禁用' : '启用'}
-                  </Button>
-                  <Button
-                    size="default"
-                    className="flex-1 bg-red-50 text-red-600 text-xs"
-                    onClick={() => handleDelete(warehouse)}>
-                    删除
-                  </Button>
+            <View className="flex gap-3">
+              <Button
+                size="default"
+                className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
+                onClick={() => setShowAddWarehouse(false)}>
+                取消
+              </Button>
+              <Button
+                size="default"
+                className="flex-1 bg-blue-600 text-white text-base break-keep"
+                onClick={handleAddWarehouse}>
+                确定
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 编辑仓库对话框 */}
+      {showEditWarehouse && currentWarehouse && (
+        <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md">
+            <Text className="text-gray-800 text-lg font-bold block mb-4">编辑仓库</Text>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
+              <Input
+                className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                placeholder="请输入仓库名称"
+                value={editWarehouseName}
+                onInput={(e) => setEditWarehouseName(e.detail.value)}
+              />
+            </View>
+
+            <View className="mb-4 flex items-center justify-between">
+              <Text className="text-gray-700 text-sm">启用状态</Text>
+              <Switch checked={editWarehouseActive} onChange={(e) => setEditWarehouseActive(e.detail.value)} />
+            </View>
+
+            <View className="flex gap-3">
+              <Button
+                size="default"
+                className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
+                onClick={() => setShowEditWarehouse(false)}>
+                取消
+              </Button>
+              <Button
+                size="default"
+                className="flex-1 bg-blue-600 text-white text-base break-keep"
+                onClick={handleUpdateWarehouse}>
+                保存
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 编辑考勤规则对话框 */}
+      {showEditRule && currentWarehouse && (
+        <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <Text className="text-gray-800 text-lg font-bold block mb-4">
+              {currentRule ? '编辑考勤规则' : '添加考勤规则'}
+            </Text>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm block mb-2">上班时间</Text>
+              <Picker mode="time" value={ruleStartTime} onChange={(e) => setRuleStartTime(e.detail.value)}>
+                <View className="bg-gray-50 rounded-lg p-3">
+                  <Text className="text-gray-800">{ruleStartTime}</Text>
                 </View>
-              </View>
-            ))}
+              </Picker>
+            </View>
 
-            {warehouses.length === 0 && !showAddForm && (
-              <View className="bg-white rounded-lg p-8 text-center">
-                <Text className="text-gray-400 text-sm">暂无仓库，点击上方按钮添加</Text>
-              </View>
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm block mb-2">下班时间</Text>
+              <Picker mode="time" value={ruleEndTime} onChange={(e) => setRuleEndTime(e.detail.value)}>
+                <View className="bg-gray-50 rounded-lg p-3">
+                  <Text className="text-gray-800">{ruleEndTime}</Text>
+                </View>
+              </Picker>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm block mb-2">迟到阈值（分钟）</Text>
+              <Input
+                className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                type="number"
+                placeholder="请输入迟到阈值"
+                value={ruleLateThreshold}
+                onInput={(e) => setRuleLateThreshold(e.detail.value)}
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm block mb-2">早退阈值（分钟）</Text>
+              <Input
+                className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                type="number"
+                placeholder="请输入早退阈值"
+                value={ruleEarlyThreshold}
+                onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
+              />
+            </View>
+
+            <View className="mb-4 flex items-center justify-between">
+              <Text className="text-gray-700 text-sm">需要打下班卡</Text>
+              <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
+            </View>
+
+            <View className="mb-4 flex items-center justify-between">
+              <Text className="text-gray-700 text-sm">启用规则</Text>
+              <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
+            </View>
+
+            <View className="flex gap-3 mb-3">
+              <Button
+                size="default"
+                className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
+                onClick={() => setShowEditRule(false)}>
+                取消
+              </Button>
+              <Button
+                size="default"
+                className="flex-1 bg-blue-600 text-white text-base break-keep"
+                onClick={handleSaveRule}>
+                保存
+              </Button>
+            </View>
+
+            {currentRule && (
+              <Button
+                size="default"
+                className="w-full bg-red-50 text-red-600 text-base break-keep"
+                onClick={handleDeleteRule}>
+                删除规则
+              </Button>
             )}
           </View>
         </View>
-      </ScrollView>
+      )}
     </View>
   )
 }
