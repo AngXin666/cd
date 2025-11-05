@@ -104,13 +104,30 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      const {error} = await supabase.auth.signInWithPassword({
-        phone: account,
-        password
-      })
+      // 判断输入的是账号名还是手机号
+      const isPhoneNumber = /^1[3-9]\d{9}$/.test(account)
+
+      let error
+
+      if (isPhoneNumber) {
+        // 如果是手机号格式，使用 phone 登录
+        const result = await supabase.auth.signInWithPassword({
+          phone: account,
+          password
+        })
+        error = result.error
+      } else {
+        // 如果是账号名，转换为邮箱格式
+        const email = account.includes('@') ? account : `${account}@fleet.com`
+        const result = await supabase.auth.signInWithPassword({
+          email,
+          password
+        })
+        error = result.error
+      }
 
       if (error) {
-        showToast({title: error.message || '登录失败，请检查账号密码', icon: 'none'})
+        showToast({title: '登录失败，请检查账号密码', icon: 'none'})
       } else {
         showToast({title: '登录成功', icon: 'success'})
         await handleLoginSuccess()
