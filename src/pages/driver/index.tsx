@@ -79,7 +79,7 @@ const DriverHome: React.FC = () => {
         navigateTo({url: '/pages/driver/clock-in/index'})
         break
       case 'leave':
-        Taro.showToast({title: '请假功能开发中', icon: 'none'})
+        navigateTo({url: '/pages/driver/leave/index'})
         break
       case 'expense':
         Taro.showToast({title: '支出管理功能开发中', icon: 'none'})

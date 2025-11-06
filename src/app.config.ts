@@ -10,15 +10,20 @@ const pages = [
   'pages/driver/warehouse-stats/index',
   'pages/driver/piece-work/index',
   'pages/driver/piece-work-entry/index',
+  'pages/driver/leave/index',
+  'pages/driver/leave/apply/index',
+  'pages/driver/leave/resign/index',
   'pages/manager/data-summary/index',
   'pages/manager/piece-work/index',
   'pages/manager/piece-work-form/index',
+  'pages/manager/leave-approval/index',
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/driver-warehouse-assignment/index',
   'pages/super-admin/manager-warehouse-assignment/index',
   'pages/super-admin/category-management/index',
   'pages/super-admin/piece-work/index',
-  'pages/super-admin/piece-work-form/index'
+  'pages/super-admin/piece-work-form/index',
+  'pages/super-admin/leave-approval/index'
 ]
 
 export default defineAppConfig({

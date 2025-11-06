@@ -35,6 +35,10 @@ const ManagerHome: React.FC = () => {
     navigateTo({url: '/pages/manager/piece-work/index'})
   }
 
+  const handleLeaveApproval = () => {
+    navigateTo({url: '/pages/manager/leave-approval/index'})
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
@@ -103,9 +107,9 @@ const ManagerHome: React.FC = () => {
                 <View className="i-mdi-chart-line text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">计件报表</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-alert-circle text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">异常处理</Text>
+              <View onClick={handleLeaveApproval} className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
+                <View className="i-mdi-calendar-check text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">请假审批</Text>
               </View>
             </View>
           </View>

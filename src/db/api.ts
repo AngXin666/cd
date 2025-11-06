@@ -1,5 +1,6 @@
 import {supabase} from '@/client/supabase'
 import type {
+  ApplicationReviewInput,
   AttendanceRecord,
   AttendanceRecordInput,
   AttendanceRecordUpdate,
@@ -8,6 +9,8 @@ import type {
   AttendanceRuleUpdate,
   DriverWarehouse,
   DriverWarehouseInput,
+  LeaveApplication,
+  LeaveApplicationInput,
   PieceWorkCategory,
   PieceWorkCategoryInput,
   PieceWorkRecord,
@@ -15,6 +18,8 @@ import type {
   PieceWorkStats,
   Profile,
   ProfileUpdate,
+  ResignationApplication,
+  ResignationApplicationInput,
   Warehouse,
   WarehouseInput,
   WarehouseUpdate,
@@ -954,6 +959,213 @@ export async function removeManagerWarehouse(managerId: string, warehouseId: str
 
   if (error) {
     console.error('删除管理员仓库关联失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// ==================== 请假申请相关 API ====================
+
+/**
+ * 创建请假申请
+ */
+export async function createLeaveApplication(input: LeaveApplicationInput): Promise<LeaveApplication | null> {
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .insert({
+      user_id: input.user_id,
+      warehouse_id: input.warehouse_id,
+      type: input.type,
+      start_date: input.start_date,
+      end_date: input.end_date,
+      reason: input.reason,
+      attachment_url: input.attachment_url || null,
+      status: 'pending'
+    })
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    console.error('创建请假申请失败:', error)
+    return null
+  }
+
+  return data
+}
+
+/**
+ * 获取用户的所有请假申请
+ */
+export async function getLeaveApplicationsByUser(userId: string): Promise<LeaveApplication[]> {
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取请假申请失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取仓库的所有请假申请
+ */
+export async function getLeaveApplicationsByWarehouse(warehouseId: string): Promise<LeaveApplication[]> {
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .select('*')
+    .eq('warehouse_id', warehouseId)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取仓库请假申请失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取所有请假申请（超级管理员）
+ */
+export async function getAllLeaveApplications(): Promise<LeaveApplication[]> {
+  const {data, error} = await supabase.from('leave_applications').select('*').order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取所有请假申请失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 审批请假申请
+ */
+export async function reviewLeaveApplication(applicationId: string, review: ApplicationReviewInput): Promise<boolean> {
+  const {error} = await supabase
+    .from('leave_applications')
+    .update({
+      status: review.status,
+      reviewer_id: review.reviewer_id,
+      review_comment: review.review_comment || null,
+      reviewed_at: review.reviewed_at
+    })
+    .eq('id', applicationId)
+
+  if (error) {
+    console.error('审批请假申请失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// ==================== 离职申请相关 API ====================
+
+/**
+ * 创建离职申请
+ */
+export async function createResignationApplication(
+  input: ResignationApplicationInput
+): Promise<ResignationApplication | null> {
+  const {data, error} = await supabase
+    .from('resignation_applications')
+    .insert({
+      user_id: input.user_id,
+      warehouse_id: input.warehouse_id,
+      expected_date: input.expected_date,
+      reason: input.reason,
+      status: 'pending'
+    })
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    console.error('创建离职申请失败:', error)
+    return null
+  }
+
+  return data
+}
+
+/**
+ * 获取用户的所有离职申请
+ */
+export async function getResignationApplicationsByUser(userId: string): Promise<ResignationApplication[]> {
+  const {data, error} = await supabase
+    .from('resignation_applications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取离职申请失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取仓库的所有离职申请
+ */
+export async function getResignationApplicationsByWarehouse(warehouseId: string): Promise<ResignationApplication[]> {
+  const {data, error} = await supabase
+    .from('resignation_applications')
+    .select('*')
+    .eq('warehouse_id', warehouseId)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取仓库离职申请失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取所有离职申请（超级管理员）
+ */
+export async function getAllResignationApplications(): Promise<ResignationApplication[]> {
+  const {data, error} = await supabase
+    .from('resignation_applications')
+    .select('*')
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取所有离职申请失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 审批离职申请
+ */
+export async function reviewResignationApplication(
+  applicationId: string,
+  review: ApplicationReviewInput
+): Promise<boolean> {
+  const {error} = await supabase
+    .from('resignation_applications')
+    .update({
+      status: review.status,
+      reviewer_id: review.reviewer_id,
+      review_comment: review.review_comment || null,
+      reviewed_at: review.reviewed_at
+    })
+    .eq('id', applicationId)
+
+  if (error) {
+    console.error('审批离职申请失败:', error)
     return false
   }
 

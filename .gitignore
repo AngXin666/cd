@@ -41,3 +41,4 @@ output/
 .sync
 history/*.json
 .vite_cache
+TODO.md

@@ -202,3 +202,67 @@ export interface PieceWorkStats {
     amount: number
   }[]
 }
+
+// 请假类型
+export type LeaveType = 'sick_leave' | 'personal_leave' | 'annual_leave' | 'other'
+
+// 申请状态类型
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected'
+
+// 请假申请接口
+export interface LeaveApplication {
+  id: string
+  user_id: string
+  warehouse_id: string
+  type: LeaveType
+  start_date: string
+  end_date: string
+  reason: string
+  attachment_url: string | null
+  status: ApplicationStatus
+  reviewer_id: string | null
+  review_comment: string | null
+  reviewed_at: string | null
+  created_at: string
+}
+
+// 创建请假申请的输入接口
+export interface LeaveApplicationInput {
+  user_id: string
+  warehouse_id: string
+  type: LeaveType
+  start_date: string
+  end_date: string
+  reason: string
+  attachment_url?: string
+}
+
+// 离职申请接口
+export interface ResignationApplication {
+  id: string
+  user_id: string
+  warehouse_id: string
+  expected_date: string
+  reason: string
+  status: ApplicationStatus
+  reviewer_id: string | null
+  review_comment: string | null
+  reviewed_at: string | null
+  created_at: string
+}
+
+// 创建离职申请的输入接口
+export interface ResignationApplicationInput {
+  user_id: string
+  warehouse_id: string
+  expected_date: string
+  reason: string
+}
+
+// 审批申请的输入接口
+export interface ApplicationReviewInput {
+  status: 'approved' | 'rejected'
+  reviewer_id: string
+  review_comment?: string
+  reviewed_at: string
+}
