@@ -11,6 +11,7 @@ import {
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+import {matchWithPinyin} from '@/utils/pinyin'
 
 const SuperAdminPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -23,7 +24,7 @@ const SuperAdminPieceWork: React.FC = () => {
 
   // 筛选状态
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0) // 0 表示所有仓库
-  const [selectedDriverIndex, setSelectedDriverIndex] = useState(0) // 0 表示所有司机
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('') // 使用ID而不是索引
   const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -60,13 +61,16 @@ const SuperAdminPieceWork: React.FC = () => {
     }
   }, [user?.id])
 
-  // 过滤司机列表（根据搜索关键词）
+  // 过滤司机列表（根据搜索关键词，支持拼音首字母）
   const filteredDrivers = drivers.filter((driver) => {
     if (!driverSearchKeyword.trim()) return true
-    const keyword = driverSearchKeyword.toLowerCase()
-    const name = (driver.name || '').toLowerCase()
-    const phone = (driver.phone || '').toLowerCase()
-    return name.includes(keyword) || phone.includes(keyword)
+
+    const keyword = driverSearchKeyword.trim()
+    const name = driver.name || ''
+    const phone = driver.phone || ''
+
+    // 支持姓名、手机号和拼音首字母匹配
+    return matchWithPinyin(name, keyword) || phone.toLowerCase().includes(keyword.toLowerCase())
   })
 
   // 加载计件记录
@@ -89,9 +93,8 @@ const SuperAdminPieceWork: React.FC = () => {
       }
 
       // 司机筛选
-      if (selectedDriverIndex > 0) {
-        const selectedDriver = filteredDrivers[selectedDriverIndex - 1]
-        data = data.filter((r) => r.user_id === selectedDriver.id)
+      if (selectedDriverId) {
+        data = data.filter((r) => r.user_id === selectedDriverId)
       }
 
       // 排序
@@ -110,7 +113,7 @@ const SuperAdminPieceWork: React.FC = () => {
         duration: 2000
       })
     }
-  }, [startDate, endDate, warehouses, filteredDrivers, selectedWarehouseIndex, selectedDriverIndex, sortOrder])
+  }, [startDate, endDate, warehouses, selectedWarehouseIndex, selectedDriverId, sortOrder])
 
   // 初始化日期范围（本月）
   useEffect(() => {
@@ -250,7 +253,7 @@ const SuperAdminPieceWork: React.FC = () => {
 
   // 当搜索关键词变化时，重置司机选择
   useEffect(() => {
-    setSelectedDriverIndex(0)
+    setSelectedDriverId('')
   }, [])
 
   return (
@@ -284,29 +287,52 @@ const SuperAdminPieceWork: React.FC = () => {
 
             {/* 司机搜索和选择 */}
             <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">司机搜索</Text>
+              <Text className="text-sm text-gray-700 block mb-2">司机搜索（支持拼音首字母）</Text>
               <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center mb-2">
                 <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
                 <Input
                   className="flex-1 text-gray-800"
-                  placeholder="输入司机名字或电话号码"
+                  placeholder="输入司机名字、拼音首字母或电话号码"
                   value={driverSearchKeyword}
-                  onInput={(e) => setDriverSearchKeyword(e.detail.value)}
+                  onInput={(e) => {
+                    setDriverSearchKeyword(e.detail.value)
+                    // 搜索关键词变化时，重置选中的司机
+                    setSelectedDriverId('')
+                  }}
                 />
                 {driverSearchKeyword && (
                   <View
                     className="i-mdi-close-circle text-gray-400 text-xl"
-                    onClick={() => setDriverSearchKeyword('')}
+                    onClick={() => {
+                      setDriverSearchKeyword('')
+                      setSelectedDriverId('')
+                    }}
                   />
                 )}
               </View>
               <Picker
                 mode="selector"
                 range={driverOptions}
-                value={selectedDriverIndex}
-                onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
+                value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
+                onChange={(e) => {
+                  const index = Number(e.detail.value)
+                  if (index === 0) {
+                    setSelectedDriverId('')
+                  } else {
+                    const driver = filteredDrivers[index - 1]
+                    if (driver) {
+                      setSelectedDriverId(driver.id)
+                    }
+                  }
+                }}>
                 <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">{driverOptions[selectedDriverIndex]}</Text>
+                  <Text className="text-gray-800">
+                    {selectedDriverId
+                      ? drivers.find((d) => d.id === selectedDriverId)?.name ||
+                        drivers.find((d) => d.id === selectedDriverId)?.phone ||
+                        '未知'
+                      : '所有司机'}
+                  </Text>
                   <View className="i-mdi-chevron-down text-gray-500 text-xl" />
                 </View>
               </Picker>
