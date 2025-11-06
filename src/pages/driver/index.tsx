@@ -160,6 +160,12 @@ const DriverHome: React.FC = () => {
     navigateTo({url: `/pages/driver/piece-work/index?range=${type}`})
   }
 
+  // 处理考勤卡片点击
+  const handleAttendanceClick = () => {
+    // 跳转到请假申请页面
+    navigateTo({url: '/pages/driver/leave/index'})
+  }
+
   // 退出登录处理
   const handleLogout = () => {
     showModal({
@@ -241,7 +247,9 @@ const DriverHome: React.FC = () => {
                   </View>
 
                   {/* 出勤天数 */}
-                  <View className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4">
+                  <View
+                    className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handleAttendanceClick}>
                     <View className="i-mdi-calendar-check text-2xl text-teal-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">出勤天数</Text>
                     <Text className="text-2xl font-bold text-teal-900 block">{stats.attendanceDays}</Text>
@@ -249,7 +257,9 @@ const DriverHome: React.FC = () => {
                   </View>
 
                   {/* 请假天数 */}
-                  <View className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4">
+                  <View
+                    className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handleAttendanceClick}>
                     <View className="i-mdi-calendar-remove text-2xl text-red-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">请假天数</Text>
                     <Text className="text-2xl font-bold text-red-900 block">{stats.leaveDays}</Text>
