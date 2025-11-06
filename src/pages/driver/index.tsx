@@ -246,7 +246,7 @@ const DriverHome: React.FC = () => {
             )}
           </View>
 
-          {/* 快捷功能板块 - 环形布局 */}
+          {/* 快捷功能板块 */}
           <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
             <View className="flex items-center justify-between mb-4">
               <View className="flex items-center">
@@ -262,74 +262,38 @@ const DriverHome: React.FC = () => {
               </View>
             </View>
 
-            {/* 环形布局容器 */}
-            <View className="relative flex items-center justify-center" style={{height: '280px'}}>
-              {/* 中心圆形 - 个人中心 */}
+            {/* 2x2网格布局 */}
+            <View className="grid grid-cols-2 gap-4">
+              {/* 计件录入 */}
               <View
-                className="absolute flex flex-col items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 rounded-full active:scale-95 transition-all shadow-lg"
-                style={{
-                  width: '100px',
-                  height: '100px',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 10
-                }}
-                onClick={() => Taro.switchTab({url: '/pages/profile/index'})}>
-                <View className="i-mdi-account-circle text-5xl text-white mb-1" />
-                <Text className="text-xs font-medium text-white">个人中心</Text>
-              </View>
-
-              {/* 左上 - 计件录入 */}
-              <View
-                className="absolute flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all shadow"
-                style={{
-                  width: '110px',
-                  top: '10px',
-                  left: '10px'
-                }}
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all shadow"
                 onClick={() => handleQuickAction('piece-work')}>
-                <View className="i-mdi-clipboard-edit text-4xl text-blue-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">计件录入</Text>
+                <View className="i-mdi-clipboard-edit text-5xl text-blue-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">计件录入</Text>
               </View>
 
-              {/* 右上 - 考勤打卡 */}
+              {/* 考勤打卡 */}
               <View
-                className="absolute flex flex-col items-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl active:scale-95 transition-all shadow"
-                style={{
-                  width: '110px',
-                  top: '10px',
-                  right: '10px'
-                }}
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl active:scale-95 transition-all shadow"
                 onClick={() => handleQuickAction('clock-in')}>
-                <View className="i-mdi-clock-check text-4xl text-orange-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">考勤打卡</Text>
+                <View className="i-mdi-clock-check text-5xl text-orange-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">考勤打卡</Text>
               </View>
 
-              {/* 左下 - 请假申请 */}
+              {/* 请假申请 */}
               <View
-                className="absolute flex flex-col items-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl active:scale-95 transition-all shadow"
-                style={{
-                  width: '110px',
-                  bottom: '10px',
-                  left: '10px'
-                }}
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl active:scale-95 transition-all shadow"
                 onClick={() => handleQuickAction('leave')}>
-                <View className="i-mdi-calendar-remove text-4xl text-purple-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">请假申请</Text>
+                <View className="i-mdi-calendar-remove text-5xl text-purple-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">请假申请</Text>
               </View>
 
-              {/* 右下 - 数据统计 */}
+              {/* 数据统计 */}
               <View
-                className="absolute flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all shadow"
-                style={{
-                  width: '110px',
-                  bottom: '10px',
-                  right: '10px'
-                }}
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all shadow"
                 onClick={() => handleQuickAction('stats')}>
-                <View className="i-mdi-chart-bar text-4xl text-green-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">数据统计</Text>
+                <View className="i-mdi-chart-bar text-5xl text-green-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">数据统计</Text>
               </View>
             </View>
           </View>
