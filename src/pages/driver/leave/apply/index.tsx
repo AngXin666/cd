@@ -1,20 +1,30 @@
 import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
-import {navigateBack, showToast} from '@tarojs/taro'
+import Taro, {navigateBack, showToast, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {createLeaveApplication, getCurrentUserProfile, getDriverWarehouses} from '@/db/api'
+import {supabase} from '@/client/supabase'
+import {
+  createLeaveApplication,
+  getCurrentUserProfile,
+  getDriverWarehouses,
+  saveDraftLeaveApplication,
+  updateDraftLeaveApplication
+} from '@/db/api'
 import type {LeaveType, Profile} from '@/db/types'
 
 const ApplyLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [_profile, setProfile] = useState<Profile | null>(null)
   const [warehouseId, setWarehouseId] = useState<string>('')
   const [leaveType, setLeaveType] = useState<LeaveType>('personal_leave')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [reason, setReason] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
+  const [draftId, setDraftId] = useState<string | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [leaveDays, setLeaveDays] = useState(0)
 
   const leaveTypes = [
     {label: '事假', value: 'personal_leave'},
@@ -23,8 +33,48 @@ const ApplyLeave: React.FC = () => {
     {label: '其他', value: 'other'}
   ]
 
+  const calculateDays = useCallback((start: string, end: string): number => {
+    if (!start || !end) return 0
+    const startTime = new Date(start).getTime()
+    const endTime = new Date(end).getTime()
+    if (endTime < startTime) return 0
+    const diffTime = endTime - startTime
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays + 1
+  }, [])
+
+  useLoad(() => {
+    const params = Taro.getCurrentInstance().router?.params
+    if (params?.draftId) {
+      setDraftId(params.draftId)
+      setIsEditMode(true)
+      loadDraft(params.draftId)
+    }
+  })
+
+  const loadDraft = async (id: string) => {
+    const {data, error} = await supabase
+      .from('leave_applications')
+      .select('*')
+      .eq('id', id)
+      .eq('is_draft', true)
+      .maybeSingle()
+
+    if (error || !data) {
+      showToast({title: '加载草稿失败', icon: 'none'})
+      return
+    }
+
+    setLeaveType(data.type as LeaveType)
+    setStartDate(data.start_date || '')
+    setEndDate(data.end_date || '')
+    setReason(data.reason || '')
+    setWarehouseId(data.warehouse_id)
+  }
+
   const loadData = useCallback(async () => {
     if (!user) return
+    if (isEditMode) return // 编辑模式下不重新加载
 
     const profileData = await getCurrentUserProfile()
     setProfile(profileData)
@@ -34,11 +84,20 @@ const ApplyLeave: React.FC = () => {
     if (warehouses.length > 0) {
       setWarehouseId(warehouses[0].id)
     }
-  }, [user])
+  }, [user, isEditMode])
 
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      const days = calculateDays(startDate, endDate)
+      setLeaveDays(days)
+    } else {
+      setLeaveDays(0)
+    }
+  }, [startDate, endDate, calculateDays])
 
   const handleLeaveTypeChange = (e: any) => {
     const index = e.detail.value
@@ -53,8 +112,53 @@ const ApplyLeave: React.FC = () => {
     setEndDate(e.detail.value)
   }
 
+  const handleSaveDraft = async () => {
+    if (!user) {
+      showToast({title: '用户信息错误', icon: 'none'})
+      return
+    }
+
+    if (!warehouseId) {
+      showToast({title: '请先分配仓库', icon: 'none'})
+      return
+    }
+
+    setSubmitting(true)
+
+    let success = false
+    if (isEditMode && draftId) {
+      success = await updateDraftLeaveApplication(draftId, {
+        type: leaveType,
+        start_date: startDate,
+        end_date: endDate,
+        reason: reason.trim()
+      })
+    } else {
+      const result = await saveDraftLeaveApplication({
+        user_id: user.id,
+        warehouse_id: warehouseId,
+        type: leaveType,
+        start_date: startDate,
+        end_date: endDate,
+        reason: reason.trim()
+      })
+      success = result !== null
+    }
+
+    setSubmitting(false)
+
+    if (success) {
+      showToast({title: '草稿保存成功', icon: 'success'})
+      setTimeout(() => {
+        navigateBack()
+      }, 1500)
+    } else {
+      showToast({title: '保存失败，请重试', icon: 'none'})
+    }
+  }
+
   const handleSubmit = async () => {
-    if (!user || !profile) {
+    if (!user) {
       showToast({title: '用户信息错误', icon: 'none'})
       return
     }
@@ -81,18 +185,33 @@ const ApplyLeave: React.FC = () => {
 
     setSubmitting(true)
 
-    const result = await createLeaveApplication({
-      user_id: user.id,
-      warehouse_id: warehouseId,
-      type: leaveType,
-      start_date: startDate,
-      end_date: endDate,
-      reason: reason.trim()
-    })
+    let success = false
+    if (isEditMode && draftId) {
+      // 更新草稿并提交
+      await updateDraftLeaveApplication(draftId, {
+        type: leaveType,
+        start_date: startDate,
+        end_date: endDate,
+        reason: reason.trim()
+      })
+      const {error} = await supabase.from('leave_applications').update({is_draft: false}).eq('id', draftId)
+      success = !error
+    } else {
+      const result = await createLeaveApplication({
+        user_id: user.id,
+        warehouse_id: warehouseId,
+        type: leaveType,
+        start_date: startDate,
+        end_date: endDate,
+        reason: reason.trim(),
+        is_draft: false
+      })
+      success = result !== null
+    }
 
     setSubmitting(false)
 
-    if (result) {
+    if (success) {
       showToast({title: '提交成功', icon: 'success'})
       setTimeout(() => {
         navigateBack()
@@ -157,6 +276,16 @@ const ApplyLeave: React.FC = () => {
               </Picker>
             </View>
 
+            {/* 请假天数显示 */}
+            {leaveDays > 0 && (
+              <View className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <View className="flex items-center">
+                  <View className="i-mdi-calendar-clock text-2xl text-blue-600 mr-2" />
+                  <Text className="text-blue-900 font-bold">请假天数：{leaveDays} 天</Text>
+                </View>
+              </View>
+            )}
+
             {/* 请假事由 */}
             <View className="mb-4">
               <Text className="text-sm text-gray-700 block mb-2">请假事由</Text>
@@ -171,22 +300,37 @@ const ApplyLeave: React.FC = () => {
               <Text className="text-xs text-gray-400 block mt-1">{reason.length}/500</Text>
             </View>
 
-            {/* 提交按钮 */}
-            <Button
-              className="text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: submitting ? '#9CA3AF' : '#1E3A8A',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none',
-                padding: '12px',
-                width: '100%'
-              }}
-              onClick={handleSubmit}
-              disabled={submitting}>
-              <Text className="text-sm">{submitting ? '提交中...' : '提交申请'}</Text>
-            </Button>
+            {/* 按钮组 */}
+            <View className="flex gap-3">
+              <Button
+                className="text-sm break-keep flex-1"
+                size="default"
+                style={{
+                  backgroundColor: submitting ? '#9CA3AF' : '#7C3AED',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  padding: '12px'
+                }}
+                onClick={handleSaveDraft}
+                disabled={submitting}>
+                {submitting ? '保存中...' : '保存草稿'}
+              </Button>
+              <Button
+                className="text-sm break-keep flex-1"
+                size="default"
+                style={{
+                  backgroundColor: submitting ? '#9CA3AF' : '#1E3A8A',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  padding: '12px'
+                }}
+                onClick={handleSubmit}
+                disabled={submitting}>
+                {submitting ? '提交中...' : '提交申请'}
+              </Button>
+            </View>
           </View>
         </View>
       </ScrollView>

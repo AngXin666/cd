@@ -981,7 +981,8 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       end_date: input.end_date,
       reason: input.reason,
       attachment_url: input.attachment_url || null,
-      status: 'pending'
+      status: 'pending',
+      is_draft: input.is_draft || false
     })
     .select()
     .maybeSingle()
@@ -995,13 +996,113 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
 }
 
 /**
- * 获取用户的所有请假申请
+ * 保存请假申请草稿
+ */
+export async function saveDraftLeaveApplication(input: LeaveApplicationInput): Promise<LeaveApplication | null> {
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .insert({
+      user_id: input.user_id,
+      warehouse_id: input.warehouse_id,
+      type: input.type,
+      start_date: input.start_date || '',
+      end_date: input.end_date || '',
+      reason: input.reason || '',
+      attachment_url: input.attachment_url || null,
+      status: 'pending',
+      is_draft: true
+    })
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    console.error('保存请假申请草稿失败:', error)
+    return null
+  }
+
+  return data
+}
+
+/**
+ * 更新请假申请草稿
+ */
+export async function updateDraftLeaveApplication(
+  draftId: string,
+  input: Partial<LeaveApplicationInput>
+): Promise<boolean> {
+  const updateData: Record<string, unknown> = {}
+  if (input.type !== undefined) updateData.type = input.type
+  if (input.start_date !== undefined) updateData.start_date = input.start_date
+  if (input.end_date !== undefined) updateData.end_date = input.end_date
+  if (input.reason !== undefined) updateData.reason = input.reason
+  if (input.attachment_url !== undefined) updateData.attachment_url = input.attachment_url
+
+  const {error} = await supabase.from('leave_applications').update(updateData).eq('id', draftId).eq('is_draft', true)
+
+  if (error) {
+    console.error('更新请假申请草稿失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 提交请假申请草稿（转为正式申请）
+ */
+export async function submitDraftLeaveApplication(draftId: string): Promise<boolean> {
+  const {error} = await supabase.from('leave_applications').update({is_draft: false}).eq('id', draftId)
+
+  if (error) {
+    console.error('提交请假申请草稿失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 删除请假申请草稿
+ */
+export async function deleteDraftLeaveApplication(draftId: string): Promise<boolean> {
+  const {error} = await supabase.from('leave_applications').delete().eq('id', draftId).eq('is_draft', true)
+
+  if (error) {
+    console.error('删除请假申请草稿失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取用户的请假申请草稿列表
+ */
+export async function getDraftLeaveApplications(userId: string): Promise<LeaveApplication[]> {
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_draft', true)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取请假申请草稿失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取用户的所有请假申请（不包括草稿）
  */
 export async function getLeaveApplicationsByUser(userId: string): Promise<LeaveApplication[]> {
   const {data, error} = await supabase
     .from('leave_applications')
     .select('*')
     .eq('user_id', userId)
+    .eq('is_draft', false)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -1081,7 +1182,8 @@ export async function createResignationApplication(
       warehouse_id: input.warehouse_id,
       expected_date: input.expected_date,
       reason: input.reason,
-      status: 'pending'
+      status: 'pending',
+      is_draft: input.is_draft || false
     })
     .select()
     .maybeSingle()
@@ -1095,13 +1197,113 @@ export async function createResignationApplication(
 }
 
 /**
- * 获取用户的所有离职申请
+ * 保存离职申请草稿
+ */
+export async function saveDraftResignationApplication(
+  input: ResignationApplicationInput
+): Promise<ResignationApplication | null> {
+  const {data, error} = await supabase
+    .from('resignation_applications')
+    .insert({
+      user_id: input.user_id,
+      warehouse_id: input.warehouse_id,
+      expected_date: input.expected_date || '',
+      reason: input.reason || '',
+      status: 'pending',
+      is_draft: true
+    })
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    console.error('保存离职申请草稿失败:', error)
+    return null
+  }
+
+  return data
+}
+
+/**
+ * 更新离职申请草稿
+ */
+export async function updateDraftResignationApplication(
+  draftId: string,
+  input: Partial<ResignationApplicationInput>
+): Promise<boolean> {
+  const updateData: Record<string, unknown> = {}
+  if (input.expected_date !== undefined) updateData.expected_date = input.expected_date
+  if (input.reason !== undefined) updateData.reason = input.reason
+
+  const {error} = await supabase
+    .from('resignation_applications')
+    .update(updateData)
+    .eq('id', draftId)
+    .eq('is_draft', true)
+
+  if (error) {
+    console.error('更新离职申请草稿失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 提交离职申请草稿（转为正式申请）
+ */
+export async function submitDraftResignationApplication(draftId: string): Promise<boolean> {
+  const {error} = await supabase.from('resignation_applications').update({is_draft: false}).eq('id', draftId)
+
+  if (error) {
+    console.error('提交离职申请草稿失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 删除离职申请草稿
+ */
+export async function deleteDraftResignationApplication(draftId: string): Promise<boolean> {
+  const {error} = await supabase.from('resignation_applications').delete().eq('id', draftId).eq('is_draft', true)
+
+  if (error) {
+    console.error('删除离职申请草稿失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取用户的离职申请草稿列表
+ */
+export async function getDraftResignationApplications(userId: string): Promise<ResignationApplication[]> {
+  const {data, error} = await supabase
+    .from('resignation_applications')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_draft', true)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取离职申请草稿失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取用户的所有离职申请（不包括草稿）
  */
 export async function getResignationApplicationsByUser(userId: string): Promise<ResignationApplication[]> {
   const {data, error} = await supabase
     .from('resignation_applications')
     .select('*')
     .eq('user_id', userId)
+    .eq('is_draft', false)
     .order('created_at', {ascending: false})
 
   if (error) {

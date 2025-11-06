@@ -224,6 +224,7 @@ export interface LeaveApplication {
   review_comment: string | null
   reviewed_at: string | null
   created_at: string
+  is_draft: boolean
 }
 
 // 创建请假申请的输入接口
@@ -235,6 +236,7 @@ export interface LeaveApplicationInput {
   end_date: string
   reason: string
   attachment_url?: string
+  is_draft?: boolean
 }
 
 // 离职申请接口
@@ -249,6 +251,7 @@ export interface ResignationApplication {
   review_comment: string | null
   reviewed_at: string | null
   created_at: string
+  is_draft: boolean
 }
 
 // 创建离职申请的输入接口
@@ -257,6 +260,7 @@ export interface ResignationApplicationInput {
   warehouse_id: string
   expected_date: string
   reason: string
+  is_draft?: boolean
 }
 
 // 审批申请的输入接口
