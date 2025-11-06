@@ -11,6 +11,7 @@ import {
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+import {matchWithPinyin} from '@/utils/pinyin'
 
 const SuperAdminPieceWorkReport: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -23,7 +24,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
   // 筛选状态
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0) // 0 表示所有仓库
-  const [selectedDriverIndex, setSelectedDriverIndex] = useState(0) // 0 表示所有司机
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('') // 使用ID而不是索引
   const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -71,13 +72,16 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     }
   }, [user?.id])
 
-  // 过滤司机列表（根据搜索关键词）
+  // 过滤司机列表（根据搜索关键词，支持拼音首字母）
   const filteredDrivers = drivers.filter((driver) => {
     if (!driverSearchKeyword.trim()) return true
-    const keyword = driverSearchKeyword.toLowerCase()
-    const name = (driver.name || '').toLowerCase()
-    const phone = (driver.phone || '').toLowerCase()
-    return name.includes(keyword) || phone.includes(keyword)
+
+    const keyword = driverSearchKeyword.trim()
+    const name = driver.name || ''
+    const phone = driver.phone || ''
+
+    // 支持姓名、手机号和拼音首字母匹配
+    return matchWithPinyin(name, keyword) || phone.toLowerCase().includes(keyword.toLowerCase())
   })
 
   // 加载计件记录
@@ -100,9 +104,8 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       }
 
       // 司机筛选
-      if (selectedDriverIndex > 0) {
-        const selectedDriver = filteredDrivers[selectedDriverIndex - 1]
-        data = data.filter((r) => r.user_id === selectedDriver.id)
+      if (selectedDriverId) {
+        data = data.filter((r) => r.user_id === selectedDriverId)
       }
 
       // 排序
@@ -121,7 +124,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         duration: 2000
       })
     }
-  }, [warehouses, selectedWarehouseIndex, selectedDriverIndex, filteredDrivers, startDate, endDate, sortOrder])
+  }, [warehouses, selectedWarehouseIndex, selectedDriverId, startDate, endDate, sortOrder])
 
   useEffect(() => {
     loadData()
@@ -345,25 +348,39 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
             {/* 司机筛选 */}
             <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">司机</Text>
+              <Text className="text-sm text-gray-700 block mb-2">司机（支持拼音首字母搜索）</Text>
               <Input
                 className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
-                placeholder="搜索司机姓名或手机号"
+                placeholder="搜索司机姓名、拼音首字母或手机号"
                 value={driverSearchKeyword}
-                onInput={(e) => setDriverSearchKeyword(e.detail.value)}
+                onInput={(e) => {
+                  setDriverSearchKeyword(e.detail.value)
+                  // 搜索关键词变化时，重置选中的司机
+                  setSelectedDriverId('')
+                }}
               />
               <Picker
                 mode="selector"
                 range={['所有司机', ...filteredDrivers.map((d) => d.name || d.phone || '未知')]}
-                value={selectedDriverIndex}
-                onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
+                value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
+                onChange={(e) => {
+                  const index = Number(e.detail.value)
+                  if (index === 0) {
+                    setSelectedDriverId('')
+                  } else {
+                    const driver = filteredDrivers[index - 1]
+                    if (driver) {
+                      setSelectedDriverId(driver.id)
+                    }
+                  }
+                }}>
                 <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
                   <Text className="text-sm text-gray-800">
-                    {selectedDriverIndex === 0
-                      ? '所有司机'
-                      : filteredDrivers[selectedDriverIndex - 1]?.name ||
-                        filteredDrivers[selectedDriverIndex - 1]?.phone ||
-                        '未知'}
+                    {selectedDriverId
+                      ? drivers.find((d) => d.id === selectedDriverId)?.name ||
+                        drivers.find((d) => d.id === selectedDriverId)?.phone ||
+                        '未知'
+                      : '所有司机'}
                   </Text>
                   <View className="i-mdi-chevron-down text-xl text-gray-400" />
                 </View>
