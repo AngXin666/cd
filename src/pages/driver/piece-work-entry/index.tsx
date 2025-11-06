@@ -13,12 +13,23 @@ import {
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
+import {
+  getLastCategory,
+  getLastWarehouse,
+  getLastWorkDate,
+  getPieceWorkFormDefaults,
+  saveLastCategory,
+  saveLastWarehouse,
+  saveLastWorkDate,
+  savePieceWorkFormDefaults
+} from '@/utils/preferences'
 
 const PieceWorkEntry: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
+  const [isFirstLoad, setIsFirstLoad] = useState(true) // 标记是否首次加载
 
   // 表单数据
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
@@ -65,7 +76,50 @@ const PieceWorkEntry: React.FC = () => {
 
     const recordsData = await getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
     setRecords(recordsData)
-  }, [user?.id])
+
+    // 只在首次加载时恢复用户偏好设置
+    if (isFirstLoad) {
+      const lastWarehouse = getLastWarehouse()
+      const lastCategory = getLastCategory()
+      const lastDate = getLastWorkDate()
+      const formDefaults = getPieceWorkFormDefaults()
+
+      // 恢复最后选择的仓库
+      if (lastWarehouse && driverWarehouses.length > 0) {
+        const warehouseIndex = driverWarehouses.findIndex((w) => w.id === lastWarehouse.id)
+        if (warehouseIndex !== -1) {
+          setSelectedWarehouseIndex(warehouseIndex)
+        }
+      }
+
+      // 恢复最后选择的品类
+      if (lastCategory && categoriesData.length > 0) {
+        const categoryIndex = categoriesData.findIndex((c) => c.id === lastCategory.id)
+        if (categoryIndex !== -1) {
+          setSelectedCategoryIndex(categoryIndex)
+        }
+      }
+
+      // 恢复最后选择的日期（如果是今天或之后的日期）
+      if (lastDate) {
+        const lastDateObj = new Date(lastDate)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        if (lastDateObj >= today) {
+          setWorkDate(lastDate)
+        }
+      }
+
+      // 恢复表单默认值
+      if (formDefaults) {
+        if (formDefaults.needUpstairs !== undefined) {
+          setNeedUpstairs(formDefaults.needUpstairs)
+        }
+      }
+
+      setIsFirstLoad(false)
+    }
+  }, [user?.id, isFirstLoad])
 
   useEffect(() => {
     loadData()
@@ -204,6 +258,16 @@ const PieceWorkEntry: React.FC = () => {
     }
 
     if (success) {
+      // 保存用户偏好设置
+      saveLastWarehouse(warehouse.id, warehouse.name)
+      saveLastCategory(category.id, category.name)
+      saveLastWorkDate(workDate)
+      savePieceWorkFormDefaults({
+        warehouseId: warehouse.id,
+        categoryId: category.id,
+        needUpstairs
+      })
+
       resetForm()
       loadData()
     }
