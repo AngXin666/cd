@@ -110,6 +110,25 @@ const DriverPieceWork: React.FC = () => {
     return `${year}年${month}月${day}日`
   }
 
+  // 格式化日期时间（完整显示年月日时分）
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}年${month}月${day}日 ${hours}:${minutes}`
+  }
+
+  // 格式化时间（只显示时分）
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
   // 格式化日期（简短版本）
   const formatDateShort = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -553,12 +572,19 @@ const DriverPieceWork: React.FC = () => {
                   <View key={record.id} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 shadow-sm">
                     {/* 日期标签 - 醒目显示 */}
                     <View className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg p-3 mb-3 shadow-md">
-                      <View className="flex items-center justify-between">
+                      <View className="flex items-center justify-between mb-2">
                         <View className="flex items-center">
                           <View className="i-mdi-calendar text-white text-xl mr-2" />
                           <Text className="text-white text-base font-bold">{formatDate(record.work_date)}</Text>
                         </View>
                         <Text className="text-blue-100 text-xs">{formatDateShort(record.work_date)}</Text>
+                      </View>
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center">
+                          <View className="i-mdi-clock-outline text-white text-sm mr-1" />
+                          <Text className="text-blue-100 text-xs">创建时间：{formatTime(record.created_at)}</Text>
+                        </View>
+                        <Text className="text-blue-100 text-xs">{formatDateTime(record.created_at)}</Text>
                       </View>
                     </View>
 
