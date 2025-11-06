@@ -1,5 +1,5 @@
-import {ScrollView, Text, View} from '@tarojs/components'
-import {navigateTo, useDidShow} from '@tarojs/taro'
+import {Button, ScrollView, Text, View} from '@tarojs/components'
+import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -7,7 +7,7 @@ import {getCurrentUserProfile, getDriverProfiles} from '@/db/api'
 import type {Profile} from '@/db/types'
 
 const ManagerHome: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [drivers, setDrivers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(false)
@@ -40,6 +40,28 @@ const ManagerHome: React.FC = () => {
 
   const handleSystemSettings = () => {
     navigateTo({url: '/pages/profile/index'})
+  }
+
+  const handleProfileClick = () => {
+    navigateTo({url: '/pages/profile/index'})
+  }
+
+  const handleLogout = async () => {
+    const res = await showModal({
+      title: '退出登录',
+      content: '确定要退出登录吗？',
+      confirmText: '退出',
+      cancelText: '取消'
+    })
+
+    if (res.confirm) {
+      logout()
+      Taro.showToast({
+        title: '已退出登录',
+        icon: 'success',
+        duration: 2000
+      })
+    }
   }
 
   return (
@@ -107,9 +129,17 @@ const ManagerHome: React.FC = () => {
 
           {/* 快捷功能板块 */}
           <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
-            <View className="flex items-center mb-4">
-              <View className="i-mdi-lightning-bolt text-xl text-orange-600 mr-2" />
-              <Text className="text-lg font-bold text-gray-800">快捷功能</Text>
+            <View className="flex items-center justify-between mb-4">
+              <View className="flex items-center">
+                <View className="i-mdi-lightning-bolt text-xl text-orange-600 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">快捷功能</Text>
+              </View>
+              {/* 右侧个人中心按钮 */}
+              <View
+                onClick={handleProfileClick}
+                className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-full p-2 active:scale-95 transition-all">
+                <View className="i-mdi-account-circle text-2xl text-blue-600" />
+              </View>
             </View>
             <View className="grid grid-cols-3 gap-3">
               {/* 司机管理 */}
@@ -157,7 +187,7 @@ const ManagerHome: React.FC = () => {
           </View>
 
           {/* 司机列表 */}
-          <View className="bg-white rounded-xl p-4 shadow-md">
+          <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
             <View className="flex items-center mb-4">
               <View className="i-mdi-account-group text-xl text-blue-900 mr-2" />
               <Text className="text-lg font-bold text-gray-800">司机列表</Text>
@@ -189,6 +219,19 @@ const ManagerHome: React.FC = () => {
                 ))}
               </View>
             )}
+          </View>
+
+          {/* 退出登录按钮 */}
+          <View className="mb-4">
+            <Button
+              size="default"
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl h-12 text-base font-bold break-keep shadow-md"
+              onClick={handleLogout}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-logout text-xl mr-2" />
+                <Text className="text-base font-bold">退出登录</Text>
+              </View>
+            </Button>
           </View>
         </View>
       </ScrollView>
