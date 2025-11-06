@@ -15,6 +15,7 @@ const pages = [
   'pages/driver/leave/resign/index',
   'pages/manager/data-summary/index',
   'pages/manager/piece-work-report/index',
+  'pages/manager/piece-work-report-detail/index',
   'pages/manager/leave-approval/index',
   'pages/manager/driver-leave-detail/index',
   'pages/super-admin/warehouse-management/index',
@@ -23,6 +24,7 @@ const pages = [
   'pages/super-admin/manager-warehouse-assignment/index',
   'pages/super-admin/category-management/index',
   'pages/super-admin/piece-work-report/index',
+  'pages/super-admin/piece-work-report-detail/index',
   'pages/super-admin/piece-work-report-form/index',
   'pages/super-admin/leave-approval/index',
   'pages/super-admin/driver-leave-detail/index'
