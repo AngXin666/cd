@@ -1913,3 +1913,195 @@ export async function updateFeedbackStatus(
     return {success: false, error: '更新反馈状态失败'}
   }
 }
+
+// ==================== 仪表盘统计API ====================
+
+/**
+ * 仪表盘统计数据接口
+ */
+export interface DashboardStats {
+  todayAttendance: number // 今日出勤人数
+  todayPieceCount: number // 当日总件数
+  pendingLeaveCount: number // 请假待审批
+  monthlyPieceCount: number // 本月完成件数
+  driverList: Array<{
+    id: string
+    name: string
+    phone: string
+    todayAttendance: boolean
+    todayPieceCount: number
+  }>
+}
+
+/**
+ * 获取单个仓库的仪表盘统计数据
+ * @param warehouseId 仓库ID
+ * @returns 仪表盘统计数据
+ */
+export async function getWarehouseDashboardStats(warehouseId: string): Promise<DashboardStats> {
+  const today = new Date().toISOString().split('T')[0]
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+
+  // 1. 获取该仓库的所有司机
+  const {data: driverWarehouseData} = await supabase
+    .from('driver_warehouses')
+    .select('driver_id')
+    .eq('warehouse_id', warehouseId)
+
+  const driverIds = driverWarehouseData?.map((dw) => dw.driver_id) || []
+
+  // 2. 获取今日出勤人数
+  const {data: todayAttendanceData} = await supabase
+    .from('attendance_records')
+    .select('user_id')
+    .eq('warehouse_id', warehouseId)
+    .eq('work_date', today)
+
+  const todayAttendance = todayAttendanceData?.length || 0
+
+  // 3. 获取当日总件数
+  const {data: todayPieceData} = await supabase
+    .from('piece_work_records')
+    .select('quantity')
+    .eq('warehouse_id', warehouseId)
+    .eq('work_date', today)
+
+  const todayPieceCount = todayPieceData?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+  // 4. 获取请假待审批数量
+  const {data: pendingLeaveData} = await supabase
+    .from('leave_applications')
+    .select('id')
+    .eq('warehouse_id', warehouseId)
+    .eq('status', 'pending')
+
+  const pendingLeaveCount = pendingLeaveData?.length || 0
+
+  // 5. 获取本月完成件数
+  const {data: monthlyPieceData} = await supabase
+    .from('piece_work_records')
+    .select('quantity')
+    .eq('warehouse_id', warehouseId)
+    .gte('work_date', firstDayOfMonth)
+
+  const monthlyPieceCount = monthlyPieceData?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+  // 6. 获取司机列表及其今日数据
+  const driverList: DashboardStats['driverList'] = []
+
+  if (driverIds.length > 0) {
+    const {data: driversData} = await supabase.from('profiles').select('id, name, phone').in('id', driverIds)
+
+    if (driversData) {
+      for (const driver of driversData) {
+        // 检查今日是否出勤
+        const {data: driverAttendance} = await supabase
+          .from('attendance_records')
+          .select('id')
+          .eq('user_id', driver.id)
+          .eq('work_date', today)
+          .maybeSingle()
+
+        // 获取今日件数
+        const {data: driverPieceData} = await supabase
+          .from('piece_work_records')
+          .select('quantity')
+          .eq('user_id', driver.id)
+          .eq('work_date', today)
+
+        const driverTodayPieceCount = driverPieceData?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+        driverList.push({
+          id: driver.id,
+          name: driver.name || driver.phone || '未命名',
+          phone: driver.phone || '',
+          todayAttendance: !!driverAttendance,
+          todayPieceCount: driverTodayPieceCount
+        })
+      }
+    }
+  }
+
+  return {
+    todayAttendance,
+    todayPieceCount,
+    pendingLeaveCount,
+    monthlyPieceCount,
+    driverList
+  }
+}
+
+/**
+ * 获取所有仓库的汇总统计数据（超级管理员使用）
+ * @returns 汇总统计数据
+ */
+export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> {
+  const today = new Date().toISOString().split('T')[0]
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+
+  // 1. 获取所有司机
+  const {data: allDriversData} = await supabase.from('profiles').select('id, name, phone').eq('role', 'driver')
+
+  // 2. 获取今日出勤人数（所有仓库）
+  const {data: todayAttendanceData} = await supabase.from('attendance_records').select('user_id').eq('work_date', today)
+
+  const todayAttendance = todayAttendanceData?.length || 0
+
+  // 3. 获取当日总件数（所有仓库）
+  const {data: todayPieceData} = await supabase.from('piece_work_records').select('quantity').eq('work_date', today)
+
+  const todayPieceCount = todayPieceData?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+  // 4. 获取请假待审批数量（所有仓库）
+  const {data: pendingLeaveData} = await supabase.from('leave_applications').select('id').eq('status', 'pending')
+
+  const pendingLeaveCount = pendingLeaveData?.length || 0
+
+  // 5. 获取本月完成件数（所有仓库）
+  const {data: monthlyPieceData} = await supabase
+    .from('piece_work_records')
+    .select('quantity')
+    .gte('work_date', firstDayOfMonth)
+
+  const monthlyPieceCount = monthlyPieceData?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+  // 6. 获取所有司机列表及其今日数据
+  const driverList: DashboardStats['driverList'] = []
+
+  if (allDriversData) {
+    for (const driver of allDriversData) {
+      // 检查今日是否出勤
+      const {data: driverAttendance} = await supabase
+        .from('attendance_records')
+        .select('id')
+        .eq('user_id', driver.id)
+        .eq('work_date', today)
+        .maybeSingle()
+
+      // 获取今日件数
+      const {data: driverPieceData} = await supabase
+        .from('piece_work_records')
+        .select('quantity')
+        .eq('user_id', driver.id)
+        .eq('work_date', today)
+
+      const driverTodayPieceCount = driverPieceData?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+      driverList.push({
+        id: driver.id,
+        name: driver.name || driver.phone || '未命名',
+        phone: driver.phone || '',
+        todayAttendance: !!driverAttendance,
+        todayPieceCount: driverTodayPieceCount
+      })
+    }
+  }
+
+  return {
+    todayAttendance,
+    todayPieceCount,
+    pendingLeaveCount,
+    monthlyPieceCount,
+    driverList
+  }
+}

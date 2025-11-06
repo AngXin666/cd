@@ -1,34 +1,89 @@
-import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getAllProfiles, getCurrentUserProfile} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {
+  type DashboardStats,
+  getAllProfiles,
+  getAllWarehouses,
+  getAllWarehousesDashboardStats,
+  getCurrentUserProfile,
+  getWarehouseDashboardStats
+} from '@/db/api'
+import type {Profile, Warehouse} from '@/db/types'
 
 const SuperAdminHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [allUsers, setAllUsers] = useState<Profile[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const loadData = useCallback(async () => {
+  // 加载所有仓库的汇总数据
+  const loadAllWarehousesData = useCallback(async () => {
     setLoading(true)
+    const stats = await getAllWarehousesDashboardStats()
+    setDashboardStats(stats)
+    setLoading(false)
+  }, [])
+
+  // 加载单个仓库的数据
+  const loadSingleWarehouseData = useCallback(async (warehouseId: string) => {
+    setLoading(true)
+    const stats = await getWarehouseDashboardStats(warehouseId)
+    setDashboardStats(stats)
+    setLoading(false)
+  }, [])
+
+  // 加载所有仓库列表
+  const loadWarehouses = useCallback(async () => {
+    const warehousesData = await getAllWarehouses()
+    setWarehouses(warehousesData)
+
+    // 默认加载"所有仓库"的数据
+    loadAllWarehousesData()
+  }, [loadAllWarehousesData])
+
+  const loadData = useCallback(async () => {
     const profileData = await getCurrentUserProfile()
     setProfile(profileData)
 
     const usersData = await getAllProfiles()
     setAllUsers(usersData)
-    setLoading(false)
   }, [])
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+    loadWarehouses()
+  }, [loadData, loadWarehouses])
 
   useDidShow(() => {
     loadData()
+    loadWarehouses()
   })
+
+  // 处理仓库切换
+  const handleWarehouseChange = useCallback(
+    (e: any) => {
+      const index = e.detail.current
+      setCurrentWarehouseIndex(index)
+
+      // index 0 表示"所有仓库"
+      if (index === 0) {
+        loadAllWarehousesData()
+      } else {
+        // index - 1 对应实际仓库数组的索引
+        const warehouse = warehouses[index - 1]
+        if (warehouse) {
+          loadSingleWarehouseData(warehouse.id)
+        }
+      }
+    },
+    [warehouses, loadAllWarehousesData, loadSingleWarehouseData]
+  )
 
   const handleManageUsers = () => {
     navigateTo({url: '/pages/admin-dashboard/index'})
@@ -84,6 +139,15 @@ const SuperAdminHome: React.FC = () => {
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
 
+  // 获取当前选中的仓库名称
+  const _getCurrentWarehouseName = () => {
+    if (currentWarehouseIndex === 0) {
+      return '所有仓库'
+    }
+    const warehouse = warehouses[currentWarehouseIndex - 1]
+    return warehouse?.name || '未知仓库'
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
@@ -95,6 +159,45 @@ const SuperAdminHome: React.FC = () => {
               欢迎回来，{profile?.name || profile?.phone || '超级管理员'}
             </Text>
           </View>
+
+          {/* 仓库切换器 */}
+          {warehouses.length > 0 && (
+            <View className="mb-4">
+              <View className="flex items-center mb-2">
+                <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
+                <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
+                <Text className="text-xs text-gray-400 ml-2">
+                  ({currentWarehouseIndex + 1}/{warehouses.length + 1})
+                </Text>
+              </View>
+              <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                <Swiper
+                  className="h-16"
+                  current={currentWarehouseIndex}
+                  onChange={handleWarehouseChange}
+                  indicatorDots
+                  indicatorColor="rgba(0, 0, 0, 0.2)"
+                  indicatorActiveColor="#1E3A8A">
+                  {/* 第一项：所有仓库 */}
+                  <SwiperItem key="all">
+                    <View className="h-full flex items-center justify-center bg-gradient-to-r from-purple-50 to-purple-100">
+                      <View className="i-mdi-warehouse-multiple text-2xl text-purple-600 mr-2" />
+                      <Text className="text-lg font-bold text-purple-900">所有仓库</Text>
+                    </View>
+                  </SwiperItem>
+                  {/* 其他项：各个仓库 */}
+                  {warehouses.map((warehouse) => (
+                    <SwiperItem key={warehouse.id}>
+                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100">
+                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                      </View>
+                    </SwiperItem>
+                  ))}
+                </Swiper>
+              </View>
+            </View>
+          )}
 
           {/* 数据统计仪表盘 */}
           <View className="mb-4">
@@ -110,43 +213,75 @@ const SuperAdminHome: React.FC = () => {
               <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
                 <Text className="text-gray-500">加载中...</Text>
               </View>
-            ) : (
+            ) : dashboardStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
                 <View className="grid grid-cols-2 gap-3">
-                  {/* 总用户数 */}
+                  {/* 今日出勤 */}
                   <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
-                    <View className="i-mdi-account-group text-2xl text-blue-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">总用户数</Text>
-                    <Text className="text-2xl font-bold text-blue-900 block">{allUsers.length}</Text>
+                    <View className="i-mdi-account-check text-2xl text-blue-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">今日出勤</Text>
+                    <Text className="text-2xl font-bold text-blue-900 block">{dashboardStats.todayAttendance}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">人</Text>
                   </View>
 
-                  {/* 司机数量 */}
+                  {/* 当日总件数 */}
                   <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                    <View className="i-mdi-account text-2xl text-green-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">司机数量</Text>
-                    <Text className="text-2xl font-bold text-green-600 block">{driverCount}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">人</Text>
+                    <View className="i-mdi-package-variant text-2xl text-green-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">当日总件数</Text>
+                    <Text className="text-2xl font-bold text-green-600 block">{dashboardStats.todayPieceCount}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">件</Text>
                   </View>
 
-                  {/* 管理员数量 */}
-                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
-                    <View className="i-mdi-shield-account text-2xl text-purple-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">管理员</Text>
-                    <Text className="text-2xl font-bold text-purple-900 block">{managerCount}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">人</Text>
-                  </View>
-
-                  {/* 超级管理员 */}
+                  {/* 请假待审批 */}
                   <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
-                    <View className="i-mdi-shield-star text-2xl text-orange-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">超级管理员</Text>
-                    <Text className="text-2xl font-bold text-orange-600 block">{superAdminCount}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">人</Text>
+                    <View className="i-mdi-calendar-clock text-2xl text-orange-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">请假待审批</Text>
+                    <Text className="text-2xl font-bold text-orange-600 block">{dashboardStats.pendingLeaveCount}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">条</Text>
+                  </View>
+
+                  {/* 本月完成件数 */}
+                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                    <View className="i-mdi-chart-line text-2xl text-purple-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">本月完成件数</Text>
+                    <Text className="text-2xl font-bold text-purple-900 block">{dashboardStats.monthlyPieceCount}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">件</Text>
                   </View>
                 </View>
               </View>
-            )}
+            ) : null}
+          </View>
+
+          {/* 系统统计（用户数量） */}
+          <View className="mb-4">
+            <View className="flex items-center mb-3">
+              <View className="i-mdi-account-group text-xl text-blue-900 mr-2" />
+              <Text className="text-lg font-bold text-gray-800">系统统计</Text>
+            </View>
+            <View className="bg-white rounded-xl p-4 shadow-md">
+              <View className="grid grid-cols-3 gap-3">
+                {/* 司机数量 */}
+                <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
+                  <View className="i-mdi-account text-xl text-blue-600 mb-1" />
+                  <Text className="text-xs text-gray-600 block mb-1">司机</Text>
+                  <Text className="text-xl font-bold text-blue-900 block">{driverCount}</Text>
+                </View>
+
+                {/* 管理员数量 */}
+                <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3">
+                  <View className="i-mdi-shield-account text-xl text-green-600 mb-1" />
+                  <Text className="text-xs text-gray-600 block mb-1">管理员</Text>
+                  <Text className="text-xl font-bold text-green-600 block">{managerCount}</Text>
+                </View>
+
+                {/* 超级管理员 */}
+                <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3">
+                  <View className="i-mdi-shield-star text-xl text-purple-600 mb-1" />
+                  <Text className="text-xs text-gray-600 block mb-1">超管</Text>
+                  <Text className="text-xl font-bold text-purple-900 block">{superAdminCount}</Text>
+                </View>
+              </View>
+            </View>
           </View>
 
           {/* 权限管理板块 */}
