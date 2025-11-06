@@ -133,6 +133,16 @@ const ClockIn: React.FC = () => {
   const handleClockIn = async () => {
     if (!user?.id) return
 
+    // 检查是否已经打过卡
+    if (todayRecord?.clock_in_time) {
+      showToast({
+        title: '您今日已完成考勤打卡，无需重复操作',
+        icon: 'none',
+        duration: 2500
+      })
+      return
+    }
+
     // 检查是否选择了仓库
     if (!selectedWarehouseId) {
       showToast({
@@ -156,6 +166,19 @@ const ClockIn: React.FC = () => {
     try {
       setLoading(true)
       showLoading({title: '打卡中...'})
+
+      // 再次检查今日是否已打卡（防止并发）
+      const existingRecord = await getTodayAttendance(user.id)
+      if (existingRecord?.clock_in_time) {
+        Taro.hideLoading()
+        setTodayRecord(existingRecord)
+        showToast({
+          title: '您今日已完成考勤打卡，无需重复操作',
+          icon: 'none',
+          duration: 2500
+        })
+        return
+      }
 
       // 获取考勤规则
       const rule = await getAttendanceRuleByWarehouseId(selectedWarehouse.id)
@@ -373,6 +396,35 @@ const ClockIn: React.FC = () => {
               <Text className="text-white text-5xl font-bold block tracking-wider">{formatTime(currentTime)}</Text>
             </View>
           </View>
+
+          {/* 今日打卡状态提示卡片 - 显著位置 */}
+          {todayRecord?.clock_in_time && (
+            <View className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 mb-4 shadow-lg">
+              <View className="flex items-center justify-center mb-3">
+                <View className="i-mdi-check-circle text-white text-3xl mr-2" />
+                <Text className="text-white text-xl font-bold">今日已打卡</Text>
+              </View>
+              <View className="bg-white/20 rounded-xl p-4">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-white/90 text-sm">上班时间</Text>
+                  <Text className="text-white text-lg font-bold">{formatClockTime(todayRecord.clock_in_time)}</Text>
+                </View>
+                {todayRecord.clock_out_time && (
+                  <View className="flex items-center justify-between mb-2">
+                    <Text className="text-white/90 text-sm">下班时间</Text>
+                    <Text className="text-white text-lg font-bold">{formatClockTime(todayRecord.clock_out_time)}</Text>
+                  </View>
+                )}
+                <View className="flex items-center justify-between">
+                  <Text className="text-white/90 text-sm">考勤状态</Text>
+                  <View className="flex items-center">
+                    <View className={`${getStatusInfo(todayRecord.status).icon} text-white text-base mr-1`} />
+                    <Text className="text-white text-base font-bold">{getStatusInfo(todayRecord.status).text}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* 仓库选择卡片 */}
           <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
