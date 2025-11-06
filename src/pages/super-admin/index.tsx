@@ -55,6 +55,10 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/leave-approval/index'})
   }
 
+  const handleSystemSettings = () => {
+    navigateTo({url: '/pages/profile/index'})
+  }
+
   const driverCount = allUsers.filter((u) => u.role === 'driver').length
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
@@ -184,15 +188,21 @@ const SuperAdminHome: React.FC = () => {
 
             {/* 其他系统功能 */}
             <View className="grid grid-cols-3 gap-4">
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg" onClick={handlePieceWorkReport}>
+              <View
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg active:scale-95 transition-all"
+                onClick={handlePieceWorkReport}>
                 <View className="i-mdi-chart-box text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">件数报表</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg" onClick={handleLeaveApproval}>
+              <View
+                className="flex flex-col items-center p-3 bg-blue-50 rounded-lg active:scale-95 transition-all"
+                onClick={handleLeaveApproval}>
                 <View className="i-mdi-calendar-check text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">请假审批</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
+              <View
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg active:scale-95 transition-all"
+                onClick={handleSystemSettings}>
                 <View className="i-mdi-cog text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">系统设置</Text>
               </View>

@@ -35,6 +35,10 @@ const ManagerHome: React.FC = () => {
     navigateTo({url: '/pages/manager/leave-approval/index'})
   }
 
+  const handleSystemSettings = () => {
+    navigateTo({url: '/pages/profile/index'})
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
@@ -93,13 +97,23 @@ const ManagerHome: React.FC = () => {
                 <View className="i-mdi-clipboard-list text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">任务分配</Text>
               </View>
-              <View onClick={handlePieceWorkReport} className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
+              <View
+                onClick={handlePieceWorkReport}
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg active:scale-95 transition-all">
                 <View className="i-mdi-chart-box text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">件数报表</Text>
               </View>
-              <View onClick={handleLeaveApproval} className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
+              <View
+                onClick={handleLeaveApproval}
+                className="flex flex-col items-center p-3 bg-blue-50 rounded-lg active:scale-95 transition-all">
                 <View className="i-mdi-calendar-check text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">请假审批</Text>
+              </View>
+              <View
+                onClick={handleSystemSettings}
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg active:scale-95 transition-all">
+                <View className="i-mdi-cog text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">系统设置</Text>
               </View>
             </View>
           </View>
