@@ -146,14 +146,8 @@ const DriverHome: React.FC = () => {
       case 'leave':
         navigateTo({url: '/pages/driver/leave/index'})
         break
-      case 'expense':
-        Taro.showToast({title: '支出管理功能开发中', icon: 'none'})
-        break
       case 'stats':
         navigateTo({url: '/pages/driver/piece-work/index'})
-        break
-      case 'vehicle':
-        Taro.showToast({title: '车辆管理功能开发中', icon: 'none'})
         break
       default:
         break
@@ -245,53 +239,37 @@ const DriverHome: React.FC = () => {
               <View className="i-mdi-lightning-bolt text-xl text-orange-600 mr-2" />
               <Text className="text-lg font-bold text-gray-800">快捷功能</Text>
             </View>
-            <View className="grid grid-cols-3 gap-4">
+            <View className="grid grid-cols-2 gap-4">
               {/* 计件 */}
               <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all"
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all"
                 onClick={() => handleQuickAction('piece-work')}>
-                <View className="i-mdi-clipboard-edit text-4xl text-blue-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">计件</Text>
+                <View className="i-mdi-clipboard-edit text-5xl text-blue-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">计件录入</Text>
               </View>
 
               {/* 打卡 */}
               <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl active:scale-95 transition-all"
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl active:scale-95 transition-all"
                 onClick={() => handleQuickAction('clock-in')}>
-                <View className="i-mdi-clock-check text-4xl text-orange-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">打卡</Text>
+                <View className="i-mdi-clock-check text-5xl text-orange-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">考勤打卡</Text>
               </View>
 
               {/* 请假 */}
               <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl active:scale-95 transition-all"
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl active:scale-95 transition-all"
                 onClick={() => handleQuickAction('leave')}>
-                <View className="i-mdi-calendar-remove text-4xl text-purple-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">请假</Text>
-              </View>
-
-              {/* 支出 */}
-              <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-xl active:scale-95 transition-all"
-                onClick={() => handleQuickAction('expense')}>
-                <View className="i-mdi-wallet text-4xl text-red-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">支出</Text>
+                <View className="i-mdi-calendar-remove text-5xl text-purple-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">请假申请</Text>
               </View>
 
               {/* 数据统计 */}
               <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all"
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all"
                 onClick={() => handleQuickAction('stats')}>
-                <View className="i-mdi-chart-bar text-4xl text-green-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">数据统计</Text>
-              </View>
-
-              {/* 车辆管理 */}
-              <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl active:scale-95 transition-all"
-                onClick={() => handleQuickAction('vehicle')}>
-                <View className="i-mdi-car text-4xl text-cyan-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">车辆管理</Text>
+                <View className="i-mdi-chart-bar text-5xl text-green-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">数据统计</Text>
               </View>
             </View>
           </View>
