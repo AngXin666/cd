@@ -27,6 +27,8 @@ const DataSummary: React.FC = () => {
   const [selectedDriverIndex, setSelectedDriverIndex] = useState(0)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // 初始化日期范围（默认当月）
   useEffect(() => {
@@ -34,10 +36,9 @@ const DataSummary: React.FC = () => {
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const firstDay = `${year}-${month}-01`
-    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
-    const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+    const today = now.toISOString().split('T')[0]
     setStartDate(firstDay)
-    setEndDate(lastDayStr)
+    setEndDate(today)
   }, [])
 
   // 加载数据
@@ -111,8 +112,15 @@ const DataSummary: React.FC = () => {
       }
     }
 
+    // 按日期排序
+    data.sort((a, b) => {
+      const dateA = new Date(a.work_date).getTime()
+      const dateB = new Date(b.work_date).getTime()
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    })
+
     setRecords(data)
-  }, [startDate, endDate, warehouses, drivers, selectedWarehouseIndex, selectedDriverIndex])
+  }, [startDate, endDate, warehouses, drivers, selectedWarehouseIndex, selectedDriverIndex, sortOrder])
 
   useEffect(() => {
     loadData()
@@ -125,6 +133,62 @@ const DataSummary: React.FC = () => {
   useDidShow(() => {
     loadData()
   })
+
+  // 快捷筛选：前一天
+  const handleYesterdayFilter = () => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const dateStr = yesterday.toISOString().split('T')[0]
+    setStartDate(dateStr)
+    setEndDate(dateStr)
+    setActiveQuickFilter('yesterday')
+  }
+
+  // 快捷筛选：本周
+  const handleWeekFilter = () => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const monday = new Date(now)
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    monday.setDate(now.getDate() - daysToMonday)
+
+    const startDateStr = monday.toISOString().split('T')[0]
+    const endDateStr = now.toISOString().split('T')[0]
+
+    setStartDate(startDateStr)
+    setEndDate(endDateStr)
+    setActiveQuickFilter('week')
+  }
+
+  // 快捷筛选：本月
+  const handleMonthFilter = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const firstDay = `${year}-${month}-01`
+    const today = now.toISOString().split('T')[0]
+
+    setStartDate(firstDay)
+    setEndDate(today)
+    setActiveQuickFilter('month')
+  }
+
+  // 处理开始日期变化
+  const handleStartDateChange = (e) => {
+    setStartDate(e.detail.value)
+    setActiveQuickFilter('custom')
+  }
+
+  // 处理结束日期变化
+  const handleEndDateChange = (e) => {
+    setEndDate(e.detail.value)
+    setActiveQuickFilter('custom')
+  }
+
+  // 切换排序顺序
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  }
 
   // 计算统计数据
   const totalQuantity = records.reduce((sum, r) => sum + r.quantity, 0)
@@ -235,10 +299,10 @@ const DataSummary: React.FC = () => {
             </View>
 
             {/* 日期范围 */}
-            <View className="grid grid-cols-2 gap-3">
+            <View className="grid grid-cols-2 gap-3 mb-3">
               <View>
                 <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
-                <Picker mode="date" value={startDate} onChange={(e) => setStartDate(e.detail.value)}>
+                <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
                   <View className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between">
                     <Text className="text-sm text-gray-800">{startDate}</Text>
                     <View className="i-mdi-calendar text-gray-400 text-lg" />
@@ -247,12 +311,54 @@ const DataSummary: React.FC = () => {
               </View>
               <View>
                 <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
-                <Picker mode="date" value={endDate} onChange={(e) => setEndDate(e.detail.value)}>
+                <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
                   <View className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between">
                     <Text className="text-sm text-gray-800">{endDate}</Text>
                     <View className="i-mdi-calendar text-gray-400 text-lg" />
                   </View>
                 </Picker>
+              </View>
+            </View>
+
+            {/* 快捷筛选按钮 */}
+            <View className="flex gap-2">
+              <View
+                onClick={handleYesterdayFilter}
+                className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+                  activeQuickFilter === 'yesterday'
+                    ? 'bg-gradient-to-r from-blue-900 to-blue-700 shadow-md'
+                    : 'bg-gradient-to-r from-blue-50 to-blue-100'
+                }`}>
+                <Text
+                  className={`text-sm font-medium ${
+                    activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-900'
+                  }`}>
+                  前一天
+                </Text>
+              </View>
+              <View
+                onClick={handleWeekFilter}
+                className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+                  activeQuickFilter === 'week'
+                    ? 'bg-gradient-to-r from-green-700 to-green-600 shadow-md'
+                    : 'bg-gradient-to-r from-green-50 to-green-100'
+                }`}>
+                <Text
+                  className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
+                  本周
+                </Text>
+              </View>
+              <View
+                onClick={handleMonthFilter}
+                className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+                  activeQuickFilter === 'month'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
+                    : 'bg-gradient-to-r from-orange-50 to-orange-100'
+                }`}>
+                <Text
+                  className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}>
+                  本月
+                </Text>
               </View>
             </View>
           </View>
@@ -304,8 +410,16 @@ const DataSummary: React.FC = () => {
             <View className="flex items-center mb-3">
               <View className="i-mdi-clipboard-list text-blue-900 text-xl mr-2" />
               <Text className="text-gray-800 text-base font-bold">计件记录</Text>
-              <View className="ml-auto">
+              <View className="ml-auto flex items-center gap-2">
                 <Text className="text-xs text-gray-500">共 {records.length} 条</Text>
+                <View onClick={toggleSortOrder} className="flex items-center bg-gray-100 rounded-lg px-2 py-1">
+                  <View
+                    className={`text-base mr-1 ${
+                      sortOrder === 'asc' ? 'i-mdi-sort-calendar-ascending' : 'i-mdi-sort-calendar-descending'
+                    } text-blue-900`}
+                  />
+                  <Text className="text-xs text-gray-700">{sortOrder === 'asc' ? '升序' : '降序'}</Text>
+                </View>
               </View>
             </View>
 
