@@ -22,6 +22,7 @@ const DriverPieceWork: React.FC = () => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 排序顺序：asc=升序，desc=降序
+  const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month') // 当前选中的快捷筛选
 
   // 编辑状态
   const [editingRecord, setEditingRecord] = useState<PieceWorkRecord | null>(null)
@@ -152,6 +153,57 @@ const DriverPieceWork: React.FC = () => {
   // 切换排序顺序
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  }
+
+  // 快捷筛选：前一天
+  const handleYesterdayFilter = () => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const dateStr = yesterday.toISOString().split('T')[0]
+    setStartDate(dateStr)
+    setEndDate(dateStr)
+    setActiveQuickFilter('yesterday')
+  }
+
+  // 快捷筛选：本周
+  const handleWeekFilter = () => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const monday = new Date(now)
+    // 如果是周日（0），则往前推6天到周一；否则往前推到周一
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    monday.setDate(now.getDate() - daysToMonday)
+
+    const startDateStr = monday.toISOString().split('T')[0]
+    const endDateStr = now.toISOString().split('T')[0]
+
+    setStartDate(startDateStr)
+    setEndDate(endDateStr)
+    setActiveQuickFilter('week')
+  }
+
+  // 快捷筛选：本月
+  const handleMonthFilter = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const firstDay = `${year}-${month}-01`
+    const endDateStr = now.toISOString().split('T')[0]
+
+    setStartDate(firstDay)
+    setEndDate(endDateStr)
+    setActiveQuickFilter('month')
+  }
+
+  // 手动修改日期时，将快捷筛选设置为自定义
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value)
+    setActiveQuickFilter('custom')
+  }
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value)
+    setActiveQuickFilter('custom')
   }
 
   // 开始编辑
@@ -509,7 +561,7 @@ const DriverPieceWork: React.FC = () => {
             <View className="grid grid-cols-2 gap-3 mb-4">
               <View>
                 <Text className="text-sm text-gray-600 block mb-2">开始日期</Text>
-                <Picker mode="date" value={startDate} onChange={(e) => setStartDate(e.detail.value)}>
+                <Picker mode="date" value={startDate} onChange={(e) => handleStartDateChange(e.detail.value)}>
                   <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
                     <Text className="text-sm text-gray-800">{startDate}</Text>
                   </View>
@@ -517,11 +569,68 @@ const DriverPieceWork: React.FC = () => {
               </View>
               <View>
                 <Text className="text-sm text-gray-600 block mb-2">结束日期</Text>
-                <Picker mode="date" value={endDate} onChange={(e) => setEndDate(e.detail.value)}>
+                <Picker mode="date" value={endDate} onChange={(e) => handleEndDateChange(e.detail.value)}>
                   <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
                     <Text className="text-sm text-gray-800">{endDate}</Text>
                   </View>
                 </Picker>
+              </View>
+            </View>
+
+            {/* 快捷筛选按钮 */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-600 block mb-2">快捷筛选</Text>
+              <View className="grid grid-cols-3 gap-2">
+                {/* 前一天 */}
+                <View
+                  className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                    activeQuickFilter === 'yesterday'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 shadow-md'
+                      : 'bg-gradient-to-r from-blue-50 to-blue-100'
+                  }`}
+                  onClick={handleYesterdayFilter}>
+                  <View
+                    className={`text-lg mr-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
+                  />
+                  <Text
+                    className={`text-sm font-medium ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
+                    前一天
+                  </Text>
+                </View>
+
+                {/* 本周 */}
+                <View
+                  className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                    activeQuickFilter === 'week'
+                      ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-md'
+                      : 'bg-gradient-to-r from-green-50 to-green-100'
+                  }`}
+                  onClick={handleWeekFilter}>
+                  <View
+                    className={`text-lg mr-1 i-mdi-calendar-week ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-600'}`}
+                  />
+                  <Text
+                    className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
+                    本周
+                  </Text>
+                </View>
+
+                {/* 本月 */}
+                <View
+                  className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                    activeQuickFilter === 'month'
+                      ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
+                      : 'bg-gradient-to-r from-orange-50 to-orange-100'
+                  }`}
+                  onClick={handleMonthFilter}>
+                  <View
+                    className={`text-lg mr-1 i-mdi-calendar-month ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}
+                  />
+                  <Text
+                    className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-700'}`}>
+                    本月
+                  </Text>
+                </View>
               </View>
             </View>
 
