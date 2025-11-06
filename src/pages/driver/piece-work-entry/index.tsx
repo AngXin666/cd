@@ -1,18 +1,16 @@
-import {Button, Input, Picker, ScrollView, Switch, Text, Textarea, View} from '@tarojs/components'
+import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   createPieceWorkRecord,
-  deletePieceWorkRecord,
   getActiveCategories,
   getDriverWarehouses,
   getPieceWorkRecordsByUser,
   updatePieceWorkRecord
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Warehouse} from '@/db/types'
-import {confirmDelete} from '@/utils/confirm'
 import {
   getLastCategory,
   getLastWarehouse,
@@ -24,26 +22,43 @@ import {
   savePieceWorkFormDefaults
 } from '@/utils/preferences'
 
+// 单个计件项的接口
+interface PieceWorkItem {
+  id: string
+  quantity: string
+  unitPrice: string
+  needUpstairs: boolean
+  upstairsPrice: string
+  needSorting: boolean
+  sortingQuantity: string
+  sortingUnitPrice: string
+}
+
 const PieceWorkEntry: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
-  const [isFirstLoad, setIsFirstLoad] = useState(true) // 标记是否首次加载
+  const [isFirstLoad, setIsFirstLoad] = useState(true)
 
-  // 表单数据
+  // 公共表单数据
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0)
   const [workDate, setWorkDate] = useState('')
-  const [quantity, setQuantity] = useState('')
-  const [unitPrice, setUnitPrice] = useState('')
-  const [needUpstairs, setNeedUpstairs] = useState(false)
-  const [upstairsPrice, setUpstairsPrice] = useState('')
-  const [notes, setNotes] = useState('')
 
-  // 编辑状态
-  const [editingRecord, setEditingRecord] = useState<PieceWorkRecord | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
+  // 计件项列表（支持批量录入）
+  const [pieceWorkItems, setPieceWorkItems] = useState<PieceWorkItem[]>([
+    {
+      id: Date.now().toString(),
+      quantity: '',
+      unitPrice: '',
+      needUpstairs: false,
+      upstairsPrice: '',
+      needSorting: false,
+      sortingQuantity: '',
+      sortingUnitPrice: ''
+    }
+  ])
 
   // 初始化日期为今天
   useEffect(() => {
@@ -58,11 +73,9 @@ const PieceWorkEntry: React.FC = () => {
   const loadData = useCallback(async () => {
     if (!user?.id) return
 
-    // 加载司机的仓库
     const driverWarehouses = await getDriverWarehouses(user.id)
     setWarehouses(driverWarehouses)
 
-    // 加载品类
     const categoriesData = await getActiveCategories()
     setCategories(categoriesData)
 
@@ -84,7 +97,6 @@ const PieceWorkEntry: React.FC = () => {
       const lastDate = getLastWorkDate()
       const formDefaults = getPieceWorkFormDefaults()
 
-      // 恢复最后选择的仓库
       if (lastWarehouse && driverWarehouses.length > 0) {
         const warehouseIndex = driverWarehouses.findIndex((w) => w.id === lastWarehouse.id)
         if (warehouseIndex !== -1) {
@@ -92,7 +104,6 @@ const PieceWorkEntry: React.FC = () => {
         }
       }
 
-      // 恢复最后选择的品类
       if (lastCategory && categoriesData.length > 0) {
         const categoryIndex = categoriesData.findIndex((c) => c.id === lastCategory.id)
         if (categoryIndex !== -1) {
@@ -100,7 +111,6 @@ const PieceWorkEntry: React.FC = () => {
         }
       }
 
-      // 恢复最后选择的日期（如果是今天或之后的日期）
       if (lastDate) {
         const lastDateObj = new Date(lastDate)
         const today = new Date()
@@ -110,10 +120,13 @@ const PieceWorkEntry: React.FC = () => {
         }
       }
 
-      // 恢复表单默认值
       if (formDefaults) {
         if (formDefaults.needUpstairs !== undefined) {
-          setNeedUpstairs(formDefaults.needUpstairs)
+          setPieceWorkItems((prev) =>
+            prev.map((item, index) =>
+              index === 0 ? {...item, needUpstairs: formDefaults.needUpstairs || false} : item
+            )
+          )
         }
       }
 
@@ -129,27 +142,149 @@ const PieceWorkEntry: React.FC = () => {
     loadData()
   })
 
-  // 重置表单
-  const resetForm = () => {
-    setSelectedWarehouseIndex(0)
-    setSelectedCategoryIndex(0)
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    setWorkDate(`${year}-${month}-${day}`)
-    setQuantity('')
-    setUnitPrice('')
-    setNeedUpstairs(false)
-    setUpstairsPrice('')
-    setNotes('')
-    setEditingRecord(null)
-    setIsEditing(false)
+  // 添加计件项
+  const handleAddItem = () => {
+    setPieceWorkItems((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        quantity: '',
+        unitPrice: '',
+        needUpstairs: false,
+        upstairsPrice: '',
+        needSorting: false,
+        sortingQuantity: '',
+        sortingUnitPrice: ''
+      }
+    ])
+  }
+
+  // 删除计件项
+  const handleRemoveItem = (id: string) => {
+    if (pieceWorkItems.length === 1) {
+      Taro.showToast({
+        title: '至少保留一个计件项',
+        icon: 'none'
+      })
+      return
+    }
+    setPieceWorkItems((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  // 更新计件项
+  const updateItem = (id: string, field: keyof PieceWorkItem, value: string | boolean) => {
+    setPieceWorkItems((prev) => prev.map((item) => (item.id === id ? {...item, [field]: value} : item)))
+  }
+
+  // 计算单个计件项的金额明细
+  const calculateItemDetails = (item: PieceWorkItem) => {
+    const quantity = Number(item.quantity) || 0
+    const unitPrice = Number(item.unitPrice) || 0
+    const upstairsPrice = Number(item.upstairsPrice) || 0
+    const sortingQuantity = Number(item.sortingQuantity) || 0
+    const sortingUnitPrice = Number(item.sortingUnitPrice) || 0
+
+    const baseAmount = quantity * unitPrice
+    const upstairsAmount = item.needUpstairs ? quantity * upstairsPrice : 0
+    const sortingAmount = item.needSorting ? sortingQuantity * sortingUnitPrice : 0
+    const totalAmount = baseAmount + upstairsAmount + sortingAmount
+
+    return {
+      baseAmount,
+      upstairsAmount,
+      sortingAmount,
+      totalAmount
+    }
+  }
+
+  // 计算所有计件项的总金额
+  const calculateTotalAmount = () => {
+    return pieceWorkItems.reduce((sum, item) => {
+      const {totalAmount} = calculateItemDetails(item)
+      return sum + totalAmount
+    }, 0)
+  }
+
+  // 验证单个计件项
+  const validateItem = (item: PieceWorkItem): {valid: boolean; message: string} => {
+    // 验证件数
+    if (!item.quantity || item.quantity.trim() === '') {
+      return {valid: false, message: '请输入件数'}
+    }
+    const quantity = Number(item.quantity)
+    if (Number.isNaN(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+      return {valid: false, message: '件数必须是正整数'}
+    }
+
+    // 验证单价
+    if (!item.unitPrice || item.unitPrice.trim() === '') {
+      return {valid: false, message: '请输入单价'}
+    }
+    const unitPrice = Number(item.unitPrice)
+    if (Number.isNaN(unitPrice) || unitPrice < 0) {
+      return {valid: false, message: '单价必须是非负数'}
+    }
+    // 验证单价最多两位小数
+    if (!/^\d+(\.\d{1,2})?$/.test(item.unitPrice)) {
+      return {valid: false, message: '单价最多保留两位小数'}
+    }
+
+    // 验证上楼
+    if (item.needUpstairs) {
+      if (!item.upstairsPrice || item.upstairsPrice.trim() === '') {
+        return {valid: false, message: '请输入上楼单价'}
+      }
+      const upstairsPrice = Number(item.upstairsPrice)
+      if (Number.isNaN(upstairsPrice) || upstairsPrice < 0) {
+        return {valid: false, message: '上楼单价必须是非负数'}
+      }
+      if (!/^\d+(\.\d{1,2})?$/.test(item.upstairsPrice)) {
+        return {valid: false, message: '上楼单价最多保留两位小数'}
+      }
+    }
+
+    // 验证分拣
+    if (item.needSorting) {
+      if (!item.sortingQuantity || item.sortingQuantity.trim() === '') {
+        return {valid: false, message: '请输入分拣件数'}
+      }
+      const sortingQuantity = Number(item.sortingQuantity)
+      if (Number.isNaN(sortingQuantity) || sortingQuantity <= 0 || !Number.isInteger(sortingQuantity)) {
+        return {valid: false, message: '分拣件数必须是正整数'}
+      }
+
+      if (!item.sortingUnitPrice || item.sortingUnitPrice.trim() === '') {
+        return {valid: false, message: '请输入分拣单价'}
+      }
+      const sortingUnitPrice = Number(item.sortingUnitPrice)
+      if (Number.isNaN(sortingUnitPrice) || sortingUnitPrice < 0) {
+        return {valid: false, message: '分拣单价必须是非负数'}
+      }
+      if (!/^\d+(\.\d{1,2})?$/.test(item.sortingUnitPrice)) {
+        return {valid: false, message: '分拣单价最多保留两位小数'}
+      }
+    }
+
+    return {valid: true, message: ''}
+  }
+
+  // 检查是否存在相同的记录（用于累计提示）
+  const checkDuplicateRecord = async (): Promise<PieceWorkRecord | null> => {
+    if (!user?.id || warehouses.length === 0 || categories.length === 0) return null
+
+    const warehouse = warehouses[selectedWarehouseIndex]
+    const category = categories[selectedCategoryIndex]
+
+    // 查找今天同仓库同品类的记录
+    const todayRecords = records.filter(
+      (r) => r.work_date === workDate && r.warehouse_id === warehouse.id && r.category_id === category.id
+    )
+
+    return todayRecords.length > 0 ? todayRecords[0] : null
   }
 
   // 提交表单
   const handleSubmit = async () => {
-    // 验证用户登录状态
     if (!user?.id) {
       Taro.showToast({
         title: '请先登录',
@@ -158,7 +293,6 @@ const PieceWorkEntry: React.FC = () => {
       return
     }
 
-    // 验证表单
     if (warehouses.length === 0) {
       Taro.showToast({
         title: '请先分配仓库',
@@ -175,443 +309,431 @@ const PieceWorkEntry: React.FC = () => {
       return
     }
 
-    if (!quantity || Number(quantity) <= 0) {
-      Taro.showToast({
-        title: '请输入有效数量',
-        icon: 'none'
-      })
-      return
+    // 验证所有计件项
+    for (let i = 0; i < pieceWorkItems.length; i++) {
+      const item = pieceWorkItems[i]
+      const {valid, message} = validateItem(item)
+      if (!valid) {
+        Taro.showToast({
+          title: `第${i + 1}项：${message}`,
+          icon: 'none',
+          duration: 2000
+        })
+        return
+      }
     }
 
-    if (!unitPrice || Number(unitPrice) < 0) {
-      Taro.showToast({
-        title: '请输入有效单价',
-        icon: 'none'
-      })
-      return
-    }
+    const _warehouse = warehouses[selectedWarehouseIndex]
+    const _category = categories[selectedCategoryIndex]
 
-    if (needUpstairs && (!upstairsPrice || Number(upstairsPrice) < 0)) {
-      Taro.showToast({
-        title: '请输入有效上楼单价',
-        icon: 'none'
+    // 检查是否存在相同记录
+    const existingRecord = await checkDuplicateRecord()
+
+    if (existingRecord) {
+      // 弹出累计确认对话框
+      Taro.showModal({
+        title: '检测到重复操作',
+        content: '是否累计本次操作数量？',
+        confirmText: '累计',
+        cancelText: '新增',
+        success: async (res) => {
+          if (res.confirm) {
+            // 累计到现有记录
+            await submitWithAccumulate(existingRecord)
+          } else if (res.cancel) {
+            // 新增记录
+            await submitAsNew()
+          }
+        }
       })
-      return
+    } else {
+      // 直接新增
+      await submitAsNew()
     }
+  }
+
+  // 累计到现有记录
+  const submitWithAccumulate = async (existingRecord: PieceWorkRecord) => {
+    // 计算累计后的数据
+    let totalQuantity = existingRecord.quantity
+    let totalBaseAmount = existingRecord.quantity * existingRecord.unit_price
+    let totalUpstairsAmount = existingRecord.need_upstairs ? existingRecord.quantity * existingRecord.upstairs_price : 0
+    let totalSortingQuantity = existingRecord.sorting_quantity
+    let totalSortingAmount = existingRecord.need_sorting
+      ? existingRecord.sorting_quantity * existingRecord.sorting_unit_price
+      : 0
+
+    pieceWorkItems.forEach((item) => {
+      const quantity = Number(item.quantity)
+      const unitPrice = Number(item.unitPrice)
+      const upstairsPrice = Number(item.upstairsPrice) || 0
+      const sortingQuantity = Number(item.sortingQuantity) || 0
+      const sortingUnitPrice = Number(item.sortingUnitPrice) || 0
+
+      totalQuantity += quantity
+      totalBaseAmount += quantity * unitPrice
+      if (item.needUpstairs) {
+        totalUpstairsAmount += quantity * upstairsPrice
+      }
+      if (item.needSorting) {
+        totalSortingQuantity += sortingQuantity
+        totalSortingAmount += sortingQuantity * sortingUnitPrice
+      }
+    })
+
+    const newTotalAmount = totalBaseAmount + totalUpstairsAmount + totalSortingAmount
+
+    // 更新现有记录
+    const success = await updatePieceWorkRecord(existingRecord.id, {
+      user_id: existingRecord.user_id,
+      warehouse_id: existingRecord.warehouse_id,
+      work_date: existingRecord.work_date,
+      category_id: existingRecord.category_id,
+      quantity: totalQuantity,
+      unit_price: totalBaseAmount / totalQuantity, // 平均单价
+      need_upstairs: totalUpstairsAmount > 0,
+      upstairs_price: totalUpstairsAmount > 0 ? totalUpstairsAmount / totalQuantity : 0,
+      need_sorting: totalSortingAmount > 0,
+      sorting_quantity: totalSortingQuantity,
+      sorting_unit_price: totalSortingQuantity > 0 ? totalSortingAmount / totalSortingQuantity : 0,
+      total_amount: newTotalAmount
+    })
+
+    if (success) {
+      Taro.showToast({
+        title: '累计成功',
+        icon: 'success'
+      })
+      savePreferences()
+      resetForm()
+      loadData()
+    } else {
+      Taro.showToast({
+        title: '累计失败',
+        icon: 'error'
+      })
+    }
+  }
+
+  // 新增记录
+  const submitAsNew = async () => {
+    if (!user?.id) return
 
     const warehouse = warehouses[selectedWarehouseIndex]
     const category = categories[selectedCategoryIndex]
 
-    if (!warehouse || !category) {
+    let allSuccess = true
+
+    for (const item of pieceWorkItems) {
+      const {totalAmount} = calculateItemDetails(item)
+
+      const input: PieceWorkRecordInput = {
+        user_id: user.id,
+        warehouse_id: warehouse.id,
+        category_id: category.id,
+        work_date: workDate,
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unitPrice),
+        need_upstairs: item.needUpstairs,
+        upstairs_price: item.needUpstairs ? Number(item.upstairsPrice) : 0,
+        need_sorting: item.needSorting,
+        sorting_quantity: item.needSorting ? Number(item.sortingQuantity) : 0,
+        sorting_unit_price: item.needSorting ? Number(item.sortingUnitPrice) : 0,
+        total_amount: totalAmount
+      }
+
+      const success = await createPieceWorkRecord(input)
+      if (!success) {
+        allSuccess = false
+        break
+      }
+    }
+
+    if (allSuccess) {
       Taro.showToast({
-        title: '请选择仓库和品类',
-        icon: 'none'
+        title: `成功录入${pieceWorkItems.length}条记录`,
+        icon: 'success'
       })
-      return
-    }
-
-    const input: PieceWorkRecordInput = {
-      user_id: user.id,
-      warehouse_id: warehouse.id,
-      category_id: category.id,
-      work_date: workDate,
-      quantity: Number(quantity),
-      unit_price: Number(unitPrice),
-      total_amount:
-        Number(quantity) * Number(unitPrice) + (needUpstairs ? Number(quantity) * Number(upstairsPrice) : 0),
-      need_upstairs: needUpstairs,
-      upstairs_price: needUpstairs ? Number(upstairsPrice) : 0,
-      notes: notes.trim() || undefined
-    }
-
-    let success = false
-
-    if (isEditing && editingRecord) {
-      // 更新记录
-      success = await updatePieceWorkRecord(editingRecord.id, input)
-      if (success) {
-        Taro.showToast({
-          title: '更新成功',
-          icon: 'success'
-        })
-      } else {
-        Taro.showToast({
-          title: '更新失败',
-          icon: 'error'
-        })
-      }
-    } else {
-      // 创建新记录
-      const newRecord = await createPieceWorkRecord(input)
-      if (newRecord) {
-        success = true
-        Taro.showToast({
-          title: '录入成功',
-          icon: 'success'
-        })
-      } else {
-        Taro.showToast({
-          title: '录入失败',
-          icon: 'error'
-        })
-      }
-    }
-
-    if (success) {
-      // 保存用户偏好设置
-      saveLastWarehouse(warehouse.id, warehouse.name)
-      saveLastCategory(category.id, category.name)
-      saveLastWorkDate(workDate)
-      savePieceWorkFormDefaults({
-        warehouseId: warehouse.id,
-        categoryId: category.id,
-        needUpstairs
-      })
-
+      savePreferences()
       resetForm()
       loadData()
+    } else {
+      Taro.showToast({
+        title: '部分记录录入失败',
+        icon: 'error'
+      })
     }
   }
 
-  // 编辑记录
-  const handleEdit = (record: PieceWorkRecord) => {
-    setEditingRecord(record)
-    setIsEditing(true)
+  // 保存用户偏好
+  const savePreferences = () => {
+    const warehouse = warehouses[selectedWarehouseIndex]
+    const category = categories[selectedCategoryIndex]
 
-    // 填充表单
-    const warehouseIndex = warehouses.findIndex((w) => w.id === record.warehouse_id)
-    setSelectedWarehouseIndex(warehouseIndex >= 0 ? warehouseIndex : 0)
-
-    const categoryIndex = categories.findIndex((c) => c.id === record.category_id)
-    setSelectedCategoryIndex(categoryIndex >= 0 ? categoryIndex : 0)
-
-    setWorkDate(record.work_date)
-    setQuantity(String(record.quantity))
-    setUnitPrice(String(record.unit_price))
-    setNeedUpstairs(record.need_upstairs)
-    setUpstairsPrice(record.need_upstairs ? String(record.upstairs_price) : '')
-    setNotes(record.notes || '')
-
-    // 滚动到顶部
-    Taro.pageScrollTo({
-      scrollTop: 0,
-      duration: 300
+    saveLastWarehouse(warehouse.id, warehouse.name)
+    saveLastCategory(category.id, category.name)
+    saveLastWorkDate(workDate)
+    savePieceWorkFormDefaults({
+      warehouseId: warehouse.id,
+      categoryId: category.id,
+      needUpstairs: pieceWorkItems[0]?.needUpstairs || false
     })
   }
 
-  // 删除记录
-  const handleDelete = async (id: string) => {
-    const confirmed = await confirmDelete('确认删除', '确定要删除这条计件记录吗？删除后将无法恢复。')
-
-    if (confirmed) {
-      const success = await deletePieceWorkRecord(id)
-
-      if (success) {
-        Taro.showToast({
-          title: '删除成功',
-          icon: 'success'
-        })
-        loadData()
-      } else {
-        Taro.showToast({
-          title: '删除失败',
-          icon: 'error'
-        })
+  // 重置表单
+  const resetForm = () => {
+    setPieceWorkItems([
+      {
+        id: Date.now().toString(),
+        quantity: '',
+        unitPrice: '',
+        needUpstairs: false,
+        upstairsPrice: '',
+        needSorting: false,
+        sortingQuantity: '',
+        sortingUnitPrice: ''
       }
-    }
+    ])
   }
-
-  // 计算总金额
-  const calculateTotal = () => {
-    if (!quantity || Number(quantity) <= 0 || !unitPrice || Number(unitPrice) < 0) return 0
-
-    const baseAmount = Number(quantity) * Number(unitPrice)
-    const upstairsAmount = needUpstairs && upstairsPrice ? Number(quantity) * Number(upstairsPrice) : 0
-
-    return baseAmount + upstairsAmount
-  }
-
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return `${date.getMonth() + 1}/${date.getDate()}`
-  }
-
-  // 获取仓库名称
-  const getWarehouseName = (warehouseId: string) => {
-    const warehouse = warehouses.find((w) => w.id === warehouseId)
-    return warehouse?.name || '未知仓库'
-  }
-
-  // 获取品类名称
-  const getCategoryName = (categoryId: string) => {
-    const category = categories.find((c) => c.id === categoryId)
-    return category?.name || '未知品类'
-  }
-
-  const warehouseOptions = warehouses.map((w) => w.name)
-  const categoryOptions = categories.map((c) => c.name)
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
-          {/* 页面标题 */}
-          <View className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">{isEditing ? '编辑计件' : '计件录入'}</Text>
-            <Text className="text-orange-100 text-sm block">录入和管理您的计件工作数据</Text>
+          {/* 标题卡片 */}
+          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
+            <Text className="text-white text-2xl font-bold block mb-2">计件录入</Text>
+            <Text className="text-blue-100 text-sm block">支持批量录入，一次提交多条记录</Text>
           </View>
 
-          {/* 录入表单 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
+          {/* 公共信息卡片 */}
+          <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
             <View className="flex items-center mb-4">
-              <View className="i-mdi-clipboard-edit text-orange-600 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">{isEditing ? '编辑记录' : '录入信息'}</Text>
-              {isEditing && (
-                <View className="ml-auto">
-                  <Button
-                    size="mini"
-                    className="text-xs"
-                    style={{
-                      backgroundColor: '#6B7280',
-                      color: 'white',
-                      borderRadius: '6px',
-                      border: 'none'
-                    }}
-                    onClick={resetForm}>
-                    取消编辑
-                  </Button>
-                </View>
-              )}
+              <View className="i-mdi-information text-xl text-blue-900 mr-2" />
+              <Text className="text-lg font-bold text-gray-800">基本信息</Text>
             </View>
 
             {/* 仓库选择 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">
-                仓库 <Text className="text-red-500">*</Text>
+            <View className="mb-4">
+              <Text className="text-sm text-gray-600 block mb-2">
+                <Text className="text-red-500">* </Text>仓库
               </Text>
-              {warehouses.length > 0 ? (
-                <Picker
-                  mode="selector"
-                  range={warehouseOptions}
-                  value={selectedWarehouseIndex}
-                  onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                    <Text className="text-gray-800">{warehouseOptions[selectedWarehouseIndex]}</Text>
-                    <View className="i-mdi-chevron-down text-gray-400 text-xl" />
-                  </View>
-                </Picker>
-              ) : (
-                <View className="bg-gray-50 rounded-lg px-4 py-3">
-                  <Text className="text-gray-400 text-sm">暂无可用仓库</Text>
-                </View>
-              )}
-            </View>
-
-            {/* 品类选择 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">
-                品类 <Text className="text-red-500">*</Text>
-              </Text>
-              {categories.length > 0 ? (
-                <Picker
-                  mode="selector"
-                  range={categoryOptions}
-                  value={selectedCategoryIndex}
-                  onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
-                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                    <Text className="text-gray-800">{categoryOptions[selectedCategoryIndex]}</Text>
-                    <View className="i-mdi-chevron-down text-gray-400 text-xl" />
-                  </View>
-                </Picker>
-              ) : (
-                <View className="bg-gray-50 rounded-lg px-4 py-3">
-                  <Text className="text-gray-400 text-sm">暂无可用品类</Text>
-                </View>
-              )}
-            </View>
-
-            {/* 工作日期 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">
-                工作日期 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker mode="date" value={workDate} onChange={(e) => setWorkDate(e.detail.value)}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">{workDate}</Text>
-                  <View className="i-mdi-calendar text-gray-400 text-xl" />
+              <Picker
+                mode="selector"
+                range={warehouses.map((w) => w.name)}
+                value={selectedWarehouseIndex}
+                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <Text className="text-gray-800">{warehouses[selectedWarehouseIndex]?.name || '请选择仓库'}</Text>
                 </View>
               </Picker>
             </View>
 
-            {/* 数量 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">
-                数量 <Text className="text-red-500">*</Text>
+            {/* 品类选择 */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-600 block mb-2">
+                <Text className="text-red-500">* </Text>品类
               </Text>
-              <Input
-                type="number"
-                value={quantity}
-                onInput={(e) => setQuantity(e.detail.value)}
-                placeholder="请输入数量"
-                className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-              />
+              <Picker
+                mode="selector"
+                range={categories.map((c) => c.name)}
+                value={selectedCategoryIndex}
+                onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
+                <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <Text className="text-gray-800">{categories[selectedCategoryIndex]?.name || '请选择品类'}</Text>
+                </View>
+              </Picker>
             </View>
 
-            {/* 单价 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">
-                单价（元/件） <Text className="text-red-500">*</Text>
+            {/* 工作日期 */}
+            <View>
+              <Text className="text-sm text-gray-600 block mb-2">
+                <Text className="text-red-500">* </Text>工作日期
               </Text>
-              <Input
-                type="digit"
-                value={unitPrice}
-                onInput={(e) => setUnitPrice(e.detail.value)}
-                placeholder="请输入单价"
-                className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-              />
+              <Picker mode="date" value={workDate} onChange={(e) => setWorkDate(e.detail.value)}>
+                <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <Text className="text-gray-800">{workDate || '请选择日期'}</Text>
+                </View>
+              </Picker>
             </View>
-
-            {/* 是否需要上楼 */}
-            <View className="mb-3">
-              <View className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
-                <Text className="text-sm text-gray-700">是否需要上楼</Text>
-                <Switch checked={needUpstairs} onChange={(e) => setNeedUpstairs(e.detail.value)} color="#F97316" />
-              </View>
-            </View>
-
-            {/* 上楼单价 */}
-            {needUpstairs && (
-              <View className="mb-3">
-                <Text className="text-sm text-gray-700 block mb-2">
-                  上楼单价（元/件） <Text className="text-red-500">*</Text>
-                </Text>
-                <Input
-                  type="digit"
-                  value={upstairsPrice}
-                  onInput={(e) => setUpstairsPrice(e.detail.value)}
-                  placeholder="请输入上楼单价"
-                  className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-                />
-              </View>
-            )}
-
-            {/* 备注 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">备注</Text>
-              <Textarea
-                value={notes}
-                onInput={(e) => setNotes(e.detail.value)}
-                placeholder="选填，可添加备注信息"
-                maxlength={200}
-                className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-                style={{height: '80px'}}
-              />
-            </View>
-
-            {/* 预计金额 */}
-            <View className="bg-green-50 rounded-lg p-3 mb-4">
-              <View className="flex items-center justify-between">
-                <Text className="text-sm text-gray-700">预计金额</Text>
-                <Text className="text-xl font-bold text-green-600">¥{calculateTotal().toFixed(2)}</Text>
-              </View>
-            </View>
-
-            {/* 提交按钮 */}
-            <Button
-              className="w-full text-base break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#F97316',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleSubmit}>
-              {isEditing ? '保存修改' : '提交录入'}
-            </Button>
           </View>
 
-          {/* 本月记录 */}
-          <View className="bg-white rounded-lg p-4 shadow">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-history text-blue-900 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">本月记录</Text>
-              <View className="ml-auto">
-                <Text className="text-xs text-gray-500">共 {records.length} 条</Text>
-              </View>
-            </View>
+          {/* 计件项列表 */}
+          {pieceWorkItems.map((item, index) => {
+            const details = calculateItemDetails(item)
+            return (
+              <View key={item.id} className="bg-white rounded-xl p-4 mb-4 shadow-md">
+                <View className="flex items-center justify-between mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-clipboard-text text-xl text-orange-600 mr-2" />
+                    <Text className="text-lg font-bold text-gray-800">计件项 {index + 1}</Text>
+                  </View>
+                  {pieceWorkItems.length > 1 && (
+                    <View
+                      className="i-mdi-delete text-xl text-red-500 active:scale-95 transition-all"
+                      onClick={() => handleRemoveItem(item.id)}
+                    />
+                  )}
+                </View>
 
-            {records.length > 0 ? (
-              <View className="space-y-2">
-                {records.map((record) => (
-                  <View key={record.id} className="bg-gray-50 rounded-lg p-4">
-                    <View className="flex items-center justify-between mb-2">
-                      <View className="flex items-center">
-                        <View className="i-mdi-warehouse text-blue-600 text-lg mr-2" />
-                        <Text className="text-sm text-gray-800 font-medium">
-                          {getWarehouseName(record.warehouse_id)}
-                        </Text>
-                      </View>
-                      <Text className="text-xs text-gray-500">{formatDate(record.work_date)}</Text>
-                    </View>
+                {/* 件数 */}
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-600 block mb-2">
+                    <Text className="text-red-500">* </Text>件数（正整数）
+                  </Text>
+                  <Input
+                    type="number"
+                    className="border border-gray-300 rounded-lg p-3 bg-gray-50"
+                    placeholder="请输入件数"
+                    value={item.quantity}
+                    onInput={(e) => updateItem(item.id, 'quantity', e.detail.value)}
+                  />
+                </View>
 
-                    <View className="flex items-center mb-2">
-                      <View className="i-mdi-tag text-orange-600 text-lg mr-2" />
-                      <Text className="text-sm text-gray-700">{getCategoryName(record.category_id)}</Text>
-                      {record.need_upstairs && (
-                        <View className="ml-2 px-2 py-0.5 bg-blue-100 rounded">
-                          <Text className="text-xs text-blue-600">需上楼</Text>
-                        </View>
-                      )}
-                    </View>
+                {/* 单价 */}
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-600 block mb-2">
+                    <Text className="text-red-500">* </Text>单价（元/件，最多两位小数）
+                  </Text>
+                  <Input
+                    type="digit"
+                    className="border border-gray-300 rounded-lg p-3 bg-gray-50"
+                    placeholder="请输入单价"
+                    value={item.unitPrice}
+                    onInput={(e) => updateItem(item.id, 'unitPrice', e.detail.value)}
+                  />
+                </View>
 
-                    <View className="flex items-center justify-between mb-2">
-                      <View className="flex items-center">
-                        <Text className="text-xs text-gray-600 mr-3">数量: {record.quantity}</Text>
-                        <Text className="text-xs text-gray-600 mr-3">
-                          单价: ¥{Number(record.unit_price).toFixed(2)}
-                        </Text>
-                        {record.need_upstairs && (
-                          <Text className="text-xs text-gray-600">
-                            上楼: ¥{Number(record.upstairs_price).toFixed(2)}
-                          </Text>
-                        )}
-                      </View>
-                      <Text className="text-sm text-green-600 font-medium">
-                        ¥{Number(record.total_amount).toFixed(2)}
+                {/* 是否需要上楼 */}
+                <View className="mb-4">
+                  <View className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <Text className="text-sm text-gray-700">是否需要上楼</Text>
+                    <Switch
+                      checked={item.needUpstairs}
+                      onChange={(e) => updateItem(item.id, 'needUpstairs', e.detail.value)}
+                    />
+                  </View>
+                </View>
+
+                {/* 上楼单价 */}
+                {item.needUpstairs && (
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-600 block mb-2">
+                      <Text className="text-red-500">* </Text>上楼单价（元/件，最多两位小数）
+                    </Text>
+                    <Input
+                      type="digit"
+                      className="border border-gray-300 rounded-lg p-3 bg-gray-50"
+                      placeholder="请输入上楼单价"
+                      value={item.upstairsPrice}
+                      onInput={(e) => updateItem(item.id, 'upstairsPrice', e.detail.value)}
+                    />
+                  </View>
+                )}
+
+                {/* 是否需要分拣 */}
+                <View className="mb-4">
+                  <View className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <Text className="text-sm text-gray-700">是否需要分拣</Text>
+                    <Switch
+                      checked={item.needSorting}
+                      onChange={(e) => updateItem(item.id, 'needSorting', e.detail.value)}
+                    />
+                  </View>
+                </View>
+
+                {/* 分拣件数和单价 */}
+                {item.needSorting && (
+                  <>
+                    <View className="mb-4">
+                      <Text className="text-sm text-gray-600 block mb-2">
+                        <Text className="text-red-500">* </Text>分拣件数（正整数）
                       </Text>
+                      <Input
+                        type="number"
+                        className="border border-gray-300 rounded-lg p-3 bg-gray-50"
+                        placeholder="请输入分拣件数"
+                        value={item.sortingQuantity}
+                        onInput={(e) => updateItem(item.id, 'sortingQuantity', e.detail.value)}
+                      />
                     </View>
+                    <View className="mb-4">
+                      <Text className="text-sm text-gray-600 block mb-2">
+                        <Text className="text-red-500">* </Text>分拣单价（元/件，最多两位小数）
+                      </Text>
+                      <Input
+                        type="digit"
+                        className="border border-gray-300 rounded-lg p-3 bg-gray-50"
+                        placeholder="请输入分拣单价"
+                        value={item.sortingUnitPrice}
+                        onInput={(e) => updateItem(item.id, 'sortingUnitPrice', e.detail.value)}
+                      />
+                    </View>
+                  </>
+                )}
 
-                    {record.notes && (
-                      <View className="mb-2 pt-2 border-t border-gray-200">
-                        <Text className="text-xs text-gray-500">{record.notes}</Text>
+                {/* 金额明细 */}
+                <View className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4">
+                  <Text className="text-sm font-bold text-gray-700 block mb-3">金额明细</Text>
+                  <View className="space-y-2">
+                    <View className="flex justify-between">
+                      <Text className="text-sm text-gray-600">基础金额：</Text>
+                      <Text className="text-sm font-medium text-gray-800">¥{details.baseAmount.toFixed(2)}</Text>
+                    </View>
+                    {item.needUpstairs && (
+                      <View className="flex justify-between">
+                        <Text className="text-sm text-gray-600">上楼金额：</Text>
+                        <Text className="text-sm font-medium text-blue-600">¥{details.upstairsAmount.toFixed(2)}</Text>
                       </View>
                     )}
-
-                    <View className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200">
-                      <View
-                        className="flex items-center bg-blue-50 px-3 py-1 rounded"
-                        onClick={() => handleEdit(record)}>
-                        <View className="i-mdi-pencil text-blue-600 text-sm mr-1" />
-                        <Text className="text-xs text-blue-600">编辑</Text>
+                    {item.needSorting && (
+                      <View className="flex justify-between">
+                        <Text className="text-sm text-gray-600">分拣金额：</Text>
+                        <Text className="text-sm font-medium text-purple-600">¥{details.sortingAmount.toFixed(2)}</Text>
                       </View>
-                      <View
-                        className="flex items-center bg-red-50 px-3 py-1 rounded"
-                        onClick={() => handleDelete(record.id)}>
-                        <View className="i-mdi-delete text-red-600 text-sm mr-1" />
-                        <Text className="text-xs text-red-600">删除</Text>
+                    )}
+                    <View className="border-t border-green-200 pt-2 mt-2">
+                      <View className="flex justify-between">
+                        <Text className="text-base font-bold text-gray-800">小计：</Text>
+                        <Text className="text-base font-bold text-green-600">¥{details.totalAmount.toFixed(2)}</Text>
                       </View>
                     </View>
                   </View>
-                ))}
+                </View>
               </View>
-            ) : (
-              <View className="text-center py-8">
-                <View className="i-mdi-package-variant-closed text-gray-300 text-5xl mb-2" />
-                <Text className="text-gray-400 text-sm block">暂无计件记录</Text>
+            )
+          })}
+
+          {/* 添加计件项按钮 */}
+          <View className="mb-4">
+            <Button
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl shadow-md active:scale-98 transition-all"
+              onClick={handleAddItem}>
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-plus-circle text-xl mr-2" />
+                <Text className="text-base font-medium">添加计件项</Text>
               </View>
-            )}
+            </Button>
+          </View>
+
+          {/* 总金额卡片 */}
+          <View className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 mb-4 shadow-lg">
+            <View className="flex items-center justify-between">
+              <View>
+                <Text className="text-green-100 text-sm block mb-1">总金额</Text>
+                <Text className="text-white text-3xl font-bold">¥{calculateTotalAmount().toFixed(2)}</Text>
+              </View>
+              <View className="i-mdi-cash-multiple text-5xl text-white opacity-50" />
+            </View>
+          </View>
+
+          {/* 提交按钮 */}
+          <View className="mb-4">
+            <Button
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg active:scale-98 transition-all"
+              onClick={handleSubmit}>
+              <Text className="text-lg font-bold">提交录入</Text>
+            </Button>
           </View>
         </View>
       </ScrollView>

@@ -165,6 +165,9 @@ export interface PieceWorkRecord {
   unit_price: number
   need_upstairs: boolean
   upstairs_price: number
+  need_sorting: boolean
+  sorting_quantity: number
+  sorting_unit_price: number
   total_amount: number
   notes?: string
   created_at: string
@@ -180,6 +183,9 @@ export interface PieceWorkRecordInput {
   unit_price: number
   need_upstairs: boolean
   upstairs_price: number
+  need_sorting: boolean
+  sorting_quantity: number
+  sorting_unit_price: number
   total_amount: number
   notes?: string
 }
