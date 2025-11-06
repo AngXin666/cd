@@ -1,14 +1,27 @@
 import {ScrollView, Text, View} from '@tarojs/components'
-import {navigateTo} from '@tarojs/taro'
+import {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useState} from 'react'
+import {useCallback, useState} from 'react'
+import {getCurrentUserProfile} from '@/db/api'
+import type {Profile} from '@/db/types'
 
 const HelpPage: React.FC = () => {
   useAuth({guard: true})
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
 
-  const faqList = [
+  const loadProfile = useCallback(async () => {
+    const data = await getCurrentUserProfile()
+    setProfile(data)
+  }, [])
+
+  useDidShow(() => {
+    loadProfile()
+  })
+
+  // 根据角色定义不同的FAQ列表
+  const getDriverFAQ = () => [
     {
       question: '如何进行考勤打卡？',
       answer:
@@ -26,7 +39,44 @@ const HelpPage: React.FC = () => {
     {
       question: '如何查看我的收入？',
       answer: '点击"数据统计"按钮，可以查看个人的计件记录和收入统计。支持按日期和仓库筛选查看。'
+    }
+  ]
+
+  const getManagerFAQ = () => [
+    {
+      question: '如何查看司机数据？',
+      answer: '在管理员工作台点击"件数报表"，可以查看管辖仓库所有司机的计件和考勤数据。支持按日期和司机筛选。'
     },
+    {
+      question: '如何审批请假申请？',
+      answer: '点击"请假审批"按钮，可以查看待审批的请假申请。点击申请详情，选择同意或拒绝，并填写审批意见。'
+    },
+    {
+      question: '如何管理司机信息？',
+      answer: '在管理员工作台可以查看所有司机列表，点击司机可以查看详细信息。如需修改司机角色，请联系超级管理员。'
+    }
+  ]
+
+  const getSuperAdminFAQ = () => [
+    {
+      question: '如何管理仓库？',
+      answer: '在超级管理员控制台点击"仓库管理"，可以添加、编辑、删除仓库，设置考勤规则。'
+    },
+    {
+      question: '如何分配司机到仓库？',
+      answer: '点击"司机分配"按钮，选择司机和仓库，点击分配即可。一个司机可以分配到多个仓库。'
+    },
+    {
+      question: '如何管理用户角色？',
+      answer: '点击"用户管理"按钮，可以查看所有用户，修改用户角色（司机/管理员/超级管理员）。'
+    },
+    {
+      question: '如何管理计件品类？',
+      answer: '点击"计件品类"按钮，可以添加、编辑、删除计件品类，设置单价和附加费用。'
+    }
+  ]
+
+  const getCommonFAQ = () => [
     {
       question: '忘记密码怎么办？',
       answer: '请联系管理员重置密码。登录后可以在"设置-修改密码"中修改密码。'
@@ -41,9 +91,24 @@ const HelpPage: React.FC = () => {
     },
     {
       question: '数据统计不准确怎么办？',
-      answer: '请检查是否正确录入了计件记录和考勤打卡。如果数据仍然不准确，请联系管理员核实。'
+      answer: '请检查是否正确录入了数据。如果数据仍然不准确，请联系管理员核实。'
     }
   ]
+
+  // 根据角色获取FAQ列表
+  const getFAQList = () => {
+    let roleFAQ: Array<{question: string; answer: string}> = []
+    if (profile?.role === 'driver') {
+      roleFAQ = getDriverFAQ()
+    } else if (profile?.role === 'manager') {
+      roleFAQ = getManagerFAQ()
+    } else if (profile?.role === 'super_admin') {
+      roleFAQ = getSuperAdminFAQ()
+    }
+    return [...roleFAQ, ...getCommonFAQ()]
+  }
+
+  const faqList = getFAQList()
 
   const toggleExpand = (index: number) => {
     setExpandedIndex(expandedIndex === index ? null : index)
@@ -75,35 +140,41 @@ const HelpPage: React.FC = () => {
             <Text className="text-base font-bold text-gray-800 block mb-4">使用说明</Text>
 
             <View className="mb-4">
-              <View className="flex items-start mb-3">
-                <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-gray-800 block mb-1">司机端功能</Text>
-                  <Text className="text-xs text-gray-600 block">
-                    司机可以进行考勤打卡、计件录入、请假申请和数据统计查看。每天上班时需要打卡，完成配送后录入计件记录。
-                  </Text>
+              {profile?.role === 'driver' && (
+                <View className="flex items-start mb-3">
+                  <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium text-gray-800 block mb-1">司机端功能</Text>
+                    <Text className="text-xs text-gray-600 block">
+                      司机可以进行考勤打卡、计件录入、请假申请和数据统计查看。每天上班时需要打卡，完成配送后录入计件记录。
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
-              <View className="flex items-start mb-3">
-                <View className="i-mdi-numeric-2-circle text-2xl text-blue-900 mr-3 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-gray-800 block mb-1">管理员功能</Text>
-                  <Text className="text-xs text-gray-600 block">
-                    管理员可以查看管辖仓库的数据统计，审批司机的请假申请，管理司机信息。
-                  </Text>
+              {profile?.role === 'manager' && (
+                <View className="flex items-start mb-3">
+                  <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium text-gray-800 block mb-1">管理员功能</Text>
+                    <Text className="text-xs text-gray-600 block">
+                      管理员可以查看管辖仓库的数据统计，审批司机的请假申请，管理司机信息。
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
-              <View className="flex items-start">
-                <View className="i-mdi-numeric-3-circle text-2xl text-blue-900 mr-3 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-gray-800 block mb-1">超级管理员功能</Text>
-                  <Text className="text-xs text-gray-600 block">
-                    超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和管理员、管理计件品类、查看所有数据统计。
-                  </Text>
+              {profile?.role === 'super_admin' && (
+                <View className="flex items-start">
+                  <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium text-gray-800 block mb-1">超级管理员功能</Text>
+                    <Text className="text-xs text-gray-600 block">
+                      超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和管理员、管理计件品类、查看所有数据统计。
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
           </View>
 
