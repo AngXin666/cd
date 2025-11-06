@@ -34,7 +34,8 @@ const DriverHome: React.FC = () => {
   // 加载统计数据
   const loadStats = useCallback(async () => {
     if (!user?.id) {
-      console.log('用户ID不存在，无法加载统计数据')
+      console.log('用户ID不存在，无法加载统计数据，user:', user)
+      setLoading(false)
       return
     }
 
@@ -46,15 +47,20 @@ const DriverHome: React.FC = () => {
       const year = today.getFullYear()
       const month = today.getMonth() + 1
 
+      // 计算本月的开始和结束日期
+      const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
+      const lastDay = new Date(year, month, 0)
+      const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
+
       // 获取当月计件记录
-      console.log('获取计件记录:', year, month)
-      const records = await getPieceWorkRecordsByUser(user.id, year.toString(), month.toString())
-      console.log('计件记录数量:', records.length)
+      console.log('获取计件记录:', firstDay, '至', lastDayStr)
+      const records = await getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
+      console.log('计件记录数量:', records.length, '记录:', records)
 
       // 筛选今日记录
       const todayStr = today.toISOString().split('T')[0]
       const todayRecords = records.filter((record) => record.work_date.startsWith(todayStr))
-      console.log('今日记录数量:', todayRecords.length)
+      console.log('今日记录数量:', todayRecords.length, '今日日期:', todayStr)
 
       // 计算今日统计
       const todayPieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
@@ -89,22 +95,21 @@ const DriverHome: React.FC = () => {
         monthIncome
       )
 
-      // 获取本月考勤数据
-      const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
-      const lastDay = new Date(year, month, 0)
-      const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
+      // 获取本月考勤数据（使用前面已经计算好的firstDay和lastDayStr）
       console.log('获取考勤数据:', firstDay, '至', lastDayStr)
       const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
       console.log('考勤统计 - 出勤天数:', attendanceData.attendanceDays, '请假天数:', attendanceData.leaveDays)
 
-      setStats({
+      const newStats = {
         todayPieceCount,
         todayIncome,
         monthPieceCount,
         monthIncome,
         attendanceDays: attendanceData.attendanceDays,
         leaveDays: attendanceData.leaveDays
-      })
+      }
+      console.log('设置新的统计数据:', newStats)
+      setStats(newStats)
     } catch (error) {
       console.error('加载统计数据失败:', error)
       Taro.showToast({
@@ -115,7 +120,7 @@ const DriverHome: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [user?.id])
+  }, [user?.id, user])
 
   useEffect(() => {
     loadProfile()
