@@ -1,5 +1,5 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {useDidShow} from '@tarojs/taro'
+import Taro, {getCurrentInstance, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -24,6 +24,10 @@ const DriverPieceWork: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 排序顺序：asc=升序，desc=降序
   const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month') // 当前选中的快捷筛选
 
+  // 获取URL参数
+  const instance = getCurrentInstance()
+  const rangeParam = instance.router?.params?.range || '' // 'today' 或 'month'
+
   // 编辑状态
   const [editingRecord, setEditingRecord] = useState<PieceWorkRecord | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -37,17 +41,35 @@ const DriverPieceWork: React.FC = () => {
     sortingUnitPrice: ''
   })
 
-  // 初始化日期范围（默认当月）
+  // 初始化日期范围（根据URL参数或默认当月）
   useEffect(() => {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
-    const firstDay = `${year}-${month}-01`
-    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
-    const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
-    setStartDate(firstDay)
-    setEndDate(lastDayStr)
-  }, [])
+    const day = String(now.getDate()).padStart(2, '0')
+    const todayStr = `${year}-${month}-${day}`
+
+    if (rangeParam === 'today') {
+      // 设置为当天
+      setStartDate(todayStr)
+      setEndDate(todayStr)
+      setActiveQuickFilter('yesterday') // 使用yesterday作为"当天"的标识
+    } else if (rangeParam === 'month') {
+      // 设置为本月
+      const firstDay = `${year}-${month}-01`
+      setStartDate(firstDay)
+      setEndDate(todayStr)
+      setActiveQuickFilter('month')
+    } else {
+      // 默认当月
+      const firstDay = `${year}-${month}-01`
+      const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
+      const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+      setStartDate(firstDay)
+      setEndDate(lastDayStr)
+      setActiveQuickFilter('month')
+    }
+  }, [rangeParam])
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -533,7 +555,16 @@ const DriverPieceWork: React.FC = () => {
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-xl p-6 mb-4 shadow-lg">
             <Text className="text-white text-2xl font-bold block mb-2">我的计件</Text>
-            <Text className="text-orange-100 text-sm block">查看和管理计件工作记录</Text>
+            <View className="flex items-center">
+              <Text className="text-orange-100 text-sm">查看和管理计件工作记录</Text>
+              {rangeParam && (
+                <View className="ml-2 bg-white bg-opacity-20 rounded-full px-3 py-1">
+                  <Text className="text-white text-xs font-medium">
+                    {rangeParam === 'today' ? '📅 当天数据' : '📊 本月数据'}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* 筛选条件 */}

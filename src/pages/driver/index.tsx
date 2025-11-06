@@ -154,6 +154,12 @@ const DriverHome: React.FC = () => {
     }
   }
 
+  // 处理统计卡片点击
+  const handleStatsClick = (type: 'today' | 'month') => {
+    // 跳转到数据统计页面，并传递时间范围参数
+    navigateTo({url: `/pages/driver/piece-work/index?range=${type}`})
+  }
+
   // 退出登录处理
   const handleLogout = () => {
     showModal({
@@ -195,7 +201,9 @@ const DriverHome: React.FC = () => {
               <View className="bg-white rounded-xl p-4 shadow-md">
                 <View className="grid grid-cols-3 gap-3">
                   {/* 当日件数 */}
-                  <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                  <View
+                    className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={() => handleStatsClick('today')}>
                     <View className="i-mdi-package-variant text-2xl text-blue-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">当日件数</Text>
                     <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
@@ -203,7 +211,9 @@ const DriverHome: React.FC = () => {
                   </View>
 
                   {/* 当日收入 */}
-                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                  <View
+                    className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={() => handleStatsClick('today')}>
                     <View className="i-mdi-cash-multiple text-2xl text-green-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">当日收入</Text>
                     <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
@@ -211,7 +221,9 @@ const DriverHome: React.FC = () => {
                   </View>
 
                   {/* 本月件数 */}
-                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                  <View
+                    className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={() => handleStatsClick('month')}>
                     <View className="i-mdi-package-variant-closed text-2xl text-purple-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">本月件数</Text>
                     <Text className="text-2xl font-bold text-purple-900 block">{stats.monthPieceCount}</Text>
@@ -219,7 +231,9 @@ const DriverHome: React.FC = () => {
                   </View>
 
                   {/* 本月收入 */}
-                  <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                  <View
+                    className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={() => handleStatsClick('month')}>
                     <View className="i-mdi-currency-cny text-2xl text-orange-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">本月收入</Text>
                     <Text className="text-2xl font-bold text-orange-600 block">{stats.monthIncome.toFixed(0)}</Text>
