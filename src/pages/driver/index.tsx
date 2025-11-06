@@ -3,17 +3,20 @@ import Taro, {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getCurrentUserProfile, getDriverWarehouses, getPieceWorkRecordsByUser} from '@/db/api'
+import {getCurrentUserProfile, getDriverAttendanceStats, getDriverWarehouses, getPieceWorkRecordsByUser} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 
 const DriverHome: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [todayStats, setTodayStats] = useState({
-    pieceCount: 0,
-    income: 0,
-    expense: 0
+  const [stats, setStats] = useState({
+    todayPieceCount: 0,
+    todayIncome: 0,
+    monthPieceCount: 0,
+    monthIncome: 0,
+    attendanceDays: 0,
+    leaveDays: 0
   })
 
   const loadProfile = useCallback(async () => {
@@ -27,8 +30,8 @@ const DriverHome: React.FC = () => {
     setWarehouses(data)
   }, [user?.id])
 
-  // 加载今日统计数据
-  const loadTodayStats = useCallback(async () => {
+  // 加载统计数据
+  const loadStats = useCallback(async () => {
     if (!user?.id) return
 
     const today = new Date()
@@ -43,30 +46,49 @@ const DriverHome: React.FC = () => {
     const todayRecords = records.filter((record) => record.work_date.startsWith(todayStr))
 
     // 计算今日统计
-    const pieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
-    const income = todayRecords.reduce((sum, record) => {
+    const todayPieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
+    const todayIncome = todayRecords.reduce((sum, record) => {
       const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
       const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
-      return sum + baseAmount + upstairsAmount
+      const sortingAmount = record.need_sorting ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0) : 0
+      return sum + baseAmount + upstairsAmount + sortingAmount
     }, 0)
 
-    setTodayStats({
-      pieceCount,
-      income,
-      expense: 0 // 支出功能待开发
+    // 计算本月统计
+    const monthPieceCount = records.reduce((sum, record) => sum + (record.quantity || 0), 0)
+    const monthIncome = records.reduce((sum, record) => {
+      const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
+      const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
+      const sortingAmount = record.need_sorting ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0) : 0
+      return sum + baseAmount + upstairsAmount + sortingAmount
+    }, 0)
+
+    // 获取本月考勤数据
+    const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
+    const lastDay = new Date(year, month, 0)
+    const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
+    const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
+
+    setStats({
+      todayPieceCount,
+      todayIncome,
+      monthPieceCount,
+      monthIncome,
+      attendanceDays: attendanceData.attendanceDays,
+      leaveDays: attendanceData.leaveDays
     })
   }, [user?.id])
 
   useEffect(() => {
     loadProfile()
     loadWarehouses()
-    loadTodayStats()
-  }, [loadProfile, loadWarehouses, loadTodayStats])
+    loadStats()
+  }, [loadProfile, loadWarehouses, loadStats])
 
   useDidShow(() => {
     loadProfile()
     loadWarehouses()
-    loadTodayStats()
+    loadStats()
   })
 
   // 快捷功能点击处理
@@ -105,47 +127,93 @@ const DriverHome: React.FC = () => {
             <Text className="text-blue-100 text-sm block">欢迎回来，{profile?.name || profile?.phone || '司机'}</Text>
           </View>
 
-          {/* 今日统计板块 - 优化后 */}
+          {/* 统计板块 */}
           <View className="mb-4">
             <View className="flex items-center justify-between mb-3">
               <View className="flex items-center">
-                <View className="i-mdi-chart-line text-xl text-blue-900 mr-2" />
-                <Text className="text-lg font-bold text-gray-800">今日统计</Text>
+                <View className="i-mdi-chart-box text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">数据统计</Text>
               </View>
               <Text className="text-xs text-gray-500">{new Date().toLocaleDateString('zh-CN')}</Text>
             </View>
-            <View className="grid grid-cols-3 gap-3">
-              {/* 当日件数 */}
-              <View className="bg-white rounded-xl p-4 shadow-md">
-                <View className="flex items-center justify-between mb-2">
-                  <View className="i-mdi-package-variant text-2xl text-blue-600" />
-                  {todayStats.pieceCount > 0 && <View className="i-mdi-trending-up text-sm text-green-500" />}
-                </View>
-                <Text className="text-xs text-gray-500 block mb-1">当日件数</Text>
-                <Text className="text-2xl font-bold text-blue-900 block">{todayStats.pieceCount}</Text>
-                <Text className="text-xs text-gray-400 block mt-1">件</Text>
-              </View>
 
-              {/* 当日收入 */}
-              <View className="bg-white rounded-xl p-4 shadow-md">
-                <View className="flex items-center justify-between mb-2">
-                  <View className="i-mdi-cash-multiple text-2xl text-green-600" />
-                  {todayStats.income > 0 && <View className="i-mdi-trending-up text-sm text-green-500" />}
+            {/* 第一行：当日数据 */}
+            <View className="mb-3">
+              <Text className="text-sm font-medium text-gray-600 mb-2 ml-1">今日数据</Text>
+              <View className="grid grid-cols-2 gap-3">
+                {/* 当日件数 */}
+                <View className="bg-white rounded-xl p-4 shadow-md">
+                  <View className="flex items-center justify-between mb-2">
+                    <View className="i-mdi-package-variant text-2xl text-blue-600" />
+                    {stats.todayPieceCount > 0 && <View className="i-mdi-trending-up text-sm text-green-500" />}
+                  </View>
+                  <Text className="text-xs text-gray-500 block mb-1">当日件数</Text>
+                  <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">件</Text>
                 </View>
-                <Text className="text-xs text-gray-500 block mb-1">当日收入</Text>
-                <Text className="text-2xl font-bold text-green-600 block">{todayStats.income.toFixed(0)}</Text>
-                <Text className="text-xs text-gray-400 block mt-1">元</Text>
-              </View>
 
-              {/* 当日支出 */}
-              <View className="bg-white rounded-xl p-4 shadow-md">
-                <View className="flex items-center justify-between mb-2">
-                  <View className="i-mdi-credit-card-outline text-2xl text-orange-600" />
-                  {todayStats.expense > 0 && <View className="i-mdi-trending-down text-sm text-red-500" />}
+                {/* 当日收入 */}
+                <View className="bg-white rounded-xl p-4 shadow-md">
+                  <View className="flex items-center justify-between mb-2">
+                    <View className="i-mdi-cash-multiple text-2xl text-green-600" />
+                    {stats.todayIncome > 0 && <View className="i-mdi-trending-up text-sm text-green-500" />}
+                  </View>
+                  <Text className="text-xs text-gray-500 block mb-1">当日收入</Text>
+                  <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">元</Text>
                 </View>
-                <Text className="text-xs text-gray-500 block mb-1">当日支出</Text>
-                <Text className="text-2xl font-bold text-orange-600 block">{todayStats.expense.toFixed(0)}</Text>
-                <Text className="text-xs text-gray-400 block mt-1">元</Text>
+              </View>
+            </View>
+
+            {/* 第二行：本月数据 */}
+            <View className="mb-3">
+              <Text className="text-sm font-medium text-gray-600 mb-2 ml-1">本月数据</Text>
+              <View className="grid grid-cols-2 gap-3">
+                {/* 本月件数 */}
+                <View className="bg-white rounded-xl p-4 shadow-md">
+                  <View className="flex items-center justify-between mb-2">
+                    <View className="i-mdi-package-variant-closed text-2xl text-purple-600" />
+                  </View>
+                  <Text className="text-xs text-gray-500 block mb-1">本月件数</Text>
+                  <Text className="text-2xl font-bold text-purple-900 block">{stats.monthPieceCount}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">件</Text>
+                </View>
+
+                {/* 本月收入 */}
+                <View className="bg-white rounded-xl p-4 shadow-md">
+                  <View className="flex items-center justify-between mb-2">
+                    <View className="i-mdi-currency-cny text-2xl text-orange-600" />
+                  </View>
+                  <Text className="text-xs text-gray-500 block mb-1">本月收入</Text>
+                  <Text className="text-2xl font-bold text-orange-600 block">{stats.monthIncome.toFixed(0)}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">元</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 第三行：考勤数据 */}
+            <View>
+              <Text className="text-sm font-medium text-gray-600 mb-2 ml-1">考勤数据</Text>
+              <View className="grid grid-cols-2 gap-3">
+                {/* 出勤天数 */}
+                <View className="bg-white rounded-xl p-4 shadow-md">
+                  <View className="flex items-center justify-between mb-2">
+                    <View className="i-mdi-calendar-check text-2xl text-teal-600" />
+                  </View>
+                  <Text className="text-xs text-gray-500 block mb-1">出勤天数</Text>
+                  <Text className="text-2xl font-bold text-teal-900 block">{stats.attendanceDays}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                </View>
+
+                {/* 请假天数 */}
+                <View className="bg-white rounded-xl p-4 shadow-md">
+                  <View className="flex items-center justify-between mb-2">
+                    <View className="i-mdi-calendar-remove text-2xl text-red-600" />
+                  </View>
+                  <Text className="text-xs text-gray-500 block mb-1">请假天数</Text>
+                  <Text className="text-2xl font-bold text-red-900 block">{stats.leaveDays}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                </View>
               </View>
             </View>
           </View>
