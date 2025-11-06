@@ -45,11 +45,41 @@ export const customFetch: typeof fetch = async (url: string, options: RequestIni
   } as unknown as Response
 }
 
+// 自定义Storage适配器，使用Taro的本地存储API
+const taroStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      const value = await Taro.getStorage({key})
+      return value.data
+    } catch {
+      return null
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      await Taro.setStorage({key, data: value})
+    } catch (error) {
+      console.error('存储session失败:', error)
+    }
+  },
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      await Taro.removeStorage({key})
+    } catch (error) {
+      console.error('删除session失败:', error)
+    }
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     fetch: customFetch
   },
   auth: {
-    storageKey: `${appId}-auth-token`
+    storageKey: `${appId}-auth-token`,
+    storage: taroStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
   }
 })
