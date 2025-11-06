@@ -67,15 +67,15 @@ const ManagerHome: React.FC = () => {
             </View>
             <View className="bg-white rounded-lg p-4 shadow">
               <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-600">今日任务</Text>
-                <View className="i-mdi-clipboard-text text-2xl text-blue-900" />
+                <Text className="text-sm text-gray-600">当日总件数</Text>
+                <View className="i-mdi-package-variant text-2xl text-blue-900" />
               </View>
               <Text className="text-3xl font-bold text-blue-900 block">0</Text>
             </View>
             <View className="bg-white rounded-lg p-4 shadow">
               <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-600">车辆总数</Text>
-                <View className="i-mdi-car-multiple text-2xl text-orange-600" />
+                <Text className="text-sm text-gray-600">请假待审批</Text>
+                <View className="i-mdi-calendar-clock text-2xl text-orange-600" />
               </View>
               <Text className="text-3xl font-bold text-orange-600 block">0</Text>
             </View>
