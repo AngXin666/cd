@@ -38,17 +38,17 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const loadData = useCallback(async () => {
     if (!user) return
 
-    // 获取当前用户信息
-    const userProfile = profiles.find((p) => p.id === user.id) || null
+    // 获取所有用户信息
+    const allProfiles = await getAllProfiles()
+    setProfiles(allProfiles)
+
+    // 获取当前用户信息（使用最新获取的数据）
+    const userProfile = allProfiles.find((p) => p.id === user.id) || null
     setCurrentUserProfile(userProfile)
 
     // 获取所有仓库信息
     const allWarehouses = await getAllWarehouses()
     setWarehouses(allWarehouses)
-
-    // 获取所有用户信息
-    const allProfiles = await getAllProfiles()
-    setProfiles(allProfiles)
 
     // 获取所有请假申请（包括历史数据）
     const allLeaveApps = await getAllLeaveApplications()
@@ -63,7 +63,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       const managedWarehouses = await getManagerWarehouses(user.id)
       setManagerWarehouses(managedWarehouses.map((w) => w.id))
     }
-  }, [user, profiles])
+  }, [user])
 
   useEffect(() => {
     loadData()
