@@ -17,6 +17,7 @@ const pages = [
   'pages/manager/piece-work/index',
   'pages/manager/piece-work-form/index',
   'pages/manager/leave-approval/index',
+  'pages/manager/driver-leave-detail/index',
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/warehouse-detail/index',
   'pages/super-admin/driver-warehouse-assignment/index',
@@ -24,7 +25,8 @@ const pages = [
   'pages/super-admin/category-management/index',
   'pages/super-admin/piece-work/index',
   'pages/super-admin/piece-work-form/index',
-  'pages/super-admin/leave-approval/index'
+  'pages/super-admin/leave-approval/index',
+  'pages/super-admin/driver-leave-detail/index'
 ]
 
 export default defineAppConfig({
