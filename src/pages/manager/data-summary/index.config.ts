@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '数据汇总'
+  navigationBarTitleText: '计件报表'
 })

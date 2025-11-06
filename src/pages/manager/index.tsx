@@ -1,4 +1,4 @@
-import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {ScrollView, Text, View} from '@tarojs/components'
 import {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -27,7 +27,7 @@ const ManagerHome: React.FC = () => {
     loadData()
   })
 
-  const handleDataSummary = () => {
+  const handlePieceWorkReport = () => {
     navigateTo({url: '/pages/manager/data-summary/index'})
   }
 
@@ -93,35 +93,15 @@ const ManagerHome: React.FC = () => {
                 <View className="i-mdi-map-marker-path text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">路线规划</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
+              <View onClick={handlePieceWorkReport} className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
                 <View className="i-mdi-chart-line text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">数据报表</Text>
+                <Text className="text-xs text-gray-700">计件报表</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
                 <View className="i-mdi-alert-circle text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">异常处理</Text>
               </View>
             </View>
-          </View>
-
-          {/* 快捷操作 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <Text className="text-lg font-bold text-gray-800 block mb-4">快捷操作</Text>
-            <Button
-              className="w-full text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#1E3A8A',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleDataSummary}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-chart-box mr-2" />
-                <Text>数据汇总</Text>
-              </View>
-            </Button>
           </View>
 
           {/* 司机列表 */}

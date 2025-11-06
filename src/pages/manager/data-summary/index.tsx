@@ -257,7 +257,7 @@ const DataSummary: React.FC = () => {
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">数据汇总</Text>
+            <Text className="text-white text-2xl font-bold block mb-2">计件报表</Text>
             <Text className="text-blue-100 text-sm block">查看计件数据报表和统计分析</Text>
           </View>
 
