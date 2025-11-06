@@ -137,8 +137,9 @@ const ManagerHome: React.FC = () => {
               {/* 右侧个人中心按钮 */}
               <View
                 onClick={handleProfileClick}
-                className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-full p-2 active:scale-95 transition-all">
-                <View className="i-mdi-account-circle text-2xl text-blue-600" />
+                className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-full px-3 py-2 active:scale-95 transition-all flex items-center">
+                <View className="i-mdi-account-circle text-xl text-blue-600 mr-1" />
+                <Text className="text-xs text-blue-900 font-medium">个人中心</Text>
               </View>
             </View>
             <View className="grid grid-cols-3 gap-3">
