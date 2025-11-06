@@ -1,4 +1,4 @@
-import {Button, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -24,6 +24,7 @@ const SuperAdminPieceWork: React.FC = () => {
   // 筛选状态
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0) // 0 表示所有仓库
   const [selectedDriverIndex, setSelectedDriverIndex] = useState(0) // 0 表示所有司机
+  const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [quickFilter, setQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
@@ -59,6 +60,15 @@ const SuperAdminPieceWork: React.FC = () => {
     }
   }, [user?.id])
 
+  // 过滤司机列表（根据搜索关键词）
+  const filteredDrivers = drivers.filter((driver) => {
+    if (!driverSearchKeyword.trim()) return true
+    const keyword = driverSearchKeyword.toLowerCase()
+    const name = (driver.name || '').toLowerCase()
+    const phone = (driver.phone || '').toLowerCase()
+    return name.includes(keyword) || phone.includes(keyword)
+  })
+
   // 加载计件记录
   const loadRecords = useCallback(async () => {
     if (warehouses.length === 0) return
@@ -80,7 +90,7 @@ const SuperAdminPieceWork: React.FC = () => {
 
       // 司机筛选
       if (selectedDriverIndex > 0) {
-        const selectedDriver = drivers[selectedDriverIndex - 1]
+        const selectedDriver = filteredDrivers[selectedDriverIndex - 1]
         data = data.filter((r) => r.user_id === selectedDriver.id)
       }
 
@@ -100,7 +110,7 @@ const SuperAdminPieceWork: React.FC = () => {
         duration: 2000
       })
     }
-  }, [startDate, endDate, warehouses, drivers, selectedWarehouseIndex, selectedDriverIndex, sortOrder])
+  }, [startDate, endDate, warehouses, filteredDrivers, selectedWarehouseIndex, selectedDriverIndex, sortOrder])
 
   // 初始化日期范围（本月）
   useEffect(() => {
@@ -236,7 +246,12 @@ const SuperAdminPieceWork: React.FC = () => {
 
   // 准备选择器数据
   const warehouseOptions = ['所有仓库', ...warehouses.map((w) => w.name)]
-  const driverOptions = ['所有司机', ...drivers.map((d) => d.name || d.phone)]
+  const driverOptions = ['所有司机', ...filteredDrivers.map((d) => d.name || d.phone)]
+
+  // 当搜索关键词变化时，重置司机选择
+  useEffect(() => {
+    setSelectedDriverIndex(0)
+  }, [])
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -267,9 +282,24 @@ const SuperAdminPieceWork: React.FC = () => {
               </Picker>
             </View>
 
-            {/* 司机选择 */}
+            {/* 司机搜索和选择 */}
             <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">司机</Text>
+              <Text className="text-sm text-gray-700 block mb-2">司机搜索</Text>
+              <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center mb-2">
+                <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
+                <Input
+                  className="flex-1 text-gray-800"
+                  placeholder="输入司机名字或电话号码"
+                  value={driverSearchKeyword}
+                  onInput={(e) => setDriverSearchKeyword(e.detail.value)}
+                />
+                {driverSearchKeyword && (
+                  <View
+                    className="i-mdi-close-circle text-gray-400 text-xl"
+                    onClick={() => setDriverSearchKeyword('')}
+                  />
+                )}
+              </View>
               <Picker
                 mode="selector"
                 range={driverOptions}
@@ -280,6 +310,9 @@ const SuperAdminPieceWork: React.FC = () => {
                   <View className="i-mdi-chevron-down text-gray-500 text-xl" />
                 </View>
               </Picker>
+              {driverSearchKeyword && filteredDrivers.length === 0 && (
+                <Text className="text-xs text-orange-600 mt-1">未找到匹配的司机</Text>
+              )}
             </View>
 
             {/* 日期范围 */}

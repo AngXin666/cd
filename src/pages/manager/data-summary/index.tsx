@@ -1,4 +1,4 @@
-import {Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -25,6 +25,7 @@ const DataSummary: React.FC = () => {
   // 筛选条件
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [selectedDriverIndex, setSelectedDriverIndex] = useState(0)
+  const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
@@ -69,6 +70,15 @@ const DataSummary: React.FC = () => {
     }
   }, [user?.id])
 
+  // 过滤司机列表（根据搜索关键词）
+  const filteredDrivers = drivers.filter((driver) => {
+    if (!driverSearchKeyword.trim()) return true
+    const keyword = driverSearchKeyword.toLowerCase()
+    const name = (driver.name || '').toLowerCase()
+    const phone = (driver.phone || '').toLowerCase()
+    return name.includes(keyword) || phone.includes(keyword)
+  })
+
   // 加载计件记录
   const loadRecords = useCallback(async () => {
     if (!startDate || !endDate || warehouses.length === 0) return
@@ -86,7 +96,7 @@ const DataSummary: React.FC = () => {
         data = allRecords.flat()
       } else {
         // 获取指定司机在所有管辖仓库的计件记录
-        const driver = drivers[selectedDriverIndex - 1]
+        const driver = filteredDrivers[selectedDriverIndex - 1]
         if (driver) {
           data = await getPieceWorkRecordsByUser(driver.id, startDate, endDate)
           // 筛选出管辖仓库的记录
@@ -103,7 +113,7 @@ const DataSummary: React.FC = () => {
           data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
         } else {
           // 获取指定司机在该仓库的计件记录
-          const driver = drivers[selectedDriverIndex - 1]
+          const driver = filteredDrivers[selectedDriverIndex - 1]
           if (driver) {
             const allRecords = await getPieceWorkRecordsByUser(driver.id, startDate, endDate)
             data = allRecords.filter((r) => r.warehouse_id === warehouse.id)
@@ -120,7 +130,7 @@ const DataSummary: React.FC = () => {
     })
 
     setRecords(data)
-  }, [startDate, endDate, warehouses, drivers, selectedWarehouseIndex, selectedDriverIndex, sortOrder])
+  }, [startDate, endDate, warehouses, filteredDrivers, selectedWarehouseIndex, selectedDriverIndex, sortOrder])
 
   useEffect(() => {
     loadData()
@@ -249,7 +259,12 @@ const DataSummary: React.FC = () => {
   const warehouseOptions = ['所有仓库', ...warehouses.map((w) => w.name)]
 
   // 司机选择器选项
-  const driverOptions = ['所有司机', ...drivers.map((d) => d.name || d.phone || '未命名')]
+  const driverOptions = ['所有司机', ...filteredDrivers.map((d) => d.name || d.phone || '未命名')]
+
+  // 当搜索关键词变化时，重置司机选择
+  useEffect(() => {
+    setSelectedDriverIndex(0)
+  }, [])
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -283,9 +298,24 @@ const DataSummary: React.FC = () => {
               </Picker>
             </View>
 
-            {/* 司机选择 */}
+            {/* 司机搜索和选择 */}
             <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">司机</Text>
+              <Text className="text-sm text-gray-700 block mb-2">司机搜索</Text>
+              <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center mb-2">
+                <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
+                <Input
+                  className="flex-1 text-gray-800"
+                  placeholder="输入司机名字或电话号码"
+                  value={driverSearchKeyword}
+                  onInput={(e) => setDriverSearchKeyword(e.detail.value)}
+                />
+                {driverSearchKeyword && (
+                  <View
+                    className="i-mdi-close-circle text-gray-400 text-xl"
+                    onClick={() => setDriverSearchKeyword('')}
+                  />
+                )}
+              </View>
               <Picker
                 mode="selector"
                 range={driverOptions}
@@ -296,6 +326,9 @@ const DataSummary: React.FC = () => {
                   <View className="i-mdi-chevron-down text-gray-400 text-xl" />
                 </View>
               </Picker>
+              {driverSearchKeyword && filteredDrivers.length === 0 && (
+                <Text className="text-xs text-orange-600 mt-1">未找到匹配的司机</Text>
+              )}
             </View>
 
             {/* 日期范围 */}
