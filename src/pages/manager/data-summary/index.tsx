@@ -444,21 +444,30 @@ const DataSummary: React.FC = () => {
                       <View className="i-mdi-tag text-green-600 text-lg mr-2" />
                       <Text className="text-sm text-gray-700">{getCategoryName(record.category_id)}</Text>
                       {record.need_upstairs && (
+                        <View className="ml-2 px-2 py-0.5 bg-orange-100 rounded">
+                          <Text className="text-xs text-orange-600">需上楼</Text>
+                        </View>
+                      )}
+                      {record.need_sorting && (
                         <View className="ml-2 px-2 py-0.5 bg-blue-100 rounded">
-                          <Text className="text-xs text-blue-600">需上楼</Text>
+                          <Text className="text-xs text-blue-600">需分拣</Text>
                         </View>
                       )}
                     </View>
 
                     <View className="flex items-center justify-between mb-2">
-                      <View className="flex items-center">
-                        <Text className="text-xs text-gray-600 mr-3">数量: {record.quantity}</Text>
-                        <Text className="text-xs text-gray-600 mr-3">
-                          单价: ¥{Number(record.unit_price).toFixed(2)}
-                        </Text>
+                      <View className="flex items-center flex-wrap gap-2">
+                        <Text className="text-xs text-gray-600">数量: {record.quantity}</Text>
+                        <Text className="text-xs text-gray-600">单价: ¥{Number(record.unit_price).toFixed(2)}</Text>
                         {record.need_upstairs && (
-                          <Text className="text-xs text-gray-600">
+                          <Text className="text-xs text-orange-600">
                             上楼: ¥{Number(record.upstairs_price).toFixed(2)}
+                          </Text>
+                        )}
+                        {record.need_sorting && record.sorting_quantity > 0 && (
+                          <Text className="text-xs text-blue-600">
+                            分拣: {record.sorting_quantity}件×¥
+                            {Number(record.sorting_unit_price).toFixed(2)}
                           </Text>
                         )}
                       </View>

@@ -487,11 +487,19 @@ const SuperAdminPieceWork: React.FC = () => {
                             </Text>
                           </View>
                         )}
-                        <View className="flex items-center">
-                          <Text className="text-sm font-bold text-blue-900">
-                            ¥{Number(record.total_amount).toFixed(2)}
-                          </Text>
-                        </View>
+                        {record.need_sorting && record.sorting_quantity > 0 && (
+                          <View className="flex items-center">
+                            <Text className="text-xs text-gray-600">分拣: </Text>
+                            <Text className="text-sm font-medium text-green-600">
+                              ¥{(record.sorting_quantity * Number(record.sorting_unit_price)).toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View className="flex items-center">
+                        <Text className="text-sm font-bold text-blue-900">
+                          ¥{Number(record.total_amount).toFixed(2)}
+                        </Text>
                       </View>
                     </View>
                   </View>

@@ -493,8 +493,17 @@ const ManagerPieceWork: React.FC = () => {
                             <Text className="text-xs text-orange-600">需上楼</Text>
                           </View>
                         )}
+                        {record.need_sorting && (
+                          <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
+                            <Text className="text-xs text-green-600">需分拣</Text>
+                          </View>
+                        )}
                       </View>
-                      <View className="flex items-center justify-between mt-2">
+                    </View>
+
+                    {/* 费用信息 */}
+                    <View className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
+                      <View className="flex items-center gap-3">
                         <View className="flex items-center">
                           <Text className="text-xs text-gray-600">数量: </Text>
                           <Text className="text-sm font-medium text-gray-800">{record.quantity}</Text>
@@ -513,18 +522,26 @@ const ManagerPieceWork: React.FC = () => {
                             </Text>
                           </View>
                         )}
-                        <View className="flex items-center">
-                          <Text className="text-sm font-bold text-blue-900">
-                            ¥{Number(record.total_amount).toFixed(2)}
-                          </Text>
-                        </View>
+                        {record.need_sorting && record.sorting_quantity > 0 && (
+                          <View className="flex items-center">
+                            <Text className="text-xs text-gray-600">分拣: </Text>
+                            <Text className="text-sm font-medium text-green-600">
+                              ¥{(record.sorting_quantity * Number(record.sorting_unit_price)).toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                      {record.notes && (
-                        <View className="mt-2 pt-2 border-t border-gray-200">
-                          <Text className="text-xs text-gray-500">备注: {record.notes}</Text>
-                        </View>
-                      )}
+                      <View className="flex items-center">
+                        <Text className="text-sm font-bold text-blue-900">
+                          ¥{Number(record.total_amount).toFixed(2)}
+                        </Text>
+                      </View>
                     </View>
+                    {record.notes && (
+                      <View className="mt-2 pt-2 border-t border-gray-200">
+                        <Text className="text-xs text-gray-500">备注: {record.notes}</Text>
+                      </View>
+                    )}
                   </View>
                 ))}
               </View>
