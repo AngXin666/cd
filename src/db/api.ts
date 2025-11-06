@@ -283,6 +283,29 @@ export async function getWarehouseById(id: string): Promise<Warehouse | null> {
 }
 
 /**
+ * 获取仓库详情（包含规则）
+ */
+export async function getWarehouseWithRule(id: string): Promise<WarehouseWithRule | null> {
+  const {data, error} = await supabase
+    .from('warehouses')
+    .select(
+      `
+      *,
+      rule:attendance_rules(*)
+    `
+    )
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) {
+    console.error('获取仓库详情失败:', error)
+    return null
+  }
+
+  return data as WarehouseWithRule | null
+}
+
+/**
  * 创建仓库
  */
 export async function createWarehouse(input: WarehouseInput): Promise<Warehouse | null> {
@@ -1499,4 +1522,130 @@ export async function validateResignationDate(
     minDate: minDateStr,
     noticeDays: resignation_notice_days
   }
+}
+
+/**
+ * 获取仓库绑定的司机数量
+ */
+export async function getWarehouseDriverCount(warehouseId: string): Promise<number> {
+  const {count, error} = await supabase
+    .from('driver_warehouses')
+    .select('*', {count: 'exact', head: true})
+    .eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('获取仓库司机数量失败:', error)
+    return 0
+  }
+
+  return count || 0
+}
+
+/**
+ * 获取仓库的主要管理员信息
+ */
+export async function getWarehouseManager(warehouseId: string): Promise<Profile | null> {
+  const {data, error} = await supabase
+    .from('manager_warehouses')
+    .select(
+      `
+      profile:profiles (
+        id,
+        name,
+        phone,
+        email,
+        role,
+        created_at
+      )
+    `
+    )
+    .eq('warehouse_id', warehouseId)
+    .order('created_at', {ascending: true})
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.error('获取仓库管理员失败:', error)
+    return null
+  }
+
+  if (!data || !data.profile) {
+    return null
+  }
+
+  return data.profile as unknown as Profile
+}
+
+/**
+ * 获取用户当月已申请的请假天数（仅统计已通过的申请）
+ */
+export async function getMonthlyLeaveCount(userId: string, year: number, month: number): Promise<number> {
+  // 构造月份的开始和结束日期
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+  const endDate = new Date(year, month, 0).toISOString().split('T')[0] // 月份最后一天
+
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .select('start_date, end_date')
+    .eq('user_id', userId)
+    .eq('status', 'approved') // 只统计已通过的申请
+    .gte('start_date', startDate)
+    .lte('start_date', endDate)
+
+  if (error) {
+    console.error('获取月度请假天数失败:', error)
+    return 0
+  }
+
+  if (!data || data.length === 0) {
+    return 0
+  }
+
+  // 计算总天数
+  let totalDays = 0
+  for (const record of data) {
+    const start = new Date(record.start_date)
+    const end = new Date(record.end_date)
+    const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    totalDays += days
+  }
+
+  return totalDays
+}
+
+/**
+ * 获取用户当月待审批的请假天数
+ */
+export async function getMonthlyPendingLeaveCount(userId: string, year: number, month: number): Promise<number> {
+  // 构造月份的开始和结束日期
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+  const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .select('start_date, end_date')
+    .eq('user_id', userId)
+    .eq('status', 'pending') // 只统计待审批的申请
+    .gte('start_date', startDate)
+    .lte('start_date', endDate)
+
+  if (error) {
+    console.error('获取月度待审批请假天数失败:', error)
+    return 0
+  }
+
+  if (!data || data.length === 0) {
+    return 0
+  }
+
+  // 计算总天数
+  let totalDays = 0
+  for (const record of data) {
+    const start = new Date(record.start_date)
+    const end = new Date(record.end_date)
+    const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    totalDays += days
+  }
+
+  return totalDays
 }

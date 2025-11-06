@@ -3,6 +3,7 @@ import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import PasswordVerifyModal from '@/components/common/PasswordVerifyModal'
 import {
   createAttendanceRule,
   createWarehouse,
@@ -41,6 +42,10 @@ const WarehouseManagement: React.FC = () => {
   const [ruleEarlyThreshold, setRuleEarlyThreshold] = useState('15')
   const [ruleRequireClockOut, setRuleRequireClockOut] = useState(true)
   const [ruleActive, setRuleActive] = useState(true)
+
+  // 密码验证
+  const [showPasswordVerify, setShowPasswordVerify] = useState(false)
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null)
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -119,8 +124,36 @@ const WarehouseManagement: React.FC = () => {
     setShowEditWarehouse(true)
   }
 
-  // 更新仓库
-  const handleUpdateWarehouse = async () => {
+  // 查看仓库详情
+  const handleViewWarehouseDetail = (warehouse: WarehouseWithRule) => {
+    Taro.navigateTo({
+      url: `/pages/super-admin/warehouse-detail/index?id=${warehouse.id}`
+    })
+  }
+
+  // 请求密码验证
+  const requestPasswordVerify = (action: () => Promise<void>) => {
+    setPendingAction(() => action)
+    setShowPasswordVerify(true)
+  }
+
+  // 密码验证成功
+  const handlePasswordVerifySuccess = async () => {
+    setShowPasswordVerify(false)
+    if (pendingAction) {
+      await pendingAction()
+      setPendingAction(null)
+    }
+  }
+
+  // 密码验证取消
+  const handlePasswordVerifyCancel = () => {
+    setShowPasswordVerify(false)
+    setPendingAction(null)
+  }
+
+  // 更新仓库（验证前检查）
+  const handleUpdateWarehouse = () => {
     if (!currentWarehouse) return
 
     if (!editWarehouseName.trim()) {
@@ -154,39 +187,42 @@ const WarehouseManagement: React.FC = () => {
       return
     }
 
-    try {
-      showLoading({title: '更新中...'})
+    // 请求密码验证
+    requestPasswordVerify(async () => {
+      try {
+        showLoading({title: '更新中...'})
 
-      const success = await updateWarehouse(currentWarehouse.id, {
-        name: editWarehouseName.trim(),
-        is_active: editWarehouseActive
-      })
-
-      if (success) {
-        // 更新请假和离职设置
-        await updateWarehouseSettings(currentWarehouse.id, {
-          max_leave_days: maxLeaveDays,
-          resignation_notice_days: resignationNoticeDays
+        const success = await updateWarehouse(currentWarehouse.id, {
+          name: editWarehouseName.trim(),
+          is_active: editWarehouseActive
         })
 
+        if (success) {
+          // 更新请假和离职设置
+          await updateWarehouseSettings(currentWarehouse.id, {
+            max_leave_days: maxLeaveDays,
+            resignation_notice_days: resignationNoticeDays
+          })
+
+          showToast({
+            title: '更新成功',
+            icon: 'success',
+            duration: 1500
+          })
+
+          setShowEditWarehouse(false)
+          await loadWarehouses()
+        }
+      } catch (_error) {
         showToast({
-          title: '更新成功',
-          icon: 'success',
-          duration: 1500
+          title: '更新失败',
+          icon: 'none',
+          duration: 2000
         })
-
-        setShowEditWarehouse(false)
-        await loadWarehouses()
+      } finally {
+        Taro.hideLoading()
       }
-    } catch (_error) {
-      showToast({
-        title: '更新失败',
-        icon: 'none',
-        duration: 2000
-      })
-    } finally {
-      Taro.hideLoading()
-    }
+    })
   }
 
   // 删除仓库
@@ -198,29 +234,32 @@ const WarehouseManagement: React.FC = () => {
 
     if (!confirmed) return
 
-    try {
-      showLoading({title: '删除中...'})
+    // 请求密码验证
+    requestPasswordVerify(async () => {
+      try {
+        showLoading({title: '删除中...'})
 
-      const success = await deleteWarehouse(warehouse.id)
+        const success = await deleteWarehouse(warehouse.id)
 
-      if (success) {
+        if (success) {
+          showToast({
+            title: '删除成功',
+            icon: 'success',
+            duration: 1500
+          })
+
+          await loadWarehouses()
+        }
+      } catch (_error) {
         showToast({
-          title: '删除成功',
-          icon: 'success',
-          duration: 1500
+          title: '删除失败',
+          icon: 'none',
+          duration: 2000
         })
-
-        await loadWarehouses()
+      } finally {
+        Taro.hideLoading()
       }
-    } catch (_error) {
-      showToast({
-        title: '删除失败',
-        icon: 'none',
-        duration: 2000
-      })
-    } finally {
-      Taro.hideLoading()
-    }
+    })
   }
 
   // 显示编辑考勤规则对话框
@@ -404,6 +443,12 @@ const WarehouseManagement: React.FC = () => {
                       </View>
                     </View>
                     <View className="flex gap-2">
+                      <Button
+                        size="mini"
+                        className="bg-purple-50 text-purple-600 text-xs break-keep"
+                        onClick={() => handleViewWarehouseDetail(warehouse)}>
+                        详情
+                      </Button>
                       <Button
                         size="mini"
                         className="bg-blue-50 text-blue-600 text-xs break-keep"
@@ -645,6 +690,15 @@ const WarehouseManagement: React.FC = () => {
           </View>
         </View>
       )}
+
+      {/* 密码验证弹窗 */}
+      <PasswordVerifyModal
+        visible={showPasswordVerify}
+        onCancel={handlePasswordVerifyCancel}
+        onSuccess={handlePasswordVerifySuccess}
+        title="安全验证"
+        description="此操作需要验证您的登录密码以确保安全"
+      />
     </View>
   )
 }

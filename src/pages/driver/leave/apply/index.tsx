@@ -7,6 +7,8 @@ import {supabase} from '@/client/supabase'
 import {
   createLeaveApplication,
   getDriverWarehouses,
+  getMonthlyLeaveCount,
+  getMonthlyPendingLeaveCount,
   getWarehouseSettings,
   saveDraftLeaveApplication,
   updateDraftLeaveApplication,
@@ -31,6 +33,9 @@ const ApplyLeave: React.FC = () => {
   const [leaveDays, setLeaveDays] = useState(0)
   const [maxLeaveDays, setMaxLeaveDays] = useState(7)
   const [validationMessage, setValidationMessage] = useState<string>('')
+  const [monthlyApprovedDays, setMonthlyApprovedDays] = useState(0)
+  const [monthlyPendingDays, setMonthlyPendingDays] = useState(0)
+  const [monthlyLimit, setMonthlyLimit] = useState(0)
 
   const leaveTypes = [
     {label: '事假', value: 'personal_leave'},
@@ -122,8 +127,20 @@ const ApplyLeave: React.FC = () => {
       const settings = await getWarehouseSettings(warehouseId)
       if (settings) {
         setMaxLeaveDays(settings.max_leave_days)
+        setMonthlyLimit(settings.max_leave_days)
       }
     }
+
+    // 获取当月已批准和待审批的请假天数
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+
+    const approvedDays = await getMonthlyLeaveCount(user.id, year, month)
+    const pendingDays = await getMonthlyPendingLeaveCount(user.id, year, month)
+
+    setMonthlyApprovedDays(approvedDays)
+    setMonthlyPendingDays(pendingDays)
 
     // 初始化快捷请假的日期
     const tomorrow = getTomorrowDate()
@@ -282,6 +299,17 @@ const ApplyLeave: React.FC = () => {
       return
     }
 
+    // 校验月度请假天数上限
+    const totalMonthlyDays = monthlyApprovedDays + monthlyPendingDays + leaveDays
+    if (monthlyLimit > 0 && totalMonthlyDays > monthlyLimit) {
+      showToast({
+        title: `本月请假天数已超限（已批准${monthlyApprovedDays}天+待审批${monthlyPendingDays}天+本次${leaveDays}天=${totalMonthlyDays}天，上限${monthlyLimit}天）`,
+        icon: 'none',
+        duration: 3000
+      })
+      return
+    }
+
     setSubmitting(true)
 
     let success = false
@@ -364,6 +392,58 @@ const ApplyLeave: React.FC = () => {
               </Text>
             </View>
           </View>
+
+          {/* 月度请假统计 */}
+          {monthlyLimit > 0 && (
+            <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-4 border border-blue-200">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-calendar-month text-2xl text-blue-600 mr-2"></View>
+                <Text className="text-gray-800 text-base font-bold">本月请假统计</Text>
+              </View>
+
+              <View className="space-y-2">
+                <View className="flex items-center justify-between">
+                  <Text className="text-gray-600 text-sm">已批准天数</Text>
+                  <Text className="text-green-600 text-sm font-medium">{monthlyApprovedDays} 天</Text>
+                </View>
+
+                <View className="flex items-center justify-between">
+                  <Text className="text-gray-600 text-sm">待审批天数</Text>
+                  <Text className="text-orange-600 text-sm font-medium">{monthlyPendingDays} 天</Text>
+                </View>
+
+                <View className="flex items-center justify-between">
+                  <Text className="text-gray-600 text-sm">本次申请天数</Text>
+                  <Text className="text-blue-600 text-sm font-medium">{leaveDays} 天</Text>
+                </View>
+
+                <View className="border-t border-blue-200 pt-2 mt-2">
+                  <View className="flex items-center justify-between">
+                    <Text className="text-gray-700 text-sm font-bold">累计天数 / 月度上限</Text>
+                    <Text
+                      className={`text-sm font-bold ${
+                        monthlyApprovedDays + monthlyPendingDays + leaveDays > monthlyLimit
+                          ? 'text-red-600'
+                          : 'text-blue-600'
+                      }`}>
+                      {monthlyApprovedDays + monthlyPendingDays + leaveDays} / {monthlyLimit} 天
+                    </Text>
+                  </View>
+                </View>
+
+                {monthlyApprovedDays + monthlyPendingDays + leaveDays > monthlyLimit && (
+                  <View className="bg-red-50 rounded-lg p-2 border border-red-200 mt-2">
+                    <View className="flex items-start">
+                      <View className="i-mdi-alert text-lg text-red-600 mr-2 mt-0.5"></View>
+                      <Text className="text-red-700 text-xs flex-1">
+                        本月请假天数已超过上限，无法提交申请。请调整请假天数或联系管理员。
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* 表单内容 */}
           <View className="bg-white rounded-lg p-4 shadow-sm">

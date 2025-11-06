@@ -18,6 +18,7 @@ const pages = [
   'pages/manager/piece-work-form/index',
   'pages/manager/leave-approval/index',
   'pages/super-admin/warehouse-management/index',
+  'pages/super-admin/warehouse-detail/index',
   'pages/super-admin/driver-warehouse-assignment/index',
   'pages/super-admin/manager-warehouse-assignment/index',
   'pages/super-admin/category-management/index',
