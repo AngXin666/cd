@@ -5,6 +5,7 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {createCategory, deleteCategory, getAllCategories, updateCategory} from '@/db/api'
 import type {PieceWorkCategory} from '@/db/types'
+import {confirmDelete} from '@/utils/confirm'
 
 const CategoryManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -117,14 +118,12 @@ const CategoryManagement: React.FC = () => {
 
   // 删除品类
   const handleDelete = async (id: string, name: string) => {
-    const result = await Taro.showModal({
-      title: '确认删除',
-      content: `确定要删除品类"${name}"吗？`,
-      confirmText: '删除',
-      confirmColor: '#EF4444'
-    })
+    const confirmed = await confirmDelete(
+      '确认删除',
+      `确定要删除品类"${name}"吗？\n\n如果该品类已被使用，删除将失败。此操作无法恢复。`
+    )
 
-    if (result.confirm) {
+    if (confirmed) {
       const success = await deleteCategory(id)
 
       if (success) {

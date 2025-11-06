@@ -12,6 +12,7 @@ import {
   updatePieceWorkRecord
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Warehouse} from '@/db/types'
+import {confirmDelete} from '@/utils/confirm'
 
 const PieceWorkEntry: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -236,14 +237,9 @@ const PieceWorkEntry: React.FC = () => {
 
   // 删除记录
   const handleDelete = async (id: string) => {
-    const result = await Taro.showModal({
-      title: '确认删除',
-      content: '确定要删除这条计件记录吗？',
-      confirmText: '删除',
-      confirmColor: '#EF4444'
-    })
+    const confirmed = await confirmDelete('确认删除', '确定要删除这条计件记录吗？删除后将无法恢复。')
 
-    if (result.confirm) {
+    if (confirmed) {
       const success = await deletePieceWorkRecord(id)
 
       if (success) {

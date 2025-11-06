@@ -1,5 +1,5 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -13,6 +13,7 @@ import {
   updateWarehouse
 } from '@/db/api'
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
+import {confirmDelete} from '@/utils/confirm'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -157,14 +158,12 @@ const WarehouseManagement: React.FC = () => {
 
   // 删除仓库
   const handleDeleteWarehouse = async (warehouse: WarehouseWithRule) => {
-    const result = await showModal({
-      title: '确认删除',
-      content: `确定要删除仓库"${warehouse.name}"吗？\n删除后相关考勤规则和打卡记录也将被删除。`,
-      confirmText: '删除',
-      cancelText: '取消'
-    })
+    const confirmed = await confirmDelete(
+      '确认删除',
+      `确定要删除仓库"${warehouse.name}"吗？\n\n删除后相关考勤规则和打卡记录也将被删除，此操作无法恢复。`
+    )
 
-    if (!result.confirm) return
+    if (!confirmed) return
 
     try {
       showLoading({title: '删除中...'})
@@ -301,14 +300,9 @@ const WarehouseManagement: React.FC = () => {
   const handleDeleteRule = async () => {
     if (!currentRule) return
 
-    const result = await showModal({
-      title: '确认删除',
-      content: '确定要删除该考勤规则吗？',
-      confirmText: '删除',
-      cancelText: '取消'
-    })
+    const confirmed = await confirmDelete('确认删除', '确定要删除该考勤规则吗？删除后将无法恢复。')
 
-    if (!result.confirm) return
+    if (!confirmed) return
 
     try {
       showLoading({title: '删除中...'})
