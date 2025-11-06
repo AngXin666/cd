@@ -6,6 +6,7 @@ import {useCallback, useEffect, useMemo, useState} from 'react'
 import {
   getActiveCategories,
   getCurrentUserProfile,
+  getDriverAttendanceStats,
   getDriverProfiles,
   getManagerWarehouses,
   getPieceWorkRecordsByWarehouse
@@ -23,6 +24,9 @@ interface DriverSummary {
   warehouses: Set<string> // 关联的仓库ID集合
   warehouseNames: string[] // 关联的仓库名称列表
   recordCount: number // 记录数量
+  attendanceDays: number // 出勤天数
+  lateDays: number // 迟到天数
+  leaveDays: number // 请假天数
 }
 
 const ManagerPieceWorkReport: React.FC = () => {
@@ -237,9 +241,9 @@ const ManagerPieceWorkReport: React.FC = () => {
     [drivers]
   )
 
-  // 计算司机汇总数据
-  const driverSummaries = useMemo(() => {
-    const summaryMap = new Map<string, DriverSummary>()
+  // 计算司机汇总数据（不含考勤）
+  const driverSummariesBase = useMemo(() => {
+    const summaryMap = new Map<string, Omit<DriverSummary, 'attendanceDays' | 'lateDays' | 'leaveDays'>>()
 
     records.forEach((record) => {
       const driverId = record.user_id
@@ -281,13 +285,41 @@ const ManagerPieceWorkReport: React.FC = () => {
       warehouseNames: Array.from(summary.warehouses).map((wId) => getWarehouseName(wId))
     }))
 
-    // 按总金额排序
-    summaries.sort((a, b) => {
-      return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount
-    })
-
     return summaries
-  }, [records, drivers, sortOrder, getWarehouseName])
+  }, [records, drivers, getWarehouseName])
+
+  // 司机汇总数据（含考勤）
+  const [driverSummaries, setDriverSummaries] = useState<DriverSummary[]>([])
+
+  // 加载考勤数据并合并
+  useEffect(() => {
+    const loadAttendanceData = async () => {
+      const summariesWithAttendance = await Promise.all(
+        driverSummariesBase.map(async (summary) => {
+          const attendanceStats = await getDriverAttendanceStats(summary.driverId, startDate, endDate)
+          return {
+            ...summary,
+            attendanceDays: attendanceStats.attendanceDays,
+            lateDays: attendanceStats.lateDays,
+            leaveDays: attendanceStats.leaveDays
+          }
+        })
+      )
+
+      // 按总金额排序
+      summariesWithAttendance.sort((a, b) => {
+        return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount
+      })
+
+      setDriverSummaries(summariesWithAttendance)
+    }
+
+    if (driverSummariesBase.length > 0) {
+      loadAttendanceData()
+    } else {
+      setDriverSummaries([])
+    }
+  }, [driverSummariesBase, startDate, endDate, sortOrder])
 
   // 计算统计数据
   const totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
@@ -494,6 +526,22 @@ const ManagerPieceWorkReport: React.FC = () => {
                       <View className="flex items-center">
                         <View className="i-mdi-file-document text-base text-gray-500 mr-1" />
                         <Text className="text-sm text-gray-600">记录数: {summary.recordCount}</Text>
+                      </View>
+                    </View>
+
+                    {/* 考勤信息 */}
+                    <View className="flex items-center gap-4 mb-3 ml-8">
+                      <View className="flex items-center">
+                        <View className="i-mdi-calendar-check text-base text-green-600 mr-1" />
+                        <Text className="text-sm text-gray-600">出勤: {summary.attendanceDays}天</Text>
+                      </View>
+                      <View className="flex items-center">
+                        <View className="i-mdi-clock-alert text-base text-orange-600 mr-1" />
+                        <Text className="text-sm text-gray-600">迟到: {summary.lateDays}天</Text>
+                      </View>
+                      <View className="flex items-center">
+                        <View className="i-mdi-calendar-remove text-base text-red-600 mr-1" />
+                        <Text className="text-sm text-gray-600">请假: {summary.leaveDays}天</Text>
                       </View>
                     </View>
 

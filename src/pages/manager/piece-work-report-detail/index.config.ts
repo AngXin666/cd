@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '司机计件详情',
+  navigationBarTitleText: '司机数据详情',
   enableShareAppMessage: false
 })

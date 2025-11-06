@@ -3,7 +3,13 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getActiveCategories, getDriverProfiles, getManagerWarehouses, getPieceWorkRecordsByWarehouse} from '@/db/api'
+import {
+  getActiveCategories,
+  getDriverAttendanceStats,
+  getDriverProfiles,
+  getManagerWarehouses,
+  getPieceWorkRecordsByWarehouse
+} from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 
 const ManagerPieceWorkReportDetail: React.FC = () => {
@@ -16,6 +22,11 @@ const ManagerPieceWorkReportDetail: React.FC = () => {
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [attendanceStats, setAttendanceStats] = useState({
+    attendanceDays: 0,
+    lateDays: 0,
+    leaveDays: 0
+  })
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -66,6 +77,10 @@ const ManagerPieceWorkReportDetail: React.FC = () => {
       })
 
       setRecords(data)
+
+      // 加载考勤数据
+      const attendanceData = await getDriverAttendanceStats(driverId, startDate, endDate)
+      setAttendanceStats(attendanceData)
     } catch (error) {
       console.error('加载数据失败:', error)
       Taro.showToast({
@@ -155,9 +170,35 @@ const ManagerPieceWorkReportDetail: React.FC = () => {
                 <Text className="text-sm text-gray-600">总件数</Text>
                 <Text className="text-sm text-gray-800 font-medium">{totalQuantity}</Text>
               </View>
-              <View className="flex items-center justify-between">
+              <View className="flex items-center justify-between mb-3">
                 <Text className="text-sm text-gray-600">总金额</Text>
                 <Text className="text-lg text-orange-600 font-bold">¥{totalAmount.toFixed(2)}</Text>
+              </View>
+
+              {/* 考勤统计 */}
+              <View className="border-t border-gray-100 pt-3">
+                <Text className="text-sm text-gray-700 font-medium mb-2">考勤统计</Text>
+                <View className="flex items-center justify-between mb-2">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar-check text-base text-green-600 mr-1" />
+                    <Text className="text-sm text-gray-600">出勤天数</Text>
+                  </View>
+                  <Text className="text-sm text-gray-800 font-medium">{attendanceStats.attendanceDays}天</Text>
+                </View>
+                <View className="flex items-center justify-between mb-2">
+                  <View className="flex items-center">
+                    <View className="i-mdi-clock-alert text-base text-orange-600 mr-1" />
+                    <Text className="text-sm text-gray-600">迟到天数</Text>
+                  </View>
+                  <Text className="text-sm text-gray-800 font-medium">{attendanceStats.lateDays}天</Text>
+                </View>
+                <View className="flex items-center justify-between">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar-remove text-base text-red-600 mr-1" />
+                    <Text className="text-sm text-gray-600">请假天数</Text>
+                  </View>
+                  <Text className="text-sm text-gray-800 font-medium">{attendanceStats.leaveDays}天</Text>
+                </View>
               </View>
             </View>
           </View>

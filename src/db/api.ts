@@ -1654,3 +1654,67 @@ export async function getMonthlyPendingLeaveCount(userId: string, year: number, 
 
   return totalDays
 }
+
+/**
+ * 获取司机在指定日期范围内的考勤统计
+ */
+export async function getDriverAttendanceStats(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{
+  attendanceDays: number
+  lateDays: number
+  leaveDays: number
+}> {
+  // 获取考勤记录
+  const {data: attendanceData, error: attendanceError} = await supabase
+    .from('attendance_records')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('work_date', startDate)
+    .lte('work_date', endDate)
+
+  if (attendanceError) {
+    console.error('获取考勤记录失败:', attendanceError)
+    return {attendanceDays: 0, lateDays: 0, leaveDays: 0}
+  }
+
+  // 统计出勤天数和迟到天数
+  const attendanceDays = attendanceData?.length || 0
+  const lateDays = attendanceData?.filter((record) => record.status === 'late').length || 0
+
+  // 获取已批准的请假记录
+  const {data: leaveData, error: leaveError} = await supabase
+    .from('leave_applications')
+    .select('start_date, end_date')
+    .eq('user_id', userId)
+    .eq('status', 'approved')
+    .or(
+      `and(start_date.gte.${startDate},start_date.lte.${endDate}),and(end_date.gte.${startDate},end_date.lte.${endDate})`
+    )
+
+  if (leaveError) {
+    console.error('获取请假记录失败:', leaveError)
+    return {attendanceDays, lateDays, leaveDays: 0}
+  }
+
+  // 计算请假天数
+  let leaveDays = 0
+  if (leaveData && leaveData.length > 0) {
+    for (const record of leaveData) {
+      const start = new Date(Math.max(new Date(record.start_date).getTime(), new Date(startDate).getTime()))
+      const end = new Date(Math.min(new Date(record.end_date).getTime(), new Date(endDate).getTime()))
+      const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      if (days > 0) {
+        leaveDays += days
+      }
+    }
+  }
+
+  return {
+    attendanceDays,
+    lateDays,
+    leaveDays
+  }
+}
