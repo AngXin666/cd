@@ -1,4 +1,4 @@
-import {Button, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Radio, RadioGroup, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -18,7 +18,7 @@ const ClockIn: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('')
   const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
 
   // 更新当前时间
@@ -43,18 +43,21 @@ const ClockIn: React.FC = () => {
     if (!user?.id) return
     const record = await getTodayAttendance(user.id)
     setTodayRecord(record)
+    // 如果已有打卡记录，自动选中对应的仓库
+    if (record?.warehouse_id) {
+      setSelectedWarehouseId(record.warehouse_id)
+    }
   }, [user?.id])
 
   // 加载当前选中仓库的规则
   const loadCurrentRule = useCallback(async () => {
-    const selectedWarehouse = warehouses[selectedWarehouseIndex]
-    if (!selectedWarehouse) {
+    if (!selectedWarehouseId) {
       setCurrentRule(null)
       return
     }
-    const rule = await getAttendanceRuleByWarehouseId(selectedWarehouse.id)
+    const rule = await getAttendanceRuleByWarehouseId(selectedWarehouseId)
     setCurrentRule(rule)
-  }, [warehouses, selectedWarehouseIndex])
+  }, [selectedWarehouseId])
 
   useEffect(() => {
     loadWarehouses()
@@ -110,22 +113,28 @@ const ClockIn: React.FC = () => {
     return 'normal' // 正常
   }
 
+  // 智能打卡（根据当前状态自动判断是上班还是下班）
+  const handleSmartClock = async () => {
+    if (!user?.id) return
+
+    const hasClockIn = !!todayRecord?.clock_in_time
+    const hasClockOut = !!todayRecord?.clock_out_time
+
+    if (!hasClockIn) {
+      // 上班打卡
+      await handleClockIn()
+    } else if (!hasClockOut) {
+      // 下班打卡
+      await handleClockOut()
+    }
+  }
+
   // 上班打卡
   const handleClockIn = async () => {
     if (!user?.id) return
 
     // 检查是否选择了仓库
-    if (warehouses.length === 0) {
-      showToast({
-        title: '暂无可用仓库',
-        icon: 'none',
-        duration: 2000
-      })
-      return
-    }
-
-    const selectedWarehouse = warehouses[selectedWarehouseIndex]
-    if (!selectedWarehouse) {
+    if (!selectedWarehouseId) {
       showToast({
         title: '请选择仓库',
         icon: 'none',
@@ -134,10 +143,10 @@ const ClockIn: React.FC = () => {
       return
     }
 
-    // 检查是否已经打过卡
-    if (todayRecord?.clock_in_time) {
+    const selectedWarehouse = warehouses.find((w) => w.id === selectedWarehouseId)
+    if (!selectedWarehouse) {
       showToast({
-        title: '今日已打过上班卡',
+        title: '请选择仓库',
         icon: 'none',
         duration: 2000
       })
@@ -180,8 +189,8 @@ const ClockIn: React.FC = () => {
         // 显示打卡结果
         const statusText = status === 'late' ? '迟到' : '正常'
         await showModal({
-          title: '打卡成功',
-          content: `上班打卡成功\n状态：${statusText}\n仓库：${selectedWarehouse.name}`,
+          title: '✓ 上班打卡成功',
+          content: `打卡时间：${formatTime(now)}\n状态：${statusText}\n仓库：${selectedWarehouse.name}`,
           showCancel: false
         })
       } else {
@@ -205,20 +214,10 @@ const ClockIn: React.FC = () => {
     if (!user?.id || !todayRecord) return
 
     // 检查是否需要打下班卡
-    const warehouseRule = await getAttendanceRuleByWarehouseId(todayRecord.warehouse_id)
+    const warehouseRule = await getAttendanceRuleByWarehouseId(todayRecord.warehouse_id!)
     if (!warehouseRule?.require_clock_out) {
       showToast({
         title: '该仓库不需要打下班卡',
-        icon: 'none',
-        duration: 2000
-      })
-      return
-    }
-
-    // 检查是否已经打过下班卡
-    if (todayRecord.clock_out_time) {
-      showToast({
-        title: '今日已打过下班卡',
         icon: 'none',
         duration: 2000
       })
@@ -266,8 +265,8 @@ const ClockIn: React.FC = () => {
         // 显示打卡结果
         const statusText = status === 'early' ? '早退' : '正常'
         await showModal({
-          title: '打卡成功',
-          content: `下班打卡成功\n状态：${statusText}\n工作时长：${workHours.toFixed(2)}小时`,
+          title: '✓ 下班打卡成功',
+          content: `打卡时间：${formatTime(now)}\n状态：${statusText}\n工作时长：${workHours.toFixed(2)}小时`,
           showCancel: false
         })
       } else {
@@ -316,95 +315,178 @@ const ClockIn: React.FC = () => {
   const getStatusInfo = (status: AttendanceStatus) => {
     switch (status) {
       case 'normal':
-        return {text: '正常', color: 'text-green-600', bgColor: 'bg-green-50'}
+        return {text: '正常', color: 'text-green-600', bgColor: 'bg-green-50', icon: 'i-mdi-check-circle'}
       case 'late':
-        return {text: '迟到', color: 'text-red-600', bgColor: 'bg-red-50'}
+        return {text: '迟到', color: 'text-red-600', bgColor: 'bg-red-50', icon: 'i-mdi-alert-circle'}
       case 'early':
-        return {text: '早退', color: 'text-orange-600', bgColor: 'bg-orange-50'}
+        return {text: '早退', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: 'i-mdi-alert'}
       case 'absent':
-        return {text: '缺勤', color: 'text-gray-600', bgColor: 'bg-gray-50'}
+        return {text: '缺勤', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: 'i-mdi-close-circle'}
       default:
-        return {text: '未知', color: 'text-gray-600', bgColor: 'bg-gray-50'}
+        return {text: '未知', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: 'i-mdi-help-circle'}
     }
   }
 
   const hasClockIn = !!todayRecord?.clock_in_time
   const hasClockOut = !!todayRecord?.clock_out_time
-  const selectedWarehouse = warehouses[selectedWarehouseIndex]
   const requireClockOut = currentRule?.require_clock_out ?? true
 
+  // 获取按钮文本和状态
+  const getButtonInfo = () => {
+    if (!hasClockIn) {
+      return {
+        text: '上班打卡',
+        icon: 'i-mdi-login',
+        disabled: !selectedWarehouseId || loading,
+        bgColor: 'bg-gradient-to-br from-blue-500 to-blue-600',
+        disabledBgColor: 'bg-gray-300'
+      }
+    }
+    if (!hasClockOut && requireClockOut) {
+      return {
+        text: '下班打卡',
+        icon: 'i-mdi-logout',
+        disabled: loading,
+        bgColor: 'bg-gradient-to-br from-orange-500 to-orange-600',
+        disabledBgColor: 'bg-gray-300'
+      }
+    }
+    return {
+      text: '今日已完成',
+      icon: 'i-mdi-check-all',
+      disabled: true,
+      bgColor: 'bg-gradient-to-br from-green-500 to-green-600',
+      disabledBgColor: 'bg-gray-300'
+    }
+  }
+
+  const buttonInfo = getButtonInfo()
+
   return (
-    <View style={{background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(to bottom, #F0F9FF, #E0F2FE)', minHeight: '100vh'}}>
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
-        <View className="p-6">
-          {/* 顶部时间显示 */}
-          <View className="text-center mb-8">
-            <Text className="text-white text-5xl font-bold block mb-2">{formatTime(currentTime)}</Text>
-            <Text className="text-white/80 text-base block">{formatDate(currentTime)}</Text>
+        <View className="p-4">
+          {/* 顶部时间卡片 */}
+          <View className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 mb-4 shadow-lg">
+            <View className="text-center">
+              <Text className="text-white/80 text-sm block mb-2">{formatDate(currentTime)}</Text>
+              <Text className="text-white text-5xl font-bold block tracking-wider">{formatTime(currentTime)}</Text>
+            </View>
           </View>
 
-          {/* 仓库选择 */}
-          <View className="bg-white rounded-lg p-4 mb-6 shadow-lg">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-warehouse text-blue-600 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">选择仓库</Text>
+          {/* 仓库选择卡片 */}
+          <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
+            <View className="flex items-center mb-4">
+              <View className="i-mdi-warehouse text-blue-600 text-2xl mr-2" />
+              <Text className="text-gray-800 text-lg font-bold">选择仓库</Text>
+              {!hasClockIn && <Text className="text-red-500 text-sm ml-2">*</Text>}
             </View>
-            <Picker
-              mode="selector"
-              range={warehouses.map((w) => w.name)}
-              value={selectedWarehouseIndex}
-              onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-              <View className="bg-blue-50 rounded-lg p-4 flex items-center justify-between">
-                <Text className="text-blue-800 text-base">{selectedWarehouse?.name || '请选择仓库'}</Text>
-                <View className="i-mdi-chevron-down text-blue-600 text-xl" />
+
+            {warehouses.length === 0 ? (
+              <View className="text-center py-8">
+                <View className="i-mdi-alert-circle text-4xl text-gray-300 mb-2" />
+                <Text className="text-sm text-gray-400 block">暂无可用仓库</Text>
               </View>
-            </Picker>
-            {currentRule && (
-              <View className="mt-3 bg-gray-50 rounded p-3">
-                <Text className="text-gray-600 text-xs block mb-1">上班时间：{currentRule.work_start_time}</Text>
-                <Text className="text-gray-600 text-xs block mb-1">下班时间：{currentRule.work_end_time}</Text>
-                <Text className="text-gray-600 text-xs block">{requireClockOut ? '需要打下班卡' : '无需打下班卡'}</Text>
-              </View>
+            ) : (
+              <RadioGroup
+                onChange={(e) => {
+                  if (!hasClockIn) {
+                    setSelectedWarehouseId(e.detail.value)
+                  }
+                }}>
+                <View className="space-y-3">
+                  {warehouses.map((warehouse) => {
+                    const isSelected = selectedWarehouseId === warehouse.id
+                    const isDisabled = hasClockIn && todayRecord?.warehouse_id !== warehouse.id
+                    return (
+                      <View
+                        key={warehouse.id}
+                        className={`border-2 rounded-xl p-4 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50'
+                            : isDisabled
+                              ? 'border-gray-200 bg-gray-50 opacity-50'
+                              : 'border-gray-200 bg-white'
+                        }`}>
+                        <Radio
+                          value={warehouse.id}
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          className="flex items-center">
+                          <View className="flex items-center justify-between w-full">
+                            <View className="flex items-center flex-1">
+                              <View
+                                className={`i-mdi-warehouse text-2xl mr-3 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`}
+                              />
+                              <View className="flex-1">
+                                <Text
+                                  className={`text-base font-bold block mb-1 ${isSelected ? 'text-blue-900' : 'text-gray-800'}`}>
+                                  {warehouse.name}
+                                </Text>
+                                {isSelected && currentRule && (
+                                  <View className="mt-2">
+                                    <View className="flex items-center mb-1">
+                                      <View className="i-mdi-clock-outline text-sm text-gray-500 mr-1" />
+                                      <Text className="text-xs text-gray-600">
+                                        上班：{currentRule.work_start_time} | 下班：{currentRule.work_end_time}
+                                      </Text>
+                                    </View>
+                                    <View className="flex items-center">
+                                      <View className="i-mdi-information-outline text-sm text-gray-500 mr-1" />
+                                      <Text className="text-xs text-gray-600">
+                                        {requireClockOut ? '需要打下班卡' : '无需打下班卡'}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                )}
+                              </View>
+                            </View>
+                          </View>
+                        </Radio>
+                      </View>
+                    )
+                  })}
+                </View>
+              </RadioGroup>
             )}
           </View>
 
-          {/* 打卡按钮 */}
-          <View className="flex justify-center gap-6 mb-6">
+          {/* 智能打卡按钮 */}
+          <View className="mb-4">
             <Button
               size="default"
-              className={`w-36 h-36 rounded-2xl text-lg font-bold break-keep ${
-                hasClockIn ? 'bg-gray-300 text-gray-500' : 'bg-white text-blue-600'
-              }`}
-              disabled={hasClockIn || loading}
-              onClick={handleClockIn}>
-              {hasClockIn ? '✓ 已打卡' : '上班打卡'}
-            </Button>
-
-            <Button
-              size="default"
-              className={`w-36 h-36 rounded-2xl text-lg font-bold break-keep ${
-                !hasClockIn || hasClockOut || !requireClockOut
-                  ? 'bg-gray-300 text-gray-500'
-                  : 'bg-white text-orange-600'
-              }`}
-              disabled={!hasClockIn || hasClockOut || loading || !requireClockOut}
-              onClick={handleClockOut}>
-              {hasClockOut ? '✓ 已打卡' : '下班打卡'}
+              className={`w-full h-20 rounded-2xl text-xl font-bold break-keep shadow-lg ${
+                buttonInfo.disabled ? buttonInfo.disabledBgColor : buttonInfo.bgColor
+              } text-white`}
+              disabled={buttonInfo.disabled}
+              onClick={handleSmartClock}>
+              <View className="flex items-center justify-center">
+                <View className={`${buttonInfo.icon} text-3xl mr-3`} />
+                <Text className="text-xl font-bold">{buttonInfo.text}</Text>
+              </View>
             </Button>
           </View>
 
           {/* 今日打卡记录 */}
           {todayRecord && (
-            <View className="bg-white rounded-lg p-6 shadow-lg">
-              <Text className="text-gray-800 text-lg font-bold mb-4 block">今日打卡记录</Text>
+            <View className="bg-white rounded-2xl p-5 shadow-md">
+              <View className="flex items-center mb-4">
+                <View className="i-mdi-clipboard-text text-blue-600 text-2xl mr-2" />
+                <Text className="text-gray-800 text-lg font-bold">今日打卡记录</Text>
+              </View>
 
               {/* 上班打卡 */}
-              <View className="mb-4 pb-4 border-b border-gray-200">
-                <View className="flex items-center justify-between mb-2">
-                  <Text className="text-gray-600 text-sm">上班打卡</Text>
+              <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 mb-3">
+                <View className="flex items-center justify-between mb-3">
+                  <View className="flex items-center">
+                    <View className="i-mdi-login text-blue-600 text-xl mr-2" />
+                    <Text className="text-gray-700 text-base font-bold">上班打卡</Text>
+                  </View>
                   {todayRecord.clock_in_time && (
-                    <View className={`px-3 py-1 rounded-full ${getStatusInfo(todayRecord.status).bgColor}`}>
-                      <Text className={`text-xs ${getStatusInfo(todayRecord.status).color}`}>
+                    <View
+                      className={`px-3 py-1 rounded-full ${getStatusInfo(todayRecord.status).bgColor} flex items-center`}>
+                      <View className={`${getStatusInfo(todayRecord.status).icon} text-sm mr-1`} />
+                      <Text className={`text-xs font-bold ${getStatusInfo(todayRecord.status).color}`}>
                         {getStatusInfo(todayRecord.status).text}
                       </Text>
                     </View>
@@ -412,58 +494,80 @@ const ClockIn: React.FC = () => {
                 </View>
                 {todayRecord.clock_in_time && (
                   <View>
-                    <Text className="text-gray-800 text-base font-bold block mb-1">
+                    <Text className="text-blue-900 text-2xl font-bold block mb-2">
                       {formatClockTime(todayRecord.clock_in_time)}
                     </Text>
-                    <Text className="text-gray-500 text-xs block">
-                      {warehouses.find((w) => w.id === todayRecord.warehouse_id)?.name || '未知仓库'}
-                    </Text>
+                    <View className="flex items-center">
+                      <View className="i-mdi-warehouse text-sm text-gray-600 mr-1" />
+                      <Text className="text-gray-600 text-sm">
+                        {warehouses.find((w) => w.id === todayRecord.warehouse_id)?.name || '未知仓库'}
+                      </Text>
+                    </View>
                   </View>
                 )}
               </View>
 
               {/* 下班打卡 */}
               {requireClockOut && (
-                <View>
-                  <View className="flex items-center justify-between mb-2">
-                    <Text className="text-gray-600 text-sm">下班打卡</Text>
+                <View
+                  className={`rounded-xl p-4 ${
+                    todayRecord.clock_out_time
+                      ? 'bg-gradient-to-br from-orange-50 to-orange-100'
+                      : 'bg-gradient-to-br from-gray-50 to-gray-100'
+                  }`}>
+                  <View className="flex items-center justify-between mb-3">
+                    <View className="flex items-center">
+                      <View
+                        className={`i-mdi-logout text-xl mr-2 ${todayRecord.clock_out_time ? 'text-orange-600' : 'text-gray-400'}`}
+                      />
+                      <Text
+                        className={`text-base font-bold ${todayRecord.clock_out_time ? 'text-gray-700' : 'text-gray-400'}`}>
+                        下班打卡
+                      </Text>
+                    </View>
                     {todayRecord.clock_out_time && todayRecord.status === 'early' && (
-                      <View className={`px-3 py-1 rounded-full ${getStatusInfo('early').bgColor}`}>
-                        <Text className={`text-xs ${getStatusInfo('early').color}`}>{getStatusInfo('early').text}</Text>
+                      <View className={`px-3 py-1 rounded-full ${getStatusInfo('early').bgColor} flex items-center`}>
+                        <View className={`${getStatusInfo('early').icon} text-sm mr-1`} />
+                        <Text className={`text-xs font-bold ${getStatusInfo('early').color}`}>
+                          {getStatusInfo('early').text}
+                        </Text>
                       </View>
                     )}
                   </View>
                   {todayRecord.clock_out_time ? (
                     <View>
-                      <Text className="text-gray-800 text-base font-bold block mb-1">
+                      <Text className="text-orange-900 text-2xl font-bold block mb-2">
                         {formatClockTime(todayRecord.clock_out_time)}
                       </Text>
                       {todayRecord.work_hours && (
-                        <Text className="text-gray-500 text-xs block">
-                          工作时长：{todayRecord.work_hours.toFixed(2)} 小时
-                        </Text>
+                        <View className="flex items-center">
+                          <View className="i-mdi-timer text-sm text-gray-600 mr-1" />
+                          <Text className="text-gray-600 text-sm">
+                            工作时长：{todayRecord.work_hours.toFixed(2)} 小时
+                          </Text>
+                        </View>
                       )}
                     </View>
                   ) : (
-                    <Text className="text-gray-400 text-sm">未打卡</Text>
+                    <Text className="text-gray-400 text-base">未打卡</Text>
                   )}
                 </View>
               )}
             </View>
           )}
 
-          {/* 使用说明 */}
-          <View className="bg-white/10 rounded-lg p-4 mt-6">
+          {/* 温馨提示 */}
+          <View className="bg-blue-50 rounded-xl p-4 mt-4 border border-blue-200">
             <View className="flex items-center mb-2">
-              <View className="i-mdi-information text-white text-xl mr-2" />
-              <Text className="text-white text-sm font-bold">使用说明</Text>
+              <View className="i-mdi-lightbulb-on text-blue-600 text-xl mr-2" />
+              <Text className="text-blue-900 text-sm font-bold">温馨提示</Text>
             </View>
-            <Text className="text-white/80 text-xs leading-relaxed block mb-1">1. 选择您所在的仓库</Text>
-            <Text className="text-white/80 text-xs leading-relaxed block mb-1">2. 点击"上班打卡"按钮进行上班打卡</Text>
-            <Text className="text-white/80 text-xs leading-relaxed block mb-1">
-              3. 下班时点击"下班打卡"按钮（如需要）
+            <Text className="text-blue-800 text-xs leading-relaxed block mb-1">• 请在打卡前选择您所在的仓库</Text>
+            <Text className="text-blue-800 text-xs leading-relaxed block mb-1">• 系统会自动判断迟到、早退等状态</Text>
+            <Text className="text-blue-800 text-xs leading-relaxed block mb-1">
+              • 上班打卡后，按钮会自动切换为下班打卡
             </Text>
-            <Text className="text-white/80 text-xs leading-relaxed block">4. 系统会自动判断迟到、早退等状态</Text>
+            <Text className="text-blue-800 text-xs leading-relaxed block">• 部分仓库可能不需要打下班卡</Text>
           </View>
         </View>
       </ScrollView>
