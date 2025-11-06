@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '计件管理',
+  navigationBarTitleText: '件数报表',
   enableShareAppMessage: false
 })

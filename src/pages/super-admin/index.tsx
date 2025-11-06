@@ -47,11 +47,7 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/manager-warehouse-assignment/index'})
   }
 
-  const handleDataReport = () => {
-    navigateTo({url: '/pages/super-admin/data-report/index'})
-  }
-
-  const handlePieceWork = () => {
+  const handlePieceWorkReport = () => {
     navigateTo({url: '/pages/super-admin/piece-work/index'})
   }
 
@@ -184,24 +180,20 @@ const SuperAdminHome: React.FC = () => {
 
             {/* 其他系统功能 */}
             <View className="grid grid-cols-3 gap-4">
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg" onClick={handlePieceWork}>
-                <View className="i-mdi-clipboard-edit text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">计件管理</Text>
-              </View>
-              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg" onClick={handleDataReport}>
-                <View className="i-mdi-chart-line text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">数据报表</Text>
-              </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-cog text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">系统设置</Text>
+              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg" onClick={handlePieceWorkReport}>
+                <View className="i-mdi-chart-box text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">件数报表</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                <View className="i-mdi-database text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">数据管理</Text>
+                <View className="i-mdi-cog text-3xl text-blue-900 mb-2" />
+                <Text className="text-xs text-gray-700">系统设置</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-file-document-multiple text-3xl text-orange-600 mb-2" />
+                <View className="i-mdi-database text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">数据管理</Text>
+              </View>
+              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
+                <View className="i-mdi-file-document-multiple text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">日志查看</Text>
               </View>
             </View>

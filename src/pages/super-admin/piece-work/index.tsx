@@ -259,8 +259,8 @@ const SuperAdminPieceWork: React.FC = () => {
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">计件管理</Text>
-            <Text className="text-blue-100 text-sm block">管理和查看计件记录</Text>
+            <Text className="text-white text-2xl font-bold block mb-2">件数报表</Text>
+            <Text className="text-blue-100 text-sm block">查看和管理计件记录</Text>
           </View>
 
           {/* 筛选条件 */}
