@@ -9,6 +9,8 @@ import {
   getCurrentUserProfile,
   getDraftLeaveApplications,
   getDraftResignationApplications,
+  getDriverAttendanceStats,
+  getDriverWarehouses,
   getLeaveApplicationsByUser,
   getResignationApplicationsByUser,
   submitDraftLeaveApplication,
@@ -24,6 +26,15 @@ const DriverLeave: React.FC = () => {
   const [leaveDrafts, setLeaveDrafts] = useState<LeaveApplication[]>([])
   const [resignationDrafts, setResignationDrafts] = useState<ResignationApplication[]>([])
   const [activeTab, setActiveTab] = useState<'leave' | 'resignation' | 'draft'>('leave')
+
+  // 统计数据
+  const [stats, setStats] = useState({
+    attendanceDays: 0,
+    leaveDays: 0,
+    remainingDays: 0,
+    monthlyLimit: 0
+  })
+  const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     if (!user) return
@@ -44,12 +55,61 @@ const DriverLeave: React.FC = () => {
     setResignationDrafts(resignationDraftData)
   }, [user])
 
+  // 加载统计数据
+  const loadStats = useCallback(async () => {
+    if (!user?.id) return
+
+    try {
+      setLoading(true)
+
+      // 获取本月的日期范围
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const firstDay = `${year}-${month}-01`
+      const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
+      const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+
+      // 获取本月考勤数据
+      const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
+
+      // 获取司机的仓库信息（用于获取月度请假上限）
+      const warehouses = await getDriverWarehouses(user.id)
+      let monthlyLimit = 0
+      if (warehouses.length > 0) {
+        // 使用第一个仓库的月度请假上限
+        monthlyLimit = warehouses[0].max_leave_days || 0
+      }
+
+      // 计算剩余申请天数
+      const remainingDays = Math.max(0, monthlyLimit - attendanceData.leaveDays)
+
+      setStats({
+        attendanceDays: attendanceData.attendanceDays,
+        leaveDays: attendanceData.leaveDays,
+        remainingDays,
+        monthlyLimit
+      })
+    } catch (error) {
+      console.error('加载统计数据失败:', error)
+      showToast({
+        title: '加载数据失败',
+        icon: 'error',
+        duration: 2000
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     loadData()
-  }, [loadData])
+    loadStats()
+  }, [loadData, loadStats])
 
   useDidShow(() => {
     loadData()
+    loadStats()
   })
 
   const handleApplyLeave = () => {
@@ -207,6 +267,54 @@ const DriverLeave: React.FC = () => {
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
             <Text className="text-white text-2xl font-bold block mb-2">请假与离职</Text>
             <Text className="text-blue-100 text-sm block">欢迎，{profile?.name || profile?.phone || '司机'}</Text>
+          </View>
+
+          {/* 数据仪表盘 */}
+          <View className="mb-4">
+            <View className="flex items-center mb-3">
+              <View className="i-mdi-chart-box text-xl text-blue-900 mr-2" />
+              <Text className="text-lg font-bold text-gray-800">本月数据统计</Text>
+            </View>
+            {loading ? (
+              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
+                <Text className="text-gray-500">加载中...</Text>
+              </View>
+            ) : (
+              <View className="bg-white rounded-xl p-4 shadow-md">
+                <View className="grid grid-cols-3 gap-3">
+                  {/* 本月出勤天数 */}
+                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                    <View className="i-mdi-calendar-check text-2xl text-green-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">本月出勤</Text>
+                    <Text className="text-2xl font-bold text-green-900 block">{stats.attendanceDays}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                  </View>
+
+                  {/* 本月请假天数 */}
+                  <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                    <View className="i-mdi-calendar-remove text-2xl text-orange-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">本月请假</Text>
+                    <Text className="text-2xl font-bold text-orange-900 block">{stats.leaveDays}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                  </View>
+
+                  {/* 剩余申请天数 */}
+                  <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                    <View className="i-mdi-calendar-plus text-2xl text-blue-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">剩余额度</Text>
+                    <Text className="text-2xl font-bold text-blue-900 block">{stats.remainingDays}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                  </View>
+                </View>
+                {stats.monthlyLimit > 0 && (
+                  <View className="mt-3 pt-3 border-t border-gray-200">
+                    <Text className="text-xs text-gray-500 text-center block">
+                      月度请假上限：{stats.monthlyLimit} 天
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* 快捷操作按钮 */}
