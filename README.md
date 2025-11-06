@@ -62,6 +62,68 @@
   - 权限在数据库层面强制执行，确保数据安全
   - 请假和离职审批采用相同的权限规则
 
+### 个人中心与设置（新增功能）
+
+#### 个人信息管理
+- **个人中心主页**：
+  - 显示用户头像、姓名、昵称和角色标签
+  - 展示个人基本信息（手机号、邮箱、居住地、紧急联系人）
+  - 手机号中间4位自动隐藏保护隐私
+  - 快速入口：编辑资料、设置、帮助与反馈
+  - 退出登录功能
+
+- **编辑资料**：
+  - **头像上传**：支持从相册选择或拍照上传，自动压缩至1MB以内
+  - **基本信息**：姓名（必填）、昵称、邮箱（格式验证）
+  - **居住地址**：省份选择器、城市、区县、详细地址
+  - **紧急联系人**：姓名、电话（格式验证）
+  - 手机号只读显示，不可修改
+  - 实时表单验证和错误提示
+
+#### 账户安全
+- **修改密码**：
+  - 原密码验证
+  - 新密码强度校验（至少8位，包含字母和数字）
+  - 密码强度可视化指示器（实时显示强度）
+  - 密码匹配提示（确认密码时实时验证）
+  - 安全提示：修改后需重新登录
+
+- **账户安全等级**：
+  - 显示当前账户安全等级
+  - 提供安全建议和提示
+
+#### 帮助与反馈
+- **使用说明**：
+  - 司机端功能介绍
+  - 管理员功能介绍
+  - 超级管理员功能介绍
+  - 分步骤操作指南
+
+- **常见问题**：
+  - 可展开/收起的FAQ列表
+  - 涵盖考勤打卡、计件录入、请假申请等常见问题
+  - 提供详细的解答和操作步骤
+
+- **意见反馈**：
+  - **提交反馈**：选择反馈类型（功能建议、问题反馈、功能需求、投诉建议、其他）
+  - **反馈内容**：至少10个字，最多500字
+  - **联系方式**：选填，方便回复
+  - **历史反馈**：查看已提交的反馈记录
+  - **反馈状态**：待处理、处理中、已解决（带颜色标签）
+  - Tab切换：提交反馈/历史反馈
+
+- **联系我们**：
+  - 客服邮箱、电话
+  - 服务时间说明
+  - 快速入口：意见反馈、联系客服
+
+#### 应用设置
+- **关于我们**：
+  - 应用版本信息
+  - 用户协议入口
+  - 隐私政策入口
+  - 版权信息展示
+
 ### 数据统计功能
 
 #### 司机端数据统计
@@ -272,6 +334,11 @@
 | `/pages/manager/piece-work-report-detail/index` | 司机数据详情 | 查看司机的详细计件和考勤数据 |
 | `/pages/super-admin/leave-approval/index` | 请假离职审批 | 审批所有请假离职申请 |
 | `/pages/profile/index` | 个人中心 | 用户个人信息管理（tabBar） |
+| `/pages/profile/edit/index` | 编辑资料 | 编辑个人信息、头像、地址等 |
+| `/pages/profile/settings/index` | 设置 | 账户安全、关于我们等设置 |
+| `/pages/profile/change-password/index` | 修改密码 | 修改登录密码 |
+| `/pages/profile/help/index` | 帮助与反馈 | 使用说明、常见问题、联系我们 |
+| `/pages/profile/feedback/index` | 意见反馈 | 提交反馈、查看历史反馈 |
 | `/pages/admin-dashboard/index` | 用户管理 | 超级管理员用户管理页面 |
 
 ---
@@ -338,6 +405,14 @@
 | phone | text | 手机号（唯一） |
 | email | text | 邮箱（唯一） |
 | name | text | 用户姓名 |
+| nickname | text | 昵称 |
+| avatar_url | text | 头像URL |
+| address_province | text | 省份 |
+| address_city | text | 城市 |
+| address_district | text | 区县 |
+| address_detail | text | 详细地址 |
+| emergency_contact_name | text | 紧急联系人姓名 |
+| emergency_contact_phone | text | 紧急联系人电话 |
 | role | user_role | 用户角色（driver/manager/super_admin） |
 | created_at | timestamptz | 创建时间 |
 | updated_at | timestamptz | 更新时间 |
@@ -421,6 +496,24 @@
 | warehouse_id | uuid | 仓库ID（外键 -> warehouses.id） |
 | created_at | timestamptz | 创建时间 |
 | 唯一约束 | (manager_id, warehouse_id) | 防止重复分配 |
+
+### feedback 表（意见反馈）
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键，反馈ID |
+| user_id | uuid | 用户ID（外键 -> profiles.id） |
+| type | feedback_type | 反馈类型（suggestion/bug/feature/complaint/other） |
+| content | text | 反馈内容 |
+| contact | text | 联系方式（可选） |
+| status | feedback_status | 状态（pending/processing/resolved） |
+| created_at | timestamptz | 创建时间 |
+| updated_at | timestamptz | 更新时间 |
+
+### Supabase Storage Buckets
+- **avatars**：用户头像存储
+  - 文件大小限制：1MB
+  - 支持格式：JPEG、PNG、WEBP
+  - 访问权限：公开读取
 
 ---
 

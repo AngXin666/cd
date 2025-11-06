@@ -344,4 +344,3 @@ export interface FeedbackInput {
 export interface FeedbackUpdate {
   status?: FeedbackStatus
 }
-

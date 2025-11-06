@@ -1,43 +1,23 @@
-import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
-import {showModal, showToast, useDidShow} from '@tarojs/taro'
+import {Image, ScrollView, Text, View} from '@tarojs/components'
+import {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
-import {getCurrentUserProfile, updateProfile} from '@/db/api'
+import {useCallback, useState} from 'react'
+import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
 
 const ProfilePage: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [name, setName] = useState('')
 
   const loadProfile = useCallback(async () => {
     const data = await getCurrentUserProfile()
     setProfile(data)
-    setName(data?.name || '')
   }, [])
-
-  useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
 
   useDidShow(() => {
     loadProfile()
   })
-
-  const handleSave = async () => {
-    if (!profile) return
-
-    const success = await updateProfile(profile.id, {name})
-    if (success) {
-      showToast({title: '保存成功', icon: 'success'})
-      setIsEditing(false)
-      loadProfile()
-    } else {
-      showToast({title: '保存失败', icon: 'error'})
-    }
-  }
 
   const handleLogout = () => {
     showModal({
@@ -90,24 +70,40 @@ const ProfilePage: React.FC = () => {
     }
   }
 
+  // 隐藏手机号中间4位
+  const maskPhone = (phone: string | null) => {
+    if (!phone) return '未设置'
+    return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 用户信息卡片 */}
-          <View className="bg-white rounded-lg p-6 mb-4 shadow">
+          <View className="bg-white rounded-xl p-6 mb-4 shadow">
             <View className="flex flex-col items-center mb-6">
-              <View className="i-mdi-account-circle text-7xl text-blue-900 mb-3" />
-              {isEditing ? (
-                <Input
-                  className="text-center text-xl font-bold text-gray-800 border-b-2 border-blue-900 px-4 py-2"
-                  value={name}
-                  onInput={(e) => setName(e.detail.value)}
-                  placeholder="请输入姓名"
+              {/* 头像 */}
+              {profile?.avatar_url ? (
+                <Image
+                  src={profile.avatar_url}
+                  mode="aspectFill"
+                  className="w-20 h-20 rounded-full mb-3"
+                  style={{border: '3px solid #1E3A8A'}}
                 />
               ) : (
-                <Text className="text-xl font-bold text-gray-800 block mb-2">{profile?.name || '未设置姓名'}</Text>
+                <View className="i-mdi-account-circle text-7xl text-blue-900 mb-3" />
               )}
+
+              {/* 姓名和昵称 */}
+              <Text className="text-xl font-bold text-gray-800 block mb-1">
+                {profile?.name || profile?.nickname || '未设置姓名'}
+              </Text>
+              {profile?.nickname && profile?.name && (
+                <Text className="text-sm text-gray-500 block mb-2">@{profile.nickname}</Text>
+              )}
+
+              {/* 角色标签 */}
               <View className={`${getRoleBgColor(profile?.role || '')} px-3 py-1 rounded-full mt-2`}>
                 <Text className={`text-sm font-medium ${getRoleTextColor(profile?.role || '')}`}>
                   {getRoleText(profile?.role || '')}
@@ -115,86 +111,78 @@ const ProfilePage: React.FC = () => {
               </View>
             </View>
 
+            {/* 基本信息 */}
             <View className="border-t border-gray-200 pt-4">
               <View className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
-                <Text className="text-sm text-gray-600">手机号</Text>
-                <Text className="text-sm text-gray-800">{profile?.phone || '未设置'}</Text>
+                <View className="flex items-center">
+                  <View className="i-mdi-phone text-lg text-gray-600 mr-2" />
+                  <Text className="text-sm text-gray-600">手机号</Text>
+                </View>
+                <Text className="text-sm text-gray-800">{maskPhone(profile?.phone)}</Text>
               </View>
+
               <View className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
-                <Text className="text-sm text-gray-600">邮箱</Text>
+                <View className="flex items-center">
+                  <View className="i-mdi-email text-lg text-gray-600 mr-2" />
+                  <Text className="text-sm text-gray-600">邮箱</Text>
+                </View>
                 <Text className="text-sm text-gray-800">{profile?.email || '未设置'}</Text>
               </View>
-              <View className="flex justify-between items-center">
-                <Text className="text-sm text-gray-600">用户ID</Text>
-                <Text className="text-xs text-gray-400">{user?.id?.substring(0, 16)}...</Text>
-              </View>
-            </View>
 
-            <View className="mt-6">
-              {isEditing ? (
-                <View className="flex gap-2">
-                  <Button
-                    className="flex-1 text-sm break-keep"
-                    size="default"
-                    style={{
-                      backgroundColor: '#1E3A8A',
-                      color: 'white',
-                      borderRadius: '8px',
-                      border: 'none'
-                    }}
-                    onClick={handleSave}>
-                    保存
-                  </Button>
-                  <Button
-                    className="flex-1 text-sm break-keep"
-                    size="default"
-                    style={{
-                      backgroundColor: '#E5E7EB',
-                      color: '#374151',
-                      borderRadius: '8px',
-                      border: 'none'
-                    }}
-                    onClick={() => {
-                      setIsEditing(false)
-                      setName(profile?.name || '')
-                    }}>
-                    取消
-                  </Button>
+              {profile?.address_province && (
+                <View className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
+                  <View className="flex items-center">
+                    <View className="i-mdi-map-marker text-lg text-gray-600 mr-2" />
+                    <Text className="text-sm text-gray-600">居住地</Text>
+                  </View>
+                  <Text className="text-sm text-gray-800">
+                    {profile.address_province} {profile.address_city}
+                  </Text>
                 </View>
-              ) : (
-                <Button
-                  className="w-full text-sm break-keep"
-                  size="default"
-                  style={{
-                    backgroundColor: '#1E3A8A',
-                    color: 'white',
-                    borderRadius: '8px',
-                    border: 'none'
-                  }}
-                  onClick={() => setIsEditing(true)}>
-                  编辑资料
-                </Button>
+              )}
+
+              {profile?.emergency_contact_name && (
+                <View className="flex justify-between items-center">
+                  <View className="flex items-center">
+                    <View className="i-mdi-account-alert text-lg text-gray-600 mr-2" />
+                    <Text className="text-sm text-gray-600">紧急联系人</Text>
+                  </View>
+                  <Text className="text-sm text-gray-800">
+                    {profile.emergency_contact_name} {maskPhone(profile.emergency_contact_phone)}
+                  </Text>
+                </View>
               )}
             </View>
           </View>
 
           {/* 功能菜单 */}
-          <View className="bg-white rounded-lg mb-4 shadow overflow-hidden">
-            <View className="flex items-center justify-between p-4 border-b border-gray-100">
+          <View className="bg-white rounded-xl mb-4 shadow overflow-hidden">
+            {/* 编辑资料 */}
+            <View
+              className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
+              onClick={() => navigateTo({url: '/pages/profile/edit/index'})}>
               <View className="flex items-center">
-                <View className="i-mdi-bell text-2xl text-blue-900 mr-3" />
-                <Text className="text-sm text-gray-800">消息通知</Text>
+                <View className="i-mdi-account-edit text-2xl text-blue-900 mr-3" />
+                <Text className="text-sm text-gray-800">编辑资料</Text>
               </View>
               <View className="i-mdi-chevron-right text-xl text-gray-400" />
             </View>
-            <View className="flex items-center justify-between p-4 border-b border-gray-100">
+
+            {/* 设置 */}
+            <View
+              className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
+              onClick={() => navigateTo({url: '/pages/profile/settings/index'})}>
               <View className="flex items-center">
-                <View className="i-mdi-shield-lock text-2xl text-blue-900 mr-3" />
-                <Text className="text-sm text-gray-800">隐私设置</Text>
+                <View className="i-mdi-cog text-2xl text-blue-900 mr-3" />
+                <Text className="text-sm text-gray-800">设置</Text>
               </View>
               <View className="i-mdi-chevron-right text-xl text-gray-400" />
             </View>
-            <View className="flex items-center justify-between p-4">
+
+            {/* 帮助与反馈 */}
+            <View
+              className="flex items-center justify-between p-4 active:bg-gray-50 transition-all"
+              onClick={() => navigateTo({url: '/pages/profile/help/index'})}>
               <View className="flex items-center">
                 <View className="i-mdi-help-circle text-2xl text-blue-900 mr-3" />
                 <Text className="text-sm text-gray-800">帮助与反馈</Text>
@@ -204,21 +192,12 @@ const ProfilePage: React.FC = () => {
           </View>
 
           {/* 退出登录 */}
-          <Button
-            className="w-full text-sm break-keep"
-            size="default"
-            style={{
-              backgroundColor: '#EF4444',
-              color: 'white',
-              borderRadius: '8px',
-              border: 'none'
-            }}
-            onClick={handleLogout}>
+          <View className="bg-white rounded-xl p-4 shadow active:scale-95 transition-all" onClick={handleLogout}>
             <View className="flex items-center justify-center">
-              <View className="i-mdi-logout mr-2" />
-              <Text>退出登录</Text>
+              <View className="i-mdi-logout text-xl text-red-600 mr-2" />
+              <Text className="text-base font-medium text-red-600">退出登录</Text>
             </View>
-          </Button>
+          </View>
         </View>
       </ScrollView>
     </View>

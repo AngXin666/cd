@@ -9,6 +9,9 @@ import type {
   AttendanceRuleUpdate,
   DriverWarehouse,
   DriverWarehouseInput,
+  Feedback,
+  FeedbackInput,
+  FeedbackStatus,
   LeaveApplication,
   LeaveApplicationInput,
   PieceWorkCategory,
@@ -1716,5 +1719,197 @@ export async function getDriverAttendanceStats(
     attendanceDays,
     lateDays,
     leaveDays
+  }
+}
+
+// ==================== 个人中心相关API ====================
+
+/**
+ * 上传头像到Supabase Storage
+ * @param userId 用户ID
+ * @param file 文件对象
+ * @returns 头像URL
+ */
+export async function uploadAvatar(
+  userId: string,
+  file: {path: string; size: number; name?: string; originalFileObj?: File}
+): Promise<{success: boolean; url?: string; error?: string}> {
+  try {
+    // 检查文件大小（最大1MB）
+    if (file.size > 1048576) {
+      return {success: false, error: '头像文件大小不能超过1MB'}
+    }
+
+    // 生成文件名
+    const timestamp = Date.now()
+    const ext = file.name?.split('.').pop() || 'jpg'
+    const fileName = `${userId}/avatar_${timestamp}.${ext}`
+
+    // 准备文件内容
+    const fileContent = file.originalFileObj || ({tempFilePath: file.path} as any)
+
+    // 上传到Supabase Storage
+    const {data, error} = await supabase.storage.from('app-7cdqf07mbu9t_avatars').upload(fileName, fileContent, {
+      cacheControl: '3600',
+      upsert: true
+    })
+
+    if (error) {
+      console.error('上传头像失败:', error)
+      return {success: false, error: error.message}
+    }
+
+    // 获取公开URL
+    const {data: urlData} = supabase.storage.from('app-7cdqf07mbu9t_avatars').getPublicUrl(fileName)
+
+    return {success: true, url: urlData.publicUrl}
+  } catch (error) {
+    console.error('上传头像异常:', error)
+    return {success: false, error: '上传头像失败'}
+  }
+}
+
+/**
+ * 更新用户个人信息
+ * @param userId 用户ID
+ * @param updates 更新的字段
+ * @returns 更新结果
+ */
+export async function updateUserProfile(
+  userId: string,
+  updates: ProfileUpdate
+): Promise<{success: boolean; error?: string}> {
+  try {
+    const {error} = await supabase.from('profiles').update(updates).eq('id', userId)
+
+    if (error) {
+      console.error('更新个人信息失败:', error)
+      return {success: false, error: error.message}
+    }
+
+    return {success: true}
+  } catch (error) {
+    console.error('更新个人信息异常:', error)
+    return {success: false, error: '更新个人信息失败'}
+  }
+}
+
+/**
+ * 修改密码
+ * @param newPassword 新密码
+ * @returns 修改结果
+ */
+export async function changePassword(newPassword: string): Promise<{success: boolean; error?: string}> {
+  try {
+    const {error} = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (error) {
+      console.error('修改密码失败:', error)
+      return {success: false, error: error.message}
+    }
+
+    return {success: true}
+  } catch (error) {
+    console.error('修改密码异常:', error)
+    return {success: false, error: '修改密码失败'}
+  }
+}
+
+/**
+ * 提交意见反馈
+ * @param input 反馈信息
+ * @returns 提交结果
+ */
+export async function submitFeedback(input: FeedbackInput): Promise<{success: boolean; error?: string}> {
+  try {
+    const {error} = await supabase.from('feedback').insert({
+      user_id: input.user_id,
+      type: input.type,
+      content: input.content,
+      contact: input.contact || null,
+      status: 'pending'
+    })
+
+    if (error) {
+      console.error('提交反馈失败:', error)
+      return {success: false, error: error.message}
+    }
+
+    return {success: true}
+  } catch (error) {
+    console.error('提交反馈异常:', error)
+    return {success: false, error: '提交反馈失败'}
+  }
+}
+
+/**
+ * 获取用户的反馈列表
+ * @param userId 用户ID
+ * @returns 反馈列表
+ */
+export async function getUserFeedbackList(userId: string): Promise<Feedback[]> {
+  try {
+    const {data, error} = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取反馈列表失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取反馈列表异常:', error)
+    return []
+  }
+}
+
+/**
+ * 获取所有反馈列表（管理员）
+ * @returns 反馈列表
+ */
+export async function getAllFeedbackList(): Promise<Feedback[]> {
+  try {
+    const {data, error} = await supabase.from('feedback').select('*').order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取所有反馈失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取所有反馈异常:', error)
+    return []
+  }
+}
+
+/**
+ * 更新反馈状态（管理员）
+ * @param feedbackId 反馈ID
+ * @param status 新状态
+ * @returns 更新结果
+ */
+export async function updateFeedbackStatus(
+  feedbackId: string,
+  status: FeedbackStatus
+): Promise<{success: boolean; error?: string}> {
+  try {
+    const {error} = await supabase.from('feedback').update({status}).eq('id', feedbackId)
+
+    if (error) {
+      console.error('更新反馈状态失败:', error)
+      return {success: false, error: error.message}
+    }
+
+    return {success: true}
+  } catch (error) {
+    console.error('更新反馈状态异常:', error)
+    return {success: false, error: '更新反馈状态失败'}
   }
 }
