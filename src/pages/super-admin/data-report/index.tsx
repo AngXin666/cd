@@ -54,11 +54,15 @@ const DataReport: React.FC = () => {
   }, [loadWarehouses])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (selectedWarehouse) {
+      loadData()
+    }
+  }, [loadData, selectedWarehouse])
 
   useDidShow(() => {
-    loadData()
+    if (selectedWarehouse) {
+      loadData()
+    }
   })
 
   // 处理仓库选择
