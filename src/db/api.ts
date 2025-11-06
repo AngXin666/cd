@@ -291,7 +291,7 @@ export async function getWarehouseWithRule(id: string): Promise<WarehouseWithRul
     .select(
       `
       *,
-      rule:attendance_rules(*)
+      rule:attendance_rules!attendance_rules_warehouse_id_fkey(*)
     `
     )
     .eq('id', id)
@@ -300,6 +300,11 @@ export async function getWarehouseWithRule(id: string): Promise<WarehouseWithRul
   if (error) {
     console.error('获取仓库详情失败:', error)
     return null
+  }
+
+  // 如果rule是数组，取第一个元素
+  if (data && Array.isArray(data.rule) && data.rule.length > 0) {
+    return {...data, rule: data.rule[0]} as WarehouseWithRule
   }
 
   return data as WarehouseWithRule | null

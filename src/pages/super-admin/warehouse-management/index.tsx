@@ -7,7 +7,6 @@ import PasswordVerifyModal from '@/components/common/PasswordVerifyModal'
 import {
   createAttendanceRule,
   createWarehouse,
-  deleteAttendanceRule,
   deleteWarehouse,
   getWarehousesWithRules,
   updateAttendanceRule,
@@ -22,7 +21,6 @@ const WarehouseManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
   const [showAddWarehouse, setShowAddWarehouse] = useState(false)
   const [showEditWarehouse, setShowEditWarehouse] = useState(false)
-  const [showEditRule, setShowEditRule] = useState(false)
   const [currentWarehouse, setCurrentWarehouse] = useState<WarehouseWithRule | null>(null)
   const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
 
@@ -114,13 +112,34 @@ const WarehouseManagement: React.FC = () => {
     }
   }
 
-  // 显示编辑仓库对话框
+  // 显示编辑仓库对话框（合并考勤规则）
   const handleShowEditWarehouse = (warehouse: WarehouseWithRule) => {
     setCurrentWarehouse(warehouse)
     setEditWarehouseName(warehouse.name)
     setEditWarehouseActive(warehouse.is_active)
     setEditMaxLeaveDays(String(warehouse.max_leave_days || 7))
     setEditResignationNoticeDays(String(warehouse.resignation_notice_days || 30))
+
+    // 加载考勤规则数据
+    if (warehouse.rule) {
+      setCurrentRule(warehouse.rule)
+      setRuleStartTime(warehouse.rule.work_start_time)
+      setRuleEndTime(warehouse.rule.work_end_time)
+      setRuleLateThreshold(String(warehouse.rule.late_threshold))
+      setRuleEarlyThreshold(String(warehouse.rule.early_threshold))
+      setRuleRequireClockOut(warehouse.rule.require_clock_out ?? true)
+      setRuleActive(warehouse.rule.is_active)
+    } else {
+      // 如果没有规则，使用默认值
+      setCurrentRule(null)
+      setRuleStartTime('09:00')
+      setRuleEndTime('18:00')
+      setRuleLateThreshold('15')
+      setRuleEarlyThreshold('15')
+      setRuleRequireClockOut(true)
+      setRuleActive(true)
+    }
+
     setShowEditWarehouse(true)
   }
 
@@ -171,7 +190,7 @@ const WarehouseManagement: React.FC = () => {
 
     if (Number.isNaN(maxLeaveDays) || maxLeaveDays < 1 || maxLeaveDays > 365) {
       showToast({
-        title: '请假天数必须在1-365之间',
+        title: '月度请假天数必须在1-365之间',
         icon: 'none',
         duration: 2000
       })
@@ -187,35 +206,84 @@ const WarehouseManagement: React.FC = () => {
       return
     }
 
+    // 验证考勤规则
+    const lateThreshold = Number.parseInt(ruleLateThreshold, 10)
+    const earlyThreshold = Number.parseInt(ruleEarlyThreshold, 10)
+
+    if (Number.isNaN(lateThreshold) || lateThreshold < 0) {
+      showToast({
+        title: '迟到阈值必须大于等于0',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    if (Number.isNaN(earlyThreshold) || earlyThreshold < 0) {
+      showToast({
+        title: '早退阈值必须大于等于0',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
     // 请求密码验证
     requestPasswordVerify(async () => {
       try {
-        showLoading({title: '更新中...'})
+        showLoading({title: '保存中...'})
 
+        // 1. 更新仓库基本信息
         const success = await updateWarehouse(currentWarehouse.id, {
           name: editWarehouseName.trim(),
           is_active: editWarehouseActive
         })
 
-        if (success) {
-          // 更新请假和离职设置
-          await updateWarehouseSettings(currentWarehouse.id, {
-            max_leave_days: maxLeaveDays,
-            resignation_notice_days: resignationNoticeDays
-          })
-
-          showToast({
-            title: '更新成功',
-            icon: 'success',
-            duration: 1500
-          })
-
-          setShowEditWarehouse(false)
-          await loadWarehouses()
+        if (!success) {
+          throw new Error('更新仓库信息失败')
         }
+
+        // 2. 更新请假和离职设置
+        await updateWarehouseSettings(currentWarehouse.id, {
+          max_leave_days: maxLeaveDays,
+          resignation_notice_days: resignationNoticeDays
+        })
+
+        // 3. 更新或创建考勤规则
+        if (currentRule) {
+          // 更新现有规则
+          await updateAttendanceRule(currentRule.id, {
+            work_start_time: ruleStartTime,
+            work_end_time: ruleEndTime,
+            late_threshold: lateThreshold,
+            early_threshold: earlyThreshold,
+            require_clock_out: ruleRequireClockOut,
+            is_active: ruleActive
+          })
+        } else {
+          // 创建新规则
+          await createAttendanceRule({
+            warehouse_id: currentWarehouse.id,
+            work_start_time: ruleStartTime,
+            work_end_time: ruleEndTime,
+            late_threshold: lateThreshold,
+            early_threshold: earlyThreshold,
+            require_clock_out: ruleRequireClockOut,
+            is_active: ruleActive
+          })
+        }
+
+        showToast({
+          title: '保存成功',
+          icon: 'success',
+          duration: 1500
+        })
+
+        setShowEditWarehouse(false)
+        await loadWarehouses()
       } catch (_error) {
         showToast({
-          title: '更新失败',
+          title: '保存失败',
           icon: 'none',
           duration: 2000
         })
@@ -260,146 +328,6 @@ const WarehouseManagement: React.FC = () => {
         Taro.hideLoading()
       }
     })
-  }
-
-  // 显示编辑考勤规则对话框
-  const handleShowEditRule = (warehouse: WarehouseWithRule) => {
-    setCurrentWarehouse(warehouse)
-
-    if (warehouse.rule) {
-      setCurrentRule(warehouse.rule)
-      setRuleStartTime(warehouse.rule.work_start_time.substring(0, 5))
-      setRuleEndTime(warehouse.rule.work_end_time.substring(0, 5))
-      setRuleLateThreshold(warehouse.rule.late_threshold.toString())
-      setRuleEarlyThreshold(warehouse.rule.early_threshold.toString())
-      setRuleRequireClockOut(warehouse.rule.require_clock_out)
-      setRuleActive(warehouse.rule.is_active)
-    } else {
-      setCurrentRule(null)
-      setRuleStartTime('09:00')
-      setRuleEndTime('18:00')
-      setRuleLateThreshold('15')
-      setRuleEarlyThreshold('15')
-      setRuleRequireClockOut(true)
-      setRuleActive(true)
-    }
-
-    setShowEditRule(true)
-  }
-
-  // 保存考勤规则
-  const handleSaveRule = async () => {
-    if (!currentWarehouse) return
-
-    // 验证输入
-    const lateThreshold = Number.parseInt(ruleLateThreshold, 10)
-    const earlyThreshold = Number.parseInt(ruleEarlyThreshold, 10)
-
-    if (Number.isNaN(lateThreshold) || lateThreshold < 0) {
-      showToast({
-        title: '请输入有效的迟到阈值',
-        icon: 'none',
-        duration: 2000
-      })
-      return
-    }
-
-    if (Number.isNaN(earlyThreshold) || earlyThreshold < 0) {
-      showToast({
-        title: '请输入有效的早退阈值',
-        icon: 'none',
-        duration: 2000
-      })
-      return
-    }
-
-    try {
-      showLoading({title: '保存中...'})
-
-      if (currentRule) {
-        // 更新现有规则
-        const success = await updateAttendanceRule(currentRule.id, {
-          work_start_time: `${ruleStartTime}:00`,
-          work_end_time: `${ruleEndTime}:00`,
-          late_threshold: lateThreshold,
-          early_threshold: earlyThreshold,
-          require_clock_out: ruleRequireClockOut,
-          is_active: ruleActive
-        })
-
-        if (success) {
-          showToast({
-            title: '更新成功',
-            icon: 'success',
-            duration: 1500
-          })
-        }
-      } else {
-        // 创建新规则
-        const rule = await createAttendanceRule({
-          warehouse_id: currentWarehouse.id,
-          work_start_time: `${ruleStartTime}:00`,
-          work_end_time: `${ruleEndTime}:00`,
-          late_threshold: lateThreshold,
-          early_threshold: earlyThreshold,
-          require_clock_out: ruleRequireClockOut,
-          is_active: ruleActive
-        })
-
-        if (rule) {
-          showToast({
-            title: '创建成功',
-            icon: 'success',
-            duration: 1500
-          })
-        }
-      }
-
-      setShowEditRule(false)
-      await loadWarehouses()
-    } catch (_error) {
-      showToast({
-        title: '保存失败',
-        icon: 'none',
-        duration: 2000
-      })
-    } finally {
-      Taro.hideLoading()
-    }
-  }
-
-  // 删除考勤规则
-  const handleDeleteRule = async () => {
-    if (!currentRule) return
-
-    const confirmed = await confirmDelete('确认删除', '确定要删除该考勤规则吗？删除后将无法恢复。')
-
-    if (!confirmed) return
-
-    try {
-      showLoading({title: '删除中...'})
-
-      const success = await deleteAttendanceRule(currentRule.id)
-
-      if (success) {
-        showToast({
-          title: '删除成功',
-          icon: 'success',
-          duration: 1500
-        })
-
-        setShowEditRule(false)
-        await loadWarehouses()
-      }
-    } catch (_error) {
-      showToast({
-        title: '删除失败',
-        icon: 'none',
-        duration: 2000
-      })
-    } finally {
-      Taro.hideLoading()
-    }
   }
 
   return (
@@ -466,14 +394,8 @@ const WarehouseManagement: React.FC = () => {
 
                   {/* 考勤规则 */}
                   <View className="bg-gray-50 rounded-lg p-3">
-                    <View className="flex items-center justify-between mb-2">
+                    <View className="mb-2">
                       <Text className="text-gray-700 text-sm font-bold">考勤规则</Text>
-                      <Button
-                        size="mini"
-                        className="bg-green-50 text-green-600 text-xs break-keep"
-                        onClick={() => handleShowEditRule(warehouse)}>
-                        {warehouse.rule ? '编辑规则' : '添加规则'}
-                      </Button>
                     </View>
                     {warehouse.rule ? (
                       <View>
@@ -538,25 +460,85 @@ const WarehouseManagement: React.FC = () => {
         </View>
       )}
 
-      {/* 编辑仓库对话框 */}
+      {/* 编辑仓库对话框（合并考勤规则） */}
       {showEditWarehouse && currentWarehouse && (
         <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md">
-            <Text className="text-gray-800 text-lg font-bold block mb-4">编辑仓库</Text>
+          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md max-h-[85vh] overflow-y-auto">
+            <Text className="text-gray-800 text-lg font-bold block mb-4">编辑仓库信息</Text>
 
+            {/* 基本信息 */}
             <View className="mb-4">
-              <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                placeholder="请输入仓库名称"
-                value={editWarehouseName}
-                onInput={(e) => setEditWarehouseName(e.detail.value)}
-              />
+              <Text className="text-gray-800 text-base font-bold block mb-3">基本信息</Text>
+
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
+                <Input
+                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                  placeholder="请输入仓库名称"
+                  value={editWarehouseName}
+                  onInput={(e) => setEditWarehouseName(e.detail.value)}
+                />
+              </View>
+
+              <View className="flex items-center justify-between">
+                <Text className="text-gray-700 text-sm">启用状态</Text>
+                <Switch checked={editWarehouseActive} onChange={(e) => setEditWarehouseActive(e.detail.value)} />
+              </View>
             </View>
 
-            <View className="mb-4 flex items-center justify-between">
-              <Text className="text-gray-700 text-sm">启用状态</Text>
-              <Switch checked={editWarehouseActive} onChange={(e) => setEditWarehouseActive(e.detail.value)} />
+            {/* 考勤规则 */}
+            <View className="mb-4 border-t border-gray-200 pt-4">
+              <Text className="text-gray-800 text-base font-bold block mb-3">考勤规则</Text>
+
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">上班时间</Text>
+                <Picker mode="time" value={ruleStartTime} onChange={(e) => setRuleStartTime(e.detail.value)}>
+                  <View className="bg-gray-50 rounded-lg p-3">
+                    <Text className="text-gray-800">{ruleStartTime}</Text>
+                  </View>
+                </Picker>
+              </View>
+
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">下班时间</Text>
+                <Picker mode="time" value={ruleEndTime} onChange={(e) => setRuleEndTime(e.detail.value)}>
+                  <View className="bg-gray-50 rounded-lg p-3">
+                    <Text className="text-gray-800">{ruleEndTime}</Text>
+                  </View>
+                </Picker>
+              </View>
+
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">迟到阈值（分钟）</Text>
+                <Input
+                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                  type="number"
+                  placeholder="请输入迟到阈值"
+                  value={ruleLateThreshold}
+                  onInput={(e) => setRuleLateThreshold(e.detail.value)}
+                />
+              </View>
+
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">早退阈值（分钟）</Text>
+                <Input
+                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                  type="number"
+                  placeholder="请输入早退阈值"
+                  value={ruleEarlyThreshold}
+                  onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
+                />
+              </View>
+
+              <View className="mb-3 flex items-center justify-between">
+                <Text className="text-gray-700 text-sm">需要打下班卡</Text>
+                <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
+              </View>
+
+              <View className="flex items-center justify-between">
+                <Text className="text-gray-700 text-sm">启用考勤规则</Text>
+                <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
+              </View>
             </View>
 
             {/* 请假与离职设置 */}
@@ -564,7 +546,7 @@ const WarehouseManagement: React.FC = () => {
               <Text className="text-gray-800 text-base font-bold block mb-3">请假与离职设置</Text>
 
               <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">最大请假天数上限</Text>
+                <Text className="text-gray-700 text-sm block mb-2">月度请假天数上限</Text>
                 <Input
                   className="bg-gray-50 rounded-lg p-3 text-gray-800"
                   type="number"
@@ -572,7 +554,7 @@ const WarehouseManagement: React.FC = () => {
                   value={editMaxLeaveDays}
                   onInput={(e) => setEditMaxLeaveDays(e.detail.value)}
                 />
-                <Text className="text-gray-400 text-xs block mt-1">司机单次请假不能超过此天数，超过需管理员补录</Text>
+                <Text className="text-gray-400 text-xs block mt-1">司机每月请假总天数不能超过此上限</Text>
               </View>
 
               <View className="mb-0">
@@ -602,91 +584,6 @@ const WarehouseManagement: React.FC = () => {
                 保存
               </Button>
             </View>
-          </View>
-        </View>
-      )}
-
-      {/* 编辑考勤规则对话框 */}
-      {showEditRule && currentWarehouse && (
-        <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
-            <Text className="text-gray-800 text-lg font-bold block mb-4">
-              {currentRule ? '编辑考勤规则' : '添加考勤规则'}
-            </Text>
-
-            <View className="mb-4">
-              <Text className="text-gray-700 text-sm block mb-2">上班时间</Text>
-              <Picker mode="time" value={ruleStartTime} onChange={(e) => setRuleStartTime(e.detail.value)}>
-                <View className="bg-gray-50 rounded-lg p-3">
-                  <Text className="text-gray-800">{ruleStartTime}</Text>
-                </View>
-              </Picker>
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-gray-700 text-sm block mb-2">下班时间</Text>
-              <Picker mode="time" value={ruleEndTime} onChange={(e) => setRuleEndTime(e.detail.value)}>
-                <View className="bg-gray-50 rounded-lg p-3">
-                  <Text className="text-gray-800">{ruleEndTime}</Text>
-                </View>
-              </Picker>
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-gray-700 text-sm block mb-2">迟到阈值（分钟）</Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                type="number"
-                placeholder="请输入迟到阈值"
-                value={ruleLateThreshold}
-                onInput={(e) => setRuleLateThreshold(e.detail.value)}
-              />
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-gray-700 text-sm block mb-2">早退阈值（分钟）</Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                type="number"
-                placeholder="请输入早退阈值"
-                value={ruleEarlyThreshold}
-                onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
-              />
-            </View>
-
-            <View className="mb-4 flex items-center justify-between">
-              <Text className="text-gray-700 text-sm">需要打下班卡</Text>
-              <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
-            </View>
-
-            <View className="mb-4 flex items-center justify-between">
-              <Text className="text-gray-700 text-sm">启用规则</Text>
-              <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
-            </View>
-
-            <View className="flex gap-3 mb-3">
-              <Button
-                size="default"
-                className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
-                onClick={() => setShowEditRule(false)}>
-                取消
-              </Button>
-              <Button
-                size="default"
-                className="flex-1 bg-blue-600 text-white text-base break-keep"
-                onClick={handleSaveRule}>
-                保存
-              </Button>
-            </View>
-
-            {currentRule && (
-              <Button
-                size="default"
-                className="w-full bg-red-50 text-red-600 text-base break-keep"
-                onClick={handleDeleteRule}>
-                删除规则
-              </Button>
-            )}
           </View>
         </View>
       )}
