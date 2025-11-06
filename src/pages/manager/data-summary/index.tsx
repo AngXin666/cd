@@ -13,6 +13,7 @@ import {
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 const DataSummary: React.FC = () => {
@@ -34,11 +35,8 @@ const DataSummary: React.FC = () => {
 
   // 初始化日期范围（默认当月）
   useEffect(() => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const firstDay = `${year}-${month}-01`
-    const today = now.toISOString().split('T')[0]
+    const firstDay = getFirstDayOfMonthString()
+    const today = getLocalDateString()
     setStartDate(firstDay)
     setEndDate(today)
   }, [])
@@ -144,9 +142,7 @@ const DataSummary: React.FC = () => {
 
   // 快捷筛选：前一天
   const handleYesterdayFilter = () => {
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const dateStr = yesterday.toISOString().split('T')[0]
+    const dateStr = getYesterdayDateString()
     setStartDate(dateStr)
     setEndDate(dateStr)
     setActiveQuickFilter('yesterday')
@@ -154,14 +150,8 @@ const DataSummary: React.FC = () => {
 
   // 快捷筛选：本周
   const handleWeekFilter = () => {
-    const now = new Date()
-    const dayOfWeek = now.getDay()
-    const monday = new Date(now)
-    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-    monday.setDate(now.getDate() - daysToMonday)
-
-    const startDateStr = monday.toISOString().split('T')[0]
-    const endDateStr = now.toISOString().split('T')[0]
+    const startDateStr = getMondayDateString()
+    const endDateStr = getLocalDateString()
 
     setStartDate(startDateStr)
     setEndDate(endDateStr)
@@ -170,11 +160,8 @@ const DataSummary: React.FC = () => {
 
   // 快捷筛选：本月
   const handleMonthFilter = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const firstDay = `${year}-${month}-01`
-    const today = now.toISOString().split('T')[0]
+    const firstDay = getFirstDayOfMonthString()
+    const today = getLocalDateString()
 
     setStartDate(firstDay)
     setEndDate(today)

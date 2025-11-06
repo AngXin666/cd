@@ -12,6 +12,7 @@ import {
   updatePieceWorkRecord
 } from '@/db/api'
 import type {PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import {getLocalDateString} from '@/utils/date'
 
 const SuperAdminPieceWorkReportForm: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -136,8 +137,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
   // 初始化日期
   useEffect(() => {
     if (mode === 'add' && !workDate) {
-      const now = new Date()
-      setWorkDate(now.toISOString().split('T')[0])
+      setWorkDate(getLocalDateString())
     }
   }, [mode, workDate])
 

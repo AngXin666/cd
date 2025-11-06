@@ -11,6 +11,7 @@ import {
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+import {getLocalDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 const SuperAdminPieceWork: React.FC = () => {
@@ -121,8 +122,8 @@ const SuperAdminPieceWork: React.FC = () => {
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-    setStartDate(firstDay.toISOString().split('T')[0])
-    setEndDate(lastDay.toISOString().split('T')[0])
+    setStartDate(getLocalDateString(firstDay))
+    setEndDate(getLocalDateString(lastDay))
   }, [])
 
   useEffect(() => {
@@ -158,8 +159,8 @@ const SuperAdminPieceWork: React.FC = () => {
         break
     }
 
-    setStartDate(start.toISOString().split('T')[0])
-    setEndDate(end.toISOString().split('T')[0])
+    setStartDate(getLocalDateString(start))
+    setEndDate(getLocalDateString(end))
     setQuickFilter(type)
   }
 

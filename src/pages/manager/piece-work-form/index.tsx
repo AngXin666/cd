@@ -5,6 +5,7 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {createPieceWorkRecord, getActiveCategories, getDriverProfiles, getManagerWarehouses} from '@/db/api'
 import type {PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import {getLocalDateString} from '@/utils/date'
 
 const ManagerPieceWorkForm: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -60,7 +61,7 @@ const ManagerPieceWorkForm: React.FC = () => {
 
       // 设置默认日期和时间
       const now = new Date()
-      const dateStr = now.toISOString().split('T')[0]
+      const dateStr = getLocalDateString(now)
       const hours = String(now.getHours()).padStart(2, '0')
       const minutes = String(now.getMinutes()).padStart(2, '0')
       setWorkDate(dateStr)
