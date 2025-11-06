@@ -99,15 +99,83 @@ const SuperAdminHome: React.FC = () => {
           {/* 系统管理功能 */}
           <View className="bg-white rounded-lg p-4 mb-4 shadow">
             <Text className="text-lg font-bold text-gray-800 block mb-4">系统管理</Text>
+
+            {/* 权限管理板块 */}
+            <View className="mb-4">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-shield-check text-xl text-orange-600 mr-2" />
+                <Text className="text-base font-semibold text-gray-800">权限管理</Text>
+              </View>
+              <View className="grid grid-cols-2 gap-3 pl-4">
+                <Button
+                  className="text-xs break-keep"
+                  size="default"
+                  style={{
+                    backgroundColor: '#1E3A8A',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px 8px'
+                  }}
+                  onClick={handleManageUsers}>
+                  <View className="flex flex-col items-center">
+                    <View className="i-mdi-account-multiple text-2xl mb-1" />
+                    <Text className="text-xs">用户管理</Text>
+                  </View>
+                </Button>
+                <Button
+                  className="text-xs break-keep"
+                  size="default"
+                  style={{
+                    backgroundColor: '#F97316',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px 8px'
+                  }}
+                  onClick={handleManageWarehouses}>
+                  <View className="flex flex-col items-center">
+                    <View className="i-mdi-warehouse text-2xl mb-1" />
+                    <Text className="text-xs">仓库管理</Text>
+                  </View>
+                </Button>
+                <Button
+                  className="text-xs break-keep"
+                  size="default"
+                  style={{
+                    backgroundColor: '#1E3A8A',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px 8px'
+                  }}
+                  onClick={handleCategoryManagement}>
+                  <View className="flex flex-col items-center">
+                    <View className="i-mdi-tag-multiple text-2xl mb-1" />
+                    <Text className="text-xs">计件品类</Text>
+                  </View>
+                </Button>
+                <Button
+                  className="text-xs break-keep"
+                  size="default"
+                  style={{
+                    backgroundColor: '#F97316',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px 8px'
+                  }}
+                  onClick={handleDriverWarehouseAssignment}>
+                  <View className="flex flex-col items-center">
+                    <View className="i-mdi-account-arrow-right text-2xl mb-1" />
+                    <Text className="text-xs">司机分配</Text>
+                  </View>
+                </Button>
+              </View>
+            </View>
+
+            {/* 其他系统功能 */}
             <View className="grid grid-cols-3 gap-4">
-              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                <View className="i-mdi-account-cog text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">用户管理</Text>
-              </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-shield-check text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">权限管理</Text>
-              </View>
               <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
                 <View className="i-mdi-cog text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">系统设置</Text>
@@ -130,66 +198,6 @@ const SuperAdminHome: React.FC = () => {
           {/* 快捷操作 */}
           <View className="bg-white rounded-lg p-4 shadow">
             <Text className="text-lg font-bold text-gray-800 block mb-4">快捷操作</Text>
-            <Button
-              className="w-full mb-3 text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#1E3A8A',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleManageUsers}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-account-multiple mr-2" />
-                <Text>用户管理</Text>
-              </View>
-            </Button>
-            <Button
-              className="w-full mb-3 text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#F97316',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleManageWarehouses}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-warehouse mr-2" />
-                <Text>仓库管理</Text>
-              </View>
-            </Button>
-            <Button
-              className="w-full mb-3 text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#F97316',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleDriverWarehouseAssignment}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-account-arrow-right mr-2" />
-                <Text>司机仓库分配</Text>
-              </View>
-            </Button>
-            <Button
-              className="w-full mb-3 text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#1E3A8A',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleCategoryManagement}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-tag-multiple mr-2" />
-                <Text>计件品类管理</Text>
-              </View>
-            </Button>
             <Button
               className="w-full mb-3 text-sm break-keep"
               size="default"
