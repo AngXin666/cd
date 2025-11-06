@@ -11,6 +11,7 @@ import {
   getWarehouseById
 } from '@/db/api'
 import type {AttendanceRecord, PieceWorkCategory, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
+import {getDaysAgoDateString, getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
 const WarehouseStats: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -27,18 +28,15 @@ const WarehouseStats: React.FC = () => {
 
   // 计算日期范围
   const getDateRange = useCallback(() => {
-    const now = new Date()
     let startDate = ''
 
     if (dateRange === 'week') {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      startDate = weekAgo.toISOString().split('T')[0]
+      startDate = getDaysAgoDateString(7)
     } else if (dateRange === 'month') {
-      const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1)
-      startDate = monthAgo.toISOString().split('T')[0]
+      startDate = getFirstDayOfMonthString()
     }
 
-    const endDate = now.toISOString().split('T')[0]
+    const endDate = getLocalDateString()
     return {startDate, endDate}
   }, [dateRange])
 

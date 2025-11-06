@@ -29,6 +29,17 @@ import type {
   WarehouseWithRule
 } from './types'
 
+/**
+ * 获取本地日期字符串（YYYY-MM-DD格式）
+ * 避免使用toISOString()导致的时区问题
+ */
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export async function getCurrentUserProfile(): Promise<Profile | null> {
   const {
     data: {user}
@@ -142,7 +153,7 @@ export async function updateClockOut(id: string, update: AttendanceRecordUpdate)
  * 获取今日打卡记录
  */
 export async function getTodayAttendance(userId: string): Promise<AttendanceRecord | null> {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateString()
 
   const {data, error} = await supabase
     .from('attendance_records')
@@ -164,7 +175,7 @@ export async function getTodayAttendance(userId: string): Promise<AttendanceReco
  */
 export async function getMonthlyAttendance(userId: string, year: number, month: number): Promise<AttendanceRecord[]> {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+  const endDate = getLocalDateString(new Date(year, month, 0))
 
   const {data, error} = await supabase
     .from('attendance_records')
@@ -190,7 +201,7 @@ export async function getAllAttendanceRecords(year?: number, month?: number): Pr
 
   if (year && month) {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+    const endDate = getLocalDateString(new Date(year, month, 0))
     query = query.gte('work_date', startDate).lte('work_date', endDate)
   }
 
@@ -1513,7 +1524,7 @@ export async function validateResignationDate(
   const minDate = new Date(today)
   minDate.setDate(minDate.getDate() + resignation_notice_days)
 
-  const minDateStr = minDate.toISOString().split('T')[0]
+  const minDateStr = getLocalDateString(minDate)
   const selectedDate = new Date(date)
 
   if (selectedDate < minDate) {
@@ -1590,7 +1601,7 @@ export async function getWarehouseManager(warehouseId: string): Promise<Profile 
 export async function getMonthlyLeaveCount(userId: string, year: number, month: number): Promise<number> {
   // 构造月份的开始和结束日期
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const endDate = new Date(year, month, 0).toISOString().split('T')[0] // 月份最后一天
+  const endDate = getLocalDateString(new Date(year, month, 0)) // 月份最后一天
 
   const {data, error} = await supabase
     .from('leave_applications')
@@ -1627,7 +1638,7 @@ export async function getMonthlyLeaveCount(userId: string, year: number, month: 
 export async function getMonthlyPendingLeaveCount(userId: string, year: number, month: number): Promise<number> {
   // 构造月份的开始和结束日期
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+  const endDate = getLocalDateString(new Date(year, month, 0))
 
   const {data, error} = await supabase
     .from('leave_applications')
@@ -1939,8 +1950,8 @@ export interface DashboardStats {
  * @returns 仪表盘统计数据
  */
 export async function getWarehouseDashboardStats(warehouseId: string): Promise<DashboardStats> {
-  const today = new Date().toISOString().split('T')[0]
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const today = getLocalDateString()
+  const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
   // 1. 获取该仓库的所有司机ID
   const {data: driverWarehouseData} = await supabase
@@ -2043,8 +2054,8 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
  * @returns 汇总统计数据
  */
 export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> {
-  const today = new Date().toISOString().split('T')[0]
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const today = getLocalDateString()
+  const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
   // 并行执行所有统计查询
   const [

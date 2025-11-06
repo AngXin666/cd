@@ -15,6 +15,7 @@ import {
   validateLeaveApplication
 } from '@/db/api'
 import type {LeaveType} from '@/db/types'
+import {getLocalDateString, getTomorrowDateString} from '@/utils/date'
 
 type LeaveMode = 'quick' | 'makeup'
 
@@ -57,21 +58,19 @@ const ApplyLeave: React.FC = () => {
 
   // 获取明天的日期
   const getTomorrowDate = useCallback(() => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    return tomorrow.toISOString().split('T')[0]
+    return getTomorrowDateString()
   }, [])
 
   // 获取今天的日期
   const getTodayDate = useCallback(() => {
-    return new Date().toISOString().split('T')[0]
+    return getLocalDateString()
   }, [])
 
   // 根据天数计算结束日期
   const calculateEndDate = useCallback((start: string, days: number): string => {
     const startDate = new Date(start)
     startDate.setDate(startDate.getDate() + days - 1)
-    return startDate.toISOString().split('T')[0]
+    return getLocalDateString(startDate)
   }, [])
 
   useLoad(() => {

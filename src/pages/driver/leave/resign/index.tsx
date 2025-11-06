@@ -12,6 +12,7 @@ import {
   updateDraftResignationApplication,
   validateResignationDate
 } from '@/db/api'
+import {getLocalDateString} from '@/utils/date'
 
 const ApplyResignation: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -70,7 +71,7 @@ const ApplyResignation: React.FC = () => {
         const today = new Date()
         const minDate = new Date(today)
         minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
-        setMinDate(minDate.toISOString().split('T')[0])
+        setMinDate(getLocalDateString(minDate))
       }
     }
   }, [user, isEditMode])

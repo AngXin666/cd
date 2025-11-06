@@ -46,6 +46,11 @@ const DriverHome: React.FC = () => {
       const today = new Date()
       const year = today.getFullYear()
       const month = today.getMonth() + 1
+      const day = today.getDate()
+
+      // 使用本地日期而不是UTC日期
+      const todayStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+      console.log('今日日期（本地时间）:', todayStr)
 
       // 计算本月的开始和结束日期
       const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
@@ -57,10 +62,9 @@ const DriverHome: React.FC = () => {
       const records = await getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
       console.log('计件记录数量:', records.length, '记录:', records)
 
-      // 筛选今日记录
-      const todayStr = today.toISOString().split('T')[0]
-      const todayRecords = records.filter((record) => record.work_date.startsWith(todayStr))
-      console.log('今日记录数量:', todayRecords.length, '今日日期:', todayStr)
+      // 筛选今日记录（使用本地日期）
+      const todayRecords = records.filter((record) => record.work_date === todayStr)
+      console.log('今日记录数量:', todayRecords.length, '筛选条件:', todayStr)
 
       // 计算今日统计
       const todayPieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
