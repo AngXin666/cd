@@ -48,7 +48,7 @@ const SuperAdminHome: React.FC = () => {
   }
 
   const handlePieceWorkReport = () => {
-    navigateTo({url: '/pages/super-admin/piece-work/index'})
+    navigateTo({url: '/pages/super-admin/piece-work-report/index'})
   }
 
   const handleLeaveApproval = () => {

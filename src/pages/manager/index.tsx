@@ -28,11 +28,7 @@ const ManagerHome: React.FC = () => {
   })
 
   const handlePieceWorkReport = () => {
-    navigateTo({url: '/pages/manager/data-summary/index'})
-  }
-
-  const handlePieceWorkManagement = () => {
-    navigateTo({url: '/pages/manager/piece-work/index'})
+    navigateTo({url: '/pages/manager/piece-work-report/index'})
   }
 
   const handleLeaveApproval = () => {
@@ -97,18 +93,12 @@ const ManagerHome: React.FC = () => {
                 <View className="i-mdi-clipboard-list text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">任务分配</Text>
               </View>
-              <View
-                onClick={handlePieceWorkManagement}
-                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-clipboard-edit text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">计件管理</Text>
+              <View onClick={handlePieceWorkReport} className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
+                <View className="i-mdi-chart-box text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">件数报表</Text>
               </View>
-              <View onClick={handlePieceWorkReport} className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                <View className="i-mdi-chart-line text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">计件报表</Text>
-              </View>
-              <View onClick={handleLeaveApproval} className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-calendar-check text-3xl text-orange-600 mb-2" />
+              <View onClick={handleLeaveApproval} className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
+                <View className="i-mdi-calendar-check text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">请假审批</Text>
               </View>
             </View>

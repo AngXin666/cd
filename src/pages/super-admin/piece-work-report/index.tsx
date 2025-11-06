@@ -1,0 +1,632 @@
+import {Input, Picker, ScrollView, Text, View} from '@tarojs/components'
+import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
+import {useAuth} from 'miaoda-auth-taro'
+import type React from 'react'
+import {useCallback, useEffect, useState} from 'react'
+import {
+  deletePieceWorkRecord,
+  getActiveCategories,
+  getAllWarehouses,
+  getDriverProfiles,
+  getPieceWorkRecordsByWarehouse
+} from '@/db/api'
+import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+
+const SuperAdminPieceWorkReport: React.FC = () => {
+  const {user} = useAuth({guard: true})
+
+  // 数据状态
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [drivers, setDrivers] = useState<Profile[]>([])
+  const [categories, setCategories] = useState<PieceWorkCategory[]>([])
+  const [records, setRecords] = useState<PieceWorkRecord[]>([])
+
+  // 筛选状态
+  const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0) // 0 表示所有仓库
+  const [selectedDriverIndex, setSelectedDriverIndex] = useState(0) // 0 表示所有司机
+  const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [quickFilter, setQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // 详情弹窗状态
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<PieceWorkRecord | null>(null)
+
+  // 初始化日期范围（默认当月）
+  useEffect(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const firstDay = `${year}-${month}-01`
+    const today = now.toISOString().split('T')[0]
+    setStartDate(firstDay)
+    setEndDate(today)
+  }, [])
+
+  // 加载基础数据
+  const loadData = useCallback(async () => {
+    if (!user?.id) return
+
+    try {
+      // 加载所有仓库
+      const warehousesData = await getAllWarehouses()
+      setWarehouses(warehousesData)
+
+      // 加载所有司机
+      const driversData = await getDriverProfiles()
+      setDrivers(driversData)
+
+      // 加载所有品类
+      const categoriesData = await getActiveCategories()
+      setCategories(categoriesData)
+    } catch (error) {
+      console.error('加载数据失败:', error)
+      Taro.showToast({
+        title: '加载数据失败',
+        icon: 'error',
+        duration: 2000
+      })
+    }
+  }, [user?.id])
+
+  // 过滤司机列表（根据搜索关键词）
+  const filteredDrivers = drivers.filter((driver) => {
+    if (!driverSearchKeyword.trim()) return true
+    const keyword = driverSearchKeyword.toLowerCase()
+    const name = (driver.name || '').toLowerCase()
+    const phone = (driver.phone || '').toLowerCase()
+    return name.includes(keyword) || phone.includes(keyword)
+  })
+
+  // 加载计件记录
+  const loadRecords = useCallback(async () => {
+    if (warehouses.length === 0) return
+
+    try {
+      let data: PieceWorkRecord[] = []
+
+      if (selectedWarehouseIndex === 0) {
+        // 加载所有仓库的记录
+        const allRecords = await Promise.all(
+          warehouses.map((w) => getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
+        )
+        data = allRecords.flat()
+      } else {
+        // 加载特定仓库的记录
+        const warehouse = warehouses[selectedWarehouseIndex - 1]
+        data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+      }
+
+      // 司机筛选
+      if (selectedDriverIndex > 0) {
+        const selectedDriver = filteredDrivers[selectedDriverIndex - 1]
+        data = data.filter((r) => r.user_id === selectedDriver.id)
+      }
+
+      // 排序
+      data.sort((a, b) => {
+        const dateA = new Date(a.work_date).getTime()
+        const dateB = new Date(b.work_date).getTime()
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+      })
+
+      setRecords(data)
+    } catch (error) {
+      console.error('加载记录失败:', error)
+      Taro.showToast({
+        title: '加载记录失败',
+        icon: 'error',
+        duration: 2000
+      })
+    }
+  }, [warehouses, selectedWarehouseIndex, selectedDriverIndex, filteredDrivers, startDate, endDate, sortOrder])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  useEffect(() => {
+    loadRecords()
+  }, [loadRecords])
+
+  useDidShow(() => {
+    loadData()
+    loadRecords()
+  })
+
+  // 快捷筛选：前一天
+  const handleYesterdayFilter = () => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const dateStr = yesterday.toISOString().split('T')[0]
+    setStartDate(dateStr)
+    setEndDate(dateStr)
+    setQuickFilter('yesterday')
+  }
+
+  // 快捷筛选：本周
+  const handleWeekFilter = () => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const monday = new Date(now)
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    monday.setDate(now.getDate() - daysToMonday)
+
+    const startDateStr = monday.toISOString().split('T')[0]
+    const endDateStr = now.toISOString().split('T')[0]
+
+    setStartDate(startDateStr)
+    setEndDate(endDateStr)
+    setQuickFilter('week')
+  }
+
+  // 快捷筛选：本月
+  const handleMonthFilter = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const firstDay = `${year}-${month}-01`
+    const today = now.toISOString().split('T')[0]
+
+    setStartDate(firstDay)
+    setEndDate(today)
+    setQuickFilter('month')
+  }
+
+  // 处理开始日期变化
+  const handleStartDateChange = (e) => {
+    setStartDate(e.detail.value)
+    setQuickFilter('custom')
+  }
+
+  // 处理结束日期变化
+  const handleEndDateChange = (e) => {
+    setEndDate(e.detail.value)
+    setQuickFilter('custom')
+  }
+
+  // 切换排序顺序
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  }
+
+  // 添加记录
+  const handleAddRecord = () => {
+    if (warehouses.length === 0) {
+      Taro.showToast({
+        title: '暂无仓库',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    const warehouseId = selectedWarehouseIndex > 0 ? warehouses[selectedWarehouseIndex - 1].id : warehouses[0].id
+    navigateTo({
+      url: `/pages/super-admin/piece-work-report-form/index?warehouseId=${warehouseId}&mode=add`
+    })
+  }
+
+  // 编辑记录
+  const handleEditRecord = (record: PieceWorkRecord) => {
+    navigateTo({
+      url: `/pages/super-admin/piece-work-report-form/index?id=${record.id}&mode=edit`
+    })
+  }
+
+  // 删除记录
+  const handleDeleteRecord = async (record: PieceWorkRecord) => {
+    const result = await showModal({
+      title: '确认删除',
+      content: '确定要删除这条计件记录吗？此操作不可恢复。'
+    })
+
+    if (result.confirm) {
+      try {
+        await deletePieceWorkRecord(record.id)
+        Taro.showToast({
+          title: '删除成功',
+          icon: 'success',
+          duration: 2000
+        })
+        loadRecords()
+      } catch (error) {
+        console.error('删除失败:', error)
+        Taro.showToast({
+          title: '删除失败',
+          icon: 'error',
+          duration: 2000
+        })
+      }
+    }
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: PieceWorkRecord) => {
+    setSelectedRecord(record)
+    setShowDetailModal(true)
+  }
+
+  // 关闭详情弹窗
+  const handleCloseDetail = () => {
+    setShowDetailModal(false)
+    setSelectedRecord(null)
+  }
+
+  // 获取司机名称
+  const getDriverName = (userId: string) => {
+    const driver = drivers.find((d) => d.id === userId)
+    return driver?.name || driver?.phone || '未知司机'
+  }
+
+  // 获取仓库名称
+  const getWarehouseName = (warehouseId: string) => {
+    const warehouse = warehouses.find((w) => w.id === warehouseId)
+    return warehouse?.name || '未知仓库'
+  }
+
+  // 获取品类名称
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find((c) => c.id === categoryId)
+    return category?.name || '未知品类'
+  }
+
+  // 计算统计数据
+  const totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
+  const totalAmount = records.reduce((sum, r) => {
+    const baseAmount = (r.quantity || 0) * (r.unit_price || 0)
+    const upstairsAmount = r.need_upstairs ? (r.quantity || 0) * (r.upstairs_price || 0) : 0
+    const sortingAmount = r.need_sorting ? (r.sorting_quantity || 0) * (r.sorting_unit_price || 0) : 0
+    return sum + baseAmount + upstairsAmount + sortingAmount
+  }, 0)
+  const uniqueDrivers = new Set(records.map((r) => r.user_id)).size
+
+  return (
+    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+        <View className="p-4">
+          {/* 统计卡片 */}
+          <View className="grid grid-cols-3 gap-3 mb-4">
+            <View className="bg-white rounded-lg p-3 shadow">
+              <View className="flex items-center justify-between mb-1">
+                <Text className="text-xs text-gray-600">总件数</Text>
+                <View className="i-mdi-package-variant text-lg text-blue-900" />
+              </View>
+              <Text className="text-2xl font-bold text-blue-900 block">{totalQuantity}</Text>
+            </View>
+            <View className="bg-white rounded-lg p-3 shadow">
+              <View className="flex items-center justify-between mb-1">
+                <Text className="text-xs text-gray-600">总金额</Text>
+                <View className="i-mdi-currency-cny text-lg text-orange-600" />
+              </View>
+              <Text className="text-2xl font-bold text-orange-600 block">¥{totalAmount.toFixed(2)}</Text>
+            </View>
+            <View className="bg-white rounded-lg p-3 shadow">
+              <View className="flex items-center justify-between mb-1">
+                <Text className="text-xs text-gray-600">司机数</Text>
+                <View className="i-mdi-account-group text-lg text-blue-900" />
+              </View>
+              <Text className="text-2xl font-bold text-blue-900 block">{uniqueDrivers}</Text>
+            </View>
+          </View>
+
+          {/* 操作按钮 - 仅超级管理员可见 */}
+          <View className="mb-4">
+            <View
+              onClick={handleAddRecord}
+              className="bg-blue-900 rounded-lg p-4 shadow flex items-center justify-center">
+              <View className="i-mdi-plus-circle text-2xl text-white mr-2" />
+              <Text className="text-white font-medium">添加计件记录</Text>
+            </View>
+          </View>
+
+          {/* 筛选区域 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow">
+            <Text className="text-base font-bold text-gray-800 block mb-3">筛选条件</Text>
+
+            {/* 仓库筛选 */}
+            <View className="mb-3">
+              <Text className="text-sm text-gray-700 block mb-2">仓库</Text>
+              <Picker
+                mode="selector"
+                range={['所有仓库', ...warehouses.map((w) => w.name)]}
+                value={selectedWarehouseIndex}
+                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                  <Text className="text-sm text-gray-800">
+                    {selectedWarehouseIndex === 0 ? '所有仓库' : warehouses[selectedWarehouseIndex - 1]?.name}
+                  </Text>
+                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                </View>
+              </Picker>
+            </View>
+
+            {/* 司机筛选 */}
+            <View className="mb-3">
+              <Text className="text-sm text-gray-700 block mb-2">司机</Text>
+              <Input
+                className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
+                placeholder="搜索司机姓名或手机号"
+                value={driverSearchKeyword}
+                onInput={(e) => setDriverSearchKeyword(e.detail.value)}
+              />
+              <Picker
+                mode="selector"
+                range={['所有司机', ...filteredDrivers.map((d) => d.name || d.phone || '未知')]}
+                value={selectedDriverIndex}
+                onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
+                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                  <Text className="text-sm text-gray-800">
+                    {selectedDriverIndex === 0
+                      ? '所有司机'
+                      : filteredDrivers[selectedDriverIndex - 1]?.name ||
+                        filteredDrivers[selectedDriverIndex - 1]?.phone ||
+                        '未知'}
+                  </Text>
+                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                </View>
+              </Picker>
+            </View>
+
+            {/* 快捷日期筛选 */}
+            <View className="mb-3">
+              <Text className="text-sm text-gray-700 block mb-2">快捷筛选</Text>
+              <View className="flex gap-2">
+                <View
+                  onClick={handleYesterdayFilter}
+                  className={`flex-1 text-center py-2 rounded-lg ${
+                    quickFilter === 'yesterday' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                  <Text className="text-xs">前一天</Text>
+                </View>
+                <View
+                  onClick={handleWeekFilter}
+                  className={`flex-1 text-center py-2 rounded-lg ${
+                    quickFilter === 'week' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                  <Text className="text-xs">本周</Text>
+                </View>
+                <View
+                  onClick={handleMonthFilter}
+                  className={`flex-1 text-center py-2 rounded-lg ${
+                    quickFilter === 'month' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                  <Text className="text-xs">本月</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 自定义日期范围 */}
+            <View className="mb-3">
+              <Text className="text-sm text-gray-700 block mb-2">日期范围</Text>
+              <View className="flex gap-2 items-center">
+                <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
+                  <View className="flex-1 bg-gray-50 rounded-lg p-3">
+                    <Text className="text-sm text-gray-800">{startDate || '开始日期'}</Text>
+                  </View>
+                </Picker>
+                <Text className="text-gray-500">至</Text>
+                <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
+                  <View className="flex-1 bg-gray-50 rounded-lg p-3">
+                    <Text className="text-sm text-gray-800">{endDate || '结束日期'}</Text>
+                  </View>
+                </Picker>
+              </View>
+            </View>
+
+            {/* 排序 */}
+            <View>
+              <Text className="text-sm text-gray-700 block mb-2">排序</Text>
+              <View onClick={toggleSortOrder} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                <Text className="text-sm text-gray-800">{sortOrder === 'desc' ? '日期从新到旧' : '日期从旧到新'}</Text>
+                <View
+                  className={`i-mdi-sort-${sortOrder === 'desc' ? 'descending' : 'ascending'} text-xl text-blue-900`}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* 记录列表 */}
+          <View className="bg-white rounded-lg p-4 shadow">
+            <View className="flex items-center justify-between mb-3">
+              <Text className="text-base font-bold text-gray-800">计件记录</Text>
+              <Text className="text-xs text-gray-500">共 {records.length} 条</Text>
+            </View>
+
+            {records.length === 0 ? (
+              <View className="text-center py-12">
+                <View className="i-mdi-clipboard-text-off text-6xl text-gray-300 mx-auto mb-3" />
+                <Text className="text-sm text-gray-400 block">暂无记录</Text>
+              </View>
+            ) : (
+              <View>
+                {records.map((record) => {
+                  const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
+                  const upstairsAmount = record.need_upstairs
+                    ? (record.quantity || 0) * (record.upstairs_price || 0)
+                    : 0
+                  const sortingAmount = record.need_sorting
+                    ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0)
+                    : 0
+                  const totalRecordAmount = baseAmount + upstairsAmount + sortingAmount
+
+                  return (
+                    <View key={record.id} className="mb-3 p-3 bg-gray-50 rounded-lg">
+                      <View className="flex items-start justify-between mb-2">
+                        <View className="flex-1">
+                          <Text className="text-sm font-medium text-gray-800 block mb-1">
+                            {getDriverName(record.user_id)}
+                          </Text>
+                          <Text className="text-xs text-gray-500 block">{getWarehouseName(record.warehouse_id)}</Text>
+                        </View>
+                        <View className="bg-orange-100 px-2 py-1 rounded">
+                          <Text className="text-xs text-orange-600 font-medium">¥{totalRecordAmount.toFixed(2)}</Text>
+                        </View>
+                      </View>
+
+                      <View className="flex items-center justify-between mb-2">
+                        <View className="flex items-center">
+                          <View className="i-mdi-calendar text-sm text-gray-500 mr-1" />
+                          <Text className="text-xs text-gray-600">{record.work_date}</Text>
+                        </View>
+                        <View className="flex items-center">
+                          <View className="i-mdi-package-variant text-sm text-gray-500 mr-1" />
+                          <Text className="text-xs text-gray-600">
+                            {record.quantity} {getCategoryName(record.category_id)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 操作按钮 - 超级管理员显示完整操作 */}
+                      <View className="flex gap-2 mt-2">
+                        <View
+                          onClick={() => handleViewDetail(record)}
+                          className="flex-1 bg-blue-900 text-white text-center py-2 rounded-lg">
+                          <Text className="text-xs text-white">查看详情</Text>
+                        </View>
+                        <View
+                          onClick={() => handleEditRecord(record)}
+                          className="flex-1 bg-orange-600 text-white text-center py-2 rounded-lg">
+                          <Text className="text-xs text-white">编辑</Text>
+                        </View>
+                        <View
+                          onClick={() => handleDeleteRecord(record)}
+                          className="flex-1 bg-red-600 text-white text-center py-2 rounded-lg">
+                          <Text className="text-xs text-white">删除</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* 详情弹窗 */}
+      {showDetailModal && selectedRecord && (
+        <View
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleCloseDetail}>
+          <View
+            className="bg-white rounded-lg p-6 m-4 max-w-md w-full"
+            onClick={(e) => {
+              e.stopPropagation()
+            }}>
+            <View className="flex items-center justify-between mb-4">
+              <Text className="text-lg font-bold text-gray-800">计件详情</Text>
+              <View onClick={handleCloseDetail} className="i-mdi-close text-2xl text-gray-500" />
+            </View>
+
+            <View className="space-y-3">
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">司机</Text>
+                <Text className="text-sm text-gray-800 font-medium">{getDriverName(selectedRecord.user_id)}</Text>
+              </View>
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">仓库</Text>
+                <Text className="text-sm text-gray-800 font-medium">
+                  {getWarehouseName(selectedRecord.warehouse_id)}
+                </Text>
+              </View>
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">品类</Text>
+                <Text className="text-sm text-gray-800 font-medium">{getCategoryName(selectedRecord.category_id)}</Text>
+              </View>
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">工作日期</Text>
+                <Text className="text-sm text-gray-800 font-medium">{selectedRecord.work_date}</Text>
+              </View>
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">数量</Text>
+                <Text className="text-sm text-gray-800 font-medium">{selectedRecord.quantity}</Text>
+              </View>
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">单价</Text>
+                <Text className="text-sm text-gray-800 font-medium">¥{selectedRecord.unit_price?.toFixed(2)}</Text>
+              </View>
+              <View className="flex justify-between py-2 border-b border-gray-100">
+                <Text className="text-sm text-gray-600">基础金额</Text>
+                <Text className="text-sm text-orange-600 font-medium">
+                  ¥{((selectedRecord.quantity || 0) * (selectedRecord.unit_price || 0)).toFixed(2)}
+                </Text>
+              </View>
+
+              {selectedRecord.need_upstairs && (
+                <>
+                  <View className="flex justify-between py-2 border-b border-gray-100">
+                    <Text className="text-sm text-gray-600">上楼单价</Text>
+                    <Text className="text-sm text-gray-800 font-medium">
+                      ¥{selectedRecord.upstairs_price?.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View className="flex justify-between py-2 border-b border-gray-100">
+                    <Text className="text-sm text-gray-600">上楼金额</Text>
+                    <Text className="text-sm text-orange-600 font-medium">
+                      ¥{((selectedRecord.quantity || 0) * (selectedRecord.upstairs_price || 0)).toFixed(2)}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {selectedRecord.need_sorting && (
+                <>
+                  <View className="flex justify-between py-2 border-b border-gray-100">
+                    <Text className="text-sm text-gray-600">分拣数量</Text>
+                    <Text className="text-sm text-gray-800 font-medium">{selectedRecord.sorting_quantity}</Text>
+                  </View>
+                  <View className="flex justify-between py-2 border-b border-gray-100">
+                    <Text className="text-sm text-gray-600">分拣单价</Text>
+                    <Text className="text-sm text-gray-800 font-medium">
+                      ¥{selectedRecord.sorting_unit_price?.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View className="flex justify-between py-2 border-b border-gray-100">
+                    <Text className="text-sm text-gray-600">分拣金额</Text>
+                    <Text className="text-sm text-orange-600 font-medium">
+                      ¥{((selectedRecord.sorting_quantity || 0) * (selectedRecord.sorting_unit_price || 0)).toFixed(2)}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              <View className="flex justify-between py-2 bg-blue-50 rounded-lg px-3">
+                <Text className="text-base text-gray-800 font-bold">总金额</Text>
+                <Text className="text-base text-orange-600 font-bold">
+                  ¥
+                  {(
+                    (selectedRecord.quantity || 0) * (selectedRecord.unit_price || 0) +
+                    (selectedRecord.need_upstairs
+                      ? (selectedRecord.quantity || 0) * (selectedRecord.upstairs_price || 0)
+                      : 0) +
+                    (selectedRecord.need_sorting
+                      ? (selectedRecord.sorting_quantity || 0) * (selectedRecord.sorting_unit_price || 0)
+                      : 0)
+                  ).toFixed(2)}
+                </Text>
+              </View>
+
+              {selectedRecord.notes && (
+                <View className="py-2">
+                  <Text className="text-sm text-gray-600 block mb-1">备注</Text>
+                  <Text className="text-sm text-gray-800">{selectedRecord.notes}</Text>
+                </View>
+              )}
+            </View>
+
+            <View className="mt-4">
+              <View onClick={handleCloseDetail} className="bg-gray-200 text-center py-3 rounded-lg">
+                <Text className="text-sm text-gray-700">关闭</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
+  )
+}
+
+export default SuperAdminPieceWorkReport
