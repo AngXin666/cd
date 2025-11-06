@@ -31,6 +31,10 @@ const ManagerHome: React.FC = () => {
     navigateTo({url: '/pages/manager/data-summary/index'})
   }
 
+  const handlePieceWorkManagement = () => {
+    navigateTo({url: '/pages/manager/piece-work/index'})
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
@@ -89,9 +93,11 @@ const ManagerHome: React.FC = () => {
                 <View className="i-mdi-clipboard-list text-3xl text-blue-900 mb-2" />
                 <Text className="text-xs text-gray-700">任务分配</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
-                <View className="i-mdi-map-marker-path text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700">路线规划</Text>
+              <View
+                onClick={handlePieceWorkManagement}
+                className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
+                <View className="i-mdi-clipboard-edit text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700">计件管理</Text>
               </View>
               <View onClick={handlePieceWorkReport} className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
                 <View className="i-mdi-chart-line text-3xl text-blue-900 mb-2" />

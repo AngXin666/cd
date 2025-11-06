@@ -11,6 +11,8 @@ const pages = [
   'pages/driver/piece-work/index',
   'pages/driver/piece-work-entry/index',
   'pages/manager/data-summary/index',
+  'pages/manager/piece-work/index',
+  'pages/manager/piece-work-form/index',
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/driver-warehouse-assignment/index',
   'pages/super-admin/manager-warehouse-assignment/index',
