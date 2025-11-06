@@ -14,7 +14,8 @@ const pages = [
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/driver-warehouse-assignment/index',
   'pages/super-admin/manager-warehouse-assignment/index',
-  'pages/super-admin/category-management/index'
+  'pages/super-admin/category-management/index',
+  'pages/super-admin/data-report/index'
 ]
 
 export default defineAppConfig({

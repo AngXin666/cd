@@ -43,8 +43,12 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/category-management/index'})
   }
 
-  const handleManagerWarehouseAssignment = () => {
+  const _handleManagerWarehouseAssignment = () => {
     navigateTo({url: '/pages/super-admin/manager-warehouse-assignment/index'})
+  }
+
+  const handleDataReport = () => {
+    navigateTo({url: '/pages/super-admin/data-report/index'})
   }
 
   const driverCount = allUsers.filter((u) => u.role === 'driver').length
@@ -184,63 +188,15 @@ const SuperAdminHome: React.FC = () => {
                 <View className="i-mdi-database text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">数据管理</Text>
               </View>
-              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                <View className="i-mdi-chart-bar text-3xl text-blue-900 mb-2" />
-                <Text className="text-xs text-gray-700">统计分析</Text>
+              <View className="flex flex-col items-center p-3 bg-blue-50 rounded-lg" onClick={handleDataReport}>
+                <View className="i-mdi-chart-line text-3xl text-blue-900 mb-2" />
+                <Text className="text-xs text-gray-700">数据报表</Text>
               </View>
               <View className="flex flex-col items-center p-3 bg-orange-50 rounded-lg">
                 <View className="i-mdi-file-document-multiple text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700">日志查看</Text>
               </View>
             </View>
-          </View>
-
-          {/* 快捷操作 */}
-          <View className="bg-white rounded-lg p-4 shadow">
-            <Text className="text-lg font-bold text-gray-800 block mb-4">快捷操作</Text>
-            <Button
-              className="w-full mb-3 text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#F97316',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleManagerWarehouseAssignment}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-account-cog mr-2" />
-                <Text>管理员仓库分配</Text>
-              </View>
-            </Button>
-            <Button
-              className="w-full mb-3 text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#1E3A8A',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-car-multiple mr-2" />
-                <Text>车辆管理</Text>
-              </View>
-            </Button>
-            <Button
-              className="w-full text-sm break-keep"
-              size="default"
-              style={{
-                backgroundColor: '#F97316',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-chart-line mr-2" />
-                <Text>数据报表</Text>
-              </View>
-            </Button>
           </View>
         </View>
       </ScrollView>

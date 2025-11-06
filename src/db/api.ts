@@ -462,6 +462,26 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
 }
 
 /**
+ * 获取仓库的司机列表
+ */
+export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
+  const {data, error} = await supabase
+    .from('driver_warehouses')
+    .select('driver_id, profiles(*)')
+    .eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('获取仓库司机失败:', error)
+    return []
+  }
+
+  if (!data) return []
+
+  // 提取司机信息
+  return data.map((item: any) => item.profiles).filter(Boolean)
+}
+
+/**
  * 为司机分配仓库
  */
 export async function assignWarehouseToDriver(input: DriverWarehouseInput): Promise<boolean> {
@@ -630,6 +650,20 @@ export async function getPieceWorkRecordsByUserAndWarehouse(
 
   if (error) {
     console.error('获取用户仓库计件记录失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 获取所有计件记录
+ */
+export async function getAllPieceWorkRecords(): Promise<PieceWorkRecord[]> {
+  const {data, error} = await supabase.from('piece_work_records').select('*').order('work_date', {ascending: false})
+
+  if (error) {
+    console.error('获取所有计件记录失败:', error)
     return []
   }
 
