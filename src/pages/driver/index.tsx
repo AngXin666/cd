@@ -10,6 +10,7 @@ const DriverHome: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     todayPieceCount: 0,
     todayIncome: 0,
@@ -32,51 +33,88 @@ const DriverHome: React.FC = () => {
 
   // 加载统计数据
   const loadStats = useCallback(async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      console.log('用户ID不存在，无法加载统计数据')
+      return
+    }
 
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = today.getMonth() + 1
+    try {
+      setLoading(true)
+      console.log('开始加载统计数据，用户ID:', user.id)
 
-    // 获取当月计件记录
-    const records = await getPieceWorkRecordsByUser(user.id, year.toString(), month.toString())
+      const today = new Date()
+      const year = today.getFullYear()
+      const month = today.getMonth() + 1
 
-    // 筛选今日记录
-    const todayStr = today.toISOString().split('T')[0]
-    const todayRecords = records.filter((record) => record.work_date.startsWith(todayStr))
+      // 获取当月计件记录
+      console.log('获取计件记录:', year, month)
+      const records = await getPieceWorkRecordsByUser(user.id, year.toString(), month.toString())
+      console.log('计件记录数量:', records.length)
 
-    // 计算今日统计
-    const todayPieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
-    const todayIncome = todayRecords.reduce((sum, record) => {
-      const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
-      const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
-      const sortingAmount = record.need_sorting ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0) : 0
-      return sum + baseAmount + upstairsAmount + sortingAmount
-    }, 0)
+      // 筛选今日记录
+      const todayStr = today.toISOString().split('T')[0]
+      const todayRecords = records.filter((record) => record.work_date.startsWith(todayStr))
+      console.log('今日记录数量:', todayRecords.length)
 
-    // 计算本月统计
-    const monthPieceCount = records.reduce((sum, record) => sum + (record.quantity || 0), 0)
-    const monthIncome = records.reduce((sum, record) => {
-      const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
-      const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
-      const sortingAmount = record.need_sorting ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0) : 0
-      return sum + baseAmount + upstairsAmount + sortingAmount
-    }, 0)
+      // 计算今日统计
+      const todayPieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
+      const todayIncome = todayRecords.reduce((sum, record) => {
+        const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
+        const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
+        const sortingAmount = record.need_sorting
+          ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0)
+          : 0
+        return sum + baseAmount + upstairsAmount + sortingAmount
+      }, 0)
 
-    // 获取本月考勤数据
-    const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
-    const lastDay = new Date(year, month, 0)
-    const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
-    const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
+      // 计算本月统计
+      const monthPieceCount = records.reduce((sum, record) => sum + (record.quantity || 0), 0)
+      const monthIncome = records.reduce((sum, record) => {
+        const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
+        const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
+        const sortingAmount = record.need_sorting
+          ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0)
+          : 0
+        return sum + baseAmount + upstairsAmount + sortingAmount
+      }, 0)
 
-    setStats({
-      todayPieceCount,
-      todayIncome,
-      monthPieceCount,
-      monthIncome,
-      attendanceDays: attendanceData.attendanceDays,
-      leaveDays: attendanceData.leaveDays
-    })
+      console.log(
+        '计件统计 - 今日件数:',
+        todayPieceCount,
+        '今日收入:',
+        todayIncome,
+        '本月件数:',
+        monthPieceCount,
+        '本月收入:',
+        monthIncome
+      )
+
+      // 获取本月考勤数据
+      const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
+      const lastDay = new Date(year, month, 0)
+      const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
+      console.log('获取考勤数据:', firstDay, '至', lastDayStr)
+      const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
+      console.log('考勤统计 - 出勤天数:', attendanceData.attendanceDays, '请假天数:', attendanceData.leaveDays)
+
+      setStats({
+        todayPieceCount,
+        todayIncome,
+        monthPieceCount,
+        monthIncome,
+        attendanceDays: attendanceData.attendanceDays,
+        leaveDays: attendanceData.leaveDays
+      })
+    } catch (error) {
+      console.error('加载统计数据失败:', error)
+      Taro.showToast({
+        title: '加载数据失败',
+        icon: 'error',
+        duration: 2000
+      })
+    } finally {
+      setLoading(false)
+    }
   }, [user?.id])
 
   useEffect(() => {
@@ -127,95 +165,73 @@ const DriverHome: React.FC = () => {
             <Text className="text-blue-100 text-sm block">欢迎回来，{profile?.name || profile?.phone || '司机'}</Text>
           </View>
 
-          {/* 统计板块 */}
+          {/* 数据统计仪表盘 */}
           <View className="mb-4">
             <View className="flex items-center justify-between mb-3">
               <View className="flex items-center">
-                <View className="i-mdi-chart-box text-xl text-blue-900 mr-2" />
-                <Text className="text-lg font-bold text-gray-800">数据统计</Text>
+                <View className="i-mdi-view-dashboard text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">数据仪表盘</Text>
               </View>
               <Text className="text-xs text-gray-500">{new Date().toLocaleDateString('zh-CN')}</Text>
             </View>
 
-            {/* 第一行：当日数据 */}
-            <View className="mb-3">
-              <Text className="text-sm font-medium text-gray-600 mb-2 ml-1">今日数据</Text>
-              <View className="grid grid-cols-2 gap-3">
-                {/* 当日件数 */}
-                <View className="bg-white rounded-xl p-4 shadow-md">
-                  <View className="flex items-center justify-between mb-2">
-                    <View className="i-mdi-package-variant text-2xl text-blue-600" />
-                    {stats.todayPieceCount > 0 && <View className="i-mdi-trending-up text-sm text-green-500" />}
+            {loading ? (
+              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
+                <Text className="text-gray-500">加载中...</Text>
+              </View>
+            ) : (
+              <View className="bg-white rounded-xl p-4 shadow-md">
+                <View className="grid grid-cols-3 gap-3">
+                  {/* 当日件数 */}
+                  <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                    <View className="i-mdi-package-variant text-2xl text-blue-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">当日件数</Text>
+                    <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">件</Text>
                   </View>
-                  <Text className="text-xs text-gray-500 block mb-1">当日件数</Text>
-                  <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
-                  <Text className="text-xs text-gray-400 block mt-1">件</Text>
-                </View>
 
-                {/* 当日收入 */}
-                <View className="bg-white rounded-xl p-4 shadow-md">
-                  <View className="flex items-center justify-between mb-2">
-                    <View className="i-mdi-cash-multiple text-2xl text-green-600" />
-                    {stats.todayIncome > 0 && <View className="i-mdi-trending-up text-sm text-green-500" />}
+                  {/* 当日收入 */}
+                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                    <View className="i-mdi-cash-multiple text-2xl text-green-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">当日收入</Text>
+                    <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">元</Text>
                   </View>
-                  <Text className="text-xs text-gray-500 block mb-1">当日收入</Text>
-                  <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
-                  <Text className="text-xs text-gray-400 block mt-1">元</Text>
+
+                  {/* 本月件数 */}
+                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                    <View className="i-mdi-package-variant-closed text-2xl text-purple-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">本月件数</Text>
+                    <Text className="text-2xl font-bold text-purple-900 block">{stats.monthPieceCount}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">件</Text>
+                  </View>
+
+                  {/* 本月收入 */}
+                  <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                    <View className="i-mdi-currency-cny text-2xl text-orange-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">本月收入</Text>
+                    <Text className="text-2xl font-bold text-orange-600 block">{stats.monthIncome.toFixed(0)}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">元</Text>
+                  </View>
+
+                  {/* 出勤天数 */}
+                  <View className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4">
+                    <View className="i-mdi-calendar-check text-2xl text-teal-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">出勤天数</Text>
+                    <Text className="text-2xl font-bold text-teal-900 block">{stats.attendanceDays}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                  </View>
+
+                  {/* 请假天数 */}
+                  <View className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4">
+                    <View className="i-mdi-calendar-remove text-2xl text-red-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">请假天数</Text>
+                    <Text className="text-2xl font-bold text-red-900 block">{stats.leaveDays}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-
-            {/* 第二行：本月数据 */}
-            <View className="mb-3">
-              <Text className="text-sm font-medium text-gray-600 mb-2 ml-1">本月数据</Text>
-              <View className="grid grid-cols-2 gap-3">
-                {/* 本月件数 */}
-                <View className="bg-white rounded-xl p-4 shadow-md">
-                  <View className="flex items-center justify-between mb-2">
-                    <View className="i-mdi-package-variant-closed text-2xl text-purple-600" />
-                  </View>
-                  <Text className="text-xs text-gray-500 block mb-1">本月件数</Text>
-                  <Text className="text-2xl font-bold text-purple-900 block">{stats.monthPieceCount}</Text>
-                  <Text className="text-xs text-gray-400 block mt-1">件</Text>
-                </View>
-
-                {/* 本月收入 */}
-                <View className="bg-white rounded-xl p-4 shadow-md">
-                  <View className="flex items-center justify-between mb-2">
-                    <View className="i-mdi-currency-cny text-2xl text-orange-600" />
-                  </View>
-                  <Text className="text-xs text-gray-500 block mb-1">本月收入</Text>
-                  <Text className="text-2xl font-bold text-orange-600 block">{stats.monthIncome.toFixed(0)}</Text>
-                  <Text className="text-xs text-gray-400 block mt-1">元</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 第三行：考勤数据 */}
-            <View>
-              <Text className="text-sm font-medium text-gray-600 mb-2 ml-1">考勤数据</Text>
-              <View className="grid grid-cols-2 gap-3">
-                {/* 出勤天数 */}
-                <View className="bg-white rounded-xl p-4 shadow-md">
-                  <View className="flex items-center justify-between mb-2">
-                    <View className="i-mdi-calendar-check text-2xl text-teal-600" />
-                  </View>
-                  <Text className="text-xs text-gray-500 block mb-1">出勤天数</Text>
-                  <Text className="text-2xl font-bold text-teal-900 block">{stats.attendanceDays}</Text>
-                  <Text className="text-xs text-gray-400 block mt-1">天</Text>
-                </View>
-
-                {/* 请假天数 */}
-                <View className="bg-white rounded-xl p-4 shadow-md">
-                  <View className="flex items-center justify-between mb-2">
-                    <View className="i-mdi-calendar-remove text-2xl text-red-600" />
-                  </View>
-                  <Text className="text-xs text-gray-500 block mb-1">请假天数</Text>
-                  <Text className="text-2xl font-bold text-red-900 block">{stats.leaveDays}</Text>
-                  <Text className="text-xs text-gray-400 block mt-1">天</Text>
-                </View>
-              </View>
-            </View>
+            )}
           </View>
 
           {/* 快捷功能板块 - 优化后 */}
