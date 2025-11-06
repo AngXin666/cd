@@ -1373,3 +1373,130 @@ export async function reviewResignationApplication(
 
   return true
 }
+
+/**
+ * 获取仓库设置
+ */
+export async function getWarehouseSettings(warehouseId: string): Promise<{
+  max_leave_days: number
+  resignation_notice_days: number
+} | null> {
+  const {data, error} = await supabase
+    .from('warehouses')
+    .select('max_leave_days, resignation_notice_days')
+    .eq('id', warehouseId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('获取仓库设置失败:', error)
+    return null
+  }
+
+  return data
+}
+
+/**
+ * 更新仓库设置
+ */
+export async function updateWarehouseSettings(
+  warehouseId: string,
+  settings: {
+    max_leave_days?: number
+    resignation_notice_days?: number
+  }
+): Promise<boolean> {
+  const {error} = await supabase.from('warehouses').update(settings).eq('id', warehouseId)
+
+  if (error) {
+    console.error('更新仓库设置失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 验证请假申请
+ */
+export async function validateLeaveApplication(
+  warehouseId: string,
+  days: number
+): Promise<{
+  valid: boolean
+  maxDays: number
+  message?: string
+}> {
+  const settings = await getWarehouseSettings(warehouseId)
+
+  if (!settings) {
+    return {
+      valid: false,
+      maxDays: 7,
+      message: '无法获取仓库设置'
+    }
+  }
+
+  const {max_leave_days} = settings
+
+  if (days > max_leave_days) {
+    return {
+      valid: false,
+      maxDays: max_leave_days,
+      message: `请假天数(${days}天)超过仓库上限(${max_leave_days}天)，需要管理员手动补录`
+    }
+  }
+
+  return {
+    valid: true,
+    maxDays: max_leave_days
+  }
+}
+
+/**
+ * 验证离职日期
+ */
+export async function validateResignationDate(
+  warehouseId: string,
+  date: string
+): Promise<{
+  valid: boolean
+  minDate: string
+  noticeDays: number
+  message?: string
+}> {
+  const settings = await getWarehouseSettings(warehouseId)
+
+  if (!settings) {
+    return {
+      valid: false,
+      minDate: '',
+      noticeDays: 30,
+      message: '无法获取仓库设置'
+    }
+  }
+
+  const {resignation_notice_days} = settings
+
+  // 计算最早可选日期
+  const today = new Date()
+  const minDate = new Date(today)
+  minDate.setDate(minDate.getDate() + resignation_notice_days)
+
+  const minDateStr = minDate.toISOString().split('T')[0]
+  const selectedDate = new Date(date)
+
+  if (selectedDate < minDate) {
+    return {
+      valid: false,
+      minDate: minDateStr,
+      noticeDays: resignation_notice_days,
+      message: `离职日期必须在${minDateStr}之后（需提前${resignation_notice_days}天）`
+    }
+  }
+
+  return {
+    valid: true,
+    minDate: minDateStr,
+    noticeDays: resignation_notice_days
+  }
+}

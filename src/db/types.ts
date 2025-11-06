@@ -55,6 +55,8 @@ export interface Warehouse {
   id: string
   name: string
   is_active: boolean
+  max_leave_days: number
+  resignation_notice_days: number
   created_at: string
   updated_at: string
 }
@@ -63,12 +65,16 @@ export interface Warehouse {
 export interface WarehouseInput {
   name: string
   is_active?: boolean
+  max_leave_days?: number
+  resignation_notice_days?: number
 }
 
 // 更新仓库的输入接口
 export interface WarehouseUpdate {
   name?: string
   is_active?: boolean
+  max_leave_days?: number
+  resignation_notice_days?: number
 }
 
 // 考勤规则接口
@@ -269,4 +275,25 @@ export interface ApplicationReviewInput {
   reviewer_id: string
   review_comment?: string
   reviewed_at: string
+}
+
+// 请假申请验证结果接口
+export interface LeaveValidationResult {
+  valid: boolean
+  maxDays: number
+  message?: string
+}
+
+// 离职申请验证结果接口
+export interface ResignationValidationResult {
+  valid: boolean
+  minDate: string
+  noticeDays: number
+  message?: string
+}
+
+// 仓库设置接口
+export interface WarehouseSettings {
+  max_leave_days: number
+  resignation_notice_days: number
 }

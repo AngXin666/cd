@@ -1,4 +1,4 @@
-import {Button, Picker, Text, Textarea, View} from '@tarojs/components'
+import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {navigateBack, showToast, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -7,8 +7,10 @@ import {supabase} from '@/client/supabase'
 import {
   createResignationApplication,
   getDriverWarehouses,
+  getWarehouseSettings,
   saveDraftResignationApplication,
-  updateDraftResignationApplication
+  updateDraftResignationApplication,
+  validateResignationDate
 } from '@/db/api'
 
 const ApplyResignation: React.FC = () => {
@@ -19,6 +21,9 @@ const ApplyResignation: React.FC = () => {
   const [warehouseId, setWarehouseId] = useState<string | null>(null)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [minDate, setMinDate] = useState('')
+  const [noticeDays, setNoticeDays] = useState(30)
+  const [validationMessage, setValidationMessage] = useState<string>('')
 
   useLoad(() => {
     const params = Taro.getCurrentInstance().router?.params
@@ -49,17 +54,53 @@ const ApplyResignation: React.FC = () => {
 
   const loadWarehouse = useCallback(async () => {
     if (!user) return
+    if (isEditMode) return
+
     const warehouses = await getDriverWarehouses(user.id)
     if (warehouses.length > 0) {
-      setWarehouseId(warehouses[0].id)
+      const warehouseId = warehouses[0].id
+      setWarehouseId(warehouseId)
+
+      // 获取仓库设置
+      const settings = await getWarehouseSettings(warehouseId)
+      if (settings) {
+        setNoticeDays(settings.resignation_notice_days)
+
+        // 计算最早可选日期
+        const today = new Date()
+        const minDate = new Date(today)
+        minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
+        setMinDate(minDate.toISOString().split('T')[0])
+      }
     }
-  }, [user])
+  }, [user, isEditMode])
 
   useEffect(() => {
-    if (!isEditMode) {
-      loadWarehouse()
+    loadWarehouse()
+  }, [loadWarehouse])
+
+  // 验证离职日期
+  useEffect(() => {
+    const validateDate = async () => {
+      if (!warehouseId || !expectedDate) {
+        setValidationMessage('')
+        return
+      }
+
+      const result = await validateResignationDate(warehouseId, expectedDate)
+      if (!result.valid && result.message) {
+        setValidationMessage(result.message)
+      } else {
+        setValidationMessage('')
+      }
     }
-  }, [loadWarehouse, isEditMode])
+
+    validateDate()
+  }, [warehouseId, expectedDate])
+
+  const handleDateChange = (e: any) => {
+    setExpectedDate(e.detail.value)
+  }
 
   const handleSaveDraft = async () => {
     if (!user) {
@@ -114,7 +155,7 @@ const ApplyResignation: React.FC = () => {
     }
 
     if (!expectedDate) {
-      showToast({title: '请选择预计离职日期', icon: 'none'})
+      showToast({title: '请选择期望离职日期', icon: 'none'})
       return
     }
 
@@ -123,11 +164,19 @@ const ApplyResignation: React.FC = () => {
       return
     }
 
+    // 验证日期
+    if (warehouseId) {
+      const result = await validateResignationDate(warehouseId, expectedDate)
+      if (!result.valid) {
+        showToast({title: result.message || '离职日期不符合要求', icon: 'none', duration: 3000})
+        return
+      }
+    }
+
     setSubmitting(true)
 
     let success = false
     if (isEditMode && draftId) {
-      // 更新草稿并提交
       await updateDraftResignationApplication(draftId, {
         expected_date: expectedDate,
         reason: reason.trim()
@@ -157,91 +206,100 @@ const ApplyResignation: React.FC = () => {
     }
   }
 
-  const getCurrentDate = () => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  const handleExpectedDateChange = (e: {detail: {value: string}}) => {
-    setExpectedDate(e.detail.value)
-  }
-
-  const handleReasonChange = (e: {detail: {value: string}}) => {
-    setReason(e.detail.value)
-  }
-
   return (
     <View style={{background: 'linear-gradient(to bottom, #FEF2F2, #FEE2E2)', minHeight: '100vh'}}>
-      <View className="p-4">
-        {/* 标题卡片 */}
-        <View className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-lg p-6 mb-4 shadow-lg">
-          <Text className="text-white text-2xl font-bold block mb-2">{isEditMode ? '编辑离职申请' : '申请离职'}</Text>
-          <Text className="text-orange-100 text-sm block">请填写以下信息</Text>
-        </View>
-
-        {/* 表单 */}
-        <View className="bg-white rounded-lg p-4 shadow">
-          {/* 预计离职日期 */}
+      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+        <View className="p-4">
+          {/* 标题 */}
           <View className="mb-4">
-            <Text className="text-sm font-bold text-gray-700 mb-2 block">预计离职日期</Text>
-            <Picker mode="date" value={expectedDate} start={getCurrentDate()} onChange={handleExpectedDateChange}>
-              <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                <Text className={expectedDate ? 'text-gray-800' : 'text-gray-400'}>
-                  {expectedDate || '请选择预计离职日期'}
-                </Text>
-                <View className="i-mdi-calendar text-xl text-gray-400" />
+            <Text className="text-2xl font-bold text-gray-800">离职申请</Text>
+          </View>
+
+          {/* 温馨提示 */}
+          <View className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <View className="flex items-start">
+              <View className="i-mdi-information text-2xl text-blue-600 mr-2 mt-0.5" />
+              <View className="flex-1">
+                <Text className="text-blue-900 font-bold text-sm block mb-1">温馨提示</Text>
+                <Text className="text-blue-800 text-sm">离职申请需提前 {noticeDays} 天提交</Text>
               </View>
-            </Picker>
+            </View>
           </View>
 
-          {/* 离职原因 */}
-          <View className="mb-4">
-            <Text className="text-sm font-bold text-gray-700 mb-2 block">离职原因</Text>
-            <Textarea
-              className="border border-gray-300 rounded-lg p-3 text-gray-800"
-              placeholder="请输入离职原因"
-              value={reason}
-              onInput={handleReasonChange}
-              maxlength={500}
-              style={{minHeight: '120px'}}
-            />
-            <Text className="text-xs text-gray-400 mt-1 block">{reason.length}/500</Text>
-          </View>
+          {/* 表单内容 */}
+          <View className="bg-white rounded-lg p-4 shadow-sm">
+            {/* 期望离职日期 */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-700 block mb-2">期望离职日期</Text>
+              <Picker mode="date" value={expectedDate} start={minDate} onChange={handleDateChange}>
+                <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                  <Text className="text-sm text-gray-800">{expectedDate || '请选择离职日期'}</Text>
+                  <View className="i-mdi-calendar text-xl text-gray-400" />
+                </View>
+              </Picker>
+              {minDate && <Text className="text-xs text-gray-400 block mt-1">最早可选日期：{minDate}</Text>}
+            </View>
 
-          {/* 按钮组 */}
-          <View className="flex gap-3">
-            <Button
-              className="text-sm break-keep flex-1"
-              size="default"
-              style={{
-                backgroundColor: '#7C3AED',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleSaveDraft}
-              disabled={submitting}>
-              {submitting ? '保存中...' : '保存草稿'}
-            </Button>
-            <Button
-              className="text-sm break-keep flex-1"
-              size="default"
-              style={{
-                backgroundColor: '#F97316',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none'
-              }}
-              onClick={handleSubmit}
-              disabled={submitting}>
-              {submitting ? '提交中...' : '提交申请'}
-            </Button>
+            {/* 日期验证提示 */}
+            {validationMessage && (
+              <View className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                <View className="flex items-start">
+                  <View className="i-mdi-alert-circle text-2xl text-red-600 mr-2 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-red-900 text-sm">{validationMessage}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* 离职原因 */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-700 block mb-2">离职原因</Text>
+              <Textarea
+                className="border border-gray-300 rounded-lg p-3 text-sm"
+                style={{minHeight: '150px', width: '100%'}}
+                placeholder="请详细说明离职原因"
+                value={reason}
+                onInput={(e) => setReason(e.detail.value)}
+                maxlength={500}
+              />
+              <Text className="text-xs text-gray-400 block mt-1">{reason.length}/500</Text>
+            </View>
+
+            {/* 按钮组 */}
+            <View className="flex gap-3">
+              <Button
+                className="text-sm break-keep flex-1"
+                size="default"
+                style={{
+                  backgroundColor: submitting ? '#9CA3AF' : '#7C3AED',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  padding: '12px'
+                }}
+                onClick={handleSaveDraft}
+                disabled={submitting}>
+                {submitting ? '保存中...' : '保存草稿'}
+              </Button>
+              <Button
+                className="text-sm break-keep flex-1"
+                size="default"
+                style={{
+                  backgroundColor: submitting ? '#9CA3AF' : '#DC2626',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  padding: '12px'
+                }}
+                onClick={handleSubmit}
+                disabled={submitting}>
+                {submitting ? '提交中...' : '提交申请'}
+              </Button>
+            </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   )
 }

@@ -6,25 +6,31 @@ import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {
   createLeaveApplication,
-  getCurrentUserProfile,
   getDriverWarehouses,
+  getWarehouseSettings,
   saveDraftLeaveApplication,
-  updateDraftLeaveApplication
+  updateDraftLeaveApplication,
+  validateLeaveApplication
 } from '@/db/api'
-import type {LeaveType, Profile} from '@/db/types'
+import type {LeaveType} from '@/db/types'
+
+type LeaveMode = 'quick' | 'makeup'
 
 const ApplyLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [_profile, setProfile] = useState<Profile | null>(null)
-  const [warehouseId, setWarehouseId] = useState<string>('')
+  const [mode, setMode] = useState<LeaveMode>('quick')
   const [leaveType, setLeaveType] = useState<LeaveType>('personal_leave')
+  const [quickDays, setQuickDays] = useState(1)
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [reason, setReason] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
+  const [warehouseId, setWarehouseId] = useState<string>('')
   const [draftId, setDraftId] = useState<string | null>(null)
   const [isEditMode, setIsEditMode] = useState(false)
   const [leaveDays, setLeaveDays] = useState(0)
+  const [maxLeaveDays, setMaxLeaveDays] = useState(7)
+  const [validationMessage, setValidationMessage] = useState<string>('')
 
   const leaveTypes = [
     {label: '事假', value: 'personal_leave'},
@@ -33,6 +39,7 @@ const ApplyLeave: React.FC = () => {
     {label: '其他', value: 'other'}
   ]
 
+  // 计算天数
   const calculateDays = useCallback((start: string, end: string): number => {
     if (!start || !end) return 0
     const startTime = new Date(start).getTime()
@@ -41,6 +48,25 @@ const ApplyLeave: React.FC = () => {
     const diffTime = endTime - startTime
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays + 1
+  }, [])
+
+  // 获取明天的日期
+  const getTomorrowDate = useCallback(() => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    return tomorrow.toISOString().split('T')[0]
+  }, [])
+
+  // 获取今天的日期
+  const getTodayDate = useCallback(() => {
+    return new Date().toISOString().split('T')[0]
+  }, [])
+
+  // 根据天数计算结束日期
+  const calculateEndDate = useCallback((start: string, days: number): string => {
+    const startDate = new Date(start)
+    startDate.setDate(startDate.getDate() + days - 1)
+    return startDate.toISOString().split('T')[0]
   }, [])
 
   useLoad(() => {
@@ -70,38 +96,111 @@ const ApplyLeave: React.FC = () => {
     setEndDate(data.end_date || '')
     setReason(data.reason || '')
     setWarehouseId(data.warehouse_id)
+
+    // 判断是快捷请假还是补请假
+    const tomorrow = getTomorrowDate()
+    if (data.start_date === tomorrow) {
+      setMode('quick')
+      const days = calculateDays(data.start_date, data.end_date || '')
+      setQuickDays(days)
+    } else {
+      setMode('makeup')
+    }
   }
 
   const loadData = useCallback(async () => {
     if (!user) return
-    if (isEditMode) return // 编辑模式下不重新加载
-
-    const profileData = await getCurrentUserProfile()
-    setProfile(profileData)
+    if (isEditMode) return
 
     // 获取司机的仓库
     const warehouses = await getDriverWarehouses(user.id)
     if (warehouses.length > 0) {
-      setWarehouseId(warehouses[0].id)
+      const warehouseId = warehouses[0].id
+      setWarehouseId(warehouseId)
+
+      // 获取仓库设置
+      const settings = await getWarehouseSettings(warehouseId)
+      if (settings) {
+        setMaxLeaveDays(settings.max_leave_days)
+      }
     }
-  }, [user, isEditMode])
+
+    // 初始化快捷请假的日期
+    const tomorrow = getTomorrowDate()
+    setStartDate(tomorrow)
+    setEndDate(tomorrow)
+    setLeaveDays(1)
+  }, [user, isEditMode, getTomorrowDate])
 
   useEffect(() => {
     loadData()
   }, [loadData])
 
+  // 快捷请假模式：根据选择的天数自动计算日期
   useEffect(() => {
-    if (startDate && endDate) {
+    if (mode === 'quick' && startDate) {
+      const end = calculateEndDate(startDate, quickDays)
+      setEndDate(end)
+      setLeaveDays(quickDays)
+    }
+  }, [mode, quickDays, startDate, calculateEndDate])
+
+  // 补请假模式：根据日期计算天数
+  useEffect(() => {
+    if (mode === 'makeup' && startDate && endDate) {
       const days = calculateDays(startDate, endDate)
       setLeaveDays(days)
-    } else {
-      setLeaveDays(0)
     }
-  }, [startDate, endDate, calculateDays])
+  }, [mode, startDate, endDate, calculateDays])
+
+  // 验证请假天数
+  useEffect(() => {
+    const validateDays = async () => {
+      if (!warehouseId || leaveDays === 0) {
+        setValidationMessage('')
+        return
+      }
+
+      const result = await validateLeaveApplication(warehouseId, leaveDays)
+      if (!result.valid && result.message) {
+        setValidationMessage(result.message)
+      } else {
+        setValidationMessage('')
+      }
+    }
+
+    validateDays()
+  }, [warehouseId, leaveDays])
+
+  const handleModeChange = (newMode: LeaveMode) => {
+    setMode(newMode)
+    setValidationMessage('')
+
+    if (newMode === 'quick') {
+      // 切换到快捷请假，重置为明天
+      const tomorrow = getTomorrowDate()
+      setStartDate(tomorrow)
+      setQuickDays(1)
+      const end = calculateEndDate(tomorrow, 1)
+      setEndDate(end)
+      setLeaveDays(1)
+    } else {
+      // 切换到补请假，重置为今天
+      const today = getTodayDate()
+      setStartDate(today)
+      setEndDate(today)
+      setLeaveDays(1)
+    }
+  }
 
   const handleLeaveTypeChange = (e: any) => {
     const index = e.detail.value
     setLeaveType(leaveTypes[index].value as LeaveType)
+  }
+
+  const handleQuickDaysChange = (e: any) => {
+    const index = e.detail.value
+    setQuickDays(index + 1)
   }
 
   const handleStartDateChange = (e: any) => {
@@ -187,7 +286,6 @@ const ApplyLeave: React.FC = () => {
 
     let success = false
     if (isEditMode && draftId) {
-      // 更新草稿并提交
       await updateDraftLeaveApplication(draftId, {
         type: leaveType,
         start_date: startDate,
@@ -221,60 +319,122 @@ const ApplyLeave: React.FC = () => {
     }
   }
 
-  const getCurrentDate = () => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  const selectedLeaveTypeLabel = leaveTypes.find((t) => t.value === leaveType)?.label || '事假'
+  // 生成天数选项
+  const daysOptions = Array.from({length: maxLeaveDays}, (_, i) => `${i + 1}天`)
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
-          {/* 标题卡片 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">申请请假</Text>
-            <Text className="text-blue-100 text-sm block">请填写以下信息提交请假申请</Text>
+          {/* 标题 */}
+          <View className="mb-4">
+            <Text className="text-2xl font-bold text-gray-800">请假申请</Text>
           </View>
 
-          {/* 表单 */}
-          <View className="bg-white rounded-lg p-4 shadow">
+          {/* 模式切换 */}
+          <View className="flex gap-3 mb-4">
+            <View
+              className="flex-1 text-center py-3 rounded-lg"
+              style={{
+                backgroundColor: mode === 'quick' ? '#1E3A8A' : '#E5E7EB',
+                cursor: 'pointer'
+              }}
+              onClick={() => handleModeChange('quick')}>
+              <Text
+                className="text-sm font-bold"
+                style={{
+                  color: mode === 'quick' ? 'white' : '#6B7280'
+                }}>
+                快捷请假
+              </Text>
+            </View>
+            <View
+              className="flex-1 text-center py-3 rounded-lg"
+              style={{
+                backgroundColor: mode === 'makeup' ? '#1E3A8A' : '#E5E7EB',
+                cursor: 'pointer'
+              }}
+              onClick={() => handleModeChange('makeup')}>
+              <Text
+                className="text-sm font-bold"
+                style={{
+                  color: mode === 'makeup' ? 'white' : '#6B7280'
+                }}>
+                补请假
+              </Text>
+            </View>
+          </View>
+
+          {/* 表单内容 */}
+          <View className="bg-white rounded-lg p-4 shadow-sm">
             {/* 请假类型 */}
             <View className="mb-4">
               <Text className="text-sm text-gray-700 block mb-2">请假类型</Text>
               <Picker mode="selector" range={leaveTypes.map((t) => t.label)} onChange={handleLeaveTypeChange}>
                 <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                  <Text className="text-sm text-gray-800">{selectedLeaveTypeLabel}</Text>
+                  <Text className="text-sm text-gray-800">{leaveTypes.find((t) => t.value === leaveType)?.label}</Text>
                   <View className="i-mdi-chevron-down text-xl text-gray-400" />
                 </View>
               </Picker>
             </View>
 
-            {/* 开始日期 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
-              <Picker mode="date" value={startDate} start={getCurrentDate()} onChange={handleStartDateChange}>
-                <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                  <Text className="text-sm text-gray-800">{startDate || '请选择开始日期'}</Text>
-                  <View className="i-mdi-calendar text-xl text-gray-400" />
+            {mode === 'quick' ? (
+              <>
+                {/* 快捷请假模式 */}
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">请假天数</Text>
+                  <Picker mode="selector" range={daysOptions} value={quickDays - 1} onChange={handleQuickDaysChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{quickDays}天</Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                  <Text className="text-xs text-gray-400 block mt-1">最多可选{maxLeaveDays}天</Text>
                 </View>
-              </Picker>
-            </View>
 
-            {/* 结束日期 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
-              <Picker mode="date" value={endDate} start={startDate || getCurrentDate()} onChange={handleEndDateChange}>
-                <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                  <Text className="text-sm text-gray-800">{endDate || '请选择结束日期'}</Text>
-                  <View className="i-mdi-calendar text-xl text-gray-400" />
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">起始日期</Text>
+                  <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between bg-gray-50">
+                    <Text className="text-sm text-gray-800">{startDate}</Text>
+                    <View className="i-mdi-calendar text-xl text-gray-400" />
+                  </View>
+                  <Text className="text-xs text-gray-400 block mt-1">自动设置为明天</Text>
                 </View>
-              </Picker>
-            </View>
+
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
+                  <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between bg-gray-50">
+                    <Text className="text-sm text-gray-800">{endDate}</Text>
+                    <View className="i-mdi-calendar text-xl text-gray-400" />
+                  </View>
+                  <Text className="text-xs text-gray-400 block mt-1">自动计算</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* 补请假模式 */}
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
+                  <Picker mode="date" value={startDate} end={getTodayDate()} onChange={handleStartDateChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{startDate || '请选择开始日期'}</Text>
+                      <View className="i-mdi-calendar text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                  <Text className="text-xs text-gray-400 block mt-1">可选今天及之前的日期</Text>
+                </View>
+
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
+                  <Picker mode="date" value={endDate} start={startDate} onChange={handleEndDateChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{endDate || '请选择结束日期'}</Text>
+                      <View className="i-mdi-calendar text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                </View>
+              </>
+            )}
 
             {/* 请假天数显示 */}
             {leaveDays > 0 && (
@@ -282,6 +442,18 @@ const ApplyLeave: React.FC = () => {
                 <View className="flex items-center">
                   <View className="i-mdi-calendar-clock text-2xl text-blue-600 mr-2" />
                   <Text className="text-blue-900 font-bold">请假天数：{leaveDays} 天</Text>
+                </View>
+              </View>
+            )}
+
+            {/* 超限提示 */}
+            {validationMessage && (
+              <View className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <View className="flex items-start">
+                  <View className="i-mdi-alert text-2xl text-orange-600 mr-2 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-orange-900 text-sm">{validationMessage}</Text>
+                  </View>
                 </View>
               </View>
             )}

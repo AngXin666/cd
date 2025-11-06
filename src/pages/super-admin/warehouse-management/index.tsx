@@ -10,7 +10,8 @@ import {
   deleteWarehouse,
   getWarehousesWithRules,
   updateAttendanceRule,
-  updateWarehouse
+  updateWarehouse,
+  updateWarehouseSettings
 } from '@/db/api'
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
@@ -30,6 +31,8 @@ const WarehouseManagement: React.FC = () => {
   // 编辑仓库表单
   const [editWarehouseName, setEditWarehouseName] = useState('')
   const [editWarehouseActive, setEditWarehouseActive] = useState(true)
+  const [editMaxLeaveDays, setEditMaxLeaveDays] = useState('7')
+  const [editResignationNoticeDays, setEditResignationNoticeDays] = useState('30')
 
   // 考勤规则表单
   const [ruleStartTime, setRuleStartTime] = useState('09:00')
@@ -111,6 +114,8 @@ const WarehouseManagement: React.FC = () => {
     setCurrentWarehouse(warehouse)
     setEditWarehouseName(warehouse.name)
     setEditWarehouseActive(warehouse.is_active)
+    setEditMaxLeaveDays(String(warehouse.max_leave_days || 7))
+    setEditResignationNoticeDays(String(warehouse.resignation_notice_days || 30))
     setShowEditWarehouse(true)
   }
 
@@ -127,6 +132,28 @@ const WarehouseManagement: React.FC = () => {
       return
     }
 
+    // 验证请假天数和离职提前天数
+    const maxLeaveDays = Number.parseInt(editMaxLeaveDays, 10)
+    const resignationNoticeDays = Number.parseInt(editResignationNoticeDays, 10)
+
+    if (Number.isNaN(maxLeaveDays) || maxLeaveDays < 1 || maxLeaveDays > 365) {
+      showToast({
+        title: '请假天数必须在1-365之间',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    if (Number.isNaN(resignationNoticeDays) || resignationNoticeDays < 1 || resignationNoticeDays > 365) {
+      showToast({
+        title: '离职提前天数必须在1-365之间',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
     try {
       showLoading({title: '更新中...'})
 
@@ -136,6 +163,12 @@ const WarehouseManagement: React.FC = () => {
       })
 
       if (success) {
+        // 更新请假和离职设置
+        await updateWarehouseSettings(currentWarehouse.id, {
+          max_leave_days: maxLeaveDays,
+          resignation_notice_days: resignationNoticeDays
+        })
+
         showToast({
           title: '更新成功',
           icon: 'success',
@@ -479,6 +512,35 @@ const WarehouseManagement: React.FC = () => {
             <View className="mb-4 flex items-center justify-between">
               <Text className="text-gray-700 text-sm">启用状态</Text>
               <Switch checked={editWarehouseActive} onChange={(e) => setEditWarehouseActive(e.detail.value)} />
+            </View>
+
+            {/* 请假与离职设置 */}
+            <View className="mb-4 border-t border-gray-200 pt-4">
+              <Text className="text-gray-800 text-base font-bold block mb-3">请假与离职设置</Text>
+
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">最大请假天数上限</Text>
+                <Input
+                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                  type="number"
+                  placeholder="请输入天数(1-365)"
+                  value={editMaxLeaveDays}
+                  onInput={(e) => setEditMaxLeaveDays(e.detail.value)}
+                />
+                <Text className="text-gray-400 text-xs block mt-1">司机单次请假不能超过此天数，超过需管理员补录</Text>
+              </View>
+
+              <View className="mb-0">
+                <Text className="text-gray-700 text-sm block mb-2">离职申请提前天数</Text>
+                <Input
+                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                  type="number"
+                  placeholder="请输入天数(1-365)"
+                  value={editResignationNoticeDays}
+                  onInput={(e) => setEditResignationNoticeDays(e.detail.value)}
+                />
+                <Text className="text-gray-400 text-xs block mt-1">司机离职申请需提前此天数提交</Text>
+              </View>
             </View>
 
             <View className="flex gap-3">
