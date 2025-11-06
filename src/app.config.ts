@@ -1,5 +1,6 @@
 const pages = [
   'pages/login/index',
+  'pages/index/index',
   'pages/driver/index',
   'pages/manager/index',
   'pages/super-admin/index',
@@ -44,7 +45,7 @@ export default defineAppConfig({
     borderStyle: 'white',
     list: [
       {
-        pagePath: 'pages/driver/index',
+        pagePath: 'pages/index/index',
         text: '工作台',
         iconPath: './assets/images/unselected/workspace.png',
         selectedIconPath: './assets/images/selected/workspace.png'
