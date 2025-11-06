@@ -94,6 +94,15 @@ const PieceWorkEntry: React.FC = () => {
 
   // 提交表单
   const handleSubmit = async () => {
+    // 验证用户登录状态
+    if (!user?.id) {
+      Taro.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      return
+    }
+
     // 验证表单
     if (warehouses.length === 0) {
       Taro.showToast({
@@ -147,7 +156,7 @@ const PieceWorkEntry: React.FC = () => {
     }
 
     const input: PieceWorkRecordInput = {
-      user_id: user?.id,
+      user_id: user.id,
       warehouse_id: warehouse.id,
       category_id: category.id,
       work_date: workDate,
