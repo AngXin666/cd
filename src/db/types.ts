@@ -6,6 +6,14 @@ export interface Profile {
   email: string | null
   name: string | null
   role: UserRole
+  avatar_url: string | null
+  nickname: string | null
+  address_province: string | null
+  address_city: string | null
+  address_district: string | null
+  address_detail: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
   created_at: string
   updated_at: string
 }
@@ -14,6 +22,14 @@ export interface ProfileUpdate {
   name?: string
   phone?: string
   email?: string
+  avatar_url?: string
+  nickname?: string
+  address_province?: string
+  address_city?: string
+  address_district?: string
+  address_detail?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
 }
 
 // 考勤状态类型
@@ -297,3 +313,35 @@ export interface WarehouseSettings {
   max_leave_days: number
   resignation_notice_days: number
 }
+
+// 反馈状态类型
+export type FeedbackStatus = 'pending' | 'processing' | 'resolved'
+
+// 反馈类型
+export type FeedbackType = 'bug' | 'feature' | 'complaint' | 'suggestion' | 'other'
+
+// 反馈接口
+export interface Feedback {
+  id: string
+  user_id: string
+  type: string
+  content: string
+  contact: string | null
+  status: FeedbackStatus
+  created_at: string
+  updated_at: string
+}
+
+// 创建反馈的输入接口
+export interface FeedbackInput {
+  user_id: string
+  type: FeedbackType
+  content: string
+  contact?: string
+}
+
+// 更新反馈的输入接口
+export interface FeedbackUpdate {
+  status?: FeedbackStatus
+}
+
