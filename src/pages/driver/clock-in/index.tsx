@@ -207,6 +207,7 @@ const ClockIn: React.FC = () => {
       Taro.hideLoading()
 
       if (record) {
+        // 立即更新本地状态
         setTodayRecord(record)
 
         // 显示打卡结果
@@ -216,17 +217,33 @@ const ClockIn: React.FC = () => {
           content: `打卡时间：${formatTime(now)}\n状态：${statusText}\n仓库：${selectedWarehouse.name}`,
           showCancel: false
         })
+
+        // 再次刷新数据确保状态同步
+        await loadTodayRecord()
       } else {
-        throw new Error('打卡失败')
+        throw new Error('打卡失败，请重试')
       }
     } catch (error) {
       Taro.hideLoading()
+      console.error('打卡失败:', error)
+
+      // 检查是否是重复打卡错误
       const errorMessage = error instanceof Error ? error.message : '打卡失败'
-      showToast({
-        title: errorMessage,
-        icon: 'none',
-        duration: 2000
-      })
+      if (errorMessage.includes('unique') || errorMessage.includes('duplicate')) {
+        // 重复打卡，刷新数据
+        await loadTodayRecord()
+        showToast({
+          title: '您今日已完成考勤打卡，无需重复操作',
+          icon: 'none',
+          duration: 2500
+        })
+      } else {
+        showToast({
+          title: errorMessage,
+          icon: 'none',
+          duration: 2000
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -235,6 +252,26 @@ const ClockIn: React.FC = () => {
   // 下班打卡
   const handleClockOut = async () => {
     if (!user?.id || !todayRecord) return
+
+    // 检查是否已经打过上班卡
+    if (!todayRecord.clock_in_time) {
+      showToast({
+        title: '请先完成上班打卡',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    // 检查是否已经打过下班卡
+    if (todayRecord.clock_out_time) {
+      showToast({
+        title: '您今日已完成下班打卡，无需重复操作',
+        icon: 'none',
+        duration: 2500
+      })
+      return
+    }
 
     // 检查是否需要打下班卡
     const warehouseRule = await getAttendanceRuleByWarehouseId(todayRecord.warehouse_id!)
@@ -282,9 +319,6 @@ const ClockIn: React.FC = () => {
       Taro.hideLoading()
 
       if (success) {
-        // 刷新记录
-        await loadTodayRecord()
-
         // 显示打卡结果
         const statusText = status === 'early' ? '早退' : '正常'
         await showModal({
@@ -292,11 +326,15 @@ const ClockIn: React.FC = () => {
           content: `打卡时间：${formatTime(now)}\n状态：${statusText}\n工作时长：${workHours.toFixed(2)}小时`,
           showCancel: false
         })
+
+        // 刷新记录
+        await loadTodayRecord()
       } else {
-        throw new Error('打卡失败')
+        throw new Error('打卡失败，请重试')
       }
     } catch (error) {
       Taro.hideLoading()
+      console.error('下班打卡失败:', error)
       const errorMessage = error instanceof Error ? error.message : '打卡失败'
       showToast({
         title: errorMessage,
