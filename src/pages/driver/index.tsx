@@ -117,79 +117,74 @@ const DriverHome: React.FC = () => {
               <View className="flex items-center">
                 <View className="i-mdi-view-dashboard text-xl text-blue-900 mr-2" />
                 <Text className="text-lg font-bold text-gray-800">数据仪表盘</Text>
+                {loading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
               <Text className="text-xs text-gray-500">{new Date().toLocaleDateString('zh-CN')}</Text>
             </View>
 
-            {loading ? (
-              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
-                <Text className="text-gray-500">加载中...</Text>
-              </View>
-            ) : (
-              <View className="bg-white rounded-xl p-4 shadow-md">
-                <View className="grid grid-cols-3 gap-3">
-                  {/* 当日件数 */}
-                  <View
-                    className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={() => handleStatsClick('today')}>
-                    <View className="i-mdi-package-variant text-2xl text-blue-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">当日件数</Text>
-                    <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">件</Text>
-                  </View>
+            <View className="bg-white rounded-xl p-4 shadow-md">
+              <View className="grid grid-cols-3 gap-3">
+                {/* 当日件数 */}
+                <View
+                  className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 active:scale-95 transition-all"
+                  onClick={() => handleStatsClick('today')}>
+                  <View className="i-mdi-package-variant text-2xl text-blue-600 mb-2" />
+                  <Text className="text-xs text-gray-600 block mb-1">当日件数</Text>
+                  <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">件</Text>
+                </View>
 
-                  {/* 当日收入 */}
-                  <View
-                    className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={() => handleStatsClick('today')}>
-                    <View className="i-mdi-cash-multiple text-2xl text-green-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">当日收入</Text>
-                    <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">元</Text>
-                  </View>
+                {/* 当日收入 */}
+                <View
+                  className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
+                  onClick={() => handleStatsClick('today')}>
+                  <View className="i-mdi-cash-multiple text-2xl text-green-600 mb-2" />
+                  <Text className="text-xs text-gray-600 block mb-1">当日收入</Text>
+                  <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">元</Text>
+                </View>
 
-                  {/* 本月件数 */}
-                  <View
-                    className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={() => handleStatsClick('month')}>
-                    <View className="i-mdi-package-variant-closed text-2xl text-purple-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">本月件数</Text>
-                    <Text className="text-2xl font-bold text-purple-900 block">{stats.monthPieceCount}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">件</Text>
-                  </View>
+                {/* 本月件数 */}
+                <View
+                  className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 active:scale-95 transition-all"
+                  onClick={() => handleStatsClick('month')}>
+                  <View className="i-mdi-package-variant-closed text-2xl text-purple-600 mb-2" />
+                  <Text className="text-xs text-gray-600 block mb-1">本月件数</Text>
+                  <Text className="text-2xl font-bold text-purple-900 block">{stats.monthPieceCount}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">件</Text>
+                </View>
 
-                  {/* 本月收入 */}
-                  <View
-                    className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={() => handleStatsClick('month')}>
-                    <View className="i-mdi-currency-cny text-2xl text-orange-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">本月收入</Text>
-                    <Text className="text-2xl font-bold text-orange-600 block">{stats.monthIncome.toFixed(0)}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">元</Text>
-                  </View>
+                {/* 本月收入 */}
+                <View
+                  className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 active:scale-95 transition-all"
+                  onClick={() => handleStatsClick('month')}>
+                  <View className="i-mdi-currency-cny text-2xl text-orange-600 mb-2" />
+                  <Text className="text-xs text-gray-600 block mb-1">本月收入</Text>
+                  <Text className="text-2xl font-bold text-orange-600 block">{stats.monthIncome.toFixed(0)}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">元</Text>
+                </View>
 
-                  {/* 出勤天数 */}
-                  <View
-                    className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={handleAttendanceClick}>
-                    <View className="i-mdi-calendar-check text-2xl text-teal-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">出勤天数</Text>
-                    <Text className="text-2xl font-bold text-teal-900 block">{stats.attendanceDays}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
-                  </View>
+                {/* 出勤天数 */}
+                <View
+                  className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4 active:scale-95 transition-all"
+                  onClick={handleAttendanceClick}>
+                  <View className="i-mdi-calendar-check text-2xl text-teal-600 mb-2" />
+                  <Text className="text-xs text-gray-600 block mb-1">出勤天数</Text>
+                  <Text className="text-2xl font-bold text-teal-900 block">{stats.attendanceDays}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">天</Text>
+                </View>
 
-                  {/* 请假天数 */}
-                  <View
-                    className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={handleAttendanceClick}>
-                    <View className="i-mdi-calendar-remove text-2xl text-red-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">请假天数</Text>
-                    <Text className="text-2xl font-bold text-red-900 block">{stats.leaveDays}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">天</Text>
-                  </View>
+                {/* 请假天数 */}
+                <View
+                  className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 active:scale-95 transition-all"
+                  onClick={handleAttendanceClick}>
+                  <View className="i-mdi-calendar-remove text-2xl text-red-600 mb-2" />
+                  <Text className="text-xs text-gray-600 block mb-1">请假天数</Text>
+                  <Text className="text-2xl font-bold text-red-900 block">{stats.leaveDays}</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">天</Text>
                 </View>
               </View>
-            )}
+            </View>
           </View>
 
           {/* 仓库切换器（多仓库时显示） */}

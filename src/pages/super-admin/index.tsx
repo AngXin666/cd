@@ -147,15 +147,12 @@ const SuperAdminHome: React.FC = () => {
               <View className="flex items-center">
                 <View className="i-mdi-view-dashboard text-xl text-blue-900 mr-2" />
                 <Text className="text-lg font-bold text-gray-800">数据仪表盘</Text>
+                {loading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
               <Text className="text-xs text-gray-500">{new Date().toLocaleDateString('zh-CN')}</Text>
             </View>
 
-            {loading ? (
-              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
-                <Text className="text-gray-500">加载中...</Text>
-              </View>
-            ) : dashboardStats ? (
+            {dashboardStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
                 <View className="grid grid-cols-2 gap-3">
                   {/* 今日出勤 */}
@@ -191,7 +188,11 @@ const SuperAdminHome: React.FC = () => {
                   </View>
                 </View>
               </View>
-            ) : null}
+            ) : (
+              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
+                <Text className="text-gray-500">加载中...</Text>
+              </View>
+            )}
           </View>
 
           {/* 仓库切换器 */}
