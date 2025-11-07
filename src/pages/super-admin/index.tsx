@@ -86,7 +86,7 @@ const SuperAdminHome: React.FC = () => {
   )
 
   const handleManageUsers = () => {
-    navigateTo({url: '/pages/admin-dashboard/index'})
+    navigateTo({url: '/pages/super-admin/user-management/index'})
   }
 
   const handleManageWarehouses = () => {

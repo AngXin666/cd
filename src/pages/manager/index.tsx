@@ -71,6 +71,16 @@ const ManagerHome: React.FC = () => {
     navigateTo({url: '/pages/manager/leave-approval/index'})
   }
 
+  const handleWarehouseCategories = () => {
+    // 获取当前选中的仓库
+    const currentWarehouse = warehouses[currentWarehouseIndex]
+    if (currentWarehouse) {
+      navigateTo({
+        url: `/pages/manager/warehouse-categories/index?warehouseId=${currentWarehouse.id}&warehouseName=${encodeURIComponent(currentWarehouse.name)}`
+      })
+    }
+  }
+
   const handleProfileClick = () => {
     navigateTo({url: '/pages/profile/index'})
   }
@@ -268,6 +278,14 @@ const ManagerHome: React.FC = () => {
                 className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-calendar-check text-3xl text-red-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">请假审批</Text>
+              </View>
+
+              {/* 仓库品类配置 */}
+              <View
+                onClick={handleWarehouseCategories}
+                className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
+                <View className="i-mdi-tag-multiple text-3xl text-green-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">品类配置</Text>
               </View>
             </View>
           </View>

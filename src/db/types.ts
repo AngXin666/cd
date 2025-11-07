@@ -344,3 +344,52 @@ export interface FeedbackInput {
 export interface FeedbackUpdate {
   status?: FeedbackStatus
 }
+
+// 管理员权限接口
+export interface ManagerPermission {
+  id: string
+  manager_id: string
+  can_edit_user_info: boolean
+  can_edit_piece_work: boolean
+  can_manage_attendance_rules: boolean
+  can_manage_system: boolean
+  created_at: string
+  updated_at: string
+}
+
+// 创建/更新管理员权限的输入接口
+export interface ManagerPermissionInput {
+  manager_id: string
+  can_edit_user_info?: boolean
+  can_edit_piece_work?: boolean
+  can_manage_attendance_rules?: boolean
+  can_manage_system?: boolean
+}
+
+// 管理员-仓库关联接口
+export interface ManagerWarehouse {
+  id: string
+  manager_id: string
+  warehouse_id: string
+  created_at: string
+}
+
+// 创建管理员-仓库关联的输入接口
+export interface ManagerWarehouseInput {
+  manager_id: string
+  warehouse_id: string
+}
+
+// 仓库-品类关联接口
+export interface WarehouseCategory {
+  id: string
+  warehouse_id: string
+  category_id: string
+  created_at: string
+}
+
+// 创建仓库-品类关联的输入接口
+export interface WarehouseCategoryInput {
+  warehouse_id: string
+  category_id: string
+}

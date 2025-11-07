@@ -14,6 +14,8 @@ import type {
   FeedbackStatus,
   LeaveApplication,
   LeaveApplicationInput,
+  ManagerPermission,
+  ManagerPermissionInput,
   PieceWorkCategory,
   PieceWorkCategoryInput,
   PieceWorkRecord,
@@ -23,6 +25,7 @@ import type {
   ProfileUpdate,
   ResignationApplication,
   ResignationApplicationInput,
+  UserRole,
   Warehouse,
   WarehouseInput,
   WarehouseUpdate,
@@ -72,17 +75,6 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
 
   if (error) {
     console.error('更新用户档案失败:', error)
-    return false
-  }
-
-  return true
-}
-
-export async function updateUserRole(id: string, role: 'driver' | 'manager' | 'super_admin'): Promise<boolean> {
-  const {error} = await supabase.from('profiles').update({role}).eq('id', id)
-
-  if (error) {
-    console.error('更新用户角色失败:', error)
     return false
   }
 
@@ -938,42 +930,6 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
   }
 
   return Array.isArray(managers) ? managers : []
-}
-
-// 设置管理员的仓库（替换现有分配）
-export async function setManagerWarehouses(managerId: string, warehouseIds: string[]): Promise<boolean> {
-  try {
-    // 删除现有分配
-    const {error: deleteError} = await supabase.from('manager_warehouses').delete().eq('manager_id', managerId)
-
-    if (deleteError) {
-      console.error('删除现有仓库分配失败:', deleteError)
-      return false
-    }
-
-    // 如果没有新的仓库分配，直接返回成功
-    if (warehouseIds.length === 0) {
-      return true
-    }
-
-    // 插入新的分配
-    const insertData = warehouseIds.map((warehouseId) => ({
-      manager_id: managerId,
-      warehouse_id: warehouseId
-    }))
-
-    const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
-
-    if (insertError) {
-      console.error('插入新仓库分配失败:', insertError)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error('设置管理员仓库失败:', error)
-    return false
-  }
 }
 
 // 添加管理员仓库关联
@@ -2142,4 +2098,185 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     monthlyPieceCount,
     driverList
   }
+}
+
+/**
+ * ==================== 权限管理相关 API ====================
+ */
+
+/**
+ * 获取所有用户列表（超级管理员）
+ */
+export async function getAllUsers(): Promise<Profile[]> {
+  const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取用户列表失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 修改用户角色（超级管理员）
+ */
+export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
+  const {error} = await supabase.from('profiles').update({role}).eq('id', userId)
+
+  if (error) {
+    console.error('修改用户角色失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取管理员权限配置
+ */
+export async function getManagerPermission(managerId: string): Promise<ManagerPermission | null> {
+  const {data, error} = await supabase.from('manager_permissions').select('*').eq('manager_id', managerId).maybeSingle()
+
+  if (error) {
+    console.error('获取管理员权限失败:', error)
+    return null
+  }
+
+  return data
+}
+
+/**
+ * 创建或更新管理员权限配置
+ */
+export async function upsertManagerPermission(input: ManagerPermissionInput): Promise<boolean> {
+  const {error} = await supabase.from('manager_permissions').upsert(
+    {
+      manager_id: input.manager_id,
+      can_edit_user_info: input.can_edit_user_info ?? false,
+      can_edit_piece_work: input.can_edit_piece_work ?? false,
+      can_manage_attendance_rules: input.can_manage_attendance_rules ?? false,
+      can_manage_system: input.can_manage_system ?? false
+    },
+    {onConflict: 'manager_id'}
+  )
+
+  if (error) {
+    console.error('更新管理员权限失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取管理员管辖的仓库ID列表
+ */
+export async function getManagerWarehouseIds(managerId: string): Promise<string[]> {
+  const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
+
+  if (error) {
+    console.error('获取管理员仓库列表失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data.map((item) => item.warehouse_id) : []
+}
+
+/**
+ * 设置管理员管辖的仓库（先删除旧的，再插入新的）
+ */
+export async function setManagerWarehouses(managerId: string, warehouseIds: string[]): Promise<boolean> {
+  // 1. 删除旧的关联
+  const {error: deleteError} = await supabase.from('manager_warehouses').delete().eq('manager_id', managerId)
+
+  if (deleteError) {
+    console.error('删除旧的仓库关联失败:', deleteError)
+    return false
+  }
+
+  // 2. 如果没有新的仓库，直接返回成功
+  if (warehouseIds.length === 0) {
+    return true
+  }
+
+  // 3. 插入新的关联
+  const insertData = warehouseIds.map((warehouseId) => ({
+    manager_id: managerId,
+    warehouse_id: warehouseId
+  }))
+
+  const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
+
+  if (insertError) {
+    console.error('插入新的仓库关联失败:', insertError)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取仓库的品类列表
+ */
+export async function getWarehouseCategories(warehouseId: string): Promise<string[]> {
+  const {data, error} = await supabase
+    .from('warehouse_categories')
+    .select('category_id')
+    .eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('获取仓库品类列表失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data.map((item) => item.category_id) : []
+}
+
+/**
+ * 设置仓库的品类（先删除旧的，再插入新的）
+ */
+export async function setWarehouseCategories(warehouseId: string, categoryIds: string[]): Promise<boolean> {
+  // 1. 删除旧的关联
+  const {error: deleteError} = await supabase.from('warehouse_categories').delete().eq('warehouse_id', warehouseId)
+
+  if (deleteError) {
+    console.error('删除旧的品类关联失败:', deleteError)
+    return false
+  }
+
+  // 2. 如果没有新的品类，直接返回成功
+  if (categoryIds.length === 0) {
+    return true
+  }
+
+  // 3. 插入新的关联
+  const insertData = categoryIds.map((categoryId) => ({
+    warehouse_id: warehouseId,
+    category_id: categoryId
+  }))
+
+  const {error: insertError} = await supabase.from('warehouse_categories').insert(insertData)
+
+  if (insertError) {
+    console.error('插入新的品类关联失败:', insertError)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 获取当前用户的权限配置（用于权限检查）
+ */
+export async function getCurrentUserPermissions(): Promise<ManagerPermission | null> {
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  return getManagerPermission(user.id)
 }
