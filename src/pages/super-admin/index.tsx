@@ -3,15 +3,9 @@ import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  type DashboardStats,
-  getAllProfiles,
-  getAllWarehouses,
-  getAllWarehousesDashboardStats,
-  getCurrentUserProfile,
-  getWarehouseDashboardStats
-} from '@/db/api'
+import {getAllProfiles, getAllWarehouses, getCurrentUserProfile} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
+import {useSuperAdminDashboard} from '@/hooks'
 
 const SuperAdminHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
@@ -19,34 +13,28 @@ const SuperAdminHome: React.FC = () => {
   const [allUsers, setAllUsers] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(false)
 
-  // 加载所有仓库的汇总数据
-  const loadAllWarehousesData = useCallback(async () => {
-    setLoading(true)
-    const stats = await getAllWarehousesDashboardStats()
-    setDashboardStats(stats)
-    setLoading(false)
-  }, [])
+  // 获取当前选中的仓库ID（index 0 表示所有仓库，不传warehouseId）
+  const currentWarehouseId = currentWarehouseIndex === 0 ? undefined : warehouses[currentWarehouseIndex - 1]?.id
 
-  // 加载单个仓库的数据
-  const loadSingleWarehouseData = useCallback(async (warehouseId: string) => {
-    setLoading(true)
-    const stats = await getWarehouseDashboardStats(warehouseId)
-    setDashboardStats(stats)
-    setLoading(false)
-  }, [])
+  // 使用超级管理员仪表板数据管理Hook（带缓存和实时更新）
+  const {
+    data: dashboardStats,
+    loading: dashboardLoading,
+    refresh: refreshDashboard
+  } = useSuperAdminDashboard({
+    warehouseId: currentWarehouseId,
+    enableRealtime: true,
+    cacheEnabled: true
+  })
 
-  // 加载所有仓库列表
+  // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     const warehousesData = await getAllWarehouses()
     setWarehouses(warehousesData)
+  }, [])
 
-    // 默认加载"所有仓库"的数据
-    loadAllWarehousesData()
-  }, [loadAllWarehousesData])
-
+  // 加载个人信息和用户列表
   const loadData = useCallback(async () => {
     const profileData = await getCurrentUserProfile()
     setProfile(profileData)
@@ -55,35 +43,25 @@ const SuperAdminHome: React.FC = () => {
     setAllUsers(usersData)
   }, [])
 
+  // 初始加载
   useEffect(() => {
     loadData()
     loadWarehouses()
   }, [loadData, loadWarehouses])
 
+  // 页面显示时刷新数据
   useDidShow(() => {
     loadData()
     loadWarehouses()
+    refreshDashboard()
   })
 
   // 处理仓库切换
-  const handleWarehouseChange = useCallback(
-    (e: any) => {
-      const index = e.detail.current
-      setCurrentWarehouseIndex(index)
-
-      // index 0 表示"所有仓库"
-      if (index === 0) {
-        loadAllWarehousesData()
-      } else {
-        // index - 1 对应实际仓库数组的索引
-        const warehouse = warehouses[index - 1]
-        if (warehouse) {
-          loadSingleWarehouseData(warehouse.id)
-        }
-      }
-    },
-    [warehouses, loadAllWarehousesData, loadSingleWarehouseData]
-  )
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+    // 切换仓库时，useSuperAdminDashboard Hook 会自动加载新仓库的数据（优先使用缓存）
+  }, [])
 
   const handleManageUsers = () => {
     navigateTo({url: '/pages/super-admin/user-management/index'})
@@ -138,6 +116,9 @@ const SuperAdminHome: React.FC = () => {
   const driverCount = allUsers.filter((u) => u.role === 'driver').length
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
+
+  // 使用仪表板的loading状态
+  const loading = dashboardLoading
 
   // 获取当前选中的仓库名称
   const _getCurrentWarehouseName = () => {
