@@ -48,11 +48,20 @@
   - 减少70%以上的重复网络请求
   - 防抖节流避免并发请求
   - 离线模式支持，网络异常时显示缓存数据
+- **UI加载优化** 🎨：
+  - 切换仓库时数据卡片始终显示，不会消失或闪烁
+  - 标题旁边显示小的旋转加载图标，提供清晰的加载反馈
+  - 数据加载完成后平滑更新数字，无需重新渲染整个UI
+  - 视觉稳定连贯，提供流畅的用户体验
 - **用户体验**：
   - 即时响应，流畅切换
   - 数据实时性与响应速度完美平衡
   - 加载状态清晰，操作反馈及时
-- 详细技术方案请查看：[DASHBOARD_CACHE_OPTIMIZATION.md](DASHBOARD_CACHE_OPTIMIZATION.md)
+  - 无闪烁、无跳动，视觉体验优秀
+- 详细技术方案请查看：
+  - [DASHBOARD_CACHE_OPTIMIZATION.md](DASHBOARD_CACHE_OPTIMIZATION.md) - 缓存机制详解
+  - [UI_LOADING_OPTIMIZATION.md](UI_LOADING_OPTIMIZATION.md) - UI优化详解
+
 
 
 ### 司机端快捷功能
