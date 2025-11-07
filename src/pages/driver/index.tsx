@@ -1,141 +1,59 @@
-import {ScrollView, Text, View} from '@tarojs/components'
+import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getCurrentUserProfile, getDriverAttendanceStats, getDriverWarehouses, getPieceWorkRecordsByUser} from '@/db/api'
-import type {Profile, Warehouse} from '@/db/types'
+import {getCurrentUserProfile} from '@/db/api'
+import type {Profile} from '@/db/types'
+import {useDriverDashboard, useDriverWarehouses} from '@/hooks'
 
 const DriverHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    todayPieceCount: 0,
-    todayIncome: 0,
-    monthPieceCount: 0,
-    monthIncome: 0,
-    attendanceDays: 0,
-    leaveDays: 0
-  })
+  const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
 
+  // 加载用户资料
   const loadProfile = useCallback(async () => {
     const data = await getCurrentUserProfile()
     setProfile(data)
   }, [])
 
-  const loadWarehouses = useCallback(async () => {
-    if (!user?.id) return
-    const data = await getDriverWarehouses(user.id)
-    setWarehouses(data)
-  }, [user?.id])
+  // 使用仓库列表管理 Hook
+  const {warehouses, loading: warehousesLoading} = useDriverWarehouses(user?.id || '', true)
 
-  // 加载统计数据
-  const loadStats = useCallback(async () => {
-    if (!user?.id) {
-      console.log('用户ID不存在，无法加载统计数据，user:', user)
-      setLoading(false)
-      return
-    }
+  // 获取当前选中的仓库ID
+  const currentWarehouseId = warehouses[currentWarehouseIndex]?.id || ''
 
-    try {
-      setLoading(true)
-      console.log('开始加载统计数据，用户ID:', user.id)
+  // 使用仪表板数据管理 Hook
+  const {
+    data: stats,
+    loading: statsLoading,
+    refresh: refreshStats
+  } = useDriverDashboard({
+    userId: user?.id || '',
+    warehouseId: currentWarehouseId, // 根据选中的仓库加载数据
+    enableRealtime: true,
+    cacheEnabled: true
+  })
 
-      const today = new Date()
-      const year = today.getFullYear()
-      const month = today.getMonth() + 1
-      const day = today.getDate()
+  const loading = warehousesLoading || statsLoading
 
-      // 使用本地日期而不是UTC日期
-      const todayStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
-      console.log('今日日期（本地时间）:', todayStr)
+  // 处理仓库切换
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+    // 切换仓库时，useDriverDashboard Hook 会自动加载新仓库的数据（优先使用缓存）
+  }, [])
 
-      // 计算本月的开始和结束日期
-      const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`
-      const lastDay = new Date(year, month, 0)
-      const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
-
-      // 获取当月计件记录
-      console.log('获取计件记录:', firstDay, '至', lastDayStr)
-      const records = await getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
-      console.log('计件记录数量:', records.length, '记录:', records)
-
-      // 筛选今日记录（使用本地日期）
-      const todayRecords = records.filter((record) => record.work_date === todayStr)
-      console.log('今日记录数量:', todayRecords.length, '筛选条件:', todayStr)
-
-      // 计算今日统计
-      const todayPieceCount = todayRecords.reduce((sum, record) => sum + (record.quantity || 0), 0)
-      const todayIncome = todayRecords.reduce((sum, record) => {
-        const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
-        const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
-        const sortingAmount = record.need_sorting
-          ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0)
-          : 0
-        return sum + baseAmount + upstairsAmount + sortingAmount
-      }, 0)
-
-      // 计算本月统计
-      const monthPieceCount = records.reduce((sum, record) => sum + (record.quantity || 0), 0)
-      const monthIncome = records.reduce((sum, record) => {
-        const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
-        const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
-        const sortingAmount = record.need_sorting
-          ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0)
-          : 0
-        return sum + baseAmount + upstairsAmount + sortingAmount
-      }, 0)
-
-      console.log(
-        '计件统计 - 今日件数:',
-        todayPieceCount,
-        '今日收入:',
-        todayIncome,
-        '本月件数:',
-        monthPieceCount,
-        '本月收入:',
-        monthIncome
-      )
-
-      // 获取本月考勤数据（使用前面已经计算好的firstDay和lastDayStr）
-      console.log('获取考勤数据:', firstDay, '至', lastDayStr)
-      const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
-      console.log('考勤统计 - 出勤天数:', attendanceData.attendanceDays, '请假天数:', attendanceData.leaveDays)
-
-      const newStats = {
-        todayPieceCount,
-        todayIncome,
-        monthPieceCount,
-        monthIncome,
-        attendanceDays: attendanceData.attendanceDays,
-        leaveDays: attendanceData.leaveDays
-      }
-      console.log('设置新的统计数据:', newStats)
-      setStats(newStats)
-    } catch (error) {
-      console.error('加载统计数据失败:', error)
-      Taro.showToast({
-        title: '加载数据失败',
-        icon: 'error',
-        duration: 2000
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [user?.id, user])
-
+  // 初始加载
   useEffect(() => {
     loadProfile()
-    loadWarehouses()
-    loadStats()
-  }, [loadProfile, loadWarehouses, loadStats])
+  }, [loadProfile])
 
+  // 页面显示时刷新数据
   useDidShow(() => {
     loadProfile()
-    loadWarehouses()
-    loadStats()
+    refreshStats()
   })
 
   // 快捷功能点击处理
@@ -273,6 +191,37 @@ const DriverHome: React.FC = () => {
               </View>
             )}
           </View>
+
+          {/* 仓库切换器（多仓库时显示） */}
+          {warehouses.length > 1 && (
+            <View className="mb-4">
+              <View className="flex items-center mb-2">
+                <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
+                <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
+                <Text className="text-xs text-gray-400 ml-2">
+                  ({currentWarehouseIndex + 1}/{warehouses.length})
+                </Text>
+              </View>
+              <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                <Swiper
+                  className="h-16"
+                  current={currentWarehouseIndex}
+                  onChange={handleWarehouseChange}
+                  indicatorDots
+                  indicatorColor="rgba(0, 0, 0, 0.2)"
+                  indicatorActiveColor="#1E3A8A">
+                  {warehouses.map((warehouse) => (
+                    <SwiperItem key={warehouse.id}>
+                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100">
+                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                      </View>
+                    </SwiperItem>
+                  ))}
+                </Swiper>
+              </View>
+            </View>
+          )}
 
           {/* 快捷功能板块 */}
           <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
