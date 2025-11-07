@@ -3,37 +3,38 @@ import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {type DashboardStats, getCurrentUserProfile, getManagerWarehouses, getWarehouseDashboardStats} from '@/db/api'
-import type {Profile, Warehouse} from '@/db/types'
+import {getCurrentUserProfile} from '@/db/api'
+import type {Profile} from '@/db/types'
+import {useDashboardData, useWarehousesData} from '@/hooks'
 
 const ManagerHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(false)
 
-  // 加载仪表盘数据
-  const loadDashboardData = useCallback(async (warehouseId: string) => {
-    setLoading(true)
-    const stats = await getWarehouseDashboardStats(warehouseId)
-    setDashboardStats(stats)
-    setLoading(false)
-  }, [])
+  // 使用仓库数据管理 Hook
+  const {
+    warehouses,
+    loading: warehousesLoading,
+    refresh: refreshWarehouses
+  } = useWarehousesData({
+    managerId: user?.id || '',
+    cacheEnabled: true
+  })
 
-  // 加载管理员负责的仓库列表
-  const loadWarehouses = useCallback(async () => {
-    if (!user?.id) return
+  // 获取当前选中的仓库ID
+  const currentWarehouseId = warehouses[currentWarehouseIndex]?.id || ''
 
-    const warehousesData = await getManagerWarehouses(user.id)
-    setWarehouses(warehousesData)
-
-    // 如果有仓库，加载第一个仓库的数据
-    if (warehousesData.length > 0) {
-      loadDashboardData(warehousesData[0].id)
-    }
-  }, [user?.id, loadDashboardData])
+  // 使用仪表板数据管理 Hook
+  const {
+    data: dashboardStats,
+    loading: dashboardLoading,
+    refresh: refreshDashboard
+  } = useDashboardData({
+    warehouseId: currentWarehouseId,
+    enableRealtime: true, // 启用实时更新
+    cacheEnabled: true // 启用缓存
+  })
 
   // 加载用户资料
   const loadProfile = useCallback(async () => {
@@ -43,25 +44,25 @@ const ManagerHome: React.FC = () => {
 
   useEffect(() => {
     loadProfile()
-    loadWarehouses()
-  }, [loadProfile, loadWarehouses])
+  }, [loadProfile])
 
+  // 页面显示时刷新数据
   useDidShow(() => {
     loadProfile()
-    loadWarehouses()
+    // 刷新仓库列表（使用缓存）
+    refreshWarehouses()
+    // 刷新当前仓库的仪表板数据（使用缓存）
+    if (currentWarehouseId) {
+      refreshDashboard()
+    }
   })
 
   // 处理仓库切换
-  const handleWarehouseChange = useCallback(
-    (e: any) => {
-      const index = e.detail.current
-      setCurrentWarehouseIndex(index)
-      if (warehouses[index]) {
-        loadDashboardData(warehouses[index].id)
-      }
-    },
-    [warehouses, loadDashboardData]
-  )
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+    // 切换仓库时，useDashboardData Hook 会自动加载新仓库的数据（优先使用缓存）
+  }, [])
 
   const handlePieceWorkReport = () => {
     navigateTo({url: '/pages/manager/piece-work-report/index'})
@@ -103,8 +104,10 @@ const ManagerHome: React.FC = () => {
     }
   }
 
+  const loading = warehousesLoading || dashboardLoading
+
   // 如果没有分配仓库，显示提示
-  if (warehouses.length === 0 && !loading) {
+  if (warehouses.length === 0 && !warehousesLoading) {
     return (
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
         <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
