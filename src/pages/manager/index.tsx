@@ -82,6 +82,10 @@ const ManagerHome: React.FC = () => {
     }
   }
 
+  const handleDriverManagement = () => {
+    navigateTo({url: '/pages/manager/driver-management/index'})
+  }
+
   const handleProfileClick = () => {
     navigateTo({url: '/pages/profile/index'})
   }
@@ -289,6 +293,14 @@ const ManagerHome: React.FC = () => {
                 className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-tag-multiple text-3xl text-green-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">品类配置</Text>
+              </View>
+
+              {/* 司机管理 */}
+              <View
+                onClick={handleDriverManagement}
+                className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
+                <View className="i-mdi-account-group text-3xl text-purple-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">司机管理</Text>
               </View>
             </View>
           </View>
