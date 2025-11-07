@@ -214,7 +214,7 @@ const ProfilePage: React.FC = () => {
                         <Text className="text-xs text-gray-600">本月收入</Text>
                       </View>
                       <Text className="text-2xl font-bold text-green-900 block">
-                        {stats.monthPieceWorkIncome.toFixed(0)}
+                        {(stats.monthPieceWorkIncome || 0).toFixed(0)}
                       </Text>
                       <Text className="text-xs text-gray-500 block">元</Text>
                     </View>
@@ -275,7 +275,7 @@ const ProfilePage: React.FC = () => {
                         <Text className="text-xs text-gray-600">本月总额</Text>
                       </View>
                       <Text className="text-2xl font-bold text-purple-900 block">
-                        {stats.monthPieceWorkTotal.toFixed(0)}
+                        {(stats.monthPieceWorkTotal || 0).toFixed(0)}
                       </Text>
                       <Text className="text-xs text-gray-500 block">元</Text>
                     </View>
@@ -327,7 +327,7 @@ const ProfilePage: React.FC = () => {
                         <Text className="text-xs text-gray-600">本月</Text>
                       </View>
                       <Text className="text-xl font-bold text-pink-900 block">
-                        {stats.monthPieceWorkTotal.toFixed(0)}
+                        {(stats.monthPieceWorkTotal || 0).toFixed(0)}
                       </Text>
                       <Text className="text-xs text-gray-500 block">元</Text>
                     </View>
