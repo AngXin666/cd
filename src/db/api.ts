@@ -2318,3 +2318,222 @@ export async function createDriver(phone: string, name: string): Promise<Profile
     return null
   }
 }
+
+/**
+ * 获取司机端个人页面统计数据
+ */
+export async function getDriverStats(userId: string): Promise<{
+  monthAttendanceDays: number
+  monthPieceWorkIncome: number
+  monthLeaveDays: number
+  totalWarehouses: number
+} | null> {
+  try {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const monthStart = `${year}-${month}-01`
+    const monthEnd = `${year}-${month}-31`
+
+    // 获取本月考勤天数
+    const {data: attendanceData} = await supabase
+      .from('attendance_records')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('work_date', monthStart)
+      .lte('work_date', monthEnd)
+
+    const monthAttendanceDays = Array.isArray(attendanceData) ? attendanceData.length : 0
+
+    // 获取本月计件收入
+    const {data: pieceWorkData} = await supabase
+      .from('piece_work_records')
+      .select('total_amount')
+      .eq('user_id', userId)
+      .gte('work_date', monthStart)
+      .lte('work_date', monthEnd)
+
+    const monthPieceWorkIncome = Array.isArray(pieceWorkData)
+      ? pieceWorkData.reduce((sum, record) => sum + (record.total_amount || 0), 0)
+      : 0
+
+    // 获取本月请假天数
+    const {data: leaveData} = await supabase
+      .from('leave_applications')
+      .select('start_date, end_date')
+      .eq('user_id', userId)
+      .eq('status', 'approved')
+      .gte('start_date', monthStart)
+      .lte('end_date', monthEnd)
+
+    let monthLeaveDays = 0
+    if (Array.isArray(leaveData)) {
+      for (const leave of leaveData) {
+        const start = new Date(leave.start_date)
+        const end = new Date(leave.end_date)
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        monthLeaveDays += days
+      }
+    }
+
+    // 获取分配的仓库数
+    const {data: warehouseData} = await supabase.from('driver_warehouses').select('id').eq('driver_id', userId)
+
+    const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
+
+    return {
+      monthAttendanceDays,
+      monthPieceWorkIncome,
+      monthLeaveDays,
+      totalWarehouses
+    }
+  } catch (error) {
+    console.error('获取司机统计数据失败:', error)
+    return null
+  }
+}
+
+/**
+ * 获取管理员端个人页面统计数据
+ */
+export async function getManagerStats(userId: string): Promise<{
+  totalWarehouses: number
+  totalDrivers: number
+  pendingLeaveCount: number
+  monthPieceWorkTotal: number
+} | null> {
+  try {
+    // 获取管理的仓库数
+    const {data: warehouseData} = await supabase
+      .from('manager_warehouses')
+      .select('warehouse_id')
+      .eq('manager_id', userId)
+
+    const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
+    const warehouseIds = Array.isArray(warehouseData) ? warehouseData.map((w) => w.warehouse_id) : []
+
+    // 获取管理的司机数（通过仓库关联）
+    let totalDrivers = 0
+    if (warehouseIds.length > 0) {
+      const {data: driverData} = await supabase
+        .from('driver_warehouses')
+        .select('driver_id')
+        .in('warehouse_id', warehouseIds)
+
+      // 去重统计司机数
+      const uniqueDrivers = new Set(Array.isArray(driverData) ? driverData.map((d) => d.driver_id) : [])
+      totalDrivers = uniqueDrivers.size
+    }
+
+    // 获取待审批请假数
+    let pendingLeaveCount = 0
+    if (warehouseIds.length > 0) {
+      const {data: leaveData} = await supabase
+        .from('leave_applications')
+        .select('id')
+        .in('warehouse_id', warehouseIds)
+        .eq('status', 'pending')
+
+      pendingLeaveCount = Array.isArray(leaveData) ? leaveData.length : 0
+    }
+
+    // 获取本月计件总额
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const monthStart = `${year}-${month}-01`
+    const monthEnd = `${year}-${month}-31`
+
+    let monthPieceWorkTotal = 0
+    if (warehouseIds.length > 0) {
+      const {data: pieceWorkData} = await supabase
+        .from('piece_work_records')
+        .select('total_amount')
+        .in('warehouse_id', warehouseIds)
+        .gte('work_date', monthStart)
+        .lte('work_date', monthEnd)
+
+      monthPieceWorkTotal = Array.isArray(pieceWorkData)
+        ? pieceWorkData.reduce((sum, record) => sum + (record.total_amount || 0), 0)
+        : 0
+    }
+
+    return {
+      totalWarehouses,
+      totalDrivers,
+      pendingLeaveCount,
+      monthPieceWorkTotal
+    }
+  } catch (error) {
+    console.error('获取管理员统计数据失败:', error)
+    return null
+  }
+}
+
+/**
+ * 获取超级管理员端个人页面统计数据
+ */
+export async function getSuperAdminStats(): Promise<{
+  totalWarehouses: number
+  totalDrivers: number
+  totalManagers: number
+  pendingLeaveCount: number
+  monthPieceWorkTotal: number
+  totalUsers: number
+} | null> {
+  try {
+    // 获取总仓库数
+    const {data: warehouseData} = await supabase.from('warehouses').select('id').eq('is_active', true)
+
+    const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
+
+    // 获取总司机数
+    const {data: driverData} = await supabase.from('profiles').select('id').eq('role', 'driver')
+
+    const totalDrivers = Array.isArray(driverData) ? driverData.length : 0
+
+    // 获取总管理员数
+    const {data: managerData} = await supabase.from('profiles').select('id').eq('role', 'manager')
+
+    const totalManagers = Array.isArray(managerData) ? managerData.length : 0
+
+    // 获取待审批请假数
+    const {data: leaveData} = await supabase.from('leave_applications').select('id').eq('status', 'pending')
+
+    const pendingLeaveCount = Array.isArray(leaveData) ? leaveData.length : 0
+
+    // 获取本月计件总额
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const monthStart = `${year}-${month}-01`
+    const monthEnd = `${year}-${month}-31`
+
+    const {data: pieceWorkData} = await supabase
+      .from('piece_work_records')
+      .select('total_amount')
+      .gte('work_date', monthStart)
+      .lte('work_date', monthEnd)
+
+    const monthPieceWorkTotal = Array.isArray(pieceWorkData)
+      ? pieceWorkData.reduce((sum, record) => sum + (record.total_amount || 0), 0)
+      : 0
+
+    // 获取总用户数
+    const {data: userData} = await supabase.from('profiles').select('id')
+
+    const totalUsers = Array.isArray(userData) ? userData.length : 0
+
+    return {
+      totalWarehouses,
+      totalDrivers,
+      totalManagers,
+      pendingLeaveCount,
+      monthPieceWorkTotal,
+      totalUsers
+    }
+  } catch (error) {
+    console.error('获取超级管理员统计数据失败:', error)
+    return null
+  }
+}
