@@ -1,4 +1,4 @@
-import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
+import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -129,15 +129,14 @@ const ManagerHome: React.FC = () => {
 
             {/* 退出登录按钮 */}
             <View className="mt-4">
-              <Button
-                size="default"
-                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl h-12 text-base font-bold break-keep shadow-md"
-                onClick={handleLogout}>
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-logout text-xl mr-2" />
-                  <Text className="text-base font-bold">退出登录</Text>
+              <View className="bg-white rounded-xl p-4 shadow-md">
+                <View
+                  className="flex items-center justify-center bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-4 active:scale-98 transition-all"
+                  onClick={handleLogout}>
+                  <View className="i-mdi-logout text-2xl text-white mr-2" />
+                  <Text className="text-base font-bold text-white">退出登录</Text>
                 </View>
-              </Button>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -338,15 +337,14 @@ const ManagerHome: React.FC = () => {
 
           {/* 退出登录按钮 */}
           <View className="mb-4">
-            <Button
-              size="default"
-              className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl h-12 text-base font-bold break-keep shadow-md"
-              onClick={handleLogout}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-logout text-xl mr-2" />
-                <Text className="text-base font-bold">退出登录</Text>
+            <View className="bg-white rounded-xl p-4 shadow-md">
+              <View
+                className="flex items-center justify-center bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-4 active:scale-98 transition-all"
+                onClick={handleLogout}>
+                <View className="i-mdi-logout text-2xl text-white mr-2" />
+                <Text className="text-base font-bold text-white">退出登录</Text>
               </View>
-            </Button>
+            </View>
           </View>
         </View>
       </ScrollView>
