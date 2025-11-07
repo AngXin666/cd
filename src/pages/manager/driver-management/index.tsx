@@ -1,9 +1,9 @@
-import {Checkbox, CheckboxGroup, ScrollView, Text, View} from '@tarojs/components'
+import {Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getAllProfiles, getDriverWarehouseIds, getManagerWarehouses, setDriverWarehouses} from '@/db/api'
+import {createDriver, getAllProfiles, getDriverWarehouseIds, getManagerWarehouses, setDriverWarehouses} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 
 const DriverManagement: React.FC = () => {
@@ -13,6 +13,12 @@ const DriverManagement: React.FC = () => {
   const [selectedDriver, setSelectedDriver] = useState<Profile | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+
+  // 添加司机相关状态
+  const [showAddDriver, setShowAddDriver] = useState(false)
+  const [newDriverPhone, setNewDriverPhone] = useState('')
+  const [newDriverName, setNewDriverName] = useState('')
+  const [addingDriver, setAddingDriver] = useState(false)
 
   // 加载司机列表
   const loadDrivers = useCallback(async () => {
@@ -91,6 +97,56 @@ const DriverManagement: React.FC = () => {
     setSelectedWarehouseIds(e.detail.value)
   }
 
+  // 切换添加司机表单显示
+  const toggleAddDriver = () => {
+    setShowAddDriver(!showAddDriver)
+    if (!showAddDriver) {
+      // 重置表单
+      setNewDriverPhone('')
+      setNewDriverName('')
+    }
+  }
+
+  // 处理添加司机
+  const handleAddDriver = async () => {
+    // 验证输入
+    if (!newDriverPhone.trim()) {
+      showToast({title: '请输入手机号', icon: 'none'})
+      return
+    }
+    if (!newDriverName.trim()) {
+      showToast({title: '请输入姓名', icon: 'none'})
+      return
+    }
+
+    // 验证手机号格式
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(newDriverPhone.trim())) {
+      showToast({title: '请输入正确的手机号', icon: 'none'})
+      return
+    }
+
+    setAddingDriver(true)
+    showLoading({title: '添加中...'})
+
+    const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim())
+
+    Taro.hideLoading()
+    setAddingDriver(false)
+
+    if (newDriver) {
+      showToast({title: '添加成功', icon: 'success'})
+      // 重置表单
+      setNewDriverPhone('')
+      setNewDriverName('')
+      setShowAddDriver(false)
+      // 刷新司机列表
+      await loadDrivers()
+    } else {
+      showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
+    }
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
@@ -118,10 +174,55 @@ const DriverManagement: React.FC = () => {
             <>
               {/* 司机列表 */}
               <View className="bg-white rounded-lg p-4 mb-4 shadow">
-                <View className="flex items-center mb-3">
-                  <View className="i-mdi-account-group text-blue-600 text-xl mr-2" />
-                  <Text className="text-gray-800 text-base font-bold">选择司机</Text>
+                <View className="flex items-center justify-between mb-3">
+                  <View className="flex items-center">
+                    <View className="i-mdi-account-group text-blue-600 text-xl mr-2" />
+                    <Text className="text-gray-800 text-base font-bold">选择司机</Text>
+                  </View>
+                  {/* 添加司机按钮 */}
+                  <View
+                    onClick={toggleAddDriver}
+                    className="flex items-center bg-blue-600 rounded-lg px-3 py-2 active:scale-95 transition-all">
+                    <View className={`${showAddDriver ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
+                    <Text className="text-white text-xs font-medium">{showAddDriver ? '取消' : '添加司机'}</Text>
+                  </View>
                 </View>
+
+                {/* 添加司机表单 */}
+                {showAddDriver && (
+                  <View className="bg-blue-50 rounded-lg p-4 mb-3 border-2 border-blue-200">
+                    <View className="mb-3">
+                      <Text className="text-gray-700 text-sm block mb-2">手机号</Text>
+                      <Input
+                        type="number"
+                        maxlength={11}
+                        placeholder="请输入11位手机号"
+                        value={newDriverPhone}
+                        onInput={(e) => setNewDriverPhone(e.detail.value)}
+                        className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
+                      />
+                    </View>
+                    <View className="mb-3">
+                      <Text className="text-gray-700 text-sm block mb-2">姓名</Text>
+                      <Input
+                        type="text"
+                        placeholder="请输入司机姓名"
+                        value={newDriverName}
+                        onInput={(e) => setNewDriverName(e.detail.value)}
+                        className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
+                      />
+                    </View>
+                    <View
+                      onClick={addingDriver ? undefined : handleAddDriver}
+                      className={`flex items-center justify-center bg-blue-600 rounded-lg py-2 active:scale-98 transition-all ${
+                        addingDriver ? 'opacity-50' : ''
+                      }`}>
+                      <View className="i-mdi-check text-white text-base mr-1" />
+                      <Text className="text-white text-sm font-medium">确认添加</Text>
+                    </View>
+                  </View>
+                )}
+
                 {drivers.length > 0 ? (
                   <View className="space-y-2">
                     {drivers.map((driver) => (

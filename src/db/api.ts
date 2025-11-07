@@ -2280,3 +2280,41 @@ export async function getCurrentUserPermissions(): Promise<ManagerPermission | n
 
   return getManagerPermission(user.id)
 }
+
+/**
+ * 创建司机账号
+ * @param phone 手机号
+ * @param name 姓名
+ * @returns 创建的司机资料，如果失败返回null
+ */
+export async function createDriver(phone: string, name: string): Promise<Profile | null> {
+  try {
+    // 检查手机号是否已存在
+    const {data: existingProfiles} = await supabase.from('profiles').select('*').eq('phone', phone).maybeSingle()
+
+    if (existingProfiles) {
+      return null // 手机号已存在
+    }
+
+    // 创建新的司机资料
+    const {data, error} = await supabase
+      .from('profiles')
+      .insert({
+        phone,
+        name,
+        role: 'driver'
+      })
+      .select()
+      .maybeSingle()
+
+    if (error || !data) {
+      console.error('创建司机失败:', error)
+      return null
+    }
+
+    return data as Profile
+  } catch (error) {
+    console.error('创建司机异常:', error)
+    return null
+  }
+}
