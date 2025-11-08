@@ -2087,8 +2087,12 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
  * @returns 汇总统计数据
  */
 export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> {
+  console.log('[getAllWarehousesDashboardStats] 开始加载所有仓库数据')
+
   const today = getLocalDateString()
   const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+
+  console.log('[getAllWarehousesDashboardStats] 日期:', {today, firstDayOfMonth})
 
   // 并行执行所有统计查询
   const [
@@ -2137,11 +2141,43 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
       .eq('work_date', today)
   ])
 
+  console.log('[getAllWarehousesDashboardStats] 查询结果:', {
+    allDrivers: allDriversResult.data?.length || 0,
+    todayAttendance: todayAttendanceResult.data?.length || 0,
+    todayPiece: todayPieceResult.data?.length || 0,
+    pendingLeave: pendingLeaveResult.data?.length || 0,
+    monthlyPiece: monthlyPieceResult.data?.length || 0
+  })
+
+  // 检查错误
+  if (allDriversResult.error) {
+    console.error('[getAllWarehousesDashboardStats] 查询司机失败:', allDriversResult.error)
+  }
+  if (todayAttendanceResult.error) {
+    console.error('[getAllWarehousesDashboardStats] 查询今日出勤失败:', todayAttendanceResult.error)
+  }
+  if (todayPieceResult.error) {
+    console.error('[getAllWarehousesDashboardStats] 查询今日计件失败:', todayPieceResult.error)
+  }
+  if (pendingLeaveResult.error) {
+    console.error('[getAllWarehousesDashboardStats] 查询待审批请假失败:', pendingLeaveResult.error)
+  }
+  if (monthlyPieceResult.error) {
+    console.error('[getAllWarehousesDashboardStats] 查询本月计件失败:', monthlyPieceResult.error)
+  }
+
   // 处理统计数据
   const todayAttendance = todayAttendanceResult.data?.length || 0
   const todayPieceCount = todayPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
   const pendingLeaveCount = pendingLeaveResult.data?.length || 0
   const monthlyPieceCount = monthlyPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
+
+  console.log('[getAllWarehousesDashboardStats] 统计数据:', {
+    todayAttendance,
+    todayPieceCount,
+    pendingLeaveCount,
+    monthlyPieceCount
+  })
 
   // 构建司机列表（使用批量查询结果）
   const driverList: DashboardStats['driverList'] = []
@@ -2168,13 +2204,19 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     }
   }
 
-  return {
+  console.log('[getAllWarehousesDashboardStats] 司机列表:', driverList.length)
+
+  const result = {
     todayAttendance,
     todayPieceCount,
     pendingLeaveCount,
     monthlyPieceCount,
     driverList
   }
+
+  console.log('[getAllWarehousesDashboardStats] 返回结果:', result)
+
+  return result
 }
 
 /**

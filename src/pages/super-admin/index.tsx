@@ -30,6 +30,11 @@ const SuperAdminHome: React.FC = () => {
     cacheEnabled: true
   })
 
+  // 监听 dashboardStats 变化
+  useEffect(() => {
+    console.log('[SuperAdminHome] dashboardStats 更新:', dashboardStats)
+  }, [dashboardStats])
+
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     try {
