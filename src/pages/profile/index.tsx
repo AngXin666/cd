@@ -1,5 +1,5 @@
 import {Image, ScrollView, Text, View} from '@tarojs/components'
-import {navigateTo, showModal, switchTab, useDidShow} from '@tarojs/taro'
+import Taro, {navigateTo, showModal, switchTab, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -32,6 +32,12 @@ const ProfilePage: React.FC = () => {
 
   useDidShow(() => {
     loadProfile()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadProfile()])
+    Taro.stopPullDownRefresh()
   })
 
   const handleLogout = () => {

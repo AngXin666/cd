@@ -1,5 +1,5 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {useDidShow} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -140,6 +140,12 @@ const PieceWorkEntry: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadData()])
+    Taro.stopPullDownRefresh()
   })
 
   // 添加计件项

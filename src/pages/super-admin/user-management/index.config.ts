@@ -1,3 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '用户管理'
+  navigationBarTitleText: '用户管理',
+  enablePullDownRefresh: true,
+  backgroundTextStyle: 'dark'
 })

@@ -1,5 +1,5 @@
 import {ScrollView, Text, View} from '@tarojs/components'
-import {navigateTo, useDidShow} from '@tarojs/taro'
+import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -18,6 +18,12 @@ const HelpPage: React.FC = () => {
 
   useDidShow(() => {
     loadProfile()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadProfile()])
+    Taro.stopPullDownRefresh()
   })
 
   // 根据角色定义不同的FAQ列表

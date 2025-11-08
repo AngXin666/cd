@@ -1,5 +1,5 @@
 import {Input, Picker, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, useDidShow} from '@tarojs/taro'
+import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -157,6 +157,12 @@ const ManagerPieceWorkReport: React.FC = () => {
   useDidShow(() => {
     loadData()
     loadRecords() // 添加：页面显示时重新加载记录
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadData(), loadRecords()])
+    Taro.stopPullDownRefresh()
   })
 
   // 快捷筛选：前一天

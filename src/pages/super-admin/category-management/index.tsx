@@ -1,5 +1,5 @@
 import {Button, Input, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {useDidShow} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -26,6 +26,12 @@ const CategoryManagement: React.FC = () => {
 
   useDidShow(() => {
     loadCategories()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadCategories()])
+    Taro.stopPullDownRefresh()
   })
 
   // 添加品类

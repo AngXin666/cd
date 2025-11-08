@@ -1,5 +1,5 @@
 import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, useDidShow} from '@tarojs/taro'
+import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -179,6 +179,12 @@ const UserManagement: React.FC = () => {
   // 页面显示时加载数据
   useDidShow(() => {
     loadUsers()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadUsers()])
+    Taro.stopPullDownRefresh()
   })
 
   // 获取角色显示文本

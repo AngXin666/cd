@@ -1,5 +1,5 @@
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
+import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
@@ -87,6 +87,14 @@ const DriverHome: React.FC = () => {
       loadProfile()
       refreshStats()
     }
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    if (user) {
+      await Promise.all([loadProfile(), refreshStats()])
+    }
+    Taro.stopPullDownRefresh()
   })
 
   // 快捷功能点击处理

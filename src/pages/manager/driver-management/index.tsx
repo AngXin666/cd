@@ -1,5 +1,5 @@
 import {Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -54,6 +54,12 @@ const DriverManagement: React.FC = () => {
   useDidShow(() => {
     loadDrivers()
     loadWarehouses()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadDrivers(), loadWarehouses()])
+    Taro.stopPullDownRefresh()
   })
 
   // 选择司机

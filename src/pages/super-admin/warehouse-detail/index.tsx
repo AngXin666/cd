@@ -1,5 +1,5 @@
 import {ScrollView, Text, View} from '@tarojs/components'
-import Taro, {useDidShow, useRouter} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -75,6 +75,12 @@ const WarehouseDetail: React.FC = () => {
 
   useDidShow(() => {
     loadWarehouseDetail()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadWarehouseDetail()])
+    Taro.stopPullDownRefresh()
   })
 
   if (!warehouse) {

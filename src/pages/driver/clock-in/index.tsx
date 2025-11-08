@@ -1,5 +1,5 @@
 import {Button, Radio, RadioGroup, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {showLoading, showModal, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -73,6 +73,12 @@ const ClockIn: React.FC = () => {
   useDidShow(() => {
     loadWarehouses()
     loadTodayRecord()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadWarehouses(), loadTodayRecord()])
+    Taro.stopPullDownRefresh()
   })
 
   // 判断考勤状态

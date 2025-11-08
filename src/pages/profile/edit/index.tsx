@@ -1,5 +1,5 @@
 import {Button, Image, Input, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
-import {chooseImage, navigateBack, showLoading, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {chooseImage, navigateBack, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -87,6 +87,12 @@ const ProfileEditPage: React.FC = () => {
 
   useDidShow(() => {
     loadProfile()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadProfile()])
+    Taro.stopPullDownRefresh()
   })
 
   // 选择头像

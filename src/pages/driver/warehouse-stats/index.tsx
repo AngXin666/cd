@@ -1,5 +1,5 @@
 import {Picker, ScrollView, Text, View} from '@tarojs/components'
-import {getCurrentInstance, useDidShow} from '@tarojs/taro'
+import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -73,6 +73,12 @@ const WarehouseStats: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadData()])
+    Taro.stopPullDownRefresh()
   })
 
   // 格式化日期

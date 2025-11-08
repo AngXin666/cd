@@ -1,5 +1,5 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, showModal, useDidShow, useRouter} from '@tarojs/taro'
+import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -100,6 +100,12 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
 
   useDidShow(() => {
     loadData() // 添加：页面显示时重新加载数据
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadData()])
+    Taro.stopPullDownRefresh()
   })
 
   // 获取仓库名称
