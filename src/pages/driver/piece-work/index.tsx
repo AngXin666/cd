@@ -119,6 +119,7 @@ const DriverPieceWork: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+    loadRecords() // 添加：页面显示时重新加载记录
   })
 
   // 计算统计数据

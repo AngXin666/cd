@@ -1,5 +1,5 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, showModal, useRouter} from '@tarojs/taro'
+import Taro, {navigateTo, showModal, useDidShow, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -97,6 +97,10 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useDidShow(() => {
+    loadData() // 添加：页面显示时重新加载数据
+  })
 
   // 获取仓库名称
   const getWarehouseName = (warehouseId: string) => {

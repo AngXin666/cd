@@ -138,6 +138,7 @@ const DataSummary: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+    loadRecords() // 添加：页面显示时重新加载记录
   })
 
   // 快捷筛选：前一天
