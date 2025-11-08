@@ -3,19 +3,20 @@ import Taro, {reLaunch, switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
-import {getCurrentUserProfile} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {getCurrentUserRole} from '@/db/api'
+import type {UserRole} from '@/db/types'
 
 const IndexPage: React.FC = () => {
   const {user, isAuthenticated} = useAuth({guard: true})
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [role, setRole] = useState<UserRole | null>(null)
   const [loadingStatus, setLoadingStatus] = useState<string>('正在验证身份...')
   const [error, setError] = useState<string | null>(null)
   const hasRedirected = useRef(false) // 防止重复跳转
   const loadAttempts = useRef(0) // 加载尝试次数
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const loadProfile = useCallback(async () => {
+  // 快速获取用户角色（只查询 role 字段，不获取完整档案）
+  const loadRole = useCallback(async () => {
     if (!user) {
       setLoadingStatus('等待用户认证...')
       return
@@ -23,7 +24,7 @@ const IndexPage: React.FC = () => {
 
     // 限制重试次数
     if (loadAttempts.current >= 3) {
-      console.error('加载用户档案失败：超过最大重试次数')
+      console.error('[IndexPage] 加载用户角色失败：超过最大重试次数')
       setError('加载失败，请重新登录')
       setTimeout(() => {
         if (!hasRedirected.current) {
@@ -35,15 +36,15 @@ const IndexPage: React.FC = () => {
     }
 
     loadAttempts.current += 1
-    setLoadingStatus(`正在加载用户信息... (${loadAttempts.current}/3)`)
+    setLoadingStatus(`正在获取角色信息... (${loadAttempts.current}/3)`)
 
     try {
-      console.log('[IndexPage] 开始加载用户档案，用户ID:', user.id)
-      const data = await getCurrentUserProfile()
+      console.log('[IndexPage] 开始获取用户角色，用户ID:', user.id)
+      const userRole = await getCurrentUserRole()
 
-      if (!data) {
-        console.error('[IndexPage] 用户档案不存在')
-        setError('用户档案不存在，请联系管理员')
+      if (!userRole) {
+        console.error('[IndexPage] 用户角色不存在')
+        setError('用户角色不存在，请联系管理员')
         setTimeout(() => {
           if (!hasRedirected.current) {
             hasRedirected.current = true
@@ -53,25 +54,25 @@ const IndexPage: React.FC = () => {
         return
       }
 
-      console.log('[IndexPage] 用户档案加载成功，角色:', data.role)
-      setProfile(data)
+      console.log('[IndexPage] 用户角色获取成功:', userRole)
+      setRole(userRole)
       setError(null)
     } catch (error) {
-      console.error('[IndexPage] 加载用户档案失败:', error)
+      console.error('[IndexPage] 获取用户角色失败:', error)
       setError('加载失败，正在重试...')
 
       // 重试
       setTimeout(() => {
-        loadProfile()
+        loadRole()
       }, 1000)
     }
   }, [user])
 
-  // 设置超时处理
+  // 设置超时处理（8秒，比之前的10秒更快）
   useEffect(() => {
-    // 10秒超时
+    // 8秒超时
     timeoutRef.current = setTimeout(() => {
-      if (!profile && !hasRedirected.current) {
+      if (!role && !hasRedirected.current) {
         console.error('[IndexPage] 加载超时')
         setError('加载超时，请重新登录')
         setTimeout(() => {
@@ -81,25 +82,25 @@ const IndexPage: React.FC = () => {
           }
         }, 2000)
       }
-    }, 10000)
+    }, 8000)
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [profile])
+  }, [role])
 
-  // 加载用户档案
+  // 加载用户角色
   useEffect(() => {
     if (isAuthenticated && user) {
-      loadProfile()
+      loadRole()
     }
-  }, [isAuthenticated, user, loadProfile])
+  }, [isAuthenticated, user, loadRole])
 
-  // 根据角色跳转
+  // 根据角色快速跳转
   useEffect(() => {
-    if (profile?.role && !hasRedirected.current) {
+    if (role && !hasRedirected.current) {
       hasRedirected.current = true
       setLoadingStatus('正在跳转...')
 
@@ -110,8 +111,8 @@ const IndexPage: React.FC = () => {
 
       // 根据用户角色跳转到对应的工作台
       // 使用 reLaunch 清空页面栈，避免循环跳转
-      console.log('[IndexPage] 根据角色跳转:', profile.role)
-      switch (profile.role) {
+      console.log('[IndexPage] 根据角色快速跳转:', role)
+      switch (role) {
         case 'driver':
           reLaunch({url: '/pages/driver/index'})
           break
@@ -122,12 +123,12 @@ const IndexPage: React.FC = () => {
           reLaunch({url: '/pages/super-admin/index'})
           break
         default:
-          console.warn('[IndexPage] 未知角色:', profile.role)
+          console.warn('[IndexPage] 未知角色:', role)
           // 如果角色未知，跳转到个人中心
           switchTab({url: '/pages/profile/index'})
       }
     }
-  }, [profile])
+  }, [role])
 
   return (
     <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>

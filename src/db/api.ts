@@ -91,6 +91,51 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
   }
 }
 
+/**
+ * 快速获取当前用户角色（用于登录后的路由跳转）
+ * 只查询 role 字段，不获取完整档案，提高性能
+ */
+export async function getCurrentUserRole(): Promise<UserRole | null> {
+  try {
+    console.log('[getCurrentUserRole] 开始获取用户角色')
+    const {
+      data: {user},
+      error: authError
+    } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('[getCurrentUserRole] 获取认证用户失败:', authError)
+      return null
+    }
+
+    if (!user) {
+      console.warn('[getCurrentUserRole] 用户未登录')
+      return null
+    }
+
+    console.log('[getCurrentUserRole] 当前用户ID:', user.id)
+
+    // 只查询 role 字段，提高查询效率
+    const {data, error} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+
+    if (error) {
+      console.error('[getCurrentUserRole] 查询用户角色失败:', error)
+      return null
+    }
+
+    if (!data) {
+      console.warn('[getCurrentUserRole] 用户档案不存在，用户ID:', user.id)
+      return null
+    }
+
+    console.log('[getCurrentUserRole] 成功获取用户角色:', data.role)
+    return data.role
+  } catch (error) {
+    console.error('[getCurrentUserRole] 未预期的错误:', error)
+    return null
+  }
+}
+
 export async function getAllProfiles(): Promise<Profile[]> {
   const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
 
