@@ -3,7 +3,6 @@ import {reLaunch, showToast, switchTab} from '@tarojs/taro'
 import type React from 'react'
 import {useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getCurrentUserProfile} from '@/db/api'
 
 const Login: React.FC = () => {
   const [loginType, setLoginType] = useState<'otp' | 'password'>('password')
@@ -14,19 +13,11 @@ const Login: React.FC = () => {
   const [countdown, setCountdown] = useState(0)
 
   const handleLoginSuccess = async () => {
-    const profile = await getCurrentUserProfile()
-
-    let path = '/pages/driver/index'
-    if (profile?.role === 'super_admin') {
-      path = '/pages/super-admin/index'
-    } else if (profile?.role === 'manager') {
-      path = '/pages/manager/index'
-    }
-
+    // 登录成功后跳转到工作台首页，由首页根据角色自动跳转
     try {
-      switchTab({url: path})
+      switchTab({url: '/pages/index/index'})
     } catch (_e) {
-      reLaunch({url: path})
+      reLaunch({url: '/pages/index/index'})
     }
   }
 
