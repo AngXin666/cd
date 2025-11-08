@@ -101,6 +101,18 @@ const DriverHome: React.FC = () => {
     })
   }
 
+  // 初始加载状态：当用户信息还未加载时显示加载界面
+  if (!user) {
+    return (
+      <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
+        <View className="text-center">
+          <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
+          <Text className="text-gray-600 block">加载用户信息中...</Text>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>

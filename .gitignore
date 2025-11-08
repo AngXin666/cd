@@ -42,3 +42,11 @@ output/
 history/*.json
 .vite_cache
 TODO.md
+
+# 调试和修复文档
+LOADING_ISSUE_FIX_REPORT.md
+QUICK_TEST_GUIDE.md
+FIX_SUMMARY.md
+LOGIN_FIX_SUMMARY.md
+ROLE_BASED_LOGIN_TEST.md
+FINAL_STATUS.md
