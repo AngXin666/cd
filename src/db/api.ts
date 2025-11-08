@@ -44,19 +44,51 @@ function getLocalDateString(date: Date = new Date()): string {
 }
 
 export async function getCurrentUserProfile(): Promise<Profile | null> {
-  const {
-    data: {user}
-  } = await supabase.auth.getUser()
-  if (!user) return null
+  try {
+    console.log('[getCurrentUserProfile] 开始获取当前用户')
+    const {
+      data: {user},
+      error: authError
+    } = await supabase.auth.getUser()
 
-  const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    if (authError) {
+      console.error('[getCurrentUserProfile] 获取认证用户失败:', authError)
+      return null
+    }
 
-  if (error) {
-    console.error('获取用户档案失败:', error)
+    if (!user) {
+      console.warn('[getCurrentUserProfile] 用户未登录')
+      return null
+    }
+
+    console.log('[getCurrentUserProfile] 当前用户ID:', user.id)
+    console.log('[getCurrentUserProfile] 当前用户手机号:', user.phone)
+
+    const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+
+    if (error) {
+      console.error('[getCurrentUserProfile] 查询用户档案失败:', error)
+      console.error('[getCurrentUserProfile] 错误详情:', JSON.stringify(error))
+      return null
+    }
+
+    if (!data) {
+      console.warn('[getCurrentUserProfile] 用户档案不存在，用户ID:', user.id)
+      console.warn('[getCurrentUserProfile] 请检查 profiles 表中是否有该用户的记录')
+      return null
+    }
+
+    console.log('[getCurrentUserProfile] 成功获取用户档案:', {
+      id: data.id,
+      phone: data.phone,
+      role: data.role
+    })
+
+    return data
+  } catch (error) {
+    console.error('[getCurrentUserProfile] 未预期的错误:', error)
     return null
   }
-
-  return data
 }
 
 export async function getAllProfiles(): Promise<Profile[]> {
