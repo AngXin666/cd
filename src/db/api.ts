@@ -2808,12 +2808,14 @@ export async function cancelLeaveApplication(leaveId: string, userId: string): P
       return false
     }
 
-    // 更新状态为已撤销
+    // 更新状态为已撤销，并记录撤销操作信息
     const {error: updateError} = await supabase
       .from('leave_applications')
       .update({
         status: 'cancelled',
-        review_comment: '司机主动撤销'
+        review_comment: '司机主动撤销',
+        cancelled_by: userId,
+        cancelled_at: new Date().toISOString()
       })
       .eq('id', leaveId)
 
@@ -2859,12 +2861,14 @@ export async function cancelResignationApplication(resignationId: string, userId
       return false
     }
 
-    // 更新状态为已撤销
+    // 更新状态为已撤销，并记录撤销操作信息
     const {error: updateError} = await supabase
       .from('resignation_applications')
       .update({
         status: 'cancelled',
-        review_comment: '司机主动撤销'
+        review_comment: '司机主动撤销',
+        cancelled_by: userId,
+        cancelled_at: new Date().toISOString()
       })
       .eq('id', resignationId)
 

@@ -546,6 +546,11 @@ const DriverLeave: React.FC = () => {
                       <View>
                         <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
                       </View>
+                      {app.cancelled_at && (
+                        <View>
+                          <Text className="text-xs text-gray-400">撤销时间：{formatDate(app.cancelled_at)}</Text>
+                        </View>
+                      )}
 
                       {/* 撤销按钮 - 待审批或已批准且假期未完全过去的请假可以撤销 */}
                       {canCancelLeave(app) && (
@@ -605,6 +610,11 @@ const DriverLeave: React.FC = () => {
                       <View>
                         <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
                       </View>
+                      {app.cancelled_at && (
+                        <View>
+                          <Text className="text-xs text-gray-400">撤销时间：{formatDate(app.cancelled_at)}</Text>
+                        </View>
+                      )}
 
                       {/* 撤销按钮 - 只有待审批状态的离职申请才显示 */}
                       {canCancelResignation(app) && (

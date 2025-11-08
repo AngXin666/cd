@@ -135,6 +135,8 @@ const DriverLeaveDetail: React.FC = () => {
         return '已通过'
       case 'rejected':
         return '已驳回'
+      case 'cancelled':
+        return '已撤销'
       default:
         return status
     }
@@ -149,9 +151,63 @@ const DriverLeaveDetail: React.FC = () => {
         return 'text-green-600'
       case 'rejected':
         return 'text-red-600'
+      case 'cancelled':
+        return 'text-gray-600'
       default:
         return 'text-gray-600'
     }
+  }
+
+  // 渲染审批/撤销记录
+  const renderReviewHistory = (app: LeaveApplication | ResignationApplication) => {
+    const hasHistory = app.reviewer_id || app.review_comment || app.reviewed_at || app.cancelled_by || app.cancelled_at
+
+    if (!hasHistory) return null
+
+    return (
+      <View className="bg-gray-50 rounded-lg p-3 mb-3">
+        <View className="flex items-center mb-2">
+          <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
+          <Text className="text-sm text-gray-700 font-bold">
+            {app.status === 'cancelled' ? '撤销记录' : '审批记录'}
+          </Text>
+        </View>
+        <View className="space-y-2">
+          {app.status === 'cancelled' && app.cancelled_by && (
+            <View className="flex items-center">
+              <Text className="text-xs text-gray-500 w-20">撤销人：</Text>
+              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.cancelled_by)}</Text>
+            </View>
+          )}
+          {app.status === 'cancelled' && app.cancelled_at && (
+            <View className="flex items-center">
+              <Text className="text-xs text-gray-500 w-20">撤销时间：</Text>
+              <Text className="text-xs text-gray-800">{formatDateTime(app.cancelled_at)}</Text>
+            </View>
+          )}
+          {app.reviewer_id && app.status !== 'cancelled' && (
+            <View className="flex items-center">
+              <Text className="text-xs text-gray-500 w-20">审批人：</Text>
+              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewer_id)}</Text>
+            </View>
+          )}
+          {app.reviewed_at && app.status !== 'cancelled' && (
+            <View className="flex items-center">
+              <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
+              <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
+            </View>
+          )}
+          {app.review_comment && (
+            <View>
+              <Text className="text-xs text-gray-500 block mb-1">
+                {app.status === 'cancelled' ? '撤销原因：' : '审批意见：'}
+              </Text>
+              <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">{app.review_comment}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    )
   }
 
   // 审批请假申请
@@ -407,37 +463,8 @@ const DriverLeaveDetail: React.FC = () => {
                       </View>
                     </View>
 
-                    {/* 审批历史区 */}
-                    {(app.reviewer_id || app.review_comment || app.reviewed_at) && (
-                      <View className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <View className="flex items-center mb-2">
-                          <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
-                          <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
-                        </View>
-                        <View className="space-y-2">
-                          {app.reviewer_id && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewer_id)}</Text>
-                            </View>
-                          )}
-                          {app.reviewed_at && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
-                              <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
-                            </View>
-                          )}
-                          {app.review_comment && (
-                            <View>
-                              <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
-                              <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
-                                {app.review_comment}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    )}
+                    {/* 审批/撤销历史区 */}
+                    {renderReviewHistory(app)}
 
                     {/* 操作按钮 */}
                     {app.status === 'pending' && (
@@ -538,37 +565,8 @@ const DriverLeaveDetail: React.FC = () => {
                       </View>
                     </View>
 
-                    {/* 审批历史区 */}
-                    {(app.reviewer_id || app.review_comment || app.reviewed_at) && (
-                      <View className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <View className="flex items-center mb-2">
-                          <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
-                          <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
-                        </View>
-                        <View className="space-y-2">
-                          {app.reviewer_id && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewer_id)}</Text>
-                            </View>
-                          )}
-                          {app.reviewed_at && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
-                              <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
-                            </View>
-                          )}
-                          {app.review_comment && (
-                            <View>
-                              <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
-                              <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
-                                {app.review_comment}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    )}
+                    {/* 审批/撤销历史区 */}
+                    {renderReviewHistory(app)}
 
                     {/* 操作按钮 */}
                     {app.status === 'pending' && (

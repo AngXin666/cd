@@ -229,7 +229,7 @@ export interface PieceWorkStats {
 export type LeaveType = 'sick_leave' | 'personal_leave' | 'annual_leave' | 'other'
 
 // 申请状态类型
-export type ApplicationStatus = 'pending' | 'approved' | 'rejected'
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 // 请假申请接口
 export interface LeaveApplication {
@@ -245,6 +245,8 @@ export interface LeaveApplication {
   reviewer_id: string | null
   review_comment: string | null
   reviewed_at: string | null
+  cancelled_by: string | null
+  cancelled_at: string | null
   created_at: string
   is_draft: boolean
 }
@@ -272,6 +274,8 @@ export interface ResignationApplication {
   reviewer_id: string | null
   review_comment: string | null
   reviewed_at: string | null
+  cancelled_by: string | null
+  cancelled_at: string | null
   created_at: string
   is_draft: boolean
 }
