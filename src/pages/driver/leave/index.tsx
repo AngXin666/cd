@@ -4,8 +4,6 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
-  cancelLeaveApplication,
-  cancelResignationApplication,
   deleteDraftLeaveApplication,
   deleteDraftResignationApplication,
   getCurrentUserProfile,
@@ -14,29 +12,27 @@ import {
   getDriverAttendanceStats,
   getDriverWarehouses,
   getLeaveApplicationsByUser,
-  getResignationApplicationsByUser,
-  submitDraftLeaveApplication,
-  submitDraftResignationApplication
+  getResignationApplicationsByUser
 } from '@/db/api'
 import type {LeaveApplication, Profile, ResignationApplication} from '@/db/types'
 
 const DriverLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
-  const [resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
-  const [leaveDrafts, setLeaveDrafts] = useState<LeaveApplication[]>([])
-  const [resignationDrafts, setResignationDrafts] = useState<ResignationApplication[]>([])
-  const [activeTab, setActiveTab] = useState<'leave' | 'resignation' | 'draft'>('leave')
+  const [_leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
+  const [_resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
+  const [_leaveDrafts, setLeaveDrafts] = useState<LeaveApplication[]>([])
+  const [_resignationDrafts, setResignationDrafts] = useState<ResignationApplication[]>([])
+  const [_activeTab, _setActiveTab] = useState<'leave' | 'resignation' | 'draft'>('leave')
 
   // 统计数据
-  const [stats, setStats] = useState({
+  const [_stats, setStats] = useState({
     attendanceDays: 0,
     leaveDays: 0,
     remainingDays: 0,
     monthlyLimit: 0
   })
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     if (!user) return
@@ -120,7 +116,15 @@ const DriverLeave: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
-  const handleApplyLeave = () => {
+  const _calculateDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const diffTime = Math.abs(end.getTime() - start.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays + 1
+  }
+
+  const _handleApplyLeave = () => {
     if (!profile) {
       showToast({title: '请先完善个人信息', icon: 'none'})
       return
@@ -128,7 +132,7 @@ const DriverLeave: React.FC = () => {
     navigateTo({url: '/pages/driver/leave/apply/index'})
   }
 
-  const handleApplyResignation = () => {
+  const _handleApplyResignation = () => {
     if (!profile) {
       showToast({title: '请先完善个人信息', icon: 'none'})
       return
@@ -136,7 +140,7 @@ const DriverLeave: React.FC = () => {
     navigateTo({url: '/pages/driver/leave/resign/index'})
   }
 
-  const getStatusText = (status: string) => {
+  const _getStatusText = (status: string) => {
     switch (status) {
       case 'pending':
         return '待审批'
@@ -144,14 +148,12 @@ const DriverLeave: React.FC = () => {
         return '已通过'
       case 'rejected':
         return '已驳回'
-      case 'cancelled':
-        return '已撤销'
       default:
         return status
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const _getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
         return 'text-orange-600'
@@ -159,54 +161,12 @@ const DriverLeave: React.FC = () => {
         return 'text-green-600'
       case 'rejected':
         return 'text-red-600'
-      case 'cancelled':
-        return 'text-gray-600'
       default:
         return 'text-gray-600'
     }
   }
 
-  /**
-   * 判断是否可以撤销请假
-   *
-   * 撤销规则：
-   * 1. 可撤销状态：待审批(pending)、已批准(approved)
-   * 2. 不可撤销：已驳回(rejected)、已撤销(cancelled)、假期已完全过去
-   * 3. 时效性：假期结束日期之前都可以撤销（包括假期当天）
-   */
-  const canCancelLeave = (leave: LeaveApplication): boolean => {
-    // 已撤销、已拒绝的申请不能再撤销
-    if (leave.status === 'cancelled' || leave.status === 'rejected') {
-      return false
-    }
-
-    // 只能撤销待审批或已批准的请假
-    if (leave.status !== 'pending' && leave.status !== 'approved') {
-      return false
-    }
-
-    // 检查假期是否已完全过去
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const endDate = new Date(leave.end_date)
-    endDate.setHours(23, 59, 59, 999)
-
-    // 假期结束日期之前都可以撤销（包括假期当天）
-    return today <= endDate
-  }
-
-  // 判断是否可以撤销离职申请（只有待审批状态的离职申请可以撤销）
-  const canCancelResignation = (resignation: ResignationApplication): boolean => {
-    // 已撤销、已拒绝、已批准的申请不能再撤销
-    if (resignation.status === 'cancelled' || resignation.status === 'rejected' || resignation.status === 'approved') {
-      return false
-    }
-
-    return resignation.status === 'pending'
-  }
-
-  const getLeaveTypeText = (type: string) => {
+  const _getLeaveTypeText = (type: string) => {
     switch (type) {
       case 'sick_leave':
         return '病假'
@@ -221,11 +181,11 @@ const DriverLeave: React.FC = () => {
     }
   }
 
-  const formatDate = (dateStr: string) => {
+  const _formatDate = (dateStr: string) => {
     return dateStr.split('T')[0]
   }
 
-  const handleEditDraft = (draftId: string, type: 'leave' | 'resignation') => {
+  const _handleEditDraft = (draftId: string, type: 'leave' | 'resignation') => {
     if (type === 'leave') {
       navigateTo({url: `/pages/driver/leave/apply/index?draftId=${draftId}`})
     } else {
@@ -233,7 +193,7 @@ const DriverLeave: React.FC = () => {
     }
   }
 
-  const handleDeleteDraft = async (draftId: string, type: 'leave' | 'resignation') => {
+  const _handleDeleteDraft = async (draftId: string, type: 'leave' | 'resignation') => {
     const result = await showModal({
       title: '确认删除',
       content: '确定要删除这个草稿吗？',
@@ -258,144 +218,8 @@ const DriverLeave: React.FC = () => {
     }
   }
 
-  /**
-   * 撤销请假申请
-   *
-   * 撤销规则：
-   * 1. 可撤销状态：待审批(pending)、已批准(approved)
-   * 2. 不可撤销：已驳回(rejected)、已撤销(cancelled)、假期已完全过去
-   * 3. 时效性：假期结束日期之前都可以撤销（包括假期当天）
-   * 4. 已批准的请假需要强化提示
-   */
-  const handleCancelLeave = async (leaveId: string) => {
-    if (!user) return
-
-    // 查找请假记录
-    const leave = leaveApplications.find((l) => l.id === leaveId)
-    if (!leave) {
-      showToast({title: '请假记录不存在', icon: 'none'})
-      return
-    }
-
-    // 计算请假天数
-    const days = calculateDays(leave.start_date, leave.end_date)
-
-    // 根据状态显示不同的提示信息
-    let title = '确认撤销'
-    let content = ''
-
-    if (leave.status === 'approved') {
-      // 已批准的请假需要强化提示
-      title = '⚠️ 撤销已批准的请假'
-      content = `您确定要撤销本次从 ${formatDate(leave.start_date)} 到 ${formatDate(leave.end_date)} 的共 ${days} 天请假申请吗？\n\n⚠️ 此请假已经批准，撤销后您将恢复正常工作状态，需要打卡。如需请假请重新提交。`
-    } else if (leave.status === 'pending') {
-      // 待审批的请假
-      content = `您确定要撤销本次从 ${formatDate(leave.start_date)} 到 ${formatDate(leave.end_date)} 的共 ${days} 天请假申请吗？\n\n撤销后，请假记录将更新为"已撤销"状态。如需请假请重新提交。`
-    }
-
-    const result = await showModal({
-      title,
-      content,
-      confirmText: '确认撤销',
-      cancelText: '取消'
-    })
-
-    if (result.confirm) {
-      const success = await cancelLeaveApplication(leaveId, user.id)
-
-      if (success) {
-        showToast({title: '撤销成功', icon: 'success', duration: 2000})
-        // 刷新数据
-        loadData()
-      } else {
-        showToast({
-          title: '撤销失败，假期已完全过去或状态不允许撤销',
-          icon: 'none',
-          duration: 2500
-        })
-      }
-    }
-  }
-
-  // 撤销待审批的离职申请
-  const handleCancelResignation = async (resignationId: string) => {
-    if (!user) return
-
-    const result = await showModal({
-      title: '确认撤销',
-      content: '确定要撤销这个离职申请吗？撤销后您可以继续正常工作。',
-      confirmText: '确认撤销',
-      cancelText: '取消'
-    })
-
-    if (result.confirm) {
-      const success = await cancelResignationApplication(resignationId, user.id)
-
-      if (success) {
-        showToast({title: '撤销成功', icon: 'success', duration: 2000})
-        // 刷新数据
-        loadData()
-      } else {
-        showToast({title: '撤销失败，只能撤销待审批状态的申请', icon: 'none', duration: 2500})
-      }
-    }
-  }
-
-  const handleSubmitDraft = async (
-    draftId: string,
-    type: 'leave' | 'resignation',
-    draft: LeaveApplication | ResignationApplication
-  ) => {
-    // 验证必填字段
-    if (type === 'leave') {
-      const leaveDraft = draft as LeaveApplication
-      if (!leaveDraft.start_date || !leaveDraft.end_date || !leaveDraft.reason?.trim()) {
-        showToast({title: '请先完善草稿信息', icon: 'none'})
-        return
-      }
-    } else {
-      const resignDraft = draft as ResignationApplication
-      if (!resignDraft.expected_date || !resignDraft.reason?.trim()) {
-        showToast({title: '请先完善草稿信息', icon: 'none'})
-        return
-      }
-    }
-
-    const result = await showModal({
-      title: '确认提交',
-      content: '确定要提交这个申请吗？提交后将无法修改。',
-      confirmText: '提交',
-      cancelText: '取消'
-    })
-
-    if (result.confirm) {
-      let success = false
-      if (type === 'leave') {
-        success = await submitDraftLeaveApplication(draftId)
-      } else {
-        success = await submitDraftResignationApplication(draftId)
-      }
-
-      if (success) {
-        showToast({title: '提交成功', icon: 'success'})
-        loadData()
-      } else {
-        showToast({title: '提交失败', icon: 'none'})
-      }
-    }
-  }
-
-  const calculateDays = (startDate: string, endDate: string): number => {
-    if (!startDate || !endDate) return 0
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const diffTime = end.getTime() - start.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays + 1
-  }
-
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(to bottom, #fef2f2, #fee2e2)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 欢迎卡片 */}
@@ -410,7 +234,7 @@ const DriverLeave: React.FC = () => {
               <View className="i-mdi-chart-box text-xl text-blue-900 mr-2" />
               <Text className="text-lg font-bold text-gray-800">本月数据统计</Text>
             </View>
-            {loading ? (
+            {_loading ? (
               <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
                 <Text className="text-gray-500">加载中...</Text>
               </View>
@@ -421,7 +245,7 @@ const DriverLeave: React.FC = () => {
                   <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                     <View className="i-mdi-calendar-check text-2xl text-green-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">本月出勤</Text>
-                    <Text className="text-2xl font-bold text-green-900 block">{stats.attendanceDays}</Text>
+                    <Text className="text-2xl font-bold text-green-900 block">{_stats.attendanceDays}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">天</Text>
                   </View>
 
@@ -429,7 +253,7 @@ const DriverLeave: React.FC = () => {
                   <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
                     <View className="i-mdi-calendar-remove text-2xl text-orange-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">本月请假</Text>
-                    <Text className="text-2xl font-bold text-orange-900 block">{stats.leaveDays}</Text>
+                    <Text className="text-2xl font-bold text-orange-900 block">{_stats.leaveDays}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">天</Text>
                   </View>
 
@@ -437,14 +261,14 @@ const DriverLeave: React.FC = () => {
                   <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
                     <View className="i-mdi-calendar-plus text-2xl text-blue-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">剩余额度</Text>
-                    <Text className="text-2xl font-bold text-blue-900 block">{stats.remainingDays}</Text>
+                    <Text className="text-2xl font-bold text-blue-900 block">{_stats.remainingDays}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">天</Text>
                   </View>
                 </View>
-                {stats.monthlyLimit > 0 && (
+                {_stats.monthlyLimit > 0 && (
                   <View className="mt-3 pt-3 border-t border-gray-200">
                     <Text className="text-xs text-gray-500 text-center block">
-                      月度请假上限：{stats.monthlyLimit} 天
+                      月度请假上限：{_stats.monthlyLimit} 天
                     </Text>
                   </View>
                 )}
@@ -464,7 +288,7 @@ const DriverLeave: React.FC = () => {
                 border: 'none',
                 padding: '16px'
               }}
-              onClick={handleApplyLeave}>
+              onClick={_handleApplyLeave}>
               <View className="flex flex-col items-center">
                 <View className="i-mdi-calendar-clock text-3xl mb-2" />
                 <Text className="text-sm">申请请假</Text>
@@ -480,7 +304,7 @@ const DriverLeave: React.FC = () => {
                 border: 'none',
                 padding: '16px'
               }}
-              onClick={handleApplyResignation}>
+              onClick={_handleApplyResignation}>
               <View className="flex flex-col items-center">
                 <View className="i-mdi-account-remove text-3xl mb-2" />
                 <Text className="text-sm">申请离职</Text>
@@ -491,56 +315,56 @@ const DriverLeave: React.FC = () => {
           {/* 标签切换 */}
           <View className="flex mb-4 bg-white rounded-lg p-1 shadow">
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${activeTab === 'leave' ? 'bg-blue-900' : ''}`}
-              onClick={() => setActiveTab('leave')}>
-              <Text className={`text-sm ${activeTab === 'leave' ? 'text-white font-bold' : 'text-gray-600'}`}>
+              className={`flex-1 text-center py-2 rounded-lg ${_activeTab === 'leave' ? 'bg-blue-900' : ''}`}
+              onClick={() => _setActiveTab('leave')}>
+              <Text className={`text-sm ${_activeTab === 'leave' ? 'text-white font-bold' : 'text-gray-600'}`}>
                 请假申请
               </Text>
             </View>
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
-              onClick={() => setActiveTab('resignation')}>
-              <Text className={`text-sm ${activeTab === 'resignation' ? 'text-white font-bold' : 'text-gray-600'}`}>
+              className={`flex-1 text-center py-2 rounded-lg ${_activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
+              onClick={() => _setActiveTab('resignation')}>
+              <Text className={`text-sm ${_activeTab === 'resignation' ? 'text-white font-bold' : 'text-gray-600'}`}>
                 离职申请
               </Text>
             </View>
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${activeTab === 'draft' ? 'bg-purple-600' : ''}`}
-              onClick={() => setActiveTab('draft')}>
-              <Text className={`text-sm ${activeTab === 'draft' ? 'text-white font-bold' : 'text-gray-600'}`}>
+              className={`flex-1 text-center py-2 rounded-lg ${_activeTab === 'draft' ? 'bg-purple-600' : ''}`}
+              onClick={() => _setActiveTab('draft')}>
+              <Text className={`text-sm ${_activeTab === 'draft' ? 'text-white font-bold' : 'text-gray-600'}`}>
                 草稿箱{' '}
-                {leaveDrafts.length + resignationDrafts.length > 0 &&
-                  `(${leaveDrafts.length + resignationDrafts.length})`}
+                {_leaveDrafts.length + _resignationDrafts.length > 0 &&
+                  `(${_leaveDrafts.length + _resignationDrafts.length})`}
               </Text>
             </View>
           </View>
 
           {/* 请假申请列表 */}
-          {activeTab === 'leave' && (
+          {_activeTab === 'leave' && (
             <View>
-              {leaveApplications.length === 0 ? (
+              {_leaveApplications.length === 0 ? (
                 <View className="bg-white rounded-lg p-8 text-center shadow">
                   <View className="i-mdi-calendar-blank text-6xl text-gray-300 mb-4 mx-auto" />
                   <Text className="text-gray-500 block">暂无请假申请记录</Text>
                 </View>
               ) : (
-                leaveApplications.map((app) => (
+                _leaveApplications.map((app) => (
                   <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
                     <View className="flex items-center justify-between mb-3">
                       <View className="flex items-center">
                         <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
-                        <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(app.type)}</Text>
+                        <Text className="text-base font-bold text-gray-800">{_getLeaveTypeText(app.type)}</Text>
                       </View>
-                      <Text className={`text-sm font-bold ${getStatusColor(app.status)}`}>
-                        {getStatusText(app.status)}
+                      <Text className={`text-sm font-bold ${_getStatusColor(app.status)}`}>
+                        {_getStatusText(app.status)}
                       </Text>
                     </View>
                     <View className="space-y-2">
                       <View>
                         <Text className="text-sm text-gray-600">请假时间：</Text>
                         <Text className="text-sm text-gray-800">
-                          {formatDate(app.start_date)} 至 {formatDate(app.end_date)} （共
-                          {calculateDays(app.start_date, app.end_date)}天）
+                          {_formatDate(app.start_date)} 至 {_formatDate(app.end_date)} （共
+                          {_calculateDays(app.start_date, app.end_date)}天）
                         </Text>
                       </View>
                       <View>
@@ -554,27 +378,8 @@ const DriverLeave: React.FC = () => {
                         </View>
                       )}
                       <View>
-                        <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
+                        <Text className="text-xs text-gray-400">申请时间：{_formatDate(app.created_at)}</Text>
                       </View>
-                      {app.cancelled_at && (
-                        <View>
-                          <Text className="text-xs text-gray-400">撤销时间：{formatDate(app.cancelled_at)}</Text>
-                        </View>
-                      )}
-
-                      {/* 撤销按钮 - 待审批或已批准且假期未完全过去的请假可以撤销 */}
-                      {canCancelLeave(app) && (
-                        <View className="mt-3 pt-3 border-t border-gray-200">
-                          <Button
-                            className="bg-orange-500 text-white rounded-lg py-2 active:bg-orange-600 transition-all text-sm"
-                            onClick={() => handleCancelLeave(app.id)}>
-                            <View className="flex items-center justify-center">
-                              <View className="i-mdi-cancel text-lg mr-1" />
-                              <Text className="text-white text-sm">撤销请假</Text>
-                            </View>
-                          </Button>
-                        </View>
-                      )}
                     </View>
                   </View>
                 ))
@@ -583,29 +388,29 @@ const DriverLeave: React.FC = () => {
           )}
 
           {/* 离职申请列表 */}
-          {activeTab === 'resignation' && (
+          {_activeTab === 'resignation' && (
             <View>
-              {resignationApplications.length === 0 ? (
+              {_resignationApplications.length === 0 ? (
                 <View className="bg-white rounded-lg p-8 text-center shadow">
                   <View className="i-mdi-account-remove text-6xl text-gray-300 mb-4 mx-auto" />
                   <Text className="text-gray-500 block">暂无离职申请记录</Text>
                 </View>
               ) : (
-                resignationApplications.map((app) => (
+                _resignationApplications.map((app) => (
                   <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
                     <View className="flex items-center justify-between mb-3">
                       <View className="flex items-center">
                         <View className="i-mdi-account-remove text-2xl text-orange-600 mr-2" />
                         <Text className="text-base font-bold text-gray-800">离职申请</Text>
                       </View>
-                      <Text className={`text-sm font-bold ${getStatusColor(app.status)}`}>
-                        {getStatusText(app.status)}
+                      <Text className={`text-sm font-bold ${_getStatusColor(app.status)}`}>
+                        {_getStatusText(app.status)}
                       </Text>
                     </View>
                     <View className="space-y-2">
                       <View>
                         <Text className="text-sm text-gray-600">预计离职日期：</Text>
-                        <Text className="text-sm text-gray-800">{formatDate(app.expected_date)}</Text>
+                        <Text className="text-sm text-gray-800">{_formatDate(app.expected_date)}</Text>
                       </View>
                       <View>
                         <Text className="text-sm text-gray-600">离职原因：</Text>
@@ -618,27 +423,8 @@ const DriverLeave: React.FC = () => {
                         </View>
                       )}
                       <View>
-                        <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
+                        <Text className="text-xs text-gray-400">申请时间：{_formatDate(app.created_at)}</Text>
                       </View>
-                      {app.cancelled_at && (
-                        <View>
-                          <Text className="text-xs text-gray-400">撤销时间：{formatDate(app.cancelled_at)}</Text>
-                        </View>
-                      )}
-
-                      {/* 撤销按钮 - 只有待审批状态的离职申请才显示 */}
-                      {canCancelResignation(app) && (
-                        <View className="mt-3 pt-3 border-t border-gray-200">
-                          <Button
-                            className="bg-orange-500 text-white rounded-lg py-2 active:bg-orange-600 transition-all text-sm"
-                            onClick={() => handleCancelResignation(app.id)}>
-                            <View className="flex items-center justify-center">
-                              <View className="i-mdi-cancel text-lg mr-1" />
-                              <Text className="text-white text-sm">撤销申请</Text>
-                            </View>
-                          </Button>
-                        </View>
-                      )}
                     </View>
                   </View>
                 ))
@@ -647,9 +433,9 @@ const DriverLeave: React.FC = () => {
           )}
 
           {/* 草稿箱 */}
-          {activeTab === 'draft' && (
+          {_activeTab === 'draft' && (
             <View>
-              {leaveDrafts.length === 0 && resignationDrafts.length === 0 ? (
+              {_leaveDrafts.length === 0 && _resignationDrafts.length === 0 ? (
                 <View className="bg-white rounded-lg p-8 text-center shadow">
                   <View className="i-mdi-file-document-outline text-6xl text-gray-300 mb-4 mx-auto" />
                   <Text className="text-gray-500 block">暂无草稿</Text>
@@ -657,17 +443,17 @@ const DriverLeave: React.FC = () => {
               ) : (
                 <View>
                   {/* 请假草稿 */}
-                  {leaveDrafts.length > 0 && (
+                  {_leaveDrafts.length > 0 && (
                     <View className="mb-4">
                       <Text className="text-base font-bold text-gray-800 mb-2 block">请假草稿</Text>
-                      {leaveDrafts.map((draft) => (
+                      {_leaveDrafts.map((draft) => (
                         <View
                           key={draft.id}
                           className="bg-purple-50 rounded-lg p-4 mb-3 shadow border-2 border-purple-200">
                           <View className="flex items-center justify-between mb-3">
                             <View className="flex items-center">
                               <View className="i-mdi-file-document-edit text-2xl text-purple-600 mr-2" />
-                              <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(draft.type)}</Text>
+                              <Text className="text-base font-bold text-gray-800">{_getLeaveTypeText(draft.type)}</Text>
                             </View>
                             <View className="bg-purple-600 px-2 py-1 rounded">
                               <Text className="text-xs text-white">草稿</Text>
@@ -678,8 +464,8 @@ const DriverLeave: React.FC = () => {
                               <View>
                                 <Text className="text-sm text-gray-600">请假时间：</Text>
                                 <Text className="text-sm text-gray-800">
-                                  {formatDate(draft.start_date)} 至 {formatDate(draft.end_date)} （共
-                                  {calculateDays(draft.start_date, draft.end_date)}天）
+                                  {_formatDate(draft.start_date)} 至 {_formatDate(draft.end_date)} （共
+                                  {_calculateDays(draft.start_date, draft.end_date)}天）
                                 </Text>
                               </View>
                             ) : (
@@ -694,7 +480,7 @@ const DriverLeave: React.FC = () => {
                               <Text className="text-sm text-gray-500">请假事由：未填写</Text>
                             )}
                             <View>
-                              <Text className="text-xs text-gray-400">保存时间：{formatDate(draft.created_at)}</Text>
+                              <Text className="text-xs text-gray-400">保存时间：{_formatDate(draft.created_at)}</Text>
                             </View>
                           </View>
                           <View className="flex gap-2">
@@ -707,20 +493,8 @@ const DriverLeave: React.FC = () => {
                                 borderRadius: '6px',
                                 border: 'none'
                               }}
-                              onClick={() => handleEditDraft(draft.id, 'leave')}>
+                              onClick={() => _handleEditDraft(draft.id, 'leave')}>
                               继续编辑
-                            </Button>
-                            <Button
-                              className="text-xs break-keep flex-1"
-                              size="mini"
-                              style={{
-                                backgroundColor: '#10B981',
-                                color: 'white',
-                                borderRadius: '6px',
-                                border: 'none'
-                              }}
-                              onClick={() => handleSubmitDraft(draft.id, 'leave', draft)}>
-                              直接提交
                             </Button>
                             <Button
                               className="text-xs break-keep flex-1"
@@ -731,7 +505,7 @@ const DriverLeave: React.FC = () => {
                                 borderRadius: '6px',
                                 border: 'none'
                               }}
-                              onClick={() => handleDeleteDraft(draft.id, 'leave')}>
+                              onClick={() => _handleDeleteDraft(draft.id, 'leave')}>
                               删除
                             </Button>
                           </View>
@@ -741,10 +515,10 @@ const DriverLeave: React.FC = () => {
                   )}
 
                   {/* 离职草稿 */}
-                  {resignationDrafts.length > 0 && (
+                  {_resignationDrafts.length > 0 && (
                     <View>
                       <Text className="text-base font-bold text-gray-800 mb-2 block">离职草稿</Text>
-                      {resignationDrafts.map((draft) => (
+                      {_resignationDrafts.map((draft) => (
                         <View
                           key={draft.id}
                           className="bg-purple-50 rounded-lg p-4 mb-3 shadow border-2 border-purple-200">
@@ -761,7 +535,7 @@ const DriverLeave: React.FC = () => {
                             {draft.expected_date ? (
                               <View>
                                 <Text className="text-sm text-gray-600">预计离职日期：</Text>
-                                <Text className="text-sm text-gray-800">{formatDate(draft.expected_date)}</Text>
+                                <Text className="text-sm text-gray-800">{_formatDate(draft.expected_date)}</Text>
                               </View>
                             ) : (
                               <Text className="text-sm text-gray-500">预计离职日期：未填写</Text>
@@ -775,7 +549,7 @@ const DriverLeave: React.FC = () => {
                               <Text className="text-sm text-gray-500">离职原因：未填写</Text>
                             )}
                             <View>
-                              <Text className="text-xs text-gray-400">保存时间：{formatDate(draft.created_at)}</Text>
+                              <Text className="text-xs text-gray-400">保存时间：{_formatDate(draft.created_at)}</Text>
                             </View>
                           </View>
                           <View className="flex gap-2">
@@ -788,20 +562,8 @@ const DriverLeave: React.FC = () => {
                                 borderRadius: '6px',
                                 border: 'none'
                               }}
-                              onClick={() => handleEditDraft(draft.id, 'resignation')}>
+                              onClick={() => _handleEditDraft(draft.id, 'resignation')}>
                               继续编辑
-                            </Button>
-                            <Button
-                              className="text-xs break-keep flex-1"
-                              size="mini"
-                              style={{
-                                backgroundColor: '#10B981',
-                                color: 'white',
-                                borderRadius: '6px',
-                                border: 'none'
-                              }}
-                              onClick={() => handleSubmitDraft(draft.id, 'resignation', draft)}>
-                              直接提交
                             </Button>
                             <Button
                               className="text-xs break-keep flex-1"
@@ -812,7 +574,7 @@ const DriverLeave: React.FC = () => {
                                 borderRadius: '6px',
                                 border: 'none'
                               }}
-                              onClick={() => handleDeleteDraft(draft.id, 'resignation')}>
+                              onClick={() => _handleDeleteDraft(draft.id, 'resignation')}>
                               删除
                             </Button>
                           </View>

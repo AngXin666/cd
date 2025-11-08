@@ -16,12 +16,12 @@ import type {LeaveApplication, Profile, ResignationApplication, Warehouse} from 
 const DriverLeaveDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [driverId, setDriverId] = useState<string>('')
-  const [driver, setDriver] = useState<Profile | null>(null)
-  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
-  const [resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
+  const [_driver, setDriver] = useState<Profile | null>(null)
+  const [_leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
+  const [_resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [activeTab, setActiveTab] = useState<'leave' | 'resignation'>('leave')
+  const [_activeTab, _setActiveTab] = useState<'leave' | 'resignation'>('leave')
 
   useEffect(() => {
     // 从路由参数获取司机ID
@@ -74,24 +74,24 @@ const DriverLeaveDetail: React.FC = () => {
   })
 
   // 获取用户姓名
-  const getUserName = (userId: string) => {
+  const _getUserName = (userId: string) => {
     const profile = profiles.find((p) => p.id === userId)
     return profile?.name || profile?.phone || '未知'
   }
 
   // 获取仓库名称
-  const getWarehouseName = (warehouseId: string) => {
+  const _getWarehouseName = (warehouseId: string) => {
     const warehouse = warehouses.find((w) => w.id === warehouseId)
     return warehouse?.name || '未知仓库'
   }
 
   // 格式化日期
-  const formatDate = (dateStr: string) => {
+  const _formatDate = (dateStr: string) => {
     return dateStr.split('T')[0]
   }
 
   // 格式化日期时间
-  const formatDateTime = (dateTimeStr: string) => {
+  const _formatDateTime = (dateTimeStr: string) => {
     const date = new Date(dateTimeStr)
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -102,7 +102,7 @@ const DriverLeaveDetail: React.FC = () => {
   }
 
   // 计算请假天数
-  const calculateLeaveDays = (startDate: string, endDate: string) => {
+  const _calculateLeaveDays = (startDate: string, endDate: string) => {
     const start = new Date(startDate)
     const end = new Date(endDate)
     const diffTime = Math.abs(end.getTime() - start.getTime())
@@ -111,7 +111,7 @@ const DriverLeaveDetail: React.FC = () => {
   }
 
   // 获取请假类型文本
-  const getLeaveTypeText = (type: string) => {
+  const _getLeaveTypeText = (type: string) => {
     switch (type) {
       case 'sick_leave':
         return '病假'
@@ -127,7 +127,7 @@ const DriverLeaveDetail: React.FC = () => {
   }
 
   // 获取状态文本
-  const getStatusText = (status: string) => {
+  const _getStatusText = (status: string) => {
     switch (status) {
       case 'pending':
         return '待审批'
@@ -135,15 +135,14 @@ const DriverLeaveDetail: React.FC = () => {
         return '已通过'
       case 'rejected':
         return '已驳回'
-      case 'cancelled':
-        return '已撤销'
+
       default:
         return status
     }
   }
 
   // 获取状态颜色
-  const getStatusColor = (status: string) => {
+  const _getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
         return 'text-orange-600'
@@ -151,16 +150,15 @@ const DriverLeaveDetail: React.FC = () => {
         return 'text-green-600'
       case 'rejected':
         return 'text-red-600'
-      case 'cancelled':
-        return 'text-gray-600'
+
       default:
         return 'text-gray-600'
     }
   }
 
-  // 渲染审批/撤销记录
-  const renderReviewHistory = (app: LeaveApplication | ResignationApplication) => {
-    const hasHistory = app.reviewer_id || app.review_comment || app.reviewed_at || app.cancelled_by || app.cancelled_at
+  // 渲染审批记录
+  const _renderReviewHistory = (app: LeaveApplication | ResignationApplication) => {
+    const hasHistory = app.reviewer_id || app.review_comment || app.reviewed_at
 
     if (!hasHistory) return null
 
@@ -168,40 +166,24 @@ const DriverLeaveDetail: React.FC = () => {
       <View className="bg-gray-50 rounded-lg p-3 mb-3">
         <View className="flex items-center mb-2">
           <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
-          <Text className="text-sm text-gray-700 font-bold">
-            {app.status === 'cancelled' ? '撤销记录' : '审批记录'}
-          </Text>
+          <Text className="text-sm text-gray-700 font-bold">'审批记录'</Text>
         </View>
         <View className="space-y-2">
-          {app.status === 'cancelled' && app.cancelled_by && (
-            <View className="flex items-center">
-              <Text className="text-xs text-gray-500 w-20">撤销人：</Text>
-              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.cancelled_by)}</Text>
-            </View>
-          )}
-          {app.status === 'cancelled' && app.cancelled_at && (
-            <View className="flex items-center">
-              <Text className="text-xs text-gray-500 w-20">撤销时间：</Text>
-              <Text className="text-xs text-gray-800">{formatDateTime(app.cancelled_at)}</Text>
-            </View>
-          )}
-          {app.reviewer_id && app.status !== 'cancelled' && (
+          {app.reviewer_id && (
             <View className="flex items-center">
               <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewer_id)}</Text>
+              <Text className="text-xs text-gray-800 font-medium">{_getUserName(app.reviewer_id)}</Text>
             </View>
           )}
-          {app.reviewed_at && app.status !== 'cancelled' && (
+          {app.reviewed_at && (
             <View className="flex items-center">
               <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
-              <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
+              <Text className="text-xs text-gray-800">{_formatDateTime(app.reviewed_at)}</Text>
             </View>
           )}
           {app.review_comment && (
             <View>
-              <Text className="text-xs text-gray-500 block mb-1">
-                {app.status === 'cancelled' ? '撤销原因：' : '审批意见：'}
-              </Text>
+              <Text className="text-xs text-gray-500 block mb-1">'审批意见：'</Text>
               <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">{app.review_comment}</Text>
             </View>
           )}
@@ -320,11 +302,11 @@ const DriverLeaveDetail: React.FC = () => {
   }
 
   // 统计数据
-  const totalLeaveDays = leaveApplications
+  const totalLeaveDays = _leaveApplications
     .filter((app) => app.status === 'approved')
-    .reduce((sum, app) => sum + calculateLeaveDays(app.start_date, app.end_date), 0)
-  const pendingLeaveCount = leaveApplications.filter((app) => app.status === 'pending').length
-  const pendingResignationCount = resignationApplications.filter((app) => app.status === 'pending').length
+    .reduce((sum, app) => sum + _calculateLeaveDays(app.start_date, app.end_date), 0)
+  const pendingLeaveCount = _leaveApplications.filter((app) => app.status === 'pending').length
+  const pendingResignationCount = _resignationApplications.filter((app) => app.status === 'pending').length
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -344,7 +326,7 @@ const DriverLeaveDetail: React.FC = () => {
               <View className="i-mdi-account-circle text-5xl text-white mr-4" />
               <View>
                 <Text className="text-white text-2xl font-bold block mb-1">
-                  {driver?.name || driver?.phone || '未知司机'}
+                  {_driver?.name || _driver?.phone || '未知司机'}
                 </Text>
                 <Text className="text-blue-100 text-sm block">司机详细记录</Text>
               </View>
@@ -355,11 +337,11 @@ const DriverLeaveDetail: React.FC = () => {
                 <Text className="text-xs text-blue-100">请假天数</Text>
               </View>
               <View className="text-center">
-                <Text className="text-3xl font-bold text-white block">{leaveApplications.length}</Text>
+                <Text className="text-3xl font-bold text-white block">{_leaveApplications.length}</Text>
                 <Text className="text-xs text-blue-100">请假次数</Text>
               </View>
               <View className="text-center">
-                <Text className="text-3xl font-bold text-white block">{resignationApplications.length}</Text>
+                <Text className="text-3xl font-bold text-white block">{_resignationApplications.length}</Text>
                 <Text className="text-xs text-blue-100">离职申请</Text>
               </View>
             </View>
@@ -383,42 +365,42 @@ const DriverLeaveDetail: React.FC = () => {
           {/* 标签切换 */}
           <View className="flex mb-4 bg-white rounded-lg p-1 shadow">
             <View
-              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'leave' ? 'bg-blue-900' : ''}`}
-              onClick={() => setActiveTab('leave')}>
-              <Text className={`text-sm font-bold ${activeTab === 'leave' ? 'text-white' : 'text-gray-600'}`}>
-                请假申请 ({leaveApplications.length})
+              className={`flex-1 text-center py-3 rounded-lg ${_activeTab === 'leave' ? 'bg-blue-900' : ''}`}
+              onClick={() => _setActiveTab('leave')}>
+              <Text className={`text-sm font-bold ${_activeTab === 'leave' ? 'text-white' : 'text-gray-600'}`}>
+                请假申请 ({_leaveApplications.length})
               </Text>
             </View>
             <View
-              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
-              onClick={() => setActiveTab('resignation')}>
-              <Text className={`text-sm font-bold ${activeTab === 'resignation' ? 'text-white' : 'text-gray-600'}`}>
-                离职申请 ({resignationApplications.length})
+              className={`flex-1 text-center py-3 rounded-lg ${_activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
+              onClick={() => _setActiveTab('resignation')}>
+              <Text className={`text-sm font-bold ${_activeTab === 'resignation' ? 'text-white' : 'text-gray-600'}`}>
+                离职申请 ({_resignationApplications.length})
               </Text>
             </View>
           </View>
 
           {/* 请假申请列表 */}
-          {activeTab === 'leave' && (
+          {_activeTab === 'leave' && (
             <View>
-              {leaveApplications.length === 0 ? (
+              {_leaveApplications.length === 0 ? (
                 <View className="bg-white rounded-lg p-8 text-center shadow">
                   <View className="i-mdi-calendar-blank text-6xl text-gray-300 mb-4 mx-auto" />
                   <Text className="text-gray-500 block">暂无请假申请记录</Text>
                 </View>
               ) : (
-                leaveApplications.map((app) => (
+                _leaveApplications.map((app) => (
                   <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
                     {/* 标题栏 */}
                     <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
                       <View className="flex items-center">
                         <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
-                        <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(app.type)}</Text>
+                        <Text className="text-base font-bold text-gray-800">{_getLeaveTypeText(app.type)}</Text>
                       </View>
                       <View
                         className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <Text className={`text-xs font-bold ${getStatusColor(app.status)}`}>
-                          {getStatusText(app.status)}
+                        <Text className={`text-xs font-bold ${_getStatusColor(app.status)}`}>
+                          {_getStatusText(app.status)}
                         </Text>
                       </View>
                     </View>
@@ -429,7 +411,7 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="i-mdi-warehouse text-lg text-gray-600 mr-2 mt-0.5" />
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">所属仓库</Text>
-                          <Text className="text-sm text-gray-800">{getWarehouseName(app.warehouse_id)}</Text>
+                          <Text className="text-sm text-gray-800">{_getWarehouseName(app.warehouse_id)}</Text>
                         </View>
                       </View>
 
@@ -438,10 +420,10 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">请假时间</Text>
                           <Text className="text-sm text-gray-800 font-medium">
-                            {formatDate(app.start_date)} 至 {formatDate(app.end_date)}
+                            {_formatDate(app.start_date)} 至 {_formatDate(app.end_date)}
                           </Text>
                           <Text className="text-xs text-blue-600 mt-1">
-                            共 {calculateLeaveDays(app.start_date, app.end_date)} 天
+                            共 {_calculateLeaveDays(app.start_date, app.end_date)} 天
                           </Text>
                         </View>
                       </View>
@@ -458,13 +440,13 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="i-mdi-clock-outline text-lg text-gray-600 mr-2 mt-0.5" />
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">申请时间</Text>
-                          <Text className="text-sm text-gray-800">{formatDateTime(app.created_at)}</Text>
+                          <Text className="text-sm text-gray-800">{_formatDateTime(app.created_at)}</Text>
                         </View>
                       </View>
                     </View>
 
-                    {/* 审批/撤销历史区 */}
-                    {renderReviewHistory(app)}
+                    {/* 审批历史区 */}
+                    {_renderReviewHistory(app)}
 
                     {/* 操作按钮 */}
                     {app.status === 'pending' && (
@@ -506,15 +488,15 @@ const DriverLeaveDetail: React.FC = () => {
           )}
 
           {/* 离职申请列表 */}
-          {activeTab === 'resignation' && (
+          {_activeTab === 'resignation' && (
             <View>
-              {resignationApplications.length === 0 ? (
+              {_resignationApplications.length === 0 ? (
                 <View className="bg-white rounded-lg p-8 text-center shadow">
                   <View className="i-mdi-account-remove text-6xl text-gray-300 mb-4 mx-auto" />
                   <Text className="text-gray-500 block">暂无离职申请记录</Text>
                 </View>
               ) : (
-                resignationApplications.map((app) => (
+                _resignationApplications.map((app) => (
                   <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
                     {/* 标题栏 */}
                     <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
@@ -524,8 +506,8 @@ const DriverLeaveDetail: React.FC = () => {
                       </View>
                       <View
                         className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <Text className={`text-xs font-bold ${getStatusColor(app.status)}`}>
-                          {getStatusText(app.status)}
+                        <Text className={`text-xs font-bold ${_getStatusColor(app.status)}`}>
+                          {_getStatusText(app.status)}
                         </Text>
                       </View>
                     </View>
@@ -536,7 +518,7 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="i-mdi-warehouse text-lg text-gray-600 mr-2 mt-0.5" />
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">所属仓库</Text>
-                          <Text className="text-sm text-gray-800">{getWarehouseName(app.warehouse_id)}</Text>
+                          <Text className="text-sm text-gray-800">{_getWarehouseName(app.warehouse_id)}</Text>
                         </View>
                       </View>
 
@@ -544,7 +526,7 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="i-mdi-calendar-check text-lg text-gray-600 mr-2 mt-0.5" />
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">预计离职日期</Text>
-                          <Text className="text-sm text-gray-800 font-medium">{formatDate(app.expected_date)}</Text>
+                          <Text className="text-sm text-gray-800 font-medium">{_formatDate(app.expected_date)}</Text>
                         </View>
                       </View>
 
@@ -560,13 +542,13 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="i-mdi-clock-outline text-lg text-gray-600 mr-2 mt-0.5" />
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">申请时间</Text>
-                          <Text className="text-sm text-gray-800">{formatDateTime(app.created_at)}</Text>
+                          <Text className="text-sm text-gray-800">{_formatDateTime(app.created_at)}</Text>
                         </View>
                       </View>
                     </View>
 
-                    {/* 审批/撤销历史区 */}
-                    {renderReviewHistory(app)}
+                    {/* 审批历史区 */}
+                    {_renderReviewHistory(app)}
 
                     {/* 操作按钮 */}
                     {app.status === 'pending' && (
