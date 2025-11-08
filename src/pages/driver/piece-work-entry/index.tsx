@@ -11,6 +11,7 @@ import {
   updatePieceWorkRecord
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Warehouse} from '@/db/types'
+import {canStartPieceWork} from '@/utils/attendance-check'
 import {
   getLastCategory,
   getLastWarehouse,
@@ -297,6 +298,36 @@ const PieceWorkEntry: React.FC = () => {
         icon: 'none'
       })
       return
+    }
+
+    // 检测是否可以进行计件操作
+    const checkResult = await canStartPieceWork(user.id)
+
+    if (!checkResult.canStart) {
+      // 如果不能计件，显示提示
+      if (checkResult.checkResult.onLeave) {
+        // 在请假中
+        Taro.showToast({
+          title: checkResult.reason || '您今天在休假中，无法进行计件操作',
+          icon: 'none',
+          duration: 2500
+        })
+        return
+      } else if (checkResult.checkResult.needClockIn) {
+        // 未打卡，显示打卡提醒弹窗
+        Taro.showModal({
+          title: '打卡提醒',
+          content: '您今日尚未打卡，是否立即去打卡？',
+          confirmText: '立即打卡',
+          cancelText: '稍后再说',
+          success: (res) => {
+            if (res.confirm) {
+              Taro.navigateTo({url: '/pages/driver/clock-in/index'})
+            }
+          }
+        })
+        return
+      }
     }
 
     if (warehouses.length === 0) {

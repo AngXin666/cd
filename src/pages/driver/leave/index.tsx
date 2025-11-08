@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
+  cancelLeaveApplication,
   deleteDraftLeaveApplication,
   deleteDraftResignationApplication,
   getCurrentUserProfile,
@@ -142,6 +143,8 @@ const DriverLeave: React.FC = () => {
         return '已通过'
       case 'rejected':
         return '已驳回'
+      case 'cancelled':
+        return '已撤销'
       default:
         return status
     }
@@ -155,9 +158,28 @@ const DriverLeave: React.FC = () => {
         return 'text-green-600'
       case 'rejected':
         return 'text-red-600'
+      case 'cancelled':
+        return 'text-gray-600'
       default:
         return 'text-gray-600'
     }
+  }
+
+  // 判断是否可以撤销请假（只有已批准且包含今天的请假可以撤销）
+  const canCancelLeave = (leave: LeaveApplication): boolean => {
+    if (leave.status !== 'approved') return false
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const startDate = new Date(leave.start_date)
+    startDate.setHours(0, 0, 0, 0)
+
+    const endDate = new Date(leave.end_date)
+    endDate.setHours(23, 59, 59, 999)
+
+    // 只有包含今天的请假才能撤销
+    return today >= startDate && today <= endDate
   }
 
   const getLeaveTypeText = (type: string) => {
@@ -208,6 +230,30 @@ const DriverLeave: React.FC = () => {
         loadData()
       } else {
         showToast({title: '删除失败', icon: 'none'})
+      }
+    }
+  }
+
+  // 撤销已批准的请假
+  const handleCancelLeave = async (leaveId: string) => {
+    if (!user) return
+
+    const result = await showModal({
+      title: '确认撤销',
+      content: '确定要撤销这个已批准的请假吗？撤销后您将恢复正常工作状态，需要打卡。',
+      confirmText: '确认撤销',
+      cancelText: '取消'
+    })
+
+    if (result.confirm) {
+      const success = await cancelLeaveApplication(leaveId, user.id)
+
+      if (success) {
+        showToast({title: '撤销成功', icon: 'success', duration: 2000})
+        // 刷新数据
+        loadData()
+      } else {
+        showToast({title: '撤销失败，请稍后重试', icon: 'none', duration: 2000})
       }
     }
   }
@@ -427,6 +473,20 @@ const DriverLeave: React.FC = () => {
                       <View>
                         <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
                       </View>
+
+                      {/* 撤销按钮 - 只有已批准且包含今天的请假才显示 */}
+                      {canCancelLeave(app) && (
+                        <View className="mt-3 pt-3 border-t border-gray-200">
+                          <Button
+                            className="bg-orange-500 text-white rounded-lg py-2 active:bg-orange-600 transition-all text-sm"
+                            onClick={() => handleCancelLeave(app.id)}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-cancel text-lg mr-1" />
+                              <Text className="text-white text-sm">撤销请假</Text>
+                            </View>
+                          </Button>
+                        </View>
+                      )}
                     </View>
                   </View>
                 ))

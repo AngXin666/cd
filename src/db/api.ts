@@ -2725,3 +2725,87 @@ export async function getUserById(userId: string): Promise<Profile | null> {
     return null
   }
 }
+
+/**
+ * 获取用户当日已批准的请假记录
+ * @param userId 用户ID
+ * @returns 请假记录，如果没有则返回null
+ */
+export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApplication | null> {
+  try {
+    const today = getLocalDateString()
+
+    const {data, error} = await supabase
+      .from('leave_applications')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'approved')
+      .lte('start_date', today)
+      .gte('end_date', today)
+      .order('created_at', {ascending: false})
+      .maybeSingle()
+
+    if (error) {
+      console.error('[getApprovedLeaveForToday] 查询失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('[getApprovedLeaveForToday] 未预期的错误:', error)
+    return null
+  }
+}
+
+/**
+ * 撤销请假申请
+ * @param leaveId 请假记录ID
+ * @param userId 用户ID（用于权限验证）
+ * @returns 是否成功
+ */
+export async function cancelLeaveApplication(leaveId: string, userId: string): Promise<boolean> {
+  try {
+    // 先检查请假记录是否属于该用户
+    const {data: leave, error: fetchError} = await supabase
+      .from('leave_applications')
+      .select('*')
+      .eq('id', leaveId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (fetchError) {
+      console.error('[cancelLeaveApplication] 查询请假记录失败:', fetchError)
+      return false
+    }
+
+    if (!leave) {
+      console.error('[cancelLeaveApplication] 请假记录不存在或无权限')
+      return false
+    }
+
+    // 只能撤销已批准的请假
+    if (leave.status !== 'approved') {
+      console.error('[cancelLeaveApplication] 只能撤销已批准的请假')
+      return false
+    }
+
+    // 更新状态为已撤销
+    const {error: updateError} = await supabase
+      .from('leave_applications')
+      .update({
+        status: 'cancelled',
+        review_comment: '司机主动撤销'
+      })
+      .eq('id', leaveId)
+
+    if (updateError) {
+      console.error('[cancelLeaveApplication] 更新失败:', updateError)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('[cancelLeaveApplication] 未预期的错误:', error)
+    return false
+  }
+}

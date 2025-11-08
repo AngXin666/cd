@@ -3,9 +3,12 @@ import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@taro
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
+import {ClockInReminderModal} from '@/components/attendance'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
 import {useDriverDashboard, useDriverWarehouses} from '@/hooks'
+import type {AttendanceCheckResult} from '@/utils/attendance-check'
+import {checkTodayAttendance} from '@/utils/attendance-check'
 
 const DriverHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
@@ -13,6 +16,11 @@ const DriverHome: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 打卡检测相关状态
+  const [showClockInReminder, setShowClockInReminder] = useState(false)
+  const [attendanceCheck, setAttendanceCheck] = useState<AttendanceCheckResult | null>(null)
+  const hasCheckedToday = useRef(false) // 标记今天是否已检测过
 
   // 加载用户资料
   const loadProfile = useCallback(async () => {
@@ -28,6 +36,32 @@ const DriverHome: React.FC = () => {
       })
     }
   }, [])
+
+  // 检测打卡状态
+  const checkAttendance = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const result = await checkTodayAttendance(user.id)
+      setAttendanceCheck(result)
+
+      // 获取今天的日期字符串
+      const today = new Date().toLocaleDateString('zh-CN')
+
+      // 检查是否今天已经检测过
+      const lastCheckDate = localStorage.getItem('lastAttendanceCheckDate')
+
+      // 如果今天还没检测过，且需要打卡，则显示提醒
+      if (lastCheckDate !== today && result.needClockIn) {
+        setShowClockInReminder(true)
+        // 记录今天已检测过
+        localStorage.setItem('lastAttendanceCheckDate', today)
+        hasCheckedToday.current = true
+      }
+    } catch (error) {
+      console.error('[DriverHome] 检测打卡状态失败:', error)
+    }
+  }, [user])
 
   // 使用仓库列表管理 Hook
   const {warehouses, loading: warehousesLoading} = useDriverWarehouses(user?.id || '', true)
@@ -78,14 +112,18 @@ const DriverHome: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadProfile()
+      // 首次登录时检测打卡状态
+      checkAttendance()
     }
-  }, [user, loadProfile])
+  }, [user, loadProfile, checkAttendance])
 
   // 页面显示时刷新数据
   useDidShow(() => {
     if (user) {
       loadProfile()
       refreshStats()
+      // 每次页面显示时都检测打卡状态（但不会重复弹窗）
+      checkAttendance()
     }
   })
 
@@ -142,6 +180,17 @@ const DriverHome: React.FC = () => {
     })
   }
 
+  // 处理打卡提醒弹窗 - 点击"立即打卡"
+  const handleClockInConfirm = () => {
+    setShowClockInReminder(false)
+    navigateTo({url: '/pages/driver/clock-in/index'})
+  }
+
+  // 处理打卡提醒弹窗 - 点击"稍后再说"
+  const handleClockInCancel = () => {
+    setShowClockInReminder(false)
+  }
+
   // 初始加载状态：当用户信息还未加载时显示加载界面
   if (!user) {
     return (
@@ -182,8 +231,26 @@ const DriverHome: React.FC = () => {
         <View className="p-4">
           {/* 欢迎卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">司机工作台</Text>
-            <Text className="text-blue-100 text-sm block">欢迎回来，{profile?.name || profile?.phone || '司机'}</Text>
+            <View className="flex items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-white text-2xl font-bold block mb-2">司机工作台</Text>
+                <Text className="text-blue-100 text-sm block">
+                  欢迎回来，{profile?.name || profile?.phone || '司机'}
+                </Text>
+              </View>
+              {/* 请假状态提示 */}
+              {attendanceCheck?.onLeave && (
+                <View className="bg-orange-500 rounded-lg px-4 py-2 ml-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-beach text-2xl text-white mr-2" />
+                    <View>
+                      <Text className="text-white text-sm font-bold block">今天您休息</Text>
+                      <Text className="text-orange-100 text-xs block">无需打卡</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* 数据统计仪表盘 */}
@@ -391,6 +458,14 @@ const DriverHome: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* 打卡提醒弹窗 */}
+      <ClockInReminderModal
+        visible={showClockInReminder}
+        onClose={handleClockInCancel}
+        onConfirm={handleClockInConfirm}
+        message="您今日尚未打卡，是否立即去打卡？"
+      />
     </View>
   )
 }

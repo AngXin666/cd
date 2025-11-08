@@ -11,6 +11,7 @@ import {
   updateClockOut
 } from '@/db/api'
 import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
+import {canClockIn} from '@/utils/attendance-check'
 
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -20,6 +21,7 @@ const ClockIn: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('')
   const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
+  const [isOnLeave, setIsOnLeave] = useState(false) // 是否在请假中
 
   // 更新当前时间
   useEffect(() => {
@@ -47,6 +49,10 @@ const ClockIn: React.FC = () => {
     if (record?.warehouse_id) {
       setSelectedWarehouseId(record.warehouse_id)
     }
+
+    // 检测是否在请假中
+    const checkResult = await canClockIn(user.id)
+    setIsOnLeave(checkResult.checkResult.onLeave)
   }, [user?.id])
 
   // 加载当前选中仓库的规则
@@ -400,6 +406,17 @@ const ClockIn: React.FC = () => {
 
   // 获取按钮文本和状态
   const getButtonInfo = () => {
+    // 如果在请假中，禁用打卡按钮
+    if (isOnLeave) {
+      return {
+        text: '今日休假，无需打卡',
+        icon: 'i-mdi-beach',
+        disabled: true,
+        bgColor: 'bg-gradient-to-br from-orange-400 to-orange-500',
+        disabledBgColor: 'bg-gray-300'
+      }
+    }
+
     if (!hasClockIn) {
       return {
         text: '上班打卡',
