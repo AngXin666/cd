@@ -175,6 +175,11 @@ const DriverLeave: React.FC = () => {
    * 3. 时效性：假期结束日期之前都可以撤销（包括假期当天）
    */
   const canCancelLeave = (leave: LeaveApplication): boolean => {
+    // 已撤销、已拒绝的申请不能再撤销
+    if (leave.status === 'cancelled' || leave.status === 'rejected') {
+      return false
+    }
+
     // 只能撤销待审批或已批准的请假
     if (leave.status !== 'pending' && leave.status !== 'approved') {
       return false
@@ -193,6 +198,11 @@ const DriverLeave: React.FC = () => {
 
   // 判断是否可以撤销离职申请（只有待审批状态的离职申请可以撤销）
   const canCancelResignation = (resignation: ResignationApplication): boolean => {
+    // 已撤销、已拒绝、已批准的申请不能再撤销
+    if (resignation.status === 'cancelled' || resignation.status === 'rejected' || resignation.status === 'approved') {
+      return false
+    }
+
     return resignation.status === 'pending'
   }
 
