@@ -166,21 +166,29 @@ const DriverLeave: React.FC = () => {
     }
   }
 
-  // 判断是否可以撤销请假（只有已批准且包含今天的请假可以撤销）
+  /**
+   * 判断是否可以撤销请假
+   *
+   * 撤销规则：
+   * 1. 可撤销状态：待审批(pending)、已批准(approved)
+   * 2. 不可撤销：已驳回(rejected)、已撤销(cancelled)、假期已完全过去
+   * 3. 时效性：假期结束日期之前都可以撤销（包括假期当天）
+   */
   const canCancelLeave = (leave: LeaveApplication): boolean => {
-    if (leave.status !== 'approved') return false
+    // 只能撤销待审批或已批准的请假
+    if (leave.status !== 'pending' && leave.status !== 'approved') {
+      return false
+    }
 
+    // 检查假期是否已完全过去
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-
-    const startDate = new Date(leave.start_date)
-    startDate.setHours(0, 0, 0, 0)
 
     const endDate = new Date(leave.end_date)
     endDate.setHours(23, 59, 59, 999)
 
-    // 只有包含今天的请假才能撤销
-    return today >= startDate && today <= endDate
+    // 假期结束日期之前都可以撤销（包括假期当天）
+    return today <= endDate
   }
 
   // 判断是否可以撤销离职申请（只有待审批状态的离职申请可以撤销）
@@ -240,13 +248,44 @@ const DriverLeave: React.FC = () => {
     }
   }
 
-  // 撤销已批准的请假
+  /**
+   * 撤销请假申请
+   *
+   * 撤销规则：
+   * 1. 可撤销状态：待审批(pending)、已批准(approved)
+   * 2. 不可撤销：已驳回(rejected)、已撤销(cancelled)、假期已完全过去
+   * 3. 时效性：假期结束日期之前都可以撤销（包括假期当天）
+   * 4. 已批准的请假需要强化提示
+   */
   const handleCancelLeave = async (leaveId: string) => {
     if (!user) return
 
+    // 查找请假记录
+    const leave = leaveApplications.find((l) => l.id === leaveId)
+    if (!leave) {
+      showToast({title: '请假记录不存在', icon: 'none'})
+      return
+    }
+
+    // 计算请假天数
+    const days = calculateDays(leave.start_date, leave.end_date)
+
+    // 根据状态显示不同的提示信息
+    let title = '确认撤销'
+    let content = ''
+
+    if (leave.status === 'approved') {
+      // 已批准的请假需要强化提示
+      title = '⚠️ 撤销已批准的请假'
+      content = `您确定要撤销本次从 ${formatDate(leave.start_date)} 到 ${formatDate(leave.end_date)} 的共 ${days} 天请假申请吗？\n\n⚠️ 此请假已经批准，撤销后您将恢复正常工作状态，需要打卡。如需请假请重新提交。`
+    } else if (leave.status === 'pending') {
+      // 待审批的请假
+      content = `您确定要撤销本次从 ${formatDate(leave.start_date)} 到 ${formatDate(leave.end_date)} 的共 ${days} 天请假申请吗？\n\n撤销后，请假记录将更新为"已撤销"状态。如需请假请重新提交。`
+    }
+
     const result = await showModal({
-      title: '确认撤销',
-      content: '确定要撤销这个已批准的请假吗？撤销后您将恢复正常工作状态，需要打卡。',
+      title,
+      content,
       confirmText: '确认撤销',
       cancelText: '取消'
     })
@@ -259,7 +298,11 @@ const DriverLeave: React.FC = () => {
         // 刷新数据
         loadData()
       } else {
-        showToast({title: '撤销失败，请稍后重试', icon: 'none', duration: 2000})
+        showToast({
+          title: '撤销失败，假期已完全过去或状态不允许撤销',
+          icon: 'none',
+          duration: 2500
+        })
       }
     }
   }
@@ -504,7 +547,7 @@ const DriverLeave: React.FC = () => {
                         <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
                       </View>
 
-                      {/* 撤销按钮 - 只有已批准且包含今天的请假才显示 */}
+                      {/* 撤销按钮 - 待审批或已批准且假期未完全过去的请假可以撤销 */}
                       {canCancelLeave(app) && (
                         <View className="mt-3 pt-3 border-t border-gray-200">
                           <Button

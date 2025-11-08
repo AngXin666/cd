@@ -2759,6 +2759,12 @@ export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApp
 
 /**
  * 撤销请假申请
+ *
+ * 撤销规则：
+ * 1. 可撤销状态：待审批(pending)、已批准(approved)
+ * 2. 不可撤销：已驳回(rejected)、已撤销(cancelled)、假期已完全过去
+ * 3. 时效性：假期结束日期之前都可以撤销（包括假期当天）
+ *
  * @param leaveId 请假记录ID
  * @param userId 用户ID（用于权限验证）
  * @returns 是否成功
@@ -2783,9 +2789,22 @@ export async function cancelLeaveApplication(leaveId: string, userId: string): P
       return false
     }
 
-    // 只能撤销已批准的请假
-    if (leave.status !== 'approved') {
-      console.error('[cancelLeaveApplication] 只能撤销已批准的请假')
+    // 只能撤销待审批或已批准的请假
+    if (leave.status !== 'pending' && leave.status !== 'approved') {
+      console.error('[cancelLeaveApplication] 只能撤销待审批或已批准的请假')
+      return false
+    }
+
+    // 检查假期是否已完全过去
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const endDate = new Date(leave.end_date)
+    endDate.setHours(23, 59, 59, 999)
+
+    // 如果假期已完全过去，不能撤销
+    if (today > endDate) {
+      console.error('[cancelLeaveApplication] 假期已完全过去，不能撤销')
       return false
     }
 
