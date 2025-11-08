@@ -1,5 +1,5 @@
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
+import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
@@ -88,6 +88,18 @@ const ManagerHome: React.FC = () => {
         refreshDashboard()
       }
     }
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    if (user) {
+      await loadProfile()
+      await refreshWarehouses()
+      if (currentWarehouseId) {
+        await refreshDashboard()
+      }
+    }
+    Taro.stopPullDownRefresh()
   })
 
   // 处理仓库切换
