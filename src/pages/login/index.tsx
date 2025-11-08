@@ -21,9 +21,20 @@ const Login: React.FC = () => {
     }
   }
 
+  // 验证手机号格式
+  const validatePhone = (phone: string): boolean => {
+    return /^1[3-9]\d{9}$/.test(phone)
+  }
+
   const handleSendOtp = async () => {
     if (!account) {
       showToast({title: '请输入手机号', icon: 'none'})
+      return
+    }
+
+    // 验证手机号格式
+    if (!validatePhone(account)) {
+      showToast({title: '请输入正确的11位手机号', icon: 'none'})
       return
     }
 
@@ -66,6 +77,12 @@ const Login: React.FC = () => {
       return
     }
 
+    // 验证手机号格式
+    if (!validatePhone(account)) {
+      showToast({title: '请输入正确的11位手机号', icon: 'none'})
+      return
+    }
+
     setLoading(true)
     try {
       const {error} = await supabase.auth.verifyOtp({
@@ -75,7 +92,7 @@ const Login: React.FC = () => {
       })
 
       if (error) {
-        showToast({title: error.message || '登录失败', icon: 'none'})
+        showToast({title: error.message || '登录失败，请检查验证码', icon: 'none'})
       } else {
         showToast({title: '登录成功', icon: 'success'})
         await handleLoginSuccess()
@@ -95,13 +112,13 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      // 判断输入的是账号名还是手机号
-      const isPhoneNumber = /^1[3-9]\d{9}$/.test(account)
+      // 判断输入的是手机号还是账号名
+      const isPhoneNumber = validatePhone(account)
 
       let error
 
       if (isPhoneNumber) {
-        // 如果是手机号格式，使用 phone 登录
+        // 如果是手机号格式，直接使用手机号登录
         const result = await supabase.auth.signInWithPassword({
           phone: account,
           password
@@ -118,13 +135,17 @@ const Login: React.FC = () => {
       }
 
       if (error) {
-        showToast({title: '登录失败，请检查账号密码', icon: 'none'})
+        if (error.message.includes('Invalid login credentials')) {
+          showToast({title: '账号或密码错误', icon: 'none', duration: 2000})
+        } else {
+          showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
+        }
       } else {
         showToast({title: '登录成功', icon: 'success'})
         await handleLoginSuccess()
       }
     } catch (_err) {
-      showToast({title: '登录失败', icon: 'none'})
+      showToast({title: '登录失败，请稍后重试', icon: 'none'})
     } finally {
       setLoading(false)
     }
@@ -168,12 +189,19 @@ const Login: React.FC = () => {
               <View className="i-mdi-account text-xl text-gray-400 mr-3" />
               <Input
                 className="flex-1 text-sm"
-                type="text"
-                placeholder="请输入手机号或账号"
+                type={loginType === 'otp' ? 'number' : 'text'}
+                maxlength={loginType === 'otp' ? 11 : 50}
+                placeholder={loginType === 'otp' ? '请输入11位手机号' : '请输入手机号或账号'}
                 value={account}
                 onInput={(e) => setAccount(e.detail.value)}
               />
             </View>
+            {/* 输入提示 */}
+            {loginType === 'password' && (
+              <View className="mt-1 px-1">
+                <Text className="text-xs text-gray-500">支持：11位手机号、账号名</Text>
+              </View>
+            )}
           </View>
 
           {/* 密码登录 */}
@@ -200,8 +228,9 @@ const Login: React.FC = () => {
                 <View className="i-mdi-message-text text-xl text-gray-400 mr-3" />
                 <Input
                   className="flex-1 text-sm"
-                  type="text"
-                  placeholder="请输入验证码"
+                  type="number"
+                  maxlength={6}
+                  placeholder="请输入6位验证码"
                   value={otp}
                   onInput={(e) => setOtp(e.detail.value)}
                 />
@@ -241,15 +270,31 @@ const Login: React.FC = () => {
         {/* 测试账号提示 */}
         <View className="mt-8">
           <View className="bg-white bg-opacity-10 rounded-lg p-4">
-            <Text className="text-xs text-white block mb-2 font-bold">测试账号：</Text>
+            <Text className="text-xs text-white block mb-3 font-bold">测试账号：</Text>
             <View className="mb-2">
               <Text className="text-xs text-blue-100 block">司机账号：admin1 / 123456</Text>
             </View>
             <View className="mb-2">
               <Text className="text-xs text-blue-100 block">管理员账号：admin2 / 123456</Text>
             </View>
-            <View>
+            <View className="mb-3">
               <Text className="text-xs text-blue-100 block">超级管理员：admin / 123456</Text>
+            </View>
+            <View className="pt-3 border-t border-white border-opacity-20">
+              <Text className="text-xs text-blue-100 block">手机号登录：15766121960 / 123456</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 功能说明 */}
+        <View className="mt-4">
+          <View className="bg-white bg-opacity-10 rounded-lg p-4">
+            <Text className="text-xs text-white block mb-2 font-bold">登录方式说明：</Text>
+            <View className="mb-1">
+              <Text className="text-xs text-blue-100 block">• 密码登录：支持手机号或账号名 + 密码</Text>
+            </View>
+            <View>
+              <Text className="text-xs text-blue-100 block">• 验证码登录：仅支持手机号 + 验证码</Text>
             </View>
           </View>
         </View>
