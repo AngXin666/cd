@@ -5,6 +5,7 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   cancelLeaveApplication,
+  cancelResignationApplication,
   deleteDraftLeaveApplication,
   deleteDraftResignationApplication,
   getCurrentUserProfile,
@@ -182,6 +183,11 @@ const DriverLeave: React.FC = () => {
     return today >= startDate && today <= endDate
   }
 
+  // 判断是否可以撤销离职申请（只有待审批状态的离职申请可以撤销）
+  const canCancelResignation = (resignation: ResignationApplication): boolean => {
+    return resignation.status === 'pending'
+  }
+
   const getLeaveTypeText = (type: string) => {
     switch (type) {
       case 'sick_leave':
@@ -254,6 +260,30 @@ const DriverLeave: React.FC = () => {
         loadData()
       } else {
         showToast({title: '撤销失败，请稍后重试', icon: 'none', duration: 2000})
+      }
+    }
+  }
+
+  // 撤销待审批的离职申请
+  const handleCancelResignation = async (resignationId: string) => {
+    if (!user) return
+
+    const result = await showModal({
+      title: '确认撤销',
+      content: '确定要撤销这个离职申请吗？撤销后您可以继续正常工作。',
+      confirmText: '确认撤销',
+      cancelText: '取消'
+    })
+
+    if (result.confirm) {
+      const success = await cancelResignationApplication(resignationId, user.id)
+
+      if (success) {
+        showToast({title: '撤销成功', icon: 'success', duration: 2000})
+        // 刷新数据
+        loadData()
+      } else {
+        showToast({title: '撤销失败，只能撤销待审批状态的申请', icon: 'none', duration: 2500})
       }
     }
   }
@@ -532,6 +562,20 @@ const DriverLeave: React.FC = () => {
                       <View>
                         <Text className="text-xs text-gray-400">申请时间：{formatDate(app.created_at)}</Text>
                       </View>
+
+                      {/* 撤销按钮 - 只有待审批状态的离职申请才显示 */}
+                      {canCancelResignation(app) && (
+                        <View className="mt-3 pt-3 border-t border-gray-200">
+                          <Button
+                            className="bg-orange-500 text-white rounded-lg py-2 active:bg-orange-600 transition-all text-sm"
+                            onClick={() => handleCancelResignation(app.id)}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-cancel text-lg mr-1" />
+                              <Text className="text-white text-sm">撤销申请</Text>
+                            </View>
+                          </Button>
+                        </View>
+                      )}
                     </View>
                   </View>
                 ))

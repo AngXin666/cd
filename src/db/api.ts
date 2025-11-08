@@ -2809,3 +2809,54 @@ export async function cancelLeaveApplication(leaveId: string, userId: string): P
     return false
   }
 }
+
+/**
+ * 撤销离职申请
+ * 只能撤销待审批状态的离职申请
+ */
+export async function cancelResignationApplication(resignationId: string, userId: string): Promise<boolean> {
+  try {
+    // 先检查离职申请是否属于该用户
+    const {data: resignation, error: fetchError} = await supabase
+      .from('resignation_applications')
+      .select('*')
+      .eq('id', resignationId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (fetchError) {
+      console.error('[cancelResignationApplication] 查询离职申请失败:', fetchError)
+      return false
+    }
+
+    if (!resignation) {
+      console.error('[cancelResignationApplication] 离职申请不存在或无权限')
+      return false
+    }
+
+    // 只能撤销待审批状态的离职申请
+    if (resignation.status !== 'pending') {
+      console.error('[cancelResignationApplication] 只能撤销待审批状态的离职申请')
+      return false
+    }
+
+    // 更新状态为已撤销
+    const {error: updateError} = await supabase
+      .from('resignation_applications')
+      .update({
+        status: 'cancelled',
+        review_comment: '司机主动撤销'
+      })
+      .eq('id', resignationId)
+
+    if (updateError) {
+      console.error('[cancelResignationApplication] 更新失败:', updateError)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('[cancelResignationApplication] 未预期的错误:', error)
+    return false
+  }
+}
