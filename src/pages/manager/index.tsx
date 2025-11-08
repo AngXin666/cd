@@ -2,7 +2,7 @@ import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
 import {useDashboardData, useWarehousesData} from '@/hooks'
@@ -11,6 +11,8 @@ const ManagerHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
+  const [loadTimeout, setLoadTimeout] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 使用仓库数据管理 Hook
   const {
@@ -38,22 +40,53 @@ const ManagerHome: React.FC = () => {
 
   // 加载用户资料
   const loadProfile = useCallback(async () => {
-    const profileData = await getCurrentUserProfile()
-    setProfile(profileData)
+    try {
+      const profileData = await getCurrentUserProfile()
+      setProfile(profileData)
+    } catch (error) {
+      console.error('[ManagerHome] 加载用户资料失败:', error)
+      Taro.showToast({
+        title: '加载用户资料失败',
+        icon: 'none',
+        duration: 2000
+      })
+    }
   }, [])
 
+  // 设置加载超时（8秒）
   useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
+    if (!user) return
+
+    timeoutRef.current = setTimeout(() => {
+      if (!profile) {
+        console.error('[ManagerHome] 加载超时')
+        setLoadTimeout(true)
+      }
+    }, 8000)
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [user, profile])
+
+  useEffect(() => {
+    if (user) {
+      loadProfile()
+    }
+  }, [user, loadProfile])
 
   // 页面显示时刷新数据
   useDidShow(() => {
-    loadProfile()
-    // 刷新仓库列表（使用缓存）
-    refreshWarehouses()
-    // 刷新当前仓库的仪表板数据（使用缓存）
-    if (currentWarehouseId) {
-      refreshDashboard()
+    if (user) {
+      loadProfile()
+      // 刷新仓库列表（使用缓存）
+      refreshWarehouses()
+      // 刷新当前仓库的仪表板数据（使用缓存）
+      if (currentWarehouseId) {
+        refreshDashboard()
+      }
     }
   })
 
@@ -114,9 +147,31 @@ const ManagerHome: React.FC = () => {
   if (!user) {
     return (
       <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
-        <View className="text-center">
+        <View className="text-center px-8">
           <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
-          <Text className="text-gray-600 block">加载用户信息中...</Text>
+          <Text className="text-gray-600 block mb-2">加载用户信息中...</Text>
+          <Text className="text-gray-400 text-xs block">请稍候...</Text>
+        </View>
+      </View>
+    )
+  }
+
+  // 加载超时提示
+  if (loadTimeout) {
+    return (
+      <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
+        <View className="text-center px-8">
+          <View className="i-mdi-alert-circle text-6xl text-orange-600 mb-4" />
+          <Text className="text-gray-800 text-lg block mb-2">加载超时</Text>
+          <Text className="text-gray-600 text-sm block mb-4">数据加载时间过长，请检查网络连接</Text>
+          <View
+            className="bg-blue-900 text-white px-6 py-3 rounded-lg active:bg-blue-800"
+            onClick={() => {
+              setLoadTimeout(false)
+              loadProfile()
+            }}>
+            <Text className="text-white">重试</Text>
+          </View>
         </View>
       </View>
     )

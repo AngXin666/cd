@@ -2,7 +2,7 @@ import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {getAllProfiles, getAllWarehouses, getCurrentUserProfile} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 import {useSuperAdminDashboard} from '@/hooks'
@@ -13,6 +13,8 @@ const SuperAdminHome: React.FC = () => {
   const [allUsers, setAllUsers] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
+  const [loadTimeout, setLoadTimeout] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 获取当前选中的仓库ID（index 0 表示所有仓库，不传warehouseId）
   const currentWarehouseId = currentWarehouseIndex === 0 ? undefined : warehouses[currentWarehouseIndex - 1]?.id
@@ -30,30 +32,65 @@ const SuperAdminHome: React.FC = () => {
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
-    const warehousesData = await getAllWarehouses()
-    setWarehouses(warehousesData)
+    try {
+      const warehousesData = await getAllWarehouses()
+      setWarehouses(warehousesData)
+    } catch (error) {
+      console.error('[SuperAdminHome] 加载仓库列表失败:', error)
+    }
   }, [])
 
   // 加载个人信息和用户列表
   const loadData = useCallback(async () => {
-    const profileData = await getCurrentUserProfile()
-    setProfile(profileData)
+    try {
+      const profileData = await getCurrentUserProfile()
+      setProfile(profileData)
 
-    const usersData = await getAllProfiles()
-    setAllUsers(usersData)
+      const usersData = await getAllProfiles()
+      setAllUsers(usersData)
+    } catch (error) {
+      console.error('[SuperAdminHome] 加载数据失败:', error)
+      Taro.showToast({
+        title: '加载数据失败',
+        icon: 'none',
+        duration: 2000
+      })
+    }
   }, [])
+
+  // 设置加载超时（8秒）
+  useEffect(() => {
+    if (!user) return
+
+    timeoutRef.current = setTimeout(() => {
+      if (!profile) {
+        console.error('[SuperAdminHome] 加载超时')
+        setLoadTimeout(true)
+      }
+    }, 8000)
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [user, profile])
 
   // 初始加载
   useEffect(() => {
-    loadData()
-    loadWarehouses()
-  }, [loadData, loadWarehouses])
+    if (user) {
+      loadData()
+      loadWarehouses()
+    }
+  }, [user, loadData, loadWarehouses])
 
   // 页面显示时刷新数据
   useDidShow(() => {
-    loadData()
-    loadWarehouses()
-    refreshDashboard()
+    if (user) {
+      loadData()
+      loadWarehouses()
+      refreshDashboard()
+    }
   })
 
   // 处理仓库切换
@@ -133,9 +170,31 @@ const SuperAdminHome: React.FC = () => {
   if (!user) {
     return (
       <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
-        <View className="text-center">
+        <View className="text-center px-8">
           <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
-          <Text className="text-gray-600 block">加载用户信息中...</Text>
+          <Text className="text-gray-600 block mb-2">加载用户信息中...</Text>
+          <Text className="text-gray-400 text-xs block">请稍候...</Text>
+        </View>
+      </View>
+    )
+  }
+
+  // 加载超时提示
+  if (loadTimeout) {
+    return (
+      <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
+        <View className="text-center px-8">
+          <View className="i-mdi-alert-circle text-6xl text-orange-600 mb-4" />
+          <Text className="text-gray-800 text-lg block mb-2">加载超时</Text>
+          <Text className="text-gray-600 text-sm block mb-4">数据加载时间过长，请检查网络连接</Text>
+          <View
+            className="bg-blue-900 text-white px-6 py-3 rounded-lg active:bg-blue-800"
+            onClick={() => {
+              setLoadTimeout(false)
+              loadData()
+            }}>
+            <Text className="text-white">重试</Text>
+          </View>
         </View>
       </View>
     )

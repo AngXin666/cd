@@ -1,5 +1,5 @@
-import {View} from '@tarojs/components'
-import {reLaunch, switchTab} from '@tarojs/taro'
+import {Text, View} from '@tarojs/components'
+import Taro, {reLaunch, switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
@@ -7,34 +7,110 @@ import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
 
 const IndexPage: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user, isAuthenticated} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [loadingStatus, setLoadingStatus] = useState<string>('正在验证身份...')
+  const [error, setError] = useState<string | null>(null)
   const hasRedirected = useRef(false) // 防止重复跳转
+  const loadAttempts = useRef(0) // 加载尝试次数
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const loadProfile = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      setLoadingStatus('等待用户认证...')
+      return
+    }
+
+    // 限制重试次数
+    if (loadAttempts.current >= 3) {
+      console.error('加载用户档案失败：超过最大重试次数')
+      setError('加载失败，请重新登录')
+      setTimeout(() => {
+        if (!hasRedirected.current) {
+          hasRedirected.current = true
+          Taro.reLaunch({url: '/pages/login/index'})
+        }
+      }, 2000)
+      return
+    }
+
+    loadAttempts.current += 1
+    setLoadingStatus(`正在加载用户信息... (${loadAttempts.current}/3)`)
+
     try {
+      console.log('[IndexPage] 开始加载用户档案，用户ID:', user.id)
       const data = await getCurrentUserProfile()
-      setProfile(data)
-    } catch (error) {
-      console.error('加载用户档案失败:', error)
-      // 如果加载失败，跳转到个人中心
-      if (!hasRedirected.current) {
-        hasRedirected.current = true
-        switchTab({url: '/pages/profile/index'})
+
+      if (!data) {
+        console.error('[IndexPage] 用户档案不存在')
+        setError('用户档案不存在，请联系管理员')
+        setTimeout(() => {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true
+            switchTab({url: '/pages/profile/index'})
+          }
+        }, 2000)
+        return
       }
+
+      console.log('[IndexPage] 用户档案加载成功，角色:', data.role)
+      setProfile(data)
+      setError(null)
+    } catch (error) {
+      console.error('[IndexPage] 加载用户档案失败:', error)
+      setError('加载失败，正在重试...')
+
+      // 重试
+      setTimeout(() => {
+        loadProfile()
+      }, 1000)
     }
   }, [user])
 
+  // 设置超时处理
   useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
+    // 10秒超时
+    timeoutRef.current = setTimeout(() => {
+      if (!profile && !hasRedirected.current) {
+        console.error('[IndexPage] 加载超时')
+        setError('加载超时，请重新登录')
+        setTimeout(() => {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true
+            Taro.reLaunch({url: '/pages/login/index'})
+          }
+        }, 2000)
+      }
+    }, 10000)
 
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [profile])
+
+  // 加载用户档案
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadProfile()
+    }
+  }, [isAuthenticated, user, loadProfile])
+
+  // 根据角色跳转
   useEffect(() => {
     if (profile?.role && !hasRedirected.current) {
       hasRedirected.current = true
+      setLoadingStatus('正在跳转...')
+
+      // 清除超时定时器
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+
       // 根据用户角色跳转到对应的工作台
       // 使用 reLaunch 清空页面栈，避免循环跳转
+      console.log('[IndexPage] 根据角色跳转:', profile.role)
       switch (profile.role) {
         case 'driver':
           reLaunch({url: '/pages/driver/index'})
@@ -46,6 +122,7 @@ const IndexPage: React.FC = () => {
           reLaunch({url: '/pages/super-admin/index'})
           break
         default:
+          console.warn('[IndexPage] 未知角色:', profile.role)
           // 如果角色未知，跳转到个人中心
           switchTab({url: '/pages/profile/index'})
       }
@@ -54,9 +131,20 @@ const IndexPage: React.FC = () => {
 
   return (
     <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
-      <View className="text-center">
+      <View className="text-center px-8">
         <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
-        <View className="text-gray-600">加载中...</View>
+        <Text className="text-gray-800 text-lg block mb-2">{loadingStatus}</Text>
+        {error && (
+          <View className="mt-4 p-4 bg-red-50 rounded-lg">
+            <View className="i-mdi-alert-circle text-2xl text-red-600 mb-2" />
+            <Text className="text-red-600 text-sm block">{error}</Text>
+          </View>
+        )}
+        {!error && (
+          <Text className="text-gray-500 text-xs block mt-2">
+            {user ? `用户ID: ${user.id.substring(0, 8)}...` : '等待认证...'}
+          </Text>
+        )}
       </View>
     </View>
   )
