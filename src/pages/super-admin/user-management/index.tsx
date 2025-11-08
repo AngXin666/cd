@@ -3,7 +3,7 @@ import Taro, {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getAllUsers, updateUserRole} from '@/db/api'
+import {getAllUsers, resetUserPassword, updateUserRole} from '@/db/api'
 import type {Profile, UserRole} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
@@ -137,6 +137,38 @@ const UserManagement: React.FC = () => {
     [loadUsers]
   )
 
+  // 编辑用户信息
+  const handleEditUser = useCallback((targetUser: Profile) => {
+    navigateTo({
+      url: `/pages/super-admin/edit-user/index?userId=${targetUser.id}`
+    })
+  }, [])
+
+  // 重置密码
+  const handleResetPassword = useCallback(async (targetUser: Profile) => {
+    const {confirm} = await Taro.showModal({
+      title: '重置密码',
+      content: `确认将用户"${targetUser.name || targetUser.phone}"的密码重置为 123456 吗？`
+    })
+
+    if (!confirm) return
+
+    Taro.showLoading({title: '重置中...'})
+    try {
+      const success = await resetUserPassword(targetUser.id)
+      if (success) {
+        Taro.showToast({title: '密码已重置为 123456', icon: 'success', duration: 3000})
+      } else {
+        Taro.showToast({title: '重置失败', icon: 'error'})
+      }
+    } catch (error) {
+      console.error('重置密码失败:', error)
+      Taro.showToast({title: '重置失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }, [])
+
   // 配置权限
   const handleConfigPermission = useCallback((targetUser: Profile) => {
     navigateTo({
@@ -249,16 +281,48 @@ const UserManagement: React.FC = () => {
                 </View>
 
                 {/* 操作按钮 */}
-                <View className="flex gap-2">
+                <View className="flex flex-wrap gap-2">
+                  {/* 编辑按钮 */}
+                  <Button
+                    size="mini"
+                    className="text-xs break-keep"
+                    style={{
+                      backgroundColor: '#10b981',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      flex: '1 1 auto',
+                      minWidth: '80px'
+                    }}
+                    onClick={() => handleEditUser(u)}>
+                    编辑信息
+                  </Button>
+
+                  {/* 重置密码按钮 */}
+                  <Button
+                    size="mini"
+                    className="text-xs break-keep"
+                    style={{
+                      backgroundColor: '#f59e0b',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      flex: '1 1 auto',
+                      minWidth: '80px'
+                    }}
+                    onClick={() => handleResetPassword(u)}>
+                    重置密码
+                  </Button>
+
                   {/* 修改角色按钮 */}
                   {u.role !== 'super_admin' && (
                     <Button
                       size="mini"
-                      className="flex-1 text-sm"
+                      className="text-xs break-keep"
                       style={{
                         backgroundColor: '#3b82f6',
                         color: '#fff',
-                        borderRadius: '6px'
+                        borderRadius: '6px',
+                        flex: '1 1 auto',
+                        minWidth: '80px'
                       }}
                       onClick={() => handleChangeRole(u)}>
                       {u.role === 'manager' ? '降级为司机' : '升级为管理员'}
@@ -269,11 +333,13 @@ const UserManagement: React.FC = () => {
                   {u.role === 'manager' && (
                     <Button
                       size="mini"
-                      className="flex-1 text-sm"
+                      className="text-xs break-keep"
                       style={{
                         backgroundColor: '#f97316',
                         color: '#fff',
-                        borderRadius: '6px'
+                        borderRadius: '6px',
+                        flex: '1 1 auto',
+                        minWidth: '80px'
                       }}
                       onClick={() => handleConfigPermission(u)}>
                       配置权限
@@ -283,7 +349,7 @@ const UserManagement: React.FC = () => {
                   {/* 超级管理员提示 */}
                   {u.role === 'super_admin' && (
                     <View className="flex-1 px-3 py-1 bg-gray-100 rounded-lg">
-                      <Text className="text-xs text-gray-500 text-center">最高权限，不可修改</Text>
+                      <Text className="text-xs text-gray-500 text-center">最高权限，不可修改角色</Text>
                     </View>
                   )}
                 </View>

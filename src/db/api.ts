@@ -2614,3 +2614,72 @@ export async function getSuperAdminStats(): Promise<{
     return null
   }
 }
+
+/**
+ * 重置用户密码（超级管理员功能）
+ * 将用户密码重置为 123456
+ */
+export async function resetUserPassword(userId: string): Promise<boolean> {
+  try {
+    // 使用 Supabase Admin API 重置密码
+    const {error} = await supabase.auth.admin.updateUserById(userId, {
+      password: '123456'
+    })
+
+    if (error) {
+      console.error('重置密码失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('重置密码失败:', error)
+    return false
+  }
+}
+
+/**
+ * 更新用户完整信息（超级管理员功能）
+ */
+export async function updateUserInfo(
+  userId: string,
+  updates: {
+    name?: string
+    phone?: string
+    email?: string
+    role?: UserRole
+  }
+): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('profiles').update(updates).eq('id', userId)
+
+    if (error) {
+      console.error('更新用户信息失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('更新用户信息失败:', error)
+    return false
+  }
+}
+
+/**
+ * 根据用户ID获取用户信息
+ */
+export async function getUserById(userId: string): Promise<Profile | null> {
+  try {
+    const {data, error} = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+
+    if (error) {
+      console.error('获取用户信息失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    return null
+  }
+}
