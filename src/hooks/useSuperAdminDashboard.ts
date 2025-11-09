@@ -148,11 +148,22 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
     [loadFromCache, saveToCache]
   )
 
-  // 刷新数据（强制从服务器加载）
-  const refresh = useCallback(() => {
+  // 使用 ref 保存最新的 loadData 函数，避免依赖循环
+  const loadDataRef = useRef(loadData)
+  useEffect(() => {
+    loadDataRef.current = loadData
+  }, [loadData])
+
+  // 创建稳定的刷新函数，不依赖 loadData
+  const refreshStable = useCallback(() => {
     clearCache(warehouseId)
-    loadData(warehouseId, true)
-  }, [warehouseId, clearCache, loadData])
+    loadDataRef.current(warehouseId, true)
+  }, [warehouseId, clearCache])
+
+  // 刷新数据（强制从服务器加载）- 导出给外部使用
+  const refresh = useCallback(() => {
+    refreshStable()
+  }, [refreshStable])
 
   // 设置实时订阅
   useEffect(() => {
@@ -182,7 +193,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
             filter: `warehouse_id=eq.${warehouseId}`
           },
           () => {
-            refresh()
+            refreshStable()
           }
         )
         .on(
@@ -194,7 +205,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
             filter: `warehouse_id=eq.${warehouseId}`
           },
           () => {
-            refresh()
+            refreshStable()
           }
         )
     } else {
@@ -208,7 +219,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
             table: 'piece_work_records'
           },
           () => {
-            refresh()
+            refreshStable()
           }
         )
         .on(
@@ -219,7 +230,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
             table: 'attendance_records'
           },
           () => {
-            refresh()
+            refreshStable()
           }
         )
     }
@@ -233,7 +244,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
         table: 'leave_applications'
       },
       () => {
-        refresh()
+        refreshStable()
       }
     )
 
@@ -247,7 +258,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
         channelRef.current = null
       }
     }
-  }, [warehouseId, enableRealtime, refresh])
+  }, [warehouseId, enableRealtime, refreshStable])
 
   // 初始加载数据
   useEffect(() => {

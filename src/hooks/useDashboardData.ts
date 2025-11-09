@@ -139,13 +139,24 @@ export function useDashboardData(options: UseDashboardDataOptions) {
     [loadFromCache, saveToCache]
   )
 
-  // 刷新数据（强制从服务器加载）
-  const refresh = useCallback(() => {
+  // 使用 ref 保存最新的 loadData 函数，避免依赖循环
+  const loadDataRef = useRef(loadData)
+  useEffect(() => {
+    loadDataRef.current = loadData
+  }, [loadData])
+
+  // 创建稳定的刷新函数，不依赖 loadData
+  const refreshStable = useCallback(() => {
     if (warehouseId) {
       clearCache(warehouseId)
-      loadData(warehouseId, true)
+      loadDataRef.current(warehouseId, true)
     }
-  }, [warehouseId, clearCache, loadData])
+  }, [warehouseId, clearCache])
+
+  // 刷新数据（强制从服务器加载）- 导出给外部使用
+  const refresh = useCallback(() => {
+    refreshStable()
+  }, [refreshStable])
 
   // 设置实时订阅
   useEffect(() => {
@@ -170,7 +181,7 @@ export function useDashboardData(options: UseDashboardDataOptions) {
         },
         () => {
           // 计件记录变化时刷新数据
-          refresh()
+          refreshStable()
         }
       )
       .on(
@@ -183,7 +194,7 @@ export function useDashboardData(options: UseDashboardDataOptions) {
         },
         () => {
           // 考勤记录变化时刷新数据
-          refresh()
+          refreshStable()
         }
       )
       .on(
@@ -197,7 +208,7 @@ export function useDashboardData(options: UseDashboardDataOptions) {
           // 请假申请变化时，检查是否属于当前仓库
           const record = payload.new as any
           if (record && record.warehouse_id === warehouseId) {
-            refresh()
+            refreshStable()
           }
         }
       )
@@ -212,7 +223,7 @@ export function useDashboardData(options: UseDashboardDataOptions) {
         channelRef.current = null
       }
     }
-  }, [warehouseId, enableRealtime, refresh])
+  }, [warehouseId, enableRealtime, refreshStable])
 
   // 初始加载数据
   useEffect(() => {

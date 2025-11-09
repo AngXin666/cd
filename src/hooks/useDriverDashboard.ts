@@ -58,10 +58,10 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const loadingRef = useRef(false)
 
-  // 生成缓存键
+  // 生成缓存键（包含 userId 避免不同用户缓存冲突）
   const getCacheKey = useCallback(() => {
-    return `${CACHE_KEY_PREFIX}${warehouseId || 'all'}`
-  }, [warehouseId])
+    return `${CACHE_KEY_PREFIX}${userId}_${warehouseId || 'all'}`
+  }, [userId, warehouseId])
 
   // 读取缓存
   const readCache = useCallback((): DriverDashboardStats | null => {
@@ -221,12 +221,24 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
     }
   }, [userId, warehouseId, readCache, writeCache])
 
-  // 刷新数据（清除缓存后重新加载）
-  const refresh = useCallback(() => {
+  // 使用 ref 保存最新的 loadStats 函数，避免依赖循环
+  const loadStatsRef = useRef(loadStats)
+  useEffect(() => {
+    loadStatsRef.current = loadStats
+  }, [loadStats])
+
+  // 创建稳定的刷新函数，不依赖 loadStats
+  const refreshStable = useCallback(() => {
     console.log('[useDriverDashboard] 手动刷新数据')
     clearCache()
-    loadStats()
-  }, [clearCache, loadStats])
+    // 使用 ref 中的最新函数，避免依赖循环
+    loadStatsRef.current()
+  }, [clearCache])
+
+  // 刷新数据（清除缓存后重新加载）- 导出给外部使用
+  const refresh = useCallback(() => {
+    refreshStable()
+  }, [refreshStable])
 
   // 初始加载
   useEffect(() => {
@@ -253,7 +265,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       },
       (payload) => {
         console.log('[useDriverDashboard] 计件记录变化:', payload)
-        refresh()
+        refreshStable()
       }
     )
 
@@ -268,7 +280,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       },
       (payload) => {
         console.log('[useDriverDashboard] 考勤记录变化:', payload)
-        refresh()
+        refreshStable()
       }
     )
 
@@ -283,7 +295,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       },
       (payload) => {
         console.log('[useDriverDashboard] 请假申请变化:', payload)
-        refresh()
+        refreshStable()
       }
     )
 
@@ -298,7 +310,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
         channelRef.current = null
       }
     }
-  }, [enableRealtime, userId, warehouseId, refresh])
+  }, [enableRealtime, userId, warehouseId, refreshStable])
 
   return {
     data,
@@ -462,7 +474,7 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
     return () => {
       console.log('[useDriverWarehouses] 取消订阅仓库分配变化')
       if (channelRef.current) {
-        channelRef.current.unsubscribe()
+        supabase.removeChannel(channelRef.current)
         channelRef.current = null
       }
     }
