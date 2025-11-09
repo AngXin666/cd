@@ -544,6 +544,19 @@ export async function getWarehousesWithRules(): Promise<WarehouseWithRule[]> {
 }
 
 /**
+ * 获取所有仓库及其考勤规则（包括禁用的仓库，供超管使用）
+ */
+export async function getAllWarehousesWithRules(): Promise<WarehouseWithRule[]> {
+  const warehouses = await getAllWarehouses()
+  const rules = await getAllAttendanceRules()
+
+  return warehouses.map((warehouse) => ({
+    ...warehouse,
+    rule: rules.find((rule) => rule.warehouse_id === warehouse.id)
+  }))
+}
+
+/**
  * 获取司机的仓库列表
  */
 export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]> {

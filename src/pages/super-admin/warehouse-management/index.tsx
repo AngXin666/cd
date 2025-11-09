@@ -8,7 +8,7 @@ import {
   createAttendanceRule,
   createWarehouse,
   deleteWarehouse,
-  getWarehousesWithRules,
+  getAllWarehousesWithRules,
   updateAttendanceRule,
   updateWarehouse,
   updateWarehouseSettings
@@ -48,7 +48,7 @@ const WarehouseManagement: React.FC = () => {
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     showLoading({title: '加载中...'})
-    const data = await getWarehousesWithRules()
+    const data = await getAllWarehousesWithRules()
     setWarehouses(data)
     Taro.hideLoading()
   }, [])
@@ -366,13 +366,27 @@ const WarehouseManagement: React.FC = () => {
           ) : (
             <View className="space-y-4">
               {warehouses.map((warehouse) => (
-                <View key={warehouse.id} className="bg-white rounded-lg p-4 shadow">
+                <View
+                  key={warehouse.id}
+                  className={`rounded-lg p-4 shadow ${warehouse.is_active ? 'bg-white' : 'bg-gray-100 opacity-75'}`}>
                   {/* 仓库信息 */}
                   <View className="flex items-center justify-between mb-3">
                     <View className="flex items-center flex-1">
-                      <View className="i-mdi-warehouse text-blue-600 text-2xl mr-3" />
+                      <View
+                        className={`i-mdi-warehouse text-2xl mr-3 ${warehouse.is_active ? 'text-blue-600' : 'text-gray-400'}`}
+                      />
                       <View className="flex-1">
-                        <Text className="text-gray-800 text-lg font-bold block">{warehouse.name}</Text>
+                        <View className="flex items-center gap-2">
+                          <Text
+                            className={`text-lg font-bold block ${warehouse.is_active ? 'text-gray-800' : 'text-gray-500'}`}>
+                            {warehouse.name}
+                          </Text>
+                          {!warehouse.is_active && (
+                            <View className="bg-red-100 px-2 py-0.5 rounded">
+                              <Text className="text-red-600 text-xs">已禁用</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text className="text-gray-500 text-xs block">{warehouse.is_active ? '启用中' : '已禁用'}</Text>
                       </View>
                     </View>
