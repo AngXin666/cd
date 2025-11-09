@@ -137,10 +137,6 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/leave-approval/index'})
   }
 
-  const handleSystemSettings = () => {
-    navigateTo({url: '/pages/profile/index'})
-  }
-
   const handleProfileClick = () => {
     navigateTo({url: '/pages/profile/index'})
   }
@@ -406,7 +402,7 @@ const SuperAdminHome: React.FC = () => {
               <View className="i-mdi-lightning-bolt text-xl text-orange-600 mr-2" />
               <Text className="text-lg font-bold text-gray-800">系统功能</Text>
             </View>
-            <View className="grid grid-cols-3 gap-3">
+            <View className="grid grid-cols-2 gap-3">
               {/* 件数报表 */}
               <View
                 onClick={handlePieceWorkReport}
@@ -421,20 +417,6 @@ const SuperAdminHome: React.FC = () => {
                 className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-calendar-check text-3xl text-red-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">请假审批</Text>
-              </View>
-
-              {/* 系统设置 */}
-              <View
-                onClick={handleSystemSettings}
-                className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
-                <View className="i-mdi-cog text-3xl text-teal-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">系统设置</Text>
-              </View>
-
-              {/* 数据管理 */}
-              <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex flex-col items-center">
-                <View className="i-mdi-database text-3xl text-blue-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">数据管理</Text>
               </View>
             </View>
           </View>
