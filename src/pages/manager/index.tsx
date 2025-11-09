@@ -5,7 +5,7 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
-import {useDashboardData, useWarehousesData} from '@/hooks'
+import {useDashboardData, useDriverStats, useWarehousesData} from '@/hooks'
 
 const ManagerHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
@@ -36,6 +36,17 @@ const ManagerHome: React.FC = () => {
     warehouseId: currentWarehouseId,
     enableRealtime: true, // 启用实时更新
     cacheEnabled: true // 启用缓存
+  })
+
+  // 使用司机统计数据管理Hook（带缓存和实时更新）
+  const {
+    data: driverStats,
+    loading: driverStatsLoading,
+    refresh: refreshDriverStats
+  } = useDriverStats({
+    warehouseId: currentWarehouseId,
+    enableRealtime: true,
+    cacheEnabled: true
   })
 
   // 加载用户资料
@@ -86,6 +97,7 @@ const ManagerHome: React.FC = () => {
       // 刷新当前仓库的仪表板数据（使用缓存）
       if (currentWarehouseId) {
         refreshDashboard()
+        refreshDriverStats()
       }
     }
   })
@@ -96,7 +108,7 @@ const ManagerHome: React.FC = () => {
       await loadProfile()
       await refreshWarehouses()
       if (currentWarehouseId) {
-        await refreshDashboard()
+        await Promise.all([refreshDashboard(), refreshDriverStats()])
       }
     }
     Taro.stopPullDownRefresh()
@@ -106,7 +118,7 @@ const ManagerHome: React.FC = () => {
   const handleWarehouseChange = useCallback((e: any) => {
     const index = e.detail.current
     setCurrentWarehouseIndex(index)
-    // 切换仓库时，useDashboardData Hook 会自动加载新仓库的数据（优先使用缓存）
+    // 切换仓库时，useDashboardData 和 useDriverStats Hook 会自动加载新仓库的数据（优先使用缓存）
   }, [])
 
   const handlePieceWorkReport = () => {
@@ -153,7 +165,7 @@ const ManagerHome: React.FC = () => {
     }
   }
 
-  const loading = warehousesLoading || dashboardLoading
+  const loading = warehousesLoading || dashboardLoading || driverStatsLoading
 
   // 初始加载状态：当用户信息还未加载时显示加载界面
   if (!user) {
@@ -245,7 +257,11 @@ const ManagerHome: React.FC = () => {
                 <Text className="text-lg font-bold text-gray-800">数据仪表盘</Text>
                 {loading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
-              <Text className="text-xs text-gray-500">{new Date().toLocaleDateString('zh-CN')}</Text>
+              <View className="flex items-center">
+                <Text className="text-xs text-gray-500 mr-2">{warehouses[currentWarehouseIndex]?.name || ''}</Text>
+                <Text className="text-xs text-gray-400">|</Text>
+                <Text className="text-xs text-gray-500 ml-2">{new Date().toLocaleDateString('zh-CN')}</Text>
+              </View>
             </View>
 
             {dashboardStats ? (
@@ -283,6 +299,62 @@ const ManagerHome: React.FC = () => {
                     <Text className="text-xs text-gray-600 block mb-1">本月完成件数</Text>
                     <Text className="text-2xl font-bold text-purple-900 block">{dashboardStats.monthlyPieceCount}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">件</Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
+                <Text className="text-gray-500">加载中...</Text>
+              </View>
+            )}
+          </View>
+
+          {/* 统计概览（司机统计） */}
+          <View className="mb-4">
+            <View className="flex items-center justify-between mb-3">
+              <View className="flex items-center">
+                <View className="i-mdi-chart-box text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">统计概览</Text>
+                {driverStatsLoading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
+              </View>
+              <Text className="text-xs text-gray-500">{warehouses[currentWarehouseIndex]?.name || ''}</Text>
+            </View>
+            {driverStats ? (
+              <View className="bg-white rounded-xl p-4 shadow-md">
+                {/* 司机实时统计 */}
+                <View>
+                  <View className="flex items-center mb-2">
+                    <View className="i-mdi-account-group text-sm text-blue-600 mr-1" />
+                    <Text className="text-xs text-gray-600 font-medium">司机实时状态</Text>
+                  </View>
+                  <View className="grid grid-cols-4 gap-2">
+                    {/* 总司机数 */}
+                    <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-multiple text-xl text-blue-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">总数</Text>
+                      <Text className="text-lg font-bold text-blue-900 block">{driverStats.totalDrivers}</Text>
+                    </View>
+
+                    {/* 在线司机 */}
+                    <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-check text-xl text-green-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">在线</Text>
+                      <Text className="text-lg font-bold text-green-600 block">{driverStats.onlineDrivers}</Text>
+                    </View>
+
+                    {/* 已计件司机 */}
+                    <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-clock text-xl text-orange-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">已计件</Text>
+                      <Text className="text-lg font-bold text-orange-600 block">{driverStats.busyDrivers}</Text>
+                    </View>
+
+                    {/* 未计件司机 */}
+                    <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-off text-xl text-purple-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">未计件</Text>
+                      <Text className="text-lg font-bold text-purple-900 block">{driverStats.idleDrivers}</Text>
+                    </View>
                   </View>
                 </View>
               </View>

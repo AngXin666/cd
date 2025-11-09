@@ -7,8 +7,8 @@ import {supabase} from '@/client/supabase'
 export interface DriverStats {
   totalDrivers: number // 总司机数
   onlineDrivers: number // 在线司机数（今日已打卡）
-  busyDrivers: number // 忙碌司机数（今日有计件记录）
-  idleDrivers: number // 空闲司机数
+  busyDrivers: number // 已计件司机数（今日有计件记录）
+  idleDrivers: number // 未计件司机数
 }
 
 /**
@@ -113,7 +113,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.driver_id) || [])
       const onlineDrivers = uniqueOnlineDrivers.size
 
-      // 3. 获取今日有计件记录的司机数（忙碌司机）
+      // 3. 获取今日有计件记录的司机数（已计件司机）
       let busyDriversQuery = supabase
         .from('piece_work_records')
         .select('driver_id', {count: 'exact', head: false})
@@ -127,11 +127,11 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       const {data: busyDriversData, error: busyError} = await busyDriversQuery
       if (busyError) throw busyError
 
-      // 去重统计忙碌司机数
+      // 去重统计已计件司机数
       const uniqueBusyDrivers = new Set(busyDriversData?.map((r) => r.driver_id) || [])
       const busyDrivers = uniqueBusyDrivers.size
 
-      // 4. 计算空闲司机数（在线但没有计件记录）
+      // 4. 计算未计件司机数（在线但没有计件记录）
       const idleDrivers = Math.max(0, onlineDrivers - busyDrivers)
 
       const stats: DriverStats = {

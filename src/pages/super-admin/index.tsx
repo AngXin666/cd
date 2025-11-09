@@ -374,17 +374,17 @@ const SuperAdminHome: React.FC = () => {
                       <Text className="text-lg font-bold text-green-600 block">{driverStats.onlineDrivers}</Text>
                     </View>
 
-                    {/* 忙碌司机 */}
+                    {/* 已计件司机 */}
                     <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 flex flex-col items-center">
                       <View className="i-mdi-account-clock text-xl text-orange-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">忙碌</Text>
+                      <Text className="text-xs text-gray-600 block mb-1">已计件</Text>
                       <Text className="text-lg font-bold text-orange-600 block">{driverStats.busyDrivers}</Text>
                     </View>
 
-                    {/* 空闲司机 */}
+                    {/* 未计件司机 */}
                     <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 flex flex-col items-center">
                       <View className="i-mdi-account-off text-xl text-purple-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">空闲</Text>
+                      <Text className="text-xs text-gray-600 block mb-1">未计件</Text>
                       <Text className="text-lg font-bold text-purple-900 block">{driverStats.idleDrivers}</Text>
                     </View>
                   </View>
