@@ -64,7 +64,7 @@ const DriverHome: React.FC = () => {
   }, [user])
 
   // 使用仓库列表管理 Hook
-  const {warehouses, loading: warehousesLoading} = useDriverWarehouses(user?.id || '', true)
+  const {warehouses, loading: warehousesLoading, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '', true)
 
   // 获取当前选中的仓库ID
   const currentWarehouseId = warehouses[currentWarehouseIndex]?.id || ''
@@ -130,7 +130,7 @@ const DriverHome: React.FC = () => {
   // 下拉刷新
   usePullDownRefresh(async () => {
     if (user) {
-      await Promise.all([loadProfile(), refreshStats()])
+      await Promise.all([loadProfile(), refreshStats(), refreshWarehouses()])
     }
     Taro.stopPullDownRefresh()
   })

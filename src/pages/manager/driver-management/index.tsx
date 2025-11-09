@@ -92,9 +92,17 @@ const DriverManagement: React.FC = () => {
     setLoading(false)
 
     if (success) {
-      showToast({title: '保存成功', icon: 'success'})
+      showToast({
+        title: '保存成功，司机端将实时同步',
+        icon: 'success',
+        duration: 3000
+      })
     } else {
-      showToast({title: '保存失败', icon: 'error'})
+      showToast({
+        title: '保存失败，请重试',
+        icon: 'error',
+        duration: 2000
+      })
     }
   }
 

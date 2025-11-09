@@ -322,8 +322,9 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   const [error, setError] = useState<string | null>(null)
 
   const loadingRef = useRef(false)
+  const channelRef = useRef<RealtimeChannel | null>(null)
   const CACHE_KEY = `driver_warehouses_${userId}`
-  const CACHE_EXPIRY_MS = 10 * 60 * 1000 // 10分钟
+  const CACHE_EXPIRY_MS = 1 * 60 * 1000 // 1分钟（从10分钟缩短到1分钟以满足实时同步需求）
 
   // 读取缓存
   const readCache = useCallback((): Warehouse[] | null => {
@@ -426,6 +427,46 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   useEffect(() => {
     loadWarehouses()
   }, [loadWarehouses])
+
+  // 实时订阅仓库分配变化
+  useEffect(() => {
+    if (!userId) return
+
+    console.log('[useDriverWarehouses] 开始订阅仓库分配变化，用户ID:', userId)
+
+    // 创建实时订阅频道
+    const channel = supabase
+      .channel(`driver_warehouses_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
+          schema: 'public',
+          table: 'driver_warehouses',
+          filter: `driver_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('[useDriverWarehouses] 检测到仓库分配变化:', payload)
+          // 清除缓存并重新加载数据
+          clearCache()
+          loadWarehouses()
+        }
+      )
+      .subscribe((status) => {
+        console.log('[useDriverWarehouses] 订阅状态:', status)
+      })
+
+    channelRef.current = channel
+
+    // 清理函数：取消订阅
+    return () => {
+      console.log('[useDriverWarehouses] 取消订阅仓库分配变化')
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+        channelRef.current = null
+      }
+    }
+  }, [userId, clearCache, loadWarehouses])
 
   return {
     warehouses,
