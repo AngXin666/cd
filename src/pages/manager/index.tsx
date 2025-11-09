@@ -267,8 +267,10 @@ const ManagerHome: React.FC = () => {
                     <Text className="text-xs text-gray-400 block mt-1">件</Text>
                   </View>
 
-                  {/* 请假待审批 */}
-                  <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                  {/* 请假待审批 - 可点击跳转 */}
+                  <View
+                    className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handleLeaveApproval}>
                     <View className="i-mdi-calendar-clock text-2xl text-orange-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">请假待审批</Text>
                     <Text className="text-2xl font-bold text-orange-600 block">{dashboardStats.pendingLeaveCount}</Text>
