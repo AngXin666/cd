@@ -5,7 +5,7 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {getAllProfiles, getAllWarehouses, getCurrentUserProfile} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
-import {useSuperAdminDashboard} from '@/hooks'
+import {useDriverStats, useSuperAdminDashboard} from '@/hooks'
 
 const SuperAdminHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
@@ -30,10 +30,26 @@ const SuperAdminHome: React.FC = () => {
     cacheEnabled: true
   })
 
+  // 使用司机统计数据管理Hook（带缓存和实时更新）
+  const {
+    data: driverStats,
+    loading: driverStatsLoading,
+    refresh: refreshDriverStats
+  } = useDriverStats({
+    warehouseId: currentWarehouseId,
+    enableRealtime: true,
+    cacheEnabled: true
+  })
+
   // 监听 dashboardStats 变化
   useEffect(() => {
     console.log('[SuperAdminHome] dashboardStats 更新:', dashboardStats)
   }, [dashboardStats])
+
+  // 监听 driverStats 变化
+  useEffect(() => {
+    console.log('[SuperAdminHome] driverStats 更新:', driverStats)
+  }, [driverStats])
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -95,13 +111,14 @@ const SuperAdminHome: React.FC = () => {
       loadData()
       loadWarehouses()
       refreshDashboard()
+      refreshDriverStats()
     }
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
     if (user) {
-      await Promise.all([loadData(), loadWarehouses(), refreshDashboard()])
+      await Promise.all([loadData(), loadWarehouses(), refreshDashboard(), refreshDriverStats()])
     }
     Taro.stopPullDownRefresh()
   })
@@ -110,7 +127,7 @@ const SuperAdminHome: React.FC = () => {
   const handleWarehouseChange = useCallback((e: any) => {
     const index = e.detail.current
     setCurrentWarehouseIndex(index)
-    // 切换仓库时，useSuperAdminDashboard Hook 会自动加载新仓库的数据（优先使用缓存）
+    // 切换仓库时，useSuperAdminDashboard 和 useDriverStats Hook 会自动加载新仓库的数据（优先使用缓存）
   }, [])
 
   const handleManageUsers = () => {
@@ -163,8 +180,8 @@ const SuperAdminHome: React.FC = () => {
   const managerCount = allUsers.filter((u) => u.role === 'manager').length
   const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
 
-  // 使用仪表板的loading状态
-  const loading = dashboardLoading
+  // 使用仪表板和司机统计的loading状态
+  const loading = dashboardLoading || driverStatsLoading
 
   // 获取当前选中的仓库名称
   const _getCurrentWarehouseName = () => {
@@ -316,10 +333,65 @@ const SuperAdminHome: React.FC = () => {
             </View>
           )}
 
+          {/* 司机统计（实时动态更新） */}
+          <View className="mb-4">
+            <View className="flex items-center justify-between mb-3">
+              <View className="flex items-center">
+                <View className="i-mdi-account-group text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">司机统计</Text>
+                {driverStatsLoading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
+              </View>
+              <Text className="text-xs text-gray-500">
+                {currentWarehouseIndex === 0 ? '所有仓库' : warehouses[currentWarehouseIndex - 1]?.name || ''}
+              </Text>
+            </View>
+            {driverStats ? (
+              <View className="bg-white rounded-xl p-4 shadow-md">
+                <View className="grid grid-cols-2 gap-3">
+                  {/* 总司机数 */}
+                  <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                    <View className="i-mdi-account-multiple text-2xl text-blue-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">总司机数</Text>
+                    <Text className="text-2xl font-bold text-blue-900 block">{driverStats.totalDrivers}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">人</Text>
+                  </View>
+
+                  {/* 在线司机 */}
+                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                    <View className="i-mdi-account-check text-2xl text-green-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">在线司机</Text>
+                    <Text className="text-2xl font-bold text-green-600 block">{driverStats.onlineDrivers}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">已打卡</Text>
+                  </View>
+
+                  {/* 忙碌司机 */}
+                  <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                    <View className="i-mdi-account-clock text-2xl text-orange-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">忙碌司机</Text>
+                    <Text className="text-2xl font-bold text-orange-600 block">{driverStats.busyDrivers}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">有计件</Text>
+                  </View>
+
+                  {/* 空闲司机 */}
+                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                    <View className="i-mdi-account-off text-2xl text-purple-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">空闲司机</Text>
+                    <Text className="text-2xl font-bold text-purple-900 block">{driverStats.idleDrivers}</Text>
+                    <Text className="text-xs text-gray-400 block mt-1">在线无计件</Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">
+                <Text className="text-gray-500">加载中...</Text>
+              </View>
+            )}
+          </View>
+
           {/* 系统统计（用户数量） */}
           <View className="mb-4">
             <View className="flex items-center mb-3">
-              <View className="i-mdi-account-group text-xl text-blue-900 mr-2" />
+              <View className="i-mdi-shield-account text-xl text-blue-900 mr-2" />
               <Text className="text-lg font-bold text-gray-800">系统统计</Text>
             </View>
             <View className="bg-white rounded-xl p-4 shadow-md">

@@ -1,4 +1,5 @@
 export {useDashboardData} from './useDashboardData'
 export {useDriverDashboard, useDriverWarehouses} from './useDriverDashboard'
+export {useDriverStats} from './useDriverStats'
 export {useSuperAdminDashboard} from './useSuperAdminDashboard'
 export {useWarehousesData} from './useWarehousesData'
