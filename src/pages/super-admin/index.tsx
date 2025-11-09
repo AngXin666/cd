@@ -246,7 +246,13 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-lg font-bold text-gray-800">数据仪表盘</Text>
                 {loading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
-              <Text className="text-xs text-gray-500">{new Date().toLocaleDateString('zh-CN')}</Text>
+              <View className="flex items-center">
+                <Text className="text-xs text-gray-500 mr-2">
+                  {currentWarehouseIndex === 0 ? '所有仓库' : warehouses[currentWarehouseIndex - 1]?.name || ''}
+                </Text>
+                <Text className="text-xs text-gray-400">|</Text>
+                <Text className="text-xs text-gray-500 ml-2">{new Date().toLocaleDateString('zh-CN')}</Text>
+              </View>
             </View>
 
             {dashboardStats ? (
@@ -333,12 +339,12 @@ const SuperAdminHome: React.FC = () => {
             </View>
           )}
 
-          {/* 司机统计（实时动态更新） */}
+          {/* 统计概览（合并司机统计和系统统计） */}
           <View className="mb-4">
             <View className="flex items-center justify-between mb-3">
               <View className="flex items-center">
-                <View className="i-mdi-account-group text-xl text-blue-900 mr-2" />
-                <Text className="text-lg font-bold text-gray-800">司机统计</Text>
+                <View className="i-mdi-chart-box text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">统计概览</Text>
                 {driverStatsLoading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
               <Text className="text-xs text-gray-500">
@@ -347,37 +353,73 @@ const SuperAdminHome: React.FC = () => {
             </View>
             {driverStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
-                <View className="grid grid-cols-2 gap-3">
-                  {/* 总司机数 */}
-                  <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
-                    <View className="i-mdi-account-multiple text-2xl text-blue-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">总司机数</Text>
-                    <Text className="text-2xl font-bold text-blue-900 block">{driverStats.totalDrivers}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">人</Text>
+                {/* 司机实时统计 */}
+                <View className="mb-3">
+                  <View className="flex items-center mb-2">
+                    <View className="i-mdi-account-group text-sm text-blue-600 mr-1" />
+                    <Text className="text-xs text-gray-600 font-medium">司机实时状态</Text>
                   </View>
+                  <View className="grid grid-cols-4 gap-2">
+                    {/* 总司机数 */}
+                    <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-multiple text-xl text-blue-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">总数</Text>
+                      <Text className="text-lg font-bold text-blue-900 block">{driverStats.totalDrivers}</Text>
+                    </View>
 
-                  {/* 在线司机 */}
-                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                    <View className="i-mdi-account-check text-2xl text-green-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">在线司机</Text>
-                    <Text className="text-2xl font-bold text-green-600 block">{driverStats.onlineDrivers}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">已打卡</Text>
+                    {/* 在线司机 */}
+                    <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-check text-xl text-green-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">在线</Text>
+                      <Text className="text-lg font-bold text-green-600 block">{driverStats.onlineDrivers}</Text>
+                    </View>
+
+                    {/* 忙碌司机 */}
+                    <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-clock text-xl text-orange-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">忙碌</Text>
+                      <Text className="text-lg font-bold text-orange-600 block">{driverStats.busyDrivers}</Text>
+                    </View>
+
+                    {/* 空闲司机 */}
+                    <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account-off text-xl text-purple-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">空闲</Text>
+                      <Text className="text-lg font-bold text-purple-900 block">{driverStats.idleDrivers}</Text>
+                    </View>
                   </View>
+                </View>
 
-                  {/* 忙碌司机 */}
-                  <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
-                    <View className="i-mdi-account-clock text-2xl text-orange-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">忙碌司机</Text>
-                    <Text className="text-2xl font-bold text-orange-600 block">{driverStats.busyDrivers}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">有计件</Text>
+                {/* 分隔线 */}
+                <View className="border-t border-gray-200 my-3" />
+
+                {/* 系统用户统计 */}
+                <View>
+                  <View className="flex items-center mb-2">
+                    <View className="i-mdi-shield-account text-sm text-purple-600 mr-1" />
+                    <Text className="text-xs text-gray-600 font-medium">系统用户统计</Text>
                   </View>
+                  <View className="grid grid-cols-3 gap-2">
+                    {/* 司机总数 */}
+                    <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-account text-lg text-blue-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">司机</Text>
+                      <Text className="text-base font-bold text-blue-900 block">{driverCount}</Text>
+                    </View>
 
-                  {/* 空闲司机 */}
-                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
-                    <View className="i-mdi-account-off text-2xl text-purple-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">空闲司机</Text>
-                    <Text className="text-2xl font-bold text-purple-900 block">{driverStats.idleDrivers}</Text>
-                    <Text className="text-xs text-gray-400 block mt-1">在线无计件</Text>
+                    {/* 管理员数量 */}
+                    <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-shield-account text-lg text-green-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">管理员</Text>
+                      <Text className="text-base font-bold text-green-600 block">{managerCount}</Text>
+                    </View>
+
+                    {/* 超级管理员 */}
+                    <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 flex flex-col items-center">
+                      <View className="i-mdi-shield-star text-lg text-purple-600 mb-1" />
+                      <Text className="text-xs text-gray-600 block mb-1">超管</Text>
+                      <Text className="text-base font-bold text-purple-900 block">{superAdminCount}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -386,38 +428,6 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-gray-500">加载中...</Text>
               </View>
             )}
-          </View>
-
-          {/* 系统统计（用户数量） */}
-          <View className="mb-4">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-shield-account text-xl text-blue-900 mr-2" />
-              <Text className="text-lg font-bold text-gray-800">系统统计</Text>
-            </View>
-            <View className="bg-white rounded-xl p-4 shadow-md">
-              <View className="grid grid-cols-3 gap-3">
-                {/* 司机数量 */}
-                <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
-                  <View className="i-mdi-account text-xl text-blue-600 mb-1" />
-                  <Text className="text-xs text-gray-600 block mb-1">司机</Text>
-                  <Text className="text-xl font-bold text-blue-900 block">{driverCount}</Text>
-                </View>
-
-                {/* 管理员数量 */}
-                <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3">
-                  <View className="i-mdi-shield-account text-xl text-green-600 mb-1" />
-                  <Text className="text-xs text-gray-600 block mb-1">管理员</Text>
-                  <Text className="text-xl font-bold text-green-600 block">{managerCount}</Text>
-                </View>
-
-                {/* 超级管理员 */}
-                <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3">
-                  <View className="i-mdi-shield-star text-xl text-purple-600 mb-1" />
-                  <Text className="text-xs text-gray-600 block mb-1">超管</Text>
-                  <Text className="text-xl font-bold text-purple-900 block">{superAdminCount}</Text>
-                </View>
-              </View>
-            </View>
           </View>
 
           {/* 权限管理板块 */}
