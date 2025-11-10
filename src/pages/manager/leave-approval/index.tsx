@@ -59,7 +59,7 @@ const ManagerLeaveApproval: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('stats') // 默认显示司机统计标签页
   const [showFilters, setShowFilters] = useState<boolean>(false) // 筛选条件是否展开
   const [sortBy, setSortBy] = useState<'rate' | 'count'>('rate') // 排序方式：出勤率或打卡次数
-  const [refreshTimestamp, setRefreshTimestamp] = useState<number>(Date.now()) // 用于触发在职天数重新计算
+  const [_refreshTimestamp, setRefreshTimestamp] = useState<number>(Date.now()) // 用于触发在职天数重新计算
 
   // 初始化当前月份
   const initCurrentMonth = useCallback(() => {
@@ -460,15 +460,19 @@ const ManagerLeaveApproval: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    leaveApplications,
-    resignationApplications,
     attendanceRecords,
     profiles,
-    warehouses,
     managerWarehouses,
     filterMonth,
     sortBy,
-    refreshTimestamp
+    calculateLeaveDays,
+    calculateMonthTotalDays,
+    calculateWorkDays,
+    getCurrentWarehouseId,
+    getUserName,
+    getVisibleApplications,
+    getWarehouseName,
+    initCurrentMonth
   ])
 
   // 计算整体出勤率
