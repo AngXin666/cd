@@ -242,7 +242,7 @@ const ManagerLeaveApproval: React.FC = () => {
 
     // 计算当前月份
     const currentMonth = filterMonth || initCurrentMonth()
-    const monthTotalDays = calculateMonthTotalDays(currentMonth) // 整月总天数，用于判断满勤
+    const _monthTotalDays = calculateMonthTotalDays(currentMonth) // 整月总天数，用于判断满勤
 
     // 辅助函数：计算在职天数
     const calculateWorkingDays = (joinDate: string | null): number => {
@@ -430,8 +430,8 @@ const ManagerLeaveApproval: React.FC = () => {
       // 计算出勤率：实际出勤天数 / 应出勤天数
       stats.attendanceRate = stats.workDays > 0 ? Math.round((attendanceDays / stats.workDays) * 100) : 0
 
-      // 满勤判断：实际出勤天数 == 整月总天数
-      stats.isFullAttendance = attendanceDays === monthTotalDays
+      // 满勤判断：实际出勤天数 == 应出勤天数（考虑新入职司机的情况）
+      stats.isFullAttendance = attendanceDays === stats.workDays && stats.workDays > 0
     }
 
     // 根据排序方式排序
