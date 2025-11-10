@@ -97,10 +97,19 @@ const SuperAdminLeaveApproval: React.FC = () => {
         const [year, month] = currentMonth.split('-').map(Number)
         const records = await getAllAttendanceRecords(year, month)
 
-        // 过滤管理员管辖的仓库的记录
-        const managedWarehouseIds = managedWarehouses.map((w) => w.id)
-        const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
-        setAttendanceRecords(filteredRecords)
+        // 获取当前用户信息（使用最新获取的数据）
+        const userProfile = allProfiles.find((p) => p.id === user.id) || null
+
+        // 根据权限过滤记录
+        if (userProfile?.role === 'super_admin') {
+          // 超级管理员可以看到所有记录
+          setAttendanceRecords(records)
+        } else if (userProfile?.role === 'manager') {
+          // 普通管理员只能看到管辖仓库的记录
+          const managedWarehouseIds = managedWarehouses.map((w) => w.id)
+          const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
+          setAttendanceRecords(filteredRecords)
+        }
       }
     } finally {
       Taro.hideLoading()
@@ -147,17 +156,33 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
-  // 获取可见的仓库列表（只显示管理员管辖的仓库）
-  const _getVisibleWarehouses = () => {
-    const managedWarehouseIds = managerWarehouses.map((w) => w.id)
-    return warehouses.filter((w) => managedWarehouseIds.includes(w.id))
+  // 获取可见的仓库列表（根据权限）
+  const getVisibleWarehouses = () => {
+    if (!currentUserProfile) return []
+
+    if (currentUserProfile.role === 'super_admin') {
+      // 超级管理员可以看到所有仓库
+      return warehouses
+    } else if (currentUserProfile.role === 'manager') {
+      // 普通管理员只能看到自己管辖的仓库
+      const managedWarehouseIds = managerWarehouses.map((w) => w.id)
+      return warehouses.filter((w) => managedWarehouseIds.includes(w.id))
+    }
+
+    return []
   }
 
-  // 获取可见的申请数据（只显示管辖仓库的数据）
+  // 获取可见的申请数据（根据权限和筛选条件）
   const getVisibleApplications = () => {
-    const managedWarehouseIds = managerWarehouses.map((w) => w.id)
-    let visibleLeave = leaveApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
-    let visibleResignation = resignationApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
+    let visibleLeave = leaveApplications
+    let visibleResignation = resignationApplications
+
+    // 如果是普通管理员，只显示其管辖仓库的数据
+    if (currentUserProfile?.role === 'manager') {
+      const managedWarehouseIds = managerWarehouses.map((w) => w.id)
+      visibleLeave = leaveApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
+      visibleResignation = resignationApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
+    }
 
     // 按仓库筛选
     if (filterWarehouse !== 'all') {
@@ -246,11 +271,13 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
     // 处理打卡记录
     let visibleAttendance = attendanceRecords
-    // 只显示管辖仓库的数据
-    const managerWarehouseIds = managerWarehouses.map((w) => w.id)
-    visibleAttendance = attendanceRecords.filter((record) =>
-      record.warehouse_id ? managerWarehouseIds.includes(record.warehouse_id) : false
-    )
+    // 如果是普通管理员，只显示其管辖仓库的数据
+    if (currentUserProfile?.role === 'manager') {
+      const managerWarehouseIds = managerWarehouses.map((w) => w.id)
+      visibleAttendance = attendanceRecords.filter((record) =>
+        record.warehouse_id ? managerWarehouseIds.includes(record.warehouse_id) : false
+      )
+    }
     // 按仓库筛选
     if (filterWarehouse !== 'all') {
       visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === filterWarehouse)
@@ -439,7 +466,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   }
 
   const driverStats = calculateDriverStats()
-  const visibleWarehouses = managerWarehouses
+  const visibleWarehouses = getVisibleWarehouses()
   const {visibleLeave, visibleResignation} = getVisibleApplications()
 
   // 统计数据
