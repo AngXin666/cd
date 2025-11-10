@@ -98,7 +98,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       // 2. 获取今日已打卡的司机数（在线司机）
       let onlineDriversQuery = supabase
         .from('attendance_records')
-        .select('driver_id', {count: 'exact', head: false})
+        .select('user_id', {count: 'exact', head: false})
         .gte('clock_in_time', `${today}T00:00:00`)
         .lte('clock_in_time', `${today}T23:59:59`)
 
@@ -110,7 +110,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       if (onlineError) throw onlineError
 
       // 去重统计在线司机数
-      const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.driver_id) || [])
+      const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || [])
       const onlineDrivers = uniqueOnlineDrivers.size
 
       // 3. 获取今日有计件记录的司机数（已计件司机）
