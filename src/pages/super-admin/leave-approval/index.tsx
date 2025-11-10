@@ -91,8 +91,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
       const managedWarehouses = await getManagerWarehouses(user.id)
       setManagerWarehouses(managedWarehouses)
 
-      // 如果是打卡记录标签页，加载打卡记录
-      if (activeTab === 'attendance') {
+      // 如果是打卡记录标签页或司机统计标签页，加载打卡记录
+      if (activeTab === 'attendance' || activeTab === 'stats') {
         const currentMonth = filterMonth || initCurrentMonth()
         const [year, month] = currentMonth.split('-').map(Number)
         const records = await getAllAttendanceRecords(year, month)
