@@ -53,7 +53,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0) // 当前仓库索引
   const [filterStatus, setFilterStatus] = useState<string>('pending')
   const [filterDriver, setFilterDriver] = useState<string>('all')
-  const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('pending')
+  const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('stats') // 默认显示司机统计标签页
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
   const [showFilters, setShowFilters] = useState<boolean>(false) // 筛选条件是否展开
   const [sortBy, setSortBy] = useState<'rate' | 'count'>('rate') // 排序方式：出勤率或打卡次数
@@ -223,23 +223,38 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return {visibleLeave, visibleResignation}
   }
 
-  // 计算指定月份的工作日天数（排除周末）
-  const calculateWorkDays = useCallback((yearMonth: string): number => {
+  // 计算从指定月份1号到当前日期（或指定结束日期）的天数
+  // yearMonth: 格式为 "YYYY-MM"
+  // endDate: 可选，格式为 "YYYY-MM-DD"，默认为当前日期
+  const calculateWorkDays = useCallback((yearMonth: string, endDate?: string): number => {
     const [year, month] = yearMonth.split('-').map(Number)
-    const date = new Date(year, month - 1, 1)
-    const lastDay = new Date(year, month, 0).getDate()
-    let workDays = 0
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1
+    const currentDay = now.getDate()
 
-    for (let day = 1; day <= lastDay; day++) {
-      date.setDate(day)
-      const dayOfWeek = date.getDay()
-      // 排除周六(6)和周日(0)
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        workDays++
-      }
+    // 确定结束日期
+    let lastDay: number
+    if (endDate) {
+      // 如果提供了结束日期，使用该日期
+      const endDateObj = new Date(endDate)
+      lastDay = endDateObj.getDate()
+    } else if (year === currentYear && month === currentMonth) {
+      // 如果是当前月份，使用当前日期
+      lastDay = currentDay
+    } else {
+      // 如果是其他月份，使用该月的最后一天
+      lastDay = new Date(year, month, 0).getDate()
     }
 
-    return workDays
+    // 计算天数（不排除周末，按自然天数计算）
+    return lastDay
+  }, [])
+
+  // 计算整月的总天数（用于判断满勤）
+  const calculateMonthTotalDays = useCallback((yearMonth: string): number => {
+    const [year, month] = yearMonth.split('-').map(Number)
+    return new Date(year, month, 0).getDate()
   }, [])
 
   // 计算司机统计数据
@@ -249,9 +264,41 @@ const SuperAdminLeaveApproval: React.FC = () => {
     // 获取所有司机（role为driver的用户）
     const drivers = profiles.filter((p) => p.role === 'driver')
 
-    // 计算当前月份的工作日
+    // 计算当前月份
     const currentMonth = filterMonth || initCurrentMonth()
-    const workDaysInMonth = calculateWorkDays(currentMonth)
+    const monthTotalDays = calculateMonthTotalDays(currentMonth) // 整月总天数，用于判断满勤
+
+    // 辅助函数：计算司机在当前月份的应出勤天数
+    const getDriverWorkDays = (driver: Profile): number => {
+      const [year, month] = currentMonth.split('-').map(Number)
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth_num = now.getMonth() + 1
+
+      // 如果司机有入职日期，且入职日期在当前月份内
+      if (driver.join_date) {
+        const joinDate = new Date(driver.join_date)
+        const joinYear = joinDate.getFullYear()
+        const joinMonth = joinDate.getMonth() + 1
+        const joinDay = joinDate.getDate()
+
+        // 如果入职月份就是当前筛选的月份
+        if (joinYear === year && joinMonth === month) {
+          // 如果是当前月份，计算从入职日期到今天的天数
+          if (year === currentYear && month === currentMonth_num) {
+            const today = now.getDate()
+            return today - joinDay + 1
+          } else {
+            // 如果是历史月份，计算从入职日期到月底的天数
+            const lastDayOfMonth = new Date(year, month, 0).getDate()
+            return lastDayOfMonth - joinDay + 1
+          }
+        }
+      }
+
+      // 默认情况：从1号到当前日期（或整月）
+      return calculateWorkDays(currentMonth)
+    }
 
     const statsMap = new Map<string, DriverStats>()
 
@@ -271,7 +318,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           resignationCount: 0,
           attendanceCount: 0,
           pendingCount: 0,
-          workDays: workDaysInMonth,
+          workDays: getDriverWorkDays(driver),
           actualAttendanceDays: 0,
           attendanceRate: 0,
           isFullAttendance: false
@@ -308,7 +355,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           resignationCount: 0,
           attendanceCount: 0,
           pendingCount: 0,
-          workDays: workDaysInMonth,
+          workDays: getDriverWorkDays(driver),
           actualAttendanceDays: 0,
           attendanceRate: 0,
           isFullAttendance: false
@@ -367,7 +414,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           resignationCount: 0,
           attendanceCount: 0,
           pendingCount: 0,
-          workDays: workDaysInMonth,
+          workDays: getDriverWorkDays(driver),
           actualAttendanceDays: 0,
           attendanceRate: 0,
           isFullAttendance: false
@@ -385,12 +432,16 @@ const SuperAdminLeaveApproval: React.FC = () => {
       attendanceDaysMap.get(driver.id)?.add(checkInDate)
     }
 
-    // 计算出勤率
+    // 计算出勤率和满勤状态
     for (const [driverId, stats] of statsMap.entries()) {
       const attendanceDays = attendanceDaysMap.get(driverId)?.size || 0
       stats.actualAttendanceDays = attendanceDays
+
+      // 计算出勤率：实际出勤天数 / 应出勤天数
       stats.attendanceRate = stats.workDays > 0 ? Math.round((attendanceDays / stats.workDays) * 100) : 0
-      stats.isFullAttendance = stats.attendanceRate === 100
+
+      // 满勤判断：实际出勤天数 == 整月总天数
+      stats.isFullAttendance = attendanceDays === monthTotalDays
     }
 
     // 根据排序方式排序
