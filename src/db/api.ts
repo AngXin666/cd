@@ -2434,69 +2434,141 @@ export async function getCurrentUserPermissions(): Promise<ManagerPermission | n
  * @returns 创建的司机资料，如果失败返回null
  */
 export async function createDriver(phone: string, name: string): Promise<Profile | null> {
-  console.log('=== createDriver 调用 ===')
-  console.log('手机号:', phone)
-  console.log('姓名:', name)
+  const timestamp = new Date().toISOString()
+  console.log(`\n${'='.repeat(80)}`)
+  console.log('🚀 [createDriver] 函数调用开始')
+  console.log('⏰ 时间戳:', timestamp)
+  console.log('📱 输入参数:')
+  console.log('  - 手机号:', phone)
+  console.log('  - 姓名:', name)
+  console.log(`${'='.repeat(80)}\n`)
 
   try {
-    // 检查手机号是否已存在
-    const {data: existingProfiles} = await supabase.from('profiles').select('*').eq('phone', phone).maybeSingle()
+    // 步骤1: 检查手机号是否已存在
+    console.log('📋 [步骤1] 检查手机号是否已存在')
+    console.log('  - 查询条件: phone =', phone)
 
-    if (existingProfiles) {
-      console.warn('⚠️ 手机号已存在')
-      return null // 手机号已存在
-    }
-
-    // 创建新的司机资料
-    const {data, error} = await supabase
+    const {data: existingProfiles, error: checkError} = await supabase
       .from('profiles')
-      .insert({
-        phone,
-        name,
-        role: 'driver',
-        login_account: `${phone}@fleet.com`, // 自动生成登录账号
-        email: `${phone}@fleet.com` // 同时设置 email 字段
-      })
-      .select()
+      .select('*')
+      .eq('phone', phone)
       .maybeSingle()
 
-    if (error || !data) {
-      console.error('❌ 创建司机失败:', error)
+    if (checkError) {
+      console.error('  ❌ 查询失败:', checkError)
+      console.error('  错误详情:', JSON.stringify(checkError, null, 2))
       return null
     }
 
-    console.log('✅ profiles 表记录创建成功')
-    console.log('用户ID:', data.id)
+    if (existingProfiles) {
+      console.warn('  ⚠️ 手机号已存在')
+      console.warn('  已存在的用户ID:', existingProfiles.id)
+      console.warn('  已存在的用户姓名:', existingProfiles.name)
+      console.log('  ❌ 创建失败：手机号重复\n')
+      return null
+    }
 
-    // 同时在 auth.users 表中创建登录账号
+    console.log('  ✅ 手机号可用，继续创建\n')
+
+    // 步骤2: 创建 profiles 表记录
+    console.log('📋 [步骤2] 创建 profiles 表记录')
+    const insertData = {
+      phone,
+      name,
+      role: 'driver',
+      login_account: `${phone}@fleet.com`,
+      email: `${phone}@fleet.com`
+    }
+    console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
+
+    const {data, error} = await supabase.from('profiles').insert(insertData).select().maybeSingle()
+
+    if (error) {
+      console.error('  ❌ 插入失败:', error)
+      console.error('  错误代码:', error.code)
+      console.error('  错误消息:', error.message)
+      console.error('  错误详情:', JSON.stringify(error, null, 2))
+      return null
+    }
+
+    if (!data) {
+      console.error('  ❌ 插入失败：返回数据为空')
+      return null
+    }
+
+    console.log('  ✅ profiles 表记录创建成功')
+    console.log('  - 用户ID:', data.id)
+    console.log('  - 手机号:', data.phone)
+    console.log('  - 姓名:', data.name)
+    console.log('  - 角色:', data.role)
+    console.log('  - 登录账号:', data.login_account)
+    console.log('  - 邮箱:', data.email)
+    console.log('  - 创建时间:', data.created_at)
+    console.log('  - 完整数据:', JSON.stringify(data, null, 2))
+    console.log('')
+
+    // 步骤3: 创建 auth.users 表记录
+    console.log('📋 [步骤3] 创建 auth.users 表记录')
+    const loginEmail = `${phone}@fleet.com`
+    console.log('  - 目标用户ID:', data.id)
+    console.log('  - 登录邮箱:', loginEmail)
+    console.log('  - 默认密码: 123456')
+
     try {
-      const loginEmail = `${phone}@fleet.com`
-      console.log('开始创建 auth.users 记录，邮箱:', loginEmail)
-
-      // 使用 update_user_email 函数创建 auth.users 记录
-      // 这个函数会自动处理用户不存在的情况
-      const {error: authError} = await supabase.rpc('update_user_email', {
+      const {data: rpcData, error: authError} = await supabase.rpc('update_user_email', {
         target_user_id: data.id,
         new_email: loginEmail
       })
 
       if (authError) {
-        console.error('❌ 创建 auth.users 记录失败:', authError)
-        console.error('错误详情:', JSON.stringify(authError, null, 2))
-        console.warn('⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
-        console.warn('💡 用户可以通过手机号验证码登录，或稍后通过编辑用户信息创建登录账号')
+        console.error('  ❌ 创建 auth.users 记录失败')
+        console.error('  错误代码:', authError.code)
+        console.error('  错误消息:', authError.message)
+        console.error('  错误详情:', JSON.stringify(authError, null, 2))
+        console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
+        console.warn('  💡 用户可以通过手机号验证码登录')
+        console.warn('  💡 或稍后通过编辑用户信息创建登录账号')
       } else {
-        console.log('✅ auth.users 记录创建成功！')
-        console.log('💡 用户需要通过"重置密码"功能设置密码后才能使用账号密码登录')
+        console.log('  ✅ auth.users 记录创建成功')
+        console.log('  - RPC 返回数据:', rpcData)
+        console.log('  - 登录账号:', loginEmail)
+        console.log('  - 默认密码: 123456')
+        console.log('  💡 用户可以使用以下方式登录:')
+        console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
+        console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
+        console.log('    3. 手机号 + 验证码')
       }
     } catch (authError) {
-      console.error('❌ 创建 auth.users 记录异常:', authError)
-      console.warn('⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
+      console.error('  ❌ 创建 auth.users 记录异常')
+      console.error('  异常类型:', typeof authError)
+      console.error('  异常内容:', authError)
+      if (authError instanceof Error) {
+        console.error('  异常消息:', authError.message)
+        console.error('  异常堆栈:', authError.stack)
+      }
+      console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
     }
+
+    console.log('')
+    console.log('='.repeat(80))
+    console.log('✅ [createDriver] 函数执行完成')
+    console.log('📊 最终结果:')
+    console.log('  - profiles 表: ✅ 创建成功')
+    console.log('  - auth.users 表: 请查看上方日志')
+    console.log('  - 返回数据:', JSON.stringify(data, null, 2))
+    console.log(`${'='.repeat(80)}\n`)
 
     return data as Profile
   } catch (error) {
-    console.error('❌ 创建司机异常:', error)
+    console.error(`\n${'='.repeat(80)}`)
+    console.error('❌ [createDriver] 函数执行异常')
+    console.error('异常类型:', typeof error)
+    console.error('异常内容:', error)
+    if (error instanceof Error) {
+      console.error('异常消息:', error.message)
+      console.error('异常堆栈:', error.stack)
+    }
+    console.error(`${'='.repeat(80)}\n`)
     return null
   }
 }
