@@ -495,12 +495,12 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-xs text-gray-700 font-medium">件数报表</Text>
               </View>
 
-              {/* 请假审批 */}
+              {/* 考勤管理 */}
               <View
                 onClick={handleLeaveApproval}
                 className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-calendar-check text-3xl text-red-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">请假审批</Text>
+                <Text className="text-xs text-gray-700 font-medium">考勤管理</Text>
               </View>
             </View>
           </View>

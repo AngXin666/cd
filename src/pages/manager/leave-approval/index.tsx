@@ -24,6 +24,7 @@ interface DriverStats {
   totalLeaveDays: number
   leaveCount: number
   resignationCount: number
+  attendanceCount: number
   pendingCount: number
 }
 
@@ -191,6 +192,7 @@ const ManagerLeaveApproval: React.FC = () => {
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
+          attendanceCount: 0,
           pendingCount: 0
         })
       }
@@ -223,6 +225,7 @@ const ManagerLeaveApproval: React.FC = () => {
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
+          attendanceCount: 0,
           pendingCount: 0
         })
       }
@@ -234,6 +237,42 @@ const ManagerLeaveApproval: React.FC = () => {
       if (app.status === 'pending') {
         stats.pendingCount++
       }
+    }
+
+    // 处理打卡记录
+    let visibleAttendance = attendanceRecords
+    // 只显示管辖仓库的数据
+    const managerWarehouseIds = managerWarehouses.map((w) => w.id)
+    visibleAttendance = attendanceRecords.filter((record) =>
+      record.warehouse_id ? managerWarehouseIds.includes(record.warehouse_id) : false
+    )
+    // 按仓库筛选
+    if (filterWarehouse !== 'all') {
+      visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === filterWarehouse)
+    }
+
+    for (const record of visibleAttendance) {
+      const driver = drivers.find((d) => d.id === record.user_id)
+      if (!driver) continue
+
+      if (!statsMap.has(driver.id)) {
+        // 如果还没有这个司机的统计，需要找到他的仓库信息
+        const driverWarehouseId = record.warehouse_id || ''
+        statsMap.set(driver.id, {
+          driverId: driver.id,
+          driverName: getUserName(driver.id),
+          warehouseId: driverWarehouseId,
+          warehouseName: getWarehouseName(driverWarehouseId),
+          totalLeaveDays: 0,
+          leaveCount: 0,
+          resignationCount: 0,
+          attendanceCount: 0,
+          pendingCount: 0
+        })
+      }
+
+      const stats = statsMap.get(driver.id)!
+      stats.attendanceCount++
     }
 
     return Array.from(statsMap.values()).sort(
@@ -400,7 +439,7 @@ const ManagerLeaveApproval: React.FC = () => {
 
   // 统计数据
   const totalDrivers = driverStats.length
-  const totalLeaveDays = driverStats.reduce((sum, s) => sum + s.totalLeaveDays, 0)
+  const _totalLeaveDays = driverStats.reduce((sum, s) => sum + s.totalLeaveDays, 0)
   const totalPending = driverStats.reduce((sum, s) => sum + s.pendingCount, 0)
   const pendingLeave = visibleLeave.filter((app) => app.status === 'pending')
   const pendingResignation = visibleResignation.filter((app) => app.status === 'pending')
@@ -411,19 +450,15 @@ const ManagerLeaveApproval: React.FC = () => {
         <View className="p-4">
           {/* 标题卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">请假审批管理</Text>
+            <Text className="text-white text-2xl font-bold block mb-2">考勤管理</Text>
             <Text className="text-blue-100 text-sm block">管理员工作台</Text>
           </View>
 
           {/* 统计卡片 */}
-          <View className="grid grid-cols-3 gap-3 mb-4">
+          <View className="grid grid-cols-2 gap-3 mb-4">
             <View className="bg-white rounded-lg p-4 shadow">
               <Text className="text-sm text-gray-600 block mb-2">司机总数</Text>
               <Text className="text-3xl font-bold text-blue-900 block">{totalDrivers}</Text>
-            </View>
-            <View className="bg-white rounded-lg p-4 shadow">
-              <Text className="text-sm text-gray-600 block mb-2">请假总天数</Text>
-              <Text className="text-3xl font-bold text-orange-600 block">{totalLeaveDays}</Text>
             </View>
             <View className="bg-white rounded-lg p-4 shadow">
               <Text className="text-sm text-gray-600 block mb-2">待审批</Text>
@@ -690,7 +725,7 @@ const ManagerLeaveApproval: React.FC = () => {
                     </View>
 
                     {/* 统计数据 */}
-                    <View className="grid grid-cols-3 gap-3">
+                    <View className={`grid gap-3 ${stats.resignationCount > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                       <View className="text-center">
                         <Text className="text-2xl font-bold text-orange-600 block">{stats.totalLeaveDays}</Text>
                         <Text className="text-xs text-gray-500">请假天数</Text>
@@ -700,9 +735,15 @@ const ManagerLeaveApproval: React.FC = () => {
                         <Text className="text-xs text-gray-500">请假次数</Text>
                       </View>
                       <View className="text-center">
-                        <Text className="text-2xl font-bold text-purple-600 block">{stats.resignationCount}</Text>
-                        <Text className="text-xs text-gray-500">离职申请</Text>
+                        <Text className="text-2xl font-bold text-green-600 block">{stats.attendanceCount}</Text>
+                        <Text className="text-xs text-gray-500">打卡次数</Text>
                       </View>
+                      {stats.resignationCount > 0 && (
+                        <View className="text-center">
+                          <Text className="text-2xl font-bold text-purple-600 block">{stats.resignationCount}</Text>
+                          <Text className="text-xs text-gray-500">离职申请</Text>
+                        </View>
+                      )}
                     </View>
 
                     {/* 查看详情提示 */}
