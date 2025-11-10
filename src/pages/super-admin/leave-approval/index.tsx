@@ -31,6 +31,9 @@ interface DriverStats {
   actualAttendanceDays: number // 实际打卡天数
   attendanceRate: number // 出勤率（百分比）
   isFullAttendance: boolean // 是否满勤
+  // 入职信息字段
+  joinDate: string | null // 入职日期
+  workingDays: number // 在职天数
 }
 
 // 打卡记录统计类型
@@ -268,6 +271,16 @@ const SuperAdminLeaveApproval: React.FC = () => {
     const currentMonth = filterMonth || initCurrentMonth()
     const monthTotalDays = calculateMonthTotalDays(currentMonth) // 整月总天数，用于判断满勤
 
+    // 辅助函数：计算在职天数
+    const calculateWorkingDays = (joinDate: string | null): number => {
+      if (!joinDate) return 0
+      const join = new Date(joinDate)
+      const now = new Date()
+      const diffTime = now.getTime() - join.getTime()
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays >= 0 ? diffDays : 0
+    }
+
     // 辅助函数：计算司机在当前月份的应出勤天数
     const getDriverWorkDays = (driver: Profile): number => {
       const [year, month] = currentMonth.split('-').map(Number)
@@ -321,7 +334,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
           workDays: getDriverWorkDays(driver),
           actualAttendanceDays: 0,
           attendanceRate: 0,
-          isFullAttendance: false
+          isFullAttendance: false,
+          joinDate: driver.join_date,
+          workingDays: calculateWorkingDays(driver.join_date)
         })
       }
 
@@ -358,7 +373,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
           workDays: getDriverWorkDays(driver),
           actualAttendanceDays: 0,
           attendanceRate: 0,
-          isFullAttendance: false
+          isFullAttendance: false,
+          joinDate: driver.join_date,
+          workingDays: calculateWorkingDays(driver.join_date)
         })
       }
 
@@ -417,7 +434,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
           workDays: getDriverWorkDays(driver),
           actualAttendanceDays: 0,
           attendanceRate: 0,
-          isFullAttendance: false
+          isFullAttendance: false,
+          joinDate: driver.join_date,
+          workingDays: calculateWorkingDays(driver.join_date)
         })
       }
 
@@ -1065,7 +1084,16 @@ const SuperAdminLeaveApproval: React.FC = () => {
                         <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                         <View className="flex-1">
                           <Text className="text-base font-bold text-gray-800 block">{stats.driverName}</Text>
-                          <Text className="text-xs text-gray-500">{stats.warehouseName}</Text>
+                          <Text className="text-xs text-gray-500 block">{stats.warehouseName}</Text>
+                          {stats.joinDate && (
+                            <View className="flex items-center gap-2 mt-1">
+                              <Text className="text-xs text-gray-400">
+                                入职: {new Date(stats.joinDate).toLocaleDateString('zh-CN')}
+                              </Text>
+                              <Text className="text-xs text-gray-400">•</Text>
+                              <Text className="text-xs text-gray-400">在职 {stats.workingDays} 天</Text>
+                            </View>
+                          )}
                         </View>
                       </View>
                     </View>
