@@ -2512,13 +2512,20 @@ export async function createDriver(phone: string, name: string): Promise<Profile
     const loginEmail = `${phone}@fleet.com`
     console.log('  - 目标用户ID:', data.id)
     console.log('  - 登录邮箱:', loginEmail)
+    console.log('  - 手机号:', phone)
     console.log('  - 默认密码: 123456')
+    console.log('  - 使用函数: create_user_auth_account')
 
     try {
-      const {data: rpcData, error: authError} = await supabase.rpc('update_user_email', {
+      const {data: rpcData, error: authError} = await supabase.rpc('create_user_auth_account', {
         target_user_id: data.id,
-        new_email: loginEmail
+        user_email: loginEmail,
+        user_phone: phone
       })
+
+      console.log('  - RPC 调用完成')
+      console.log('  - 返回数据:', rpcData)
+      console.log('  - 错误信息:', authError)
 
       if (authError) {
         console.error('  ❌ 创建 auth.users 记录失败')
@@ -2528,11 +2535,16 @@ export async function createDriver(phone: string, name: string): Promise<Profile
         console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
         console.warn('  💡 用户可以通过手机号验证码登录')
         console.warn('  💡 或稍后通过编辑用户信息创建登录账号')
+      } else if (rpcData && rpcData.success === false) {
+        console.error('  ❌ 创建 auth.users 记录失败')
+        console.error('  错误:', rpcData.error)
+        console.error('  详情:', rpcData.details)
+        console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
       } else {
         console.log('  ✅ auth.users 记录创建成功')
-        console.log('  - RPC 返回数据:', rpcData)
-        console.log('  - 登录账号:', loginEmail)
-        console.log('  - 默认密码: 123456')
+        console.log('  - 用户ID:', rpcData.user_id)
+        console.log('  - 邮箱:', rpcData.email)
+        console.log('  - 默认密码:', rpcData.default_password)
         console.log('  💡 用户可以使用以下方式登录:')
         console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
         console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
