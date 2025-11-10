@@ -26,6 +26,11 @@ interface DriverStats {
   resignationCount: number
   attendanceCount: number
   pendingCount: number
+  // 出勤统计字段
+  workDays: number // 应出勤天数（工作日）
+  actualAttendanceDays: number // 实际打卡天数
+  attendanceRate: number // 出勤率（百分比）
+  isFullAttendance: boolean // 是否满勤
 }
 
 // 打卡记录统计类型
@@ -51,6 +56,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('pending')
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
   const [showFilters, setShowFilters] = useState<boolean>(false) // 筛选条件是否展开
+  const [sortBy, setSortBy] = useState<'rate' | 'count'>('rate') // 排序方式：出勤率或打卡次数
 
   // 初始化当前月份
   const initCurrentMonth = useCallback(() => {
@@ -217,12 +223,35 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return {visibleLeave, visibleResignation}
   }
 
+  // 计算指定月份的工作日天数（排除周末）
+  const calculateWorkDays = useCallback((yearMonth: string): number => {
+    const [year, month] = yearMonth.split('-').map(Number)
+    const date = new Date(year, month - 1, 1)
+    const lastDay = new Date(year, month, 0).getDate()
+    let workDays = 0
+
+    for (let day = 1; day <= lastDay; day++) {
+      date.setDate(day)
+      const dayOfWeek = date.getDay()
+      // 排除周六(6)和周日(0)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workDays++
+      }
+    }
+
+    return workDays
+  }, [])
+
   // 计算司机统计数据
   const calculateDriverStats = (): DriverStats[] => {
     const {visibleLeave, visibleResignation} = getVisibleApplications()
 
     // 获取所有司机（role为driver的用户）
     const drivers = profiles.filter((p) => p.role === 'driver')
+
+    // 计算当前月份的工作日
+    const currentMonth = filterMonth || initCurrentMonth()
+    const workDaysInMonth = calculateWorkDays(currentMonth)
 
     const statsMap = new Map<string, DriverStats>()
 
@@ -241,7 +270,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
           leaveCount: 0,
           resignationCount: 0,
           attendanceCount: 0,
-          pendingCount: 0
+          pendingCount: 0,
+          workDays: workDaysInMonth,
+          actualAttendanceDays: 0,
+          attendanceRate: 0,
+          isFullAttendance: false
         })
       }
 
@@ -274,7 +307,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
           leaveCount: 0,
           resignationCount: 0,
           attendanceCount: 0,
-          pendingCount: 0
+          pendingCount: 0,
+          workDays: workDaysInMonth,
+          actualAttendanceDays: 0,
+          attendanceRate: 0,
+          isFullAttendance: false
         })
       }
 
@@ -302,6 +339,17 @@ const SuperAdminLeaveApproval: React.FC = () => {
       visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === currentWarehouseId)
     }
 
+    // 按月份筛选打卡记录
+    if (filterMonth) {
+      visibleAttendance = visibleAttendance.filter((record) => {
+        const recordDate = new Date(record.clock_in_time)
+        const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`
+        return recordMonth === filterMonth
+      })
+    }
+
+    // 统计每个司机的打卡天数（去重，一天只算一次）
+    const attendanceDaysMap = new Map<string, Set<string>>()
     for (const record of visibleAttendance) {
       const driver = drivers.find((d) => d.id === record.user_id)
       if (!driver) continue
@@ -318,17 +366,60 @@ const SuperAdminLeaveApproval: React.FC = () => {
           leaveCount: 0,
           resignationCount: 0,
           attendanceCount: 0,
-          pendingCount: 0
+          pendingCount: 0,
+          workDays: workDaysInMonth,
+          actualAttendanceDays: 0,
+          attendanceRate: 0,
+          isFullAttendance: false
         })
       }
 
       const stats = statsMap.get(driver.id)!
       stats.attendanceCount++
+
+      // 记录打卡日期（用于计算实际出勤天数）
+      if (!attendanceDaysMap.has(driver.id)) {
+        attendanceDaysMap.set(driver.id, new Set())
+      }
+      const checkInDate = new Date(record.clock_in_time).toISOString().split('T')[0]
+      attendanceDaysMap.get(driver.id)?.add(checkInDate)
     }
 
-    return Array.from(statsMap.values()).sort(
-      (a, b) => b.pendingCount - a.pendingCount || b.totalLeaveDays - a.totalLeaveDays
-    )
+    // 计算出勤率
+    for (const [driverId, stats] of statsMap.entries()) {
+      const attendanceDays = attendanceDaysMap.get(driverId)?.size || 0
+      stats.actualAttendanceDays = attendanceDays
+      stats.attendanceRate = stats.workDays > 0 ? Math.round((attendanceDays / stats.workDays) * 100) : 0
+      stats.isFullAttendance = stats.attendanceRate === 100
+    }
+
+    // 根据排序方式排序
+    const statsArray = Array.from(statsMap.values())
+    if (sortBy === 'rate') {
+      return statsArray.sort(
+        (a, b) => b.attendanceRate - a.attendanceRate || b.actualAttendanceDays - a.actualAttendanceDays
+      )
+    } else {
+      return statsArray.sort((a, b) => b.attendanceCount - a.attendanceCount || b.attendanceRate - a.attendanceRate)
+    }
+  }
+
+  // 计算整体出勤率
+  const calculateOverallAttendanceRate = (): {rate: number; totalDrivers: number; fullAttendanceCount: number} => {
+    const stats = calculateDriverStats()
+    if (stats.length === 0) {
+      return {rate: 0, totalDrivers: 0, fullAttendanceCount: 0}
+    }
+
+    const totalRate = stats.reduce((sum, s) => sum + s.attendanceRate, 0)
+    const avgRate = Math.round(totalRate / stats.length)
+    const fullAttendanceCount = stats.filter((s) => s.isFullAttendance).length
+
+    return {
+      rate: avgRate,
+      totalDrivers: stats.length,
+      fullAttendanceCount
+    }
   }
 
   // 审批请假申请
@@ -826,9 +917,76 @@ const SuperAdminLeaveApproval: React.FC = () => {
           {/* 司机统计列表 */}
           {activeTab === 'stats' && (
             <View className="mb-4">
+              {/* 整体出勤率卡片 */}
+              <View className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
+                <Text className="text-white text-lg font-bold mb-4 block">整体出勤率</Text>
+                <View className="flex items-center justify-between">
+                  <View className="flex-1">
+                    <View className="flex items-baseline mb-2">
+                      <Text className="text-5xl font-bold text-white">{calculateOverallAttendanceRate().rate}</Text>
+                      <Text className="text-2xl text-white ml-1">%</Text>
+                    </View>
+                    <View className="flex items-center gap-4 mt-3">
+                      <View className="flex items-center">
+                        <View className="i-mdi-account-group text-white text-lg mr-1" />
+                        <Text className="text-white text-sm">
+                          {calculateOverallAttendanceRate().totalDrivers} 名司机
+                        </Text>
+                      </View>
+                      <View className="flex items-center">
+                        <View className="i-mdi-trophy text-yellow-300 text-lg mr-1" />
+                        <Text className="text-white text-sm">
+                          {calculateOverallAttendanceRate().fullAttendanceCount} 人满勤
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View className="relative w-24 h-24">
+                    <View
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background: `conic-gradient(#fff ${calculateOverallAttendanceRate().rate * 3.6}deg, rgba(255,255,255,0.2) 0deg)`
+                      }}
+                    />
+                    <View className="absolute inset-2 bg-blue-600 rounded-full flex items-center justify-center">
+                      <View className="i-mdi-chart-arc text-3xl text-white" />
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* 排序按钮 */}
+              <View className="flex gap-2 mb-4">
+                <View
+                  className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'rate' ? 'bg-blue-600' : 'bg-white'}`}
+                  onClick={() => setSortBy('rate')}>
+                  <View className="flex items-center justify-center gap-1">
+                    <View
+                      className={`i-mdi-sort-descending text-base ${sortBy === 'rate' ? 'text-white' : 'text-gray-600'}`}
+                    />
+                    <Text className={`text-xs font-bold ${sortBy === 'rate' ? 'text-white' : 'text-gray-600'}`}>
+                      按出勤率排序
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'count' ? 'bg-blue-600' : 'bg-white'}`}
+                  onClick={() => setSortBy('count')}>
+                  <View className="flex items-center justify-center gap-1">
+                    <View
+                      className={`i-mdi-sort-numeric-descending text-base ${sortBy === 'count' ? 'text-white' : 'text-gray-600'}`}
+                    />
+                    <Text className={`text-xs font-bold ${sortBy === 'count' ? 'text-white' : 'text-gray-600'}`}>
+                      按打卡次数排序
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 司机出勤列表 */}
               <View className="flex items-center justify-between mb-3">
-                <Text className="text-base font-bold text-gray-800">司机请假统计</Text>
-                <Text className="text-xs text-gray-500">点击查看详情</Text>
+                <Text className="text-base font-bold text-gray-800">司机出勤统计</Text>
+                <Text className="text-xs text-gray-500">{filterMonth || initCurrentMonth()} 月度数据</Text>
               </View>
 
               {driverStats.length === 0 ? (
@@ -840,44 +998,79 @@ const SuperAdminLeaveApproval: React.FC = () => {
                 driverStats.map((stats) => (
                   <View
                     key={stats.driverId}
-                    className="bg-white rounded-lg p-4 mb-3 shadow"
+                    className={`bg-white rounded-xl p-4 mb-3 shadow-md ${stats.isFullAttendance ? 'border-2 border-yellow-400' : ''}`}
                     onClick={() => navigateToDriverDetail(stats.driverId)}>
+                    {/* 满勤徽章 */}
+                    {stats.isFullAttendance && (
+                      <View className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-500 px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                        <View className="i-mdi-trophy text-white text-sm" />
+                        <Text className="text-xs text-white font-bold">满勤</Text>
+                      </View>
+                    )}
+
                     {/* 司机信息头部 */}
-                    <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
-                      <View className="flex items-center">
-                        <View className="i-mdi-account-circle text-3xl text-blue-900 mr-3" />
-                        <View>
+                    <View className="flex items-center justify-between mb-4">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
+                        <View className="flex-1">
                           <Text className="text-base font-bold text-gray-800 block">{stats.driverName}</Text>
                           <Text className="text-xs text-gray-500">{stats.warehouseName}</Text>
                         </View>
                       </View>
-                      {stats.pendingCount > 0 && (
-                        <View className="bg-red-50 px-3 py-1 rounded-full">
-                          <Text className="text-xs text-red-600 font-bold">{stats.pendingCount} 待审批</Text>
-                        </View>
-                      )}
                     </View>
 
-                    {/* 统计数据 */}
-                    <View className={`grid gap-3 ${stats.resignationCount > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                      <View className="text-center">
-                        <Text className="text-2xl font-bold text-orange-600 block">{stats.totalLeaveDays}</Text>
-                        <Text className="text-xs text-gray-500">请假天数</Text>
-                      </View>
-                      <View className="text-center">
-                        <Text className="text-2xl font-bold text-blue-600 block">{stats.leaveCount}</Text>
-                        <Text className="text-xs text-gray-500">请假次数</Text>
-                      </View>
-                      <View className="text-center">
-                        <Text className="text-2xl font-bold text-green-600 block">{stats.attendanceCount}</Text>
-                        <Text className="text-xs text-gray-500">打卡次数</Text>
-                      </View>
-                      {stats.resignationCount > 0 && (
-                        <View className="text-center">
-                          <Text className="text-2xl font-bold text-purple-600 block">{stats.resignationCount}</Text>
-                          <Text className="text-xs text-gray-500">离职申请</Text>
+                    {/* 出勤率圆环 */}
+                    <View className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+                      <View className="relative w-20 h-20">
+                        <View
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            background: `conic-gradient(${
+                              stats.attendanceRate >= 90
+                                ? '#10b981'
+                                : stats.attendanceRate >= 70
+                                  ? '#f59e0b'
+                                  : '#ef4444'
+                            } ${stats.attendanceRate * 3.6}deg, #e5e7eb 0deg)`
+                          }}
+                        />
+                        <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                          <View>
+                            <Text className="text-xl font-bold text-gray-800 text-center block">
+                              {stats.attendanceRate}
+                            </Text>
+                            <Text className="text-xs text-gray-500 text-center">%</Text>
+                          </View>
                         </View>
-                      )}
+                      </View>
+                      <View className="flex-1">
+                        <View className="flex items-center justify-between mb-2">
+                          <Text className="text-sm text-gray-600">实际出勤</Text>
+                          <Text className="text-sm font-bold text-blue-600">
+                            {stats.actualAttendanceDays} / {stats.workDays} 天
+                          </Text>
+                        </View>
+                        <View className="flex items-center justify-between">
+                          <Text className="text-sm text-gray-600">打卡次数</Text>
+                          <Text className="text-sm font-bold text-green-600">{stats.attendanceCount} 次</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* 其他统计数据 */}
+                    <View className="grid grid-cols-3 gap-3">
+                      <View className="text-center bg-orange-50 rounded-lg py-2">
+                        <Text className="text-xl font-bold text-orange-600 block">{stats.totalLeaveDays}</Text>
+                        <Text className="text-xs text-gray-600">请假天数</Text>
+                      </View>
+                      <View className="text-center bg-blue-50 rounded-lg py-2">
+                        <Text className="text-xl font-bold text-blue-600 block">{stats.leaveCount}</Text>
+                        <Text className="text-xs text-gray-600">请假次数</Text>
+                      </View>
+                      <View className="text-center bg-purple-50 rounded-lg py-2">
+                        <Text className="text-xl font-bold text-purple-600 block">{stats.pendingCount}</Text>
+                        <Text className="text-xs text-gray-600">待审批</Text>
+                      </View>
                     </View>
 
                     {/* 查看详情提示 */}
