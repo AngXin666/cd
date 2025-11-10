@@ -41,53 +41,98 @@ const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || 
 
 ---
 
-### 3. ✅ Edge Function SQL 扫描错误
+### 3. ✅ Edge Function SQL 扫描错误（最终解决方案）
 **问题**: `sql: Scan error on column index 8, name "email_change": converting NULL to string is unsupported`
 
 **原因**: 
-- Supabase Auth 内部查询 `auth.users` 表时
-- 遇到 NULL 值的 `email_change` 字段
-- 旧版本的 API 无法正确处理这些 NULL 值
+- Supabase Auth 的 Go 后端在查询 `auth.users` 表时
+- 遇到 NULL 值的 `email_change` 等字段
+- Go 代码尝试将 NULL 扫描到非指针的 string 类型导致错误
+- 这是 Supabase 底层的问题，无法通过修改 Edge Function 代码解决
 
-**修复**:
-- 文件: `supabase/functions/reset-user-password/index.ts`
-- 创建独立的 admin 客户端，配置不自动刷新令牌和持久化会话
-- 使用 `updateUserById` 返回的数据验证用户是否存在
-- 部署了新版本的 Edge Function（版本 3）
+**最终解决方案**:
+- 创建 PostgreSQL 函数 `reset_user_password_by_admin`
+- 直接在数据库层面重置密码，完全绕过 Supabase Auth 的 Go 后端
+- 使用 `pgcrypto` 扩展的 `crypt` 函数加密密码
+- 前端通过 RPC 调用此函数，而不是调用 Edge Function
 
 **修改内容**:
-```typescript
-// 修改前
-const { error: updateError } = await supabase.auth.admin.updateUserById(
-  userId,
-  { password }
-);
 
-// 修改后
-const adminClient = createClient(
-  supabaseUrl,
-  supabaseServiceKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
-
-const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(
-  userId,
-  { password }
-);
-
-// 验证用户是否存在
-if (!updateData || !updateData.user) {
-  return new Response(
-    JSON.stringify({ error: '用户不存在', details: '未找到指定的用户ID' }),
-    { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
+1. **数据库迁移** (`supabase/migrations/28_create_reset_password_function.sql`):
+```sql
+-- 创建重置密码函数
+CREATE OR REPLACE FUNCTION reset_user_password_by_admin(
+  target_user_id uuid,
+  new_password text DEFAULT '123456'
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  calling_user_id uuid;
+  calling_user_role user_role;
+  target_user_exists boolean;
+  encrypted_password text;
+BEGIN
+  -- 获取调用者的用户ID
+  calling_user_id := auth.uid();
+  
+  -- 检查权限（只有超级管理员可以调用）
+  SELECT role INTO calling_user_role
+  FROM profiles
+  WHERE id = calling_user_id;
+  
+  IF calling_user_role != 'super_admin' THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', '权限不足'
+    );
+  END IF;
+  
+  -- 加密密码并更新
+  encrypted_password := crypt(new_password, gen_salt('bf'));
+  
+  UPDATE auth.users
+  SET encrypted_password = encrypted_password, updated_at = now()
+  WHERE id = target_user_id;
+  
+  RETURN json_build_object('success', true, 'message', '密码已重置');
+END;
+$$;
 ```
+
+2. **前端代码** (`src/db/api.ts`):
+```typescript
+// 修改前：调用 Edge Function
+const response = await fetch(functionUrl, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session.access_token}`
+  },
+  body: JSON.stringify({ userId, newPassword: '123456' })
+})
+
+// 修改后：调用 PostgreSQL RPC 函数
+const {data, error} = await supabase.rpc('reset_user_password_by_admin', {
+  target_user_id: userId,
+  new_password: '123456'
+})
+
+if (data.success === false) {
+  return {success: false, error: data.error}
+}
+
+return {success: true}
+```
+
+**优势**:
+- ✅ 完全绕过 Supabase Auth 的 Go 后端扫描问题
+- ✅ 更快的响应速度（无需 HTTP 请求到 Edge Function）
+- ✅ 更好的安全性（在数据库层面验证权限）
+- ✅ 更简洁的代码（无需处理 HTTP 响应）
 
 ---
 
@@ -178,10 +223,14 @@ if (!updateData || !updateData.user) {
 
 ### 代码修改
 1. `src/hooks/useDriverStats.ts` - 修复数据库列名错误
-2. `supabase/functions/reset-user-password/index.ts` - 修复 SQL 扫描错误
+2. `src/db/api.ts` - 重写 resetUserPassword 函数，使用 PostgreSQL RPC
 
-### Edge Function 部署
-1. `reset-user-password` - 版本 3（已部署）
+### 数据库迁移
+1. `supabase/migrations/28_create_reset_password_function.sql` - 创建重置密码的 PostgreSQL 函数
+
+### Edge Function 部署（已废弃）
+1. ~~`reset-user-password` - 版本 3（已部署，但不再使用）~~
+2. 新方案使用 PostgreSQL RPC，不再需要 Edge Function
 
 ### 依赖安装
 1. `node_modules/pinyin-pro/` - 安装缺失的依赖包
