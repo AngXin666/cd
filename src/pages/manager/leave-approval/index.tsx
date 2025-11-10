@@ -1,4 +1,4 @@
-import {Button, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Picker, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -162,19 +162,11 @@ const ManagerLeaveApproval: React.FC = () => {
     return currentWarehouse?.id || 'all'
   }
 
-  // 左右滑动切换仓库
-  const handleSwipeWarehouse = (direction: 'left' | 'right') => {
-    const visibleWarehouses = getVisibleWarehouses()
-    if (visibleWarehouses.length === 0) return
-
-    if (direction === 'left') {
-      // 向左滑动，显示下一个仓库
-      setCurrentWarehouseIndex((prev) => (prev + 1) % visibleWarehouses.length)
-    } else {
-      // 向右滑动，显示上一个仓库
-      setCurrentWarehouseIndex((prev) => (prev - 1 + visibleWarehouses.length) % visibleWarehouses.length)
-    }
-  }
+  // 处理仓库切换
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+  }, [])
 
   // 获取可见的申请数据（只显示管辖仓库的数据）
   const getVisibleApplications = () => {
@@ -528,25 +520,23 @@ const ManagerLeaveApproval: React.FC = () => {
           </View>
 
           {/* 仓库切换区域 - 左右滑动 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <View className="flex items-center justify-between">
-              <View
-                className="i-mdi-chevron-left text-3xl text-blue-600 cursor-pointer"
-                onClick={() => handleSwipeWarehouse('right')}
-              />
-              <View className="flex-1 text-center">
-                <Text className="text-lg font-bold text-gray-800 block">
-                  {getCurrentWarehouse()?.name || '全部仓库'}
-                </Text>
-                <Text className="text-xs text-gray-500 mt-1 block">
-                  左右滑动切换仓库 ({currentWarehouseIndex + 1}/{getVisibleWarehouses().length})
-                </Text>
-              </View>
-              <View
-                className="i-mdi-chevron-right text-3xl text-blue-600 cursor-pointer"
-                onClick={() => handleSwipeWarehouse('left')}
-              />
-            </View>
+          <View className="bg-white rounded-xl shadow-md overflow-hidden mb-4">
+            <Swiper
+              className="h-16"
+              current={currentWarehouseIndex}
+              onChange={handleWarehouseChange}
+              indicatorDots
+              indicatorColor="rgba(0, 0, 0, 0.2)"
+              indicatorActiveColor="#1E3A8A">
+              {getVisibleWarehouses().map((warehouse) => (
+                <SwiperItem key={warehouse.id}>
+                  <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100">
+                    <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                    <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                  </View>
+                </SwiperItem>
+              ))}
+            </Swiper>
           </View>
 
           {/* 筛选条件展开/收起按钮 */}
