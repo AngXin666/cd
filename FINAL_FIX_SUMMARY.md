@@ -1,502 +1,255 @@
-# 🎉 车队管家系统修复总结报告
+# 车队管家小程序 - 最终修复总结
 
-## 📋 修复概览
+## 修复日期
+2025-11-05
 
-本次修复解决了两个关键问题：
-1. ✅ **超级管理员权限问题** - 无法从数据库获取数据
-2. ✅ **重复手机号错误** - 用户无法登录
+## 修复的问题
 
----
+### 1. ✅ 统计概览加载失败
+**问题描述：** 超级管理员首页的统计概览一直显示"加载中..."，无法显示司机统计数据
 
-## 🔧 问题 1：超级管理员权限问题
+**根本原因：**
+- `useDriverStats` Hook 在查询 `piece_work_records` 表时使用了错误的列名 `driver_id`
+- 实际表结构中使用的是 `user_id` 列
 
-### 问题描述
+**修复方案：**
+- 将 `piece_work_records` 表的查询从 `driver_id` 改为 `user_id`
+- 修复了司机统计数据的查询逻辑
 
-**症状**：
-- ❌ 超级管理员端无法从数据库获取数据
-- ❌ 界面没有任何数据显示
-- ❌ 件数报表也是异常
-- ❌ 所有统计数据显示为 0
+**影响文件：**
+- `src/hooks/useDriverStats.ts`
 
-**影响范围**：
-- 超级管理员工作台
-- 计件报表
-- 考勤管理
-- 请假审批
-- 仓库管理
-- 用户管理
-
-### 根本原因
-
-1. **RLS策略不完整**
-   - 某些表缺少超级管理员的查询权限
-   - 策略名称不统一，导致策略冲突
-
-2. **is_super_admin() 函数问题**
-   - 函数可能被意外修改
-   - 无法正确识别超级管理员角色
-
-### 修复方案
-
-**数据库迁移**：`15_fix_super_admin_permissions.sql`
-
-1. **重新创建 is_super_admin() 函数**
-   ```sql
-   CREATE OR REPLACE FUNCTION public.is_super_admin(user_id uuid)
-   RETURNS boolean
-   LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = public
-   AS $$
-   DECLARE
-     user_role_value user_role;
-   BEGIN
-     SELECT role INTO user_role_value
-     FROM profiles
-     WHERE id = user_id;
-     
-     RETURN user_role_value = 'super_admin';
-   END;
-   $$;
-   ```
-
-2. **为所有关键表添加超级管理员完整权限**
-   - warehouses - 仓库表
-   - leave_applications - 请假申请表
-   - piece_work_records - 计件记录表
-   - attendance_records - 考勤记录表
-   - piece_work_categories - 计件品类表
-   - manager_warehouses - 管理员仓库关联表
-   - driver_warehouses - 司机仓库关联表
-
-3. **统一策略名称**
-   ```sql
-   CREATE POLICY "超级管理员拥有完整权限" ON [表名]
-       FOR ALL TO authenticated
-       USING (is_super_admin(auth.uid()))
-       WITH CHECK (is_super_admin(auth.uid()));
-   ```
-
-### 修复效果
-
-| 功能 | 修复前 | 修复后 |
-|------|--------|--------|
-| 超级管理员工作台 | ❌ 无数据 | ✅ 正常显示 |
-| 计件报表 | ❌ 无数据 | ✅ 正常显示 |
-| 考勤管理 | ❌ 无数据 | ✅ 正常显示 |
-| 请假审批 | ❌ 无数据 | ✅ 正常显示 |
-| 仓库管理 | ❌ 无数据 | ✅ 正常显示 |
-| 用户管理 | ❌ 无数据 | ✅ 正常显示 |
+**提交记录：** `48af451`
 
 ---
 
-## 🔧 问题 2：重复手机号错误
+### 2. ✅ driver_warehouse_assignments 表查询 404 错误
+**问题描述：** 司机统计功能查询不存在的表 `driver_warehouse_assignments`
 
-### 问题描述
+**根本原因：**
+- 代码中使用了错误的表名 `driver_warehouse_assignments`
+- 实际数据库中的表名是 `driver_warehouses`
 
-**错误信息**：
-```
-ERROR: duplicate key value violates unique constraint "profiles_phone_key"
-(SQLSTATE 23505)
-```
+**修复方案：**
+- 将所有 `driver_warehouse_assignments` 引用改为 `driver_warehouses`
+- 修复了司机仓库分配关系的查询
+- 修复了实时更新监听的表名
 
-**症状**：
-- ❌ 已注册用户无法登录
-- ❌ 登录时出现数据库错误
-- ❌ 影响所有角色（司机、管理员、超级管理员）
+**影响文件：**
+- `src/hooks/useDriverStats.ts`
 
-**测试账号**：
-- 手机号：`13923088519`
-- 验证码：`123456`
-
-### 根本原因
-
-**触发器逻辑缺陷**：
-
-`handle_new_user()` 触发器在每次用户登录时都会尝试插入新记录：
-
-```sql
-INSERT INTO profiles (id, phone, email, role)
-VALUES (
-    NEW.id,
-    NEW.phone,
-    NEW.email,
-    CASE WHEN user_count = 0 THEN 'super_admin'::user_role ELSE 'driver'::user_role END
-);  -- ❌ 没有处理重复插入的情况
-```
-
-**问题点**：
-- 没有检查记录是否已存在
-- 直接执行 INSERT 语句
-- 违反 `profiles` 表的 `phone` 字段唯一约束
-
-### 修复方案
-
-**数据库迁移**：`16_fix_duplicate_phone_error.sql`
-
-**修改 handle_new_user() 函数**：
-
-```sql
-INSERT INTO profiles (id, phone, email, role)
-VALUES (
-    NEW.id,
-    NEW.phone,
-    NEW.email,
-    CASE WHEN user_count = 0 THEN 'super_admin'::user_role ELSE 'driver'::user_role END
-)
-ON CONFLICT (id) DO NOTHING;  -- ✅ 如果 id 已存在，则不执行任何操作
-```
-
-**关键改进**：
-- ✅ 使用 `ON CONFLICT (id) DO NOTHING`
-- ✅ 避免重复插入
-- ✅ 不影响首次注册的逻辑
-- ✅ 保持首位用户自动成为超级管理员
-
-### 修复效果
-
-| 操作 | 修复前 | 修复后 |
-|------|--------|--------|
-| 首次注册 | ✅ 成功 | ✅ 成功 |
-| 再次登录 | ❌ 失败 | ✅ 成功 |
-| 用户体验 | ❌ 差 | ✅ 好 |
-| 登录成功率 | 50% | 100% |
+**提交记录：** `bc9d982`
 
 ---
 
-## 📊 整体修复效果
+### 3. ✅ 登录功能失败
+**问题描述：** 用户登录时出现 SQL 扫描错误："sql: Scan error on column index 4"
 
-### 功能完整性
+**根本原因：**
+- `auth.users` 表中的某些字段（`phone`, `email`, `raw_user_meta_data`）为 NULL
+- Go 后端的 SQL 扫描器无法处理 NULL 值
 
-| 功能模块 | 状态 | 说明 |
-|----------|------|------|
-| 用户登录 | ✅ 正常 | 所有用户可以正常登录 |
-| 超级管理员工作台 | ✅ 正常 | 显示所有数据 |
-| 普通管理员工作台 | ✅ 正常 | 显示管辖仓库数据 |
-| 司机工作台 | ✅ 正常 | 显示个人数据 |
-| 计件报表 | ✅ 正常 | 所有角色可以查看 |
-| 考勤管理 | ✅ 正常 | 所有角色可以查看 |
-| 请假审批 | ✅ 正常 | 管理员可以审批 |
-| 仓库管理 | ✅ 正常 | 超级管理员可以管理 |
-| 用户管理 | ✅ 正常 | 超级管理员可以管理 |
-| 下拉刷新 | ✅ 正常 | 所有页面支持 |
-| 实时更新 | ✅ 正常 | 数据实时同步 |
+**修复方案：**
+1. 将 `auth.users` 表中的 NULL 字段更新为空字符串
+2. 为没有 email 的用户设置默认 email（基于手机号）
+3. 更新 `raw_user_meta_data` 为空 JSON 对象
 
-### 性能指标
+**影响文件：**
+- `supabase/migrations/31_fix_null_fields_in_auth_users.sql`
+- `supabase/migrations/32_set_default_email_for_phone_users.sql`
 
-| 指标 | 修复前 | 修复后 | 改进 |
-|------|--------|--------|------|
-| 登录成功率 | 50% | 100% | +50% |
-| 数据加载成功率 | 0% | 100% | +100% |
-| 用户满意度 | ⭐⭐ | ⭐⭐⭐⭐⭐ | +150% |
-| 错误率 | 50% | 0% | -50% |
-
-### 安全性
-
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| RLS 已启用 | ✅ | 所有表都启用了 RLS |
-| 超级管理员权限 | ✅ | 拥有完整权限 |
-| 普通管理员权限 | ✅ | 只能查看管辖仓库 |
-| 司机权限 | ✅ | 只能查看自己的数据 |
-| 匿名用户权限 | ✅ | 无法访问任何数据 |
-| 唯一约束 | ✅ | 正确处理冲突 |
+**提交记录：** `a0ba88b`, `5de07c1`
 
 ---
 
-## 🧪 测试验证
+### 4. ✅ 重置密码功能失败
+**问题描述：** 管理员无法重置用户密码，Supabase Auth API 返回错误
 
-### 测试场景覆盖
+**根本原因：**
+- Supabase Auth 的 Go 后端不支持通过 JavaScript 客户端直接修改密码
+- 需要使用 PostgreSQL 函数绕过 Auth 后端
 
-| 测试场景 | 状态 | 说明 |
-|----------|------|------|
-| 首次注册 | ✅ 通过 | 创建新记录 |
-| 再次登录 | ✅ 通过 | 跳过插入 |
-| 超级管理员登录 | ✅ 通过 | 正常登录 |
-| 普通管理员登录 | ✅ 通过 | 正常登录 |
-| 司机登录 | ✅ 通过 | 正常登录 |
-| 超级管理员工作台 | ✅ 通过 | 显示所有数据 |
-| 计件报表 | ✅ 通过 | 显示所有记录 |
-| 考勤管理 | ✅ 通过 | 显示所有记录 |
-| 请假审批 | ✅ 通过 | 显示所有申请 |
-| 仓库管理 | ✅ 通过 | 显示所有仓库 |
-| 用户管理 | ✅ 通过 | 显示所有用户 |
-| 下拉刷新 | ✅ 通过 | 所有页面支持 |
-| 实时更新 | ✅ 通过 | 数据实时同步 |
+**修复方案：**
+1. 创建 PostgreSQL 函数 `reset_user_password_by_admin`
+2. 使用 `pgcrypto` 扩展的 `crypt` 函数加密密码
+3. 直接更新 `auth.users` 表的 `encrypted_password` 字段
+4. 修复了函数路径问题（使用完全限定名 `extensions.gen_salt`, `extensions.crypt`）
+5. 修复了列引用不明确的问题
 
----
+**影响文件：**
+- `src/db/api.ts` - 重写 `resetUserPassword` 函数
+- `supabase/migrations/28_create_reset_password_function.sql`
+- `supabase/migrations/29_fix_reset_password_function.sql`
+- `supabase/migrations/30_fix_ambiguous_column_reference.sql`
 
-## 📝 数据库迁移
-
-### 应用的迁移文件
-
-| 迁移文件 | 状态 | 说明 |
-|----------|------|------|
-| 15_fix_super_admin_permissions.sql | ✅ 已应用 | 修复超级管理员权限 |
-| 16_fix_duplicate_phone_error.sql | ✅ 已应用 | 修复重复手机号错误 |
-
-### 数据库函数
-
-| 函数名 | 状态 | 说明 |
-|--------|------|------|
-| is_super_admin() | ✅ 正常 | 检查是否为超级管理员 |
-| is_manager_or_above() | ✅ 正常 | 检查是否为管理员 |
-| handle_new_user() | ✅ 正常 | 处理新用户注册 |
-| debug_user_role() | ✅ 正常 | 调试用户角色 |
+**提交记录：** `cad12b9`, `008287d`
 
 ---
 
-## 🔍 调试工具
+### 5. ✅ 用户管理页面无法打开
+**问题描述：** 点击用户管理页面时应用崩溃
 
-### 1. 检查用户角色
+**根本原因：**
+- 缺少 `pinyin-pro` 依赖包
+- 用户管理页面需要使用拼音排序功能
 
-在浏览器控制台执行：
+**修复方案：**
+- 安装 `pinyin-pro` 依赖包
+- 更新 `package.json`
 
-```javascript
-// 检查当前用户的角色
-const { data, error } = await supabase.rpc('debug_user_role', {
-  user_id: (await supabase.auth.getUser()).data.user.id
-})
-console.log('用户角色信息:', data)
-```
+**影响文件：**
+- `package.json`
 
-### 2. 检查数据库权限
-
-在浏览器控制台执行：
-
-```javascript
-// 检查是否可以查询 profiles 表
-const { data: profiles, error: profilesError } = await supabase
-  .from('profiles')
-  .select('id, name, phone, role')
-console.log('Profiles:', profiles?.length || 0, profilesError)
-
-// 检查是否可以查询 warehouses 表
-const { data: warehouses, error: warehousesError } = await supabase
-  .from('warehouses')
-  .select('id, name')
-console.log('Warehouses:', warehouses?.length || 0, warehousesError)
-```
-
-### 3. 清除缓存
-
-如果数据仍然不显示，尝试清除缓存：
-
-```javascript
-// 清除所有缓存
-Taro.clearStorageSync()
-console.log('缓存已清除')
-
-// 刷新页面
-location.reload()
-```
+**提交记录：** 早期提交
 
 ---
 
-## 📚 相关文档
+### 6. ✅ 司机统计数据查询失败
+**问题描述：** 司机统计功能查询考勤记录时使用了错误的列名
 
-### 修复报告
+**根本原因：**
+- `attendance_records` 表使用 `user_id` 列
+- 代码中错误地使用了 `driver_id` 列
 
-1. **SUPER_ADMIN_PERMISSION_FIX.md**
-   - 超级管理员权限问题修复报告
-   - 详细的问题分析
-   - 完整的修复方案
-   - 测试验证结果
+**修复方案：**
+- 将考勤记录查询从 `driver_id` 改为 `user_id`
 
-2. **DUPLICATE_PHONE_ERROR_FIX.md**
-   - 重复手机号错误修复报告
-   - 详细的问题分析
-   - 完整的修复方案
-   - 用户登录指南
+**影响文件：**
+- `src/hooks/useDriverStats.ts`
 
-3. **HOW_TO_CHECK_LOGS.md**
-   - 如何查看超级管理员端数据加载日志
-   - 详细的操作步骤
-   - 关键日志说明
-   - 常见问题及解决方案
-
-### 功能文档
-
-1. **REALTIME_UPDATE_FIX.md**
-   - 实时更新功能修复报告
-   - 所有操作实时生效
-
-2. **PULL_DOWN_REFRESH_FEATURE.md**
-   - 下拉刷新功能实现报告
-   - 所有页面支持下拉刷新
-
-3. **DASHBOARD_SYNC_FIX.md**
-   - 工作台数据同步问题修复报告
-   - 工作台数据实时更新
+**提交记录：** 早期提交
 
 ---
 
-## 🎉 用户指南
+## 验证步骤
 
-### 如何登录
-
-1. **打开登录页面**
-   - 点击底部的"登录"标签
-
-2. **选择登录方式**
-   - 密码登录：支持手机号 + 密码
-   - 验证码登录：支持手机号 + 验证码
-
-3. **输入手机号**
-   - 输入您的手机号
-   - 例如：`13923088519`
-
-4. **输入验证码或密码**
-   - 验证码登录：输入验证码 `123456`
-   - 密码登录：输入您的密码
-
-5. **点击登录**
-   - 点击"登录"按钮
-   - 等待跳转
-
-6. **登录成功**
-   - 自动跳转到对应角色的工作台
-   - 开始使用系统
-
-### 测试账号
-
-| 角色 | 手机号 | 验证码 | 说明 |
-|------|--------|--------|------|
-| 超级管理员 | 第一个注册的用户 | 123456 | 拥有所有权限 |
-| 普通管理员 | admin2 | 123456 | 只能查看管辖仓库 |
-| 司机 | 其他用户 | 123456 | 只能查看自己的数据 |
-
-### 功能说明
-
-#### 超级管理员
-
-**权限**：
-- ✅ 查看所有数据
-- ✅ 管理所有仓库
-- ✅ 管理所有用户
-- ✅ 审批所有请假
-- ✅ 查看所有报表
-
-**功能**：
-- 工作台：显示所有统计数据
-- 计件报表：查看所有计件记录
-- 考勤管理：查看所有考勤记录
-- 请假审批：审批所有请假申请
-- 仓库管理：管理所有仓库
-- 用户管理：管理所有用户
-
-#### 普通管理员
-
-**权限**：
-- ✅ 查看管辖仓库的数据
-- ❌ 不能修改数据
-- ❌ 不能删除数据
-
-**功能**：
-- 工作台：显示管辖仓库的统计数据
-- 计件报表：查看管辖仓库的计件记录
-- 考勤管理：查看管辖仓库的考勤记录
-
-#### 司机
-
-**权限**：
-- ✅ 查看自己的数据
-- ✅ 修改自己的数据
-- ❌ 不能查看其他人的数据
-
-**功能**：
-- 工作台：显示个人统计数据
-- 计件列表：查看和管理自己的计件记录
-- 考勤打卡：打卡上下班
-- 请假申请：提交请假申请
-
----
-
-## 🔧 代码质量
-
-### Lint 检查
-
+### 1. 验证登录功能
 ```bash
-pnpm run lint
+# 1. 打开小程序
+# 2. 使用手机号登录
+# 3. 确认可以成功登录并进入主页
 ```
 
-**结果**：
-- ✅ Biome 检查通过
-- ✅ TypeScript 检查通过
-- ✅ 无语法错误
-- ✅ 无类型错误
-
-### Git 提交历史
-
+### 2. 验证统计概览
+```bash
+# 1. 以超级管理员身份登录
+# 2. 查看首页统计概览
+# 3. 确认显示以下数据：
+#    - 总司机数
+#    - 在线司机数
+#    - 已计件司机数
+#    - 未计件司机数
+#    - 系统用户统计（司机、管理员、超管）
 ```
-d385a78 修复：重复手机号错误，用户无法登录
-aaa15b9 修复：超级管理员权限问题，确保可以查询所有数据
-3999338 文档：添加日志查看指南
-62f9ac7 诊断：添加超级管理员端数据加载详细日志
-13bb7a5 修复：超级管理员和管理员工作台数据同步问题
+
+### 3. 验证重置密码功能
+```bash
+# 1. 以超级管理员身份登录
+# 2. 进入用户管理页面
+# 3. 选择一个用户，点击编辑
+# 4. 输入新密码并保存
+# 5. 退出登录
+# 6. 使用新密码登录该用户
+# 7. 确认可以成功登录
+```
+
+### 4. 验证用户管理页面
+```bash
+# 1. 以超级管理员身份登录
+# 2. 点击"用户管理"
+# 3. 确认页面正常打开
+# 4. 确认用户列表按拼音排序
 ```
 
 ---
 
-## 📞 技术支持
+## 技术细节
 
-如果问题仍然存在，请：
+### 数据库表结构修正
+1. `attendance_records` 表使用 `user_id` 列（不是 `driver_id`）
+2. `piece_work_records` 表使用 `user_id` 列（不是 `driver_id`）
+3. `driver_warehouses` 表（不是 `driver_warehouse_assignments`）
 
-1. ✅ 清除浏览器缓存
-2. ✅ 刷新页面
-3. ✅ 查看控制台日志
-4. ✅ 使用调试工具检查
-5. ✅ 提供错误截图
+### PostgreSQL 函数
+创建了 `reset_user_password_by_admin` 函数，用于管理员重置用户密码：
+```sql
+CREATE OR REPLACE FUNCTION reset_user_password_by_admin(
+  target_user_id uuid,
+  new_password text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  hashed_password text;
+BEGIN
+  -- 检查调用者是否为超级管理员
+  IF NOT is_super_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Only super admins can reset passwords';
+  END IF;
 
-**联系方式**：
-- **邮箱**：support@fleet.com
-- **电话**：400-123-4567
-- **工作时间**：周一至周五 9:00-18:00
+  -- 使用 bcrypt 加密密码
+  hashed_password := extensions.crypt(new_password, extensions.gen_salt('bf'));
 
----
+  -- 更新用户密码
+  UPDATE auth.users
+  SET encrypted_password = hashed_password,
+      updated_at = now()
+  WHERE id = target_user_id;
 
-## ✅ 修复总结
-
-### 修复内容
-
-1. ✅ 修复超级管理员权限问题
-   - 重新创建 is_super_admin() 函数
-   - 为所有关键表添加超级管理员完整权限
-   - 统一策略名称
-
-2. ✅ 修复重复手机号错误
-   - 修改 handle_new_user() 函数
-   - 使用 ON CONFLICT DO NOTHING 避免重复插入
-   - 保持首位用户自动成为超级管理员的逻辑
-
-### 修复效果
-
-1. ✅ 超级管理员可以查询所有数据
-2. ✅ 所有用户可以正常登录
-3. ✅ 工作台正常显示统计数据
-4. ✅ 计件报表正常显示
-5. ✅ 考勤管理正常显示
-6. ✅ 请假审批正常显示
-7. ✅ 仓库管理正常显示
-8. ✅ 用户管理正常显示
-9. ✅ 下拉刷新功能正常
-10. ✅ 实时更新功能正常
-
-### 测试结果
-
-1. ✅ 所有测试场景通过
-2. ✅ 所有功能模块正常
-3. ✅ 所有角色权限正确
-4. ✅ 所有数据显示正常
-5. ✅ 用户体验显著提升
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User not found';
+  END IF;
+END;
+$$;
+```
 
 ---
 
-**修复版本**：v1.5  
-**修复时间**：2025-11-05  
-**适用版本**：车队管家 v1.2  
-**测试状态**：✅ 全部通过  
-**代码质量**：✅ Lint 检查通过  
-**数据库状态**：✅ 所有迁移已应用  
-**用户反馈**：✅ 所有问题已解决  
-**系统状态**：✅ 生产就绪
+## 代码质量检查
+✅ 所有代码通过 Biome 和 TypeScript 检查
+✅ 没有 ESLint 错误
+✅ 没有类型错误
+
+---
+
+## 下一步建议
+
+### 1. 数据一致性
+建议统一数据库表的列名命名规范：
+- 考虑将所有表中的司机 ID 统一为 `user_id` 或 `driver_id`
+- 当前混用可能导致未来的维护问题
+
+### 2. 错误处理
+建议增强错误处理机制：
+- 在 Hook 中添加更详细的错误信息
+- 在 UI 中显示更友好的错误提示
+- 添加错误日志收集
+
+### 3. 性能优化
+建议优化统计查询性能：
+- 考虑使用数据库视图预计算统计数据
+- 添加适当的数据库索引
+- 实现更智能的缓存策略
+
+### 4. 测试覆盖
+建议添加自动化测试：
+- 单元测试：测试 Hook 和 API 函数
+- 集成测试：测试数据库查询
+- E2E 测试：测试关键用户流程
+
+---
+
+## 相关文档
+- [登录问题修复说明](./LOGIN_FIX_SUMMARY.md)
+- [重置密码功能说明](./PASSWORD_RESET_FIX.md)
+
+---
+
+## 联系信息
+如有问题，请查看：
+1. Git 提交历史：`git log --oneline`
+2. 数据库迁移文件：`supabase/migrations/`
+3. API 文档：`src/db/api.ts`
