@@ -70,9 +70,9 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       let totalDriversQuery = supabase.from('profiles').select('id', {count: 'exact', head: true}).eq('role', 'driver')
 
       if (warehouseId) {
-        // 如果指定了仓库，需要通过 driver_warehouse_assignments 表过滤
+        // 如果指定了仓库，需要通过 driver_warehouses 表过滤
         const {data: assignedDrivers} = await supabase
-          .from('driver_warehouse_assignments')
+          .from('driver_warehouses')
           .select('driver_id')
           .eq('warehouse_id', warehouseId)
 
@@ -237,7 +237,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         {
           event: '*',
           schema: 'public',
-          table: 'driver_warehouse_assignments'
+          table: 'driver_warehouses'
         },
         (payload) => {
           console.log('[useDriverStats] 司机分配变化:', payload)
