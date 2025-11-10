@@ -627,15 +627,39 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
 /**
  * 为司机分配仓库
  */
-export async function assignWarehouseToDriver(input: DriverWarehouseInput): Promise<boolean> {
+export async function assignWarehouseToDriver(
+  input: DriverWarehouseInput
+): Promise<{success: boolean; error?: string}> {
+  // 检查仓库是否被禁用
+  const {data: warehouse, error: warehouseError} = await supabase
+    .from('warehouses')
+    .select('is_active, name')
+    .eq('id', input.warehouse_id)
+    .maybeSingle()
+
+  if (warehouseError) {
+    console.error('查询仓库状态失败:', warehouseError)
+    return {success: false, error: '查询仓库状态失败'}
+  }
+
+  if (!warehouse) {
+    console.error('仓库不存在:', input.warehouse_id)
+    return {success: false, error: '仓库不存在'}
+  }
+
+  if (!warehouse.is_active) {
+    console.error('仓库已被禁用，不允许分配司机:', warehouse.name)
+    return {success: false, error: `仓库"${warehouse.name}"已被禁用，不允许分配司机`}
+  }
+
   const {error} = await supabase.from('driver_warehouses').insert(input)
 
   if (error) {
     console.error('分配仓库失败:', error)
-    return false
+    return {success: false, error: '分配仓库失败'}
   }
 
-  return true
+  return {success: true}
 }
 
 /**
@@ -673,19 +697,43 @@ export async function getAllDriverWarehouses(): Promise<DriverWarehouse[]> {
 /**
  * 批量设置司机的仓库
  */
-export async function setDriverWarehouses(driverId: string, warehouseIds: string[]): Promise<boolean> {
+export async function setDriverWarehouses(
+  driverId: string,
+  warehouseIds: string[]
+): Promise<{success: boolean; error?: string}> {
   try {
+    // 如果有新的仓库分配，先检查所有仓库是否都是启用状态
+    if (warehouseIds.length > 0) {
+      const {data: warehouses, error: warehouseError} = await supabase
+        .from('warehouses')
+        .select('id, name, is_active')
+        .in('id', warehouseIds)
+
+      if (warehouseError) {
+        console.error('查询仓库状态失败:', warehouseError)
+        return {success: false, error: '查询仓库状态失败'}
+      }
+
+      // 检查是否有被禁用的仓库
+      const disabledWarehouses = warehouses?.filter((w) => !w.is_active) || []
+      if (disabledWarehouses.length > 0) {
+        const disabledNames = disabledWarehouses.map((w) => w.name).join('、')
+        console.error('以下仓库已被禁用，不允许分配司机:', disabledNames)
+        return {success: false, error: `以下仓库已被禁用，不允许分配司机：${disabledNames}`}
+      }
+    }
+
     // 先删除该司机的所有仓库分配
     const {error: deleteError} = await supabase.from('driver_warehouses').delete().eq('driver_id', driverId)
 
     if (deleteError) {
       console.error('删除旧仓库分配失败:', deleteError)
-      return false
+      return {success: false, error: '删除旧仓库分配失败'}
     }
 
     // 如果没有新的仓库分配，直接返回成功
     if (warehouseIds.length === 0) {
-      return true
+      return {success: true}
     }
 
     // 批量插入新的仓库分配
@@ -698,13 +746,13 @@ export async function setDriverWarehouses(driverId: string, warehouseIds: string
 
     if (insertError) {
       console.error('插入新仓库分配失败:', insertError)
-      return false
+      return {success: false, error: '插入新仓库分配失败'}
     }
 
-    return true
+    return {success: true}
   } catch (error) {
     console.error('设置司机仓库失败:', error)
-    return false
+    return {success: false, error: '设置司机仓库失败'}
   }
 }
 

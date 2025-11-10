@@ -71,12 +71,12 @@ const DriverWarehouseAssignment: React.FC = () => {
     setLoading(true)
     showLoading({title: '保存中...'})
 
-    const success = await setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
+    const result = await setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
 
     Taro.hideLoading()
     setLoading(false)
 
-    if (success) {
+    if (result.success) {
       showToast({
         title: '保存成功，司机端将实时同步',
         icon: 'success',
@@ -84,9 +84,9 @@ const DriverWarehouseAssignment: React.FC = () => {
       })
     } else {
       showToast({
-        title: '保存失败，请重试',
+        title: result.error || '保存失败，请重试',
         icon: 'error',
-        duration: 2000
+        duration: 3000
       })
     }
   }
