@@ -116,7 +116,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       // 3. 获取今日有计件记录的司机数（已计件司机）
       let busyDriversQuery = supabase
         .from('piece_work_records')
-        .select('driver_id', {count: 'exact', head: false})
+        .select('user_id', {count: 'exact', head: false})
         .gte('work_date', today)
         .lte('work_date', today)
 
@@ -128,7 +128,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       if (busyError) throw busyError
 
       // 去重统计已计件司机数
-      const uniqueBusyDrivers = new Set(busyDriversData?.map((r) => r.driver_id) || [])
+      const uniqueBusyDrivers = new Set(busyDriversData?.map((r) => r.user_id) || [])
       const busyDrivers = uniqueBusyDrivers.size
 
       // 4. 计算未计件司机数（在线但没有计件记录）
