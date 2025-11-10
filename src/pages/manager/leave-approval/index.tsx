@@ -2,7 +2,7 @@ import {Button, Picker, ScrollView, Swiper, SwiperItem, Text, View} from '@taroj
 import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {
   getAllAttendanceRecords,
   getAllLeaveApplications,
@@ -59,6 +59,7 @@ const ManagerLeaveApproval: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('stats') // 默认显示司机统计标签页
   const [showFilters, setShowFilters] = useState<boolean>(false) // 筛选条件是否展开
   const [sortBy, setSortBy] = useState<'rate' | 'count'>('rate') // 排序方式：出勤率或打卡次数
+  const [refreshTimestamp, setRefreshTimestamp] = useState<number>(Date.now()) // 用于触发在职天数重新计算
 
   // 初始化当前月份
   const initCurrentMonth = useCallback(() => {
@@ -118,6 +119,8 @@ const ManagerLeaveApproval: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+    // 更新刷新时间戳，触发在职天数重新计算
+    setRefreshTimestamp(Date.now())
   })
 
   // 下拉刷新
@@ -234,7 +237,7 @@ const ManagerLeaveApproval: React.FC = () => {
   }, [])
 
   // 计算司机统计数据
-  const calculateDriverStats = (): DriverStats[] => {
+  const calculateDriverStats = useMemo((): DriverStats[] => {
     const {visibleLeave, visibleResignation} = getVisibleApplications()
 
     // 获取所有司机（role为driver的用户）
@@ -455,11 +458,22 @@ const ManagerLeaveApproval: React.FC = () => {
     } else {
       return statsArray.sort((a, b) => b.attendanceCount - a.attendanceCount || b.attendanceRate - a.attendanceRate)
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    leaveApplications,
+    resignationApplications,
+    attendanceRecords,
+    profiles,
+    warehouses,
+    managerWarehouses,
+    filterMonth,
+    sortBy,
+    refreshTimestamp
+  ])
 
   // 计算整体出勤率
   const calculateOverallAttendanceRate = (): {rate: number; totalDrivers: number; fullAttendanceCount: number} => {
-    const stats = calculateDriverStats()
+    const stats = calculateDriverStats
     if (stats.length === 0) {
       return {rate: 0, totalDrivers: 0, fullAttendanceCount: 0}
     }
@@ -629,7 +643,7 @@ const ManagerLeaveApproval: React.FC = () => {
       .sort((a, b) => a.name.localeCompare(b.name))
   }
 
-  const driverStats = calculateDriverStats()
+  const driverStats = calculateDriverStats
   const _visibleWarehouses = managerWarehouses
   const {visibleLeave, visibleResignation} = getVisibleApplications()
 
