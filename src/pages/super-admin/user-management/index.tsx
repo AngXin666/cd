@@ -242,6 +242,29 @@ const UserManagement: React.FC = () => {
     }
   }
 
+  // 获取司机类型
+  const getDriverType = (user: Profile) => {
+    if (user.role !== 'driver') return null
+    return user.vehicle_plate ? '带车司机' : '纯司机'
+  }
+
+  // 计算在职天数
+  const getWorkDays = (joinDate: string | null) => {
+    if (!joinDate) return null
+    const join = new Date(joinDate)
+    const today = new Date()
+    const diffTime = Math.abs(today.getTime() - join.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
+  // 格式化日期
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '未设置'
+    const date = new Date(dateStr)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
+
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
@@ -290,31 +313,63 @@ const UserManagement: React.FC = () => {
             </View>
           ) : (
             filteredUsers.map((u) => (
-              <View key={u.id} className="bg-white rounded-lg p-4 mb-3 shadow-sm">
+              <View key={u.id} className="bg-white rounded-xl p-3 mb-3 shadow-sm">
                 {/* 用户基本信息 */}
-                <View className="flex items-start justify-between mb-3">
-                  <View className="flex-1">
-                    <View className="flex items-center mb-1">
-                      <Text className="text-lg font-semibold text-gray-800 mr-2">{u.name || '未设置姓名'}</Text>
-                      <View className={`px-2 py-0.5 rounded ${getRoleColor(u.role)} bg-opacity-10`}>
-                        <Text className={`text-xs ${getRoleColor(u.role)}`}>{getRoleText(u.role)}</Text>
-                      </View>
+                <View className="flex items-center justify-between mb-2">
+                  <View className="flex items-center">
+                    <Text className="text-base font-semibold text-gray-800 mr-2">{u.name || '未设置姓名'}</Text>
+                    <View className={`px-2 py-0.5 rounded ${getRoleColor(u.role)} bg-opacity-10`}>
+                      <Text className={`text-xs ${getRoleColor(u.role)}`}>{getRoleText(u.role)}</Text>
                     </View>
-                    {u.phone && (
-                      <View className="mb-1">
-                        <Text className="text-sm text-gray-600">手机：{u.phone}</Text>
-                      </View>
-                    )}
-                    {u.email && (
-                      <View>
-                        <Text className="text-sm text-gray-600">邮箱：{u.email}</Text>
+                    {getDriverType(u) && (
+                      <View className="ml-2 px-2 py-0.5 rounded bg-purple-50">
+                        <Text className="text-xs text-purple-600">{getDriverType(u)}</Text>
                       </View>
                     )}
                   </View>
                 </View>
 
-                {/* 操作按钮 */}
-                <View className="flex flex-wrap gap-2">
+                {/* 详细信息 - 网格布局 */}
+                <View className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3">
+                  {/* 电话号码 */}
+                  <View className="flex items-center">
+                    <View className="i-mdi-phone text-sm text-gray-400 mr-1" />
+                    <Text className="text-xs text-gray-600">{u.phone || '未设置'}</Text>
+                  </View>
+
+                  {/* 登录账号 */}
+                  <View className="flex items-center">
+                    <View className="i-mdi-account text-sm text-gray-400 mr-1" />
+                    <Text className="text-xs text-gray-600">{u.login_account || '未设置'}</Text>
+                  </View>
+
+                  {/* 车牌号码 */}
+                  {u.role === 'driver' && (
+                    <View className="flex items-center">
+                      <View className="i-mdi-car text-sm text-gray-400 mr-1" />
+                      <Text className="text-xs text-gray-600">{u.vehicle_plate || '无车辆'}</Text>
+                    </View>
+                  )}
+
+                  {/* 入职时间 */}
+                  {u.role === 'driver' && (
+                    <View className="flex items-center">
+                      <View className="i-mdi-calendar text-sm text-gray-400 mr-1" />
+                      <Text className="text-xs text-gray-600">{formatDate(u.join_date)}</Text>
+                    </View>
+                  )}
+
+                  {/* 在职天数 */}
+                  {u.role === 'driver' && getWorkDays(u.join_date) !== null && (
+                    <View className="flex items-center">
+                      <View className="i-mdi-clock-outline text-sm text-gray-400 mr-1" />
+                      <Text className="text-xs text-gray-600">在职 {getWorkDays(u.join_date)} 天</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* 操作按钮 - 更小更紧凑 */}
+                <View className="flex flex-wrap gap-1.5">
                   {/* 编辑按钮 */}
                   <Button
                     size="mini"
@@ -322,12 +377,14 @@ const UserManagement: React.FC = () => {
                     style={{
                       backgroundColor: '#10b981',
                       color: '#fff',
-                      borderRadius: '6px',
-                      flex: '1 1 auto',
-                      minWidth: '80px'
+                      borderRadius: '4px',
+                      padding: '4px 12px',
+                      height: '28px',
+                      lineHeight: '20px',
+                      fontSize: '11px'
                     }}
                     onClick={() => handleEditUser(u)}>
-                    编辑信息
+                    编辑
                   </Button>
 
                   {/* 重置密码按钮 */}
@@ -337,9 +394,11 @@ const UserManagement: React.FC = () => {
                     style={{
                       backgroundColor: '#f59e0b',
                       color: '#fff',
-                      borderRadius: '6px',
-                      flex: '1 1 auto',
-                      minWidth: '80px'
+                      borderRadius: '4px',
+                      padding: '4px 12px',
+                      height: '28px',
+                      lineHeight: '20px',
+                      fontSize: '11px'
                     }}
                     onClick={() => handleResetPassword(u)}>
                     重置密码
@@ -353,12 +412,14 @@ const UserManagement: React.FC = () => {
                       style={{
                         backgroundColor: '#3b82f6',
                         color: '#fff',
-                        borderRadius: '6px',
-                        flex: '1 1 auto',
-                        minWidth: '80px'
+                        borderRadius: '4px',
+                        padding: '4px 12px',
+                        height: '28px',
+                        lineHeight: '20px',
+                        fontSize: '11px'
                       }}
                       onClick={() => handleChangeRole(u)}>
-                      {u.role === 'manager' ? '降级为司机' : '升级为管理员'}
+                      {u.role === 'manager' ? '降级' : '升级'}
                     </Button>
                   )}
 
@@ -370,19 +431,21 @@ const UserManagement: React.FC = () => {
                       style={{
                         backgroundColor: '#f97316',
                         color: '#fff',
-                        borderRadius: '6px',
-                        flex: '1 1 auto',
-                        minWidth: '80px'
+                        borderRadius: '4px',
+                        padding: '4px 12px',
+                        height: '28px',
+                        lineHeight: '20px',
+                        fontSize: '11px'
                       }}
                       onClick={() => handleConfigPermission(u)}>
-                      配置权限
+                      权限
                     </Button>
                   )}
 
                   {/* 超级管理员提示 */}
                   {u.role === 'super_admin' && (
-                    <View className="flex-1 px-3 py-1 bg-gray-100 rounded-lg">
-                      <Text className="text-xs text-gray-500 text-center">最高权限，不可修改角色</Text>
+                    <View className="px-2 py-1 bg-gray-100 rounded">
+                      <Text className="text-xs text-gray-500">最高权限</Text>
                     </View>
                   )}
                 </View>
