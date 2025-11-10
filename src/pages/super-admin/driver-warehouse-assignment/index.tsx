@@ -134,13 +134,26 @@ const DriverWarehouseAssignment: React.FC = () => {
     setAddingDriver(false)
 
     if (newDriver) {
-      showToast({title: '添加成功', icon: 'success'})
-      // 重置表单
-      setNewDriverPhone('')
-      setNewDriverName('')
-      setShowAddDriver(false)
-      // 刷新司机列表
-      await loadDrivers()
+      // 显示详细的创建成功信息
+      const loginAccount = `${newDriverPhone.trim()}@fleet.com`
+      const driverType = '普通司机'
+      const defaultPassword = '123456'
+      const plateNumber = newDriver.vehicle_plate || '未设置'
+
+      Taro.showModal({
+        title: '司机创建成功',
+        content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverType}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
+        showCancel: false,
+        confirmText: '知道了',
+        success: () => {
+          // 重置表单
+          setNewDriverPhone('')
+          setNewDriverName('')
+          setShowAddDriver(false)
+          // 刷新司机列表
+          loadDrivers()
+        }
+      })
     } else {
       showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
     }

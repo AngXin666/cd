@@ -118,9 +118,10 @@ const Login: React.FC = () => {
       let error
 
       if (isPhoneNumber) {
-        // 如果是手机号格式，直接使用手机号登录
+        // 如果是手机号格式，自动添加邮箱后缀并使用邮箱登录
+        const email = `${account}@fleet.com`
         const result = await supabase.auth.signInWithPassword({
-          phone: account,
+          email,
           password
         })
         error = result.error
