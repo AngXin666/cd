@@ -250,8 +250,11 @@ const ManagerLeaveApproval: React.FC = () => {
     // 辅助函数：计算在职天数
     const calculateWorkingDays = (joinDate: string | null): number => {
       if (!joinDate) return 0
+      // 将日期标准化到当天的00:00:00，避免时间部分影响天数计算
       const join = new Date(joinDate)
+      join.setHours(0, 0, 0, 0)
       const now = new Date()
+      now.setHours(0, 0, 0, 0)
       const diffTime = now.getTime() - join.getTime()
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
       return diffDays >= 0 ? diffDays + 1 : 0 // 加1是因为要包含入职当天
