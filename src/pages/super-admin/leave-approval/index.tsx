@@ -523,13 +523,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
           {/* 标签切换 */}
           <View className="flex gap-2 mb-4">
             <View
-              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'pending' ? 'bg-blue-600' : 'bg-white'}`}
-              onClick={() => setActiveTab('pending')}>
-              <Text className={`text-xs font-bold ${activeTab === 'pending' ? 'text-white' : 'text-gray-600'}`}>
-                待审批 ({totalPending})
-              </Text>
-            </View>
-            <View
               className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'stats' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => setActiveTab('stats')}>
               <Text className={`text-xs font-bold ${activeTab === 'stats' ? 'text-white' : 'text-gray-600'}`}>
@@ -546,6 +539,13 @@ const SuperAdminLeaveApproval: React.FC = () => {
               }}>
               <Text className={`text-xs font-bold ${activeTab === 'attendance' ? 'text-white' : 'text-gray-600'}`}>
                 打卡记录
+              </Text>
+            </View>
+            <View
+              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'pending' ? 'bg-blue-600' : 'bg-white'}`}
+              onClick={() => setActiveTab('pending')}>
+              <Text className={`text-xs font-bold ${activeTab === 'pending' ? 'text-white' : 'text-gray-600'}`}>
+                待审批 ({totalPending})
               </Text>
             </View>
           </View>
