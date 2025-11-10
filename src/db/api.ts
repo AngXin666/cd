@@ -2739,10 +2739,11 @@ export async function updateUserInfo(
   console.log('更新数据:', updates)
 
   try {
+    // 1. 更新 profiles 表
     const {data, error} = await supabase.from('profiles').update(updates).eq('id', userId).select()
 
-    console.log('Supabase 更新响应 - data:', data)
-    console.log('Supabase 更新响应 - error:', error)
+    console.log('Supabase 更新 profiles 响应 - data:', data)
+    console.log('Supabase 更新 profiles 响应 - error:', error)
 
     if (error) {
       console.error('❌ 更新用户信息失败 - Supabase 错误:', error)
@@ -2755,8 +2756,40 @@ export async function updateUserInfo(
       return false
     }
 
-    console.log('✅ 用户信息更新成功！')
+    console.log('✅ profiles 表更新成功！')
     console.log('更新后的数据:', data[0])
+
+    // 2. 如果更新了 login_account，同时更新 auth.users 表的 email
+    if (updates.login_account) {
+      console.log('检测到 login_account 更新，同步更新 auth.users 表的 email...')
+
+      // 将登录账号转换为邮箱格式
+      const newEmail = updates.login_account.includes('@')
+        ? updates.login_account
+        : `${updates.login_account}@fleet.com`
+
+      console.log('新的邮箱地址:', newEmail)
+
+      // 使用 SQL 直接更新 auth.users 表
+      const {error: authError} = await supabase.rpc('update_user_email', {
+        target_user_id: userId,
+        new_email: newEmail
+      })
+
+      if (authError) {
+        console.error('❌ 更新 auth.users 邮箱失败:', authError)
+        console.error('错误详情:', JSON.stringify(authError, null, 2))
+        console.warn('⚠️ profiles 表已更新，但 auth.users 表更新失败，用户可能无法使用新账号登录')
+        // 不返回 false，因为 profiles 已经更新成功
+      } else {
+        console.log('✅ auth.users 表邮箱更新成功！')
+
+        // 同时更新 profiles 表的 email 字段以保持一致
+        await supabase.from('profiles').update({email: newEmail}).eq('id', userId)
+        console.log('✅ profiles 表 email 字段同步更新成功！')
+      }
+    }
+
     return true
   } catch (error) {
     console.error('❌ 更新用户信息异常:', error)
