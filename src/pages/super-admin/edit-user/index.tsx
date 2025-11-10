@@ -61,12 +61,25 @@ const EditUser: React.FC = () => {
 
   // 保存用户信息
   const handleSave = useCallback(async () => {
+    console.log('=== 开始保存用户信息 ===')
+    console.log('用户ID:', userId)
+    console.log('当前表单数据:', {
+      name: name.trim(),
+      phone: phone.trim(),
+      loginAccount: loginAccount.trim(),
+      vehiclePlate: vehiclePlate.trim(),
+      joinDate,
+      selectedRoleIndex
+    })
+
     if (!name.trim()) {
+      console.log('❌ 验证失败: 姓名为空')
       Taro.showToast({title: '请输入姓名', icon: 'none'})
       return
     }
 
     if (!phone.trim()) {
+      console.log('❌ 验证失败: 手机号为空')
       Taro.showToast({title: '请输入手机号', icon: 'none'})
       return
     }
@@ -74,46 +87,62 @@ const EditUser: React.FC = () => {
     // 验证手机号格式
     const phoneRegex = /^1[3-9]\d{9}$/
     if (!phoneRegex.test(phone.trim())) {
+      console.log('❌ 验证失败: 手机号格式不正确')
       Taro.showToast({title: '手机号格式不正确', icon: 'none'})
       return
     }
 
     if (!loginAccount.trim()) {
+      console.log('❌ 验证失败: 登录账号为空')
       Taro.showToast({title: '请输入登录账号', icon: 'none'})
       return
     }
 
     if (!joinDate) {
+      console.log('❌ 验证失败: 入职时间为空')
       Taro.showToast({title: '请选择入职时间', icon: 'none'})
       return
     }
 
+    console.log('✅ 表单验证通过，开始保存...')
     Taro.showLoading({title: '保存中...'})
     try {
       const selectedRole = roleOptions[selectedRoleIndex].value
+      console.log('选中的角色:', selectedRole)
 
-      const success = await updateUserInfo(userId, {
+      const updateData = {
         name: name.trim(),
         phone: phone.trim(),
         login_account: loginAccount.trim(),
         vehicle_plate: vehiclePlate.trim() || undefined,
         join_date: joinDate,
         role: selectedRole
-      })
+      }
+      console.log('准备更新的数据:', updateData)
+
+      const success = await updateUserInfo(userId, updateData)
+      console.log('updateUserInfo 返回结果:', success)
 
       if (success) {
-        Taro.showToast({title: '保存成功', icon: 'success'})
+        console.log('✅ 保存成功！')
+        Taro.showToast({title: '保存成功', icon: 'success', duration: 2000})
+
+        // 延迟返回，让用户看到成功提示
         setTimeout(() => {
+          console.log('返回上一页，触发数据刷新')
           Taro.navigateBack()
         }, 1500)
       } else {
+        console.error('❌ 保存失败: updateUserInfo 返回 false')
         Taro.showToast({title: '保存失败', icon: 'error'})
       }
     } catch (error) {
-      console.error('保存用户信息失败:', error)
+      console.error('❌ 保存用户信息异常:', error)
+      console.error('异常详情:', JSON.stringify(error, null, 2))
       Taro.showToast({title: '保存失败', icon: 'error'})
     } finally {
       Taro.hideLoading()
+      console.log('=== 保存流程结束 ===')
     }
   }, [
     userId,

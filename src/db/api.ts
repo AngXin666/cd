@@ -2734,17 +2734,33 @@ export async function updateUserInfo(
     join_date?: string
   }
 ): Promise<boolean> {
+  console.log('=== updateUserInfo API 调用 ===')
+  console.log('目标用户ID:', userId)
+  console.log('更新数据:', updates)
+
   try {
-    const {error} = await supabase.from('profiles').update(updates).eq('id', userId)
+    const {data, error} = await supabase.from('profiles').update(updates).eq('id', userId).select()
+
+    console.log('Supabase 更新响应 - data:', data)
+    console.log('Supabase 更新响应 - error:', error)
 
     if (error) {
-      console.error('更新用户信息失败:', error)
+      console.error('❌ 更新用户信息失败 - Supabase 错误:', error)
+      console.error('错误详情:', JSON.stringify(error, null, 2))
       return false
     }
 
+    if (!data || data.length === 0) {
+      console.error('❌ 更新用户信息失败 - 没有返回数据，可能用户不存在')
+      return false
+    }
+
+    console.log('✅ 用户信息更新成功！')
+    console.log('更新后的数据:', data[0])
     return true
   } catch (error) {
-    console.error('更新用户信息失败:', error)
+    console.error('❌ 更新用户信息异常:', error)
+    console.error('异常详情:', JSON.stringify(error, null, 2))
     return false
   }
 }
