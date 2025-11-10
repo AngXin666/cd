@@ -85,7 +85,8 @@ BEGIN
   END IF;
   
   -- 5. 使用 crypt 函数加密密码（bcrypt 算法）
-  encrypted_password := crypt(new_password, gen_salt('bf'));
+  -- 注意：使用完全限定名 extensions.gen_salt 和 extensions.crypt
+  encrypted_password := extensions.crypt(new_password, extensions.gen_salt('bf'));
   
   -- 6. 直接更新 auth.users 表的密码
   UPDATE auth.users
