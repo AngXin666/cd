@@ -41,7 +41,57 @@ const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || 
 
 ---
 
-### 3. ✅ 重置密码功能增强（之前已完成）
+### 3. ✅ Edge Function SQL 扫描错误
+**问题**: `sql: Scan error on column index 8, name "email_change": converting NULL to string is unsupported`
+
+**原因**: 
+- Supabase Auth 内部查询 `auth.users` 表时
+- 遇到 NULL 值的 `email_change` 字段
+- 旧版本的 API 无法正确处理这些 NULL 值
+
+**修复**:
+- 文件: `supabase/functions/reset-user-password/index.ts`
+- 创建独立的 admin 客户端，配置不自动刷新令牌和持久化会话
+- 使用 `updateUserById` 返回的数据验证用户是否存在
+- 部署了新版本的 Edge Function（版本 3）
+
+**修改内容**:
+```typescript
+// 修改前
+const { error: updateError } = await supabase.auth.admin.updateUserById(
+  userId,
+  { password }
+);
+
+// 修改后
+const adminClient = createClient(
+  supabaseUrl,
+  supabaseServiceKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
+const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(
+  userId,
+  { password }
+);
+
+// 验证用户是否存在
+if (!updateData || !updateData.user) {
+  return new Response(
+    JSON.stringify({ error: '用户不存在', details: '未找到指定的用户ID' }),
+    { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+```
+
+---
+
+### 4. ✅ 重置密码功能增强（之前已完成）
 **改进**:
 - 添加了详细的调试日志
 - 改进了错误显示方式（使用模态对话框）
@@ -55,9 +105,11 @@ const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || 
 ### ✅ 已解决的问题
 1. ✅ 数据库列名错误已修复
 2. ✅ 缺失的依赖包已安装
-3. ✅ 用户管理页面可以正常访问
-4. ✅ 司机统计数据可以正常获取
-5. ✅ 所有代码检查通过（`pnpm run lint`）
+3. ✅ Edge Function SQL 扫描错误已修复
+4. ✅ 用户管理页面可以正常访问
+5. ✅ 司机统计数据可以正常获取
+6. ✅ 重置密码功能已完全修复
+7. ✅ 所有代码检查通过（`pnpm run lint`）
 
 ### 📝 WebSocket 错误说明
 - WebSocket 连接错误是正常的，可以安全忽略
@@ -126,6 +178,10 @@ const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || 
 
 ### 代码修改
 1. `src/hooks/useDriverStats.ts` - 修复数据库列名错误
+2. `supabase/functions/reset-user-password/index.ts` - 修复 SQL 扫描错误
+
+### Edge Function 部署
+1. `reset-user-password` - 版本 3（已部署）
 
 ### 依赖安装
 1. `node_modules/pinyin-pro/` - 安装缺失的依赖包
@@ -133,7 +189,8 @@ const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || 
 ### 文档创建
 1. `RESET_PASSWORD_TROUBLESHOOTING.md` - 完整故障排查指南
 2. `WEBSOCKET_ERROR_FIX.md` - WebSocket 错误说明
-3. `FIXES_SUMMARY.md` - 本文档
+3. `QUICK_FIX_GUIDE.md` - 快速修复指南
+4. `FIXES_SUMMARY.md` - 本文档
 
 ---
 

@@ -65,8 +65,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 重置用户密码
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
+    // 使用 Service Role 客户端重置用户密码
+    // 注意：使用 admin API 时不需要先查询用户，直接更新即可
+    const adminClient = createClient(
+      supabaseUrl,
+      supabaseServiceKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const { data: updateData, error: updateError } = await adminClient.auth.admin.updateUserById(
       userId,
       { password }
     );
@@ -76,6 +88,14 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: '重置密码失败', details: updateError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 验证用户是否存在
+    if (!updateData || !updateData.user) {
+      return new Response(
+        JSON.stringify({ error: '用户不存在', details: '未找到指定的用户ID' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

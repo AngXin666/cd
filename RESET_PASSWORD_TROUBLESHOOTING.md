@@ -133,7 +133,28 @@ SELECT id, phone, email, role FROM profiles WHERE phone = '你的手机号';
 
 ---
 
-### 问题 4: HTTP 状态码 500
+### 问题 4: HTTP 状态码 500 - SQL 扫描错误
+**日志特征**:
+```
+收到响应，状态码: 500
+响应原始文本: {
+  "error": "重置密码失败",
+  "details": "error finding user: sql: Scan error on column index 8, name \"email_change\": converting NULL to string is unsupported"
+}
+```
+
+**原因**: Supabase Auth 内部查询用户时，遇到 NULL 值的字段（如 `email_change`）
+
+**状态**: ✅ 已修复（Edge Function 版本 3）
+
+**如果仍然出现**:
+1. 刷新浏览器页面（硬刷新：Ctrl+F5）
+2. 重新尝试重置密码
+3. 如果问题持续，Edge Function 可能需要重新部署
+
+---
+
+### 问题 5: HTTP 状态码 500 - 其他错误
 **日志特征**:
 ```
 收到响应，状态码: 500
@@ -169,7 +190,7 @@ SELECT id, email, phone FROM auth.users WHERE id = '目标用户ID';
 
 ---
 
-### 问题 5: 解析响应失败
+### 问题 6: 解析响应失败
 **日志特征**:
 ```
 ❌ 解析响应失败: SyntaxError: Unexpected token < in JSON at position 0
@@ -209,7 +230,7 @@ curl -X POST \
 
 ---
 
-### 问题 6: 网络错误
+### 问题 7: 网络错误
 **日志特征**:
 ```
 ❌ 重置密码异常: TypeError: Failed to fetch
