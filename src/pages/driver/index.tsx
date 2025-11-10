@@ -108,6 +108,15 @@ const DriverHome: React.FC = () => {
     // 切换仓库时，useDriverDashboard Hook 会自动加载新仓库的数据（优先使用缓存）
   }, [])
 
+  // 监控仓库加载状态
+  useEffect(() => {
+    console.log('=== 司机端仓库状态 ===')
+    console.log('用户ID:', user?.id)
+    console.log('仓库加载中:', warehousesLoading)
+    console.log('仓库数量:', warehouses.length)
+    console.log('仓库列表:', warehouses)
+  }, [user, warehousesLoading, warehouses])
+
   // 初始加载
   useEffect(() => {
     if (user) {

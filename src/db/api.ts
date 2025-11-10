@@ -560,20 +560,34 @@ export async function getAllWarehousesWithRules(): Promise<WarehouseWithRule[]> 
  * 获取司机的仓库列表
  */
 export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]> {
+  console.log('=== getDriverWarehouses 调用 ===')
+  console.log('司机ID:', driverId)
+
   const {data, error} = await supabase
     .from('driver_warehouses')
     .select('warehouse_id, warehouses(*)')
     .eq('driver_id', driverId)
 
+  console.log('Supabase 查询响应 - data:', data)
+  console.log('Supabase 查询响应 - error:', error)
+
   if (error) {
-    console.error('获取司机仓库失败:', error)
+    console.error('❌ 获取司机仓库失败 - Supabase 错误:', error)
+    console.error('错误详情:', JSON.stringify(error, null, 2))
     return []
   }
 
-  if (!data) return []
+  if (!data || data.length === 0) {
+    console.warn('⚠️ 未找到司机的仓库分配记录')
+    return []
+  }
 
   // 提取仓库信息
-  return data.map((item: any) => item.warehouses).filter(Boolean)
+  const warehouses = data.map((item: any) => item.warehouses).filter(Boolean)
+  console.log('✅ 成功获取司机仓库，数量:', warehouses.length)
+  console.log('仓库列表:', warehouses)
+
+  return warehouses
 }
 
 /**
