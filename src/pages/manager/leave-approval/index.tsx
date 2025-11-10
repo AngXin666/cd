@@ -45,10 +45,11 @@ const ManagerLeaveApproval: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [managerWarehouses, setManagerWarehouses] = useState<Warehouse[]>([])
-  const [filterWarehouse, setFilterWarehouse] = useState<string>('all')
+  const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0) // 当前仓库索引
   const [filterStatus, setFilterStatus] = useState<string>('pending')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('pending')
+  const [showFilters, setShowFilters] = useState<boolean>(false) // 筛选条件是否展开
 
   // 初始化当前月份
   const initCurrentMonth = useCallback(() => {
@@ -88,21 +89,19 @@ const ManagerLeaveApproval: React.FC = () => {
       const managedWarehouses = await getManagerWarehouses(user.id)
       setManagerWarehouses(managedWarehouses)
 
-      // 如果是打卡记录标签页或司机统计标签页，加载打卡记录
-      if (activeTab === 'attendance' || activeTab === 'stats') {
-        const currentMonth = filterMonth || initCurrentMonth()
-        const [year, month] = currentMonth.split('-').map(Number)
-        const records = await getAllAttendanceRecords(year, month)
+      // 始终加载打卡记录（进入页面时加载全部数据）
+      const currentMonth = filterMonth || initCurrentMonth()
+      const [year, month] = currentMonth.split('-').map(Number)
+      const records = await getAllAttendanceRecords(year, month)
 
-        // 过滤管理员管辖的仓库的记录
-        const managedWarehouseIds = managedWarehouses.map((w) => w.id)
-        const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
-        setAttendanceRecords(filteredRecords)
-      }
+      // 过滤管理员管辖的仓库的记录
+      const managedWarehouseIds = managedWarehouses.map((w) => w.id)
+      const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
+      setAttendanceRecords(filteredRecords)
     } finally {
       Taro.hideLoading()
     }
-  }, [user, activeTab, filterMonth, initCurrentMonth])
+  }, [user, filterMonth, initCurrentMonth])
 
   useEffect(() => {
     loadData()
@@ -145,9 +144,36 @@ const ManagerLeaveApproval: React.FC = () => {
   }
 
   // 获取可见的仓库列表（只显示管理员管辖的仓库）
-  const _getVisibleWarehouses = () => {
+  const getVisibleWarehouses = () => {
     const managedWarehouseIds = managerWarehouses.map((w) => w.id)
     return warehouses.filter((w) => managedWarehouseIds.includes(w.id))
+  }
+
+  // 获取当前仓库
+  const getCurrentWarehouse = () => {
+    const visibleWarehouses = getVisibleWarehouses()
+    if (visibleWarehouses.length === 0) return null
+    return visibleWarehouses[currentWarehouseIndex] || visibleWarehouses[0]
+  }
+
+  // 获取当前仓库ID（用于筛选）
+  const getCurrentWarehouseId = () => {
+    const currentWarehouse = getCurrentWarehouse()
+    return currentWarehouse?.id || 'all'
+  }
+
+  // 左右滑动切换仓库
+  const handleSwipeWarehouse = (direction: 'left' | 'right') => {
+    const visibleWarehouses = getVisibleWarehouses()
+    if (visibleWarehouses.length === 0) return
+
+    if (direction === 'left') {
+      // 向左滑动，显示下一个仓库
+      setCurrentWarehouseIndex((prev) => (prev + 1) % visibleWarehouses.length)
+    } else {
+      // 向右滑动，显示上一个仓库
+      setCurrentWarehouseIndex((prev) => (prev - 1 + visibleWarehouses.length) % visibleWarehouses.length)
+    }
   }
 
   // 获取可见的申请数据（只显示管辖仓库的数据）
@@ -156,10 +182,11 @@ const ManagerLeaveApproval: React.FC = () => {
     let visibleLeave = leaveApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
     let visibleResignation = resignationApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
 
-    // 按仓库筛选
-    if (filterWarehouse !== 'all') {
-      visibleLeave = visibleLeave.filter((app) => app.warehouse_id === filterWarehouse)
-      visibleResignation = visibleResignation.filter((app) => app.warehouse_id === filterWarehouse)
+    // 按当前仓库筛选
+    const currentWarehouseId = getCurrentWarehouseId()
+    if (currentWarehouseId !== 'all') {
+      visibleLeave = visibleLeave.filter((app) => app.warehouse_id === currentWarehouseId)
+      visibleResignation = visibleResignation.filter((app) => app.warehouse_id === currentWarehouseId)
     }
 
     // 按状态筛选
@@ -248,9 +275,10 @@ const ManagerLeaveApproval: React.FC = () => {
     visibleAttendance = attendanceRecords.filter((record) =>
       record.warehouse_id ? managerWarehouseIds.includes(record.warehouse_id) : false
     )
-    // 按仓库筛选
-    if (filterWarehouse !== 'all') {
-      visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === filterWarehouse)
+    // 按当前仓库筛选
+    const currentWarehouseId = getCurrentWarehouseId()
+    if (currentWarehouseId !== 'all') {
+      visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === currentWarehouseId)
     }
 
     for (const record of visibleAttendance) {
@@ -385,9 +413,10 @@ const ManagerLeaveApproval: React.FC = () => {
     let visible = attendanceRecords
     const _managedWarehouseIds = managerWarehouses.map((w) => w.id)
 
-    // 按仓库筛选
-    if (filterWarehouse !== 'all') {
-      visible = visible.filter((r) => r.warehouse_id === filterWarehouse)
+    // 按当前仓库筛选
+    const currentWarehouseId = getCurrentWarehouseId()
+    if (currentWarehouseId !== 'all') {
+      visible = visible.filter((r) => r.warehouse_id === currentWarehouseId)
     }
 
     // 按司机筛选
@@ -436,7 +465,7 @@ const ManagerLeaveApproval: React.FC = () => {
   }
 
   const driverStats = calculateDriverStats()
-  const visibleWarehouses = managerWarehouses
+  const _visibleWarehouses = managerWarehouses
   const {visibleLeave, visibleResignation} = getVisibleApplications()
 
   // 统计数据
@@ -498,154 +527,144 @@ const ManagerLeaveApproval: React.FC = () => {
             </View>
           </View>
 
-          {/* 统一筛选区域 - 根据当前标签页动态显示 */}
+          {/* 仓库切换区域 - 左右滑动 */}
           <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <Text className="text-sm font-bold text-gray-800 mb-3 block">筛选条件</Text>
-
-            {/* 待审批标签页的筛选条件 */}
-            {activeTab === 'pending' && (
-              <View>
-                {/* 仓库筛选 */}
-                <View className="mb-3">
-                  <Text className="text-xs text-gray-600 mb-2 block">选择仓库</Text>
-                  <Picker
-                    mode="selector"
-                    range={['全部仓库', ...visibleWarehouses.map((w) => w.name)]}
-                    value={
-                      filterWarehouse === 'all'
-                        ? 0
-                        : Math.max(0, visibleWarehouses.findIndex((w) => w.id === filterWarehouse) + 1)
-                    }
-                    onChange={(e) => {
-                      const index = Number(e.detail.value)
-                      setFilterWarehouse(index === 0 ? 'all' : visibleWarehouses[index - 1]?.id || 'all')
-                    }}>
-                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">
-                        {filterWarehouse === 'all' ? '全部仓库' : getWarehouseName(filterWarehouse)}
-                      </Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-
-                {/* 状态筛选 */}
-                <View>
-                  <Text className="text-xs text-gray-600 mb-2 block">选择状态</Text>
-                  <Picker
-                    mode="selector"
-                    range={['待审批', '已批准', '已拒绝', '全部状态']}
-                    value={
-                      filterStatus === 'pending'
-                        ? 0
-                        : filterStatus === 'approved'
-                          ? 1
-                          : filterStatus === 'rejected'
-                            ? 2
-                            : 3
-                    }
-                    onChange={(e) => {
-                      const index = Number(e.detail.value)
-                      setFilterStatus(
-                        index === 0 ? 'pending' : index === 1 ? 'approved' : index === 2 ? 'rejected' : 'all'
-                      )
-                    }}>
-                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">
-                        {filterStatus === 'pending'
-                          ? '待审批'
-                          : filterStatus === 'approved'
-                            ? '已批准'
-                            : filterStatus === 'rejected'
-                              ? '已拒绝'
-                              : '全部状态'}
-                      </Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
+            <View className="flex items-center justify-between">
+              <View
+                className="i-mdi-chevron-left text-3xl text-blue-600 cursor-pointer"
+                onClick={() => handleSwipeWarehouse('right')}
+              />
+              <View className="flex-1 text-center">
+                <Text className="text-lg font-bold text-gray-800 block">
+                  {getCurrentWarehouse()?.name || '全部仓库'}
+                </Text>
+                <Text className="text-xs text-gray-500 mt-1 block">
+                  左右滑动切换仓库 ({currentWarehouseIndex + 1}/{getVisibleWarehouses().length})
+                </Text>
               </View>
-            )}
-
-            {/* 打卡记录和司机统计标签页的筛选条件 */}
-            {(activeTab === 'attendance' || activeTab === 'stats') && (
-              <View>
-                {/* 月份筛选 */}
-                <View className="mb-3">
-                  <Text className="text-xs text-gray-600 mb-2 block">选择月份</Text>
-                  <Picker
-                    mode="selector"
-                    range={generateMonthOptions()}
-                    value={generateMonthOptions().indexOf(filterMonth)}
-                    onChange={(e) => {
-                      const selectedMonth = generateMonthOptions()[e.detail.value]
-                      setFilterMonth(selectedMonth)
-                    }}>
-                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">{filterMonth}</Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-
-                {/* 仓库筛选 */}
-                <View className="mb-3">
-                  <Text className="text-xs text-gray-600 mb-2 block">选择仓库</Text>
-                  <Picker
-                    mode="selector"
-                    range={['全部仓库', ...visibleWarehouses.map((w) => w.name)]}
-                    value={
-                      filterWarehouse === 'all'
-                        ? 0
-                        : Math.max(0, visibleWarehouses.findIndex((w) => w.id === filterWarehouse) + 1)
-                    }
-                    onChange={(e) => {
-                      const selectedIndex = Number(e.detail.value)
-                      if (selectedIndex === 0) {
-                        setFilterWarehouse('all')
-                      } else {
-                        setFilterWarehouse(visibleWarehouses[selectedIndex - 1].id)
-                      }
-                    }}>
-                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">
-                        {filterWarehouse === 'all' ? '全部仓库' : getWarehouseName(filterWarehouse)}
-                      </Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-
-                {/* 司机筛选 */}
-                <View>
-                  <Text className="text-xs text-gray-600 mb-2 block">选择司机</Text>
-                  <Picker
-                    mode="selector"
-                    range={['全部司机', ...getDriverList().map((d) => d.name)]}
-                    value={
-                      filterDriver === 'all'
-                        ? 0
-                        : Math.max(0, getDriverList().findIndex((d) => d.id === filterDriver) + 1)
-                    }
-                    onChange={(e) => {
-                      const selectedIndex = Number(e.detail.value)
-                      if (selectedIndex === 0) {
-                        setFilterDriver('all')
-                      } else {
-                        setFilterDriver(getDriverList()[selectedIndex - 1].id)
-                      }
-                    }}>
-                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">
-                        {filterDriver === 'all' ? '全部司机' : getUserName(filterDriver)}
-                      </Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-              </View>
-            )}
+              <View
+                className="i-mdi-chevron-right text-3xl text-blue-600 cursor-pointer"
+                onClick={() => handleSwipeWarehouse('left')}
+              />
+            </View>
           </View>
+
+          {/* 筛选条件展开/收起按钮 */}
+          <View className="mb-4">
+            <Button
+              size="default"
+              className="bg-white text-blue-600 border border-blue-600"
+              onClick={() => setShowFilters(!showFilters)}>
+              <View className="flex items-center justify-center gap-2">
+                <View className={`i-mdi-filter-variant text-lg ${showFilters ? 'text-blue-600' : 'text-gray-600'}`} />
+                <Text className={`text-sm ${showFilters ? 'text-blue-600' : 'text-gray-600'}`}>
+                  {showFilters ? '收起筛选' : '展开筛选'}
+                </Text>
+                <View
+                  className={`i-mdi-chevron-${showFilters ? 'up' : 'down'} text-lg ${showFilters ? 'text-blue-600' : 'text-gray-600'}`}
+                />
+              </View>
+            </Button>
+          </View>
+
+          {/* 筛选条件区域 - 默认隐藏 */}
+          {showFilters && (
+            <View className="bg-white rounded-lg p-4 mb-4 shadow">
+              <Text className="text-sm font-bold text-gray-800 mb-3 block">筛选条件</Text>
+
+              {/* 待审批标签页的筛选条件 */}
+              {activeTab === 'pending' && (
+                <View>
+                  {/* 状态筛选 */}
+                  <View>
+                    <Text className="text-xs text-gray-600 mb-2 block">选择状态</Text>
+                    <Picker
+                      mode="selector"
+                      range={['待审批', '已批准', '已拒绝', '全部状态']}
+                      value={
+                        filterStatus === 'pending'
+                          ? 0
+                          : filterStatus === 'approved'
+                            ? 1
+                            : filterStatus === 'rejected'
+                              ? 2
+                              : 3
+                      }
+                      onChange={(e) => {
+                        const index = Number(e.detail.value)
+                        setFilterStatus(
+                          index === 0 ? 'pending' : index === 1 ? 'approved' : index === 2 ? 'rejected' : 'all'
+                        )
+                      }}>
+                      <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">
+                          {filterStatus === 'pending'
+                            ? '待审批'
+                            : filterStatus === 'approved'
+                              ? '已批准'
+                              : filterStatus === 'rejected'
+                                ? '已拒绝'
+                                : '全部状态'}
+                        </Text>
+                        <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                  </View>
+                </View>
+              )}
+
+              {/* 打卡记录和司机统计标签页的筛选条件 */}
+              {(activeTab === 'attendance' || activeTab === 'stats') && (
+                <View>
+                  {/* 月份筛选 */}
+                  <View className="mb-3">
+                    <Text className="text-xs text-gray-600 mb-2 block">选择月份</Text>
+                    <Picker
+                      mode="selector"
+                      range={generateMonthOptions()}
+                      value={generateMonthOptions().indexOf(filterMonth)}
+                      onChange={(e) => {
+                        const selectedMonth = generateMonthOptions()[e.detail.value]
+                        setFilterMonth(selectedMonth)
+                      }}>
+                      <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{filterMonth}</Text>
+                        <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                  </View>
+
+                  {/* 司机筛选 */}
+                  <View>
+                    <Text className="text-xs text-gray-600 mb-2 block">选择司机</Text>
+                    <Picker
+                      mode="selector"
+                      range={['全部司机', ...getDriverList().map((d) => d.name)]}
+                      value={
+                        filterDriver === 'all'
+                          ? 0
+                          : Math.max(0, getDriverList().findIndex((d) => d.id === filterDriver) + 1)
+                      }
+                      onChange={(e) => {
+                        const selectedIndex = Number(e.detail.value)
+                        if (selectedIndex === 0) {
+                          setFilterDriver('all')
+                        } else {
+                          setFilterDriver(getDriverList()[selectedIndex - 1].id)
+                        }
+                      }}>
+                      <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">
+                          {filterDriver === 'all' ? '全部司机' : getUserName(filterDriver)}
+                        </Text>
+                        <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* 待审批申请列表 */}
           {activeTab === 'pending' && (
