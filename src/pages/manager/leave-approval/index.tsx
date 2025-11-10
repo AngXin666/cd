@@ -371,31 +371,26 @@ const ManagerLeaveApproval: React.FC = () => {
       }
     }
 
-    // 处理打卡记录
-    let visibleAttendance = attendanceRecords
+    // 处理打卡记录 - 用于计算出勤率（不按仓库筛选，统计所有仓库）
+    let allAttendanceForStats = attendanceRecords
     // 只显示管辖仓库的数据
     const managerWarehouseIds = managerWarehouses.map((w) => w.id)
-    visibleAttendance = attendanceRecords.filter((record) =>
+    allAttendanceForStats = attendanceRecords.filter((record) =>
       record.warehouse_id ? managerWarehouseIds.includes(record.warehouse_id) : false
     )
-    // 按当前仓库筛选
-    const currentWarehouseId = getCurrentWarehouseId()
-    if (currentWarehouseId !== 'all') {
-      visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === currentWarehouseId)
-    }
 
-    // 按月份筛选打卡记录
+    // 按月份筛选打卡记录（但不按仓库筛选，保证出勤率是所有仓库的合计）
     if (filterMonth) {
-      visibleAttendance = visibleAttendance.filter((record) => {
+      allAttendanceForStats = allAttendanceForStats.filter((record) => {
         const recordDate = new Date(record.clock_in_time)
         const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`
         return recordMonth === filterMonth
       })
     }
 
-    // 统计每个司机的打卡天数（去重，一天只算一次）
+    // 统计每个司机的打卡天数（去重，一天只算一次）- 基于所有仓库
     const attendanceDaysMap = new Map<string, Set<string>>()
-    for (const record of visibleAttendance) {
+    for (const record of allAttendanceForStats) {
       const driver = drivers.find((d) => d.id === record.user_id)
       if (!driver) continue
 
@@ -445,7 +440,14 @@ const ManagerLeaveApproval: React.FC = () => {
     }
 
     // 根据排序方式排序
-    const statsArray = Array.from(statsMap.values())
+    let statsArray = Array.from(statsMap.values())
+
+    // 按仓库筛选：只显示在选定仓库工作过的司机
+    const currentWarehouseId = getCurrentWarehouseId()
+    if (currentWarehouseId !== 'all') {
+      statsArray = statsArray.filter((stats) => stats.warehouseIds.includes(currentWarehouseId))
+    }
+
     if (sortBy === 'rate') {
       return statsArray.sort(
         (a, b) => b.attendanceRate - a.attendanceRate || b.actualAttendanceDays - a.actualAttendanceDays
