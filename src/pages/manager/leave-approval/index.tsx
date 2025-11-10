@@ -47,7 +47,6 @@ const ManagerLeaveApproval: React.FC = () => {
   const [managerWarehouses, setManagerWarehouses] = useState<Warehouse[]>([])
   const [filterWarehouse, setFilterWarehouse] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('pending')
-  const [filterMonth, setFilterMonth] = useState<string>('')
   const [filterDriver, setFilterDriver] = useState<string>('all')
   const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('pending')
 
@@ -58,6 +57,9 @@ const ManagerLeaveApproval: React.FC = () => {
     const month = String(now.getMonth() + 1).padStart(2, '0')
     return `${year}-${month}`
   }, [])
+
+  // 默认显示本月数据
+  const [filterMonth, setFilterMonth] = useState<string>(initCurrentMonth())
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -760,58 +762,58 @@ const ManagerLeaveApproval: React.FC = () => {
           {/* 打卡记录标签页 */}
           {activeTab === 'attendance' && (
             <View className="mb-4">
-              {/* 筛选器 */}
+              {/* 筛选区域 */}
               <View className="bg-white rounded-lg p-4 mb-4 shadow">
-                <View className="flex gap-3">
-                  {/* 月份筛选 */}
-                  <View className="flex-1">
-                    <Text className="text-xs text-gray-600 mb-2 block">选择月份</Text>
-                    <Picker
-                      mode="selector"
-                      range={generateMonthOptions()}
-                      value={generateMonthOptions().indexOf(filterMonth || initCurrentMonth())}
-                      onChange={(e) => {
-                        const selectedMonth = generateMonthOptions()[e.detail.value]
-                        setFilterMonth(selectedMonth)
-                      }}>
-                      <View className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
-                        <Text className="text-sm text-gray-800">{filterMonth || initCurrentMonth()}</Text>
-                        <View className="i-mdi-chevron-down text-gray-500" />
-                      </View>
-                    </Picker>
-                  </View>
+                <Text className="text-sm font-bold text-gray-800 mb-3 block">筛选条件</Text>
 
-                  {/* 仓库筛选 */}
-                  <View className="flex-1">
-                    <Text className="text-xs text-gray-600 mb-2 block">选择仓库</Text>
-                    <Picker
-                      mode="selector"
-                      range={['全部仓库', ...visibleWarehouses.map((w) => w.name)]}
-                      value={
-                        filterWarehouse === 'all'
-                          ? 0
-                          : Math.max(0, visibleWarehouses.findIndex((w) => w.id === filterWarehouse) + 1)
+                {/* 月份筛选 */}
+                <View className="mb-3">
+                  <Text className="text-xs text-gray-600 mb-2 block">选择月份</Text>
+                  <Picker
+                    mode="selector"
+                    range={generateMonthOptions()}
+                    value={generateMonthOptions().indexOf(filterMonth)}
+                    onChange={(e) => {
+                      const selectedMonth = generateMonthOptions()[e.detail.value]
+                      setFilterMonth(selectedMonth)
+                    }}>
+                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{filterMonth}</Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                </View>
+
+                {/* 仓库筛选 */}
+                <View className="mb-3">
+                  <Text className="text-xs text-gray-600 mb-2 block">选择仓库</Text>
+                  <Picker
+                    mode="selector"
+                    range={['全部仓库', ...visibleWarehouses.map((w) => w.name)]}
+                    value={
+                      filterWarehouse === 'all'
+                        ? 0
+                        : Math.max(0, visibleWarehouses.findIndex((w) => w.id === filterWarehouse) + 1)
+                    }
+                    onChange={(e) => {
+                      const selectedIndex = Number(e.detail.value)
+                      if (selectedIndex === 0) {
+                        setFilterWarehouse('all')
+                      } else {
+                        setFilterWarehouse(visibleWarehouses[selectedIndex - 1].id)
                       }
-                      onChange={(e) => {
-                        const selectedIndex = Number(e.detail.value)
-                        if (selectedIndex === 0) {
-                          setFilterWarehouse('all')
-                        } else {
-                          setFilterWarehouse(visibleWarehouses[selectedIndex - 1].id)
-                        }
-                      }}>
-                      <View className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
-                        <Text className="text-sm text-gray-800">
-                          {filterWarehouse === 'all' ? '全部仓库' : getWarehouseName(filterWarehouse)}
-                        </Text>
-                        <View className="i-mdi-chevron-down text-gray-500" />
-                      </View>
-                    </Picker>
-                  </View>
+                    }}>
+                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">
+                        {filterWarehouse === 'all' ? '全部仓库' : getWarehouseName(filterWarehouse)}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
                 </View>
 
                 {/* 司机筛选 */}
-                <View className="mt-3">
+                <View>
                   <Text className="text-xs text-gray-600 mb-2 block">选择司机</Text>
                   <Picker
                     mode="selector"
@@ -829,11 +831,11 @@ const ManagerLeaveApproval: React.FC = () => {
                         setFilterDriver(getDriverList()[selectedIndex - 1].id)
                       }
                     }}>
-                    <View className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
                       <Text className="text-sm text-gray-800">
                         {filterDriver === 'all' ? '全部司机' : getUserName(filterDriver)}
                       </Text>
-                      <View className="i-mdi-chevron-down text-gray-500" />
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
                     </View>
                   </Picker>
                 </View>
