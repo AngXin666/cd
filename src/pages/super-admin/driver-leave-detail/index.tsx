@@ -1,9 +1,10 @@
-import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
+  getAllAttendanceRecords,
   getAllLeaveApplications,
   getAllProfiles,
   getAllResignationApplications,
@@ -11,7 +12,7 @@ import {
   reviewLeaveApplication,
   reviewResignationApplication
 } from '@/db/api'
-import type {LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
+import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 
 const DriverLeaveDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -19,9 +20,11 @@ const DriverLeaveDetail: React.FC = () => {
   const [driver, setDriver] = useState<Profile | null>(null)
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [activeTab, setActiveTab] = useState<'leave' | 'resignation'>('leave')
+  const [activeTab, setActiveTab] = useState<'leave' | 'attendance' | 'resignation'>('leave')
+  const [filterMonth, setFilterMonth] = useState<string>('')
 
   useEffect(() => {
     // 从路由参数获取司机ID
@@ -57,6 +60,11 @@ const DriverLeaveDetail: React.FC = () => {
     const allResignationApps = await getAllResignationApplications()
     const driverResignationApps = allResignationApps.filter((app) => app.user_id === driverId)
     setResignationApplications(driverResignationApps)
+
+    // 获取该司机的所有打卡记录
+    const allAttendanceRecords = await getAllAttendanceRecords()
+    const driverAttendanceRecords = allAttendanceRecords.filter((record) => record.user_id === driverId)
+    setAttendanceRecords(driverAttendanceRecords)
   }, [driverId])
 
   useEffect(() => {
@@ -153,6 +161,77 @@ const DriverLeaveDetail: React.FC = () => {
         return 'text-gray-600'
     }
   }
+
+  // 初始化当前月份
+  const initCurrentMonth = useCallback(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    return `${year}-${month}`
+  }, [])
+
+  // 格式化时间显示
+  const formatTime = (timeStr: string) => {
+    if (!timeStr) return '--'
+    const date = new Date(timeStr)
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
+  // 获取打卡状态信息
+  const getAttendanceStatusInfo = (record: AttendanceRecord) => {
+    switch (record.status) {
+      case 'late':
+        return {text: '迟到', color: 'text-orange-600', bg: 'bg-orange-50'}
+      case 'early':
+        return {text: '早退', color: 'text-yellow-600', bg: 'bg-yellow-50'}
+      case 'absent':
+        return {text: '缺勤', color: 'text-red-600', bg: 'bg-red-50'}
+      default:
+        return {text: '正常', color: 'text-green-600', bg: 'bg-green-50'}
+    }
+  }
+
+  // 生成月份选项
+  const generateMonthOptions = () => {
+    const options: string[] = []
+    const now = new Date()
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      options.push(`${year}-${month}`)
+    }
+    return options
+  }
+
+  // 获取可见的打卡记录
+  const getVisibleAttendanceRecords = () => {
+    let visible = attendanceRecords
+    if (filterMonth) {
+      visible = visible.filter((record) => record.work_date.startsWith(filterMonth))
+    }
+    return visible.sort((a, b) => b.work_date.localeCompare(a.work_date))
+  }
+
+  // 计算打卡统计数据
+  const calculateAttendanceStats = () => {
+    const visible = getVisibleAttendanceRecords()
+    return {
+      totalRecords: visible.length,
+      normalCount: visible.filter((r) => r.status === 'normal').length,
+      lateCount: visible.filter((r) => r.status === 'late').length,
+      earlyCount: visible.filter((r) => r.status === 'early').length
+    }
+  }
+
+  // 初始化月份筛选
+  useEffect(() => {
+    if (!filterMonth) {
+      setFilterMonth(initCurrentMonth())
+    }
+  }, [filterMonth, initCurrentMonth])
 
   // 审批请假申请
   const handleApproveLeave = async (applicationId: string) => {
@@ -325,7 +404,8 @@ const DriverLeaveDetail: React.FC = () => {
           )}
 
           {/* 标签切换 */}
-          <View className="flex mb-4 bg-white rounded-lg p-1 shadow">
+          <View
+            className={`flex mb-4 bg-white rounded-lg p-1 shadow ${resignationApplications.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <View
               className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'leave' ? 'bg-blue-900' : ''}`}
               onClick={() => setActiveTab('leave')}>
@@ -334,12 +414,21 @@ const DriverLeaveDetail: React.FC = () => {
               </Text>
             </View>
             <View
-              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
-              onClick={() => setActiveTab('resignation')}>
-              <Text className={`text-sm font-bold ${activeTab === 'resignation' ? 'text-white' : 'text-gray-600'}`}>
-                离职申请 ({resignationApplications.length})
+              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'attendance' ? 'bg-green-600' : ''}`}
+              onClick={() => setActiveTab('attendance')}>
+              <Text className={`text-sm font-bold ${activeTab === 'attendance' ? 'text-white' : 'text-gray-600'}`}>
+                打卡记录 ({attendanceRecords.length})
               </Text>
             </View>
+            {resignationApplications.length > 0 && (
+              <View
+                className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
+                onClick={() => setActiveTab('resignation')}>
+                <Text className={`text-sm font-bold ${activeTab === 'resignation' ? 'text-white' : 'text-gray-600'}`}>
+                  离职申请 ({resignationApplications.length})
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* 请假申请列表 */}
@@ -474,6 +563,115 @@ const DriverLeaveDetail: React.FC = () => {
                     )}
                   </View>
                 ))
+              )}
+            </View>
+          )}
+
+          {/* 打卡记录列表 */}
+          {activeTab === 'attendance' && (
+            <View>
+              {/* 月份筛选 */}
+              <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                <Text className="text-sm text-gray-700 font-bold block mb-2">选择月份</Text>
+                <Picker
+                  mode="selector"
+                  range={generateMonthOptions()}
+                  value={Math.max(0, generateMonthOptions().indexOf(filterMonth))}
+                  onChange={(e) => {
+                    const index = Number(e.detail.value)
+                    setFilterMonth(generateMonthOptions()[index] || initCurrentMonth())
+                  }}>
+                  <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-sm text-gray-800">{filterMonth || '请选择月份'}</Text>
+                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 打卡统计 */}
+              <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                <Text className="text-sm text-gray-700 font-bold block mb-3">打卡统计</Text>
+                <View className="grid grid-cols-4 gap-3">
+                  <View className="text-center">
+                    <Text className="text-2xl font-bold text-blue-600 block">
+                      {calculateAttendanceStats().totalRecords}
+                    </Text>
+                    <Text className="text-xs text-gray-500">总次数</Text>
+                  </View>
+                  <View className="text-center">
+                    <Text className="text-2xl font-bold text-green-600 block">
+                      {calculateAttendanceStats().normalCount}
+                    </Text>
+                    <Text className="text-xs text-gray-500">正常</Text>
+                  </View>
+                  <View className="text-center">
+                    <Text className="text-2xl font-bold text-orange-600 block">
+                      {calculateAttendanceStats().lateCount}
+                    </Text>
+                    <Text className="text-xs text-gray-500">迟到</Text>
+                  </View>
+                  <View className="text-center">
+                    <Text className="text-2xl font-bold text-yellow-600 block">
+                      {calculateAttendanceStats().earlyCount}
+                    </Text>
+                    <Text className="text-xs text-gray-500">早退</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 打卡记录列表 */}
+              {getVisibleAttendanceRecords().length === 0 ? (
+                <View className="bg-white rounded-lg p-8 text-center shadow">
+                  <View className="i-mdi-clock-outline text-6xl text-gray-300 mb-4 mx-auto" />
+                  <Text className="text-gray-500 block">暂无打卡记录</Text>
+                </View>
+              ) : (
+                getVisibleAttendanceRecords().map((record) => {
+                  const statusInfo = getAttendanceStatusInfo(record)
+                  return (
+                    <View key={record.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                      {/* 日期和状态 */}
+                      <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+                        <View className="flex items-center">
+                          <View className="i-mdi-calendar text-2xl text-blue-900 mr-2" />
+                          <Text className="text-base font-bold text-gray-800">{record.work_date}</Text>
+                        </View>
+                        <View className={`px-3 py-1 rounded-full ${statusInfo.bg}`}>
+                          <Text className={`text-xs font-bold ${statusInfo.color}`}>{statusInfo.text}</Text>
+                        </View>
+                      </View>
+
+                      {/* 打卡时间信息 */}
+                      <View className="space-y-2">
+                        <View className="flex items-center justify-between">
+                          <View className="flex items-center">
+                            <View className="i-mdi-clock-in text-lg text-green-600 mr-2" />
+                            <Text className="text-sm text-gray-600">上班打卡</Text>
+                          </View>
+                          <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_in_time)}</Text>
+                        </View>
+                        <View className="flex items-center justify-between">
+                          <View className="flex items-center">
+                            <View className="i-mdi-clock-out text-lg text-orange-600 mr-2" />
+                            <Text className="text-sm text-gray-600">下班打卡</Text>
+                          </View>
+                          <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_out_time)}</Text>
+                        </View>
+                        {record.warehouse_id && (
+                          <View className="flex items-center justify-between">
+                            <View className="flex items-center">
+                              <View className="i-mdi-warehouse text-lg text-blue-600 mr-2" />
+                              <Text className="text-sm text-gray-600">仓库</Text>
+                            </View>
+                            <Text className="text-sm font-bold text-gray-800">
+                              {getWarehouseName(record.warehouse_id)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )
+                })
               )}
             </View>
           )}

@@ -4,13 +4,14 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
+  getAllAttendanceRecords,
   getAllLeaveApplications,
   getAllProfiles,
   getAllResignationApplications,
   getAllWarehouses,
   getManagerWarehouses
 } from '@/db/api'
-import type {LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
+import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -21,6 +22,7 @@ interface DriverStats {
   totalLeaveDays: number
   leaveCount: number
   resignationCount: number
+  attendanceCount: number
   pendingCount: number
 }
 
@@ -28,6 +30,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [managerWarehouses, setManagerWarehouses] = useState<string[]>([])
@@ -57,6 +60,10 @@ const SuperAdminLeaveApproval: React.FC = () => {
     // 获取所有离职申请（包括历史数据）
     const allResignationApps = await getAllResignationApplications()
     setResignationApplications(allResignationApps)
+
+    // 获取所有打卡记录
+    const allAttendanceRecords = await getAllAttendanceRecords()
+    setAttendanceRecords(allAttendanceRecords)
 
     // 如果是普通管理员，获取其管辖的仓库
     if (userProfile?.role === 'manager') {
@@ -158,6 +165,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
+          attendanceCount: 0,
           pendingCount: 0
         })
       }
@@ -190,6 +198,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
+          attendanceCount: 0,
           pendingCount: 0
         })
       }
@@ -201,6 +210,43 @@ const SuperAdminLeaveApproval: React.FC = () => {
       if (app.status === 'pending') {
         stats.pendingCount++
       }
+    }
+
+    // 处理打卡记录
+    let visibleAttendance = attendanceRecords
+    // 如果是普通管理员，只显示其管辖仓库的数据
+    if (currentUserProfile?.role === 'manager') {
+      visibleAttendance = attendanceRecords.filter((record) =>
+        record.warehouse_id ? managerWarehouses.includes(record.warehouse_id) : false
+      )
+    }
+    // 按仓库筛选
+    if (filterWarehouse !== 'all') {
+      visibleAttendance = visibleAttendance.filter((record) => record.warehouse_id === filterWarehouse)
+    }
+
+    for (const record of visibleAttendance) {
+      const driver = drivers.find((d) => d.id === record.user_id)
+      if (!driver) continue
+
+      if (!statsMap.has(driver.id)) {
+        // 如果还没有这个司机的统计，需要找到他的仓库信息
+        const driverWarehouseId = record.warehouse_id || ''
+        statsMap.set(driver.id, {
+          driverId: driver.id,
+          driverName: getUserName(driver.id),
+          warehouseId: driverWarehouseId,
+          warehouseName: getWarehouseName(driverWarehouseId),
+          totalLeaveDays: 0,
+          leaveCount: 0,
+          resignationCount: 0,
+          attendanceCount: 0,
+          pendingCount: 0
+        })
+      }
+
+      const stats = statsMap.get(driver.id)!
+      stats.attendanceCount++
     }
 
     return Array.from(statsMap.values()).sort((a, b) => b.totalLeaveDays - a.totalLeaveDays)
@@ -218,7 +264,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
   // 统计数据
   const totalDrivers = driverStats.length
-  const totalLeaveDays = driverStats.reduce((sum, s) => sum + s.totalLeaveDays, 0)
   const totalPending = driverStats.reduce((sum, s) => sum + s.pendingCount, 0)
 
   return (
@@ -227,21 +272,17 @@ const SuperAdminLeaveApproval: React.FC = () => {
         <View className="p-4">
           {/* 标题卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">请假审批管理</Text>
+            <Text className="text-white text-2xl font-bold block mb-2">考勤管理</Text>
             <Text className="text-blue-100 text-sm block">
               {currentUserProfile?.role === 'super_admin' ? '超级管理员' : '管理员'}工作台
             </Text>
           </View>
 
           {/* 统计卡片 */}
-          <View className="grid grid-cols-3 gap-3 mb-4">
+          <View className="grid grid-cols-2 gap-3 mb-4">
             <View className="bg-white rounded-lg p-4 shadow">
               <Text className="text-sm text-gray-600 block mb-2">司机总数</Text>
               <Text className="text-3xl font-bold text-blue-900 block">{totalDrivers}</Text>
-            </View>
-            <View className="bg-white rounded-lg p-4 shadow">
-              <Text className="text-sm text-gray-600 block mb-2">请假总天数</Text>
-              <Text className="text-3xl font-bold text-orange-600 block">{totalLeaveDays}</Text>
             </View>
             <View className="bg-white rounded-lg p-4 shadow">
               <Text className="text-sm text-gray-600 block mb-2">待审批</Text>
@@ -308,7 +349,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
                   </View>
 
                   {/* 统计数据 */}
-                  <View className="grid grid-cols-3 gap-3">
+                  <View className={`grid ${stats.resignationCount > 0 ? 'grid-cols-4' : 'grid-cols-3'} gap-3`}>
                     <View className="text-center">
                       <Text className="text-2xl font-bold text-orange-600 block">{stats.totalLeaveDays}</Text>
                       <Text className="text-xs text-gray-500">请假天数</Text>
@@ -318,9 +359,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
                       <Text className="text-xs text-gray-500">请假次数</Text>
                     </View>
                     <View className="text-center">
-                      <Text className="text-2xl font-bold text-purple-600 block">{stats.resignationCount}</Text>
-                      <Text className="text-xs text-gray-500">离职申请</Text>
+                      <Text className="text-2xl font-bold text-green-600 block">{stats.attendanceCount}</Text>
+                      <Text className="text-xs text-gray-500">打卡次数</Text>
                     </View>
+                    {stats.resignationCount > 0 && (
+                      <View className="text-center">
+                        <Text className="text-2xl font-bold text-purple-600 block">{stats.resignationCount}</Text>
+                        <Text className="text-xs text-gray-500">离职申请</Text>
+                      </View>
+                    )}
                   </View>
 
                   {/* 查看详情提示 */}
