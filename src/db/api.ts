@@ -2676,13 +2676,34 @@ export async function getSuperAdminStats(): Promise<{
  */
 export async function resetUserPassword(userId: string): Promise<boolean> {
   try {
-    // 使用 Supabase Admin API 重置密码
-    const {error} = await supabase.auth.admin.updateUserById(userId, {
-      password: '123456'
+    // 获取当前用户的访问令牌
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      console.error('重置密码失败: 未登录')
+      return false
+    }
+
+    // 调用 Edge Function 重置密码
+    const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
+    const response = await fetch(`${supabaseUrl}/functions/v1/reset-user-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        userId,
+        newPassword: '123456'
+      })
     })
 
-    if (error) {
-      console.error('重置密码失败:', error)
+    const result = await response.json()
+
+    if (!response.ok) {
+      console.error('重置密码失败:', result.error)
       return false
     }
 
