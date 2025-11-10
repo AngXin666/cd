@@ -82,4 +82,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false
   }
+  // 注意：Realtime 功能已通过不订阅任何频道来避免 WebSocket 连接
+  // 如果看到 WebSocket 错误，可以忽略，不影响应用核心功能
 })
