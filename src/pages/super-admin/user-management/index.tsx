@@ -155,15 +155,15 @@ const UserManagement: React.FC = () => {
 
     Taro.showLoading({title: '重置中...'})
     try {
-      const success = await resetUserPassword(targetUser.id)
-      if (success) {
+      const result = await resetUserPassword(targetUser.id)
+      if (result.success) {
         Taro.showToast({title: '密码已重置为 123456', icon: 'success', duration: 3000})
       } else {
-        Taro.showToast({title: '重置失败', icon: 'error'})
+        Taro.showToast({title: result.error || '重置失败', icon: 'none', duration: 3000})
       }
     } catch (error) {
       console.error('重置密码失败:', error)
-      Taro.showToast({title: '重置失败', icon: 'error'})
+      Taro.showToast({title: '重置失败，请稍后重试', icon: 'error'})
     } finally {
       Taro.hideLoading()
     }

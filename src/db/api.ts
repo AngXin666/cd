@@ -2674,7 +2674,7 @@ export async function getSuperAdminStats(): Promise<{
  * 重置用户密码（超级管理员功能）
  * 将用户密码重置为 123456
  */
-export async function resetUserPassword(userId: string): Promise<boolean> {
+export async function resetUserPassword(userId: string): Promise<{success: boolean; error?: string}> {
   try {
     // 获取当前用户的访问令牌
     const {
@@ -2682,13 +2682,18 @@ export async function resetUserPassword(userId: string): Promise<boolean> {
     } = await supabase.auth.getSession()
 
     if (!session) {
-      console.error('重置密码失败: 未登录')
-      return false
+      const errorMsg = '未登录，无法重置密码'
+      console.error('重置密码失败:', errorMsg)
+      return {success: false, error: errorMsg}
     }
 
     // 调用 Edge Function 重置密码
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
-    const response = await fetch(`${supabaseUrl}/functions/v1/reset-user-password`, {
+    const functionUrl = `${supabaseUrl}/functions/v1/reset-user-password`
+
+    console.log('调用重置密码 Edge Function:', functionUrl)
+
+    const response = await fetch(functionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2702,15 +2707,19 @@ export async function resetUserPassword(userId: string): Promise<boolean> {
 
     const result = await response.json()
 
+    console.log('Edge Function 响应:', {status: response.status, result})
+
     if (!response.ok) {
-      console.error('重置密码失败:', result.error)
-      return false
+      const errorMsg = result.error || result.details || '重置密码失败'
+      console.error('重置密码失败:', errorMsg)
+      return {success: false, error: errorMsg}
     }
 
-    return true
+    return {success: true}
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : '网络错误或服务器异常'
     console.error('重置密码失败:', error)
-    return false
+    return {success: false, error: errorMsg}
   }
 }
 
