@@ -254,7 +254,7 @@ const ManagerLeaveApproval: React.FC = () => {
       const now = new Date()
       const diffTime = now.getTime() - join.getTime()
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-      return diffDays >= 0 ? diffDays : 0
+      return diffDays >= 0 ? diffDays + 1 : 0 // 加1是因为要包含入职当天
     }
 
     // 辅助函数：计算司机在当前月份的应出勤天数
