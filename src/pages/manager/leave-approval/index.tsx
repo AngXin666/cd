@@ -19,8 +19,8 @@ import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication
 interface DriverStats {
   driverId: string
   driverName: string
-  warehouseId: string
-  warehouseName: string
+  warehouseIds: string[] // 改为数组，支持多个仓库
+  warehouseNames: string[] // 改为数组，支持多个仓库名称
   totalLeaveDays: number
   leaveCount: number
   resignationCount: number
@@ -288,6 +288,14 @@ const ManagerLeaveApproval: React.FC = () => {
 
     const statsMap = new Map<string, DriverStats>()
 
+    // 辅助函数：添加仓库信息到司机统计中
+    const addWarehouseToStats = (stats: DriverStats, warehouseId: string) => {
+      if (warehouseId && !stats.warehouseIds.includes(warehouseId)) {
+        stats.warehouseIds.push(warehouseId)
+        stats.warehouseNames.push(getWarehouseName(warehouseId))
+      }
+    }
+
     // 处理请假申请
     for (const app of visibleLeave) {
       const driver = drivers.find((d) => d.id === app.user_id)
@@ -297,8 +305,8 @@ const ManagerLeaveApproval: React.FC = () => {
         statsMap.set(driver.id, {
           driverId: driver.id,
           driverName: getUserName(driver.id),
-          warehouseId: app.warehouse_id,
-          warehouseName: getWarehouseName(app.warehouse_id),
+          warehouseIds: [],
+          warehouseNames: [],
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
@@ -314,6 +322,7 @@ const ManagerLeaveApproval: React.FC = () => {
       }
 
       const stats = statsMap.get(driver.id)!
+      addWarehouseToStats(stats, app.warehouse_id)
       stats.leaveCount++
 
       // 只统计已通过的请假天数
@@ -336,8 +345,8 @@ const ManagerLeaveApproval: React.FC = () => {
         statsMap.set(driver.id, {
           driverId: driver.id,
           driverName: getUserName(driver.id),
-          warehouseId: app.warehouse_id,
-          warehouseName: getWarehouseName(app.warehouse_id),
+          warehouseIds: [],
+          warehouseNames: [],
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
@@ -353,6 +362,7 @@ const ManagerLeaveApproval: React.FC = () => {
       }
 
       const stats = statsMap.get(driver.id)!
+      addWarehouseToStats(stats, app.warehouse_id)
       stats.resignationCount++
 
       // 统计待审批数量
@@ -390,13 +400,12 @@ const ManagerLeaveApproval: React.FC = () => {
       if (!driver) continue
 
       if (!statsMap.has(driver.id)) {
-        // 如果还没有这个司机的统计，需要找到他的仓库信息
-        const driverWarehouseId = record.warehouse_id || ''
+        // 如果还没有这个司机的统计，创建新记录
         statsMap.set(driver.id, {
           driverId: driver.id,
           driverName: getUserName(driver.id),
-          warehouseId: driverWarehouseId,
-          warehouseName: getWarehouseName(driverWarehouseId),
+          warehouseIds: [],
+          warehouseNames: [],
           totalLeaveDays: 0,
           leaveCount: 0,
           resignationCount: 0,
@@ -412,6 +421,7 @@ const ManagerLeaveApproval: React.FC = () => {
       }
 
       const stats = statsMap.get(driver.id)!
+      addWarehouseToStats(stats, record.warehouse_id || '')
       stats.attendanceCount++
 
       // 记录打卡日期（用于计算实际出勤天数）
@@ -1053,7 +1063,9 @@ const ManagerLeaveApproval: React.FC = () => {
                         <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                         <View className="flex-1">
                           <Text className="text-base font-bold text-gray-800 block">{stats.driverName}</Text>
-                          <Text className="text-xs text-gray-500 block">{stats.warehouseName}</Text>
+                          <Text className="text-xs text-gray-500 block">
+                            {stats.warehouseNames.length > 0 ? stats.warehouseNames.join('、') : '未分配仓库'}
+                          </Text>
                           {stats.joinDate && (
                             <View className="flex items-center gap-2 mt-1">
                               <Text className="text-xs text-gray-400">
