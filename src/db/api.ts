@@ -2703,6 +2703,9 @@ export async function updateUserInfo(
     phone?: string
     email?: string
     role?: UserRole
+    login_account?: string
+    vehicle_plate?: string
+    join_date?: string
   }
 ): Promise<boolean> {
   try {

@@ -3,7 +3,7 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getUserById, resetUserPassword, updateUserInfo} from '@/db/api'
+import {getUserById, updateUserInfo} from '@/db/api'
 import type {Profile, UserRole} from '@/db/types'
 
 const EditUser: React.FC = () => {
@@ -15,14 +15,16 @@ const EditUser: React.FC = () => {
   const [userInfo, setUserInfo] = useState<Profile | null>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<UserRole>('driver')
+  const [loginAccount, setLoginAccount] = useState('')
+  const [vehiclePlate, setVehiclePlate] = useState('')
+  const [joinDate, setJoinDate] = useState('')
+  const [selectedRoleIndex, setSelectedRoleIndex] = useState(0)
 
-  // 角色选项
+  // 角色选项（根据需求限定为三种）
   const roleOptions = [
-    {label: '司机', value: 'driver'},
-    {label: '管理员', value: 'manager'},
-    {label: '超级管理员', value: 'super_admin'}
+    {label: '纯司机', value: 'driver' as UserRole, description: '不带车的司机'},
+    {label: '带车司机', value: 'driver' as UserRole, description: '自带车辆的司机'},
+    {label: '管理员', value: 'manager' as UserRole, description: '仓库管理员'}
   ]
 
   // 加载用户信息
@@ -39,8 +41,13 @@ const EditUser: React.FC = () => {
         setUserInfo(data)
         setName(data.name || '')
         setPhone(data.phone || '')
-        setEmail(data.email || '')
-        setRole(data.role)
+        setLoginAccount(data.login_account || '')
+        setVehiclePlate(data.vehicle_plate || '')
+        setJoinDate(data.join_date || '')
+
+        // 设置角色索引
+        const roleIndex = roleOptions.findIndex((opt) => opt.value === data.role)
+        setSelectedRoleIndex(roleIndex >= 0 ? roleIndex : 0)
       } else {
         Taro.showToast({title: '用户不存在', icon: 'error'})
       }
@@ -50,7 +57,7 @@ const EditUser: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [userId])
+  }, [userId, roleOptions.findIndex])
 
   // 保存用户信息
   const handleSave = useCallback(async () => {
@@ -71,22 +78,27 @@ const EditUser: React.FC = () => {
       return
     }
 
-    // 验证邮箱格式（如果填写了）
-    if (email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email.trim())) {
-        Taro.showToast({title: '邮箱格式不正确', icon: 'none'})
-        return
-      }
+    if (!loginAccount.trim()) {
+      Taro.showToast({title: '请输入登录账号', icon: 'none'})
+      return
+    }
+
+    if (!joinDate) {
+      Taro.showToast({title: '请选择入职时间', icon: 'none'})
+      return
     }
 
     Taro.showLoading({title: '保存中...'})
     try {
+      const selectedRole = roleOptions[selectedRoleIndex].value
+
       const success = await updateUserInfo(userId, {
         name: name.trim(),
         phone: phone.trim(),
-        email: email.trim() || undefined,
-        role
+        login_account: loginAccount.trim(),
+        vehicle_plate: vehiclePlate.trim() || undefined,
+        join_date: joinDate,
+        role: selectedRole
       })
 
       if (success) {
@@ -103,37 +115,25 @@ const EditUser: React.FC = () => {
     } finally {
       Taro.hideLoading()
     }
-  }, [userId, name, phone, email, role])
-
-  // 重置密码
-  const handleResetPassword = useCallback(async () => {
-    const {confirm} = await Taro.showModal({
-      title: '重置密码',
-      content: `确认将用户"${name || phone}"的密码重置为 123456 吗？`
-    })
-
-    if (!confirm) return
-
-    Taro.showLoading({title: '重置中...'})
-    try {
-      const success = await resetUserPassword(userId)
-      if (success) {
-        Taro.showToast({title: '密码已重置为 123456', icon: 'success', duration: 3000})
-      } else {
-        Taro.showToast({title: '重置失败', icon: 'error'})
-      }
-    } catch (error) {
-      console.error('重置密码失败:', error)
-      Taro.showToast({title: '重置失败', icon: 'error'})
-    } finally {
-      Taro.hideLoading()
-    }
-  }, [userId, name, phone])
+  }, [
+    userId,
+    name,
+    phone,
+    loginAccount,
+    vehiclePlate,
+    joinDate,
+    selectedRoleIndex,
+    roleOptions[selectedRoleIndex].value
+  ])
 
   // 角色选择变化
   const handleRoleChange = useCallback((e: any) => {
-    const selectedIndex = Number(e.detail.value)
-    setRole(roleOptions[selectedIndex].value as UserRole)
+    setSelectedRoleIndex(Number(e.detail.value))
+  }, [])
+
+  // 日期选择变化
+  const handleDateChange = useCallback((e: any) => {
+    setJoinDate(e.detail.value)
   }, [])
 
   // 页面加载时获取用户信息
@@ -145,8 +145,8 @@ const EditUser: React.FC = () => {
     return (
       <View
         className="min-h-screen flex items-center justify-center"
-        style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
-        <Text className="text-gray-500">加载中...</Text>
+        style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)'}}>
+        <Text className="text-white">加载中...</Text>
       </View>
     )
   }
@@ -155,29 +155,31 @@ const EditUser: React.FC = () => {
     return (
       <View
         className="min-h-screen flex items-center justify-center"
-        style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
-        <Text className="text-gray-500">用户不存在</Text>
+        style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)'}}>
+        <Text className="text-white">用户不存在</Text>
       </View>
     )
   }
 
   return (
-    <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
-      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        {/* 页面标题 */}
-        <View className="px-4 pt-6 pb-4">
-          <Text className="text-2xl font-bold text-gray-800">编辑用户信息</Text>
-          <Text className="text-sm text-gray-500 mt-1">修改用户的基本信息和角色</Text>
-        </View>
+    <View style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)', minHeight: '100vh'}}>
+      <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
+        <View className="p-4">
+          {/* 页面标题 */}
+          <View className="mb-6">
+            <Text className="text-white text-2xl font-bold block mb-2">编辑用户信息</Text>
+            <Text className="text-blue-100 text-sm block">超级管理员工作台</Text>
+          </View>
 
-        {/* 表单 */}
-        <View className="px-4 pb-6">
-          <View className="bg-white rounded-lg p-4 shadow-sm">
+          {/* 表单卡片 */}
+          <View className="bg-white rounded-lg p-4 shadow-lg">
             {/* 姓名 */}
             <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">姓名 *</Text>
+              <Text className="text-sm text-gray-700 font-bold block mb-2">
+                姓名 <Text className="text-red-500">*</Text>
+              </Text>
               <Input
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full bg-gray-50 px-3 py-2 rounded-lg text-sm"
                 placeholder="请输入姓名"
                 value={name}
                 onInput={(e) => setName(e.detail.value)}
@@ -186,9 +188,11 @@ const EditUser: React.FC = () => {
 
             {/* 手机号 */}
             <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">手机号 *</Text>
+              <Text className="text-sm text-gray-700 font-bold block mb-2">
+                手机号 <Text className="text-red-500">*</Text>
+              </Text>
               <Input
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full bg-gray-50 px-3 py-2 rounded-lg text-sm"
                 placeholder="请输入手机号"
                 type="number"
                 maxlength={11}
@@ -197,107 +201,95 @@ const EditUser: React.FC = () => {
               />
             </View>
 
-            {/* 邮箱 */}
+            {/* 登录账号 */}
             <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">邮箱</Text>
+              <Text className="text-sm text-gray-700 font-bold block mb-2">
+                登录账号 <Text className="text-red-500">*</Text>
+              </Text>
               <Input
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                placeholder="请输入邮箱（可选）"
-                type="text"
-                value={email}
-                onInput={(e) => setEmail(e.detail.value)}
+                className="w-full bg-gray-50 px-3 py-2 rounded-lg text-sm"
+                placeholder="请输入登录账号"
+                value={loginAccount}
+                onInput={(e) => setLoginAccount(e.detail.value)}
               />
+              <Text className="text-xs text-gray-500 mt-1">登录账号作为用户登录系统的唯一凭证</Text>
             </View>
 
             {/* 角色 */}
             <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">角色 *</Text>
+              <Text className="text-sm text-gray-700 font-bold block mb-2">
+                角色 <Text className="text-red-500">*</Text>
+              </Text>
               <Picker
                 mode="selector"
-                range={roleOptions.map((o) => o.label)}
-                value={roleOptions.findIndex((o) => o.value === role)}
+                range={roleOptions.map((r) => r.label)}
+                value={selectedRoleIndex}
                 onChange={handleRoleChange}>
-                <View className="flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg">
-                  <Text className="text-gray-800">{roleOptions.find((o) => o.value === role)?.label}</Text>
-                  <Text className="text-gray-400">▼</Text>
+                <View className="w-full bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                  <Text className="text-sm text-gray-800">{roleOptions[selectedRoleIndex].label}</Text>
+                  <View className="i-mdi-chevron-down text-gray-500" />
+                </View>
+              </Picker>
+              <Text className="text-xs text-gray-500 mt-1">{roleOptions[selectedRoleIndex].description}</Text>
+            </View>
+
+            {/* 车牌号码 */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-700 font-bold block mb-2">车牌号码</Text>
+              <Input
+                className="w-full bg-gray-50 px-3 py-2 rounded-lg text-sm"
+                placeholder="请输入车牌号码（选填）"
+                value={vehiclePlate}
+                onInput={(e) => setVehiclePlate(e.detail.value.toUpperCase())}
+              />
+              <Text className="text-xs text-gray-500 mt-1">如：京A12345</Text>
+            </View>
+
+            {/* 入职时间 */}
+            <View className="mb-4">
+              <Text className="text-sm text-gray-700 font-bold block mb-2">
+                入职时间 <Text className="text-red-500">*</Text>
+              </Text>
+              <Picker mode="date" value={joinDate} onChange={handleDateChange}>
+                <View className="w-full bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                  <Text className="text-sm text-gray-800">{joinDate || '请选择入职时间'}</Text>
+                  <View className="i-mdi-calendar text-gray-500" />
                 </View>
               </Picker>
             </View>
 
-            {/* 用户ID（只读） */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-600 mb-2">用户ID</Text>
-              <View className="px-3 py-2 bg-gray-100 rounded-lg">
-                <Text className="text-xs text-gray-500 break-all">{userId}</Text>
-              </View>
+            {/* 操作按钮 */}
+            <View className="flex gap-3 mt-6">
+              <Button
+                size="default"
+                className="flex-1 text-sm break-keep"
+                style={{
+                  backgroundColor: '#6b7280',
+                  color: '#fff',
+                  borderRadius: '8px'
+                }}
+                onClick={() => Taro.navigateBack()}>
+                取消
+              </Button>
+              <Button
+                size="default"
+                className="flex-1 text-sm break-keep"
+                style={{
+                  backgroundColor: '#10b981',
+                  color: '#fff',
+                  borderRadius: '8px'
+                }}
+                onClick={handleSave}>
+                保存
+              </Button>
             </View>
-
-            {/* 创建时间（只读） */}
-            {userInfo.created_at && (
-              <View className="mb-4">
-                <Text className="text-sm text-gray-600 mb-2">创建时间</Text>
-                <View className="px-3 py-2 bg-gray-100 rounded-lg">
-                  <Text className="text-sm text-gray-700">{new Date(userInfo.created_at).toLocaleString('zh-CN')}</Text>
-                </View>
-              </View>
-            )}
           </View>
 
-          {/* 操作按钮 */}
-          <View className="mt-4 space-y-3">
-            {/* 保存按钮 */}
-            <Button
-              size="default"
-              className="w-full text-base break-keep"
-              style={{
-                backgroundColor: '#3b82f6',
-                color: '#fff',
-                borderRadius: '8px',
-                height: '44px',
-                lineHeight: '44px'
-              }}
-              onClick={handleSave}>
-              保存修改
-            </Button>
-
-            {/* 重置密码按钮 */}
-            <Button
-              size="default"
-              className="w-full text-base break-keep"
-              style={{
-                backgroundColor: '#f97316',
-                color: '#fff',
-                borderRadius: '8px',
-                height: '44px',
-                lineHeight: '44px'
-              }}
-              onClick={handleResetPassword}>
-              重置密码为 123456
-            </Button>
-
-            {/* 取消按钮 */}
-            <Button
-              size="default"
-              className="w-full text-base break-keep"
-              style={{
-                backgroundColor: '#e5e7eb',
-                color: '#374151',
-                borderRadius: '8px',
-                height: '44px',
-                lineHeight: '44px'
-              }}
-              onClick={() => Taro.navigateBack()}>
-              取消
-            </Button>
-          </View>
-
-          {/* 提示信息 */}
-          <View className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-            <Text className="text-xs text-yellow-800">
-              ⚠️ 提示：
-              {'\n'}• 修改用户信息后，用户需要重新登录
-              {'\n'}• 重置密码后，用户可以使用新密码 123456 登录
-              {'\n'}• 建议用户登录后立即修改密码
+          {/* 用户ID和创建时间信息 */}
+          <View className="mt-4 bg-white bg-opacity-20 rounded-lg p-3">
+            <Text className="text-xs text-white block">用户ID: {userInfo.id}</Text>
+            <Text className="text-xs text-white block mt-1">
+              创建时间: {new Date(userInfo.created_at).toLocaleString('zh-CN')}
             </Text>
           </View>
         </View>

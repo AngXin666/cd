@@ -1,5 +1,8 @@
 export type UserRole = 'driver' | 'manager' | 'super_admin'
 
+// 扩展角色类型，用于UI显示
+export type ExtendedUserRole = 'pure_driver' | 'driver_with_vehicle' | 'manager' | 'super_admin'
+
 export interface Profile {
   id: string
   phone: string | null
@@ -14,6 +17,9 @@ export interface Profile {
   address_detail: string | null
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
+  login_account: string | null
+  vehicle_plate: string | null
+  join_date: string | null
   created_at: string
   updated_at: string
 }
@@ -30,6 +36,10 @@ export interface ProfileUpdate {
   address_detail?: string
   emergency_contact_name?: string
   emergency_contact_phone?: string
+  login_account?: string
+  vehicle_plate?: string
+  join_date?: string
+  role?: UserRole
 }
 
 // 考勤状态类型
