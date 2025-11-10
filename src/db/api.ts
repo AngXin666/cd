@@ -2676,22 +2676,38 @@ export async function getSuperAdminStats(): Promise<{
  */
 export async function resetUserPassword(userId: string): Promise<{success: boolean; error?: string}> {
   try {
+    console.log('=== 开始重置密码 ===')
+    console.log('目标用户ID:', userId)
+
     // 获取当前用户的访问令牌
     const {
       data: {session}
     } = await supabase.auth.getSession()
 
+    console.log('会话状态:', session ? '已登录' : '未登录')
+
     if (!session) {
       const errorMsg = '未登录，无法重置密码'
-      console.error('重置密码失败:', errorMsg)
+      console.error('❌ 重置密码失败:', errorMsg)
       return {success: false, error: errorMsg}
     }
+
+    console.log('当前用户ID:', session.user.id)
+    console.log('访问令牌前10位:', `${session.access_token.substring(0, 10)}...`)
 
     // 调用 Edge Function 重置密码
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
     const functionUrl = `${supabaseUrl}/functions/v1/reset-user-password`
 
-    console.log('调用重置密码 Edge Function:', functionUrl)
+    console.log('Edge Function URL:', functionUrl)
+
+    const requestBody = {
+      userId,
+      newPassword: '123456'
+    }
+
+    console.log('请求体:', requestBody)
+    console.log('开始发送请求...')
 
     const response = await fetch(functionUrl, {
       method: 'POST',
@@ -2699,27 +2715,39 @@ export async function resetUserPassword(userId: string): Promise<{success: boole
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({
-        userId,
-        newPassword: '123456'
-      })
+      body: JSON.stringify(requestBody)
     })
 
-    const result = await response.json()
+    console.log('收到响应，状态码:', response.status)
+    console.log('响应头:', Object.fromEntries(response.headers.entries()))
 
-    console.log('Edge Function 响应:', {status: response.status, result})
+    let result: any
+    try {
+      const responseText = await response.text()
+      console.log('响应原始文本:', responseText)
+      result = JSON.parse(responseText)
+      console.log('解析后的响应:', result)
+    } catch (parseError) {
+      console.error('❌ 解析响应失败:', parseError)
+      return {success: false, error: '服务器返回了无效的响应格式'}
+    }
 
     if (!response.ok) {
-      const errorMsg = result.error || result.details || '重置密码失败'
-      console.error('重置密码失败:', errorMsg)
+      const errorMsg = result.error || result.details || `HTTP ${response.status}: 重置密码失败`
+      console.error('❌ 重置密码失败 (HTTP错误):', errorMsg)
+      console.error('完整错误信息:', result)
       return {success: false, error: errorMsg}
     }
 
+    console.log('✅ 密码重置成功')
     return {success: true}
   } catch (error) {
+    console.error('❌ 重置密码异常:', error)
+    console.error('异常类型:', error?.constructor?.name)
+    console.error('异常堆栈:', error instanceof Error ? error.stack : '无堆栈信息')
+
     const errorMsg = error instanceof Error ? error.message : '网络错误或服务器异常'
-    console.error('重置密码失败:', error)
-    return {success: false, error: errorMsg}
+    return {success: false, error: `异常: ${errorMsg}`}
   }
 }
 

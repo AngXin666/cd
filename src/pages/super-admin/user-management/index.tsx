@@ -146,24 +146,51 @@ const UserManagement: React.FC = () => {
 
   // 重置密码
   const handleResetPassword = useCallback(async (targetUser: Profile) => {
+    console.log('=== 用户管理页面：开始重置密码流程 ===')
+    console.log('目标用户:', targetUser)
+
     const {confirm} = await Taro.showModal({
       title: '重置密码',
       content: `确认将用户"${targetUser.name || targetUser.phone}"的密码重置为 123456 吗？`
     })
 
-    if (!confirm) return
+    if (!confirm) {
+      console.log('用户取消了重置密码操作')
+      return
+    }
 
     Taro.showLoading({title: '重置中...'})
     try {
+      console.log('调用 resetUserPassword 函数...')
       const result = await resetUserPassword(targetUser.id)
+      console.log('resetUserPassword 返回结果:', result)
+
       if (result.success) {
+        console.log('✅ 密码重置成功')
         Taro.showToast({title: '密码已重置为 123456', icon: 'success', duration: 3000})
       } else {
-        Taro.showToast({title: result.error || '重置失败', icon: 'none', duration: 3000})
+        console.error('❌ 密码重置失败:', result.error)
+        // 显示详细的错误信息
+        const errorMessage = result.error || '重置失败，原因未知'
+        Taro.showModal({
+          title: '重置失败',
+          content: errorMessage,
+          showCancel: false,
+          confirmText: '知道了'
+        })
       }
     } catch (error) {
-      console.error('重置密码失败:', error)
-      Taro.showToast({title: '重置失败，请稍后重试', icon: 'error'})
+      console.error('❌ 重置密码异常:', error)
+      console.error('异常详情:', JSON.stringify(error, null, 2))
+
+      // 显示异常信息
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      Taro.showModal({
+        title: '重置失败',
+        content: `发生异常: ${errorMessage}`,
+        showCancel: false,
+        confirmText: '知道了'
+      })
     } finally {
       Taro.hideLoading()
     }
