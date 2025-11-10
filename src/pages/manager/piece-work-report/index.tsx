@@ -46,6 +46,8 @@ const ManagerPieceWorkReport: React.FC = () => {
   const [endDate, setEndDate] = useState('')
   const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortBy, setSortBy] = useState<'amount' | 'quantity' | 'leave'>('amount') // 排序依据
+  const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
 
   // 初始化日期范围（默认当月）
   useEffect(() => {
@@ -205,11 +207,6 @@ const ManagerPieceWorkReport: React.FC = () => {
     setActiveQuickFilter('custom')
   }
 
-  // 切换排序顺序
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-  }
-
   // 查看司机详情
   const handleViewDriverDetail = (driverId: string) => {
     navigateTo({
@@ -300,9 +297,17 @@ const ManagerPieceWorkReport: React.FC = () => {
         })
       )
 
-      // 按总金额排序
+      // 根据排序依据和排序顺序排序
       summariesWithAttendance.sort((a, b) => {
-        return sortOrder === 'desc' ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount
+        let compareValue = 0
+        if (sortBy === 'amount') {
+          compareValue = b.totalAmount - a.totalAmount
+        } else if (sortBy === 'quantity') {
+          compareValue = b.totalQuantity - a.totalQuantity
+        } else if (sortBy === 'leave') {
+          compareValue = b.leaveDays - a.leaveDays
+        }
+        return sortOrder === 'desc' ? compareValue : -compareValue
       })
 
       setDriverSummaries(summariesWithAttendance)
@@ -313,7 +318,7 @@ const ManagerPieceWorkReport: React.FC = () => {
     } else {
       setDriverSummaries([])
     }
-  }, [driverSummariesBase, startDate, endDate, sortOrder])
+  }, [driverSummariesBase, startDate, endDate, sortOrder, sortBy])
 
   // 计算统计数据
   const totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
@@ -355,121 +360,197 @@ const ManagerPieceWorkReport: React.FC = () => {
           </View>
 
           {/* 筛选区域 */}
+          <View className="bg-white rounded-lg mb-4 shadow">
+            {/* 筛选标题栏 - 可点击展开/收起 */}
+            <View
+              className="flex items-center justify-between p-4 cursor-pointer"
+              onClick={() => setShowFilters(!showFilters)}>
+              <View className="flex items-center">
+                <View className="i-mdi-filter text-xl text-blue-900 mr-2" />
+                <Text className="text-base font-bold text-gray-800">筛选条件</Text>
+              </View>
+              <View className={`i-mdi-chevron-${showFilters ? 'up' : 'down'} text-xl text-gray-400`} />
+            </View>
+
+            {/* 筛选内容 - 可折叠 */}
+            {showFilters && (
+              <View className="px-4 pb-4">
+                {/* 仓库筛选 */}
+                <View className="mb-3">
+                  <Text className="text-sm text-gray-700 block mb-2">仓库</Text>
+                  <Picker
+                    mode="selector"
+                    range={['所有仓库', ...warehouses.map((w) => w.name)]}
+                    value={selectedWarehouseIndex}
+                    onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                    <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <Text className="text-sm text-gray-800">
+                        {selectedWarehouseIndex === 0 ? '所有仓库' : warehouses[selectedWarehouseIndex - 1]?.name}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                </View>
+
+                {/* 司机筛选 */}
+                <View className="mb-3">
+                  <Text className="text-sm text-gray-700 block mb-2">司机（支持拼音首字母搜索）</Text>
+                  <Input
+                    className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
+                    placeholder="搜索司机姓名、拼音首字母或手机号"
+                    value={driverSearchKeyword}
+                    onInput={(e) => {
+                      setDriverSearchKeyword(e.detail.value)
+                      // 搜索关键词变化时，重置选中的司机
+                      setSelectedDriverId('')
+                    }}
+                  />
+                  <Picker
+                    mode="selector"
+                    range={['所有司机', ...filteredDrivers.map((d) => d.name || d.phone || '未知')]}
+                    value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
+                    onChange={(e) => {
+                      const index = Number(e.detail.value)
+                      if (index === 0) {
+                        setSelectedDriverId('')
+                      } else {
+                        const driver = filteredDrivers[index - 1]
+                        if (driver) {
+                          setSelectedDriverId(driver.id)
+                        }
+                      }
+                    }}>
+                    <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <Text className="text-sm text-gray-800">
+                        {selectedDriverId
+                          ? drivers.find((d) => d.id === selectedDriverId)?.name ||
+                            drivers.find((d) => d.id === selectedDriverId)?.phone ||
+                            '未知'
+                          : '所有司机'}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                </View>
+
+                {/* 快捷日期筛选 */}
+                <View className="mb-3">
+                  <Text className="text-sm text-gray-700 block mb-2">快捷筛选</Text>
+                  <View className="flex gap-2">
+                    <View
+                      onClick={handleYesterdayFilter}
+                      className={`flex-1 text-center py-2 rounded-lg ${
+                        activeQuickFilter === 'yesterday' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                      <Text className="text-xs">前一天</Text>
+                    </View>
+                    <View
+                      onClick={handleWeekFilter}
+                      className={`flex-1 text-center py-2 rounded-lg ${
+                        activeQuickFilter === 'week' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                      <Text className="text-xs">本周</Text>
+                    </View>
+                    <View
+                      onClick={handleMonthFilter}
+                      className={`flex-1 text-center py-2 rounded-lg ${
+                        activeQuickFilter === 'month' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                      <Text className="text-xs">本月</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 自定义日期范围 */}
+                <View>
+                  <Text className="text-sm text-gray-700 block mb-2">日期范围</Text>
+                  <View className="flex gap-2 items-center">
+                    <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
+                      <View className="flex-1 bg-gray-50 rounded-lg p-3">
+                        <Text className="text-sm text-gray-800">{startDate || '开始日期'}</Text>
+                      </View>
+                    </Picker>
+                    <Text className="text-gray-500">至</Text>
+                    <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
+                      <View className="flex-1 bg-gray-50 rounded-lg p-3">
+                        <Text className="text-sm text-gray-800">{endDate || '结束日期'}</Text>
+                      </View>
+                    </Picker>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* 快捷排序按钮 */}
           <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <Text className="text-base font-bold text-gray-800 block mb-3">筛选条件</Text>
-
-            {/* 仓库筛选 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">仓库</Text>
-              <Picker
-                mode="selector"
-                range={['所有仓库', ...warehouses.map((w) => w.name)]}
-                value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <Text className="text-sm text-gray-800">
-                    {selectedWarehouseIndex === 0 ? '所有仓库' : warehouses[selectedWarehouseIndex - 1]?.name}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 司机筛选 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">司机（支持拼音首字母搜索）</Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
-                placeholder="搜索司机姓名、拼音首字母或手机号"
-                value={driverSearchKeyword}
-                onInput={(e) => {
-                  setDriverSearchKeyword(e.detail.value)
-                  // 搜索关键词变化时，重置选中的司机
-                  setSelectedDriverId('')
-                }}
-              />
-              <Picker
-                mode="selector"
-                range={['所有司机', ...filteredDrivers.map((d) => d.name || d.phone || '未知')]}
-                value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
-                onChange={(e) => {
-                  const index = Number(e.detail.value)
-                  if (index === 0) {
-                    setSelectedDriverId('')
+            <Text className="text-sm font-bold text-gray-800 block mb-3">快捷排序</Text>
+            <View className="flex gap-2">
+              <View
+                onClick={() => {
+                  if (sortBy === 'amount') {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
                   } else {
-                    const driver = filteredDrivers[index - 1]
-                    if (driver) {
-                      setSelectedDriverId(driver.id)
-                    }
+                    setSortBy('amount')
+                    setSortOrder('desc')
                   }
-                }}>
-                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <Text className="text-sm text-gray-800">
-                    {selectedDriverId
-                      ? drivers.find((d) => d.id === selectedDriverId)?.name ||
-                        drivers.find((d) => d.id === selectedDriverId)?.phone ||
-                        '未知'
-                      : '所有司机'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 快捷日期筛选 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">快捷筛选</Text>
-              <View className="flex gap-2">
+                }}
+                className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
+                  sortBy === 'amount' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>
                 <View
-                  onClick={handleYesterdayFilter}
-                  className={`flex-1 text-center py-2 rounded-lg ${
-                    activeQuickFilter === 'yesterday' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                  <Text className="text-xs">前一天</Text>
-                </View>
-                <View
-                  onClick={handleWeekFilter}
-                  className={`flex-1 text-center py-2 rounded-lg ${
-                    activeQuickFilter === 'week' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                  <Text className="text-xs">本周</Text>
-                </View>
-                <View
-                  onClick={handleMonthFilter}
-                  className={`flex-1 text-center py-2 rounded-lg ${
-                    activeQuickFilter === 'month' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                  <Text className="text-xs">本月</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 自定义日期范围 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">日期范围</Text>
-              <View className="flex gap-2 items-center">
-                <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
-                  <View className="flex-1 bg-gray-50 rounded-lg p-3">
-                    <Text className="text-sm text-gray-800">{startDate || '开始日期'}</Text>
-                  </View>
-                </Picker>
-                <Text className="text-gray-500">至</Text>
-                <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
-                  <View className="flex-1 bg-gray-50 rounded-lg p-3">
-                    <Text className="text-sm text-gray-800">{endDate || '结束日期'}</Text>
-                  </View>
-                </Picker>
-              </View>
-            </View>
-
-            {/* 排序 */}
-            <View>
-              <Text className="text-sm text-gray-700 block mb-2">排序</Text>
-              <View onClick={toggleSortOrder} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                <Text className="text-sm text-gray-800">{sortOrder === 'desc' ? '金额从高到低' : '金额从低到高'}</Text>
-                <View
-                  className={`i-mdi-sort-${sortOrder === 'desc' ? 'descending' : 'ascending'} text-xl text-blue-900`}
+                  className={`i-mdi-currency-cny text-base mr-1 ${sortBy === 'amount' ? 'text-white' : 'text-gray-600'}`}
                 />
+                <Text className={`text-xs ${sortBy === 'amount' ? 'text-white' : 'text-gray-700'}`}>金额</Text>
+                {sortBy === 'amount' && (
+                  <View
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'amount' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                )}
+              </View>
+              <View
+                onClick={() => {
+                  if (sortBy === 'quantity') {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                  } else {
+                    setSortBy('quantity')
+                    setSortOrder('desc')
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
+                  sortBy === 'quantity' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>
+                <View
+                  className={`i-mdi-package-variant text-base mr-1 ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
+                />
+                <Text className={`text-xs ${sortBy === 'quantity' ? 'text-white' : 'text-gray-700'}`}>件数</Text>
+                {sortBy === 'quantity' && (
+                  <View
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                )}
+              </View>
+              <View
+                onClick={() => {
+                  if (sortBy === 'leave') {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                  } else {
+                    setSortBy('leave')
+                    setSortOrder('desc')
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
+                  sortBy === 'leave' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>
+                <View
+                  className={`i-mdi-calendar-remove text-base mr-1 ${sortBy === 'leave' ? 'text-white' : 'text-gray-600'}`}
+                />
+                <Text className={`text-xs ${sortBy === 'leave' ? 'text-white' : 'text-gray-700'}`}>请假</Text>
+                {sortBy === 'leave' && (
+                  <View
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'leave' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                )}
               </View>
             </View>
           </View>
