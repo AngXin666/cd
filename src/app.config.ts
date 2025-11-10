@@ -24,6 +24,7 @@ const pages = [
   'pages/manager/piece-work-report-detail/index',
   'pages/manager/leave-approval/index',
   'pages/manager/driver-leave-detail/index',
+  'pages/manager/attendance-records/index',
   'pages/manager/warehouse-categories/index',
   'pages/manager/driver-management/index',
   'pages/super-admin/warehouse-management/index',
