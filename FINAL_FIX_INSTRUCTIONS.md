@@ -123,6 +123,8 @@ export async function resetUserPassword(userId: string): Promise<{success: boole
 
 ### 提交记录
 ```
+008287d 修复列引用不明确的问题
+666e602 添加最终修复说明文档
 282ca83 修复 gen_salt 函数找不到的问题
 f9457e5 添加重置密码功能最终解决方案文档
 257c9fe 使用 PostgreSQL RPC 函数彻底修复重置密码功能
@@ -139,6 +141,7 @@ bf4ca32 修复数据库列名错误和缺失依赖包
 2. **数据库迁移**:
    - `supabase/migrations/28_create_reset_password_function.sql` - 创建重置密码函数
    - `supabase/migrations/29_fix_reset_password_function.sql` - 修复函数路径问题
+   - `supabase/migrations/30_fix_ambiguous_column_reference.sql` - 修复列引用不明确问题
 
 3. **依赖安装**:
    - `pinyin-pro` - 用于用户管理页面的拼音排序
