@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
+  getAllAttendanceRecords,
   getAllLeaveApplications,
   getAllProfiles,
   getAllResignationApplications,
@@ -12,7 +13,7 @@ import {
   reviewLeaveApplication,
   reviewResignationApplication
 } from '@/db/api'
-import type {LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
+import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -26,16 +27,36 @@ interface DriverStats {
   pendingCount: number
 }
 
+// 打卡记录统计类型
+interface AttendanceStats {
+  totalRecords: number
+  normalCount: number
+  lateCount: number
+  earlyCount: number
+  absentCount: number
+}
+
 const ManagerLeaveApproval: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [managerWarehouses, setManagerWarehouses] = useState<string[]>([])
+  const [managerWarehouses, setManagerWarehouses] = useState<Warehouse[]>([])
   const [filterWarehouse, setFilterWarehouse] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('pending')
-  const [activeTab, setActiveTab] = useState<'stats' | 'pending'>('pending')
+  const [filterMonth, setFilterMonth] = useState<string>('')
+  const [filterDriver, setFilterDriver] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<'pending' | 'stats' | 'attendance'>('pending')
+
+  // 初始化当前月份
+  const initCurrentMonth = useCallback(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    return `${year}-${month}`
+  }, [])
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -62,11 +83,23 @@ const ManagerLeaveApproval: React.FC = () => {
 
       // 获取管理员管辖的仓库
       const managedWarehouses = await getManagerWarehouses(user.id)
-      setManagerWarehouses(managedWarehouses.map((w) => w.id))
+      setManagerWarehouses(managedWarehouses)
+
+      // 如果是打卡记录标签页，加载打卡记录
+      if (activeTab === 'attendance') {
+        const currentMonth = filterMonth || initCurrentMonth()
+        const [year, month] = currentMonth.split('-').map(Number)
+        const records = await getAllAttendanceRecords(year, month)
+
+        // 过滤管理员管辖的仓库的记录
+        const managedWarehouseIds = managedWarehouses.map((w) => w.id)
+        const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
+        setAttendanceRecords(filteredRecords)
+      }
     } finally {
       Taro.hideLoading()
     }
-  }, [user])
+  }, [user, activeTab, filterMonth, initCurrentMonth])
 
   useEffect(() => {
     loadData()
@@ -109,14 +142,16 @@ const ManagerLeaveApproval: React.FC = () => {
   }
 
   // 获取可见的仓库列表（只显示管理员管辖的仓库）
-  const getVisibleWarehouses = () => {
-    return warehouses.filter((w) => managerWarehouses.includes(w.id))
+  const _getVisibleWarehouses = () => {
+    const managedWarehouseIds = managerWarehouses.map((w) => w.id)
+    return warehouses.filter((w) => managedWarehouseIds.includes(w.id))
   }
 
   // 获取可见的申请数据（只显示管辖仓库的数据）
   const getVisibleApplications = () => {
-    let visibleLeave = leaveApplications.filter((app) => managerWarehouses.includes(app.warehouse_id))
-    let visibleResignation = resignationApplications.filter((app) => managerWarehouses.includes(app.warehouse_id))
+    const managedWarehouseIds = managerWarehouses.map((w) => w.id)
+    let visibleLeave = leaveApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
+    let visibleResignation = resignationApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
 
     // 按仓库筛选
     if (filterWarehouse !== 'all') {
@@ -281,15 +316,86 @@ const ManagerLeaveApproval: React.FC = () => {
     })
   }
 
-  // 跳转到打卡记录页面
-  const navigateToAttendanceRecords = () => {
-    Taro.navigateTo({
-      url: '/pages/manager/attendance-records/index'
-    })
+  // 打卡记录相关函数
+  // 格式化时间
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
+  // 获取状态文本和样式
+  const getStatusInfo = (record: AttendanceRecord) => {
+    if (record.status === 'absent') {
+      return {text: '缺勤', color: 'text-red-600', bg: 'bg-red-50'}
+    }
+    if (record.status === 'late') {
+      return {text: '迟到', color: 'text-orange-600', bg: 'bg-orange-50'}
+    }
+    if (record.status === 'early') {
+      return {text: '早退', color: 'text-yellow-600', bg: 'bg-yellow-50'}
+    }
+    return {text: '正常', color: 'text-green-600', bg: 'bg-green-50'}
+  }
+
+  // 获取可见的打卡记录
+  const getVisibleAttendanceRecords = () => {
+    let visible = attendanceRecords
+    const _managedWarehouseIds = managerWarehouses.map((w) => w.id)
+
+    // 按仓库筛选
+    if (filterWarehouse !== 'all') {
+      visible = visible.filter((r) => r.warehouse_id === filterWarehouse)
+    }
+
+    // 按司机筛选
+    if (filterDriver !== 'all') {
+      visible = visible.filter((r) => r.user_id === filterDriver)
+    }
+
+    // 按日期倒序排序
+    return visible.sort((a, b) => new Date(b.clock_in_time).getTime() - new Date(a.clock_in_time).getTime())
+  }
+
+  // 计算打卡统计数据
+  const calculateAttendanceStats = (): AttendanceStats => {
+    const visible = getVisibleAttendanceRecords()
+    return {
+      totalRecords: visible.length,
+      normalCount: visible.filter((r) => r.status === 'normal').length,
+      lateCount: visible.filter((r) => r.status === 'late').length,
+      earlyCount: visible.filter((r) => r.status === 'early').length,
+      absentCount: visible.filter((r) => r.status === 'absent').length
+    }
+  }
+
+  // 生成月份选项（最近12个月）
+  const generateMonthOptions = () => {
+    const options: string[] = []
+    const now = new Date()
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      options.push(`${year}-${month}`)
+    }
+    return options
+  }
+
+  // 获取司机列表（去重）
+  const getDriverList = () => {
+    const driverIds = new Set(attendanceRecords.map((r) => r.user_id))
+    return Array.from(driverIds)
+      .map((id) => ({
+        id,
+        name: getUserName(id)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   }
 
   const driverStats = calculateDriverStats()
-  const visibleWarehouses = getVisibleWarehouses()
+  const visibleWarehouses = managerWarehouses
   const {visibleLeave, visibleResignation} = getVisibleApplications()
 
   // 统计数据
@@ -307,20 +413,6 @@ const ManagerLeaveApproval: React.FC = () => {
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
             <Text className="text-white text-2xl font-bold block mb-2">请假审批管理</Text>
             <Text className="text-blue-100 text-sm block">管理员工作台</Text>
-          </View>
-
-          {/* 快捷入口 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <Text className="text-sm text-gray-700 font-bold block mb-3">快捷入口</Text>
-            <Button
-              size="default"
-              className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white text-base font-bold break-keep"
-              onClick={navigateToAttendanceRecords}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-clock-check text-xl mr-2" />
-                <Text>查看打卡记录</Text>
-              </View>
-            </Button>
           </View>
 
           {/* 统计卡片 */}
@@ -401,15 +493,27 @@ const ManagerLeaveApproval: React.FC = () => {
             <View
               className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'pending' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => setActiveTab('pending')}>
-              <Text className={`text-sm font-bold ${activeTab === 'pending' ? 'text-white' : 'text-gray-600'}`}>
-                待审批申请 ({totalPending})
+              <Text className={`text-xs font-bold ${activeTab === 'pending' ? 'text-white' : 'text-gray-600'}`}>
+                待审批 ({totalPending})
               </Text>
             </View>
             <View
               className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'stats' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => setActiveTab('stats')}>
-              <Text className={`text-sm font-bold ${activeTab === 'stats' ? 'text-white' : 'text-gray-600'}`}>
+              <Text className={`text-xs font-bold ${activeTab === 'stats' ? 'text-white' : 'text-gray-600'}`}>
                 司机统计
+              </Text>
+            </View>
+            <View
+              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'attendance' ? 'bg-blue-600' : 'bg-white'}`}
+              onClick={() => {
+                setActiveTab('attendance')
+                if (!filterMonth) {
+                  setFilterMonth(initCurrentMonth())
+                }
+              }}>
+              <Text className={`text-xs font-bold ${activeTab === 'attendance' ? 'text-white' : 'text-gray-600'}`}>
+                打卡记录
               </Text>
             </View>
           </View>
@@ -608,6 +712,185 @@ const ManagerLeaveApproval: React.FC = () => {
                     </View>
                   </View>
                 ))
+              )}
+            </View>
+          )}
+
+          {/* 打卡记录标签页 */}
+          {activeTab === 'attendance' && (
+            <View className="mb-4">
+              {/* 筛选器 */}
+              <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                <View className="flex gap-3">
+                  {/* 月份筛选 */}
+                  <View className="flex-1">
+                    <Text className="text-xs text-gray-600 mb-2 block">选择月份</Text>
+                    <Picker
+                      mode="selector"
+                      range={generateMonthOptions()}
+                      value={generateMonthOptions().indexOf(filterMonth || initCurrentMonth())}
+                      onChange={(e) => {
+                        const selectedMonth = generateMonthOptions()[e.detail.value]
+                        setFilterMonth(selectedMonth)
+                      }}>
+                      <View className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{filterMonth || initCurrentMonth()}</Text>
+                        <View className="i-mdi-chevron-down text-gray-500" />
+                      </View>
+                    </Picker>
+                  </View>
+
+                  {/* 仓库筛选 */}
+                  <View className="flex-1">
+                    <Text className="text-xs text-gray-600 mb-2 block">选择仓库</Text>
+                    <Picker
+                      mode="selector"
+                      range={['全部仓库', ...visibleWarehouses.map((w) => w.name)]}
+                      value={
+                        filterWarehouse === 'all'
+                          ? 0
+                          : Math.max(0, visibleWarehouses.findIndex((w) => w.id === filterWarehouse) + 1)
+                      }
+                      onChange={(e) => {
+                        const selectedIndex = Number(e.detail.value)
+                        if (selectedIndex === 0) {
+                          setFilterWarehouse('all')
+                        } else {
+                          setFilterWarehouse(visibleWarehouses[selectedIndex - 1].id)
+                        }
+                      }}>
+                      <View className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">
+                          {filterWarehouse === 'all' ? '全部仓库' : getWarehouseName(filterWarehouse)}
+                        </Text>
+                        <View className="i-mdi-chevron-down text-gray-500" />
+                      </View>
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* 司机筛选 */}
+                <View className="mt-3">
+                  <Text className="text-xs text-gray-600 mb-2 block">选择司机</Text>
+                  <Picker
+                    mode="selector"
+                    range={['全部司机', ...getDriverList().map((d) => d.name)]}
+                    value={
+                      filterDriver === 'all'
+                        ? 0
+                        : Math.max(0, getDriverList().findIndex((d) => d.id === filterDriver) + 1)
+                    }
+                    onChange={(e) => {
+                      const selectedIndex = Number(e.detail.value)
+                      if (selectedIndex === 0) {
+                        setFilterDriver('all')
+                      } else {
+                        setFilterDriver(getDriverList()[selectedIndex - 1].id)
+                      }
+                    }}>
+                    <View className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">
+                        {filterDriver === 'all' ? '全部司机' : getUserName(filterDriver)}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-gray-500" />
+                    </View>
+                  </Picker>
+                </View>
+              </View>
+
+              {/* 统计数据 */}
+              <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                <Text className="text-sm font-bold text-gray-800 mb-3 block">打卡统计</Text>
+                <View className="grid grid-cols-4 gap-3">
+                  <View className="text-center">
+                    <Text className="text-xl font-bold text-blue-600 block">
+                      {calculateAttendanceStats().totalRecords}
+                    </Text>
+                    <Text className="text-xs text-gray-500">总记录</Text>
+                  </View>
+                  <View className="text-center">
+                    <Text className="text-xl font-bold text-green-600 block">
+                      {calculateAttendanceStats().normalCount}
+                    </Text>
+                    <Text className="text-xs text-gray-500">正常</Text>
+                  </View>
+                  <View className="text-center">
+                    <Text className="text-xl font-bold text-orange-600 block">
+                      {calculateAttendanceStats().lateCount}
+                    </Text>
+                    <Text className="text-xs text-gray-500">迟到</Text>
+                  </View>
+                  <View className="text-center">
+                    <Text className="text-xl font-bold text-yellow-600 block">
+                      {calculateAttendanceStats().earlyCount}
+                    </Text>
+                    <Text className="text-xs text-gray-500">早退</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 打卡记录列表 */}
+              <View className="flex items-center justify-between mb-3">
+                <Text className="text-base font-bold text-gray-800">打卡记录</Text>
+                <Text className="text-xs text-gray-500">{getVisibleAttendanceRecords().length} 条记录</Text>
+              </View>
+
+              {getVisibleAttendanceRecords().length === 0 ? (
+                <View className="bg-white rounded-lg p-8 text-center shadow">
+                  <View className="i-mdi-clock-outline text-6xl text-gray-300 mb-4 mx-auto" />
+                  <Text className="text-gray-500 block">暂无打卡记录</Text>
+                </View>
+              ) : (
+                getVisibleAttendanceRecords().map((record) => {
+                  const statusInfo = getStatusInfo(record)
+                  return (
+                    <View key={record.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                      {/* 头部信息 */}
+                      <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+                        <View className="flex items-center">
+                          <View className="i-mdi-account-circle text-2xl text-blue-900 mr-2" />
+                          <View>
+                            <Text className="text-sm font-bold text-gray-800 block">{getUserName(record.user_id)}</Text>
+                            <Text className="text-xs text-gray-500">{getWarehouseName(record.warehouse_id || '')}</Text>
+                          </View>
+                        </View>
+                        <View className={`${statusInfo.bg} px-3 py-1 rounded-full`}>
+                          <Text className={`text-xs font-bold ${statusInfo.color}`}>{statusInfo.text}</Text>
+                        </View>
+                      </View>
+
+                      {/* 打卡详情 */}
+                      <View className="space-y-2">
+                        <View className="flex items-center">
+                          <View className="i-mdi-calendar text-base text-gray-500 mr-2" />
+                          <Text className="text-sm text-gray-700">{record.work_date}</Text>
+                        </View>
+                        <View className="flex items-center">
+                          <View className="i-mdi-clock-in text-base text-green-600 mr-2" />
+                          <Text className="text-sm text-gray-700">上班：{formatTime(record.clock_in_time)}</Text>
+                        </View>
+                        {record.clock_out_time && (
+                          <View className="flex items-center">
+                            <View className="i-mdi-clock-out text-base text-blue-600 mr-2" />
+                            <Text className="text-sm text-gray-700">下班：{formatTime(record.clock_out_time)}</Text>
+                          </View>
+                        )}
+                        {record.work_hours !== null && (
+                          <View className="flex items-center">
+                            <View className="i-mdi-timer text-base text-blue-600 mr-2" />
+                            <Text className="text-sm text-gray-700">工作时长：{record.work_hours.toFixed(1)} 小时</Text>
+                          </View>
+                        )}
+                        {record.notes && (
+                          <View className="flex items-start">
+                            <View className="i-mdi-note-text text-base text-gray-500 mr-2 mt-0.5" />
+                            <Text className="text-sm text-gray-700 flex-1">{record.notes}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )
+                })
               )}
             </View>
           )}
