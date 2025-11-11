@@ -3,6 +3,7 @@ import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import SwipeBack from '@/components/SwipeBack'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
 
@@ -121,125 +122,127 @@ const HelpPage: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 快速入口 */}
-          <View className="bg-white rounded-xl p-4 mb-4 shadow">
-            <Text className="text-base font-bold text-gray-800 block mb-4">快速入口</Text>
-            <View className="grid grid-cols-2 gap-3">
-              <View
-                className="flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all"
-                onClick={() => navigateTo({url: '/pages/profile/feedback/index'})}>
-                <View className="i-mdi-message-text text-4xl text-blue-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">意见反馈</Text>
-              </View>
-              <View className="flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all">
-                <View className="i-mdi-phone text-4xl text-green-600 mb-2" />
-                <Text className="text-sm font-medium text-gray-800">联系客服</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 使用说明 */}
-          <View className="bg-white rounded-xl p-4 mb-4 shadow">
-            <Text className="text-base font-bold text-gray-800 block mb-4">使用说明</Text>
-
-            <View className="mb-4">
-              {profile?.role === 'driver' && (
-                <View className="flex items-start mb-3">
-                  <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-800 block mb-1">司机端功能</Text>
-                    <Text className="text-xs text-gray-600 block">
-                      司机可以进行考勤打卡、计件录入、请假申请和数据统计查看。每天上班时需要打卡，完成配送后录入计件记录。
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {profile?.role === 'manager' && (
-                <View className="flex items-start mb-3">
-                  <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-800 block mb-1">管理员功能</Text>
-                    <Text className="text-xs text-gray-600 block">
-                      管理员可以查看管辖仓库的数据统计，审批司机的请假申请，管理司机信息。
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {profile?.role === 'super_admin' && (
-                <View className="flex items-start">
-                  <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-800 block mb-1">超级管理员功能</Text>
-                    <Text className="text-xs text-gray-600 block">
-                      超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和管理员、管理计件品类、查看所有数据统计。
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* 常见问题 */}
-          <View className="bg-white rounded-xl p-4 mb-4 shadow">
-            <Text className="text-base font-bold text-gray-800 block mb-4">常见问题</Text>
-
-            {faqList.map((faq, index) => (
-              <View key={index} className="mb-3 last:mb-0">
+    <SwipeBack>
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            {/* 快速入口 */}
+            <View className="bg-white rounded-xl p-4 mb-4 shadow">
+              <Text className="text-base font-bold text-gray-800 block mb-4">快速入口</Text>
+              <View className="grid grid-cols-2 gap-3">
                 <View
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg active:bg-gray-100 transition-all"
-                  onClick={() => toggleExpand(index)}>
-                  <View className="flex items-center flex-1">
-                    <View className="i-mdi-help-circle text-lg text-blue-900 mr-2" />
-                    <Text className="text-sm text-gray-800 flex-1">{faq.question}</Text>
-                  </View>
-                  <View
-                    className={`i-mdi-chevron-${expandedIndex === index ? 'up' : 'down'} text-lg text-gray-400 transition-all`}
-                  />
+                  className="flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all"
+                  onClick={() => navigateTo({url: '/pages/profile/feedback/index'})}>
+                  <View className="i-mdi-message-text text-4xl text-blue-600 mb-2" />
+                  <Text className="text-sm font-medium text-gray-800">意见反馈</Text>
                 </View>
-                {expandedIndex === index && (
-                  <View className="p-3 bg-blue-50 rounded-b-lg mt-1">
-                    <Text className="text-xs text-gray-700">{faq.answer}</Text>
+                <View className="flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all">
+                  <View className="i-mdi-phone text-4xl text-green-600 mb-2" />
+                  <Text className="text-sm font-medium text-gray-800">联系客服</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 使用说明 */}
+            <View className="bg-white rounded-xl p-4 mb-4 shadow">
+              <Text className="text-base font-bold text-gray-800 block mb-4">使用说明</Text>
+
+              <View className="mb-4">
+                {profile?.role === 'driver' && (
+                  <View className="flex items-start mb-3">
+                    <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-gray-800 block mb-1">司机端功能</Text>
+                      <Text className="text-xs text-gray-600 block">
+                        司机可以进行考勤打卡、计件录入、请假申请和数据统计查看。每天上班时需要打卡，完成配送后录入计件记录。
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {profile?.role === 'manager' && (
+                  <View className="flex items-start mb-3">
+                    <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-gray-800 block mb-1">管理员功能</Text>
+                      <Text className="text-xs text-gray-600 block">
+                        管理员可以查看管辖仓库的数据统计，审批司机的请假申请，管理司机信息。
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {profile?.role === 'super_admin' && (
+                  <View className="flex items-start">
+                    <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-gray-800 block mb-1">超级管理员功能</Text>
+                      <Text className="text-xs text-gray-600 block">
+                        超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和管理员、管理计件品类、查看所有数据统计。
+                      </Text>
+                    </View>
                   </View>
                 )}
               </View>
-            ))}
-          </View>
+            </View>
 
-          {/* 联系方式 */}
-          <View className="bg-white rounded-xl p-4 shadow">
-            <Text className="text-base font-bold text-gray-800 block mb-4">联系我们</Text>
-            <View className="space-y-3">
-              <View className="flex items-center">
-                <View className="i-mdi-email text-xl text-blue-900 mr-3" />
-                <View>
-                  <Text className="text-xs text-gray-500 block">邮箱</Text>
-                  <Text className="text-sm text-gray-800">support@fleet-manager.com</Text>
+            {/* 常见问题 */}
+            <View className="bg-white rounded-xl p-4 mb-4 shadow">
+              <Text className="text-base font-bold text-gray-800 block mb-4">常见问题</Text>
+
+              {faqList.map((faq, index) => (
+                <View key={index} className="mb-3 last:mb-0">
+                  <View
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg active:bg-gray-100 transition-all"
+                    onClick={() => toggleExpand(index)}>
+                    <View className="flex items-center flex-1">
+                      <View className="i-mdi-help-circle text-lg text-blue-900 mr-2" />
+                      <Text className="text-sm text-gray-800 flex-1">{faq.question}</Text>
+                    </View>
+                    <View
+                      className={`i-mdi-chevron-${expandedIndex === index ? 'up' : 'down'} text-lg text-gray-400 transition-all`}
+                    />
+                  </View>
+                  {expandedIndex === index && (
+                    <View className="p-3 bg-blue-50 rounded-b-lg mt-1">
+                      <Text className="text-xs text-gray-700">{faq.answer}</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
-              <View className="flex items-center">
-                <View className="i-mdi-phone text-xl text-blue-900 mr-3" />
-                <View>
-                  <Text className="text-xs text-gray-500 block">客服电话</Text>
-                  <Text className="text-sm text-gray-800">400-123-4567</Text>
+              ))}
+            </View>
+
+            {/* 联系方式 */}
+            <View className="bg-white rounded-xl p-4 shadow">
+              <Text className="text-base font-bold text-gray-800 block mb-4">联系我们</Text>
+              <View className="space-y-3">
+                <View className="flex items-center">
+                  <View className="i-mdi-email text-xl text-blue-900 mr-3" />
+                  <View>
+                    <Text className="text-xs text-gray-500 block">邮箱</Text>
+                    <Text className="text-sm text-gray-800">support@fleet-manager.com</Text>
+                  </View>
                 </View>
-              </View>
-              <View className="flex items-center">
-                <View className="i-mdi-clock text-xl text-blue-900 mr-3" />
-                <View>
-                  <Text className="text-xs text-gray-500 block">服务时间</Text>
-                  <Text className="text-sm text-gray-800">周一至周五 9:00-18:00</Text>
+                <View className="flex items-center">
+                  <View className="i-mdi-phone text-xl text-blue-900 mr-3" />
+                  <View>
+                    <Text className="text-xs text-gray-500 block">客服电话</Text>
+                    <Text className="text-sm text-gray-800">400-123-4567</Text>
+                  </View>
+                </View>
+                <View className="flex items-center">
+                  <View className="i-mdi-clock text-xl text-blue-900 mr-3" />
+                  <View>
+                    <Text className="text-xs text-gray-500 block">服务时间</Text>
+                    <Text className="text-sm text-gray-800">周一至周五 9:00-18:00</Text>
+                  </View>
                 </View>
               </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </SwipeBack>
   )
 }
 
