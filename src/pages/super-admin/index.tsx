@@ -259,9 +259,7 @@ const SuperAdminHome: React.FC = () => {
                 {loading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
               <View className="flex items-center">
-                <Text className="text-xs text-gray-500 mr-2">
-                  {warehouses[currentWarehouseIndex]?.name || ''}
-                </Text>
+                <Text className="text-xs text-gray-500 mr-2">{warehouses[currentWarehouseIndex]?.name || ''}</Text>
                 <Text className="text-xs text-gray-400">|</Text>
                 <Text className="text-xs text-gray-500 ml-2">{new Date().toLocaleDateString('zh-CN')}</Text>
               </View>
@@ -365,9 +363,7 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-lg font-bold text-gray-800">统计概览</Text>
                 {driverStatsLoading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
-              <Text className="text-xs text-gray-500">
-                {warehouses[currentWarehouseIndex]?.name || ''}
-              </Text>
+              <Text className="text-xs text-gray-500">{warehouses[currentWarehouseIndex]?.name || ''}</Text>
             </View>
             {driverStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
