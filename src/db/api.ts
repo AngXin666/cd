@@ -2302,11 +2302,30 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
  * 获取所有用户列表（超级管理员）
  */
 export async function getAllUsers(): Promise<Profile[]> {
+  console.log('🔍 getAllUsers: 开始从数据库获取用户列表')
   const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
 
   if (error) {
-    console.error('获取用户列表失败:', error)
+    console.error('❌ 获取用户列表失败:', error)
     return []
+  }
+
+  console.log('📦 getAllUsers: 从数据库获取到的原始数据:')
+  console.log(JSON.stringify(data, null, 2))
+
+  // 检查每个用户的 vehicle_plate 字段
+  if (Array.isArray(data)) {
+    const drivers = data.filter((u) => u.role === 'driver')
+    console.log(`🚗 getAllUsers: 发现 ${drivers.length} 个司机用户`)
+    drivers.forEach((driver, index) => {
+      console.log(`   ${index + 1}. ${driver.name}:`)
+      console.log(`      - id: ${driver.id}`)
+      console.log(`      - role: ${driver.role}`)
+      console.log(
+        `      - vehicle_plate: ${driver.vehicle_plate === null ? '(null)' : driver.vehicle_plate === '' ? '(空字符串)' : driver.vehicle_plate}`
+      )
+      console.log(`      - vehicle_plate 类型: ${typeof driver.vehicle_plate}`)
+    })
   }
 
   return Array.isArray(data) ? data : []
@@ -2916,15 +2935,26 @@ export async function updateUserInfo(
     join_date?: string
   }
 ): Promise<boolean> {
+  console.log('========================================')
   console.log('=== updateUserInfo API 调用 ===')
   console.log('目标用户ID:', userId)
-  console.log('更新数据:', updates)
+  console.log('更新数据:', JSON.stringify(updates, null, 2))
+
+  // 特别检查 vehicle_plate 字段
+  if ('vehicle_plate' in updates) {
+    console.log('🚗 检测到 vehicle_plate 字段更新:')
+    console.log('   - 值:', updates.vehicle_plate)
+    console.log('   - 类型:', typeof updates.vehicle_plate)
+    console.log('   - 是否为 null:', updates.vehicle_plate === null)
+    console.log('   - 是否为空字符串:', updates.vehicle_plate === '')
+  }
+  console.log('========================================')
 
   try {
     // 1. 更新 profiles 表
     const {data, error} = await supabase.from('profiles').update(updates).eq('id', userId).select()
 
-    console.log('Supabase 更新 profiles 响应 - data:', data)
+    console.log('Supabase 更新 profiles 响应 - data:', JSON.stringify(data, null, 2))
     console.log('Supabase 更新 profiles 响应 - error:', error)
 
     if (error) {
@@ -2938,8 +2968,19 @@ export async function updateUserInfo(
       return false
     }
 
+    console.log('========================================')
     console.log('✅ profiles 表更新成功！')
-    console.log('更新后的数据:', data[0])
+    console.log('更新后的完整数据:', JSON.stringify(data[0], null, 2))
+
+    // 特别检查更新后的 vehicle_plate 字段
+    if (data[0]) {
+      console.log('🚗 更新后的 vehicle_plate 字段:')
+      console.log('   - 值:', data[0].vehicle_plate)
+      console.log('   - 类型:', typeof data[0].vehicle_plate)
+      console.log('   - 是否为 null:', data[0].vehicle_plate === null)
+      console.log('   - 是否为空字符串:', data[0].vehicle_plate === '')
+    }
+    console.log('========================================')
 
     // 2. 如果更新了 login_account，同时更新/创建 auth.users 表的 email
     if (updates.login_account) {
