@@ -66,7 +66,7 @@ const UserManagement: React.FC = () => {
         console.log('========================================')
         console.log('🚗 司机用户详情:')
         drivers.forEach((driver, index) => {
-          const driverType = driver.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
+          const driverType = driver.driver_type === 'driver_with_vehicle' ? '带车司机' : '纯司机'
           console.log(`   ${index + 1}. ${driver.name}:`)
           console.log(`      - role: ${driver.role}`)
           console.log(`      - driver_type: ${driver.driver_type || '(null)'}`)
@@ -267,7 +267,7 @@ const UserManagement: React.FC = () => {
   // 获取司机类型
   const getDriverType = (user: Profile) => {
     if (user.role !== 'driver') return null
-    return user.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
+    return user.driver_type === 'driver_with_vehicle' ? '带车司机' : '纯司机'
   }
 
   // 计算在职天数

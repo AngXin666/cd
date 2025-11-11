@@ -32,14 +32,14 @@ const StaffManagement: React.FC = () => {
   const [assigningWarehouseDriver, setAssigningWarehouseDriver] = useState<{id: string; name: string} | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'pure' | 'with_vehicle'>('all')
+  const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'driver' | 'driver_with_vehicle'>('all')
   const [loading, setLoading] = useState(false)
 
   // 司机类型选择器选项
   const driverTypeOptions = [
     {label: '全部司机', value: 'all'},
-    {label: '纯司机', value: 'pure'},
-    {label: '带车司机', value: 'with_vehicle'}
+    {label: '纯司机', value: 'driver'},
+    {label: '带车司机', value: 'driver_with_vehicle'}
   ]
 
   // 加载管理员管辖的仓库列表
@@ -67,7 +67,7 @@ const StaffManagement: React.FC = () => {
 
   // 过滤司机
   const filterDrivers = useCallback(
-    (driverList: Profile[], keyword: string, typeFilter: 'all' | 'pure' | 'with_vehicle') => {
+    (driverList: Profile[], keyword: string, typeFilter: 'all' | 'driver' | 'driver_with_vehicle') => {
       let filtered = driverList
 
       // 司机类型过滤
@@ -157,7 +157,7 @@ const StaffManagement: React.FC = () => {
   const handleDriverTypeFilterChange = useCallback(
     (e: any) => {
       const selectedIndex = e.detail.value
-      const selectedType = driverTypeOptions[selectedIndex].value as 'all' | 'pure' | 'with_vehicle'
+      const selectedType = driverTypeOptions[selectedIndex].value as 'all' | 'driver' | 'driver_with_vehicle'
       setDriverTypeFilter(selectedType)
       if (currentTab === 'driver') {
         filterDrivers(drivers, searchKeyword, selectedType)
@@ -394,8 +394,8 @@ const StaffManagement: React.FC = () => {
 
   // 获取司机类型文本
   const getDriverTypeText = (driverType: string | null) => {
-    if (driverType === 'with_vehicle') return '带车司机'
-    if (driverType === 'pure') return '纯司机'
+    if (driverType === 'driver_with_vehicle') return '带车司机'
+    if (driverType === 'driver') return '纯司机'
     return '未设置'
   }
 

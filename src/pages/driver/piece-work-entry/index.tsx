@@ -6,11 +6,13 @@ import {useCallback, useEffect, useState} from 'react'
 import {
   createPieceWorkRecord,
   getActiveCategories,
+  getCategoryPriceForDriver,
   getDriverWarehouses,
   getPieceWorkRecordsByUser,
+  getUserById,
   updatePieceWorkRecord
 } from '@/db/api'
-import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Warehouse} from '@/db/types'
+import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {canStartPieceWork} from '@/utils/attendance-check'
 import {
   getLastCategory,
@@ -28,6 +30,7 @@ interface PieceWorkItem {
   id: string
   quantity: string
   unitPrice: string
+  unitPriceLocked: boolean // 单价是否被锁定（管理员已设置）
   needUpstairs: boolean
   upstairsPrice: string
   needSorting: boolean
@@ -41,6 +44,7 @@ const PieceWorkEntry: React.FC = () => {
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
   const [isFirstLoad, setIsFirstLoad] = useState(true)
+  const [driverProfile, setDriverProfile] = useState<Profile | null>(null) // 司机信息
 
   // 公共表单数据
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
@@ -53,6 +57,7 @@ const PieceWorkEntry: React.FC = () => {
       id: Date.now().toString(),
       quantity: '',
       unitPrice: '',
+      unitPriceLocked: false,
       needUpstairs: false,
       upstairsPrice: '',
       needSorting: false,
@@ -73,6 +78,10 @@ const PieceWorkEntry: React.FC = () => {
   // 加载数据
   const loadData = useCallback(async () => {
     if (!user?.id) return
+
+    // 加载司机信息
+    const profile = await getUserById(user.id)
+    setDriverProfile(profile)
 
     const driverWarehouses = await getDriverWarehouses(user.id)
     setWarehouses(driverWarehouses)
@@ -143,6 +152,45 @@ const PieceWorkEntry: React.FC = () => {
     loadData()
   })
 
+  // 当仓库或品类变化时，更新所有计件项的价格
+  useEffect(() => {
+    const updatePrices = async () => {
+      const selectedWarehouse = warehouses[selectedWarehouseIndex]
+      const selectedCategory = categories[selectedCategoryIndex]
+
+      if (!selectedWarehouse || !selectedCategory || !driverProfile) {
+        return
+      }
+
+      const priceConfig = await getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+
+      setPieceWorkItems((prev) =>
+        prev.map((item) => {
+          if (priceConfig) {
+            // 根据司机类型选择对应的价格
+            const price =
+              driverProfile.driver_type === 'driver_with_vehicle'
+                ? priceConfig.driverWithVehiclePrice
+                : priceConfig.driverPrice
+
+            return {
+              ...item,
+              unitPrice: price.toString(),
+              unitPriceLocked: true
+            }
+          }
+          // 如果没有配置价格，解锁价格输入
+          return {
+            ...item,
+            unitPriceLocked: false
+          }
+        })
+      )
+    }
+
+    updatePrices()
+  }, [selectedWarehouseIndex, selectedCategoryIndex, warehouses, categories, driverProfile])
+
   // 下拉刷新
   usePullDownRefresh(async () => {
     await Promise.all([loadData()])
@@ -150,13 +198,35 @@ const PieceWorkEntry: React.FC = () => {
   })
 
   // 添加计件项
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
+    const selectedWarehouse = warehouses[selectedWarehouseIndex]
+    const selectedCategory = categories[selectedCategoryIndex]
+
+    // 加载价格配置
+    let unitPrice = ''
+    let unitPriceLocked = false
+
+    if (selectedWarehouse && selectedCategory && driverProfile) {
+      const priceConfig = await getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+      if (priceConfig) {
+        // 根据司机类型选择对应的价格
+        const price =
+          driverProfile.driver_type === 'driver_with_vehicle'
+            ? priceConfig.driverWithVehiclePrice
+            : priceConfig.driverPrice
+
+        unitPrice = price.toString()
+        unitPriceLocked = true
+      }
+    }
+
     setPieceWorkItems((prev) => [
       ...prev,
       {
         id: Date.now().toString(),
         quantity: '',
-        unitPrice: '',
+        unitPrice,
+        unitPriceLocked,
         needUpstairs: false,
         upstairsPrice: '',
         needSorting: false,
@@ -524,6 +594,7 @@ const PieceWorkEntry: React.FC = () => {
         id: Date.now().toString(),
         quantity: '',
         unitPrice: '',
+        unitPriceLocked: false,
         needUpstairs: false,
         upstairsPrice: '',
         needSorting: false,
@@ -539,7 +610,16 @@ const PieceWorkEntry: React.FC = () => {
         <View className="p-4">
           {/* 标题卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">计件录入</Text>
+            <View className="flex items-center justify-between mb-2">
+              <Text className="text-white text-2xl font-bold">计件录入</Text>
+              {driverProfile && (
+                <View className="bg-white bg-opacity-20 rounded-full px-3 py-1">
+                  <Text className="text-white text-xs">
+                    {driverProfile.driver_type === 'driver_with_vehicle' ? '带车司机' : '纯司机'}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text className="text-blue-100 text-sm block">支持批量录入，一次提交多条记录</Text>
           </View>
 
@@ -631,13 +711,21 @@ const PieceWorkEntry: React.FC = () => {
                 <View className="mb-4">
                   <Text className="text-sm text-gray-600 block mb-2">
                     <Text className="text-red-500">* </Text>单价（元/件，最多两位小数）
+                    {item.unitPriceLocked && (
+                      <Text className="text-blue-600 text-xs ml-2">（管理员已设置，不可修改）</Text>
+                    )}
                   </Text>
                   <Input
                     type="digit"
-                    className="border border-gray-300 rounded-lg p-3 bg-gray-50"
-                    placeholder="请输入单价"
+                    className={`border rounded-lg p-3 ${item.unitPriceLocked ? 'bg-gray-200 text-gray-600' : 'border-gray-300 bg-gray-50'}`}
+                    placeholder={item.unitPriceLocked ? '管理员已设置价格' : '请输入单价'}
                     value={item.unitPrice}
-                    onInput={(e) => updateItem(item.id, 'unitPrice', e.detail.value)}
+                    disabled={item.unitPriceLocked}
+                    onInput={(e) => {
+                      if (!item.unitPriceLocked) {
+                        updateItem(item.id, 'unitPrice', e.detail.value)
+                      }
+                    }}
                   />
                 </View>
 

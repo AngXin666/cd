@@ -1120,6 +1120,38 @@ export async function deleteCategoryPrice(id: string): Promise<boolean> {
   return true
 }
 
+/**
+ * 获取指定仓库和品类的价格配置
+ * @param warehouseId 仓库ID
+ * @param categoryId 品类ID
+ * @returns 价格配置对象，如果不存在则返回 null
+ */
+export async function getCategoryPriceForDriver(
+  warehouseId: string,
+  categoryId: string
+): Promise<{driverPrice: number; driverWithVehiclePrice: number} | null> {
+  const {data, error} = await supabase
+    .from('category_prices')
+    .select('driver_price, driver_with_vehicle_price')
+    .eq('warehouse_id', warehouseId)
+    .eq('category_id', categoryId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('获取品类价格失败:', error)
+    return null
+  }
+
+  if (!data) {
+    return null
+  }
+
+  return {
+    driverPrice: data.driver_price,
+    driverWithVehiclePrice: data.driver_with_vehicle_price
+  }
+}
+
 // ==================== 管理员仓库关联 API ====================
 
 // 获取管理员的仓库列表
