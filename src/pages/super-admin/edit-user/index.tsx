@@ -51,18 +51,18 @@ const EditUser: React.FC = () => {
         setVehiclePlate(data.vehicle_plate || '')
         setJoinDate(data.join_date || '')
 
-        // 设置角色索引：根据 role 和 vehicle_plate 来判断
+        // 设置角色索引：根据 role 和 driver_type 来判断
         let roleIndex = 0
         let roleLabel = ''
 
         if (data.role === 'driver') {
-          // 司机角色：根据是否有车牌号来区分
-          if (data.vehicle_plate) {
-            // 有车牌号 = 带车司机（索引1）
+          // 司机角色：根据 driver_type 来区分
+          if (data.driver_type === 'with_vehicle') {
+            // 带车司机（索引1）
             roleIndex = 1
             roleLabel = '带车司机'
           } else {
-            // 无车牌号 = 纯司机（索引0）
+            // 纯司机（索引0）
             roleIndex = 0
             roleLabel = '纯司机'
           }
@@ -75,6 +75,7 @@ const EditUser: React.FC = () => {
         console.log('========================================')
         console.log('🏷️  司机类型判断结果:')
         console.log('   - 数据库 role 字段:', data.role)
+        console.log('   - 数据库 driver_type 字段:', data.driver_type || '(null)')
         console.log('   - 数据库 vehicle_plate 字段:', data.vehicle_plate || '(null/空)')
         console.log('   - 计算出的角色索引:', roleIndex)
         console.log('   - 计算出的角色标签:', roleLabel)
@@ -147,28 +148,34 @@ const EditUser: React.FC = () => {
       console.log('选中的角色标签:', selectedLabel)
       console.log('选中的角色值:', selectedRole)
 
-      // 根据选择的角色类型决定 vehicle_plate 的值
-      let finalVehiclePlate: string | null | undefined
+      // 根据选择的角色类型决定 driver_type 和 vehicle_plate 的值
+      let finalDriverType: 'pure' | 'with_vehicle' | null = null
+      let finalVehiclePlate: string | null = null
 
       if (selectedLabel === '纯司机') {
-        // 纯司机：清空车牌号（设为 null）
-        finalVehiclePlate = null
-        console.log('纯司机 - 清空车牌号（设为 null）')
-      } else if (selectedLabel === '带车司机') {
-        // 带车司机：保留车牌号（如果有输入）
+        // 纯司机：driver_type = 'pure'，vehicle_plate 保留用户输入
+        finalDriverType = 'pure'
         const trimmedPlate = vehiclePlate.trim()
         finalVehiclePlate = trimmedPlate || null
-        console.log('带车司机 - 车牌号:', finalVehiclePlate)
+        console.log('纯司机 - driver_type: pure, 车牌号:', finalVehiclePlate || '(无)')
+      } else if (selectedLabel === '带车司机') {
+        // 带车司机：driver_type = 'with_vehicle'，vehicle_plate 保留用户输入
+        finalDriverType = 'with_vehicle'
+        const trimmedPlate = vehiclePlate.trim()
+        finalVehiclePlate = trimmedPlate || null
+        console.log('带车司机 - driver_type: with_vehicle, 车牌号:', finalVehiclePlate || '(无)')
       } else if (selectedLabel === '管理员') {
-        // 管理员：清空车牌号（设为 null）
+        // 管理员：driver_type = null，vehicle_plate = null
+        finalDriverType = null
         finalVehiclePlate = null
-        console.log('管理员 - 清空车牌号（设为 null）')
+        console.log('管理员 - driver_type: null, 车牌号: null')
       }
 
       const updateData = {
         name: name.trim(),
         phone: phone.trim(),
         login_account: loginAccount.trim(),
+        driver_type: finalDriverType,
         vehicle_plate: finalVehiclePlate,
         join_date: joinDate,
         role: selectedRole

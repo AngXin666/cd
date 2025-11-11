@@ -7,6 +7,7 @@ import type {
   AttendanceRule,
   AttendanceRuleInput,
   AttendanceRuleUpdate,
+  DriverType,
   DriverWarehouse,
   DriverWarehouseInput,
   Feedback,
@@ -2930,6 +2931,7 @@ export async function updateUserInfo(
     phone?: string
     email?: string
     role?: UserRole
+    driver_type?: DriverType | null
     login_account?: string
     vehicle_plate?: string | null
     join_date?: string
@@ -2939,6 +2941,13 @@ export async function updateUserInfo(
   console.log('=== updateUserInfo API 调用 ===')
   console.log('目标用户ID:', userId)
   console.log('更新数据:', JSON.stringify(updates, null, 2))
+
+  // 特别检查 driver_type 字段
+  if ('driver_type' in updates) {
+    console.log('🏷️  检测到 driver_type 字段更新:')
+    console.log('   - 值:', updates.driver_type)
+    console.log('   - 类型:', typeof updates.driver_type)
+  }
 
   // 特别检查 vehicle_plate 字段
   if ('vehicle_plate' in updates) {
