@@ -371,7 +371,7 @@ const DriverHome: React.FC = () => {
               </View>
               <View className="bg-white rounded-xl shadow-md overflow-hidden">
                 <Swiper
-                  className="h-20"
+                  className="h-16"
                   current={currentWarehouseIndex}
                   onChange={handleWarehouseChange}
                   indicatorDots
@@ -379,22 +379,9 @@ const DriverHome: React.FC = () => {
                   indicatorActiveColor="#1E3A8A">
                   {warehouses.map((warehouse) => (
                     <SwiperItem key={warehouse.id}>
-                      <View className="h-full flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
-                        <View className="flex items-center">
-                          <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
-                          <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
-                        </View>
-                        {warehouse.dataVolume && (
-                          <View className="flex items-center mt-1">
-                            <Text className="text-xs text-gray-500">
-                              今日: {warehouse.dataVolume.todayPieceCount}件
-                            </Text>
-                            <Text className="text-xs text-gray-400 mx-2">|</Text>
-                            <Text className="text-xs text-gray-500">
-                              本月: {warehouse.dataVolume.monthPieceCount}件
-                            </Text>
-                          </View>
-                        )}
+                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
                       </View>
                     </SwiperItem>
                   ))}
