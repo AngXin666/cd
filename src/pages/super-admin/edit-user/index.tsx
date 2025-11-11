@@ -45,9 +45,24 @@ const EditUser: React.FC = () => {
         setVehiclePlate(data.vehicle_plate || '')
         setJoinDate(data.join_date || '')
 
-        // 设置角色索引
-        const roleIndex = roleOptions.findIndex((opt) => opt.value === data.role)
-        setSelectedRoleIndex(roleIndex >= 0 ? roleIndex : 0)
+        // 设置角色索引：根据 role 和 vehicle_plate 来判断
+        let roleIndex = 0
+        if (data.role === 'driver') {
+          // 司机角色：根据是否有车牌号来区分
+          if (data.vehicle_plate) {
+            // 有车牌号 = 带车司机（索引1）
+            roleIndex = 1
+          } else {
+            // 无车牌号 = 纯司机（索引0）
+            roleIndex = 0
+          }
+        } else if (data.role === 'manager') {
+          // 管理员（索引2）
+          roleIndex = 2
+        }
+
+        console.log('加载用户信息 - role:', data.role, 'vehicle_plate:', data.vehicle_plate, '设置角色索引:', roleIndex)
+        setSelectedRoleIndex(roleIndex)
       } else {
         Taro.showToast({title: '用户不存在', icon: 'error'})
       }
@@ -57,7 +72,7 @@ const EditUser: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [userId, roleOptions.findIndex])
+  }, [userId])
 
   // 保存用户信息
   const handleSave = useCallback(async () => {
@@ -108,13 +123,33 @@ const EditUser: React.FC = () => {
     Taro.showLoading({title: '保存中...'})
     try {
       const selectedRole = roleOptions[selectedRoleIndex].value
-      console.log('选中的角色:', selectedRole)
+      const selectedLabel = roleOptions[selectedRoleIndex].label
+      console.log('选中的角色索引:', selectedRoleIndex)
+      console.log('选中的角色标签:', selectedLabel)
+      console.log('选中的角色值:', selectedRole)
+
+      // 根据选择的角色类型决定 vehicle_plate 的值
+      let finalVehiclePlate: string | undefined
+
+      if (selectedLabel === '纯司机') {
+        // 纯司机：清空车牌号
+        finalVehiclePlate = ''
+        console.log('纯司机 - 清空车牌号')
+      } else if (selectedLabel === '带车司机') {
+        // 带车司机：保留车牌号（如果有输入）
+        finalVehiclePlate = vehiclePlate.trim() || undefined
+        console.log('带车司机 - 车牌号:', finalVehiclePlate)
+      } else if (selectedLabel === '管理员') {
+        // 管理员：清空车牌号
+        finalVehiclePlate = ''
+        console.log('管理员 - 清空车牌号')
+      }
 
       const updateData = {
         name: name.trim(),
         phone: phone.trim(),
         login_account: loginAccount.trim(),
-        vehicle_plate: vehiclePlate.trim() || undefined,
+        vehicle_plate: finalVehiclePlate,
         join_date: joinDate,
         role: selectedRole
       }
@@ -152,6 +187,7 @@ const EditUser: React.FC = () => {
     vehiclePlate,
     joinDate,
     selectedRoleIndex,
+    roleOptions[selectedRoleIndex].label,
     roleOptions[selectedRoleIndex].value
   ])
 
