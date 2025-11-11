@@ -32,6 +32,8 @@ const StaffManagement: React.FC = () => {
   const [managerPermissions, setManagerPermissions] = useState<Map<string, ManagerPermission>>(new Map())
   const [editingManager, setEditingManager] = useState<Profile | null>(null)
   const [editForm, setEditForm] = useState({name: '', phone: '', email: ''})
+  const [assigningWarehouseManager, setAssigningWarehouseManager] = useState<{id: string; name: string} | null>(null)
+  const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
   const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'pure' | 'with_vehicle'>('all')
   const [loading, setLoading] = useState(false)
@@ -349,9 +351,9 @@ const StaffManagement: React.FC = () => {
     }
   }, [editingManager, editForm, handleCancelEdit, loadManagers])
 
-  // 为管理员分配仓库
+  // 为管理员分配仓库 - 打开对话框
   const handleAssignWarehouseToManager = useCallback(
-    async (managerId: string, managerName: string) => {
+    (managerId: string, managerName: string) => {
       if (warehouses.length === 0) {
         Taro.showToast({title: '暂无可分配的仓库', icon: 'none'})
         return
@@ -361,66 +363,83 @@ const StaffManagement: React.FC = () => {
       const currentWarehouses = managerWarehouses.get(managerId) || []
       const currentWarehouseIds = currentWarehouses.map((w) => w.id)
 
-      // 显示所有仓库供选择
-      const warehouseNames = warehouses.map((w) => w.name)
+      // 设置状态，打开对话框
+      setAssigningWarehouseManager({id: managerId, name: managerName})
+      setSelectedWarehouseIds(currentWarehouseIds)
+    },
+    [warehouses, managerWarehouses]
+  )
 
-      const result = await Taro.showActionSheet({
-        itemList: warehouseNames,
-        alertText: `为 ${managerName} 分配仓库（当前已分配 ${currentWarehouses.length} 个）`
-      })
+  // 保存管理员仓库分配
+  const handleSaveManagerWarehouses = useCallback(async () => {
+    if (!assigningWarehouseManager) return
 
-      if (result.tapIndex !== undefined) {
-        const selectedWarehouse = warehouses[result.tapIndex]
-        const isAssigned = currentWarehouseIds.includes(selectedWarehouse.id)
+    const {id: managerId, name: managerName} = assigningWarehouseManager
+    const currentWarehouses = managerWarehouses.get(managerId) || []
+    const currentWarehouseIds = currentWarehouses.map((w) => w.id)
 
-        if (isAssigned) {
-          // 移除分配
-          const confirmResult = await Taro.showModal({
-            title: '移除仓库分配',
-            content: `确定要将 ${managerName} 从 ${selectedWarehouse.name} 移除吗？`,
-            confirmText: '确定',
-            cancelText: '取消'
-          })
+    // 计算需要添加和移除的仓库
+    const toAdd = selectedWarehouseIds.filter((id) => !currentWarehouseIds.includes(id))
+    const toRemove = currentWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
 
-          if (confirmResult.confirm) {
-            Taro.showLoading({title: '处理中...'})
-            try {
-              const success = await removeManagerWarehouse(managerId, selectedWarehouse.id)
-              if (success) {
-                Taro.showToast({title: '移除成功', icon: 'success'})
-                loadManagers()
-              } else {
-                Taro.showToast({title: '移除失败', icon: 'error'})
-              }
-            } catch (error) {
-              console.error('移除仓库失败:', error)
-              Taro.showToast({title: '移除失败', icon: 'error'})
-            } finally {
-              Taro.hideLoading()
-            }
-          }
-        } else {
-          // 添加分配
-          Taro.showLoading({title: '处理中...'})
-          try {
-            const success = await addManagerWarehouse(managerId, selectedWarehouse.id)
-            if (success) {
-              Taro.showToast({title: '分配成功', icon: 'success'})
-              loadManagers()
-            } else {
-              Taro.showToast({title: '分配失败', icon: 'error'})
-            }
-          } catch (error) {
-            console.error('分配仓库失败:', error)
-            Taro.showToast({title: '分配失败', icon: 'error'})
-          } finally {
-            Taro.hideLoading()
-          }
+    if (toAdd.length === 0 && toRemove.length === 0) {
+      Taro.showToast({title: '未做任何修改', icon: 'none'})
+      setAssigningWarehouseManager(null)
+      return
+    }
+
+    Taro.showLoading({title: '保存中...'})
+    try {
+      let hasError = false
+
+      // 添加新仓库
+      for (const warehouseId of toAdd) {
+        const success = await addManagerWarehouse(managerId, warehouseId)
+        if (!success) {
+          hasError = true
+          break
         }
       }
-    },
-    [warehouses, managerWarehouses, loadManagers]
-  )
+
+      // 移除仓库
+      for (const warehouseId of toRemove) {
+        const success = await removeManagerWarehouse(managerId, warehouseId)
+        if (!success) {
+          hasError = true
+          break
+        }
+      }
+
+      if (hasError) {
+        Taro.showToast({title: '部分操作失败', icon: 'error'})
+      } else {
+        Taro.showToast({title: '保存成功', icon: 'success'})
+        setAssigningWarehouseManager(null)
+        loadManagers()
+      }
+    } catch (error) {
+      console.error('保存仓库分配失败:', error)
+      Taro.showToast({title: '保存失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }, [assigningWarehouseManager, selectedWarehouseIds, managerWarehouses, loadManagers])
+
+  // 取消仓库分配
+  const handleCancelWarehouseAssignment = useCallback(() => {
+    setAssigningWarehouseManager(null)
+    setSelectedWarehouseIds([])
+  }, [])
+
+  // 切换仓库选择
+  const handleToggleWarehouse = useCallback((warehouseId: string) => {
+    setSelectedWarehouseIds((prev) => {
+      if (prev.includes(warehouseId)) {
+        return prev.filter((id) => id !== warehouseId)
+      }
+      return [...prev, warehouseId]
+    })
+  }, [])
 
   // 仓库切换
   const handleWarehouseChange = useCallback(
@@ -878,6 +897,64 @@ const StaffManagement: React.FC = () => {
           {currentTab === 'driver' && renderDriverManagement()}
         </View>
       </ScrollView>
+
+      {/* 仓库分配对话框 */}
+      {assigningWarehouseManager && (
+        <View
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={handleCancelWarehouseAssignment}>
+          <View
+            className="bg-white rounded-lg w-11/12 max-w-md max-h-[70vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
+            {/* 对话框标题 */}
+            <View className="p-4 border-b border-gray-200">
+              <Text className="text-lg font-bold text-gray-800">为 {assigningWarehouseManager.name} 分配仓库</Text>
+              <Text className="text-xs text-gray-500 mt-1">已选择 {selectedWarehouseIds.length} 个仓库</Text>
+            </View>
+
+            {/* 仓库列表 */}
+            <ScrollView scrollY className="flex-1 p-4">
+              {warehouses.map((warehouse) => {
+                const isSelected = selectedWarehouseIds.includes(warehouse.id)
+                return (
+                  <View
+                    key={warehouse.id}
+                    onClick={() => handleToggleWarehouse(warehouse.id)}
+                    className="flex flex-row items-center p-3 mb-2 bg-gray-50 rounded-lg active:bg-gray-100">
+                    {/* 复选框 */}
+                    <View
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                        isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                      }`}>
+                      {isSelected && <Text className="text-white text-xs">✓</Text>}
+                    </View>
+                    {/* 仓库名称 */}
+                    <Text className={`flex-1 ${isSelected ? 'text-blue-600 font-medium' : 'text-gray-700'}`}>
+                      {warehouse.name}
+                    </Text>
+                  </View>
+                )
+              })}
+            </ScrollView>
+
+            {/* 操作按钮 */}
+            <View className="p-4 border-t border-gray-200 flex flex-row gap-3">
+              <Button
+                onClick={handleCancelWarehouseAssignment}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded break-keep text-sm"
+                size="default">
+                取消
+              </Button>
+              <Button
+                onClick={handleSaveManagerWarehouses}
+                className="flex-1 bg-blue-600 text-white py-3 rounded break-keep text-sm"
+                size="default">
+                保存
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
