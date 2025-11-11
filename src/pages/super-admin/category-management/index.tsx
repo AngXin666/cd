@@ -30,7 +30,7 @@ const CategoryManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [warehouseCategoryIds, setWarehouseCategoryIds] = useState<string[]>([]) // 仓库配置的品类ID
-  const [_categoryPrices, setCategoryPrices] = useState<CategoryPrice[]>([])
+  const [categoryPrices, setCategoryPrices] = useState<CategoryPrice[]>([])
   const [priceEdits, setPriceEdits] = useState<Map<string, CategoryPriceEdit>>(new Map())
   const [newCategoryName, setNewCategoryName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -38,6 +38,9 @@ const CategoryManagement: React.FC = () => {
 
   // 获取当前选中的仓库
   const selectedWarehouse = warehouses[selectedWarehouseIndex]
+
+  // 获取已配置价格的品类ID（从 category_prices 表）
+  const categoryIdsWithPrice = categoryPrices.map((p) => p.category_id)
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -99,7 +102,9 @@ const CategoryManagement: React.FC = () => {
   })
 
   // 获取仓库配置的品类列表
-  const warehouseCategories = categories.filter((c) => c.is_active && warehouseCategoryIds.includes(c.id))
+  // 合并两个来源：warehouse_categories 表 和 category_prices 表
+  const allConfiguredCategoryIds = Array.from(new Set([...warehouseCategoryIds, ...categoryIdsWithPrice]))
+  const warehouseCategories = categories.filter((c) => c.is_active && allConfiguredCategoryIds.includes(c.id))
 
   // 品类选择变化
   const handleCategoryChange = (e: any) => {
@@ -317,11 +322,16 @@ const CategoryManagement: React.FC = () => {
     const success = await batchUpsertCategoryPrices(inputs)
 
     if (success) {
+      // 同时保存品类配置到 warehouse_categories 表
+      const categoryIds = inputs.map((input) => input.category_id)
+      await setWarehouseCategories(selectedWarehouse.id, categoryIds)
+
       Taro.showToast({
         title: '保存成功',
         icon: 'success'
       })
       loadCategoryPrices()
+      loadWarehouseCategories()
     } else {
       Taro.showToast({
         title: '保存失败',
@@ -400,7 +410,7 @@ const CategoryManagement: React.FC = () => {
                       .filter((c) => c.is_active)
                       .map((category) => (
                         <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
-                          <Checkbox value={category.id} checked={warehouseCategoryIds.includes(category.id)} />
+                          <Checkbox value={category.id} checked={allConfiguredCategoryIds.includes(category.id)} />
                           <Text className="text-gray-800 text-sm ml-3">{category.name}</Text>
                         </View>
                       ))}
