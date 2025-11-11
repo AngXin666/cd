@@ -2912,7 +2912,7 @@ export async function updateUserInfo(
     email?: string
     role?: UserRole
     login_account?: string
-    vehicle_plate?: string
+    vehicle_plate?: string | null
     join_date?: string
   }
 ): Promise<boolean> {

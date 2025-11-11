@@ -129,20 +129,21 @@ const EditUser: React.FC = () => {
       console.log('选中的角色值:', selectedRole)
 
       // 根据选择的角色类型决定 vehicle_plate 的值
-      let finalVehiclePlate: string | undefined
+      let finalVehiclePlate: string | null | undefined
 
       if (selectedLabel === '纯司机') {
-        // 纯司机：清空车牌号
-        finalVehiclePlate = ''
-        console.log('纯司机 - 清空车牌号')
+        // 纯司机：清空车牌号（设为 null）
+        finalVehiclePlate = null
+        console.log('纯司机 - 清空车牌号（设为 null）')
       } else if (selectedLabel === '带车司机') {
         // 带车司机：保留车牌号（如果有输入）
-        finalVehiclePlate = vehiclePlate.trim() || undefined
+        const trimmedPlate = vehiclePlate.trim()
+        finalVehiclePlate = trimmedPlate || null
         console.log('带车司机 - 车牌号:', finalVehiclePlate)
       } else if (selectedLabel === '管理员') {
-        // 管理员：清空车牌号
-        finalVehiclePlate = ''
-        console.log('管理员 - 清空车牌号')
+        // 管理员：清空车牌号（设为 null）
+        finalVehiclePlate = null
+        console.log('管理员 - 清空车牌号（设为 null）')
       }
 
       const updateData = {
