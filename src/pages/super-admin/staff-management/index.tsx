@@ -1,19 +1,15 @@
-import {Button, Input, Picker, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
+import {Button, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   addManagerWarehouse,
-  setDriverWarehouses as assignDriverWarehouses,
-  getAllDrivers,
   getAllManagers,
   getAllWarehouses,
   getDriversByWarehouse,
-  getDriverWarehouses,
   getManagerWarehouses,
   removeManagerWarehouse,
-  removeWarehouseFromDriver,
   resetUserPassword,
   updateProfile
 } from '@/db/api'
@@ -22,14 +18,11 @@ import {matchWithPinyin} from '@/utils/pinyin'
 
 const StaffManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [currentTab, setCurrentTab] = useState<'manager' | 'driver' | 'assignment'>('manager')
+  const [currentTab, setCurrentTab] = useState<'manager' | 'driver'>('manager')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [drivers, setDrivers] = useState<Profile[]>([])
   const [filteredDrivers, setFilteredDrivers] = useState<Profile[]>([])
-  const [allDrivers, setAllDrivers] = useState<Profile[]>([])
-  const [filteredAllDrivers, setFilteredAllDrivers] = useState<Profile[]>([])
-  const [driverWarehouses, setDriverWarehouses] = useState<Map<string, Warehouse[]>>(new Map())
   const [managers, setManagers] = useState<Profile[]>([])
   const [filteredManagers, setFilteredManagers] = useState<Profile[]>([])
   const [managerWarehouses, setManagerWarehouses] = useState<Map<string, Warehouse[]>>(new Map())
@@ -130,13 +123,9 @@ const StaffManagement: React.FC = () => {
         })
       }
 
-      if (currentTab === 'driver') {
-        setFilteredDrivers(filtered)
-      } else {
-        setFilteredAllDrivers(filtered)
-      }
+      setFilteredDrivers(filtered)
     },
-    [currentTab]
+    []
   )
 
   // 加载指定仓库的司机
@@ -157,56 +146,25 @@ const StaffManagement: React.FC = () => {
     [searchKeyword, driverTypeFilter, filterDrivers]
   )
 
-  // 加载所有司机（用于司机分配）
-  const loadAllDrivers = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await getAllDrivers()
-      setAllDrivers(data)
-      filterDrivers(data, searchKeyword, driverTypeFilter)
-
-      // 加载每个司机的仓库分配
-      const warehousesMap = new Map<string, Warehouse[]>()
-      for (const driver of data) {
-        const driverWarehouseList = await getDriverWarehouses(driver.id)
-        warehousesMap.set(driver.id, driverWarehouseList)
-      }
-      setDriverWarehouses(warehousesMap)
-    } catch (error) {
-      console.error('加载司机列表失败:', error)
-      Taro.showToast({title: '加载司机失败', icon: 'error'})
-    } finally {
-      setLoading(false)
-    }
-  }, [searchKeyword, driverTypeFilter, filterDrivers])
-
   // 搜索关键词变化
   const handleSearchChange = useCallback(
     (e: any) => {
       const keyword = e.detail.value
       setSearchKeyword(keyword)
-      if (currentTab === 'driver') {
-        filterDrivers(drivers, keyword, driverTypeFilter)
-      } else {
-        filterDrivers(allDrivers, keyword, driverTypeFilter)
-      }
+      filterDrivers(drivers, keyword, driverTypeFilter)
     },
-    [currentTab, drivers, allDrivers, driverTypeFilter, filterDrivers]
+    [drivers, driverTypeFilter, filterDrivers]
   )
 
   // 司机类型筛选变化
-  const handleDriverTypeFilterChange = useCallback(
+  const _handleDriverTypeFilterChange = useCallback(
     (e: any) => {
       const selectedIndex = e.detail.value
       const selectedType = driverTypeOptions[selectedIndex].value as 'all' | 'pure' | 'with_vehicle'
       setDriverTypeFilter(selectedType)
-      if (currentTab === 'driver') {
-        filterDrivers(drivers, searchKeyword, selectedType)
-      } else {
-        filterDrivers(allDrivers, searchKeyword, selectedType)
-      }
+      filterDrivers(drivers, searchKeyword, selectedType)
     },
-    [currentTab, drivers, allDrivers, searchKeyword, filterDrivers]
+    [drivers, searchKeyword, filterDrivers]
   )
 
   // 编辑用户
@@ -362,94 +320,6 @@ const StaffManagement: React.FC = () => {
     [warehouses, managerWarehouses, loadManagers]
   )
 
-  // 分配司机到仓库
-  const handleAssignDriver = useCallback(
-    async (driverId: string, driverName: string) => {
-      if (warehouses.length === 0) {
-        Taro.showToast({title: '暂无可分配的仓库', icon: 'none'})
-        return
-      }
-
-      // 获取司机当前的仓库分配
-      const currentWarehouses = driverWarehouses.get(driverId) || []
-      const currentWarehouseIds = currentWarehouses.map((w) => w.id)
-
-      // 显示所有仓库供选择
-      const warehouseNames = warehouses.map((w) => w.name)
-      const _selectedIndexes = warehouses
-        .map((w, index) => (currentWarehouseIds.includes(w.id) ? index : -1))
-        .filter((i) => i !== -1)
-
-      const result = await Taro.showActionSheet({
-        itemList: warehouseNames,
-        alertText: `为 ${driverName} 分配仓库（当前已分配 ${currentWarehouses.length} 个）`
-      })
-
-      if (result.tapIndex !== undefined) {
-        const selectedWarehouse = warehouses[result.tapIndex]
-        const isAssigned = currentWarehouseIds.includes(selectedWarehouse.id)
-
-        if (isAssigned) {
-          // 移除分配
-          const confirmResult = await Taro.showModal({
-            title: '移除仓库分配',
-            content: `确定要将 ${driverName} 从 ${selectedWarehouse.name} 移除吗？`,
-            confirmText: '确定',
-            cancelText: '取消'
-          })
-
-          if (confirmResult.confirm) {
-            Taro.showLoading({title: '处理中...'})
-            try {
-              const success = await removeWarehouseFromDriver(driverId, selectedWarehouse.id)
-              if (success) {
-                Taro.showToast({title: '移除成功', icon: 'success'})
-                // 刷新数据
-                loadAllDrivers()
-              } else {
-                Taro.showToast({title: '移除失败', icon: 'error'})
-              }
-            } catch (error) {
-              console.error('移除仓库分配失败:', error)
-              Taro.showToast({title: '移除失败', icon: 'error'})
-            } finally {
-              Taro.hideLoading()
-            }
-          }
-        } else {
-          // 添加分配
-          const confirmResult = await Taro.showModal({
-            title: '分配仓库',
-            content: `确定要将 ${driverName} 分配到 ${selectedWarehouse.name} 吗？`,
-            confirmText: '确定',
-            cancelText: '取消'
-          })
-
-          if (confirmResult.confirm) {
-            Taro.showLoading({title: '处理中...'})
-            try {
-              const newWarehouseIds = [...currentWarehouseIds, selectedWarehouse.id]
-              const result = await assignDriverWarehouses(driverId, newWarehouseIds)
-              if (result.success) {
-                Taro.showToast({title: '分配成功', icon: 'success'})
-                // 刷新数据
-                loadAllDrivers()
-              } else {
-                Taro.showToast({title: result.error || '分配失败', icon: 'error'})
-              }
-            } catch (error) {
-              console.error('分配仓库失败:', error)
-              Taro.showToast({title: '分配失败', icon: 'error'})
-            } finally {
-              Taro.hideLoading()
-            }
-          }
-        }
-      }
-    },
-    [warehouses, driverWarehouses, loadAllDrivers]
-  )
-
   // 仓库切换
   const handleWarehouseChange = useCallback(
     (e: any) => {
@@ -463,7 +333,7 @@ const StaffManagement: React.FC = () => {
   )
 
   // 标签切换
-  const handleTabChange = useCallback((tab: 'manager' | 'driver' | 'assignment') => {
+  const handleTabChange = useCallback((tab: 'manager' | 'driver') => {
     setCurrentTab(tab)
     setSearchKeyword('')
   }, [])
@@ -486,13 +356,6 @@ const StaffManagement: React.FC = () => {
       loadDriversByWarehouse(warehouses[currentWarehouseIndex].id)
     }
   }, [warehouses, currentWarehouseIndex, currentTab, loadDriversByWarehouse])
-
-  // 切换到司机分配标签时加载所有司机
-  useEffect(() => {
-    if (currentTab === 'assignment') {
-      loadAllDrivers()
-    }
-  }, [currentTab, loadAllDrivers])
 
   // 管理员搜索
   useEffect(() => {
@@ -521,10 +384,6 @@ const StaffManagement: React.FC = () => {
           Taro.stopPullDownRefresh()
         })
       }
-    } else {
-      loadAllDrivers().finally(() => {
-        Taro.stopPullDownRefresh()
-      })
     }
   })
 
@@ -737,104 +596,19 @@ const StaffManagement: React.FC = () => {
     )
   }
 
-  // 渲染司机卡片（司机分配标签）
-  const renderDriverAssignmentCard = (driver: Profile) => {
-    const warehouseList = driverWarehouses.get(driver.id) || []
-    const workDays = getWorkDays(driver.join_date)
-
-    return (
-      <View key={driver.id} className="bg-white rounded-xl p-4 mb-3 shadow-sm">
-        <View className="flex items-start justify-between mb-3">
-          <View className="flex-1">
-            <View className="flex items-center mb-2">
-              <Text className="text-lg font-bold text-gray-800 mr-2">{driver.name || '未命名'}</Text>
-              <View className="px-2 py-1 rounded bg-green-100">
-                <Text className="text-xs text-green-600">{getDriverTypeText(driver.driver_type)}</Text>
-              </View>
-            </View>
-            <View className="space-y-1">
-              {driver.phone && (
-                <View className="flex items-center">
-                  <View className="i-mdi-phone text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.phone}</Text>
-                </View>
-              )}
-              {driver.login_account && (
-                <View className="flex items-center">
-                  <View className="i-mdi-account text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.login_account}</Text>
-                </View>
-              )}
-              {driver.vehicle_plate && (
-                <View className="flex items-center">
-                  <View className="i-mdi-car text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.vehicle_plate}</Text>
-                </View>
-              )}
-              {driver.join_date && (
-                <View className="flex items-center">
-                  <View className="i-mdi-calendar text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">
-                    入职：{driver.join_date}
-                    {workDays && ` (${workDays}天)`}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* 已分配的仓库 */}
-        {warehouseList.length > 0 && (
-          <View className="mb-3 p-3 bg-blue-50 rounded-lg">
-            <View className="flex items-center mb-2">
-              <View className="i-mdi-warehouse text-sm text-blue-600 mr-1" />
-              <Text className="text-xs text-blue-800 font-medium">已分配的仓库</Text>
-            </View>
-            <View className="flex flex-wrap gap-2">
-              {warehouseList.map((w) => (
-                <View key={w.id} className="px-2 py-1 bg-white rounded">
-                  <Text className="text-xs text-gray-700">{w.name}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
-          <Button
-            className="flex-1 bg-purple-50 text-purple-600 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={() => handleAssignDriver(driver.id, driver.name || '该司机')}>
-            分配仓库
-          </Button>
-          <Button
-            className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={() => handleEditUser(driver.id)}>
-            编辑信息
-          </Button>
-        </View>
-      </View>
-    )
-  }
-
   // 渲染管理员管理界面
   const renderManagerManagement = () => {
     return (
       <View>
         {/* 搜索框 */}
         <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <View className="flex items-center">
-            <View className="i-mdi-magnify text-xl text-gray-400 mr-2" />
-            <View style={{overflow: 'hidden'}} className="flex-1">
-              <Input
-                className="bg-gray-50 px-3 py-2 rounded"
-                placeholder="搜索管理员姓名、电话、邮箱"
-                value={searchKeyword}
-                onInput={(e) => setSearchKeyword(e.detail.value)}
-              />
-            </View>
+          <View style={{overflow: 'hidden'}}>
+            <Input
+              className="bg-gray-50 px-4 py-3 rounded-lg w-full"
+              placeholder="搜索姓名、手机号、邮箱"
+              value={searchKeyword}
+              onInput={handleSearchChange}
+            />
           </View>
         </View>
 
@@ -842,15 +616,21 @@ const StaffManagement: React.FC = () => {
         {loading ? (
           <View className="flex items-center justify-center py-12">
             <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-2" />
-            <Text className="text-gray-500">加载中...</Text>
+            <Text className="text-gray-500 text-sm">加载中...</Text>
           </View>
         ) : filteredManagers.length === 0 ? (
-          <View className="flex items-center justify-center py-12">
+          <View className="bg-white rounded-xl p-8 text-center shadow-sm">
             <View className="i-mdi-account-off text-6xl text-gray-300 mb-4" />
-            <Text className="text-gray-500 block mb-2">{searchKeyword ? '未找到匹配的管理员' : '暂无管理员'}</Text>
+            <Text className="text-gray-500 block mb-2">暂无管理员</Text>
+            <Text className="text-gray-400 text-sm">请尝试调整搜索条件</Text>
           </View>
         ) : (
-          <View>{filteredManagers.map((manager) => renderManagerCard(manager))}</View>
+          <View>
+            <View className="flex items-center justify-between mb-3">
+              <Text className="text-sm text-gray-600">共 {filteredManagers.length} 名管理员</Text>
+            </View>
+            {filteredManagers.map((manager) => renderManagerCard(manager))}
+          </View>
         )}
       </View>
     )
@@ -862,8 +642,8 @@ const StaffManagement: React.FC = () => {
       return (
         <View className="flex items-center justify-center py-12">
           <View className="i-mdi-warehouse-off text-6xl text-gray-300 mb-4" />
-          <Text className="text-gray-500 block mb-2">暂无管辖仓库</Text>
-          <Text className="text-gray-400 text-sm">请联系超级管理员分配仓库</Text>
+          <Text className="text-gray-500 block mb-2">暂无仓库</Text>
+          <Text className="text-gray-400 text-sm">请先创建仓库</Text>
         </View>
       )
     }
@@ -914,14 +694,6 @@ const StaffManagement: React.FC = () => {
               />
             </View>
           </View>
-          <Picker mode="selector" range={driverTypeOptions.map((r) => r.label)} onChange={handleDriverTypeFilterChange}>
-            <View className="bg-gray-50 px-4 py-3 rounded-lg flex items-center justify-between">
-              <Text className="text-gray-700">
-                {driverTypeOptions.find((r) => r.value === driverTypeFilter)?.label || '全部司机'}
-              </Text>
-              <View className="i-mdi-chevron-down text-gray-400" />
-            </View>
-          </Picker>
         </View>
 
         {/* 司机列表 */}
@@ -933,8 +705,8 @@ const StaffManagement: React.FC = () => {
         ) : filteredDrivers.length === 0 ? (
           <View className="bg-white rounded-xl p-8 text-center shadow-sm">
             <View className="i-mdi-account-off text-6xl text-gray-300 mb-4" />
-            <Text className="text-gray-500 block mb-2">该仓库暂无司机</Text>
-            <Text className="text-gray-400 text-sm">请尝试调整筛选条件或切换仓库</Text>
+            <Text className="text-gray-500 block mb-2">暂无司机</Text>
+            <Text className="text-gray-400 text-sm">请尝试调整搜索条件</Text>
           </View>
         ) : (
           <View>
@@ -942,56 +714,6 @@ const StaffManagement: React.FC = () => {
               <Text className="text-sm text-gray-600">共 {filteredDrivers.length} 名司机</Text>
             </View>
             {filteredDrivers.map((driver) => renderDriverCard(driver))}
-          </View>
-        )}
-      </View>
-    )
-  }
-
-  // 渲染司机分配界面
-  const renderDriverAssignment = () => {
-    return (
-      <View>
-        {/* 搜索和筛选 */}
-        <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <View className="mb-3">
-            <View style={{overflow: 'hidden'}}>
-              <Input
-                className="bg-gray-50 px-4 py-3 rounded-lg w-full"
-                placeholder="搜索姓名、手机号、车牌号"
-                value={searchKeyword}
-                onInput={handleSearchChange}
-              />
-            </View>
-          </View>
-          <Picker mode="selector" range={driverTypeOptions.map((r) => r.label)} onChange={handleDriverTypeFilterChange}>
-            <View className="bg-gray-50 px-4 py-3 rounded-lg flex items-center justify-between">
-              <Text className="text-gray-700">
-                {driverTypeOptions.find((r) => r.value === driverTypeFilter)?.label || '全部司机'}
-              </Text>
-              <View className="i-mdi-chevron-down text-gray-400" />
-            </View>
-          </Picker>
-        </View>
-
-        {/* 司机列表 */}
-        {loading ? (
-          <View className="flex items-center justify-center py-12">
-            <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-2" />
-            <Text className="text-gray-500 text-sm">加载中...</Text>
-          </View>
-        ) : filteredAllDrivers.length === 0 ? (
-          <View className="bg-white rounded-xl p-8 text-center shadow-sm">
-            <View className="i-mdi-account-off text-6xl text-gray-300 mb-4" />
-            <Text className="text-gray-500 block mb-2">暂无司机</Text>
-            <Text className="text-gray-400 text-sm">请尝试调整搜索条件</Text>
-          </View>
-        ) : (
-          <View>
-            <View className="flex items-center justify-between mb-3">
-              <Text className="text-sm text-gray-600">共 {filteredAllDrivers.length} 名司机</Text>
-            </View>
-            {filteredAllDrivers.map((driver) => renderDriverAssignmentCard(driver))}
           </View>
         )}
       </View>
@@ -1023,13 +745,6 @@ const StaffManagement: React.FC = () => {
               司机管理
             </Text>
           </View>
-          <View
-            onClick={() => handleTabChange('assignment')}
-            className={`flex-1 text-center py-3 ${currentTab === 'assignment' ? 'border-b-2 border-blue-600' : ''}`}>
-            <Text className={`text-sm ${currentTab === 'assignment' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}>
-              司机分配
-            </Text>
-          </View>
         </View>
       </View>
 
@@ -1038,7 +753,6 @@ const StaffManagement: React.FC = () => {
         <View className="p-4">
           {currentTab === 'manager' && renderManagerManagement()}
           {currentTab === 'driver' && renderDriverManagement()}
-          {currentTab === 'assignment' && renderDriverAssignment()}
         </View>
       </ScrollView>
     </View>
