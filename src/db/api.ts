@@ -2376,7 +2376,18 @@ export async function getAllDrivers(): Promise<Profile[]> {
  * 修改用户角色（超级管理员）
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
-  const {error} = await supabase.from('profiles').update({role}).eq('id', userId)
+  // 根据角色设置 driver_type
+  const updateData: {role: UserRole; driver_type?: 'pure' | null} = {role}
+
+  if (role === 'driver') {
+    // 变更为司机时，设置默认的 driver_type 为 'pure'（纯司机）
+    updateData.driver_type = 'pure'
+  } else {
+    // 变更为管理员或超级管理员时，清空 driver_type
+    updateData.driver_type = null
+  }
+
+  const {error} = await supabase.from('profiles').update(updateData).eq('id', userId)
 
   if (error) {
     console.error('修改用户角色失败:', error)
