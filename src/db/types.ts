@@ -367,7 +367,7 @@ export interface ManagerPermission {
   can_edit_user_info: boolean
   can_edit_piece_work: boolean
   can_manage_attendance_rules: boolean
-  can_manage_system: boolean
+  can_manage_categories: boolean
   created_at: string
   updated_at: string
 }
@@ -378,7 +378,7 @@ export interface ManagerPermissionInput {
   can_edit_user_info?: boolean
   can_edit_piece_work?: boolean
   can_manage_attendance_rules?: boolean
-  can_manage_system?: boolean
+  can_manage_categories?: boolean
 }
 
 // 管理员-仓库关联接口

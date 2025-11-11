@@ -2421,7 +2421,7 @@ export async function upsertManagerPermission(input: ManagerPermissionInput): Pr
       can_edit_user_info: input.can_edit_user_info ?? false,
       can_edit_piece_work: input.can_edit_piece_work ?? false,
       can_manage_attendance_rules: input.can_manage_attendance_rules ?? false,
-      can_manage_system: input.can_manage_system ?? false
+      can_manage_categories: input.can_manage_categories ?? false
     },
     {onConflict: 'manager_id'}
   )

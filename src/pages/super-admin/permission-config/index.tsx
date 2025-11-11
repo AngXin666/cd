@@ -25,7 +25,7 @@ const PermissionConfig: React.FC = () => {
   const [canEditUserInfo, setCanEditUserInfo] = useState(false)
   const [canEditPieceWork, setCanEditPieceWork] = useState(false)
   const [canManageAttendanceRules, setCanManageAttendanceRules] = useState(false)
-  const [canManageSystem, setCanManageSystem] = useState(false)
+  const [canManageCategories, setCanManageCategories] = useState(false)
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -43,7 +43,7 @@ const PermissionConfig: React.FC = () => {
         setCanEditUserInfo(permission.can_edit_user_info)
         setCanEditPieceWork(permission.can_edit_piece_work)
         setCanManageAttendanceRules(permission.can_manage_attendance_rules)
-        setCanManageSystem(permission.can_manage_system)
+        setCanManageCategories(permission.can_manage_categories)
       }
 
       // 加载管理员管辖仓库
@@ -78,7 +78,7 @@ const PermissionConfig: React.FC = () => {
         can_edit_user_info: canEditUserInfo,
         can_edit_piece_work: canEditPieceWork,
         can_manage_attendance_rules: canManageAttendanceRules,
-        can_manage_system: canManageSystem
+        can_manage_categories: canManageCategories
       })
 
       if (!permissionSuccess) {
@@ -102,7 +102,7 @@ const PermissionConfig: React.FC = () => {
     } finally {
       Taro.hideLoading()
     }
-  }, [userId, canEditUserInfo, canEditPieceWork, canManageAttendanceRules, canManageSystem, selectedWarehouseIds])
+  }, [userId, canEditUserInfo, canEditPieceWork, canManageAttendanceRules, canManageCategories, selectedWarehouseIds])
 
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #fef2f2, #fee2e2)'}}>
@@ -190,13 +190,13 @@ const PermissionConfig: React.FC = () => {
                   />
                 </View>
 
-                {/* 系统权限设置 */}
+                {/* 品类管理权限 */}
                 <View className="flex items-center justify-between py-3">
                   <View className="flex-1">
-                    <Text className="text-base text-gray-800 mb-1">系统权限设置</Text>
-                    <Text className="text-xs text-red-500">⚠️ 高级权限，请谨慎授予</Text>
+                    <Text className="text-base text-gray-800 mb-1">品类管理</Text>
+                    <Text className="text-xs text-gray-500">允许管理计件品类配置</Text>
                   </View>
-                  <Switch checked={canManageSystem} onChange={(e) => setCanManageSystem(e.detail.value)} />
+                  <Switch checked={canManageCategories} onChange={(e) => setCanManageCategories(e.detail.value)} />
                 </View>
               </View>
             </View>

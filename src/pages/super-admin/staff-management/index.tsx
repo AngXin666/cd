@@ -34,6 +34,13 @@ const StaffManagement: React.FC = () => {
   const [editForm, setEditForm] = useState({name: '', phone: '', email: ''})
   const [assigningWarehouseManager, setAssigningWarehouseManager] = useState<{id: string; name: string} | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
+  const [settingPermissionsManager, setSettingPermissionsManager] = useState<{id: string; name: string} | null>(null)
+  const [selectedPermissions, setSelectedPermissions] = useState({
+    can_edit_user_info: false,
+    can_edit_piece_work: false,
+    can_manage_attendance_rules: false,
+    can_manage_categories: false
+  })
   const [searchKeyword, setSearchKeyword] = useState('')
   const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'pure' | 'with_vehicle'>('all')
   const [loading, setLoading] = useState(false)
@@ -250,58 +257,63 @@ const StaffManagement: React.FC = () => {
   )
 
   // 设置管理员权限
+  // 打开权限设置对话框
   const handleSetPermissions = useCallback(
-    async (managerId: string, _managerName: string) => {
+    (managerId: string, managerName: string) => {
       const currentPermission = managerPermissions.get(managerId)
 
-      // 显示权限设置对话框
-      const items = [
-        currentPermission?.can_edit_user_info ? '✓ 允许修改司机信息' : '✗ 禁止修改司机信息',
-        currentPermission?.can_edit_piece_work ? '✓ 允许修改计件记录' : '✗ 禁止修改计件记录',
-        currentPermission?.can_manage_attendance_rules ? '✓ 允许管理考勤规则' : '✗ 禁止管理考勤规则',
-        currentPermission?.can_manage_system ? '✓ 允许系统管理' : '✗ 禁止系统管理'
-      ]
-
-      const result = await Taro.showActionSheet({
-        itemList: items,
-        itemColor: '#1E3A8A'
+      // 设置当前权限状态
+      setSelectedPermissions({
+        can_edit_user_info: currentPermission?.can_edit_user_info ?? false,
+        can_edit_piece_work: currentPermission?.can_edit_piece_work ?? false,
+        can_manage_attendance_rules: currentPermission?.can_manage_attendance_rules ?? false,
+        can_manage_categories: currentPermission?.can_manage_categories ?? false
       })
 
-      if (result.tapIndex !== undefined) {
-        const permissionKeys = [
-          'can_edit_user_info',
-          'can_edit_piece_work',
-          'can_manage_attendance_rules',
-          'can_manage_system'
-        ] as const
-
-        const selectedKey = permissionKeys[result.tapIndex]
-        const currentValue = currentPermission?.[selectedKey] ?? false
-
-        Taro.showLoading({title: '设置中...'})
-        try {
-          const success = await upsertManagerPermission({
-            manager_id: managerId,
-            [selectedKey]: !currentValue
-          })
-
-          if (success) {
-            Taro.showToast({title: '权限设置成功', icon: 'success'})
-            // 刷新管理员列表和权限
-            loadManagers()
-          } else {
-            Taro.showToast({title: '权限设置失败', icon: 'error'})
-          }
-        } catch (error) {
-          console.error('设置权限失败:', error)
-          Taro.showToast({title: '权限设置失败', icon: 'error'})
-        } finally {
-          Taro.hideLoading()
-        }
-      }
+      // 打开对话框
+      setSettingPermissionsManager({id: managerId, name: managerName})
     },
-    [managerPermissions, loadManagers]
+    [managerPermissions]
   )
+
+  // 保存权限设置
+  const handleSavePermissions = useCallback(async () => {
+    if (!settingPermissionsManager) return
+
+    Taro.showLoading({title: '保存中...'})
+    try {
+      const success = await upsertManagerPermission({
+        manager_id: settingPermissionsManager.id,
+        ...selectedPermissions
+      })
+
+      if (success) {
+        Taro.showToast({title: '权限设置成功', icon: 'success'})
+        setSettingPermissionsManager(null)
+        loadManagers()
+      } else {
+        Taro.showToast({title: '权限设置失败', icon: 'error'})
+      }
+    } catch (error) {
+      console.error('设置权限失败:', error)
+      Taro.showToast({title: '权限设置失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }, [settingPermissionsManager, selectedPermissions, loadManagers])
+
+  // 取消权限设置
+  const handleCancelPermissionsSetting = useCallback(() => {
+    setSettingPermissionsManager(null)
+  }, [])
+
+  // 切换权限选择
+  const handleTogglePermission = useCallback((key: keyof typeof selectedPermissions) => {
+    setSelectedPermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
+  }, [])
 
   // 开始编辑管理员
   const handleEditManager = useCallback((manager: Profile) => {
@@ -947,6 +959,118 @@ const StaffManagement: React.FC = () => {
               </Button>
               <Button
                 onClick={handleSaveManagerWarehouses}
+                className="flex-1 bg-blue-600 text-white py-3 rounded break-keep text-sm"
+                size="default">
+                保存
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 权限设置对话框 */}
+      {settingPermissionsManager && (
+        <View
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={handleCancelPermissionsSetting}>
+          <View
+            className="bg-white rounded-lg w-11/12 max-w-md max-h-[70vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
+            {/* 对话框标题 */}
+            <View className="p-4 border-b border-gray-200">
+              <Text className="text-lg font-bold text-gray-800">为 {settingPermissionsManager.name} 设置权限</Text>
+              <Text className="text-xs text-gray-500 mt-1">选择允许的操作权限</Text>
+            </View>
+
+            {/* 权限列表 */}
+            <ScrollView scrollY className="flex-1 p-4">
+              {/* 修改司机信息 */}
+              <View
+                onClick={() => handleTogglePermission('can_edit_user_info')}
+                className="flex flex-row items-center p-3 mb-2 bg-gray-50 rounded-lg active:bg-gray-100">
+                <View
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                    selectedPermissions.can_edit_user_info ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                  }`}>
+                  {selectedPermissions.can_edit_user_info && <Text className="text-white text-xs">✓</Text>}
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className={`font-medium ${selectedPermissions.can_edit_user_info ? 'text-blue-600' : 'text-gray-700'}`}>
+                    修改司机信息
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-1">允许编辑司机的基本信息（姓名、手机号、邮箱等）</Text>
+                </View>
+              </View>
+
+              {/* 修改计件记录 */}
+              <View
+                onClick={() => handleTogglePermission('can_edit_piece_work')}
+                className="flex flex-row items-center p-3 mb-2 bg-gray-50 rounded-lg active:bg-gray-100">
+                <View
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                    selectedPermissions.can_edit_piece_work ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                  }`}>
+                  {selectedPermissions.can_edit_piece_work && <Text className="text-white text-xs">✓</Text>}
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className={`font-medium ${selectedPermissions.can_edit_piece_work ? 'text-blue-600' : 'text-gray-700'}`}>
+                    修改计件记录
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-1">允许修改司机的计件数据</Text>
+                </View>
+              </View>
+
+              {/* 管理考勤规则 */}
+              <View
+                onClick={() => handleTogglePermission('can_manage_attendance_rules')}
+                className="flex flex-row items-center p-3 mb-2 bg-gray-50 rounded-lg active:bg-gray-100">
+                <View
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                    selectedPermissions.can_manage_attendance_rules ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                  }`}>
+                  {selectedPermissions.can_manage_attendance_rules && <Text className="text-white text-xs">✓</Text>}
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className={`font-medium ${selectedPermissions.can_manage_attendance_rules ? 'text-blue-600' : 'text-gray-700'}`}>
+                    管理考勤规则
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-1">允许修改考勤规则配置</Text>
+                </View>
+              </View>
+
+              {/* 品类管理 */}
+              <View
+                onClick={() => handleTogglePermission('can_manage_categories')}
+                className="flex flex-row items-center p-3 mb-2 bg-gray-50 rounded-lg active:bg-gray-100">
+                <View
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                    selectedPermissions.can_manage_categories ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                  }`}>
+                  {selectedPermissions.can_manage_categories && <Text className="text-white text-xs">✓</Text>}
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className={`font-medium ${selectedPermissions.can_manage_categories ? 'text-blue-600' : 'text-gray-700'}`}>
+                    品类管理
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-1">允许管理计件品类配置</Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* 操作按钮 */}
+            <View className="p-4 border-t border-gray-200 flex flex-row gap-3">
+              <Button
+                onClick={handleCancelPermissionsSetting}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded break-keep text-sm"
+                size="default">
+                取消
+              </Button>
+              <Button
+                onClick={handleSavePermissions}
                 className="flex-1 bg-blue-600 text-white py-3 rounded break-keep text-sm"
                 size="default">
                 保存
