@@ -24,7 +24,7 @@ const SuperAdminHome: React.FC = () => {
   } = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
-    hideEmpty: false // 不隐藏无数据仓库，只排序
+    hideEmpty: true // 隐藏完全没有数据的仓库
   })
 
   // 使用排序后的仓库列表
