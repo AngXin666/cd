@@ -28,7 +28,7 @@ const StaffManagement: React.FC = () => {
   const [driverWarehouses, setDriverWarehouses] = useState<Map<string, Warehouse[]>>(new Map())
   const [permissions, setPermissions] = useState<ManagerPermission | null>(null)
   const [editingDriver, setEditingDriver] = useState<Profile | null>(null)
-  const [editForm, setEditForm] = useState({name: '', phone: '', email: ''})
+  const [editForm, setEditForm] = useState({name: '', phone: '', vehicle_plate: ''})
   const [assigningWarehouseDriver, setAssigningWarehouseDriver] = useState<{id: string; name: string} | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -206,14 +206,14 @@ const StaffManagement: React.FC = () => {
     setEditForm({
       name: driver.name || '',
       phone: driver.phone || '',
-      email: driver.email || ''
+      vehicle_plate: driver.vehicle_plate || ''
     })
   }, [])
 
   // 取消编辑
   const handleCancelEdit = useCallback(() => {
     setEditingDriver(null)
-    setEditForm({name: '', phone: '', email: ''})
+    setEditForm({name: '', phone: '', vehicle_plate: ''})
   }, [])
 
   // 保存编辑
@@ -230,7 +230,7 @@ const StaffManagement: React.FC = () => {
       const success = await updateProfile(editingDriver.id, {
         name: editForm.name.trim(),
         phone: editForm.phone.trim() || null,
-        email: editForm.email.trim() || null
+        vehicle_plate: editForm.vehicle_plate.trim() || null
       })
 
       if (success) {
@@ -770,13 +770,13 @@ const StaffManagement: React.FC = () => {
               </View>
 
               <View>
-                <Text className="text-sm text-gray-600 mb-2">邮箱</Text>
+                <Text className="text-sm text-gray-600 mb-2">车牌号</Text>
                 <View style={{overflow: 'hidden'}}>
                   <Input
                     className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full"
-                    value={editForm.email}
-                    onInput={(e) => setEditForm({...editForm, email: e.detail.value})}
-                    placeholder="请输入邮箱"
+                    value={editForm.vehicle_plate}
+                    onInput={(e) => setEditForm({...editForm, vehicle_plate: e.detail.value})}
+                    placeholder="请输入车牌号"
                   />
                 </View>
               </View>
