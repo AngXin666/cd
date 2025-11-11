@@ -7,6 +7,8 @@ import type {
   AttendanceRule,
   AttendanceRuleInput,
   AttendanceRuleUpdate,
+  CategoryPrice,
+  CategoryPriceInput,
   DriverType,
   DriverWarehouse,
   DriverWarehouseInput,
@@ -1021,6 +1023,97 @@ export async function deleteCategory(id: string): Promise<boolean> {
 
   if (error) {
     console.error('删除品类失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// ==================== 品类价格配置 API ====================
+
+// 获取指定仓库的所有品类价格配置
+export async function getCategoryPricesByWarehouse(warehouseId: string): Promise<CategoryPrice[]> {
+  const {data, error} = await supabase
+    .from('category_prices')
+    .select('*')
+    .eq('warehouse_id', warehouseId)
+    .order('created_at', {ascending: true})
+
+  if (error) {
+    console.error('获取品类价格配置失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+// 获取指定仓库和品类的价格配置
+export async function getCategoryPrice(warehouseId: string, categoryId: string): Promise<CategoryPrice | null> {
+  const {data, error} = await supabase
+    .from('category_prices')
+    .select('*')
+    .eq('warehouse_id', warehouseId)
+    .eq('category_id', categoryId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('获取品类价格配置失败:', error)
+    return null
+  }
+
+  return data
+}
+
+// 创建或更新品类价格配置
+export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<boolean> {
+  const {error} = await supabase.from('category_prices').upsert(
+    {
+      warehouse_id: input.warehouse_id,
+      category_id: input.category_id,
+      driver_price: input.driver_price,
+      driver_with_vehicle_price: input.driver_with_vehicle_price
+    },
+    {
+      onConflict: 'warehouse_id,category_id'
+    }
+  )
+
+  if (error) {
+    console.error('保存品类价格配置失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// 批量创建或更新品类价格配置
+export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): Promise<boolean> {
+  const {error} = await supabase.from('category_prices').upsert(
+    inputs.map((input) => ({
+      warehouse_id: input.warehouse_id,
+      category_id: input.category_id,
+      driver_price: input.driver_price,
+      driver_with_vehicle_price: input.driver_with_vehicle_price
+    })),
+    {
+      onConflict: 'warehouse_id,category_id'
+    }
+  )
+
+  if (error) {
+    console.error('批量保存品类价格配置失败:', error)
+    return false
+  }
+
+  return true
+}
+
+// 删除品类价格配置
+export async function deleteCategoryPrice(id: string): Promise<boolean> {
+  const {error} = await supabase.from('category_prices').delete().eq('id', id)
+
+  if (error) {
+    console.error('删除品类价格配置失败:', error)
     return false
   }
 

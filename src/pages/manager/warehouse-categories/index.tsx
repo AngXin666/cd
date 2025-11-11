@@ -1,139 +1,277 @@
-import {Button, Checkbox, CheckboxGroup, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {useRouter} from '@tarojs/taro'
+import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getActiveCategories, getWarehouseCategories, setWarehouseCategories} from '@/db/api'
-import type {PieceWorkCategory} from '@/db/types'
+import {batchUpsertCategoryPrices, getAllCategories, getCategoryPricesByWarehouse, getManagerWarehouses} from '@/db/api'
+import type {CategoryPrice, PieceWorkCategory, Warehouse} from '@/db/types'
+
+// 品类价格编辑状态
+interface CategoryPriceEdit {
+  categoryId: string
+  driverPrice: string
+  driverWithVehiclePrice: string
+}
 
 const WarehouseCategories: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const router = useRouter()
-  const {warehouseId, warehouseName} = router.params
-
-  const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
+  const [_categoryPrices, setCategoryPrices] = useState<CategoryPrice[]>([])
+  const [priceEdits, setPriceEdits] = useState<Map<string, CategoryPriceEdit>>(new Map())
 
-  // 加载数据
-  const loadData = useCallback(async () => {
-    if (!warehouseId) return
+  // 获取当前选中的仓库
+  const selectedWarehouse = warehouses[selectedWarehouseIndex]
 
-    setLoading(true)
-    try {
-      // 加载所有品类
-      const categoryData = await getActiveCategories()
-      setCategories(categoryData)
+  // 加载管理员的仓库列表
+  const loadWarehouses = useCallback(async () => {
+    if (!user?.id) return
+    const data = await getManagerWarehouses(user.id)
+    setWarehouses(data)
+  }, [user?.id])
 
-      // 加载仓库已配置的品类
-      const categoryIds = await getWarehouseCategories(warehouseId)
-      setSelectedCategoryIds(categoryIds)
-    } catch (error) {
-      console.error('加载数据失败:', error)
-      Taro.showToast({title: '加载失败', icon: 'error'})
-    } finally {
-      setLoading(false)
-    }
-  }, [warehouseId])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  // 品类选择变化
-  const handleCategoryChange = useCallback((e: any) => {
-    setSelectedCategoryIds(e.detail.value)
+  // 加载品类列表
+  const loadCategories = useCallback(async () => {
+    const data = await getAllCategories()
+    setCategories(data)
   }, [])
 
-  // 保存配置
-  const handleSave = useCallback(async () => {
-    if (!warehouseId) return
+  // 加载品类价格配置
+  const loadCategoryPrices = useCallback(async () => {
+    if (!selectedWarehouse) return
+    const data = await getCategoryPricesByWarehouse(selectedWarehouse.id)
+    setCategoryPrices(data)
+    // 初始化编辑状态
+    const edits = new Map<string, CategoryPriceEdit>()
+    data.forEach((price) => {
+      edits.set(price.category_id, {
+        categoryId: price.category_id,
+        driverPrice: price.driver_price.toString(),
+        driverWithVehiclePrice: price.driver_with_vehicle_price.toString()
+      })
+    })
+    setPriceEdits(edits)
+  }, [selectedWarehouse])
 
-    Taro.showLoading({title: '保存中...'})
-    try {
-      const success = await setWarehouseCategories(warehouseId, selectedCategoryIds)
+  useEffect(() => {
+    loadWarehouses()
+    loadCategories()
+  }, [loadWarehouses, loadCategories])
 
-      if (success) {
-        Taro.showToast({title: '保存成功', icon: 'success'})
-        setTimeout(() => {
-          Taro.navigateBack()
-        }, 1500)
-      } else {
-        Taro.showToast({title: '保存失败', icon: 'error'})
+  useEffect(() => {
+    loadCategoryPrices()
+  }, [loadCategoryPrices])
+
+  useDidShow(() => {
+    loadWarehouses()
+    loadCategories()
+    loadCategoryPrices()
+  })
+
+  // 下拉刷新
+  usePullDownRefresh(async () => {
+    await Promise.all([loadWarehouses(), loadCategories(), loadCategoryPrices()])
+    Taro.stopPullDownRefresh()
+  })
+
+  // 获取品类的价格编辑状态
+  const getPriceEdit = (categoryId: string): CategoryPriceEdit => {
+    return (
+      priceEdits.get(categoryId) || {
+        categoryId,
+        driverPrice: '0',
+        driverWithVehiclePrice: '0'
       }
-    } catch (error) {
-      console.error('保存失败:', error)
-      Taro.showToast({title: '保存失败', icon: 'error'})
-    } finally {
-      Taro.hideLoading()
+    )
+  }
+
+  // 更新价格编辑状态
+  const updatePriceEdit = (categoryId: string, field: 'driverPrice' | 'driverWithVehiclePrice', value: string) => {
+    const newEdits = new Map(priceEdits)
+    const current = getPriceEdit(categoryId)
+    newEdits.set(categoryId, {
+      ...current,
+      [field]: value
+    })
+    setPriceEdits(newEdits)
+  }
+
+  // 保存所有价格配置
+  const handleSavePrices = async () => {
+    if (!selectedWarehouse) {
+      Taro.showToast({
+        title: '请选择仓库',
+        icon: 'none'
+      })
+      return
     }
-  }, [warehouseId, selectedCategoryIds])
+
+    // 验证价格输入
+    const inputs: Array<{
+      warehouse_id: string
+      category_id: string
+      driver_price: number
+      driver_with_vehicle_price: number
+    }> = []
+
+    for (const category of categories.filter((c) => c.is_active)) {
+      const edit = getPriceEdit(category.id)
+      const driverPrice = Number.parseFloat(edit.driverPrice)
+      const driverWithVehiclePrice = Number.parseFloat(edit.driverWithVehiclePrice)
+
+      if (Number.isNaN(driverPrice) || driverPrice < 0) {
+        Taro.showToast({
+          title: `${category.name}的纯司机价格无效`,
+          icon: 'none'
+        })
+        return
+      }
+
+      if (Number.isNaN(driverWithVehiclePrice) || driverWithVehiclePrice < 0) {
+        Taro.showToast({
+          title: `${category.name}的带车司机价格无效`,
+          icon: 'none'
+        })
+        return
+      }
+
+      inputs.push({
+        warehouse_id: selectedWarehouse.id,
+        category_id: category.id,
+        driver_price: driverPrice,
+        driver_with_vehicle_price: driverWithVehiclePrice
+      })
+    }
+
+    const success = await batchUpsertCategoryPrices(inputs)
+
+    if (success) {
+      Taro.showToast({
+        title: '保存成功',
+        icon: 'success'
+      })
+      loadCategoryPrices()
+    } else {
+      Taro.showToast({
+        title: '保存失败',
+        icon: 'error'
+      })
+    }
+  }
 
   return (
-    <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #f0fdf4, #dcfce7)'}}>
-      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        {/* 页面标题 */}
-        <View className="px-4 pt-6 pb-4">
-          <Text className="text-2xl font-bold text-gray-800">仓库品类配置</Text>
-          <Text className="text-sm text-gray-500 mt-1">
-            为 {decodeURIComponent(warehouseName || '')} 配置可操作的品类
-          </Text>
-        </View>
-
-        {loading ? (
-          <View className="text-center py-8">
-            <Text className="text-gray-500">加载中...</Text>
+    <View style={{background: 'linear-gradient(to bottom, #f0fdf4, #dcfce7)', minHeight: '100vh'}}>
+      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+        <View className="p-4">
+          {/* 页面标题 */}
+          <View className="bg-gradient-to-r from-green-700 to-green-600 rounded-lg p-6 mb-4 shadow-lg">
+            <Text className="text-white text-2xl font-bold block mb-2">品类价格管理</Text>
+            <Text className="text-green-100 text-sm block">为不同仓库的品类设置价格</Text>
           </View>
-        ) : (
-          <>
-            {/* 品类选择 */}
-            <View className="px-4 mb-4">
-              <View className="bg-white rounded-lg p-4 shadow-sm">
-                <View className="flex items-center mb-3">
-                  <View className="i-mdi-tag-multiple text-xl text-green-600 mr-2" />
-                  <Text className="text-lg font-semibold text-gray-800">选择品类</Text>
-                </View>
-                <Text className="text-sm text-gray-500 mb-3">勾选该仓库可以操作的商品品类</Text>
 
-                {categories.length === 0 ? (
-                  <Text className="text-sm text-gray-400 text-center py-4">暂无品类数据</Text>
-                ) : (
-                  <CheckboxGroup onChange={handleCategoryChange}>
-                    {categories.map((category) => (
-                      <View key={category.id} className="flex items-center py-3 border-b border-gray-100 last:border-0">
-                        <Checkbox
-                          value={category.id}
-                          checked={selectedCategoryIds.includes(category.id)}
-                          className="mr-3"
-                        />
-                        <View className="flex-1">
-                          <Text className="text-base text-gray-800">{category.name}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </CheckboxGroup>
-                )}
+          {/* 仓库选择器 */}
+          {warehouses.length > 0 ? (
+            <View className="bg-white rounded-lg p-4 mb-4 shadow">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-warehouse text-green-600 text-xl mr-2" />
+                <Text className="text-gray-800 text-base font-bold">选择仓库</Text>
               </View>
+              <Picker
+                mode="selector"
+                range={warehouses.map((w) => w.name)}
+                value={selectedWarehouseIndex}
+                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                  <Text className="text-gray-800 text-sm">
+                    {selectedWarehouse ? selectedWarehouse.name : '请选择仓库'}
+                  </Text>
+                  <View className="i-mdi-chevron-down text-gray-400 text-xl" />
+                </View>
+              </Picker>
             </View>
+          ) : (
+            <View className="bg-white rounded-lg p-6 mb-4 shadow text-center">
+              <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
+              <Text className="text-gray-600 text-sm block">您还没有管理的仓库</Text>
+              <Text className="text-gray-400 text-xs block mt-1">请联系超级管理员分配仓库</Text>
+            </View>
+          )}
 
-            {/* 保存按钮 */}
-            <View className="px-4 pb-6">
-              <Button
-                size="default"
-                className="w-full text-base break-keep"
-                style={{
-                  backgroundColor: '#10b981',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  height: '48px',
-                  lineHeight: '48px'
-                }}
-                onClick={handleSave}>
-                保存配置
-              </Button>
+          {/* 品类价格配置 */}
+          {selectedWarehouse && (
+            <View className="bg-white rounded-lg p-4 shadow">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-currency-cny text-green-600 text-xl mr-2" />
+                <Text className="text-gray-800 text-base font-bold">{selectedWarehouse.name} - 品类价格配置</Text>
+              </View>
+
+              {categories.filter((c) => c.is_active).length > 0 ? (
+                <View>
+                  {/* 表头 */}
+                  <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
+                    <View className="flex-1">
+                      <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
+                    </View>
+                    <View className="w-24 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
+                    </View>
+                    <View className="w-24 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
+                    </View>
+                  </View>
+
+                  {/* 价格列表 */}
+                  {categories
+                    .filter((c) => c.is_active)
+                    .map((category) => {
+                      const priceEdit = getPriceEdit(category.id)
+                      return (
+                        <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
+                          <View className="flex-1">
+                            <Text className="text-gray-800 text-sm">{category.name}</Text>
+                          </View>
+                          <View className="w-24 px-1">
+                            <Input
+                              type="digit"
+                              className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                              placeholder="0"
+                              value={priceEdit.driverPrice}
+                              onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
+                            />
+                          </View>
+                          <View className="w-24 px-1">
+                            <Input
+                              type="digit"
+                              className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                              placeholder="0"
+                              value={priceEdit.driverWithVehiclePrice}
+                              onInput={(e) => updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)}
+                            />
+                          </View>
+                        </View>
+                      )
+                    })}
+
+                  {/* 保存按钮 */}
+                  <View className="mt-4">
+                    <Button
+                      size="default"
+                      className="w-full bg-green-600 text-white py-3 rounded-lg text-base break-keep"
+                      onClick={handleSavePrices}>
+                      保存价格配置
+                    </Button>
+                  </View>
+                </View>
+              ) : (
+                <View className="text-center py-8">
+                  <View className="i-mdi-information-outline text-gray-300 text-4xl mb-2 mx-auto" />
+                  <Text className="text-gray-400 text-sm block">暂无启用的品类</Text>
+                </View>
+              )}
             </View>
-          </>
-        )}
+          )}
+        </View>
       </ScrollView>
     </View>
   )

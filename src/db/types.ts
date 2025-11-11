@@ -177,6 +177,31 @@ export interface PieceWorkCategoryInput {
   is_active?: boolean
 }
 
+// 品类价格配置接口
+export interface CategoryPrice {
+  id: string
+  warehouse_id: string
+  category_id: string
+  driver_price: number // 纯司机单价
+  driver_with_vehicle_price: number // 带车司机单价
+  created_at: string
+  updated_at: string
+}
+
+// 创建/更新品类价格的输入接口
+export interface CategoryPriceInput {
+  warehouse_id: string
+  category_id: string
+  driver_price: number
+  driver_with_vehicle_price: number
+}
+
+// 品类价格更新接口
+export interface CategoryPriceUpdate {
+  driver_price?: number
+  driver_with_vehicle_price?: number
+}
+
 // 管理员仓库关联接口
 export interface ManagerWarehouse {
   id: string
