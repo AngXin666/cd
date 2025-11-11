@@ -30,8 +30,8 @@ const SuperAdminHome: React.FC = () => {
   // 使用排序后的仓库列表
   const warehouses = sortedWarehouses
 
-  // 获取当前选中的仓库ID（index 0 表示所有仓库，不传warehouseId）
-  const currentWarehouseId = currentWarehouseIndex === 0 ? undefined : warehouses[currentWarehouseIndex - 1]?.id
+  // 获取当前选中的仓库ID（直接使用仓库列表，不再有"所有仓库"选项）
+  const currentWarehouseId = warehouses[currentWarehouseIndex]?.id
 
   // 使用超级管理员仪表板数据管理Hook（带缓存和实时更新）
   const {
@@ -200,10 +200,7 @@ const SuperAdminHome: React.FC = () => {
 
   // 获取当前选中的仓库名称
   const _getCurrentWarehouseName = () => {
-    if (currentWarehouseIndex === 0) {
-      return '所有仓库'
-    }
-    const warehouse = warehouses[currentWarehouseIndex - 1]
+    const warehouse = warehouses[currentWarehouseIndex]
     return warehouse?.name || '未知仓库'
   }
 
@@ -263,7 +260,7 @@ const SuperAdminHome: React.FC = () => {
               </View>
               <View className="flex items-center">
                 <Text className="text-xs text-gray-500 mr-2">
-                  {currentWarehouseIndex === 0 ? '所有仓库' : warehouses[currentWarehouseIndex - 1]?.name || ''}
+                  {warehouses[currentWarehouseIndex]?.name || ''}
                 </Text>
                 <Text className="text-xs text-gray-400">|</Text>
                 <Text className="text-xs text-gray-500 ml-2">{new Date().toLocaleDateString('zh-CN')}</Text>
@@ -322,7 +319,7 @@ const SuperAdminHome: React.FC = () => {
                 <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
                 <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
                 <Text className="text-xs text-gray-400 ml-2">
-                  ({currentWarehouseIndex + 1}/{warehouses.length + 1})
+                  ({currentWarehouseIndex + 1}/{warehouses.length})
                 </Text>
                 <Text className="text-xs text-gray-400 ml-auto">按数据量排序</Text>
               </View>
@@ -334,17 +331,6 @@ const SuperAdminHome: React.FC = () => {
                   indicatorDots
                   indicatorColor="rgba(0, 0, 0, 0.2)"
                   indicatorActiveColor="#1E3A8A">
-                  {/* 第一项：所有仓库 */}
-                  <SwiperItem key="all">
-                    <View className="h-full flex flex-col items-center justify-center bg-gradient-to-r from-purple-50 to-purple-100 px-4">
-                      <View className="flex items-center">
-                        <View className="i-mdi-warehouse-multiple text-2xl text-purple-600 mr-2" />
-                        <Text className="text-lg font-bold text-purple-900">所有仓库</Text>
-                      </View>
-                      <Text className="text-xs text-gray-500 mt-1">查看全部数据</Text>
-                    </View>
-                  </SwiperItem>
-                  {/* 其他项：各个仓库 */}
                   {warehouses.map((warehouse) => (
                     <SwiperItem key={warehouse.id}>
                       <View className="h-full flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
@@ -380,7 +366,7 @@ const SuperAdminHome: React.FC = () => {
                 {driverStatsLoading && <View className="ml-2 i-mdi-loading animate-spin text-blue-600" />}
               </View>
               <Text className="text-xs text-gray-500">
-                {currentWarehouseIndex === 0 ? '所有仓库' : warehouses[currentWarehouseIndex - 1]?.name || ''}
+                {warehouses[currentWarehouseIndex]?.name || ''}
               </Text>
             </View>
             {driverStats ? (
