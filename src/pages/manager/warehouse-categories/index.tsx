@@ -1,4 +1,4 @@
-import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -177,8 +177,8 @@ const WarehouseCategories: React.FC = () => {
   }
 
   // 处理仓库切换
-  const handleWarehouseChange = (index: number) => {
-    setSelectedWarehouseIndex(index)
+  const handleWarehouseChange = (e: any) => {
+    setSelectedWarehouseIndex(e.detail.current)
   }
 
   return (
@@ -191,35 +191,48 @@ const WarehouseCategories: React.FC = () => {
             <Text className="text-green-100 text-sm block">为不同仓库的品类设置价格</Text>
           </View>
 
-          {/* 仓库列表 - 使用 Swiper 左右滑动切换 */}
+          {/* 仓库切换 */}
           {warehouses.length > 0 ? (
             <View>
-              {/* 仓库指示器 */}
-              <View className="bg-white rounded-lg p-4 mb-4 shadow">
-                <View className="flex items-center justify-center mb-2">
-                  <View className="i-mdi-warehouse text-green-600 text-xl mr-2" />
-                  <Text className="text-gray-800 text-base font-bold">
-                    {selectedWarehouse ? selectedWarehouse.name : ''}
-                  </Text>
-                </View>
-                {warehouses.length > 1 && (
-                  <View className="flex items-center justify-center">
-                    <Text className="text-gray-400 text-xs mb-2">点击圆点切换仓库</Text>
-                    <View className="flex items-center">
-                      {warehouses.map((_warehouse, index) => (
-                        <View
-                          key={index}
-                          className={`w-3 h-3 rounded-full mx-1 ${
-                            index === selectedWarehouseIndex ? 'bg-green-600' : 'bg-gray-300'
-                          }`}
-                          onClick={() => handleWarehouseChange(index)}
-                          style={{cursor: 'pointer'}}
-                        />
-                      ))}
-                    </View>
+              {/* 多个仓库显示 */}
+              {warehouses.length > 1 && (
+                <View className="mb-4">
+                  <View className="flex items-center justify-between mb-2">
+                    <Text className="text-gray-600 text-sm">当前仓库</Text>
+                    <Text className="text-gray-500 text-xs">
+                      ({selectedWarehouseIndex + 1}/{warehouses.length})
+                    </Text>
                   </View>
-                )}
-              </View>
+                  <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                    <Swiper
+                      className="h-16"
+                      current={selectedWarehouseIndex}
+                      onChange={handleWarehouseChange}
+                      indicatorDots
+                      indicatorColor="rgba(0, 0, 0, 0.2)"
+                      indicatorActiveColor="#16A34A">
+                      {warehouses.map((warehouse) => (
+                        <SwiperItem key={warehouse.id}>
+                          <View className="h-full flex items-center justify-center bg-gradient-to-r from-green-50 to-green-100">
+                            <View className="i-mdi-warehouse text-2xl text-green-600 mr-2" />
+                            <Text className="text-lg font-bold text-green-900">{warehouse.name}</Text>
+                          </View>
+                        </SwiperItem>
+                      ))}
+                    </Swiper>
+                  </View>
+                </View>
+              )}
+
+              {/* 单个仓库显示 */}
+              {warehouses.length === 1 && (
+                <View className="bg-white rounded-xl shadow-md p-4 mb-4">
+                  <View className="flex items-center justify-center">
+                    <View className="i-mdi-warehouse text-2xl text-green-600 mr-2" />
+                    <Text className="text-lg font-bold text-green-900">{warehouses[0].name}</Text>
+                  </View>
+                </View>
+              )}
 
               {/* 品类价格配置 */}
               {warehouseCategories.length > 0 ? (
