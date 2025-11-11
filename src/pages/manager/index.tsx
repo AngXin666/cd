@@ -5,7 +5,7 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
-import {useDashboardData, useDriverStats, useWarehousesData} from '@/hooks'
+import {useDashboardData, useDriverStats, useWarehousesData, useWarehousesSorted} from '@/hooks'
 
 const ManagerHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
@@ -14,15 +14,29 @@ const ManagerHome: React.FC = () => {
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 使用仓库数据管理 Hook
+  // 使用仓库数据管理 Hook（原始列表）
   const {
-    warehouses,
+    warehouses: rawWarehouses,
     loading: warehousesLoading,
     refresh: refreshWarehouses
   } = useWarehousesData({
     managerId: user?.id || '',
     cacheEnabled: true
   })
+
+  // 使用仓库排序 Hook（按数据量排序）
+  const {
+    warehouses: sortedWarehouses,
+    loading: sortingLoading,
+    refresh: refreshSorting
+  } = useWarehousesSorted({
+    warehouses: rawWarehouses,
+    sortByVolume: true,
+    hideEmpty: false // 不隐藏无数据仓库，只排序
+  })
+
+  // 使用排序后的仓库列表
+  const warehouses = sortedWarehouses
 
   // 获取当前选中的仓库ID
   const currentWarehouseId = warehouses[currentWarehouseIndex]?.id || ''
@@ -94,6 +108,7 @@ const ManagerHome: React.FC = () => {
       loadProfile()
       // 刷新仓库列表（使用缓存）
       refreshWarehouses()
+      refreshSorting() // 刷新仓库排序
       // 刷新当前仓库的仪表板数据（使用缓存）
       if (currentWarehouseId) {
         refreshDashboard()
@@ -107,6 +122,7 @@ const ManagerHome: React.FC = () => {
     if (user) {
       await loadProfile()
       await refreshWarehouses()
+      await refreshSorting() // 刷新仓库排序
       if (currentWarehouseId) {
         await Promise.all([refreshDashboard(), refreshDriverStats()])
       }
@@ -374,10 +390,11 @@ const ManagerHome: React.FC = () => {
                 <Text className="text-xs text-gray-400 ml-2">
                   ({currentWarehouseIndex + 1}/{warehouses.length})
                 </Text>
+                <Text className="text-xs text-gray-400 ml-auto">按数据量排序</Text>
               </View>
               <View className="bg-white rounded-xl shadow-md overflow-hidden">
                 <Swiper
-                  className="h-16"
+                  className="h-20"
                   current={currentWarehouseIndex}
                   onChange={handleWarehouseChange}
                   indicatorDots
@@ -385,9 +402,22 @@ const ManagerHome: React.FC = () => {
                   indicatorActiveColor="#1E3A8A">
                   {warehouses.map((warehouse) => (
                     <SwiperItem key={warehouse.id}>
-                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100">
-                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
-                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                      <View className="h-full flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                        <View className="flex items-center">
+                          <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                          <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                        </View>
+                        {warehouse.dataVolume && (
+                          <View className="flex items-center mt-1">
+                            <Text className="text-xs text-gray-500">
+                              今日: {warehouse.dataVolume.todayPieceCount}件
+                            </Text>
+                            <Text className="text-xs text-gray-400 mx-2">|</Text>
+                            <Text className="text-xs text-gray-500">
+                              本月: {warehouse.dataVolume.monthPieceCount}件
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </SwiperItem>
                   ))}
