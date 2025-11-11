@@ -1,4 +1,4 @@
-import {Button, Checkbox, CheckboxGroup, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
+import {Button, Input, ScrollView, Swiper, SwiperItem, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -10,7 +10,6 @@ import {
   getAllCategories,
   getAllWarehouses,
   getCategoryPricesByWarehouse,
-  getWarehouseCategories,
   setWarehouseCategories,
   updateCategory
 } from '@/db/api'
@@ -29,12 +28,9 @@ const CategoryManagement: React.FC = () => {
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
-  const [warehouseCategoryIds, setWarehouseCategoryIds] = useState<string[]>([]) // 仓库配置的品类ID
   const [categoryPrices, setCategoryPrices] = useState<CategoryPrice[]>([])
   const [priceEdits, setPriceEdits] = useState<Map<string, CategoryPriceEdit>>(new Map())
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingName, setEditingName] = useState('')
 
   // 获取当前选中的仓库
   const selectedWarehouse = warehouses[selectedWarehouseIndex]
@@ -53,13 +49,6 @@ const CategoryManagement: React.FC = () => {
     const data = await getAllCategories()
     setCategories(data)
   }, [])
-
-  // 加载仓库配置的品类
-  const loadWarehouseCategories = useCallback(async () => {
-    if (!selectedWarehouse) return
-    const categoryIds = await getWarehouseCategories(selectedWarehouse.id)
-    setWarehouseCategoryIds(categoryIds)
-  }, [selectedWarehouse])
 
   // 加载品类价格配置
   const loadCategoryPrices = useCallback(async () => {
@@ -84,58 +73,23 @@ const CategoryManagement: React.FC = () => {
   }, [loadWarehouses, loadCategories])
 
   useEffect(() => {
-    loadWarehouseCategories()
     loadCategoryPrices()
-  }, [loadWarehouseCategories, loadCategoryPrices])
+  }, [loadCategoryPrices])
 
   useDidShow(() => {
     loadWarehouses()
     loadCategories()
-    loadWarehouseCategories()
     loadCategoryPrices()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadWarehouses(), loadCategories(), loadWarehouseCategories(), loadCategoryPrices()])
+    await Promise.all([loadWarehouses(), loadCategories(), loadCategoryPrices()])
     Taro.stopPullDownRefresh()
   })
 
-  // 获取仓库配置的品类列表
-  // 合并两个来源：warehouse_categories 表 和 category_prices 表
-  const allConfiguredCategoryIds = Array.from(new Set([...warehouseCategoryIds, ...categoryIdsWithPrice]))
-  const warehouseCategories = categories.filter((c) => c.is_active && allConfiguredCategoryIds.includes(c.id))
-
-  // 品类选择变化
-  const handleCategoryChange = (e: any) => {
-    setWarehouseCategoryIds(e.detail.value)
-  }
-
-  // 保存仓库品类配置
-  const handleSaveWarehouseCategories = async () => {
-    if (!selectedWarehouse) {
-      Taro.showToast({
-        title: '请选择仓库',
-        icon: 'none'
-      })
-      return
-    }
-
-    const success = await setWarehouseCategories(selectedWarehouse.id, warehouseCategoryIds)
-
-    if (success) {
-      Taro.showToast({
-        title: '保存成功',
-        icon: 'success'
-      })
-      loadWarehouseCategories()
-    } else {
-      Taro.showToast({
-        title: '保存失败',
-        icon: 'error'
-      })
-    }
-  }
+  // 获取当前仓库已配置的品类列表（只显示有价格配置的品类）
+  const warehouseCategories = categories.filter((c) => c.is_active && categoryIdsWithPrice.includes(c.id))
 
   // 添加品类
   const handleAddCategory = async () => {
@@ -167,53 +121,15 @@ const CategoryManagement: React.FC = () => {
     }
   }
 
-  // 开始编辑
-  const handleStartEdit = (category: PieceWorkCategory) => {
-    setEditingId(category.id)
-    setEditingName(category.name)
-  }
-
-  // 保存编辑
-  const handleSaveEdit = async (id: string) => {
-    if (!editingName.trim()) {
-      Taro.showToast({
-        title: '品类名称不能为空',
-        icon: 'none'
-      })
-      return
-    }
-
-    const success = await updateCategory(id, {name: editingName.trim()})
+  // 切换品类启用状态
+  const handleToggleActive = async (category: PieceWorkCategory) => {
+    const success = await updateCategory(category.id, {
+      is_active: !category.is_active
+    })
 
     if (success) {
       Taro.showToast({
-        title: '更新成功',
-        icon: 'success'
-      })
-      setEditingId(null)
-      setEditingName('')
-      loadCategories()
-    } else {
-      Taro.showToast({
-        title: '更新失败',
-        icon: 'error'
-      })
-    }
-  }
-
-  // 取消编辑
-  const handleCancelEdit = () => {
-    setEditingId(null)
-    setEditingName('')
-  }
-
-  // 切换启用状态
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
-    const success = await updateCategory(id, {is_active: !currentActive})
-
-    if (success) {
-      Taro.showToast({
-        title: currentActive ? '已禁用' : '已启用',
+        title: category.is_active ? '已禁用' : '已启用',
         icon: 'success'
       })
       loadCategories()
@@ -226,27 +142,23 @@ const CategoryManagement: React.FC = () => {
   }
 
   // 删除品类
-  const handleDelete = async (id: string, name: string) => {
-    const confirmed = await confirmDelete(
-      '确认删除',
-      `确定要删除品类"${name}"吗？\n\n如果该品类已被使用，删除将失败。此操作无法恢复。`
-    )
+  const handleDeleteCategory = async (category: PieceWorkCategory) => {
+    const confirmed = await confirmDelete(`确定要删除品类"${category.name}"吗？`)
+    if (!confirmed) return
 
-    if (confirmed) {
-      const success = await deleteCategory(id)
+    const success = await deleteCategory(category.id)
 
-      if (success) {
-        Taro.showToast({
-          title: '删除成功',
-          icon: 'success'
-        })
-        loadCategories()
-      } else {
-        Taro.showToast({
-          title: '删除失败，可能有关联数据',
-          icon: 'none'
-        })
-      }
+    if (success) {
+      Taro.showToast({
+        title: '删除成功',
+        icon: 'success'
+      })
+      loadCategories()
+    } else {
+      Taro.showToast({
+        title: '删除失败',
+        icon: 'error'
+      })
     }
   }
 
@@ -331,7 +243,6 @@ const CategoryManagement: React.FC = () => {
         icon: 'success'
       })
       loadCategoryPrices()
-      loadWarehouseCategories()
     } else {
       Taro.showToast({
         title: '保存失败',
@@ -340,265 +251,207 @@ const CategoryManagement: React.FC = () => {
     }
   }
 
+  // 处理 Swiper 切换
+  const handleSwiperChange = (e: any) => {
+    setSelectedWarehouseIndex(e.detail.current)
+  }
+
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">计件品类管理</Text>
-            <Text className="text-blue-100 text-sm block">管理计件品类和价格配置</Text>
+          <View className="bg-gradient-to-r from-blue-700 to-blue-600 rounded-lg p-6 mb-4 shadow-lg">
+            <Text className="text-white text-2xl font-bold block mb-2">品类价格管理</Text>
+            <Text className="text-blue-100 text-sm block">管理品类和设置仓库价格</Text>
           </View>
 
-          {/* 仓库选择器 */}
-          {warehouses.length > 0 && (
-            <View className="bg-white rounded-lg p-4 mb-4 shadow">
-              <View className="flex items-center mb-3">
-                <View className="i-mdi-warehouse text-blue-600 text-xl mr-2" />
-                <Text className="text-gray-800 text-base font-bold">选择仓库</Text>
-              </View>
-              <Picker
-                mode="selector"
-                range={warehouses.map((w) => w.name)}
-                value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800 text-sm">
-                    {selectedWarehouse ? selectedWarehouse.name : '请选择仓库'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-gray-400 text-xl" />
-                </View>
-              </Picker>
-            </View>
-          )}
-
-          {/* 添加品类 */}
+          {/* 品类管理区域 */}
           <View className="bg-white rounded-lg p-4 mb-4 shadow">
             <View className="flex items-center mb-3">
-              <View className="i-mdi-plus-circle text-blue-600 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">添加新品类</Text>
+              <View className="i-mdi-tag-multiple text-blue-600 text-xl mr-2" />
+              <Text className="text-gray-800 text-base font-bold">品类管理</Text>
             </View>
-            <View className="flex items-center">
-              <Input
-                className="flex-1 bg-gray-50 rounded-lg px-4 py-3 text-sm mr-3"
-                placeholder="请输入品类名称"
-                value={newCategoryName}
-                onInput={(e) => setNewCategoryName(e.detail.value)}
-              />
-              <Button
-                size="default"
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm break-keep"
-                onClick={handleAddCategory}>
-                添加
-              </Button>
-            </View>
-          </View>
 
-          {/* 仓库品类配置 */}
-          {selectedWarehouse && (
-            <View className="bg-white rounded-lg p-4 mb-4 shadow">
-              <View className="flex items-center mb-3">
-                <View className="i-mdi-tag-multiple text-blue-600 text-xl mr-2" />
-                <Text className="text-gray-800 text-base font-bold">{selectedWarehouse.name} - 品类配置</Text>
-              </View>
-              <Text className="text-gray-500 text-xs mb-3">选择该仓库可以操作的品类</Text>
-
-              {categories.filter((c) => c.is_active).length > 0 ? (
-                <View>
-                  <CheckboxGroup onChange={handleCategoryChange}>
-                    {categories
-                      .filter((c) => c.is_active)
-                      .map((category) => (
-                        <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
-                          <Checkbox value={category.id} checked={allConfiguredCategoryIds.includes(category.id)} />
-                          <Text className="text-gray-800 text-sm ml-3">{category.name}</Text>
-                        </View>
-                      ))}
-                  </CheckboxGroup>
-
-                  {/* 保存按钮 */}
-                  <View className="mt-4">
-                    <Button
-                      size="default"
-                      className="w-full bg-blue-600 text-white py-3 rounded-lg text-base break-keep"
-                      onClick={handleSaveWarehouseCategories}>
-                      保存品类配置
-                    </Button>
-                  </View>
+            {/* 添加品类 */}
+            <View className="mb-4">
+              <View className="flex items-center gap-2">
+                <View className="flex-1" style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 rounded px-3 py-2 text-sm"
+                    placeholder="输入新品类名称"
+                    value={newCategoryName}
+                    onInput={(e) => setNewCategoryName(e.detail.value)}
+                  />
                 </View>
-              ) : (
-                <View className="text-center py-8">
-                  <View className="i-mdi-information-outline text-gray-300 text-4xl mb-2 mx-auto" />
-                  <Text className="text-gray-400 text-sm block">暂无启用的品类</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* 品类价格配置 */}
-          {selectedWarehouse && warehouseCategories.length > 0 && (
-            <View className="bg-white rounded-lg p-4 mb-4 shadow">
-              <View className="flex items-center mb-3">
-                <View className="i-mdi-currency-cny text-blue-600 text-xl mr-2" />
-                <Text className="text-gray-800 text-base font-bold">{selectedWarehouse.name} - 品类价格配置</Text>
-              </View>
-
-              <View>
-                {/* 表头 */}
-                <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
-                  <View className="flex-1">
-                    <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
-                  </View>
-                  <View className="w-24 text-center">
-                    <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
-                  </View>
-                  <View className="w-24 text-center">
-                    <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
-                  </View>
-                </View>
-
-                {/* 价格列表 */}
-                {warehouseCategories.map((category) => {
-                  const priceEdit = getPriceEdit(category.id)
-                  return (
-                    <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
-                      <View className="flex-1">
-                        <Text className="text-gray-800 text-sm">{category.name}</Text>
-                      </View>
-                      <View className="w-24 px-1">
-                        <Input
-                          type="digit"
-                          className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
-                          placeholder="0"
-                          value={priceEdit.driverPrice}
-                          onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
-                        />
-                      </View>
-                      <View className="w-24 px-1">
-                        <Input
-                          type="digit"
-                          className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
-                          placeholder="0"
-                          value={priceEdit.driverWithVehiclePrice}
-                          onInput={(e) => updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)}
-                        />
-                      </View>
-                    </View>
-                  )
-                })}
-
-                {/* 保存按钮 */}
-                <View className="mt-4">
-                  <Button
-                    size="default"
-                    className="w-full bg-blue-600 text-white py-3 rounded-lg text-base break-keep"
-                    onClick={handleSavePrices}>
-                    保存价格配置
-                  </Button>
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* 提示信息 */}
-          {selectedWarehouse && warehouseCategories.length === 0 && (
-            <View className="bg-white rounded-lg p-6 mb-4 shadow text-center">
-              <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
-              <Text className="text-gray-600 text-sm block">请先为该仓库配置品类</Text>
-              <Text className="text-gray-400 text-xs block mt-1">配置品类后才能设置价格</Text>
-            </View>
-          )}
-
-          {/* 品类列表 */}
-          <View className="bg-white rounded-lg p-4 shadow">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-format-list-bulleted text-blue-600 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">品类列表</Text>
-              <View className="ml-auto">
-                <Text className="text-xs text-gray-500">共 {categories.length} 个品类</Text>
+                <Button
+                  size="default"
+                  className="bg-blue-600 text-white px-4 py-2 rounded text-sm break-keep"
+                  onClick={handleAddCategory}>
+                  添加
+                </Button>
               </View>
             </View>
 
+            {/* 品类列表 */}
             {categories.length > 0 ? (
-              <View className="space-y-2">
+              <View>
+                <Text className="text-gray-500 text-xs mb-2 block">已有品类</Text>
                 {categories.map((category) => (
-                  <View key={category.id} className="bg-gray-50 rounded-lg p-4">
-                    {editingId === category.id ? (
-                      <View>
-                        <Input
-                          className="bg-white rounded-lg px-3 py-2 text-sm mb-3 border border-blue-300"
-                          value={editingName}
-                          onInput={(e) => setEditingName(e.detail.value)}
-                        />
-                        <View className="flex items-center justify-end">
-                          <Button
-                            size="mini"
-                            className="bg-gray-200 text-gray-700 px-4 py-1 rounded text-xs mr-2 break-keep"
-                            onClick={handleCancelEdit}>
-                            取消
-                          </Button>
-                          <Button
-                            size="mini"
-                            className="bg-blue-600 text-white px-4 py-1 rounded text-xs break-keep"
-                            onClick={() => handleSaveEdit(category.id)}>
-                            保存
-                          </Button>
-                        </View>
-                      </View>
-                    ) : (
-                      <View>
-                        <View className="flex items-center justify-between mb-2">
-                          <View className="flex items-center flex-1">
-                            <View className="i-mdi-tag text-orange-600 text-xl mr-2" />
-                            <Text className="text-gray-800 text-base font-medium">{category.name}</Text>
-                          </View>
-                          <View className="flex items-center">
-                            <Switch
-                              checked={category.is_active}
-                              color="#3B82F6"
-                              onChange={() => handleToggleActive(category.id, category.is_active)}
-                            />
-                          </View>
-                        </View>
-                        <View className="flex items-center justify-between">
-                          <View className="flex items-center">
-                            <View
-                              className={`px-2 py-1 rounded ${category.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
-                              <Text className={`text-xs ${category.is_active ? 'text-green-600' : 'text-gray-500'}`}>
-                                {category.is_active ? '启用中' : '已禁用'}
-                              </Text>
-                            </View>
-                            <Text className="text-xs text-gray-400 ml-3">
-                              创建于 {new Date(category.created_at).toLocaleDateString()}
-                            </Text>
-                          </View>
-                          <View className="flex items-center">
-                            <Button
-                              size="mini"
-                              className="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs mr-2 break-keep"
-                              onClick={() => handleStartEdit(category)}>
-                              编辑
-                            </Button>
-                            <Button
-                              size="mini"
-                              className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs break-keep"
-                              onClick={() => handleDelete(category.id, category.name)}>
-                              删除
-                            </Button>
-                          </View>
-                        </View>
-                      </View>
-                    )}
+                  <View key={category.id} className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <View className="flex items-center flex-1">
+                      <Text className={`text-sm ${category.is_active ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {category.name}
+                      </Text>
+                      {!category.is_active && <Text className="text-xs text-gray-400 ml-2">(已禁用)</Text>}
+                    </View>
+                    <View className="flex items-center gap-2">
+                      <Switch checked={category.is_active} onChange={() => handleToggleActive(category)} />
+                      <Button
+                        size="mini"
+                        className="bg-red-500 text-white px-3 py-1 rounded text-xs break-keep"
+                        onClick={() => handleDeleteCategory(category)}>
+                        删除
+                      </Button>
+                    </View>
                   </View>
                 ))}
               </View>
             ) : (
               <View className="text-center py-8">
-                <View className="i-mdi-tag-off text-gray-300 text-5xl mb-2" />
+                <View className="i-mdi-information-outline text-gray-300 text-4xl mb-2 mx-auto" />
                 <Text className="text-gray-400 text-sm block">暂无品类</Text>
               </View>
             )}
           </View>
+
+          {/* 仓库列表 - 使用 Swiper 左右滑动切换 */}
+          {warehouses.length > 0 ? (
+            <View>
+              {/* 仓库指示器 */}
+              <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                <View className="flex items-center justify-center mb-2">
+                  <View className="i-mdi-warehouse text-blue-600 text-xl mr-2" />
+                  <Text className="text-gray-800 text-base font-bold">
+                    {selectedWarehouse ? selectedWarehouse.name : ''}
+                  </Text>
+                </View>
+                {warehouses.length > 1 && (
+                  <View className="flex items-center justify-center">
+                    <Text className="text-gray-400 text-xs">左右滑动切换仓库</Text>
+                    <View className="flex items-center mt-2">
+                      {warehouses.map((_, index) => (
+                        <View
+                          key={index}
+                          className={`w-2 h-2 rounded-full mx-1 ${
+                            index === selectedWarehouseIndex ? 'bg-blue-600' : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Swiper 仓库内容区域 */}
+              <Swiper
+                className="warehouse-swiper"
+                style={{height: 'auto'}}
+                current={selectedWarehouseIndex}
+                onChange={handleSwiperChange}
+                circular={false}
+                indicatorDots={false}>
+                {warehouses.map((warehouse) => (
+                  <SwiperItem key={warehouse.id}>
+                    <View className="pb-4">
+                      {/* 品类价格配置 */}
+                      {warehouseCategories.length > 0 ? (
+                        <View className="bg-white rounded-lg p-4 shadow">
+                          <View className="flex items-center mb-3">
+                            <View className="i-mdi-currency-cny text-blue-600 text-xl mr-2" />
+                            <Text className="text-gray-800 text-base font-bold">品类价格配置</Text>
+                          </View>
+
+                          <View>
+                            {/* 表头 */}
+                            <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
+                              <View className="flex-1">
+                                <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
+                              </View>
+                              <View className="w-24 text-center">
+                                <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
+                              </View>
+                              <View className="w-24 text-center">
+                                <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
+                              </View>
+                            </View>
+
+                            {/* 价格列表 */}
+                            {warehouseCategories.map((category) => {
+                              const priceEdit = getPriceEdit(category.id)
+                              return (
+                                <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
+                                  <View className="flex-1">
+                                    <Text className="text-gray-800 text-sm">{category.name}</Text>
+                                  </View>
+                                  <View className="w-24 px-1">
+                                    <View style={{overflow: 'hidden'}}>
+                                      <Input
+                                        type="digit"
+                                        className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                                        placeholder="0"
+                                        value={priceEdit.driverPrice}
+                                        onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
+                                      />
+                                    </View>
+                                  </View>
+                                  <View className="w-24 px-1">
+                                    <View style={{overflow: 'hidden'}}>
+                                      <Input
+                                        type="digit"
+                                        className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                                        placeholder="0"
+                                        value={priceEdit.driverWithVehiclePrice}
+                                        onInput={(e) =>
+                                          updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)
+                                        }
+                                      />
+                                    </View>
+                                  </View>
+                                </View>
+                              )
+                            })}
+
+                            {/* 保存按钮 */}
+                            <View className="mt-4">
+                              <Button
+                                size="default"
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg text-base break-keep"
+                                onClick={handleSavePrices}>
+                                保存价格配置
+                              </Button>
+                            </View>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className="bg-white rounded-lg p-6 shadow text-center">
+                          <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
+                          <Text className="text-gray-600 text-sm block">该仓库暂无品类配置</Text>
+                          <Text className="text-gray-400 text-xs block mt-1">请先添加品类并配置价格</Text>
+                        </View>
+                      )}
+                    </View>
+                  </SwiperItem>
+                ))}
+              </Swiper>
+            </View>
+          ) : (
+            <View className="bg-white rounded-lg p-6 mb-4 shadow text-center">
+              <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
+              <Text className="text-gray-600 text-sm block">暂无仓库</Text>
+              <Text className="text-gray-400 text-xs block mt-1">请先添加仓库</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
