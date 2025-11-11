@@ -83,8 +83,18 @@ const PieceWorkEntry: React.FC = () => {
     const profile = await getUserById(user.id)
     setDriverProfile(profile)
 
-    const driverWarehouses = await getDriverWarehouses(user.id)
-    setWarehouses(driverWarehouses)
+    // 加载司机的仓库（只加载启用的仓库）
+    const allWarehouses = await getDriverWarehouses(user.id)
+    const activeWarehouses = allWarehouses.filter((w) => w.is_active)
+    setWarehouses(activeWarehouses)
+
+    if (activeWarehouses.length === 0) {
+      Taro.showToast({
+        title: '暂无可用仓库',
+        icon: 'none',
+        duration: 2000
+      })
+    }
 
     const categoriesData = await getActiveCategories()
     setCategories(categoriesData)
@@ -107,8 +117,8 @@ const PieceWorkEntry: React.FC = () => {
       const lastDate = getLastWorkDate()
       const formDefaults = getPieceWorkFormDefaults()
 
-      if (lastWarehouse && driverWarehouses.length > 0) {
-        const warehouseIndex = driverWarehouses.findIndex((w) => w.id === lastWarehouse.id)
+      if (lastWarehouse && activeWarehouses.length > 0) {
+        const warehouseIndex = activeWarehouses.findIndex((w) => w.id === lastWarehouse.id)
         if (warehouseIndex !== -1) {
           setSelectedWarehouseIndex(warehouseIndex)
         }

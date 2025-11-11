@@ -57,7 +57,19 @@ const ApplyResignation: React.FC = () => {
     if (!user) return
     if (isEditMode) return
 
-    const warehouses = await getDriverWarehouses(user.id)
+    // 获取司机的仓库（只获取启用的仓库）
+    const allWarehouses = await getDriverWarehouses(user.id)
+    const warehouses = allWarehouses.filter((w) => w.is_active)
+
+    if (warehouses.length === 0) {
+      showToast({
+        title: '暂无可用仓库',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
     if (warehouses.length > 0) {
       const warehouseId = warehouses[0].id
       setWarehouseId(warehouseId)
