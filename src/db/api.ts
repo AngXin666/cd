@@ -2624,6 +2624,37 @@ export async function getWarehouseCategories(warehouseId: string): Promise<strin
 }
 
 /**
+ * 获取仓库的品类详细信息（包含品类对象）
+ */
+export async function getWarehouseCategoriesWithDetails(warehouseId: string): Promise<PieceWorkCategory[]> {
+  const {data, error} = await supabase
+    .from('warehouse_categories')
+    .select('category_id, piece_work_categories(*)')
+    .eq('warehouse_id', warehouseId)
+
+  if (error) {
+    console.error('获取仓库品类详细信息失败:', error)
+    return []
+  }
+
+  if (!Array.isArray(data)) {
+    return []
+  }
+
+  // 过滤出启用的品类
+  const categories: PieceWorkCategory[] = []
+  for (const item of data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cat = item.piece_work_categories as any
+    if (cat && typeof cat === 'object' && !Array.isArray(cat) && cat.is_active === true) {
+      categories.push(cat as PieceWorkCategory)
+    }
+  }
+
+  return categories
+}
+
+/**
  * 设置仓库的品类（先删除旧的，再插入新的）
  */
 export async function setWarehouseCategories(warehouseId: string, categoryIds: string[]): Promise<boolean> {

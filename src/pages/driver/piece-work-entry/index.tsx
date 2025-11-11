@@ -5,11 +5,11 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   createPieceWorkRecord,
-  getActiveCategories,
   getCategoryPriceForDriver,
   getDriverWarehouses,
   getPieceWorkRecordsByUser,
   getUserById,
+  getWarehouseCategoriesWithDetails,
   updatePieceWorkRecord
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
@@ -94,10 +94,8 @@ const PieceWorkEntry: React.FC = () => {
         icon: 'none',
         duration: 2000
       })
+      return
     }
-
-    const categoriesData = await getActiveCategories()
-    setCategories(categoriesData)
 
     // 加载本月的计件记录
     const now = new Date()
@@ -113,21 +111,35 @@ const PieceWorkEntry: React.FC = () => {
     // 只在首次加载时恢复用户偏好设置
     if (isFirstLoad) {
       const lastWarehouse = getLastWarehouse()
-      const lastCategory = getLastCategory()
       const lastDate = getLastWorkDate()
       const formDefaults = getPieceWorkFormDefaults()
 
+      let warehouseIndexToLoad = 0
       if (lastWarehouse && activeWarehouses.length > 0) {
         const warehouseIndex = activeWarehouses.findIndex((w) => w.id === lastWarehouse.id)
         if (warehouseIndex !== -1) {
-          setSelectedWarehouseIndex(warehouseIndex)
+          warehouseIndexToLoad = warehouseIndex
         }
       }
+      setSelectedWarehouseIndex(warehouseIndexToLoad)
 
-      if (lastCategory && categoriesData.length > 0) {
-        const categoryIndex = categoriesData.findIndex((c) => c.id === lastCategory.id)
-        if (categoryIndex !== -1) {
-          setSelectedCategoryIndex(categoryIndex)
+      // 加载选中仓库的品类
+      const warehouseToLoad = activeWarehouses[warehouseIndexToLoad]
+      if (warehouseToLoad) {
+        const categoriesData = await getWarehouseCategoriesWithDetails(warehouseToLoad.id)
+        setCategories(categoriesData)
+
+        // 恢复上次选择的品类（如果存在）
+        const lastCategory = getLastCategory()
+        if (lastCategory && categoriesData.length > 0) {
+          const categoryIndex = categoriesData.findIndex((c) => c.id === lastCategory.id)
+          if (categoryIndex !== -1) {
+            setSelectedCategoryIndex(categoryIndex)
+          } else {
+            setSelectedCategoryIndex(0)
+          }
+        } else if (categoriesData.length > 0) {
+          setSelectedCategoryIndex(0)
         }
       }
 
@@ -161,6 +173,40 @@ const PieceWorkEntry: React.FC = () => {
   useDidShow(() => {
     loadData()
   })
+
+  // 当仓库变化时，重新加载该仓库的品类
+  useEffect(() => {
+    const loadWarehouseCategories = async () => {
+      const selectedWarehouse = warehouses[selectedWarehouseIndex]
+      if (!selectedWarehouse) {
+        setCategories([])
+        return
+      }
+
+      const categoriesData = await getWarehouseCategoriesWithDetails(selectedWarehouse.id)
+      setCategories(categoriesData)
+
+      // 如果只有一个品类，自动选中
+      if (categoriesData.length === 1) {
+        setSelectedCategoryIndex(0)
+      } else if (categoriesData.length > 1) {
+        // 如果有多个品类，重置为第一个
+        setSelectedCategoryIndex(0)
+      } else {
+        // 如果没有品类，显示提示
+        Taro.showToast({
+          title: '该仓库暂无可用品类',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    }
+
+    // 只在非首次加载时执行（首次加载在 loadData 中处理）
+    if (!isFirstLoad && warehouses.length > 0) {
+      loadWarehouseCategories()
+    }
+  }, [selectedWarehouseIndex, warehouses, isFirstLoad])
 
   // 当仓库或品类变化时，更新所有计件项的价格
   useEffect(() => {
@@ -661,15 +707,29 @@ const PieceWorkEntry: React.FC = () => {
               <Text className="text-sm text-gray-600 block mb-2">
                 <Text className="text-red-500">* </Text>品类
               </Text>
-              <Picker
-                mode="selector"
-                range={categories.map((c) => c.name)}
-                value={selectedCategoryIndex}
-                onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
-                <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                  <Text className="text-gray-800">{categories[selectedCategoryIndex]?.name || '请选择品类'}</Text>
+              {categories.length === 1 ? (
+                // 只有一个品类时，显示为只读
+                <View className="border border-gray-300 rounded-lg p-3 bg-gray-100">
+                  <Text className="text-gray-800">{categories[0]?.name || '暂无品类'}</Text>
+                  <Text className="text-xs text-gray-500 mt-1">（该仓库仅此一个品类）</Text>
                 </View>
-              </Picker>
+              ) : categories.length > 1 ? (
+                // 多个品类时，显示选择器
+                <Picker
+                  mode="selector"
+                  range={categories.map((c) => c.name)}
+                  value={selectedCategoryIndex}
+                  onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
+                  <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                    <Text className="text-gray-800">{categories[selectedCategoryIndex]?.name || '请选择品类'}</Text>
+                  </View>
+                </Picker>
+              ) : (
+                // 没有品类时，显示提示
+                <View className="border border-gray-300 rounded-lg p-3 bg-gray-100">
+                  <Text className="text-gray-400">该仓库暂无可用品类</Text>
+                </View>
+              )}
             </View>
 
             {/* 工作日期 */}
