@@ -436,12 +436,10 @@ const StaffManagement: React.FC = () => {
                   <Text className="text-sm text-gray-600">{driver.login_account}</Text>
                 </View>
               )}
-              {driver.vehicle_plate && (
-                <View className="flex items-center">
-                  <View className="i-mdi-car text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.vehicle_plate}</Text>
-                </View>
-              )}
+              <View className="flex items-center">
+                <View className="i-mdi-car text-sm text-gray-400 mr-1" />
+                <Text className="text-sm text-gray-600">车牌：{driver.vehicle_plate || '无'}</Text>
+              </View>
               {driver.join_date && (
                 <View className="flex items-center">
                   <View className="i-mdi-calendar text-sm text-gray-400 mr-1" />
@@ -455,36 +453,23 @@ const StaffManagement: React.FC = () => {
           </View>
         </View>
 
-        <View className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
-          {permissions?.can_edit_user_info ? (
+        {/* 只有有权限时才显示操作按钮 */}
+        {permissions?.can_edit_user_info && (
+          <View className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
             <Button
               className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
               size="mini"
               onClick={() => handleEditDriver(driver)}>
               编辑信息
             </Button>
-          ) : (
             <Button
-              className="flex-1 bg-gray-50 text-gray-600 py-2 rounded text-sm break-keep"
+              className="flex-1 bg-orange-50 text-orange-600 py-2 rounded text-sm break-keep"
               size="mini"
-              onClick={() => {
-                Taro.showModal({
-                  title: driver.name || '司机信息',
-                  content: `手机：${driver.phone || '未设置'}\n邮箱：${driver.email || '未设置'}\n账号：${driver.login_account || '未设置'}\n车牌：${driver.vehicle_plate || '无'}\n入职日期：${driver.join_date || '未设置'}`,
-                  showCancel: false,
-                  confirmText: '知道了'
-                })
-              }}>
-              查看信息
+              onClick={() => handleResetPassword(driver.id, driver.name || '该司机')}>
+              重置密码
             </Button>
-          )}
-          <Button
-            className="flex-1 bg-orange-50 text-orange-600 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={() => handleResetPassword(driver.id, driver.name || '该司机')}>
-            重置密码
-          </Button>
-        </View>
+          </View>
+        )}
       </View>
     )
   }
@@ -519,12 +504,10 @@ const StaffManagement: React.FC = () => {
                   <Text className="text-sm text-gray-600">{driver.login_account}</Text>
                 </View>
               )}
-              {driver.vehicle_plate && (
-                <View className="flex items-center">
-                  <View className="i-mdi-car text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.vehicle_plate}</Text>
-                </View>
-              )}
+              <View className="flex items-center">
+                <View className="i-mdi-car text-sm text-gray-400 mr-1" />
+                <Text className="text-sm text-gray-600">车牌：{driver.vehicle_plate || '无'}</Text>
+              </View>
               {driver.join_date && (
                 <View className="flex items-center">
                   <View className="i-mdi-calendar text-sm text-gray-400 mr-1" />
@@ -562,26 +545,12 @@ const StaffManagement: React.FC = () => {
             onClick={() => handleAssignDriver(driver.id, driver.name || '该司机')}>
             分配仓库
           </Button>
-          {permissions?.can_edit_user_info ? (
+          {permissions?.can_edit_user_info && (
             <Button
               className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
               size="mini"
               onClick={() => handleEditDriver(driver)}>
               编辑信息
-            </Button>
-          ) : (
-            <Button
-              className="flex-1 bg-gray-50 text-gray-600 py-2 rounded text-sm break-keep"
-              size="mini"
-              onClick={() => {
-                Taro.showModal({
-                  title: driver.name || '司机信息',
-                  content: `手机：${driver.phone || '未设置'}\n邮箱：${driver.email || '未设置'}\n账号：${driver.login_account || '未设置'}\n车牌：${driver.vehicle_plate || '无'}\n入职日期：${driver.join_date || '未设置'}`,
-                  showCancel: false,
-                  confirmText: '知道了'
-                })
-              }}>
-              查看信息
             </Button>
           )}
         </View>
