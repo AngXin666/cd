@@ -272,7 +272,9 @@ const StaffManagement: React.FC = () => {
 
       // 获取司机当前的仓库分配
       const currentWarehouses = driverWarehouses.get(driverId) || []
-      const currentWarehouseIds = currentWarehouses.map((w) => w.id)
+      // 只保留启用的仓库ID（过滤掉已禁用的仓库）
+      const enabledWarehouseIds = warehouses.map((w) => w.id)
+      const currentWarehouseIds = currentWarehouses.filter((w) => enabledWarehouseIds.includes(w.id)).map((w) => w.id)
 
       // 设置状态，打开对话框
       setAssigningWarehouseDriver({id: driverId, name: driverName})

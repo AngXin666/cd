@@ -27,18 +27,19 @@ const DriverManagement: React.FC = () => {
     setDrivers(driverList)
   }, [])
 
-  // 加载管理员负责的仓库列表
+  // 加载管理员负责的仓库列表（只加载启用的仓库）
   const loadWarehouses = useCallback(async () => {
     if (!user?.id) return
     const data = await getManagerWarehouses(user.id)
-    setWarehouses(data)
+    const enabledWarehouses = data.filter((w) => w.is_active)
+    setWarehouses(enabledWarehouses)
   }, [user?.id])
 
   // 加载司机的仓库分配
   const loadDriverWarehouses = useCallback(
     async (driverId: string) => {
       const warehouseIds = await getDriverWarehouseIds(driverId)
-      // 只显示管理员负责的仓库
+      // 只显示管理员负责的且启用的仓库
       const managerWarehouseIds = warehouses.map((w) => w.id)
       const filteredIds = warehouseIds.filter((id) => managerWarehouseIds.includes(id))
       setSelectedWarehouseIds(filteredIds)
