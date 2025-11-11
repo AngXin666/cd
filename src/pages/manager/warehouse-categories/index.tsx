@@ -1,9 +1,16 @@
-import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Checkbox, CheckboxGroup, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {batchUpsertCategoryPrices, getAllCategories, getCategoryPricesByWarehouse, getManagerWarehouses} from '@/db/api'
+import {
+  batchUpsertCategoryPrices,
+  getAllCategories,
+  getCategoryPricesByWarehouse,
+  getManagerWarehouses,
+  getWarehouseCategories,
+  setWarehouseCategories
+} from '@/db/api'
 import type {CategoryPrice, PieceWorkCategory, Warehouse} from '@/db/types'
 
 // 品类价格编辑状态
@@ -18,6 +25,7 @@ const WarehouseCategories: React.FC = () => {
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
+  const [warehouseCategoryIds, setWarehouseCategoryIds] = useState<string[]>([])
   const [_categoryPrices, setCategoryPrices] = useState<CategoryPrice[]>([])
   const [priceEdits, setPriceEdits] = useState<Map<string, CategoryPriceEdit>>(new Map())
 
@@ -36,6 +44,13 @@ const WarehouseCategories: React.FC = () => {
     const data = await getAllCategories()
     setCategories(data)
   }, [])
+
+  // 加载仓库配置的品类
+  const loadWarehouseCategories = useCallback(async () => {
+    if (!selectedWarehouse) return
+    const categoryIds = await getWarehouseCategories(selectedWarehouse.id)
+    setWarehouseCategoryIds(categoryIds)
+  }, [selectedWarehouse])
 
   // 加载品类价格配置
   const loadCategoryPrices = useCallback(async () => {
@@ -60,20 +75,56 @@ const WarehouseCategories: React.FC = () => {
   }, [loadWarehouses, loadCategories])
 
   useEffect(() => {
+    loadWarehouseCategories()
     loadCategoryPrices()
-  }, [loadCategoryPrices])
+  }, [loadWarehouseCategories, loadCategoryPrices])
 
   useDidShow(() => {
     loadWarehouses()
     loadCategories()
+    loadWarehouseCategories()
     loadCategoryPrices()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadWarehouses(), loadCategories(), loadCategoryPrices()])
+    await Promise.all([loadWarehouses(), loadCategories(), loadWarehouseCategories(), loadCategoryPrices()])
     Taro.stopPullDownRefresh()
   })
+
+  // 获取仓库配置的品类列表
+  const warehouseCategories = categories.filter((c) => c.is_active && warehouseCategoryIds.includes(c.id))
+
+  // 品类选择变化
+  const handleCategoryChange = (e: any) => {
+    setWarehouseCategoryIds(e.detail.value)
+  }
+
+  // 保存仓库品类配置
+  const handleSaveWarehouseCategories = async () => {
+    if (!selectedWarehouse) {
+      Taro.showToast({
+        title: '请选择仓库',
+        icon: 'none'
+      })
+      return
+    }
+
+    const success = await setWarehouseCategories(selectedWarehouse.id, warehouseCategoryIds)
+
+    if (success) {
+      Taro.showToast({
+        title: '保存成功',
+        icon: 'success'
+      })
+      loadWarehouseCategories()
+    } else {
+      Taro.showToast({
+        title: '保存失败',
+        icon: 'error'
+      })
+    }
+  }
 
   // 获取品类的价格编辑状态
   const getPriceEdit = (categoryId: string): CategoryPriceEdit => {
@@ -107,7 +158,7 @@ const WarehouseCategories: React.FC = () => {
       return
     }
 
-    // 验证价格输入
+    // 验证价格输入 - 只处理仓库配置的品类
     const inputs: Array<{
       warehouse_id: string
       category_id: string
@@ -115,7 +166,7 @@ const WarehouseCategories: React.FC = () => {
       driver_with_vehicle_price: number
     }> = []
 
-    for (const category of categories.filter((c) => c.is_active)) {
+    for (const category of warehouseCategories) {
       const edit = getPriceEdit(category.id)
       const driverPrice = Number.parseFloat(edit.driverPrice)
       const driverWithVehiclePrice = Number.parseFloat(edit.driverWithVehiclePrice)
@@ -198,68 +249,35 @@ const WarehouseCategories: React.FC = () => {
             </View>
           )}
 
-          {/* 品类价格配置 */}
+          {/* 仓库品类配置 */}
           {selectedWarehouse && (
-            <View className="bg-white rounded-lg p-4 shadow">
+            <View className="bg-white rounded-lg p-4 mb-4 shadow">
               <View className="flex items-center mb-3">
-                <View className="i-mdi-currency-cny text-green-600 text-xl mr-2" />
-                <Text className="text-gray-800 text-base font-bold">{selectedWarehouse.name} - 品类价格配置</Text>
+                <View className="i-mdi-tag-multiple text-green-600 text-xl mr-2" />
+                <Text className="text-gray-800 text-base font-bold">{selectedWarehouse.name} - 品类配置</Text>
               </View>
+              <Text className="text-gray-500 text-xs mb-3">选择该仓库可以操作的品类</Text>
 
               {categories.filter((c) => c.is_active).length > 0 ? (
                 <View>
-                  {/* 表头 */}
-                  <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
-                    <View className="flex-1">
-                      <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
-                    </View>
-                    <View className="w-24 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
-                    </View>
-                    <View className="w-24 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
-                    </View>
-                  </View>
-
-                  {/* 价格列表 */}
-                  {categories
-                    .filter((c) => c.is_active)
-                    .map((category) => {
-                      const priceEdit = getPriceEdit(category.id)
-                      return (
+                  <CheckboxGroup onChange={handleCategoryChange}>
+                    {categories
+                      .filter((c) => c.is_active)
+                      .map((category) => (
                         <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
-                          <View className="flex-1">
-                            <Text className="text-gray-800 text-sm">{category.name}</Text>
-                          </View>
-                          <View className="w-24 px-1">
-                            <Input
-                              type="digit"
-                              className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
-                              placeholder="0"
-                              value={priceEdit.driverPrice}
-                              onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
-                            />
-                          </View>
-                          <View className="w-24 px-1">
-                            <Input
-                              type="digit"
-                              className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
-                              placeholder="0"
-                              value={priceEdit.driverWithVehiclePrice}
-                              onInput={(e) => updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)}
-                            />
-                          </View>
+                          <Checkbox value={category.id} checked={warehouseCategoryIds.includes(category.id)} />
+                          <Text className="text-gray-800 text-sm ml-3">{category.name}</Text>
                         </View>
-                      )
-                    })}
+                      ))}
+                  </CheckboxGroup>
 
                   {/* 保存按钮 */}
                   <View className="mt-4">
                     <Button
                       size="default"
                       className="w-full bg-green-600 text-white py-3 rounded-lg text-base break-keep"
-                      onClick={handleSavePrices}>
-                      保存价格配置
+                      onClick={handleSaveWarehouseCategories}>
+                      保存品类配置
                     </Button>
                   </View>
                 </View>
@@ -269,6 +287,80 @@ const WarehouseCategories: React.FC = () => {
                   <Text className="text-gray-400 text-sm block">暂无启用的品类</Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {/* 品类价格配置 */}
+          {selectedWarehouse && warehouseCategories.length > 0 && (
+            <View className="bg-white rounded-lg p-4 shadow">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-currency-cny text-green-600 text-xl mr-2" />
+                <Text className="text-gray-800 text-base font-bold">{selectedWarehouse.name} - 品类价格配置</Text>
+              </View>
+
+              <View>
+                {/* 表头 */}
+                <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
+                  <View className="flex-1">
+                    <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
+                  </View>
+                  <View className="w-24 text-center">
+                    <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
+                  </View>
+                  <View className="w-24 text-center">
+                    <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
+                  </View>
+                </View>
+
+                {/* 价格列表 */}
+                {warehouseCategories.map((category) => {
+                  const priceEdit = getPriceEdit(category.id)
+                  return (
+                    <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
+                      <View className="flex-1">
+                        <Text className="text-gray-800 text-sm">{category.name}</Text>
+                      </View>
+                      <View className="w-24 px-1">
+                        <Input
+                          type="digit"
+                          className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                          placeholder="0"
+                          value={priceEdit.driverPrice}
+                          onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
+                        />
+                      </View>
+                      <View className="w-24 px-1">
+                        <Input
+                          type="digit"
+                          className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                          placeholder="0"
+                          value={priceEdit.driverWithVehiclePrice}
+                          onInput={(e) => updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)}
+                        />
+                      </View>
+                    </View>
+                  )
+                })}
+
+                {/* 保存按钮 */}
+                <View className="mt-4">
+                  <Button
+                    size="default"
+                    className="w-full bg-green-600 text-white py-3 rounded-lg text-base break-keep"
+                    onClick={handleSavePrices}>
+                    保存价格配置
+                  </Button>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* 提示信息 */}
+          {selectedWarehouse && warehouseCategories.length === 0 && (
+            <View className="bg-white rounded-lg p-6 shadow text-center">
+              <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
+              <Text className="text-gray-600 text-sm block">请先为该仓库配置品类</Text>
+              <Text className="text-gray-400 text-xs block mt-1">配置品类后才能设置价格</Text>
             </View>
           )}
         </View>
