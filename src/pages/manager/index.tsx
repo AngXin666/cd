@@ -140,7 +140,7 @@ const ManagerHome: React.FC = () => {
   }
 
   const handleDriverManagement = () => {
-    navigateTo({url: '/pages/manager/driver-management/index'})
+    navigateTo({url: '/pages/manager/staff-management/index'})
   }
 
   const handleProfileClick = () => {

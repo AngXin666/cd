@@ -2353,6 +2353,26 @@ export async function getAllManagers(): Promise<Profile[]> {
 }
 
 /**
+ * 获取所有司机列表
+ */
+export async function getAllDrivers(): Promise<Profile[]> {
+  console.log('🔍 getAllDrivers: 开始获取司机列表')
+  const {data, error} = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'driver')
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('❌ 获取司机列表失败:', error)
+    return []
+  }
+
+  console.log(`✅ getAllDrivers: 获取到 ${data?.length || 0} 个司机`)
+  return Array.isArray(data) ? data : []
+}
+
+/**
  * 修改用户角色（超级管理员）
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {

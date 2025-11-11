@@ -6,9 +6,9 @@ import {useCallback, useEffect, useState} from 'react'
 import {
   setDriverWarehouses as assignDriverWarehouses,
   getAllDrivers,
-  getAllWarehouses,
   getDriversByWarehouse,
   getDriverWarehouses,
+  getManagerWarehouses,
   removeWarehouseFromDriver,
   resetUserPassword
 } from '@/db/api'
@@ -36,17 +36,18 @@ const StaffManagement: React.FC = () => {
     {label: '带车司机', value: 'with_vehicle'}
   ]
 
-  // 加载所有仓库列表（超级管理员可以看到所有仓库）
+  // 加载管理员管辖的仓库列表
   const loadWarehouses = useCallback(async () => {
+    if (!user?.id) return
     try {
-      const data = await getAllWarehouses()
+      const data = await getManagerWarehouses(user.id)
       const enabledWarehouses = data.filter((w) => w.is_active)
       setWarehouses(enabledWarehouses)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
       Taro.showToast({title: '加载仓库失败', icon: 'error'})
     }
-  }, [])
+  }, [user?.id])
 
   // 过滤司机
   const filterDrivers = useCallback(
@@ -195,7 +196,7 @@ const StaffManagement: React.FC = () => {
       const currentWarehouses = driverWarehouses.get(driverId) || []
       const currentWarehouseIds = currentWarehouses.map((w) => w.id)
 
-      // 显示所有仓库供选择
+      // 只显示管理员管辖的仓库
       const warehouseNames = warehouses.map((w) => w.name)
       const _selectedIndexes = warehouses
         .map((w, index) => (currentWarehouseIds.includes(w.id) ? index : -1))
@@ -412,6 +413,8 @@ const StaffManagement: React.FC = () => {
   // 渲染司机卡片（司机分配标签）
   const renderDriverAssignmentCard = (driver: Profile) => {
     const warehouseList = driverWarehouses.get(driver.id) || []
+    // 只显示管理员管辖的仓库
+    const managedWarehouses = warehouseList.filter((w) => warehouses.some((mw) => mw.id === w.id))
     const workDays = getWorkDays(driver.join_date)
 
     return (
@@ -456,15 +459,15 @@ const StaffManagement: React.FC = () => {
           </View>
         </View>
 
-        {/* 已分配的仓库 */}
-        {warehouseList.length > 0 && (
+        {/* 已分配的仓库（仅显示管理员管辖的） */}
+        {managedWarehouses.length > 0 && (
           <View className="mb-3 p-3 bg-blue-50 rounded-lg">
             <View className="flex items-center mb-2">
               <View className="i-mdi-warehouse text-sm text-blue-600 mr-1" />
               <Text className="text-xs text-blue-800 font-medium">已分配的仓库</Text>
             </View>
             <View className="flex flex-wrap gap-2">
-              {warehouseList.map((w) => (
+              {managedWarehouses.map((w) => (
                 <View key={w.id} className="px-2 py-1 bg-white rounded">
                   <Text className="text-xs text-gray-700">{w.name}</Text>
                 </View>
