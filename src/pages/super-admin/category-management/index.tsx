@@ -1,4 +1,4 @@
-import {Button, Input, ScrollView, Swiper, SwiperItem, Switch, Text, View} from '@tarojs/components'
+import {Button, Input, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -143,7 +143,7 @@ const CategoryManagement: React.FC = () => {
 
   // 删除品类
   const handleDeleteCategory = async (category: PieceWorkCategory) => {
-    const confirmed = await confirmDelete(`确定要删除品类"${category.name}"吗？`)
+    const confirmed = await confirmDelete('删除品类', `确定要删除品类"${category.name}"吗？`)
     if (!confirmed) return
 
     const success = await deleteCategory(category.id)
@@ -251,9 +251,9 @@ const CategoryManagement: React.FC = () => {
     }
   }
 
-  // 处理 Swiper 切换
-  const handleSwiperChange = (e: any) => {
-    setSelectedWarehouseIndex(e.detail.current)
+  // 处理仓库切换
+  const handleWarehouseChange = (index: number) => {
+    setSelectedWarehouseIndex(index)
   }
 
   return (
@@ -325,7 +325,7 @@ const CategoryManagement: React.FC = () => {
             )}
           </View>
 
-          {/* 仓库列表 - 使用 Swiper 左右滑动切换 */}
+          {/* 仓库列表 */}
           {warehouses.length > 0 ? (
             <View>
               {/* 仓库指示器 */}
@@ -338,14 +338,16 @@ const CategoryManagement: React.FC = () => {
                 </View>
                 {warehouses.length > 1 && (
                   <View className="flex items-center justify-center">
-                    <Text className="text-gray-400 text-xs">左右滑动切换仓库</Text>
-                    <View className="flex items-center mt-2">
-                      {warehouses.map((_, index) => (
+                    <Text className="text-gray-400 text-xs mb-2">点击圆点切换仓库</Text>
+                    <View className="flex items-center">
+                      {warehouses.map((_warehouse, index) => (
                         <View
                           key={index}
-                          className={`w-2 h-2 rounded-full mx-1 ${
+                          className={`w-3 h-3 rounded-full mx-1 ${
                             index === selectedWarehouseIndex ? 'bg-blue-600' : 'bg-gray-300'
                           }`}
+                          onClick={() => handleWarehouseChange(index)}
+                          style={{cursor: 'pointer'}}
                         />
                       ))}
                     </View>
@@ -353,97 +355,80 @@ const CategoryManagement: React.FC = () => {
                 )}
               </View>
 
-              {/* Swiper 仓库内容区域 */}
-              <Swiper
-                className="warehouse-swiper"
-                style={{height: 'auto'}}
-                current={selectedWarehouseIndex}
-                onChange={handleSwiperChange}
-                circular={false}
-                indicatorDots={false}>
-                {warehouses.map((warehouse) => (
-                  <SwiperItem key={warehouse.id}>
-                    <View className="pb-4">
-                      {/* 品类价格配置 */}
-                      {warehouseCategories.length > 0 ? (
-                        <View className="bg-white rounded-lg p-4 shadow">
-                          <View className="flex items-center mb-3">
-                            <View className="i-mdi-currency-cny text-blue-600 text-xl mr-2" />
-                            <Text className="text-gray-800 text-base font-bold">品类价格配置</Text>
-                          </View>
+              {/* 品类价格配置 */}
+              {warehouseCategories.length > 0 ? (
+                <View className="bg-white rounded-lg p-4 shadow">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-currency-cny text-blue-600 text-xl mr-2" />
+                    <Text className="text-gray-800 text-base font-bold">品类价格配置</Text>
+                  </View>
 
-                          <View>
-                            {/* 表头 */}
-                            <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
-                              <View className="flex-1">
-                                <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
-                              </View>
-                              <View className="w-24 text-center">
-                                <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
-                              </View>
-                              <View className="w-24 text-center">
-                                <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
-                              </View>
-                            </View>
-
-                            {/* 价格列表 */}
-                            {warehouseCategories.map((category) => {
-                              const priceEdit = getPriceEdit(category.id)
-                              return (
-                                <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
-                                  <View className="flex-1">
-                                    <Text className="text-gray-800 text-sm">{category.name}</Text>
-                                  </View>
-                                  <View className="w-24 px-1">
-                                    <View style={{overflow: 'hidden'}}>
-                                      <Input
-                                        type="digit"
-                                        className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
-                                        placeholder="0"
-                                        value={priceEdit.driverPrice}
-                                        onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
-                                      />
-                                    </View>
-                                  </View>
-                                  <View className="w-24 px-1">
-                                    <View style={{overflow: 'hidden'}}>
-                                      <Input
-                                        type="digit"
-                                        className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
-                                        placeholder="0"
-                                        value={priceEdit.driverWithVehiclePrice}
-                                        onInput={(e) =>
-                                          updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)
-                                        }
-                                      />
-                                    </View>
-                                  </View>
-                                </View>
-                              )
-                            })}
-
-                            {/* 保存按钮 */}
-                            <View className="mt-4">
-                              <Button
-                                size="default"
-                                className="w-full bg-blue-600 text-white py-3 rounded-lg text-base break-keep"
-                                onClick={handleSavePrices}>
-                                保存价格配置
-                              </Button>
-                            </View>
-                          </View>
-                        </View>
-                      ) : (
-                        <View className="bg-white rounded-lg p-6 shadow text-center">
-                          <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
-                          <Text className="text-gray-600 text-sm block">该仓库暂无品类配置</Text>
-                          <Text className="text-gray-400 text-xs block mt-1">请先添加品类并配置价格</Text>
-                        </View>
-                      )}
+                  <View>
+                    {/* 表头 */}
+                    <View className="flex items-center bg-gray-50 rounded-lg p-3 mb-2">
+                      <View className="flex-1">
+                        <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
+                      </View>
+                      <View className="w-24 text-center">
+                        <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
+                      </View>
+                      <View className="w-24 text-center">
+                        <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
+                      </View>
                     </View>
-                  </SwiperItem>
-                ))}
-              </Swiper>
+
+                    {/* 价格列表 */}
+                    {warehouseCategories.map((category) => {
+                      const priceEdit = getPriceEdit(category.id)
+                      return (
+                        <View key={category.id} className="flex items-center py-3 border-b border-gray-100">
+                          <View className="flex-1">
+                            <Text className="text-gray-800 text-sm">{category.name}</Text>
+                          </View>
+                          <View className="w-24 px-1">
+                            <View style={{overflow: 'hidden'}}>
+                              <Input
+                                type="digit"
+                                className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                                placeholder="0"
+                                value={priceEdit.driverPrice}
+                                onInput={(e) => updatePriceEdit(category.id, 'driverPrice', e.detail.value)}
+                              />
+                            </View>
+                          </View>
+                          <View className="w-24 px-1">
+                            <View style={{overflow: 'hidden'}}>
+                              <Input
+                                type="digit"
+                                className="bg-gray-50 rounded px-2 py-1 text-sm text-center"
+                                placeholder="0"
+                                value={priceEdit.driverWithVehiclePrice}
+                                onInput={(e) => updatePriceEdit(category.id, 'driverWithVehiclePrice', e.detail.value)}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      )
+                    })}
+
+                    {/* 保存按钮 */}
+                    <View className="mt-4">
+                      <Button
+                        size="default"
+                        className="w-full bg-blue-600 text-white py-3 rounded-lg text-base break-keep"
+                        onClick={handleSavePrices}>
+                        保存价格配置
+                      </Button>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View className="bg-white rounded-lg p-6 shadow text-center">
+                  <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
+                  <Text className="text-gray-600 text-sm block">该仓库暂无品类配置</Text>
+                  <Text className="text-gray-400 text-xs block mt-1">请先添加品类并配置价格</Text>
+                </View>
+              )}
             </View>
           ) : (
             <View className="bg-white rounded-lg p-6 mb-4 shadow text-center">
