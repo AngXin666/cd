@@ -64,7 +64,11 @@ const DriverHome: React.FC = () => {
   }, [user])
 
   // 使用仓库列表管理 Hook（原始列表）
-  const {warehouses: rawWarehouses, loading: warehousesLoading, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '', true)
+  const {
+    warehouses: rawWarehouses,
+    loading: warehousesLoading,
+    refresh: refreshWarehouses
+  } = useDriverWarehouses(user?.id || '', true)
 
   // 使用仓库排序 Hook（按数据量排序，隐藏无数据仓库）
   const {

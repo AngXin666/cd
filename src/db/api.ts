@@ -3402,10 +3402,7 @@ export async function getWarehouseDataVolume(
 
     // 计算总数据量
     const totalVolume =
-      (todayPieceCount || 0) +
-      (monthPieceCount || 0) +
-      (todayAttendanceCount || 0) +
-      (monthAttendanceCount || 0)
+      (todayPieceCount || 0) + (monthPieceCount || 0) + (todayAttendanceCount || 0) + (monthAttendanceCount || 0)
 
     // 判断是否有数据（今日或本月有任何数据）
     const hasData = (todayPieceCount || 0) > 0 || (monthPieceCount || 0) > 0 || (todayAttendanceCount || 0) > 0
@@ -3431,10 +3428,7 @@ export async function getWarehouseDataVolume(
  * @param warehouseIds 仓库ID列表
  * @param userId 用户ID（可选）
  */
-export async function getWarehousesDataVolume(
-  warehouseIds: string[],
-  userId?: string
-): Promise<WarehouseDataVolume[]> {
+export async function getWarehousesDataVolume(warehouseIds: string[], userId?: string): Promise<WarehouseDataVolume[]> {
   try {
     const results = await Promise.all(warehouseIds.map((id) => getWarehouseDataVolume(id, userId)))
     return results.filter((r) => r !== null) as WarehouseDataVolume[]
