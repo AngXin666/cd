@@ -2333,6 +2333,26 @@ export async function getAllUsers(): Promise<Profile[]> {
 }
 
 /**
+ * 获取所有管理员用户
+ */
+export async function getAllManagers(): Promise<Profile[]> {
+  console.log('🔍 getAllManagers: 开始获取管理员列表')
+  const {data, error} = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'manager')
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('❌ 获取管理员列表失败:', error)
+    return []
+  }
+
+  console.log(`✅ getAllManagers: 获取到 ${data?.length || 0} 个管理员`)
+  return Array.isArray(data) ? data : []
+}
+
+/**
  * 修改用户角色（超级管理员）
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {

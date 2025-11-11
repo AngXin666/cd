@@ -37,6 +37,7 @@ const pages = [
   'pages/super-admin/leave-approval/index',
   'pages/super-admin/driver-leave-detail/index',
   'pages/super-admin/user-management/index',
+  'pages/super-admin/staff-management/index',
   'pages/super-admin/permission-config/index',
   'pages/super-admin/edit-user/index'
 ]
