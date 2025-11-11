@@ -1,7 +1,7 @@
-import {Button, Input, Text, View} from '@tarojs/components'
-import {reLaunch, showToast, switchTab} from '@tarojs/taro'
+import {Button, Checkbox, Input, Text, View} from '@tarojs/components'
+import Taro, {getStorageSync, reLaunch, setStorageSync, showToast, switchTab} from '@tarojs/taro'
 import type React from 'react'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
 const Login: React.FC = () => {
@@ -11,6 +11,24 @@ const Login: React.FC = () => {
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [rememberMe, setRememberMe] = useState(false)
+
+  // 页面加载时读取保存的账号密码
+  useEffect(() => {
+    try {
+      const savedAccount = getStorageSync('saved_account')
+      const savedPassword = getStorageSync('saved_password')
+      const savedRemember = getStorageSync('remember_me')
+
+      if (savedRemember && savedAccount) {
+        setAccount(savedAccount)
+        setPassword(savedPassword || '')
+        setRememberMe(true)
+      }
+    } catch (error) {
+      console.error('读取保存的账号密码失败:', error)
+    }
+  }, [])
 
   const handleLoginSuccess = async () => {
     // 登录成功后跳转到工作台首页，由首页根据角色自动跳转
@@ -142,6 +160,22 @@ const Login: React.FC = () => {
           showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
         }
       } else {
+        // 登录成功，保存账号密码（如果勾选了记住密码）
+        try {
+          if (rememberMe) {
+            setStorageSync('saved_account', account)
+            setStorageSync('saved_password', password)
+            setStorageSync('remember_me', true)
+          } else {
+            // 如果没有勾选，清除保存的信息
+            Taro.removeStorageSync('saved_account')
+            Taro.removeStorageSync('saved_password')
+            Taro.removeStorageSync('remember_me')
+          }
+        } catch (error) {
+          console.error('保存账号密码失败:', error)
+        }
+
         showToast({title: '登录成功', icon: 'success'})
         await handleLoginSuccess()
       }
@@ -161,45 +195,27 @@ const Login: React.FC = () => {
 
       <View className="px-6">
         <View className="bg-white rounded-2xl p-6 shadow-lg">
-          {/* 登录方式切换 */}
-          <View className="flex mb-6">
-            <View
-              className={`flex-1 text-center py-3 rounded-lg transition-all ${
-                loginType === 'password' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-              onClick={() => setLoginType('password')}>
-              <Text className={`text-sm font-medium ${loginType === 'password' ? 'text-white' : 'text-gray-600'}`}>
-                密码登录
-              </Text>
-            </View>
-            <View className="w-2" />
-            <View
-              className={`flex-1 text-center py-3 rounded-lg transition-all ${
-                loginType === 'otp' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-              onClick={() => setLoginType('otp')}>
-              <Text className={`text-sm font-medium ${loginType === 'otp' ? 'text-white' : 'text-gray-600'}`}>
-                验证码登录
-              </Text>
-            </View>
-          </View>
-
-          {/* 账号输入 */}
+          {/* 账号输入 - 优化输入体验 */}
           <View className="mb-4">
-            <View className="flex items-center bg-gray-50 rounded-lg px-4 py-3">
-              <View className="i-mdi-account text-xl text-gray-400 mr-3" />
+            <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
+              <View className="i-mdi-account text-2xl text-primary mr-3" />
               <Input
-                className="flex-1 text-sm"
+                className="flex-1 py-4 text-base"
                 type={loginType === 'otp' ? 'number' : 'text'}
                 maxlength={loginType === 'otp' ? 11 : 50}
                 placeholder={loginType === 'otp' ? '请输入11位手机号' : '请输入手机号或账号'}
                 value={account}
                 onInput={(e) => setAccount(e.detail.value)}
+                focus={false}
+                style={{fontSize: '16px'}}
               />
+              {account && (
+                <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setAccount('')} />
+              )}
             </View>
             {/* 输入提示 */}
             {loginType === 'password' && (
-              <View className="mt-1 px-1">
+              <View className="mt-2 px-1">
                 <Text className="text-xs text-gray-500">支持：11位手机号、账号名</Text>
               </View>
             )}
@@ -207,65 +223,124 @@ const Login: React.FC = () => {
 
           {/* 密码登录 */}
           {loginType === 'password' && (
-            <View className="mb-6">
-              <View className="flex items-center bg-gray-50 rounded-lg px-4 py-3">
-                <View className="i-mdi-lock text-xl text-gray-400 mr-3" />
-                <Input
-                  className="flex-1 text-sm"
-                  type="text"
-                  password
-                  placeholder="请输入密码"
-                  value={password}
-                  onInput={(e) => setPassword(e.detail.value)}
-                />
+            <>
+              <View className="mb-4">
+                <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
+                  <View className="i-mdi-lock text-2xl text-primary mr-3" />
+                  <Input
+                    className="flex-1 py-4 text-base"
+                    type="text"
+                    password
+                    placeholder="请输入密码"
+                    value={password}
+                    onInput={(e) => setPassword(e.detail.value)}
+                    focus={false}
+                    style={{fontSize: '16px'}}
+                  />
+                  {password && (
+                    <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setPassword('')} />
+                  )}
+                </View>
               </View>
-            </View>
+
+              {/* 记住密码选项 */}
+              <View className="mb-6 flex items-center px-1">
+                <Checkbox
+                  value="remember"
+                  checked={rememberMe}
+                  onClick={() => setRememberMe(!rememberMe)}
+                  color="#1E3A8A"
+                  className="mr-2"
+                />
+                <Text className="text-sm text-gray-600" onClick={() => setRememberMe(!rememberMe)}>
+                  记住账号密码
+                </Text>
+              </View>
+            </>
           )}
 
           {/* 验证码登录 */}
           {loginType === 'otp' && (
-            <View className="mb-6">
-              <View className="flex items-center bg-gray-50 rounded-lg px-4 py-3 mb-3">
-                <View className="i-mdi-message-text text-xl text-gray-400 mr-3" />
-                <Input
-                  className="flex-1 text-sm"
-                  type="number"
-                  maxlength={6}
-                  placeholder="请输入6位验证码"
-                  value={otp}
-                  onInput={(e) => setOtp(e.detail.value)}
-                />
+            <>
+              <View className="mb-4">
+                <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
+                  <View className="i-mdi-message-text text-2xl text-primary mr-3" />
+                  <Input
+                    className="flex-1 py-4 text-base"
+                    type="number"
+                    maxlength={6}
+                    placeholder="请输入6位验证码"
+                    value={otp}
+                    onInput={(e) => setOtp(e.detail.value)}
+                    focus={false}
+                    style={{fontSize: '16px'}}
+                  />
+                  {otp && <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setOtp('')} />}
+                </View>
               </View>
               <Button
-                className="w-full text-sm break-keep"
+                className="w-full text-base break-keep font-medium mb-6"
                 size="default"
                 disabled={countdown > 0 || loading}
                 style={{
                   backgroundColor: countdown > 0 || loading ? '#E5E7EB' : '#F97316',
                   color: 'white',
-                  borderRadius: '8px',
-                  border: 'none'
+                  borderRadius: '12px',
+                  border: 'none',
+                  padding: '14px 0'
                 }}
                 onClick={handleSendOtp}>
                 {countdown > 0 ? `${countdown}秒后重试` : '发送验证码'}
               </Button>
-            </View>
+            </>
           )}
 
-          {/* 登录按钮 */}
-          <Button
-            className="w-full text-sm break-keep"
-            size="default"
-            disabled={loading}
-            style={{
-              backgroundColor: loading ? '#93C5FD' : '#1E3A8A',
-              color: 'white',
-              borderRadius: '8px',
-              border: 'none'
-            }}
-            onClick={loginType === 'password' ? handlePasswordLogin : handleOtpLogin}>
-            {loading ? '登录中...' : '登录'}
-          </Button>
+          {/* 登录按钮组 - 将切换按钮改造成登录按钮 */}
+          <View className="flex gap-3">
+            <Button
+              className="flex-1 text-base break-keep font-bold"
+              size="default"
+              disabled={loading}
+              style={{
+                backgroundColor: loginType === 'password' ? (loading ? '#93C5FD' : '#1E3A8A') : '#F3F4F6',
+                color: loginType === 'password' ? 'white' : '#6B7280',
+                borderRadius: '12px',
+                border: loginType === 'password' ? 'none' : '2px solid #E5E7EB',
+                padding: '14px 0',
+                boxShadow: loginType === 'password' ? '0 4px 12px rgba(30, 58, 138, 0.3)' : 'none'
+              }}
+              onClick={() => {
+                if (loginType === 'password') {
+                  handlePasswordLogin()
+                } else {
+                  setLoginType('password')
+                }
+              }}>
+              {loginType === 'password' ? (loading ? '登录中...' : '密码登录') : '密码登录'}
+            </Button>
+
+            <Button
+              className="flex-1 text-base break-keep font-bold"
+              size="default"
+              disabled={loading}
+              style={{
+                backgroundColor: loginType === 'otp' ? (loading ? '#93C5FD' : '#1E3A8A') : '#F3F4F6',
+                color: loginType === 'otp' ? 'white' : '#6B7280',
+                borderRadius: '12px',
+                border: loginType === 'otp' ? 'none' : '2px solid #E5E7EB',
+                padding: '14px 0',
+                boxShadow: loginType === 'otp' ? '0 4px 12px rgba(30, 58, 138, 0.3)' : 'none'
+              }}
+              onClick={() => {
+                if (loginType === 'otp') {
+                  handleOtpLogin()
+                } else {
+                  setLoginType('otp')
+                }
+              }}>
+              {loginType === 'otp' ? (loading ? '登录中...' : '验证码登录') : '验证码登录'}
+            </Button>
+          </View>
         </View>
 
         {/* 测试账号提示 */}
