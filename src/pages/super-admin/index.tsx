@@ -5,16 +5,30 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {getAllProfiles, getAllWarehouses, getCurrentUserProfile} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
-import {useDriverStats, useSuperAdminDashboard} from '@/hooks'
+import {useDriverStats, useSuperAdminDashboard, useWarehousesSorted} from '@/hooks'
 
 const SuperAdminHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [allUsers, setAllUsers] = useState<Profile[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [rawWarehouses, setRawWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 使用仓库排序 Hook（按数据量排序）
+  const {
+    warehouses: sortedWarehouses,
+    loading: sortingLoading,
+    refresh: refreshSorting
+  } = useWarehousesSorted({
+    warehouses: rawWarehouses,
+    sortByVolume: true,
+    hideEmpty: false // 不隐藏无数据仓库，只排序
+  })
+
+  // 使用排序后的仓库列表
+  const warehouses = sortedWarehouses
 
   // 获取当前选中的仓库ID（index 0 表示所有仓库，不传warehouseId）
   const currentWarehouseId = currentWarehouseIndex === 0 ? undefined : warehouses[currentWarehouseIndex - 1]?.id
@@ -55,7 +69,7 @@ const SuperAdminHome: React.FC = () => {
   const loadWarehouses = useCallback(async () => {
     try {
       const warehousesData = await getAllWarehouses()
-      setWarehouses(warehousesData)
+      setRawWarehouses(warehousesData)
     } catch (error) {
       console.error('[SuperAdminHome] 加载仓库列表失败:', error)
     }
@@ -110,6 +124,7 @@ const SuperAdminHome: React.FC = () => {
     if (user) {
       loadData()
       loadWarehouses()
+      refreshSorting() // 刷新仓库排序
       refreshDashboard()
       refreshDriverStats()
     }
@@ -118,7 +133,7 @@ const SuperAdminHome: React.FC = () => {
   // 下拉刷新
   usePullDownRefresh(async () => {
     if (user) {
-      await Promise.all([loadData(), loadWarehouses(), refreshDashboard(), refreshDriverStats()])
+      await Promise.all([loadData(), loadWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
     }
     Taro.stopPullDownRefresh()
   })
@@ -309,10 +324,11 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-xs text-gray-400 ml-2">
                   ({currentWarehouseIndex + 1}/{warehouses.length + 1})
                 </Text>
+                <Text className="text-xs text-gray-400 ml-auto">按数据量排序</Text>
               </View>
               <View className="bg-white rounded-xl shadow-md overflow-hidden">
                 <Swiper
-                  className="h-16"
+                  className="h-20"
                   current={currentWarehouseIndex}
                   onChange={handleWarehouseChange}
                   indicatorDots
@@ -320,17 +336,33 @@ const SuperAdminHome: React.FC = () => {
                   indicatorActiveColor="#1E3A8A">
                   {/* 第一项：所有仓库 */}
                   <SwiperItem key="all">
-                    <View className="h-full flex items-center justify-center bg-gradient-to-r from-purple-50 to-purple-100">
-                      <View className="i-mdi-warehouse-multiple text-2xl text-purple-600 mr-2" />
-                      <Text className="text-lg font-bold text-purple-900">所有仓库</Text>
+                    <View className="h-full flex flex-col items-center justify-center bg-gradient-to-r from-purple-50 to-purple-100 px-4">
+                      <View className="flex items-center">
+                        <View className="i-mdi-warehouse-multiple text-2xl text-purple-600 mr-2" />
+                        <Text className="text-lg font-bold text-purple-900">所有仓库</Text>
+                      </View>
+                      <Text className="text-xs text-gray-500 mt-1">查看全部数据</Text>
                     </View>
                   </SwiperItem>
                   {/* 其他项：各个仓库 */}
                   {warehouses.map((warehouse) => (
                     <SwiperItem key={warehouse.id}>
-                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100">
-                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
-                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                      <View className="h-full flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                        <View className="flex items-center">
+                          <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                          <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                        </View>
+                        {warehouse.dataVolume && (
+                          <View className="flex items-center mt-1">
+                            <Text className="text-xs text-gray-500">
+                              今日: {warehouse.dataVolume.todayPieceCount}件
+                            </Text>
+                            <Text className="text-xs text-gray-400 mx-2">|</Text>
+                            <Text className="text-xs text-gray-500">
+                              本月: {warehouse.dataVolume.monthPieceCount}件
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </SwiperItem>
                   ))}
