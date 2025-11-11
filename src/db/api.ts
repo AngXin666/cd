@@ -3307,3 +3307,139 @@ export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApp
     return null
   }
 }
+
+/**
+ * 仓库数据量统计接口
+ */
+export interface WarehouseDataVolume {
+  warehouseId: string
+  warehouseName: string
+  todayPieceCount: number // 今日计件数
+  monthPieceCount: number // 本月计件数
+  todayAttendanceCount: number // 今日考勤数
+  monthAttendanceCount: number // 本月考勤数
+  totalVolume: number // 总数据量（用于排序）
+  hasData: boolean // 是否有数据
+}
+
+/**
+ * 获取仓库的数据量统计（用于排序和过滤）
+ * @param warehouseId 仓库ID
+ * @param userId 用户ID（可选，如果提供则只统计该用户的数据）
+ */
+export async function getWarehouseDataVolume(
+  warehouseId: string,
+  userId?: string
+): Promise<WarehouseDataVolume | null> {
+  try {
+    // 获取仓库信息
+    const {data: warehouse, error: warehouseError} = await supabase
+      .from('warehouses')
+      .select('id, name')
+      .eq('id', warehouseId)
+      .maybeSingle()
+
+    if (warehouseError || !warehouse) {
+      console.error('获取仓库信息失败:', warehouseError)
+      return null
+    }
+
+    const today = getLocalDateString()
+    const now = new Date()
+    const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+
+    // 统计今日计件数
+    let todayPieceQuery = supabase
+      .from('piece_work_records')
+      .select('id', {count: 'exact', head: true})
+      .eq('warehouse_id', warehouseId)
+      .eq('work_date', today)
+
+    if (userId) {
+      todayPieceQuery = todayPieceQuery.eq('user_id', userId)
+    }
+
+    const {count: todayPieceCount} = await todayPieceQuery
+
+    // 统计本月计件数
+    let monthPieceQuery = supabase
+      .from('piece_work_records')
+      .select('id', {count: 'exact', head: true})
+      .eq('warehouse_id', warehouseId)
+      .gte('work_date', firstDayOfMonth)
+
+    if (userId) {
+      monthPieceQuery = monthPieceQuery.eq('user_id', userId)
+    }
+
+    const {count: monthPieceCount} = await monthPieceQuery
+
+    // 统计今日考勤数
+    let todayAttendanceQuery = supabase
+      .from('attendance_records')
+      .select('id', {count: 'exact', head: true})
+      .eq('warehouse_id', warehouseId)
+      .eq('clock_in_date', today)
+
+    if (userId) {
+      todayAttendanceQuery = todayAttendanceQuery.eq('user_id', userId)
+    }
+
+    const {count: todayAttendanceCount} = await todayAttendanceQuery
+
+    // 统计本月考勤数
+    let monthAttendanceQuery = supabase
+      .from('attendance_records')
+      .select('id', {count: 'exact', head: true})
+      .eq('warehouse_id', warehouseId)
+      .gte('clock_in_date', firstDayOfMonth)
+
+    if (userId) {
+      monthAttendanceQuery = monthAttendanceQuery.eq('user_id', userId)
+    }
+
+    const {count: monthAttendanceCount} = await monthAttendanceQuery
+
+    // 计算总数据量
+    const totalVolume =
+      (todayPieceCount || 0) +
+      (monthPieceCount || 0) +
+      (todayAttendanceCount || 0) +
+      (monthAttendanceCount || 0)
+
+    // 判断是否有数据（今日或本月有任何数据）
+    const hasData = (todayPieceCount || 0) > 0 || (monthPieceCount || 0) > 0 || (todayAttendanceCount || 0) > 0
+
+    return {
+      warehouseId: warehouse.id,
+      warehouseName: warehouse.name,
+      todayPieceCount: todayPieceCount || 0,
+      monthPieceCount: monthPieceCount || 0,
+      todayAttendanceCount: todayAttendanceCount || 0,
+      monthAttendanceCount: monthAttendanceCount || 0,
+      totalVolume,
+      hasData
+    }
+  } catch (error) {
+    console.error('获取仓库数据量失败:', error)
+    return null
+  }
+}
+
+/**
+ * 批量获取多个仓库的数据量统计
+ * @param warehouseIds 仓库ID列表
+ * @param userId 用户ID（可选）
+ */
+export async function getWarehousesDataVolume(
+  warehouseIds: string[],
+  userId?: string
+): Promise<WarehouseDataVolume[]> {
+  try {
+    const results = await Promise.all(warehouseIds.map((id) => getWarehouseDataVolume(id, userId)))
+    return results.filter((r) => r !== null) as WarehouseDataVolume[]
+  } catch (error) {
+    console.error('批量获取仓库数据量失败:', error)
+    return []
+  }
+}
