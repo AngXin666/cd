@@ -51,13 +51,34 @@ const UserManagement: React.FC = () => {
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
+    console.log('========================================')
+    console.log('📋 用户管理页面：开始加载用户列表')
+    console.log('========================================')
+
     setLoading(true)
     try {
       const data = await getAllUsers()
+      console.log(`✅ 成功加载 ${data.length} 个用户`)
+
+      // 输出每个司机用户的详细信息
+      const drivers = data.filter((u) => u.role === 'driver')
+      if (drivers.length > 0) {
+        console.log('========================================')
+        console.log('🚗 司机用户详情:')
+        drivers.forEach((driver, index) => {
+          const driverType = driver.vehicle_plate ? '带车司机' : '纯司机'
+          console.log(`   ${index + 1}. ${driver.name}:`)
+          console.log(`      - role: ${driver.role}`)
+          console.log(`      - vehicle_plate: ${driver.vehicle_plate || '(null/空)'}`)
+          console.log(`      - 显示类型: ${driverType}`)
+        })
+        console.log('========================================')
+      }
+
       setUsers(data)
       filterUsers(data, searchKeyword, roleFilter)
     } catch (error) {
-      console.error('加载用户列表失败:', error)
+      console.error('❌ 加载用户列表失败:', error)
       Taro.showToast({title: '加载失败', icon: 'error'})
     } finally {
       setLoading(false)

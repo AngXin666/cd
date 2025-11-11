@@ -36,7 +36,13 @@ const EditUser: React.FC = () => {
 
     setLoading(true)
     try {
+      console.log('========================================')
+      console.log('🔍 开始加载用户信息，用户ID:', userId)
+      console.log('========================================')
+
       const data = await getUserById(userId)
+      console.log('📦 从数据库获取的用户数据:', JSON.stringify(data, null, 2))
+
       if (data) {
         setUserInfo(data)
         setName(data.name || '')
@@ -47,27 +53,40 @@ const EditUser: React.FC = () => {
 
         // 设置角色索引：根据 role 和 vehicle_plate 来判断
         let roleIndex = 0
+        let roleLabel = ''
+
         if (data.role === 'driver') {
           // 司机角色：根据是否有车牌号来区分
           if (data.vehicle_plate) {
             // 有车牌号 = 带车司机（索引1）
             roleIndex = 1
+            roleLabel = '带车司机'
           } else {
             // 无车牌号 = 纯司机（索引0）
             roleIndex = 0
+            roleLabel = '纯司机'
           }
         } else if (data.role === 'manager') {
           // 管理员（索引2）
           roleIndex = 2
+          roleLabel = '管理员'
         }
 
-        console.log('加载用户信息 - role:', data.role, 'vehicle_plate:', data.vehicle_plate, '设置角色索引:', roleIndex)
+        console.log('========================================')
+        console.log('🏷️  司机类型判断结果:')
+        console.log('   - 数据库 role 字段:', data.role)
+        console.log('   - 数据库 vehicle_plate 字段:', data.vehicle_plate || '(null/空)')
+        console.log('   - 计算出的角色索引:', roleIndex)
+        console.log('   - 计算出的角色标签:', roleLabel)
+        console.log('========================================')
+
         setSelectedRoleIndex(roleIndex)
       } else {
+        console.error('❌ 用户不存在')
         Taro.showToast({title: '用户不存在', icon: 'error'})
       }
     } catch (error) {
-      console.error('加载用户信息失败:', error)
+      console.error('❌ 加载用户信息失败:', error)
       Taro.showToast({title: '加载失败', icon: 'error'})
     } finally {
       setLoading(false)
