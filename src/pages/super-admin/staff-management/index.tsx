@@ -11,7 +11,8 @@ import {
   getManagerWarehouses,
   removeManagerWarehouse,
   resetUserPassword,
-  updateProfile
+  updateProfile,
+  updateUserRole
 } from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
@@ -198,6 +199,43 @@ const StaffManagement: React.FC = () => {
       }
     }
   }, [])
+
+  // 变更用户角色
+  const handleChangeRole = useCallback(
+    async (userId: string, userName: string, currentRole: string) => {
+      // 确定新角色
+      const newRole = currentRole === 'manager' ? 'driver' : 'manager'
+      const roleText = newRole === 'manager' ? '管理员' : '司机'
+      const currentRoleText = currentRole === 'manager' ? '管理员' : '司机'
+
+      const result = await Taro.showModal({
+        title: '变更角色',
+        content: `确定要将 ${userName} 从 ${currentRoleText} 变更为 ${roleText} 吗？`,
+        confirmText: '确定',
+        cancelText: '取消'
+      })
+
+      if (result.confirm) {
+        Taro.showLoading({title: '变更中...'})
+        try {
+          const success = await updateUserRole(userId, newRole)
+          if (success) {
+            Taro.showToast({title: '角色变更成功', icon: 'success'})
+            // 刷新管理员列表
+            loadManagers()
+          } else {
+            Taro.showToast({title: '角色变更失败', icon: 'error'})
+          }
+        } catch (error) {
+          console.error('变更角色失败:', error)
+          Taro.showToast({title: '角色变更失败', icon: 'error'})
+        } finally {
+          Taro.hideLoading()
+        }
+      }
+    },
+    [loadManagers]
+  )
 
   // 开始编辑管理员
   const handleEditManager = useCallback((manager: Profile) => {
@@ -508,25 +546,37 @@ const StaffManagement: React.FC = () => {
         </View>
 
         {/* 操作按钮 */}
-        <View className="flex gap-2">
-          <Button
-            className="flex-1 bg-blue-50 text-blue-600 py-2 rounded break-keep text-xs"
-            size="default"
-            onClick={() => handleEditManager(manager)}>
-            编辑信息
-          </Button>
-          <Button
-            className="flex-1 bg-green-50 text-green-600 py-2 rounded break-keep text-xs"
-            size="default"
-            onClick={() => handleAssignWarehouseToManager(manager.id, manager.name || '未命名')}>
-            分配仓库
-          </Button>
-          <Button
-            className="flex-1 bg-orange-50 text-orange-600 py-2 rounded break-keep text-xs"
-            size="default"
-            onClick={() => handleResetPassword(manager.id, manager.name || '未命名')}>
-            重置密码
-          </Button>
+        <View className="flex flex-col gap-2">
+          {/* 第一行按钮 */}
+          <View className="flex gap-2">
+            <Button
+              className="flex-1 bg-blue-50 text-blue-600 py-2 rounded break-keep text-xs"
+              size="default"
+              onClick={() => handleEditManager(manager)}>
+              编辑信息
+            </Button>
+            <Button
+              className="flex-1 bg-green-50 text-green-600 py-2 rounded break-keep text-xs"
+              size="default"
+              onClick={() => handleAssignWarehouseToManager(manager.id, manager.name || '未命名')}>
+              分配仓库
+            </Button>
+          </View>
+          {/* 第二行按钮 */}
+          <View className="flex gap-2">
+            <Button
+              className="flex-1 bg-purple-50 text-purple-600 py-2 rounded break-keep text-xs"
+              size="default"
+              onClick={() => handleChangeRole(manager.id, manager.name || '未命名', manager.role)}>
+              变更角色
+            </Button>
+            <Button
+              className="flex-1 bg-orange-50 text-orange-600 py-2 rounded break-keep text-xs"
+              size="default"
+              onClick={() => handleResetPassword(manager.id, manager.name || '未命名')}>
+              重置密码
+            </Button>
+          </View>
         </View>
       </View>
     )
