@@ -6,13 +6,15 @@ import {useCallback, useEffect, useState} from 'react'
 import {
   setDriverWarehouses as assignDriverWarehouses,
   getAllDrivers,
+  getCurrentUserPermissions,
   getDriversByWarehouse,
   getDriverWarehouses,
   getManagerWarehouses,
   removeWarehouseFromDriver,
-  resetUserPassword
+  resetUserPassword,
+  updateProfile
 } from '@/db/api'
-import type {Profile, Warehouse} from '@/db/types'
+import type {ManagerPermission, Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 const StaffManagement: React.FC = () => {
@@ -25,6 +27,9 @@ const StaffManagement: React.FC = () => {
   const [allDrivers, setAllDrivers] = useState<Profile[]>([])
   const [filteredAllDrivers, setFilteredAllDrivers] = useState<Profile[]>([])
   const [driverWarehouses, setDriverWarehouses] = useState<Map<string, Warehouse[]>>(new Map())
+  const [permissions, setPermissions] = useState<ManagerPermission | null>(null)
+  const [editingDriver, setEditingDriver] = useState<Profile | null>(null)
+  const [editForm, setEditForm] = useState({name: '', phone: '', email: ''})
   const [searchKeyword, setSearchKeyword] = useState('')
   const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'pure' | 'with_vehicle'>('all')
   const [loading, setLoading] = useState(false)
@@ -48,6 +53,16 @@ const StaffManagement: React.FC = () => {
       Taro.showToast({title: '加载仓库失败', icon: 'error'})
     }
   }, [user?.id])
+
+  // 加载当前管理员的权限
+  const loadPermissions = useCallback(async () => {
+    try {
+      const data = await getCurrentUserPermissions()
+      setPermissions(data)
+    } catch (error) {
+      console.error('加载权限失败:', error)
+    }
+  }, [])
 
   // 过滤司机
   const filterDrivers = useCallback(
@@ -153,7 +168,7 @@ const StaffManagement: React.FC = () => {
   )
 
   // 编辑用户
-  const handleEditUser = useCallback((userId: string) => {
+  const _handleEditUser = useCallback((userId: string) => {
     navigateTo({url: `/pages/super-admin/edit-user/index?userId=${userId}`})
   }, [])
 
@@ -183,6 +198,68 @@ const StaffManagement: React.FC = () => {
       }
     }
   }, [])
+
+  // 开始编辑司机
+  const handleEditDriver = useCallback((driver: Profile) => {
+    setEditingDriver(driver)
+    setEditForm({
+      name: driver.name || '',
+      phone: driver.phone || '',
+      email: driver.email || ''
+    })
+  }, [])
+
+  // 取消编辑
+  const handleCancelEdit = useCallback(() => {
+    setEditingDriver(null)
+    setEditForm({name: '', phone: '', email: ''})
+  }, [])
+
+  // 保存编辑
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingDriver) return
+
+    if (!editForm.name.trim()) {
+      Taro.showToast({title: '请输入姓名', icon: 'none'})
+      return
+    }
+
+    Taro.showLoading({title: '保存中...'})
+    try {
+      const success = await updateProfile(editingDriver.id, {
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim() || null,
+        email: editForm.email.trim() || null
+      })
+
+      if (success) {
+        Taro.showToast({title: '保存成功', icon: 'success'})
+        handleCancelEdit()
+        // 刷新司机列表
+        if (currentTab === 'driver' && warehouses.length > 0) {
+          loadDriversByWarehouse(warehouses[currentWarehouseIndex].id)
+        } else if (currentTab === 'assignment') {
+          loadAllDrivers()
+        }
+      } else {
+        Taro.showToast({title: '保存失败', icon: 'error'})
+      }
+    } catch (error) {
+      console.error('保存失败:', error)
+      Taro.showToast({title: '保存失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }, [
+    editingDriver,
+    editForm,
+    handleCancelEdit,
+    currentTab,
+    warehouses,
+    currentWarehouseIndex,
+    loadDriversByWarehouse,
+    loadAllDrivers
+  ])
 
   // 分配司机到仓库
   const handleAssignDriver = useCallback(
@@ -293,7 +370,8 @@ const StaffManagement: React.FC = () => {
   // 初始化加载
   useEffect(() => {
     loadWarehouses()
-  }, [loadWarehouses])
+    loadPermissions()
+  }, [loadWarehouses, loadPermissions])
 
   // 仓库列表加载完成后，加载第一个仓库的司机
   useEffect(() => {
@@ -393,12 +471,28 @@ const StaffManagement: React.FC = () => {
         </View>
 
         <View className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
-          <Button
-            className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={() => handleEditUser(driver.id)}>
-            编辑信息
-          </Button>
+          {permissions?.can_edit_user_info ? (
+            <Button
+              className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
+              size="mini"
+              onClick={() => handleEditDriver(driver)}>
+              编辑信息
+            </Button>
+          ) : (
+            <Button
+              className="flex-1 bg-gray-50 text-gray-600 py-2 rounded text-sm break-keep"
+              size="mini"
+              onClick={() => {
+                Taro.showModal({
+                  title: driver.name || '司机信息',
+                  content: `手机：${driver.phone || '未设置'}\n邮箱：${driver.email || '未设置'}\n账号：${driver.login_account || '未设置'}\n车牌：${driver.vehicle_plate || '无'}\n入职日期：${driver.join_date || '未设置'}`,
+                  showCancel: false,
+                  confirmText: '知道了'
+                })
+              }}>
+              查看信息
+            </Button>
+          )}
           <Button
             className="flex-1 bg-orange-50 text-orange-600 py-2 rounded text-sm break-keep"
             size="mini"
@@ -483,12 +577,28 @@ const StaffManagement: React.FC = () => {
             onClick={() => handleAssignDriver(driver.id, driver.name || '该司机')}>
             分配仓库
           </Button>
-          <Button
-            className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={() => handleEditUser(driver.id)}>
-            编辑信息
-          </Button>
+          {permissions?.can_edit_user_info ? (
+            <Button
+              className="flex-1 bg-blue-50 text-blue-600 py-2 rounded text-sm break-keep"
+              size="mini"
+              onClick={() => handleEditDriver(driver)}>
+              编辑信息
+            </Button>
+          ) : (
+            <Button
+              className="flex-1 bg-gray-50 text-gray-600 py-2 rounded text-sm break-keep"
+              size="mini"
+              onClick={() => {
+                Taro.showModal({
+                  title: driver.name || '司机信息',
+                  content: `手机：${driver.phone || '未设置'}\n邮箱：${driver.email || '未设置'}\n账号：${driver.login_account || '未设置'}\n车牌：${driver.vehicle_plate || '无'}\n入职日期：${driver.join_date || '未设置'}`,
+                  showCancel: false,
+                  confirmText: '知道了'
+                })
+              }}>
+              查看信息
+            </Button>
+          )}
         </View>
       </View>
     )
@@ -668,6 +778,73 @@ const StaffManagement: React.FC = () => {
       <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 120px)', background: 'transparent'}}>
         <View className="p-4">{currentTab === 'driver' ? renderDriverManagement() : renderDriverAssignment()}</View>
       </ScrollView>
+
+      {/* 编辑司机信息对话框 */}
+      {editingDriver && (
+        <View
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleCancelEdit}>
+          <View className="bg-white rounded-xl p-6 mx-4 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <View className="flex items-center justify-between mb-4">
+              <Text className="text-lg font-bold text-gray-800">编辑司机信息</Text>
+              <View className="i-mdi-close text-xl text-gray-400" onClick={handleCancelEdit} />
+            </View>
+
+            <View className="space-y-4">
+              <View>
+                <Text className="text-sm text-gray-600 mb-2">姓名 *</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full"
+                    value={editForm.name}
+                    onInput={(e) => setEditForm({...editForm, name: e.detail.value})}
+                    placeholder="请输入姓名"
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Text className="text-sm text-gray-600 mb-2">手机号</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full"
+                    value={editForm.phone}
+                    onInput={(e) => setEditForm({...editForm, phone: e.detail.value})}
+                    placeholder="请输入手机号"
+                  />
+                </View>
+              </View>
+
+              <View>
+                <Text className="text-sm text-gray-600 mb-2">邮箱</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full"
+                    value={editForm.email}
+                    onInput={(e) => setEditForm({...editForm, email: e.detail.value})}
+                    placeholder="请输入邮箱"
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View className="flex gap-3 mt-6">
+              <Button
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded break-keep text-base"
+                size="default"
+                onClick={handleCancelEdit}>
+                取消
+              </Button>
+              <Button
+                className="flex-1 bg-blue-600 text-white py-3 rounded break-keep text-base"
+                size="default"
+                onClick={handleSaveEdit}>
+                保存
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }

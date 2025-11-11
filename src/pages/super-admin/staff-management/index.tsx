@@ -8,13 +8,15 @@ import {
   getAllManagers,
   getAllWarehouses,
   getDriversByWarehouse,
+  getManagerPermission,
   getManagerWarehouses,
   removeManagerWarehouse,
   resetUserPassword,
   updateProfile,
-  updateUserRole
+  updateUserRole,
+  upsertManagerPermission
 } from '@/db/api'
-import type {Profile, Warehouse} from '@/db/types'
+import type {ManagerPermission, Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 const StaffManagement: React.FC = () => {
@@ -27,6 +29,7 @@ const StaffManagement: React.FC = () => {
   const [managers, setManagers] = useState<Profile[]>([])
   const [filteredManagers, setFilteredManagers] = useState<Profile[]>([])
   const [managerWarehouses, setManagerWarehouses] = useState<Map<string, Warehouse[]>>(new Map())
+  const [managerPermissions, setManagerPermissions] = useState<Map<string, ManagerPermission>>(new Map())
   const [editingManager, setEditingManager] = useState<Profile | null>(null)
   const [editForm, setEditForm] = useState({name: '', phone: '', email: ''})
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -60,15 +63,22 @@ const StaffManagement: React.FC = () => {
       setManagers(data)
       setFilteredManagers(data)
 
-      // 加载每个管理员的仓库
+      // 加载每个管理员的仓库和权限
       const warehouseMap = new Map<string, Warehouse[]>()
+      const permissionMap = new Map<string, ManagerPermission>()
       await Promise.all(
         data.map(async (manager) => {
           const warehouses = await getManagerWarehouses(manager.id)
           warehouseMap.set(manager.id, warehouses)
+
+          const permission = await getManagerPermission(manager.id)
+          if (permission) {
+            permissionMap.set(manager.id, permission)
+          }
         })
       )
       setManagerWarehouses(warehouseMap)
+      setManagerPermissions(permissionMap)
     } catch (error) {
       console.error('加载管理员列表失败:', error)
       Taro.showToast({title: '加载管理员失败', icon: 'error'})
@@ -235,6 +245,60 @@ const StaffManagement: React.FC = () => {
       }
     },
     [loadManagers]
+  )
+
+  // 设置管理员权限
+  const handleSetPermissions = useCallback(
+    async (managerId: string, _managerName: string) => {
+      const currentPermission = managerPermissions.get(managerId)
+
+      // 显示权限设置对话框
+      const items = [
+        currentPermission?.can_edit_user_info ? '✓ 允许修改司机信息' : '✗ 禁止修改司机信息',
+        currentPermission?.can_edit_piece_work ? '✓ 允许修改计件记录' : '✗ 禁止修改计件记录',
+        currentPermission?.can_manage_attendance_rules ? '✓ 允许管理考勤规则' : '✗ 禁止管理考勤规则',
+        currentPermission?.can_manage_system ? '✓ 允许系统管理' : '✗ 禁止系统管理'
+      ]
+
+      const result = await Taro.showActionSheet({
+        itemList: items,
+        itemColor: '#1E3A8A'
+      })
+
+      if (result.tapIndex !== undefined) {
+        const permissionKeys = [
+          'can_edit_user_info',
+          'can_edit_piece_work',
+          'can_manage_attendance_rules',
+          'can_manage_system'
+        ] as const
+
+        const selectedKey = permissionKeys[result.tapIndex]
+        const currentValue = currentPermission?.[selectedKey] ?? false
+
+        Taro.showLoading({title: '设置中...'})
+        try {
+          const success = await upsertManagerPermission({
+            manager_id: managerId,
+            [selectedKey]: !currentValue
+          })
+
+          if (success) {
+            Taro.showToast({title: '权限设置成功', icon: 'success'})
+            // 刷新管理员列表和权限
+            loadManagers()
+          } else {
+            Taro.showToast({title: '权限设置失败', icon: 'error'})
+          }
+        } catch (error) {
+          console.error('设置权限失败:', error)
+          Taro.showToast({title: '权限设置失败', icon: 'error'})
+        } finally {
+          Taro.hideLoading()
+        }
+      }
+    },
+    [managerPermissions, loadManagers]
   )
 
   // 开始编辑管理员
@@ -575,6 +639,15 @@ const StaffManagement: React.FC = () => {
               size="default"
               onClick={() => handleResetPassword(manager.id, manager.name || '未命名')}>
               重置密码
+            </Button>
+          </View>
+          {/* 第三行按钮 */}
+          <View className="flex gap-2">
+            <Button
+              className="flex-1 bg-indigo-50 text-indigo-600 py-2 rounded break-keep text-xs"
+              size="default"
+              onClick={() => handleSetPermissions(manager.id, manager.name || '未命名')}>
+              权限设置
             </Button>
           </View>
         </View>
