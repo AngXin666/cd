@@ -2955,16 +2955,35 @@ export async function updateUserInfo(
     const {data, error} = await supabase.from('profiles').update(updates).eq('id', userId).select()
 
     console.log('Supabase 更新 profiles 响应 - data:', JSON.stringify(data, null, 2))
-    console.log('Supabase 更新 profiles 响应 - error:', error)
+    console.log('Supabase 更新 profiles 响应 - error:', JSON.stringify(error, null, 2))
 
     if (error) {
-      console.error('❌ 更新用户信息失败 - Supabase 错误:', error)
-      console.error('错误详情:', JSON.stringify(error, null, 2))
+      console.error('========================================')
+      console.error('❌ 更新用户信息失败 - Supabase 错误')
+      console.error('错误代码:', error.code)
+      console.error('错误消息:', error.message)
+      console.error('错误详情:', error.details)
+      console.error('错误提示:', error.hint)
+      console.error('完整错误对象:', JSON.stringify(error, null, 2))
+      console.error('========================================')
       return false
     }
 
     if (!data || data.length === 0) {
-      console.error('❌ 更新用户信息失败 - 没有返回数据，可能用户不存在')
+      console.error('========================================')
+      console.error('❌ 更新用户信息失败 - 没有返回数据')
+      console.error('可能原因：')
+      console.error('1. 用户不存在（ID 不匹配）')
+      console.error('2. RLS 策略阻止了更新操作（权限不足）')
+      console.error('3. 触发器阻止了更新操作')
+      console.error('========================================')
+      console.error('调试信息：')
+      console.error('- 目标用户ID:', userId)
+      console.error('- 当前登录用户ID:', (await supabase.auth.getUser()).data.user?.id)
+      console.error('- 更新的字段:', Object.keys(updates))
+      console.error('- 是否包含 role 字段:', 'role' in updates)
+      console.error('- 是否包含 vehicle_plate 字段:', 'vehicle_plate' in updates)
+      console.error('========================================')
       return false
     }
 
