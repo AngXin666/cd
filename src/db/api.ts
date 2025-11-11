@@ -991,15 +991,15 @@ export async function getAllCategories(): Promise<PieceWorkCategory[]> {
 }
 
 // 创建品类
-export async function createCategory(category: PieceWorkCategoryInput): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_categories').insert(category)
+export async function createCategory(category: PieceWorkCategoryInput): Promise<PieceWorkCategory | null> {
+  const {data, error} = await supabase.from('piece_work_categories').insert(category).select().maybeSingle()
 
   if (error) {
     console.error('创建品类失败:', error)
-    return false
+    return null
   }
 
-  return true
+  return data
 }
 
 // 更新品类
