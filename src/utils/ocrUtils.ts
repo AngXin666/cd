@@ -48,6 +48,7 @@ export interface DrivingLicenseSubOcrResult {
 // OCR识别结果类型 - 行驶证副页背页
 export interface DrivingLicenseSubBackOcrResult {
   mandatory_scrap_date?: string // 强制报废期
+  inspection_date?: string // 年检时间（最近一次年检日期）
 }
 
 export interface IdCardOcrResult {
@@ -96,22 +97,29 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   driving_license_sub: `请识别这张行驶证副页，提取以下信息并以JSON格式返回：
 {
   "archive_number": "档案编号",
-  "total_mass": 总质量（数字，单位kg），
-  "approved_passengers": 核定载人数（数字），
-  "curb_weight": 整备质量（数字，单位kg），
-  "approved_load": 核定载质量（数字，单位kg），
-  "overall_dimension_length": 外廓尺寸长度（数字，单位mm），
-  "overall_dimension_width": 外廓尺寸宽度（数字，单位mm），
-  "overall_dimension_height": 外廓尺寸高度（数字，单位mm），
+  "total_mass": "总质量（数字，单位kg）",
+  "approved_passengers": "核定载人数（数字）",
+  "curb_weight": "整备质量（数字，单位kg）",
+  "approved_load": "核定载质量（数字，单位kg）",
+  "overall_dimension_length": "外廓尺寸长度（数字，单位mm）",
+  "overall_dimension_width": "外廓尺寸宽度（数字，单位mm）",
+  "overall_dimension_height": "外廓尺寸高度（数字，单位mm）",
   "inspection_valid_until": "检验有效期(YYYY-MM-DD格式)"
 }
-注意：数字类型字段请返回纯数字，不要包含单位。只返回JSON数据，不要其他说明文字。`,
+注意：
+1. 数字类型字段请返回纯数字，不要包含单位
+2. 如果某个字段无法识别，请返回null
+3. 只返回JSON数据，不要其他说明文字`,
 
   driving_license_sub_back: `请识别这张行驶证副页背页，提取以下信息并以JSON格式返回：
 {
-  "mandatory_scrap_date": "强制报废期(YYYY-MM-DD格式)"
+  "mandatory_scrap_date": "强制报废期(YYYY-MM-DD格式)",
+  "inspection_date": "年检时间(YYYY-MM-DD格式)"
 }
-只返回JSON数据，不要其他说明文字。`,
+注意：
+1. 年检时间通常在副页背页的检验记录中
+2. 如果某个字段无法识别，请返回null
+3. 只返回JSON数据，不要其他说明文字`,
 
   id_card_front: `请识别这张身份证正面，提取以下信息并以JSON格式返回：
 {

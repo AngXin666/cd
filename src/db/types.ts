@@ -465,6 +465,7 @@ export interface Vehicle {
   overall_dimension_height: number | null // 外廓尺寸-高（mm）
   inspection_valid_until: string | null // 检验有效期
   // OCR识别相关字段 - 副页背页
+  inspection_date: string | null // 年检时间（最近一次年检日期）
   mandatory_scrap_date: string | null // 强制报废期
   // 车辆照片（7个角度）
   left_front_photo: string | null // 左前照片
@@ -514,6 +515,7 @@ export interface VehicleInput {
   inspection_valid_until?: string | null
   // 副页背页字段
   mandatory_scrap_date?: string | null
+  inspection_date?: string | null
   // 车辆照片
   left_front_photo?: string | null
   right_front_photo?: string | null
@@ -559,6 +561,7 @@ export interface VehicleUpdate {
   inspection_valid_until?: string | null
   // 副页背页字段
   mandatory_scrap_date?: string | null
+  inspection_date?: string | null
   // 车辆照片
   left_front_photo?: string | null
   right_front_photo?: string | null

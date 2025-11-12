@@ -210,7 +210,8 @@ const AddVehicle: React.FC = () => {
       if (result) {
         setFormData((prev) => ({
           ...prev,
-          mandatory_scrap_date: result.mandatory_scrap_date || prev.mandatory_scrap_date
+          mandatory_scrap_date: result.mandatory_scrap_date || prev.mandatory_scrap_date,
+          inspection_date: result.inspection_date || prev.inspection_date
         }))
         Taro.showToast({title: '副页背页识别成功', icon: 'success'})
       } else {
@@ -410,6 +411,7 @@ const AddVehicle: React.FC = () => {
         overall_dimension_height: formData.overall_dimension_height || null,
         inspection_valid_until: formData.inspection_valid_until,
         // 副页背页字段
+        inspection_date: formData.inspection_date,
         mandatory_scrap_date: formData.mandatory_scrap_date,
         // 车辆照片
         left_front_photo: uploadedPhotos.left_front,
@@ -547,8 +549,8 @@ const AddVehicle: React.FC = () => {
               <View className="mb-6">
                 <PhotoCapture
                   title="行驶证副页背页"
-                  description="请拍摄行驶证副页背页，包含强制报废期"
-                  tips={['确保照片清晰', '包含强制报废期信息']}
+                  description="请拍摄行驶证副页背页，包含年检记录和强制报废期"
+                  tips={['确保照片清晰', '包含年检记录', '包含强制报废期信息']}
                   value={photos.driving_license_sub_back}
                   onChange={(path) => setPhotos((prev) => ({...prev, driving_license_sub_back: path}))}
                 />
@@ -641,13 +643,38 @@ const AddVehicle: React.FC = () => {
                     )}
 
                     {/* 副页背页信息 */}
-                    {formData.mandatory_scrap_date && (
+                    {(formData.mandatory_scrap_date || formData.inspection_date) && (
                       <View className="pt-3 border-t border-gray-200">
                         <Text className="text-sm font-bold text-gray-600 mb-2">副页背页信息</Text>
-                        <InfoDisplay
-                          label="强制报废期"
-                          value={new Date(formData.mandatory_scrap_date).toLocaleDateString('zh-CN')}
-                        />
+                        {formData.inspection_date && (
+                          <>
+                            <InfoDisplay
+                              label="年检时间"
+                              value={new Date(formData.inspection_date).toLocaleDateString('zh-CN')}
+                            />
+                            {formData.inspection_valid_until &&
+                              (() => {
+                                const _inspectionDate = new Date(formData.inspection_date)
+                                const validUntil = new Date(formData.inspection_valid_until)
+                                const today = new Date()
+                                const daysRemaining = Math.ceil(
+                                  (validUntil.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+                                )
+                                return (
+                                  <InfoDisplay
+                                    label="剩余年检时间"
+                                    value={daysRemaining > 0 ? `${daysRemaining}天` : '已过期'}
+                                  />
+                                )
+                              })()}
+                          </>
+                        )}
+                        {formData.mandatory_scrap_date && (
+                          <InfoDisplay
+                            label="强制报废期"
+                            value={new Date(formData.mandatory_scrap_date).toLocaleDateString('zh-CN')}
+                          />
+                        )}
                       </View>
                     )}
                   </View>

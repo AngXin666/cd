@@ -30,7 +30,22 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
       })
 
       if (res.tempFilePaths && res.tempFilePaths.length > 0) {
-        const path = res.tempFilePaths[0]
+        let path = res.tempFilePaths[0]
+
+        // 压缩图片并自动旋转（修复方向问题）
+        try {
+          const compressRes = await Taro.compressImage({
+            src: path,
+            quality: 90, // 保持较高质量
+            compressedWidth: 1920, // 最大宽度
+            compressedHeight: 1920 // 最大高度
+          })
+          path = compressRes.tempFilePath
+        } catch (compressError) {
+          console.warn('图片压缩失败，使用原图:', compressError)
+          // 压缩失败时继续使用原图
+        }
+
         setImagePath(path)
         onChange?.(path)
       }
