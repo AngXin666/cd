@@ -4,7 +4,7 @@
  */
 
 import Taro from '@tarojs/taro'
-import {supabase} from '@/db/supabase'
+import {supabase} from '@/client/supabase'
 
 /**
  * 将图片路径转换为Base64格式

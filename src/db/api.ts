@@ -9,6 +9,9 @@ import type {
   AttendanceRuleUpdate,
   CategoryPrice,
   CategoryPriceInput,
+  DriverLicense,
+  DriverLicenseInput,
+  DriverLicenseUpdate,
   DriverType,
   DriverWarehouse,
   DriverWarehouseInput,
@@ -29,6 +32,9 @@ import type {
   ResignationApplication,
   ResignationApplicationInput,
   UserRole,
+  Vehicle,
+  VehicleInput,
+  VehicleUpdate,
   Warehouse,
   WarehouseInput,
   WarehouseUpdate,
@@ -3591,7 +3597,10 @@ export async function upsertDriverLicense(license: DriverLicenseInput): Promise<
 /**
  * 更新驾驶员证件信息
  */
-export async function updateDriverLicense(driverId: string, updates: DriverLicenseUpdate): Promise<DriverLicense | null> {
+export async function updateDriverLicense(
+  driverId: string,
+  updates: DriverLicenseUpdate
+): Promise<DriverLicense | null> {
   try {
     const {data, error} = await supabase
       .from('driver_licenses')

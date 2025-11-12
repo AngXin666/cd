@@ -82,8 +82,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
         <View className="mb-3">
           <View
             className="relative w-full h-48 bg-muted rounded-lg overflow-hidden"
-            onClick={disabled ? undefined : handlePreviewImage}
-          >
+            onClick={disabled ? undefined : handlePreviewImage}>
             <Image src={imagePath} mode="aspectFit" className="w-full h-full" />
           </View>
           {!disabled && (
@@ -91,8 +90,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
               <Button
                 className="bg-muted text-foreground py-2 px-6 rounded break-keep text-sm"
                 size="default"
-                onClick={handleRetake}
-              >
+                onClick={handleRetake}>
                 重新拍摄
               </Button>
             </View>
@@ -127,8 +125,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
               <Button
                 className="flex-1 bg-primary text-primary-foreground py-3 rounded break-keep text-base"
                 size="default"
-                onClick={handleTakePhoto}
-              >
+                onClick={handleTakePhoto}>
                 <View className="flex items-center justify-center">
                   <View className="i-mdi-camera text-xl mr-1"></View>
                   <Text>拍照</Text>
@@ -137,8 +134,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
               <Button
                 className="flex-1 bg-secondary text-secondary-foreground py-3 rounded break-keep text-base"
                 size="default"
-                onClick={handleChooseFromAlbum}
-              >
+                onClick={handleChooseFromAlbum}>
                 <View className="flex items-center justify-center">
                   <View className="i-mdi-image text-xl mr-1"></View>
                   <Text>相册</Text>

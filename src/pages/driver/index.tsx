@@ -432,12 +432,38 @@ const DriverHome: React.FC = () => {
                 <Text className="text-base font-medium text-gray-800">请假申请</Text>
               </View>
 
-              {/* 数据统计 */}
+              {/* 车辆管理 */}
               <View
-                className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all shadow"
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl active:scale-95 transition-all shadow"
+                onClick={() => navigateTo({url: '/pages/driver/vehicle-list/index'})}>
+                <View className="i-mdi-car text-5xl text-cyan-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">车辆管理</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 数据统计卡片 */}
+          <View className="bg-white rounded-xl p-4 shadow-md mb-4">
+            <View className="flex items-center justify-between mb-3">
+              <View className="flex items-center">
+                <View className="i-mdi-chart-line text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">数据统计</Text>
+              </View>
+              <View
+                className="flex items-center bg-blue-50 rounded-full px-3 py-1 active:scale-95 transition-all"
                 onClick={() => handleQuickAction('stats')}>
-                <View className="i-mdi-chart-bar text-5xl text-green-600 mb-3" />
-                <Text className="text-base font-medium text-gray-800">数据统计</Text>
+                <Text className="text-sm text-blue-600 font-medium mr-1">查看详情</Text>
+                <View className="i-mdi-chevron-right text-blue-600" />
+              </View>
+            </View>
+            <View className="grid grid-cols-2 gap-3">
+              <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
+                <Text className="text-xs text-gray-600 block mb-1">本月件数</Text>
+                <Text className="text-2xl font-bold text-blue-600">{stats?.monthPieceCount || 0}</Text>
+              </View>
+              <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3">
+                <Text className="text-xs text-gray-600 block mb-1">本月出勤</Text>
+                <Text className="text-2xl font-bold text-green-600">{stats?.attendanceDays || 0}天</Text>
               </View>
             </View>
           </View>

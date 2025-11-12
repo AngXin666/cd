@@ -3,8 +3,8 @@
  * 使用文心一言多模态API进行证件识别
  */
 
-import {sendChatStream, createChatDataHandler} from 'miaoda-taro-utils/chatStream'
-import {imageToBase64, compressImage} from './imageUtils'
+import {createChatDataHandler, sendChatStream} from 'miaoda-taro-utils/chatStream'
+import {compressImage, imageToBase64} from './imageUtils'
 
 const APP_ID = process.env.TARO_APP_APP_ID || ''
 const API_ENDPOINT = 'https://api-integrations.appmiaoda.com/app-7cdqf07mbu9t/api-2jBYdN3A9Jyz/v2/chat/completions'
