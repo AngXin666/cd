@@ -166,20 +166,40 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
-  // 获取可见的仓库列表（根据权限）
+  // 获取可见的仓库列表（根据权限，且只显示有数据的仓库）
   const getVisibleWarehouses = () => {
     if (!currentUserProfile) return []
 
+    let visibleWarehouses: Warehouse[] = []
+
     if (currentUserProfile.role === 'super_admin') {
       // 超级管理员可以看到所有仓库
-      return warehouses
+      visibleWarehouses = warehouses
     } else if (currentUserProfile.role === 'manager') {
       // 普通管理员只能看到自己管辖的仓库
       const managedWarehouseIds = managerWarehouses.map((w) => w.id)
-      return warehouses.filter((w) => managedWarehouseIds.includes(w.id))
+      visibleWarehouses = warehouses.filter((w) => managedWarehouseIds.includes(w.id))
     }
 
-    return []
+    // 过滤出有数据的仓库，并按数据量排序
+    const warehousesWithData = visibleWarehouses
+      .map((warehouse) => {
+        // 统计该仓库的数据量
+        const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
+        const resignationCount = resignationApplications.filter((app) => app.warehouse_id === warehouse.id).length
+        const attendanceCount = attendanceRecords.filter((record) => record.warehouse_id === warehouse.id).length
+        const totalDataCount = leaveCount + resignationCount + attendanceCount
+
+        return {
+          warehouse,
+          totalDataCount
+        }
+      })
+      .filter((item) => item.totalDataCount > 0) // 只保留有数据的仓库
+      .sort((a, b) => b.totalDataCount - a.totalDataCount) // 按数据量降序排序
+      .map((item) => item.warehouse)
+
+    return warehousesWithData
   }
 
   // 获取当前仓库
