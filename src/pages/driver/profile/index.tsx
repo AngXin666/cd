@@ -278,6 +278,8 @@ const DriverProfile: React.FC = () => {
     }
 
     console.log('📸 原始图片路径:', path)
+    console.log('📸 路径类型:', typeof path)
+    console.log('📸 路径长度:', path.length)
 
     // 如果已经是完整的URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -286,8 +288,10 @@ const DriverProfile: React.FC = () => {
     }
 
     // 否则从storage生成公共URL
-    const bucketName = `${process.env.TARO_APP_APP_ID}_avatars`
+    // 注意：这里应该使用vehicles bucket，因为证件照片存储在vehicles bucket中
+    const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
     console.log('🗂️ 使用的bucket:', bucketName)
+    console.log('🗂️ 相对路径:', path)
     const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
     console.log('🔗 生成的公共URL:', data.publicUrl)
     return data.publicUrl
