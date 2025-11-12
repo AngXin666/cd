@@ -1,9 +1,9 @@
 /**
  * 添加车辆页面 - 优化版
- * 多步骤流程：基本信息 -> 行驶证识别 -> 车辆照片 -> 驾驶员证件
+ * 三步骤流程：行驶证识别 -> 车辆照片 -> 驾驶员证件
  */
 
-import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -22,15 +22,14 @@ const AddVehicle: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
 
-  // 步骤定义
+  // 步骤定义 - 移除基本信息步骤
   const steps = [
-    {title: '基本信息', description: '填写车辆基本信息'},
     {title: '行驶证', description: 'OCR识别行驶证'},
     {title: '车辆照片', description: '拍摄车辆照片'},
     {title: '驾驶员证件', description: '识别证件信息'}
   ]
 
-  // 表单数据
+  // 表单数据 - 从行驶证OCR自动填充
   const [formData, setFormData] = useState<Partial<VehicleInput>>({
     plate_number: '',
     brand: '',
@@ -44,7 +43,7 @@ const AddVehicle: React.FC = () => {
     issue_date: ''
   })
 
-  // 照片数据 - 更新为新的7个角度
+  // 照片数据 - 7个角度
   const [photos, setPhotos] = useState({
     driving_license: '', // 行驶证
     left_front: '', // 左前
@@ -76,16 +75,6 @@ const AddVehicle: React.FC = () => {
     driver_license: ''
   })
 
-  // 更新表单字段
-  const updateField = (field: string, value: string) => {
-    setFormData((prev) => ({...prev, [field]: value}))
-  }
-
-  // 更新驾驶员证件字段
-  const _updateDriverField = (field: string, value: string) => {
-    setDriverLicenseData((prev) => ({...prev, [field]: value}))
-  }
-
   // 识别行驶证
   const handleRecognizeDrivingLicense = async () => {
     if (!photos.driving_license) {
@@ -100,23 +89,24 @@ const AddVehicle: React.FC = () => {
       })
 
       if (result) {
-        setFormData((prev) => ({
-          ...prev,
-          plate_number: result.plate_number || prev.plate_number,
-          vehicle_type: result.vehicle_type || prev.vehicle_type,
-          owner_name: result.owner_name || prev.owner_name,
-          use_character: result.use_character || prev.use_character,
-          brand: result.brand || prev.brand,
-          model: result.model || prev.model,
-          vin: result.vin || prev.vin,
-          register_date: result.register_date || prev.register_date,
-          issue_date: result.issue_date || prev.issue_date
-        }))
+        setFormData({
+          plate_number: result.plate_number || '',
+          vehicle_type: result.vehicle_type || '',
+          owner_name: result.owner_name || '',
+          use_character: result.use_character || '',
+          brand: result.brand || '',
+          model: result.model || '',
+          vin: result.vin || '',
+          register_date: result.register_date || '',
+          issue_date: result.issue_date || ''
+        })
         Taro.showToast({title: '识别成功', icon: 'success'})
+      } else {
+        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
       }
     } catch (error) {
       console.error('识别失败:', error)
-      Taro.showToast({title: '识别失败，请手动填写', icon: 'none'})
+      Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
     } finally {
       Taro.hideLoading()
     }
@@ -188,19 +178,18 @@ const AddVehicle: React.FC = () => {
   // 验证当前步骤
   const validateStep = (step: number): boolean => {
     switch (step) {
-      case 0: // 基本信息
-        if (!formData.plate_number || !formData.brand || !formData.model) {
-          Taro.showToast({title: '请填写必填项', icon: 'none'})
-          return false
-        }
-        return true
-      case 1: // 行驶证
+      case 0: // 行驶证识别
         if (!photos.driving_license) {
           Taro.showToast({title: '请拍摄行驶证', icon: 'none'})
           return false
         }
+        // 验证是否已识别出必要信息
+        if (!formData.plate_number || !formData.brand || !formData.model) {
+          Taro.showToast({title: '请先识别行驶证，确保获取车牌号、品牌和型号', icon: 'none'})
+          return false
+        }
         return true
-      case 2: // 车辆照片 - 验证所有7个角度的照片
+      case 1: // 车辆照片 - 验证所有7个角度的照片
         if (
           !photos.left_front ||
           !photos.right_front ||
@@ -214,7 +203,7 @@ const AddVehicle: React.FC = () => {
           return false
         }
         return true
-      case 3: // 驾驶员证件
+      case 2: // 驾驶员证件
         if (!driverPhotos.id_card_front || !driverPhotos.id_card_back || !driverPhotos.driver_license) {
           Taro.showToast({title: '请拍摄所有证件照片', icon: 'none'})
           return false
@@ -345,87 +334,46 @@ const AddVehicle: React.FC = () => {
           {/* 步骤指示器 */}
           <StepIndicator steps={steps} currentStep={currentStep} />
 
-          {/* 步骤1: 基本信息 */}
+          {/* 步骤1: 行驶证识别 */}
           {currentStep === 0 && (
             <View>
-              <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
-                <View className="flex items-center mb-4">
-                  <View className="i-mdi-car-info text-2xl text-blue-600 mr-2"></View>
-                  <Text className="text-lg font-bold text-gray-800">车辆基本信息</Text>
-                </View>
-
-                <View className="space-y-4">
-                  <FormField
-                    label="车牌号"
-                    required
-                    value={formData.plate_number || ''}
-                    placeholder="请输入车牌号"
-                    onChange={(value) => updateField('plate_number', value)}
-                  />
-                  <FormField
-                    label="品牌"
-                    required
-                    value={formData.brand || ''}
-                    placeholder="请输入品牌"
-                    onChange={(value) => updateField('brand', value)}
-                  />
-                  <FormField
-                    label="型号"
-                    required
-                    value={formData.model || ''}
-                    placeholder="请输入型号"
-                    onChange={(value) => updateField('model', value)}
-                  />
-                  <FormField
-                    label="颜色"
-                    value={formData.color || ''}
-                    placeholder="请输入颜色"
-                    onChange={(value) => updateField('color', value)}
-                  />
-                  <FormField
-                    label="车辆类型"
-                    value={formData.vehicle_type || ''}
-                    placeholder="请输入车辆类型"
-                    onChange={(value) => updateField('vehicle_type', value)}
-                  />
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* 步骤2: 行驶证识别 */}
-          {currentStep === 1 && (
-            <View>
+              {/* 拍摄行驶证 */}
               <PhotoCapture
                 title="行驶证照片"
-                description="请拍摄行驶证主页"
-                tips={['确保照片清晰', '避免反光', '包含所有信息']}
+                description="请拍摄行驶证主页，系统将自动识别车辆信息"
+                tips={['确保照片清晰', '避免反光和阴影', '包含所有文字信息', '拍摄后点击"识别行驶证"按钮']}
                 value={photos.driving_license}
                 onChange={(path) => setPhotos((prev) => ({...prev, driving_license: path}))}
               />
 
+              {/* 识别按钮 */}
               {photos.driving_license && (
                 <View className="mb-4">
                   <Button
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
                     size="default"
                     onClick={handleRecognizeDrivingLicense}>
                     <View className="flex items-center justify-center">
-                      <View className="i-mdi-text-recognition text-xl mr-2"></View>
-                      <Text className="font-medium">识别行驶证</Text>
+                      <View className="i-mdi-text-recognition text-2xl mr-2"></View>
+                      <Text className="font-bold">识别行驶证</Text>
                     </View>
                   </Button>
                 </View>
               )}
 
-              {/* 识别结果 */}
-              {(formData.vin || formData.owner_name) && (
+              {/* 识别结果展示 */}
+              {formData.plate_number && (
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
                   <View className="flex items-center mb-4">
                     <View className="i-mdi-check-circle text-2xl text-green-600 mr-2"></View>
                     <Text className="text-lg font-bold text-gray-800">识别结果</Text>
                   </View>
                   <View className="space-y-3">
+                    <InfoDisplay label="车牌号" value={formData.plate_number} highlight />
+                    {formData.brand && <InfoDisplay label="品牌" value={formData.brand} />}
+                    {formData.model && <InfoDisplay label="型号" value={formData.model} />}
+                    {formData.vehicle_type && <InfoDisplay label="车辆类型" value={formData.vehicle_type} />}
+                    {formData.color && <InfoDisplay label="颜色" value={formData.color} />}
                     {formData.vin && <InfoDisplay label="车辆识别代号" value={formData.vin} />}
                     {formData.owner_name && <InfoDisplay label="所有人" value={formData.owner_name} />}
                     {formData.use_character && <InfoDisplay label="使用性质" value={formData.use_character} />}
@@ -441,11 +389,22 @@ const AddVehicle: React.FC = () => {
                   </View>
                 </View>
               )}
+
+              {/* 提示信息 */}
+              {photos.driving_license && !formData.plate_number && (
+                <View className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-4 mb-4 border-l-4 border-amber-500">
+                  <View className="flex items-center mb-2">
+                    <View className="i-mdi-information text-lg text-amber-600 mr-2"></View>
+                    <Text className="text-sm font-bold text-amber-800">温馨提示</Text>
+                  </View>
+                  <Text className="text-sm text-amber-700">请点击上方"识别行驶证"按钮，系统将自动识别车辆信息</Text>
+                </View>
+              )}
             </View>
           )}
 
-          {/* 步骤3: 车辆照片 - 7个角度 */}
-          {currentStep === 2 && (
+          {/* 步骤2: 车辆照片 - 7个角度 */}
+          {currentStep === 1 && (
             <View>
               <PhotoCapture
                 title="左前照片"
@@ -499,8 +458,8 @@ const AddVehicle: React.FC = () => {
             </View>
           )}
 
-          {/* 步骤4: 驾驶员证件 */}
-          {currentStep === 3 && (
+          {/* 步骤3: 驾驶员证件 */}
+          {currentStep === 2 && (
             <View>
               <PhotoCapture
                 title="身份证正面"
@@ -513,7 +472,7 @@ const AddVehicle: React.FC = () => {
               {driverPhotos.id_card_front && (
                 <View className="mb-4">
                   <Button
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg"
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
                     size="default"
                     onClick={handleRecognizeIdCardFront}>
                     <View className="flex items-center justify-center">
@@ -543,7 +502,7 @@ const AddVehicle: React.FC = () => {
               {driverPhotos.driver_license && (
                 <View className="mb-4">
                   <Button
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg"
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
                     size="default"
                     onClick={handleRecognizeDriverLicense}>
                     <View className="flex items-center justify-center">
@@ -584,7 +543,7 @@ const AddVehicle: React.FC = () => {
           <View className="flex gap-3 mt-6 mb-4">
             {currentStep > 0 && (
               <Button
-                className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-3.5 rounded-xl break-keep text-base shadow-lg"
+                className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
                 size="default"
                 onClick={handlePrev}>
                 <View className="flex items-center justify-center">
@@ -596,7 +555,7 @@ const AddVehicle: React.FC = () => {
 
             {currentStep < steps.length - 1 ? (
               <Button
-                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
                 size="default"
                 onClick={handleNext}>
                 <View className="flex items-center justify-center">
@@ -606,7 +565,7 @@ const AddVehicle: React.FC = () => {
               </Button>
             ) : (
               <Button
-                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg"
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
                 size="default"
                 onClick={handleSubmit}
                 disabled={submitting}>
@@ -623,45 +582,20 @@ const AddVehicle: React.FC = () => {
   )
 }
 
-// 表单字段组件
-interface FormFieldProps {
-  label: string
-  required?: boolean
-  value: string
-  placeholder: string
-  onChange: (value: string) => void
-}
-
-const FormField: React.FC<FormFieldProps> = ({label, required, value, placeholder, onChange}) => (
-  <View className="mb-4">
-    <View className="flex items-center mb-2">
-      <Text className="text-sm font-medium text-gray-700">
-        {label}
-        {required && <Text className="text-red-500 ml-1">*</Text>}
-      </Text>
-    </View>
-    <View style={{overflow: 'hidden'}}>
-      <Input
-        className="bg-gray-50 text-gray-800 px-4 py-3 rounded-lg border border-gray-200 w-full"
-        value={value}
-        placeholder={placeholder}
-        onInput={(e) => onChange(e.detail.value)}
-      />
-    </View>
-  </View>
-)
-
 // 信息显示组件
 interface InfoDisplayProps {
   label: string
   value: string
+  highlight?: boolean
 }
 
-const InfoDisplay: React.FC<InfoDisplayProps> = ({label, value}) => (
-  <View className="flex items-center py-2 border-b border-gray-100 last:border-0">
+const InfoDisplay: React.FC<InfoDisplayProps> = ({label, value, highlight}) => (
+  <View className="flex items-center py-2.5 border-b border-gray-100 last:border-0">
     <View className="flex-1">
-      <Text className="text-sm text-gray-500 block mb-0.5">{label}</Text>
-      <Text className="text-base text-gray-800 font-medium">{value}</Text>
+      <Text className="text-sm text-gray-500 block mb-1">{label}</Text>
+      <Text className={`text-base font-medium ${highlight ? 'text-blue-600 text-lg font-bold' : 'text-gray-800'}`}>
+        {value}
+      </Text>
     </View>
   </View>
 )
