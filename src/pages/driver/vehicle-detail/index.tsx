@@ -8,12 +8,13 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {getVehicleById} from '@/db/api'
-import type {Vehicle} from '@/db/types'
+import {getDriverLicense, getVehicleById} from '@/db/api'
+import type {DriverLicense, Vehicle} from '@/db/types'
 
 const VehicleDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
   const [loading, setLoading] = useState(true)
 
   useLoad((options) => {
@@ -23,12 +24,19 @@ const VehicleDetail: React.FC = () => {
     }
   })
 
-  // 加载车辆详情
+  // 加载车辆详情和驾驶员证件信息
   const loadVehicleDetail = async (vehicleId: string) => {
     setLoading(true)
     try {
-      const data = await getVehicleById(vehicleId)
-      setVehicle(data)
+      // 加载车辆信息
+      const vehicleData = await getVehicleById(vehicleId)
+      setVehicle(vehicleData)
+
+      // 加载驾驶员证件信息
+      if (vehicleData?.user_id) {
+        const licenseData = await getDriverLicense(vehicleData.user_id)
+        setDriverLicense(licenseData)
+      }
     } catch (error) {
       console.error('加载车辆详情失败:', error)
       Taro.showToast({
@@ -137,6 +145,138 @@ const VehicleDetail: React.FC = () => {
               />
             </View>
           </View>
+
+          {/* 驾驶员信息卡片 */}
+          {driverLicense && (
+            <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
+              <View className="flex items-center mb-4">
+                <View className="i-mdi-account-card text-2xl text-blue-600 mr-2"></View>
+                <Text className="text-lg font-bold text-gray-800">驾驶员信息</Text>
+              </View>
+
+              {/* 身份证信息 */}
+              {(driverLicense.id_card_name || driverLicense.id_card_number) && (
+                <View className="mb-4">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-card-account-details text-xl text-orange-600 mr-2"></View>
+                    <Text className="text-base font-semibold text-gray-700">身份证信息</Text>
+                  </View>
+                  <View className="space-y-2 pl-7">
+                    {driverLicense.id_card_name && (
+                      <InfoRow icon="i-mdi-account" label="姓名" value={driverLicense.id_card_name} />
+                    )}
+                    {driverLicense.id_card_number && (
+                      <InfoRow icon="i-mdi-identifier" label="身份证号" value={driverLicense.id_card_number} />
+                    )}
+                    {driverLicense.id_card_birth_date && (
+                      <InfoRow
+                        icon="i-mdi-cake"
+                        label="出生日期"
+                        value={new Date(driverLicense.id_card_birth_date).toLocaleDateString('zh-CN')}
+                      />
+                    )}
+                    {driverLicense.id_card_address && (
+                      <InfoRow icon="i-mdi-home" label="住址" value={driverLicense.id_card_address} />
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* 驾驶证信息 */}
+              {(driverLicense.license_number || driverLicense.license_class) && (
+                <View className="mb-4">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-card-account-details-outline text-xl text-green-600 mr-2"></View>
+                    <Text className="text-base font-semibold text-gray-700">驾驶证信息</Text>
+                  </View>
+                  <View className="space-y-2 pl-7">
+                    {driverLicense.license_number && (
+                      <InfoRow icon="i-mdi-numeric" label="驾驶证号" value={driverLicense.license_number} />
+                    )}
+                    {driverLicense.license_class && (
+                      <InfoRow icon="i-mdi-car" label="准驾车型" value={driverLicense.license_class} />
+                    )}
+                    {driverLicense.valid_from && (
+                      <InfoRow
+                        icon="i-mdi-calendar-start"
+                        label="初次领证日期"
+                        value={new Date(driverLicense.valid_from).toLocaleDateString('zh-CN')}
+                      />
+                    )}
+                    {driverLicense.valid_to && (
+                      <InfoRow
+                        icon="i-mdi-calendar-end"
+                        label="有效期至"
+                        value={new Date(driverLicense.valid_to).toLocaleDateString('zh-CN')}
+                      />
+                    )}
+                    {driverLicense.issue_authority && (
+                      <InfoRow icon="i-mdi-office-building" label="发证机关" value={driverLicense.issue_authority} />
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* 证件照片 */}
+              {(driverLicense.id_card_photo_front ||
+                driverLicense.id_card_photo_back ||
+                driverLicense.driving_license_photo) && (
+                <View>
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-image-multiple text-xl text-purple-600 mr-2"></View>
+                    <Text className="text-base font-semibold text-gray-700">证件照片</Text>
+                  </View>
+                  <View className="grid grid-cols-2 gap-3">
+                    {driverLicense.id_card_photo_front && (
+                      <PhotoCard
+                        title="身份证正面"
+                        icon="i-mdi-card-account-details"
+                        url={driverLicense.id_card_photo_front}
+                        allPhotos={
+                          [
+                            driverLicense.id_card_photo_front,
+                            driverLicense.id_card_photo_back,
+                            driverLicense.driving_license_photo
+                          ].filter(Boolean) as string[]
+                        }
+                        onPreview={previewImage}
+                      />
+                    )}
+                    {driverLicense.id_card_photo_back && (
+                      <PhotoCard
+                        title="身份证背面"
+                        icon="i-mdi-card-account-details"
+                        url={driverLicense.id_card_photo_back}
+                        allPhotos={
+                          [
+                            driverLicense.id_card_photo_front,
+                            driverLicense.id_card_photo_back,
+                            driverLicense.driving_license_photo
+                          ].filter(Boolean) as string[]
+                        }
+                        onPreview={previewImage}
+                      />
+                    )}
+                    {driverLicense.driving_license_photo && (
+                      <PhotoCard
+                        title="驾驶证"
+                        icon="i-mdi-card-account-details-outline"
+                        url={driverLicense.driving_license_photo}
+                        allPhotos={
+                          [
+                            driverLicense.id_card_photo_front,
+                            driverLicense.id_card_photo_back,
+                            driverLicense.driving_license_photo
+                          ].filter(Boolean) as string[]
+                        }
+                        onPreview={previewImage}
+                      />
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* 车辆照片卡片 */}
           <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
