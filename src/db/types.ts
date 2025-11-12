@@ -433,3 +433,140 @@ export interface WarehouseCategoryInput {
   warehouse_id: string
   category_id: string
 }
+
+// 车辆信息类型
+export interface Vehicle {
+  id: string
+  user_id: string
+  warehouse_id: string | null
+  plate_number: string
+  vehicle_type: string | null
+  brand: string
+  model: string
+  color: string | null
+  purchase_date: string | null
+  status: string
+  notes: string | null
+  // OCR识别相关字段
+  vin: string | null
+  owner_name: string | null
+  use_character: string | null
+  register_date: string | null
+  issue_date: string | null
+  // 车辆照片
+  front_photo: string | null
+  back_photo: string | null
+  left_photo: string | null
+  right_photo: string | null
+  tire_photo: string | null
+  driving_license_photo: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 车辆信息输入类型
+export interface VehicleInput {
+  user_id: string
+  warehouse_id?: string | null
+  plate_number: string
+  vehicle_type?: string | null
+  brand: string
+  model: string
+  color?: string | null
+  purchase_date?: string | null
+  status?: string
+  notes?: string | null
+  vin?: string | null
+  owner_name?: string | null
+  use_character?: string | null
+  register_date?: string | null
+  issue_date?: string | null
+  front_photo?: string | null
+  back_photo?: string | null
+  left_photo?: string | null
+  right_photo?: string | null
+  tire_photo?: string | null
+  driving_license_photo?: string | null
+}
+
+// 车辆信息更新类型
+export interface VehicleUpdate {
+  warehouse_id?: string | null
+  plate_number?: string
+  vehicle_type?: string | null
+  brand?: string
+  model?: string
+  color?: string | null
+  purchase_date?: string | null
+  status?: string
+  notes?: string | null
+  vin?: string | null
+  owner_name?: string | null
+  use_character?: string | null
+  register_date?: string | null
+  issue_date?: string | null
+  front_photo?: string | null
+  back_photo?: string | null
+  left_photo?: string | null
+  right_photo?: string | null
+  tire_photo?: string | null
+  driving_license_photo?: string | null
+}
+
+// 驾驶员证件信息类型
+export interface DriverLicense {
+  id: string
+  driver_id: string
+  // 身份证信息
+  id_card_number: string | null
+  id_card_name: string | null
+  id_card_address: string | null
+  id_card_birth_date: string | null
+  id_card_photo_front: string | null
+  id_card_photo_back: string | null
+  // 驾驶证信息
+  license_number: string | null
+  license_class: string | null
+  valid_from: string | null
+  valid_to: string | null
+  issue_authority: string | null
+  driving_license_photo: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+// 驾驶员证件信息输入类型
+export interface DriverLicenseInput {
+  driver_id: string
+  id_card_number?: string | null
+  id_card_name?: string | null
+  id_card_address?: string | null
+  id_card_birth_date?: string | null
+  id_card_photo_front?: string | null
+  id_card_photo_back?: string | null
+  license_number?: string | null
+  license_class?: string | null
+  valid_from?: string | null
+  valid_to?: string | null
+  issue_authority?: string | null
+  driving_license_photo?: string | null
+  status?: string
+}
+
+// 驾驶员证件信息更新类型
+export interface DriverLicenseUpdate {
+  id_card_number?: string | null
+  id_card_name?: string | null
+  id_card_address?: string | null
+  id_card_birth_date?: string | null
+  id_card_photo_front?: string | null
+  id_card_photo_back?: string | null
+  license_number?: string | null
+  license_class?: string | null
+  valid_from?: string | null
+  valid_to?: string | null
+  issue_authority?: string | null
+  driving_license_photo?: string | null
+  status?: string
+}
