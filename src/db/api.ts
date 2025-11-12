@@ -3641,3 +3641,54 @@ export async function updateDriverLicense(
     return null
   }
 }
+
+/**
+ * 删除驾驶员证件信息
+ * @param driverId 驾驶员ID
+ * @returns 是否删除成功
+ */
+export async function deleteDriverLicense(driverId: string): Promise<boolean> {
+  try {
+    // 先获取驾驶证信息，用于删除关联的图片
+    const license = await getDriverLicense(driverId)
+
+    // 删除数据库记录
+    const {error} = await supabase.from('driver_licenses').delete().eq('driver_id', driverId)
+
+    if (error) {
+      console.error('删除驾驶员证件信息失败:', error)
+      return false
+    }
+
+    // 删除关联的图片文件（如果存在）
+    if (license) {
+      const imagePaths: string[] = []
+      if (license.id_card_photo_front) imagePaths.push(license.id_card_photo_front)
+      if (license.id_card_photo_back) imagePaths.push(license.id_card_photo_back)
+      if (license.driving_license_photo) imagePaths.push(license.driving_license_photo)
+
+      // 从storage中删除图片
+      if (imagePaths.length > 0) {
+        // 过滤出相对路径（不是完整URL的）
+        const relativeImagePaths = imagePaths.filter(
+          (path) => !path.startsWith('http://') && !path.startsWith('https://')
+        )
+
+        if (relativeImagePaths.length > 0) {
+          const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
+          const {error: deleteError} = await supabase.storage.from(bucketName).remove(relativeImagePaths)
+
+          if (deleteError) {
+            console.warn('删除证件照片失败:', deleteError)
+            // 不影响主流程，继续返回成功
+          }
+        }
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除驾驶员证件信息异常:', error)
+    return false
+  }
+}

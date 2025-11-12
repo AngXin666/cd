@@ -1,7 +1,7 @@
 /**
  * 司机个人信息页面
  * 显示司机的身份证、驾驶证信息和证件照片
- * 只允许修改手机号和密码
+ * 允许修改手机号、密码，以及删除并重新录入个人信息
  */
 
 import {Button, Image, Input, ScrollView, Text, View} from '@tarojs/components'
@@ -10,7 +10,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getCurrentUserProfile, getDriverLicense, updateProfile} from '@/db/api'
+import {deleteDriverLicense, getCurrentUserProfile, getDriverLicense, updateProfile} from '@/db/api'
 import type {DriverLicense, Profile} from '@/db/types'
 
 const DriverProfile: React.FC = () => {
@@ -199,6 +199,70 @@ const DriverProfile: React.FC = () => {
     } finally {
       Taro.hideLoading()
     }
+  }
+
+  // 删除个人信息
+  const handleDeleteInfo = async () => {
+    if (!user) return
+
+    // 二次确认
+    const res = await Taro.showModal({
+      title: '确认删除',
+      content: '删除后将清空所有个人信息和证件照片，需要重新录入。确定要删除吗？',
+      confirmText: '确定删除',
+      cancelText: '取消',
+      confirmColor: '#ef4444'
+    })
+
+    if (!res.confirm) return
+
+    Taro.showLoading({title: '删除中...'})
+    try {
+      const success = await deleteDriverLicense(user.id)
+
+      if (!success) {
+        throw new Error('删除失败')
+      }
+
+      // 清空本地状态
+      setDriverLicense(null)
+
+      Taro.showToast({
+        title: '删除成功',
+        icon: 'success',
+        duration: 2000
+      })
+
+      // 延迟刷新页面
+      setTimeout(() => {
+        loadProfile()
+      }, 2000)
+    } catch (error) {
+      console.error('删除个人信息失败:', error)
+      Taro.showToast({
+        title: '删除失败，请重试',
+        icon: 'none'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 跳转到车辆管理页面重新录入
+  const handleReEnter = () => {
+    Taro.showModal({
+      title: '重新录入',
+      content: '请前往车辆管理页面，添加车辆时会自动录入您的个人信息',
+      showCancel: true,
+      confirmText: '前往',
+      cancelText: '稍后'
+    }).then((res) => {
+      if (res.confirm) {
+        Taro.switchTab({
+          url: '/pages/driver/vehicles/index'
+        })
+      }
+    })
   }
 
   // 返回上一页
@@ -674,6 +738,45 @@ const DriverProfile: React.FC = () => {
                   </View>
                 )}
 
+              {/* 操作按钮区域 */}
+              {driverLicense ? (
+                <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-cog text-gray-600 text-xl mr-2" />
+                    <Text className="text-lg font-bold text-gray-800">信息管理</Text>
+                  </View>
+                  <Button
+                    className="w-full bg-red-50 text-red-600 py-3 rounded-lg break-keep text-sm border border-red-200"
+                    size="default"
+                    onClick={handleDeleteInfo}>
+                    <View className="flex items-center justify-center">
+                      <View className="i-mdi-delete text-lg mr-2" />
+                      <Text>删除个人信息并重新录入</Text>
+                    </View>
+                  </Button>
+                  <Text className="text-xs text-gray-500 mt-2 text-center">删除后需要重新拍照录入证件信息</Text>
+                </View>
+              ) : (
+                <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-alert-circle text-orange-600 text-xl mr-2" />
+                    <Text className="text-lg font-bold text-gray-800">未录入信息</Text>
+                  </View>
+                  <Text className="text-gray-600 text-sm mb-4 text-center">
+                    您还没有录入个人信息，请前往车辆管理页面添加车辆时录入
+                  </Text>
+                  <Button
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg break-keep text-sm"
+                    size="default"
+                    onClick={handleReEnter}>
+                    <View className="flex items-center justify-center">
+                      <View className="i-mdi-plus-circle text-lg mr-2" />
+                      <Text>前往录入</Text>
+                    </View>
+                  </Button>
+                </View>
+              )}
+
               {/* 提示信息 */}
               <View className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <View className="flex items-start">
@@ -684,7 +787,7 @@ const DriverProfile: React.FC = () => {
                     <Text className="text-blue-700 text-xs block mb-1">
                       • 姓名、身份证号等信息由系统从证件自动读取，无法修改
                     </Text>
-                    <Text className="text-blue-700 text-xs block">• 如需更新证件信息，请联系管理员</Text>
+                    <Text className="text-blue-700 text-xs block">• 如需更新证件信息，可以删除后重新录入</Text>
                   </View>
                 </View>
               </View>
