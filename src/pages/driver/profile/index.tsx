@@ -1,19 +1,21 @@
 /**
  * 司机个人信息页面
- * 显示司机的个人资料和基本信息
+ * 显示司机的个人资料、基本信息和证件信息
  */
 
-import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Image, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getCurrentUserProfile, updateProfile} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {supabase} from '@/client/supabase'
+import {getCurrentUserProfile, getDriverVehicles, updateProfile} from '@/db/api'
+import type {Profile, Vehicle} from '@/db/types'
 
 const DriverProfile: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(false)
 
@@ -24,10 +26,13 @@ const DriverProfile: React.FC = () => {
     email: ''
   })
 
-  // 加载个人资料
+  // 加载个人资料和车辆信息
   const loadProfile = useCallback(async () => {
+    if (!user) return
+
     setLoading(true)
     try {
+      // 加载个人资料
       const data = await getCurrentUserProfile()
       setProfile(data)
       // 初始化编辑表单
@@ -36,6 +41,10 @@ const DriverProfile: React.FC = () => {
         phone: data?.phone || '',
         email: data?.email || ''
       })
+
+      // 加载车辆信息
+      const vehicleData = await getDriverVehicles(user.id)
+      setVehicles(vehicleData)
     } catch (error) {
       console.error('加载个人资料失败:', error)
       Taro.showToast({
@@ -45,7 +54,7 @@ const DriverProfile: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useDidShow(() => {
     loadProfile()
@@ -116,6 +125,16 @@ const DriverProfile: React.FC = () => {
   const handleGoBack = () => {
     Taro.navigateBack()
   }
+
+  // 获取图片公共URL
+  const getImageUrl = (path: string | null): string => {
+    if (!path) return ''
+    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_vehicle_images`).getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  // 获取第一辆车的信息（用于显示证件信息）
+  const firstVehicle = vehicles.length > 0 ? vehicles[0] : null
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
@@ -298,6 +317,122 @@ const DriverProfile: React.FC = () => {
                   </View>
                 )}
               </View>
+
+              {/* 证件信息卡片 */}
+              {firstVehicle && (
+                <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
+                  <View className="flex items-center mb-4">
+                    <View className="i-mdi-card-account-details-outline text-green-600 text-xl mr-2" />
+                    <Text className="text-lg font-bold text-gray-800">证件信息</Text>
+                    <Text className="text-xs text-gray-500 ml-2">（来自车辆行驶证）</Text>
+                  </View>
+
+                  {/* 证件信息项 */}
+                  <View className="space-y-3">
+                    {/* 车主姓名 */}
+                    {firstVehicle.owner_name && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">车主姓名</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.owner_name}</Text>
+                      </View>
+                    )}
+
+                    {/* 车牌号 */}
+                    {firstVehicle.plate_number && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">车牌号</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.plate_number}</Text>
+                      </View>
+                    )}
+
+                    {/* 车辆识别代号 */}
+                    {firstVehicle.vin && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">车辆识别代号</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.vin}</Text>
+                      </View>
+                    )}
+
+                    {/* 注册日期 */}
+                    {firstVehicle.register_date && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">注册日期</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.register_date}</Text>
+                      </View>
+                    )}
+
+                    {/* 发证日期 */}
+                    {firstVehicle.issue_date && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">发证日期</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.issue_date}</Text>
+                      </View>
+                    )}
+
+                    {/* 检验有效期 */}
+                    {firstVehicle.inspection_valid_until && (
+                      <View className="flex items-center justify-between py-2">
+                        <Text className="text-gray-600 text-sm">检验有效期</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.inspection_valid_until}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* 行驶证照片卡片 */}
+              {firstVehicle &&
+                (firstVehicle.driving_license_main_photo ||
+                  firstVehicle.driving_license_sub_photo ||
+                  firstVehicle.driving_license_sub_back_photo) && (
+                  <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
+                    <View className="flex items-center mb-4">
+                      <View className="i-mdi-image-multiple text-purple-600 text-xl mr-2" />
+                      <Text className="text-lg font-bold text-gray-800">行驶证照片</Text>
+                    </View>
+
+                    <View className="space-y-4">
+                      {/* 行驶证主页 */}
+                      {firstVehicle.driving_license_main_photo && (
+                        <View>
+                          <Text className="text-gray-600 text-sm mb-2">行驶证主页</Text>
+                          <Image
+                            src={getImageUrl(firstVehicle.driving_license_main_photo)}
+                            mode="aspectFit"
+                            className="w-full rounded-lg border border-gray-200"
+                            style={{height: '200px'}}
+                          />
+                        </View>
+                      )}
+
+                      {/* 行驶证副页 */}
+                      {firstVehicle.driving_license_sub_photo && (
+                        <View>
+                          <Text className="text-gray-600 text-sm mb-2">行驶证副页</Text>
+                          <Image
+                            src={getImageUrl(firstVehicle.driving_license_sub_photo)}
+                            mode="aspectFit"
+                            className="w-full rounded-lg border border-gray-200"
+                            style={{height: '200px'}}
+                          />
+                        </View>
+                      )}
+
+                      {/* 行驶证副页背页 */}
+                      {firstVehicle.driving_license_sub_back_photo && (
+                        <View>
+                          <Text className="text-gray-600 text-sm mb-2">行驶证副页背页</Text>
+                          <Image
+                            src={getImageUrl(firstVehicle.driving_license_sub_back_photo)}
+                            mode="aspectFit"
+                            className="w-full rounded-lg border border-gray-200"
+                            style={{height: '200px'}}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
 
               {/* 提示信息 */}
               <View className="bg-blue-50 border border-blue-200 rounded-xl p-4">
