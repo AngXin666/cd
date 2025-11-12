@@ -564,16 +564,17 @@ const DriverProfile: React.FC = () => {
                       <Text className="text-lg font-bold text-gray-800">证件照片</Text>
                     </View>
 
-                    <View className="space-y-4">
+                    {/* 横向网格布局 */}
+                    <View className="flex flex-row flex-wrap gap-3">
                       {/* 身份证正面 */}
                       {driverLicense.id_card_photo_front && (
-                        <View>
-                          <Text className="text-gray-600 text-sm mb-2">身份证正面</Text>
+                        <View className="flex-1" style={{minWidth: '45%'}}>
+                          <Text className="text-gray-600 text-xs mb-2">身份证正面</Text>
                           <Image
                             src={getImageUrl(driverLicense.id_card_photo_front)}
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
-                            style={{height: '200px'}}
+                            style={{height: '120px'}}
                             onError={(e) => {
                               console.error('===== 身份证正面图片加载失败 =====')
                               console.error('错误事件:', e)
@@ -602,13 +603,13 @@ const DriverProfile: React.FC = () => {
 
                       {/* 身份证背面 */}
                       {driverLicense.id_card_photo_back && (
-                        <View>
-                          <Text className="text-gray-600 text-sm mb-2">身份证背面</Text>
+                        <View className="flex-1" style={{minWidth: '45%'}}>
+                          <Text className="text-gray-600 text-xs mb-2">身份证背面</Text>
                           <Image
                             src={getImageUrl(driverLicense.id_card_photo_back)}
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
-                            style={{height: '200px'}}
+                            style={{height: '120px'}}
                             onError={(e) => {
                               console.error('身份证背面图片加载失败:', e)
                               console.error('图片URL:', getImageUrl(driverLicense.id_card_photo_back))
@@ -634,13 +635,13 @@ const DriverProfile: React.FC = () => {
 
                       {/* 驾驶证照片 */}
                       {driverLicense.driving_license_photo && (
-                        <View>
-                          <Text className="text-gray-600 text-sm mb-2">驾驶证</Text>
+                        <View className="flex-1" style={{minWidth: '45%'}}>
+                          <Text className="text-gray-600 text-xs mb-2">驾驶证</Text>
                           <Image
                             src={getImageUrl(driverLicense.driving_license_photo)}
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
-                            style={{height: '200px'}}
+                            style={{height: '120px'}}
                             onError={(e) => {
                               console.error('驾驶证照片加载失败:', e)
                               console.error('图片URL:', getImageUrl(driverLicense.driving_license_photo))
