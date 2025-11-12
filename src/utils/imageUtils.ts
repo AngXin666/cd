@@ -1,10 +1,213 @@
 /**
  * 图片处理工具函数
- * 支持图片压缩、Base64转换、上传到Supabase Storage
+ * 支持图片压缩、Base64转换、上传到Supabase Storage、自动旋转
  */
 
 import Taro from '@tarojs/taro'
 import {supabase} from '@/client/supabase'
+
+/**
+ * 从Base64字符串中读取EXIF方向信息
+ * @param base64 Base64图片字符串
+ * @returns EXIF方向值 (1-8)
+ */
+function getExifOrientation(base64: string): number {
+  try {
+    // 移除data URL前缀
+    const base64Data = base64.split(',')[1]
+    const binaryString = atob(base64Data)
+
+    // 检查是否是JPEG格式（以0xFFD8开头）
+    if (binaryString.charCodeAt(0) !== 0xff || binaryString.charCodeAt(1) !== 0xd8) {
+      return 1 // 不是JPEG，返回默认方向
+    }
+
+    let offset = 2
+    const length = binaryString.length
+
+    // 查找EXIF标记
+    while (offset < length) {
+      if (binaryString.charCodeAt(offset) !== 0xff) break
+
+      const marker = binaryString.charCodeAt(offset + 1)
+      offset += 2
+
+      // APP1标记（EXIF数据）
+      if (marker === 0xe1) {
+        const exifLength = binaryString.charCodeAt(offset) * 256 + binaryString.charCodeAt(offset + 1)
+        const exifData = binaryString.substr(offset + 2, exifLength - 2)
+
+        // 检查EXIF标识符
+        if (exifData.substr(0, 4) !== 'Exif') {
+          return 1
+        }
+
+        // 读取字节序
+        const tiffOffset = 6
+        const littleEndian = exifData.charCodeAt(tiffOffset) === 0x49
+
+        // 读取IFD偏移
+        const ifdOffset =
+          tiffOffset +
+          4 +
+          (littleEndian
+            ? exifData.charCodeAt(tiffOffset + 4) + exifData.charCodeAt(tiffOffset + 5) * 256
+            : exifData.charCodeAt(tiffOffset + 4) * 256 + exifData.charCodeAt(tiffOffset + 5))
+
+        // 读取IFD条目数量
+        const numEntries = littleEndian
+          ? exifData.charCodeAt(ifdOffset) + exifData.charCodeAt(ifdOffset + 1) * 256
+          : exifData.charCodeAt(ifdOffset) * 256 + exifData.charCodeAt(ifdOffset + 1)
+
+        // 查找方向标签（0x0112）
+        for (let i = 0; i < numEntries; i++) {
+          const entryOffset = ifdOffset + 2 + i * 12
+          const tag = littleEndian
+            ? exifData.charCodeAt(entryOffset) + exifData.charCodeAt(entryOffset + 1) * 256
+            : exifData.charCodeAt(entryOffset) * 256 + exifData.charCodeAt(entryOffset + 1)
+
+          if (tag === 0x0112) {
+            // 找到方向标签
+            const orientation = littleEndian
+              ? exifData.charCodeAt(entryOffset + 8) + exifData.charCodeAt(entryOffset + 9) * 256
+              : exifData.charCodeAt(entryOffset + 8) * 256 + exifData.charCodeAt(entryOffset + 9)
+            return orientation
+          }
+        }
+      } else {
+        // 跳过其他标记
+        const blockLength = binaryString.charCodeAt(offset) * 256 + binaryString.charCodeAt(offset + 1)
+        offset += blockLength
+      }
+    }
+  } catch (error) {
+    console.warn('读取EXIF信息失败:', error)
+  }
+  return 1 // 默认方向
+}
+
+/**
+ * 根据EXIF方向旋转图片
+ * @param base64 Base64图片字符串
+ * @param orientation EXIF方向值
+ * @returns 旋转后的Base64字符串
+ */
+async function rotateImageByOrientation(base64: string, orientation: number): Promise<string> {
+  // 方向值为1表示正常，不需要旋转
+  if (orientation === 1) {
+    return base64
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('无法创建Canvas上下文'))
+          return
+        }
+
+        const width = img.width
+        const height = img.height
+
+        // 根据方向值设置canvas尺寸和变换
+        switch (orientation) {
+          case 2:
+            // 水平翻转
+            canvas.width = width
+            canvas.height = height
+            ctx.transform(-1, 0, 0, 1, width, 0)
+            break
+          case 3:
+            // 旋转180度
+            canvas.width = width
+            canvas.height = height
+            ctx.transform(-1, 0, 0, -1, width, height)
+            break
+          case 4:
+            // 垂直翻转
+            canvas.width = width
+            canvas.height = height
+            ctx.transform(1, 0, 0, -1, 0, height)
+            break
+          case 5:
+            // 顺时针旋转90度 + 水平翻转
+            canvas.width = height
+            canvas.height = width
+            ctx.transform(0, 1, 1, 0, 0, 0)
+            break
+          case 6:
+            // 顺时针旋转90度
+            canvas.width = height
+            canvas.height = width
+            ctx.transform(0, 1, -1, 0, height, 0)
+            break
+          case 7:
+            // 顺时针旋转270度 + 水平翻转
+            canvas.width = height
+            canvas.height = width
+            ctx.transform(0, -1, -1, 0, height, width)
+            break
+          case 8:
+            // 顺时针旋转270度
+            canvas.width = height
+            canvas.height = width
+            ctx.transform(0, -1, 1, 0, 0, width)
+            break
+          default:
+            canvas.width = width
+            canvas.height = height
+        }
+
+        ctx.drawImage(img, 0, 0)
+
+        // 转换为Base64
+        const mimeType = base64.match(/data:(.*?);/)?.[1] || 'image/jpeg'
+        const rotatedBase64 = canvas.toDataURL(mimeType, 0.95)
+        resolve(rotatedBase64)
+      } catch (error) {
+        console.error('旋转图片失败:', error)
+        reject(error)
+      }
+    }
+    img.onerror = () => {
+      reject(new Error('加载图片失败'))
+    }
+    img.src = base64
+  })
+}
+
+/**
+ * 自动修正图片方向
+ * @param imagePath 图片路径
+ * @returns 修正后的图片路径（H5环境返回Base64，小程序环境返回原路径）
+ */
+export async function autoRotateImage(imagePath: string): Promise<string> {
+  try {
+    // 小程序环境暂不支持EXIF读取，直接返回原路径
+    if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
+      return imagePath
+    }
+
+    // H5环境：读取EXIF并旋转
+    const base64 = await imageToBase64(imagePath)
+    const orientation = getExifOrientation(base64)
+
+    if (orientation === 1) {
+      // 不需要旋转
+      return imagePath
+    }
+
+    // 需要旋转
+    const rotatedBase64 = await rotateImageByOrientation(base64, orientation)
+    return rotatedBase64
+  } catch (error) {
+    console.warn('自动旋转图片失败，使用原图:', error)
+    return imagePath
+  }
+}
 
 /**
  * 将图片路径转换为Base64格式
@@ -144,13 +347,16 @@ export async function uploadImageToStorage(
   fileName: string
 ): Promise<string | null> {
   try {
-    // 1. 压缩图片
-    const compressedPath = await compressImage(imagePath, 0.8)
+    // 1. 自动旋转图片（修正方向）
+    const rotatedPath = await autoRotateImage(imagePath)
 
-    // 2. 转换为Base64
+    // 2. 压缩图片
+    const compressedPath = await compressImage(rotatedPath, 0.8)
+
+    // 3. 转换为Base64
     const base64Image = await imageToBase64(compressedPath)
 
-    // 3. 将Base64转换为Blob
+    // 4. 将Base64转换为Blob
     const base64Data = base64Image.split(',')[1]
     const mimeType = base64Image.match(/data:(.*?);/)?.[1] || 'image/jpeg'
 
