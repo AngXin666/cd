@@ -216,7 +216,9 @@ const AddVehicle: React.FC = () => {
         setFormData((prev) => ({
           ...prev,
           mandatory_scrap_date: result.mandatory_scrap_date || prev.mandatory_scrap_date,
-          inspection_date: result.inspection_date || prev.inspection_date
+          inspection_date: result.inspection_date || prev.inspection_date,
+          // 优先使用副页背面的检验有效期（因为它是最新的）
+          inspection_valid_until: result.inspection_valid_until || prev.inspection_valid_until
         }))
         Taro.showToast({title: '副页背页识别成功', icon: 'success'})
       } else {
@@ -554,8 +556,14 @@ const AddVehicle: React.FC = () => {
               <View className="mb-6">
                 <PhotoCapture
                   title="行驶证副页背页"
-                  description="请拍摄行驶证副页背页，包含年检记录和强制报废期"
-                  tips={['确保照片清晰', '包含年检记录', '包含强制报废期信息']}
+                  description="请拍摄行驶证副页背页，包含最新的年检记录和检验有效期"
+                  tips={[
+                    '确保照片清晰',
+                    '包含最新的年检记录',
+                    '包含检验有效期至日期',
+                    '包含强制报废期信息',
+                    '如果副页正面的检验有效期已过期，背面会有新的有效期'
+                  ]}
                   value={photos.driving_license_sub_back}
                   onChange={(path) => setPhotos((prev) => ({...prev, driving_license_sub_back: path}))}
                 />

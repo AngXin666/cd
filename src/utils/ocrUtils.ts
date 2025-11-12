@@ -49,6 +49,7 @@ export interface DrivingLicenseSubOcrResult {
 export interface DrivingLicenseSubBackOcrResult {
   mandatory_scrap_date?: string // 强制报废期
   inspection_date?: string // 年检时间（最近一次年检日期）
+  inspection_valid_until?: string // 检验有效期（最新的有效期，优先使用此字段）
 }
 
 export interface IdCardOcrResult {
@@ -114,12 +115,16 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   driving_license_sub_back: `请识别这张行驶证副页背页，提取以下信息并以JSON格式返回：
 {
   "mandatory_scrap_date": "强制报废期(YYYY-MM-DD格式)",
-  "inspection_date": "年检时间(YYYY-MM-DD格式)"
+  "inspection_date": "年检时间(YYYY-MM-DD格式)",
+  "inspection_valid_until": "检验有效期(YYYY-MM-DD格式)"
 }
 注意：
-1. 年检时间通常在副页背页的检验记录中
-2. 如果某个字段无法识别，请返回null
-3. 只返回JSON数据，不要其他说明文字`,
+1. 年检时间通常在副页背页的检验记录中，是最近一次年检的日期
+2. 检验有效期是最新的检验有效期至日期，通常在年检记录的"检验有效期至"栏
+3. 如果副页正面的检验有效期已过期，副页背面会有新的年检记录和新的检验有效期
+4. 请优先识别最新（最下方）的年检记录
+5. 如果某个字段无法识别，请返回null
+6. 只返回JSON数据，不要其他说明文字`,
 
   id_card_front: `请识别这张身份证正面，提取以下信息并以JSON格式返回：
 {
