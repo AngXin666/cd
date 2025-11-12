@@ -17,6 +17,30 @@ import {recognizeDriverLicense, recognizeDrivingLicense, recognizeIdCardFront} f
 
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 
+/**
+ * 计算驾龄（以年为单位）
+ * @param validFrom 领证时间 (YYYY-MM-DD)
+ * @returns 驾龄（年）
+ */
+const calculateDrivingYears = (validFrom: string | undefined): number => {
+  if (!validFrom) return 0
+  try {
+    const issueDate = new Date(validFrom)
+    const today = new Date()
+    const years = today.getFullYear() - issueDate.getFullYear()
+    const monthDiff = today.getMonth() - issueDate.getMonth()
+    const dayDiff = today.getDate() - issueDate.getDate()
+
+    // 如果还没到生日月份，或者到了生日月份但还没到生日日期，年龄减1
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      return Math.max(0, years - 1)
+    }
+    return Math.max(0, years)
+  } catch {
+    return 0
+  }
+}
+
 const AddVehicle: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [currentStep, setCurrentStep] = useState(0)
@@ -159,6 +183,8 @@ const AddVehicle: React.FC = () => {
       if (result) {
         setDriverLicenseData((prev) => ({
           ...prev,
+          id_card_name: result.name || prev.id_card_name, // 驾驶证上的姓名
+          id_card_address: result.address || prev.id_card_address, // 驾驶证上的住址
           license_number: result.license_number || prev.license_number,
           license_class: result.license_class || prev.license_class,
           valid_from: result.valid_from || prev.valid_from,
@@ -521,17 +547,45 @@ const AddVehicle: React.FC = () => {
                     <Text className="text-lg font-bold text-gray-800">识别结果</Text>
                   </View>
                   <View className="space-y-3">
+                    {/* 基本信息 */}
                     {driverLicenseData.id_card_name && (
-                      <InfoDisplay label="姓名" value={driverLicenseData.id_card_name} />
+                      <InfoDisplay label="姓名" value={driverLicenseData.id_card_name} highlight />
                     )}
                     {driverLicenseData.id_card_number && (
                       <InfoDisplay label="身份证号" value={driverLicenseData.id_card_number} />
                     )}
+                    {driverLicenseData.id_card_address && (
+                      <InfoDisplay label="住址" value={driverLicenseData.id_card_address} />
+                    )}
+
+                    {/* 驾驶证信息 */}
                     {driverLicenseData.license_number && (
-                      <InfoDisplay label="驾驶证号" value={driverLicenseData.license_number} />
+                      <InfoDisplay label="驾驶证编号" value={driverLicenseData.license_number} />
                     )}
                     {driverLicenseData.license_class && (
                       <InfoDisplay label="准驾车型" value={driverLicenseData.license_class} />
+                    )}
+                    {driverLicenseData.valid_from && (
+                      <InfoDisplay
+                        label="领证时间"
+                        value={new Date(driverLicenseData.valid_from).toLocaleDateString('zh-CN')}
+                      />
+                    )}
+                    {driverLicenseData.valid_from && (
+                      <InfoDisplay
+                        label="驾龄"
+                        value={`${calculateDrivingYears(driverLicenseData.valid_from)} 年`}
+                        highlight
+                      />
+                    )}
+                    {driverLicenseData.valid_to && (
+                      <InfoDisplay
+                        label="有效期至"
+                        value={new Date(driverLicenseData.valid_to).toLocaleDateString('zh-CN')}
+                      />
+                    )}
+                    {driverLicenseData.issue_authority && (
+                      <InfoDisplay label="发证机关" value={driverLicenseData.issue_authority} />
                     )}
                   </View>
                 </View>

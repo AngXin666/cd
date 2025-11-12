@@ -33,9 +33,11 @@ export interface IdCardOcrResult {
 }
 
 export interface DriverLicenseOcrResult {
-  license_number?: string // 证号
+  name?: string // 姓名
+  license_number?: string // 驾驶证编号（证号）
+  address?: string // 住址
   license_class?: string // 准驾车型
-  valid_from?: string // 有效期起始日期
+  valid_from?: string // 有效期起始日期（领证时间）
   valid_to?: string // 有效期截止日期
   issue_authority?: string // 发证机关
 }
@@ -79,9 +81,11 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
 
   driver_license: `请识别这张驾驶证，提取以下信息并以JSON格式返回：
 {
-  "license_number": "证号",
+  "name": "姓名",
+  "license_number": "证号（驾驶证编号）",
+  "address": "住址",
   "license_class": "准驾车型",
-  "valid_from": "有效期起始日期(YYYY-MM-DD格式)",
+  "valid_from": "有效期起始日期(YYYY-MM-DD格式，即领证时间)",
   "valid_to": "有效期截止日期(YYYY-MM-DD格式)",
   "issue_authority": "发证机关"
 }
