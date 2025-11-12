@@ -2,7 +2,7 @@ import {Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/co
 import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {createDriver, getAllProfiles, getDriverWarehouseIds, getManagerWarehouses, setDriverWarehouses} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 
@@ -14,11 +14,28 @@ const DriverManagement: React.FC = () => {
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
+  // 搜索相关状态
+  const [searchKeyword, setSearchKeyword] = useState('')
+
   // 添加司机相关状态
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [newDriverPhone, setNewDriverPhone] = useState('')
   const [newDriverName, setNewDriverName] = useState('')
   const [addingDriver, setAddingDriver] = useState(false)
+
+  // 过滤后的司机列表
+  const filteredDrivers = useMemo(() => {
+    if (!searchKeyword.trim()) {
+      return drivers
+    }
+    const keyword = searchKeyword.trim().toLowerCase()
+    return drivers.filter(
+      (driver) =>
+        driver.name?.toLowerCase().includes(keyword) ||
+        driver.phone?.toLowerCase().includes(keyword) ||
+        driver.email?.toLowerCase().includes(keyword)
+    )
+  }, [drivers, searchKeyword])
 
   // 加载司机列表
   const loadDrivers = useCallback(async () => {
@@ -67,6 +84,13 @@ const DriverManagement: React.FC = () => {
   const handleSelectDriver = async (driver: Profile) => {
     setSelectedDriver(driver)
     await loadDriverWarehouses(driver.id)
+  }
+
+  // 查看司机的车辆
+  const handleViewDriverVehicles = (driverId: string) => {
+    Taro.navigateTo({
+      url: `/pages/driver/vehicle-list/index?driverId=${driverId}`
+    })
   }
 
   // 保存仓库分配
@@ -216,6 +240,23 @@ const DriverManagement: React.FC = () => {
                   </View>
                 </View>
 
+                {/* 搜索框 */}
+                <View className="mb-3">
+                  <View className="flex items-center bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+                    <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
+                    <Input
+                      type="text"
+                      placeholder="搜索司机姓名、手机号或邮箱"
+                      value={searchKeyword}
+                      onInput={(e) => setSearchKeyword(e.detail.value)}
+                      className="flex-1 text-sm"
+                    />
+                    {searchKeyword && (
+                      <View className="i-mdi-close-circle text-gray-400 text-lg" onClick={() => setSearchKeyword('')} />
+                    )}
+                  </View>
+                </View>
+
                 {/* 添加司机表单 */}
                 {showAddDriver && (
                   <View className="bg-blue-50 rounded-lg p-4 mb-3 border-2 border-blue-200">
@@ -251,16 +292,17 @@ const DriverManagement: React.FC = () => {
                   </View>
                 )}
 
-                {drivers.length > 0 ? (
+                {filteredDrivers.length > 0 ? (
                   <View className="space-y-2">
-                    {drivers.map((driver) => (
+                    {filteredDrivers.map((driver) => (
                       <View
                         key={driver.id}
                         className={`p-3 rounded-lg border-2 ${
                           selectedDriver?.id === driver.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-gray-50'
-                        }`}
-                        onClick={() => handleSelectDriver(driver)}>
-                        <View className="flex items-center justify-between">
+                        }`}>
+                        <View
+                          className="flex items-center justify-between mb-2"
+                          onClick={() => handleSelectDriver(driver)}>
                           <View className="flex items-center flex-1">
                             <View className="i-mdi-account text-blue-600 text-2xl mr-3" />
                             <View className="flex-1">
@@ -274,8 +316,23 @@ const DriverManagement: React.FC = () => {
                             <View className="i-mdi-check-circle text-blue-600 text-xl" />
                           )}
                         </View>
+                        {/* 查看车辆按钮 */}
+                        <View
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleViewDriverVehicles(driver.id)
+                          }}
+                          className="flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-98 transition-all">
+                          <View className="i-mdi-car text-white text-base mr-1" />
+                          <Text className="text-white text-xs font-medium">查看车辆</Text>
+                        </View>
                       </View>
                     ))}
+                  </View>
+                ) : searchKeyword ? (
+                  <View className="text-center py-8">
+                    <View className="i-mdi-account-search text-gray-300 text-5xl mb-2" />
+                    <Text className="text-gray-400 text-sm block">未找到匹配的司机</Text>
                   </View>
                 ) : (
                   <View className="text-center py-8">

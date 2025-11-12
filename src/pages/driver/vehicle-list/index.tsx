@@ -1,28 +1,55 @@
 /**
  * 车辆列表页面 - 优化版
  * 显示司机名下的所有车辆
+ * 支持管理员查看指定司机的车辆
  */
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useState} from 'react'
-import {deleteVehicle, getDriverVehicles} from '@/db/api'
-import type {Vehicle} from '@/db/types'
+import {useCallback, useEffect, useState} from 'react'
+import {deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
+import type {Profile, Vehicle} from '@/db/types'
 
 const VehicleList: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(false)
+  const [targetDriverId, setTargetDriverId] = useState<string>('')
+  const [targetDriver, setTargetDriver] = useState<Profile | null>(null)
+  const [isManagerView, setIsManagerView] = useState(false)
+
+  // 加载司机信息
+  const loadDriverInfo = useCallback(async (driverId: string) => {
+    try {
+      const driver = await getProfileById(driverId)
+      setTargetDriver(driver)
+    } catch (error) {
+      console.error('加载司机信息失败:', error)
+    }
+  }, [])
+
+  // 获取URL参数中的司机ID
+  useEffect(() => {
+    const params = Taro.getCurrentInstance().router?.params
+    if (params?.driverId) {
+      setTargetDriverId(params.driverId)
+      setIsManagerView(true)
+      // 加载司机信息
+      loadDriverInfo(params.driverId)
+    }
+  }, [loadDriverInfo])
 
   // 加载车辆列表
   const loadVehicles = useCallback(async () => {
-    if (!user) return
+    // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
+    const driverId = targetDriverId || user?.id
+    if (!driverId) return
 
     setLoading(true)
     try {
-      const data = await getDriverVehicles(user.id)
+      const data = await getDriverVehicles(driverId)
       setVehicles(data)
     } catch (error) {
       console.error('加载车辆列表失败:', error)
@@ -33,7 +60,7 @@ const VehicleList: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, targetDriverId])
 
   // 页面显示时加载数据
   useDidShow(() => {
@@ -91,9 +118,11 @@ const VehicleList: React.FC = () => {
               <View className="flex-1">
                 <View className="flex items-center mb-2">
                   <View className="i-mdi-car-multiple text-3xl text-white mr-3"></View>
-                  <Text className="text-2xl font-bold text-white">我的车辆</Text>
+                  <Text className="text-2xl font-bold text-white">{isManagerView ? '司机车辆' : '我的车辆'}</Text>
                 </View>
-                <Text className="text-blue-100 text-sm">管理您的车辆信息</Text>
+                <Text className="text-blue-100 text-sm">
+                  {isManagerView ? `查看 ${targetDriver?.name || '司机'} 的车辆信息` : '管理您的车辆信息'}
+                </Text>
               </View>
               <View className="bg-white/20 backdrop-blur rounded-full px-4 py-2">
                 <Text className="text-white text-lg font-bold">{vehicles.length}</Text>
@@ -102,18 +131,36 @@ const VehicleList: React.FC = () => {
             </View>
           </View>
 
-          {/* 添加车辆按钮 */}
-          <View className="mb-4">
-            <Button
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl break-keep text-base shadow-lg"
-              size="default"
-              onClick={handleAddVehicle}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-plus-circle-outline text-2xl mr-2"></View>
-                <Text className="font-medium">添加新车辆</Text>
+          {/* 管理员查看提示 */}
+          {isManagerView && targetDriver && (
+            <View className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <View className="flex items-start">
+                <View className="i-mdi-information text-blue-600 text-xl mr-2 mt-0.5" />
+                <View className="flex-1">
+                  <Text className="text-blue-800 text-sm block mb-1 font-medium">管理员查看模式</Text>
+                  <Text className="text-blue-700 text-xs block mb-1">司机姓名：{targetDriver.name || '未设置'}</Text>
+                  <Text className="text-blue-700 text-xs block">
+                    联系方式：{targetDriver.phone || targetDriver.email}
+                  </Text>
+                </View>
               </View>
-            </Button>
-          </View>
+            </View>
+          )}
+
+          {/* 添加车辆按钮 - 只在司机自己的视图显示 */}
+          {!isManagerView && (
+            <View className="mb-4">
+              <Button
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl break-keep text-base shadow-lg"
+                size="default"
+                onClick={handleAddVehicle}>
+                <View className="flex items-center justify-center">
+                  <View className="i-mdi-plus-circle-outline text-2xl mr-2"></View>
+                  <Text className="font-medium">添加新车辆</Text>
+                </View>
+              </Button>
+            </View>
+          )}
 
           {/* 车辆列表 */}
           {loading ? (
@@ -214,7 +261,7 @@ const VehicleList: React.FC = () => {
                     {/* 操作按钮 */}
                     <View className="flex gap-2 pt-3 border-t border-gray-100">
                       <Button
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                        className={`${isManagerView ? 'w-full' : 'flex-1'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
                         size="default"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -225,18 +272,20 @@ const VehicleList: React.FC = () => {
                           <Text className="font-medium">查看详情</Text>
                         </View>
                       </Button>
-                      <Button
-                        className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
-                        size="default"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteVehicle(vehicle.id, vehicle.plate_number)
-                        }}>
-                        <View className="flex items-center justify-center">
-                          <View className="i-mdi-delete text-base mr-1"></View>
-                          <Text className="font-medium">删除</Text>
-                        </View>
-                      </Button>
+                      {!isManagerView && (
+                        <Button
+                          className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                          size="default"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteVehicle(vehicle.id, vehicle.plate_number)
+                          }}>
+                          <View className="flex items-center justify-center">
+                            <View className="i-mdi-delete text-base mr-1"></View>
+                            <Text className="font-medium">删除</Text>
+                          </View>
+                        </Button>
+                      )}
                     </View>
                   </View>
                 </View>

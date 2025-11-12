@@ -156,6 +156,20 @@ export async function getAllProfiles(): Promise<Profile[]> {
   return Array.isArray(data) ? data : []
 }
 
+/**
+ * 根据ID获取用户档案
+ */
+export async function getProfileById(id: string): Promise<Profile | null> {
+  const {data, error} = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+
+  if (error) {
+    console.error('获取用户档案失败:', error)
+    return null
+  }
+
+  return data
+}
+
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
   const {error} = await supabase.from('profiles').update(updates).eq('id', id)
 
