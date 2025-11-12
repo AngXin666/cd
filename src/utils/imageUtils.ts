@@ -217,7 +217,13 @@ export async function autoRotateImage(imagePath: string): Promise<string> {
  */
 export async function ensureLandscapeOrientation(imagePath: string): Promise<string> {
   try {
-    // 转换为Base64
+    // 小程序环境暂不支持Canvas旋转，直接返回原路径
+    if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
+      console.log('⚠️ 小程序环境暂不支持自动旋转，使用原图')
+      return imagePath
+    }
+
+    // H5环境：转换为Base64并检测方向
     const base64 = await imageToBase64(imagePath)
 
     return new Promise((resolve, reject) => {
@@ -418,6 +424,34 @@ export async function uploadImageToStorage(
 ): Promise<string | null> {
   try {
     console.log('📤 开始上传图片:', fileName)
+    console.log('📍 当前环境:', Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? '小程序' : 'H5')
+
+    // 小程序环境：简化处理流程
+    if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
+      console.log('📱 小程序环境：使用简化上传流程')
+
+      // 1. 压缩图片
+      const compressedPath = await compressImage(imagePath, 0.8)
+      console.log('✅ 图片压缩完成')
+
+      // 2. 直接上传文件路径
+      const {data, error} = await supabase.storage.from(bucketName).upload(fileName, {
+        uri: compressedPath
+      } as any)
+
+      if (error) {
+        console.error('❌ 上传图片失败:', error)
+        return null
+      }
+
+      // 3. 获取公开URL
+      const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
+      console.log('✅ 图片上传成功:', urlData.publicUrl)
+      return urlData.publicUrl
+    }
+
+    // H5环境：完整处理流程
+    console.log('🌐 H5环境：使用完整处理流程')
 
     // 1. 强制横向显示（如果需要）
     let processedPath = imagePath
@@ -439,46 +473,28 @@ export async function uploadImageToStorage(
     const base64Data = base64Image.split(',')[1]
     const mimeType = base64Image.match(/data:(.*?);/)?.[1] || 'image/jpeg'
 
-    // 在小程序环境中，直接使用base64数据
-    if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-      // 小程序环境：使用文件路径
-      const {data, error} = await supabase.storage.from(bucketName).upload(fileName, {
-        uri: compressedPath
-      } as any)
-
-      if (error) {
-        console.error('上传图片失败:', error)
-        return null
-      }
-
-      // 获取公开URL
-      const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
-      console.log('✅ 图片上传成功:', urlData.publicUrl)
-      return urlData.publicUrl
-    } else {
-      // H5环境：转换为Blob
-      const byteCharacters = atob(base64Data)
-      const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
-      }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], {type: mimeType})
-
-      const {data, error} = await supabase.storage.from(bucketName).upload(fileName, blob)
-
-      if (error) {
-        console.error('上传图片失败:', error)
-        return null
-      }
-
-      // 获取公开URL
-      const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
-      console.log('✅ 图片上传成功:', urlData.publicUrl)
-      return urlData.publicUrl
+    // H5环境：转换为Blob
+    const byteCharacters = atob(base64Data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
     }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], {type: mimeType})
+
+    const {data, error} = await supabase.storage.from(bucketName).upload(fileName, blob)
+
+    if (error) {
+      console.error('❌ 上传图片失败:', error)
+      return null
+    }
+
+    // 获取公开URL
+    const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
+    console.log('✅ 图片上传成功:', urlData.publicUrl)
+    return urlData.publicUrl
   } catch (error) {
-    console.error('上传图片异常:', error)
+    console.error('❌ 上传图片异常:', error)
     return null
   }
 }
