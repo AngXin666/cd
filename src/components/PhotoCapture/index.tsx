@@ -6,7 +6,7 @@
 import {Button, Image, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import type React from 'react'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 
 interface PhotoCaptureProps {
   title: string // 标题
@@ -20,37 +20,63 @@ interface PhotoCaptureProps {
 const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, value, onChange, disabled = false}) => {
   const [imagePath, setImagePath] = useState<string>(value || '')
 
+  // 同步外部value变化
+  useEffect(() => {
+    console.log('PhotoCapture value变化:', value)
+    setImagePath(value || '')
+  }, [value])
+
   // 选择图片来源
   const handleChooseImage = async (sourceType: 'camera' | 'album') => {
     try {
+      console.log('开始选择图片，来源:', sourceType)
+
+      // 显示加载提示
+      Taro.showLoading({
+        title: '处理中...',
+        mask: true
+      })
+
       const res = await Taro.chooseImage({
         count: 1,
         sizeType: ['compressed'],
         sourceType: [sourceType]
       })
 
+      console.log('选择图片结果:', res)
+
       if (res.tempFilePaths && res.tempFilePaths.length > 0) {
         let path = res.tempFilePaths[0]
+        console.log('原始图片路径:', path)
 
         // 压缩图片并自动旋转（修复方向问题）
         try {
+          console.log('开始压缩图片...')
           const compressRes = await Taro.compressImage({
             src: path,
-            quality: 90, // 保持较高质量
-            compressedWidth: 1920, // 最大宽度
-            compressedHeight: 1920 // 最大高度
+            quality: 90 // 保持较高质量
           })
+          console.log('压缩成功，新路径:', compressRes.tempFilePath)
           path = compressRes.tempFilePath
         } catch (compressError) {
           console.warn('图片压缩失败，使用原图:', compressError)
           // 压缩失败时继续使用原图
         }
 
+        console.log('最终图片路径:', path)
         setImagePath(path)
+        console.log('调用onChange回调')
         onChange?.(path)
+        console.log('图片处理完成')
+
+        // 隐藏加载提示
+        Taro.hideLoading()
+      } else {
+        Taro.hideLoading()
       }
     } catch (error) {
       console.error('选择图片失败:', error)
+      Taro.hideLoading()
       Taro.showToast({
         title: '选择图片失败',
         icon: 'none'

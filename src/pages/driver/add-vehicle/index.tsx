@@ -7,7 +7,7 @@ import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import StepIndicator from '@/components/StepIndicator'
 import {insertVehicle, upsertDriverLicense} from '@/db/api'
@@ -93,6 +93,11 @@ const AddVehicle: React.FC = () => {
     rear_door: '', // 后门
     cargo_box: '' // 货箱
   })
+
+  // 监控photos state变化
+  useEffect(() => {
+    console.log('photos state更新:', photos)
+  }, [photos])
 
   // 驾驶员证件数据
   const [driverLicenseData, setDriverLicenseData] = useState<Partial<DriverLicenseInput>>({
