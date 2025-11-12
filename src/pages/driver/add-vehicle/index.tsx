@@ -520,10 +520,15 @@ const AddVehicle: React.FC = () => {
           {/* 步骤1: 行驶证识别 */}
           {currentStep === 0 && (
             <View>
-              {/* 行驶证主页 */}
-              <View className="mb-6">
+              {/* 行驶证主页 - 照片和信息一起 */}
+              <View className="bg-white rounded-2xl p-5 mb-6 shadow-md">
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-file-document text-2xl text-blue-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">行驶证主页</Text>
+                </View>
+
                 <PhotoCapture
-                  title="行驶证主页"
+                  title=""
                   description="请拍摄行驶证主页，包含车辆基本信息"
                   tips={['确保照片清晰', '避免反光和阴影', '包含所有文字信息']}
                   value={photos.driving_license_main}
@@ -543,12 +548,49 @@ const AddVehicle: React.FC = () => {
                     </Button>
                   </View>
                 )}
+
+                {/* 主页识别结果 */}
+                {formData.plate_number && (
+                  <View className="mt-4 pt-4 border-t border-gray-200">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-check-circle text-xl text-green-600 mr-2"></View>
+                      <Text className="text-base font-semibold text-gray-700">识别结果</Text>
+                    </View>
+                    <View className="space-y-2">
+                      <InfoDisplay label="车牌号" value={formData.plate_number} highlight />
+                      {formData.brand && <InfoDisplay label="品牌" value={formData.brand} />}
+                      {formData.model && <InfoDisplay label="型号" value={formData.model} />}
+                      {formData.vehicle_type && <InfoDisplay label="车辆类型" value={formData.vehicle_type} />}
+                      {formData.vin && <InfoDisplay label="车辆识别代号" value={formData.vin} />}
+                      {formData.engine_number && <InfoDisplay label="发动机号码" value={formData.engine_number} />}
+                      {formData.owner_name && <InfoDisplay label="所有人" value={formData.owner_name} />}
+                      {formData.use_character && <InfoDisplay label="使用性质" value={formData.use_character} />}
+                      {formData.register_date && (
+                        <InfoDisplay
+                          label="注册日期"
+                          value={new Date(formData.register_date).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                      {formData.issue_date && (
+                        <InfoDisplay
+                          label="发证日期"
+                          value={new Date(formData.issue_date).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
 
-              {/* 行驶证副页 */}
-              <View className="mb-6">
+              {/* 行驶证副页 - 照片和信息一起 */}
+              <View className="bg-white rounded-2xl p-5 mb-6 shadow-md">
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-file-document-outline text-2xl text-purple-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">行驶证副页</Text>
+                </View>
+
                 <PhotoCapture
-                  title="行驶证副页"
+                  title=""
                   description="请拍摄行驶证副页，包含检验记录等信息"
                   tips={['确保照片清晰', '包含档案编号、总质量等信息']}
                   value={photos.driving_license_sub}
@@ -568,12 +610,55 @@ const AddVehicle: React.FC = () => {
                     </Button>
                   </View>
                 )}
+
+                {/* 副页识别结果 */}
+                {(formData.archive_number ||
+                  formData.total_mass ||
+                  formData.approved_passengers ||
+                  formData.inspection_valid_until) && (
+                  <View className="mt-4 pt-4 border-t border-gray-200">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-check-circle text-xl text-green-600 mr-2"></View>
+                      <Text className="text-base font-semibold text-gray-700">识别结果</Text>
+                    </View>
+                    <View className="space-y-2">
+                      {formData.archive_number && <InfoDisplay label="档案编号" value={formData.archive_number} />}
+                      {formData.total_mass && <InfoDisplay label="总质量" value={`${formData.total_mass} kg`} />}
+                      {formData.approved_passengers && (
+                        <InfoDisplay label="核定载人数" value={`${formData.approved_passengers} 人`} />
+                      )}
+                      {formData.curb_weight && <InfoDisplay label="整备质量" value={`${formData.curb_weight} kg`} />}
+                      {formData.approved_load && (
+                        <InfoDisplay label="核定载质量" value={`${formData.approved_load} kg`} />
+                      )}
+                      {(formData.overall_dimension_length ||
+                        formData.overall_dimension_width ||
+                        formData.overall_dimension_height) && (
+                        <InfoDisplay
+                          label="外廓尺寸"
+                          value={`${formData.overall_dimension_length || 0} × ${formData.overall_dimension_width || 0} × ${formData.overall_dimension_height || 0} mm`}
+                        />
+                      )}
+                      {formData.inspection_valid_until && (
+                        <InfoDisplay
+                          label="检验有效期"
+                          value={new Date(formData.inspection_valid_until).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
 
-              {/* 行驶证副页背页 */}
-              <View className="mb-6">
+              {/* 行驶证副页背页 - 照片和信息一起 */}
+              <View className="bg-white rounded-2xl p-5 mb-6 shadow-md">
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-file-document-multiple text-2xl text-green-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">行驶证副页背页</Text>
+                </View>
+
                 <PhotoCapture
-                  title="行驶证副页背页"
+                  title=""
                   description="请拍摄行驶证副页背页，包含最新的年检记录和检验有效期"
                   tips={[
                     '确保照片清晰',
@@ -599,118 +684,48 @@ const AddVehicle: React.FC = () => {
                     </Button>
                   </View>
                 )}
-              </View>
 
-              {/* 识别结果展示 */}
-              {formData.plate_number && (
-                <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
-                  <View className="flex items-center mb-4">
-                    <View className="i-mdi-check-circle text-2xl text-green-600 mr-2"></View>
-                    <Text className="text-lg font-bold text-gray-800">识别结果</Text>
-                  </View>
-                  <View className="space-y-3">
-                    {/* 主页信息 */}
-                    <View className="mb-3">
-                      <Text className="text-sm font-bold text-gray-600 mb-2">主页信息</Text>
-                      <View className="space-y-2">
-                        <InfoDisplay label="车牌号" value={formData.plate_number} highlight />
-                        {formData.brand && <InfoDisplay label="品牌" value={formData.brand} />}
-                        {formData.model && <InfoDisplay label="型号" value={formData.model} />}
-                        {formData.vehicle_type && <InfoDisplay label="车辆类型" value={formData.vehicle_type} />}
-                        {formData.vin && <InfoDisplay label="车辆识别代号" value={formData.vin} />}
-                        {formData.engine_number && <InfoDisplay label="发动机号码" value={formData.engine_number} />}
-                        {formData.owner_name && <InfoDisplay label="所有人" value={formData.owner_name} />}
-                        {formData.use_character && <InfoDisplay label="使用性质" value={formData.use_character} />}
-                        {formData.register_date && (
-                          <InfoDisplay
-                            label="注册日期"
-                            value={new Date(formData.register_date).toLocaleDateString('zh-CN')}
-                          />
-                        )}
-                        {formData.issue_date && (
-                          <InfoDisplay
-                            label="发证日期"
-                            value={new Date(formData.issue_date).toLocaleDateString('zh-CN')}
-                          />
-                        )}
-                      </View>
+                {/* 副页背页识别结果 */}
+                {(formData.mandatory_scrap_date || formData.inspection_date) && (
+                  <View className="mt-4 pt-4 border-t border-gray-200">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-check-circle text-xl text-green-600 mr-2"></View>
+                      <Text className="text-base font-semibold text-gray-700">识别结果</Text>
                     </View>
-
-                    {/* 副页信息 */}
-                    {(formData.archive_number ||
-                      formData.total_mass ||
-                      formData.approved_passengers ||
-                      formData.inspection_valid_until) && (
-                      <View className="mb-3 pt-3 border-t border-gray-200">
-                        <Text className="text-sm font-bold text-gray-600 mb-2">副页信息</Text>
-                        <View className="space-y-2">
-                          {formData.archive_number && <InfoDisplay label="档案编号" value={formData.archive_number} />}
-                          {formData.total_mass && <InfoDisplay label="总质量" value={`${formData.total_mass} kg`} />}
-                          {formData.approved_passengers && (
-                            <InfoDisplay label="核定载人数" value={`${formData.approved_passengers} 人`} />
-                          )}
-                          {formData.curb_weight && (
-                            <InfoDisplay label="整备质量" value={`${formData.curb_weight} kg`} />
-                          )}
-                          {formData.approved_load && (
-                            <InfoDisplay label="核定载质量" value={`${formData.approved_load} kg`} />
-                          )}
-                          {(formData.overall_dimension_length ||
-                            formData.overall_dimension_width ||
-                            formData.overall_dimension_height) && (
-                            <InfoDisplay
-                              label="外廓尺寸"
-                              value={`${formData.overall_dimension_length || 0} × ${formData.overall_dimension_width || 0} × ${formData.overall_dimension_height || 0} mm`}
-                            />
-                          )}
-                          {formData.inspection_valid_until && (
-                            <InfoDisplay
-                              label="检验有效期"
-                              value={new Date(formData.inspection_valid_until).toLocaleDateString('zh-CN')}
-                            />
-                          )}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 副页背页信息 */}
-                    {(formData.mandatory_scrap_date || formData.inspection_date) && (
-                      <View className="pt-3 border-t border-gray-200">
-                        <Text className="text-sm font-bold text-gray-600 mb-2">副页背页信息</Text>
-                        {formData.inspection_date && (
-                          <>
-                            <InfoDisplay
-                              label="年检时间"
-                              value={new Date(formData.inspection_date).toLocaleDateString('zh-CN')}
-                            />
-                            {formData.inspection_valid_until &&
-                              (() => {
-                                const _inspectionDate = new Date(formData.inspection_date)
-                                const validUntil = new Date(formData.inspection_valid_until)
-                                const today = new Date()
-                                const daysRemaining = Math.ceil(
-                                  (validUntil.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-                                )
-                                return (
-                                  <InfoDisplay
-                                    label="剩余年检时间"
-                                    value={daysRemaining > 0 ? `${daysRemaining}天` : '已过期'}
-                                  />
-                                )
-                              })()}
-                          </>
-                        )}
-                        {formData.mandatory_scrap_date && (
+                    <View className="space-y-2">
+                      {formData.inspection_date && (
+                        <>
                           <InfoDisplay
-                            label="强制报废期"
-                            value={new Date(formData.mandatory_scrap_date).toLocaleDateString('zh-CN')}
+                            label="年检时间"
+                            value={new Date(formData.inspection_date).toLocaleDateString('zh-CN')}
                           />
-                        )}
-                      </View>
-                    )}
+                          {formData.inspection_valid_until &&
+                            (() => {
+                              const _inspectionDate = new Date(formData.inspection_date)
+                              const validUntil = new Date(formData.inspection_valid_until)
+                              const today = new Date()
+                              const daysRemaining = Math.ceil(
+                                (validUntil.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+                              )
+                              return (
+                                <InfoDisplay
+                                  label="剩余年检时间"
+                                  value={daysRemaining > 0 ? `${daysRemaining}天` : '已过期'}
+                                />
+                              )
+                            })()}
+                        </>
+                      )}
+                      {formData.mandatory_scrap_date && (
+                        <InfoDisplay
+                          label="强制报废期"
+                          value={new Date(formData.mandatory_scrap_date).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
+              </View>
 
               {/* 提示信息 */}
               {(photos.driving_license_main || photos.driving_license_sub || photos.driving_license_sub_back) &&
