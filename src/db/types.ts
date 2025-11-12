@@ -447,12 +447,25 @@ export interface Vehicle {
   purchase_date: string | null
   status: string
   notes: string | null
-  // OCR识别相关字段
-  vin: string | null
-  owner_name: string | null
-  use_character: string | null
-  register_date: string | null
-  issue_date: string | null
+  // OCR识别相关字段 - 主页
+  vin: string | null // 车辆识别代号
+  owner_name: string | null // 所有人
+  use_character: string | null // 使用性质
+  register_date: string | null // 注册日期
+  issue_date: string | null // 发证日期
+  engine_number: string | null // 发动机号码
+  // OCR识别相关字段 - 副页
+  archive_number: string | null // 档案编号
+  total_mass: number | null // 总质量（kg）
+  approved_passengers: number | null // 核定载人数
+  curb_weight: number | null // 整备质量（kg）
+  approved_load: number | null // 核定载质量（kg）
+  overall_dimension_length: number | null // 外廓尺寸-长（mm）
+  overall_dimension_width: number | null // 外廓尺寸-宽（mm）
+  overall_dimension_height: number | null // 外廓尺寸-高（mm）
+  inspection_valid_until: string | null // 检验有效期
+  // OCR识别相关字段 - 副页背页
+  mandatory_scrap_date: string | null // 强制报废期
   // 车辆照片（7个角度）
   left_front_photo: string | null // 左前照片
   right_front_photo: string | null // 右前照片
@@ -461,7 +474,11 @@ export interface Vehicle {
   dashboard_photo: string | null // 仪表盘照片
   rear_door_photo: string | null // 后门照片
   cargo_box_photo: string | null // 货箱照片
-  driving_license_photo: string | null // 行驶证照片
+  // 行驶证照片（3张）
+  driving_license_photo: string | null // 行驶证照片（旧字段，保留兼容）
+  driving_license_main_photo: string | null // 行驶证主页照片
+  driving_license_sub_photo: string | null // 行驶证副页照片
+  driving_license_sub_back_photo: string | null // 行驶证副页背页照片
   created_at: string
   updated_at: string
 }
@@ -478,11 +495,26 @@ export interface VehicleInput {
   purchase_date?: string | null
   status?: string
   notes?: string | null
+  // 主页字段
   vin?: string | null
   owner_name?: string | null
   use_character?: string | null
   register_date?: string | null
   issue_date?: string | null
+  engine_number?: string | null
+  // 副页字段
+  archive_number?: string | null
+  total_mass?: number | null
+  approved_passengers?: number | null
+  curb_weight?: number | null
+  approved_load?: number | null
+  overall_dimension_length?: number | null
+  overall_dimension_width?: number | null
+  overall_dimension_height?: number | null
+  inspection_valid_until?: string | null
+  // 副页背页字段
+  mandatory_scrap_date?: string | null
+  // 车辆照片
   left_front_photo?: string | null
   right_front_photo?: string | null
   left_rear_photo?: string | null
@@ -490,7 +522,11 @@ export interface VehicleInput {
   dashboard_photo?: string | null
   rear_door_photo?: string | null
   cargo_box_photo?: string | null
+  // 行驶证照片
   driving_license_photo?: string | null
+  driving_license_main_photo?: string | null
+  driving_license_sub_photo?: string | null
+  driving_license_sub_back_photo?: string | null
 }
 
 // 车辆信息更新类型
@@ -504,11 +540,26 @@ export interface VehicleUpdate {
   purchase_date?: string | null
   status?: string
   notes?: string | null
+  // 主页字段
   vin?: string | null
   owner_name?: string | null
   use_character?: string | null
   register_date?: string | null
   issue_date?: string | null
+  engine_number?: string | null
+  // 副页字段
+  archive_number?: string | null
+  total_mass?: number | null
+  approved_passengers?: number | null
+  curb_weight?: number | null
+  approved_load?: number | null
+  overall_dimension_length?: number | null
+  overall_dimension_width?: number | null
+  overall_dimension_height?: number | null
+  inspection_valid_until?: string | null
+  // 副页背页字段
+  mandatory_scrap_date?: string | null
+  // 车辆照片
   left_front_photo?: string | null
   right_front_photo?: string | null
   left_rear_photo?: string | null
@@ -516,7 +567,11 @@ export interface VehicleUpdate {
   dashboard_photo?: string | null
   rear_door_photo?: string | null
   cargo_box_photo?: string | null
+  // 行驶证照片
   driving_license_photo?: string | null
+  driving_license_main_photo?: string | null
+  driving_license_sub_photo?: string | null
+  driving_license_sub_back_photo?: string | null
 }
 
 // 驾驶员证件信息类型

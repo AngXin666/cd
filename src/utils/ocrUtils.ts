@@ -10,19 +10,44 @@ const APP_ID = process.env.TARO_APP_APP_ID || ''
 const API_ENDPOINT = 'https://api-integrations.appmiaoda.com/app-7cdqf07mbu9t/api-2jBYdN3A9Jyz/v2/chat/completions'
 
 // OCR识别类型
-export type OcrDocumentType = 'driving_license' | 'id_card_front' | 'id_card_back' | 'driver_license'
+export type OcrDocumentType =
+  | 'driving_license_main' // 行驶证主页
+  | 'driving_license_sub' // 行驶证副页
+  | 'driving_license_sub_back' // 行驶证副页背页
+  | 'id_card_front' // 身份证正面
+  | 'id_card_back' // 身份证反面
+  | 'driver_license' // 驾驶证
 
-// OCR识别结果类型
-export interface DrivingLicenseOcrResult {
+// OCR识别结果类型 - 行驶证主页
+export interface DrivingLicenseMainOcrResult {
   plate_number?: string // 车牌号
   vehicle_type?: string // 车辆类型
   owner_name?: string // 所有人
   use_character?: string // 使用性质
-  brand?: string // 品牌型号
-  model?: string // 品牌型号
+  brand?: string // 品牌
+  model?: string // 型号
   vin?: string // 车辆识别代号
+  engine_number?: string // 发动机号码
   register_date?: string // 注册日期
   issue_date?: string // 发证日期
+}
+
+// OCR识别结果类型 - 行驶证副页
+export interface DrivingLicenseSubOcrResult {
+  archive_number?: string // 档案编号
+  total_mass?: number // 总质量（kg）
+  approved_passengers?: number // 核定载人数
+  curb_weight?: number // 整备质量（kg）
+  approved_load?: number // 核定载质量（kg）
+  overall_dimension_length?: number // 外廓尺寸-长（mm）
+  overall_dimension_width?: number // 外廓尺寸-宽（mm）
+  overall_dimension_height?: number // 外廓尺寸-高（mm）
+  inspection_valid_until?: string // 检验有效期
+}
+
+// OCR识别结果类型 - 行驶证副页背页
+export interface DrivingLicenseSubBackOcrResult {
+  mandatory_scrap_date?: string // 强制报废期
 }
 
 export interface IdCardOcrResult {
@@ -42,23 +67,49 @@ export interface DriverLicenseOcrResult {
   issue_authority?: string // 发证机关
 }
 
-export type OcrResult = DrivingLicenseOcrResult | IdCardOcrResult | DriverLicenseOcrResult
+export type OcrResult =
+  | DrivingLicenseMainOcrResult
+  | DrivingLicenseSubOcrResult
+  | DrivingLicenseSubBackOcrResult
+  | IdCardOcrResult
+  | DriverLicenseOcrResult
 
 /**
  * OCR识别提示词
  */
 const OCR_PROMPTS: Record<OcrDocumentType, string> = {
-  driving_license: `请识别这张行驶证，提取以下信息并以JSON格式返回：
+  driving_license_main: `请识别这张行驶证主页，提取以下信息并以JSON格式返回：
 {
-  "plate_number": "车牌号",
+  "plate_number": "车牌号码",
   "vehicle_type": "车辆类型",
   "owner_name": "所有人",
   "use_character": "使用性质",
   "brand": "品牌",
   "model": "型号",
-  "vin": "车辆识别代号",
+  "vin": "车辆识别代号（VIN码）",
+  "engine_number": "发动机号码",
   "register_date": "注册日期(YYYY-MM-DD格式)",
   "issue_date": "发证日期(YYYY-MM-DD格式)"
+}
+只返回JSON数据，不要其他说明文字。`,
+
+  driving_license_sub: `请识别这张行驶证副页，提取以下信息并以JSON格式返回：
+{
+  "archive_number": "档案编号",
+  "total_mass": 总质量（数字，单位kg），
+  "approved_passengers": 核定载人数（数字），
+  "curb_weight": 整备质量（数字，单位kg），
+  "approved_load": 核定载质量（数字，单位kg），
+  "overall_dimension_length": 外廓尺寸长度（数字，单位mm），
+  "overall_dimension_width": 外廓尺寸宽度（数字，单位mm），
+  "overall_dimension_height": 外廓尺寸高度（数字，单位mm），
+  "inspection_valid_until": "检验有效期(YYYY-MM-DD格式)"
+}
+注意：数字类型字段请返回纯数字，不要包含单位。只返回JSON数据，不要其他说明文字。`,
+
+  driving_license_sub_back: `请识别这张行驶证副页背页，提取以下信息并以JSON格式返回：
+{
+  "mandatory_scrap_date": "强制报废期(YYYY-MM-DD格式)"
 }
 只返回JSON数据，不要其他说明文字。`,
 
@@ -177,13 +228,48 @@ export async function recognizeDocument(
 }
 
 /**
- * 识别行驶证
+ * 识别行驶证主页
+ */
+export async function recognizeDrivingLicenseMain(
+  imagePath: string,
+  onProgress?: (message: string) => void
+): Promise<DrivingLicenseMainOcrResult | null> {
+  return recognizeDocument(imagePath, 'driving_license_main', onProgress) as Promise<DrivingLicenseMainOcrResult | null>
+}
+
+/**
+ * 识别行驶证副页
+ */
+export async function recognizeDrivingLicenseSub(
+  imagePath: string,
+  onProgress?: (message: string) => void
+): Promise<DrivingLicenseSubOcrResult | null> {
+  return recognizeDocument(imagePath, 'driving_license_sub', onProgress) as Promise<DrivingLicenseSubOcrResult | null>
+}
+
+/**
+ * 识别行驶证副页背页
+ */
+export async function recognizeDrivingLicenseSubBack(
+  imagePath: string,
+  onProgress?: (message: string) => void
+): Promise<DrivingLicenseSubBackOcrResult | null> {
+  return recognizeDocument(
+    imagePath,
+    'driving_license_sub_back',
+    onProgress
+  ) as Promise<DrivingLicenseSubBackOcrResult | null>
+}
+
+/**
+ * 识别行驶证（旧版本，保留兼容性）
+ * @deprecated 请使用 recognizeDrivingLicenseMain 代替
  */
 export async function recognizeDrivingLicense(
   imagePath: string,
   onProgress?: (message: string) => void
-): Promise<DrivingLicenseOcrResult | null> {
-  return recognizeDocument(imagePath, 'driving_license', onProgress) as Promise<DrivingLicenseOcrResult | null>
+): Promise<DrivingLicenseMainOcrResult | null> {
+  return recognizeDrivingLicenseMain(imagePath, onProgress)
 }
 
 /**
