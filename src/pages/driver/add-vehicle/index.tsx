@@ -389,7 +389,10 @@ const AddVehicle: React.FC = () => {
       for (const [key, path] of Object.entries(photos)) {
         if (path) {
           const fileName = generateUniqueFileName(`vehicle_${key}`, 'jpg')
-          const uploadedPath = await uploadImageToStorage(BUCKET_NAME, path, fileName)
+          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName)
+          if (!uploadedPath) {
+            throw new Error(`上传${key}照片失败`)
+          }
           uploadedPhotos[key] = uploadedPath
         }
       }
@@ -399,7 +402,10 @@ const AddVehicle: React.FC = () => {
       for (const [key, path] of Object.entries(driverPhotos)) {
         if (path) {
           const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
-          const uploadedPath = await uploadImageToStorage(BUCKET_NAME, path, fileName)
+          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName)
+          if (!uploadedPath) {
+            throw new Error(`上传${key}证件照片失败`)
+          }
           uploadedDriverPhotos[key] = uploadedPath
         }
       }
@@ -410,16 +416,16 @@ const AddVehicle: React.FC = () => {
         plate_number: formData.plate_number!,
         brand: formData.brand!,
         model: formData.model!,
-        color: formData.color,
-        vehicle_type: formData.vehicle_type,
-        owner_name: formData.owner_name,
-        use_character: formData.use_character,
-        vin: formData.vin,
-        engine_number: formData.engine_number,
-        register_date: formData.register_date,
-        issue_date: formData.issue_date,
+        color: formData.color || null,
+        vehicle_type: formData.vehicle_type || null,
+        owner_name: formData.owner_name || null,
+        use_character: formData.use_character || null,
+        vin: formData.vin || null,
+        engine_number: formData.engine_number || null,
+        register_date: formData.register_date || null,
+        issue_date: formData.issue_date || null,
         // 副页字段 - 只在有值时传入
-        archive_number: formData.archive_number,
+        archive_number: formData.archive_number || null,
         total_mass: formData.total_mass || null,
         approved_passengers: formData.approved_passengers || null,
         curb_weight: formData.curb_weight || null,
@@ -427,10 +433,10 @@ const AddVehicle: React.FC = () => {
         overall_dimension_length: formData.overall_dimension_length || null,
         overall_dimension_width: formData.overall_dimension_width || null,
         overall_dimension_height: formData.overall_dimension_height || null,
-        inspection_valid_until: formData.inspection_valid_until,
+        inspection_valid_until: formData.inspection_valid_until || null,
         // 副页背页字段
-        inspection_date: formData.inspection_date,
-        mandatory_scrap_date: formData.mandatory_scrap_date,
+        inspection_date: formData.inspection_date || null,
+        mandatory_scrap_date: formData.mandatory_scrap_date || null,
         // 车辆照片
         left_front_photo: uploadedPhotos.left_front,
         right_front_photo: uploadedPhotos.right_front,

@@ -46,6 +46,30 @@ export const imageToBase64 = async (imagePath: string): Promise<string> => {
           resolve(imagePath)
           return
         }
+
+        // 检查是否是blob URL
+        if (imagePath.startsWith('blob:')) {
+          // 使用fetch获取blob数据
+          fetch(imagePath)
+            .then((response) => response.blob())
+            .then((blob) => {
+              const reader = new FileReader()
+              reader.onloadend = () => {
+                resolve(reader.result as string)
+              }
+              reader.onerror = () => {
+                reject(new Error('读取Blob失败'))
+              }
+              reader.readAsDataURL(blob)
+            })
+            .catch((error) => {
+              console.error('获取Blob失败:', error)
+              reject(new Error('图片加载失败'))
+            })
+          return
+        }
+
+        // 普通URL，使用Image加载
         const img = new Image()
         img.crossOrigin = 'anonymous' // 处理跨域问题
         img.onload = () => {
@@ -66,7 +90,8 @@ export const imageToBase64 = async (imagePath: string): Promise<string> => {
             reject(new Error('图片处理失败'))
           }
         }
-        img.onerror = () => {
+        img.onerror = (error) => {
+          console.error('图片加载失败:', error, '路径:', imagePath)
           reject(new Error('图片加载失败'))
         }
         img.src = imagePath
