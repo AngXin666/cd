@@ -1,6 +1,7 @@
 /**
  * 司机个人信息页面
- * 显示司机的个人资料、基本信息和证件信息
+ * 显示司机的身份证、驾驶证信息和证件照片
+ * 只允许修改手机号和密码
  */
 
 import {Button, Image, Input, ScrollView, Text, View} from '@tarojs/components'
@@ -9,42 +10,42 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getCurrentUserProfile, getDriverVehicles, updateProfile} from '@/db/api'
-import type {Profile, Vehicle} from '@/db/types'
+import {getCurrentUserProfile, getDriverLicense, updateProfile} from '@/db/api'
+import type {DriverLicense, Profile} from '@/db/types'
 
 const DriverProfile: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
   const [loading, setLoading] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [editingPassword, setEditingPassword] = useState(false)
 
   // 编辑表单状态
   const [editForm, setEditForm] = useState({
-    name: '',
     phone: '',
-    email: ''
+    newPassword: '',
+    confirmPassword: ''
   })
 
-  // 加载个人资料和车辆信息
+  // 加载个人资料和证件信息
   const loadProfile = useCallback(async () => {
     if (!user) return
 
     setLoading(true)
     try {
       // 加载个人资料
-      const data = await getCurrentUserProfile()
-      setProfile(data)
+      const profileData = await getCurrentUserProfile()
+      setProfile(profileData)
       // 初始化编辑表单
-      setEditForm({
-        name: data?.name || '',
-        phone: data?.phone || '',
-        email: data?.email || ''
-      })
+      setEditForm((prev) => ({
+        ...prev,
+        phone: profileData?.phone || ''
+      }))
 
-      // 加载车辆信息
-      const vehicleData = await getDriverVehicles(user.id)
-      setVehicles(vehicleData)
+      // 加载驾驶证信息
+      const licenseData = await getDriverLicense(user.id)
+      setDriverLicense(licenseData)
     } catch (error) {
       console.error('加载个人资料失败:', error)
       Taro.showToast({
@@ -60,30 +61,41 @@ const DriverProfile: React.FC = () => {
     loadProfile()
   })
 
-  // 开始编辑
-  const handleStartEdit = () => {
-    setEditing(true)
+  // 开始编辑手机号
+  const handleStartEditPhone = () => {
+    setEditingPhone(true)
+    setEditForm((prev) => ({
+      ...prev,
+      phone: profile?.phone || ''
+    }))
   }
 
-  // 取消编辑
-  const handleCancelEdit = () => {
-    setEditing(false)
-    // 恢复原始数据
-    setEditForm({
-      name: profile?.name || '',
-      phone: profile?.phone || '',
-      email: profile?.email || ''
-    })
+  // 取消编辑手机号
+  const handleCancelEditPhone = () => {
+    setEditingPhone(false)
+    setEditForm((prev) => ({
+      ...prev,
+      phone: profile?.phone || ''
+    }))
   }
 
-  // 保存编辑
-  const handleSaveEdit = async () => {
+  // 保存手机号
+  const handleSavePhone = async () => {
     if (!user) return
 
-    // 验证必填项
-    if (!editForm.name.trim()) {
+    if (!editForm.phone.trim()) {
       Taro.showToast({
-        title: '请输入姓名',
+        title: '请输入手机号',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 验证手机号格式
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(editForm.phone)) {
+      Taro.showToast({
+        title: '请输入正确的手机号',
         icon: 'none'
       })
       return
@@ -91,30 +103,93 @@ const DriverProfile: React.FC = () => {
 
     Taro.showLoading({title: '保存中...'})
     try {
-      const success = await updateProfile(user.id, {
-        name: editForm.name.trim(),
-        phone: editForm.phone.trim() || null,
-        email: editForm.email.trim() || null
+      await updateProfile(user.id, {phone: editForm.phone})
+      await loadProfile()
+      setEditingPhone(false)
+      Taro.showToast({
+        title: '保存成功',
+        icon: 'success'
       })
-
-      if (success) {
-        Taro.showToast({
-          title: '保存成功',
-          icon: 'success'
-        })
-        setEditing(false)
-        loadProfile()
-      } else {
-        Taro.showToast({
-          title: '保存失败',
-          icon: 'error'
-        })
-      }
     } catch (error) {
-      console.error('保存个人资料失败:', error)
+      console.error('保存失败:', error)
       Taro.showToast({
         title: '保存失败',
-        icon: 'error'
+        icon: 'none'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 开始修改密码
+  const handleStartEditPassword = () => {
+    setEditingPassword(true)
+    setEditForm((prev) => ({
+      ...prev,
+      newPassword: '',
+      confirmPassword: ''
+    }))
+  }
+
+  // 取消修改密码
+  const handleCancelEditPassword = () => {
+    setEditingPassword(false)
+    setEditForm((prev) => ({
+      ...prev,
+      newPassword: '',
+      confirmPassword: ''
+    }))
+  }
+
+  // 保存密码
+  const handleSavePassword = async () => {
+    if (!editForm.newPassword || !editForm.confirmPassword) {
+      Taro.showToast({
+        title: '请输入新密码',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (editForm.newPassword.length < 6) {
+      Taro.showToast({
+        title: '密码至少6位',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (editForm.newPassword !== editForm.confirmPassword) {
+      Taro.showToast({
+        title: '两次密码不一致',
+        icon: 'none'
+      })
+      return
+    }
+
+    Taro.showLoading({title: '修改中...'})
+    try {
+      const {error} = await supabase.auth.updateUser({
+        password: editForm.newPassword
+      })
+
+      if (error) throw error
+
+      setEditingPassword(false)
+      setEditForm((prev) => ({
+        ...prev,
+        newPassword: '',
+        confirmPassword: ''
+      }))
+      Taro.showToast({
+        title: '密码修改成功',
+        icon: 'success'
+      })
+    } catch (error) {
+      console.error('修改密码失败:', error)
+      Taro.showToast({
+        title: '修改失败',
+        icon: 'none'
       })
     } finally {
       Taro.hideLoading()
@@ -129,304 +204,417 @@ const DriverProfile: React.FC = () => {
   // 获取图片公共URL
   const getImageUrl = (path: string | null): string => {
     if (!path) return ''
-    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_vehicle_images`).getPublicUrl(path)
+    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_driver_images`).getPublicUrl(path)
     return data.publicUrl
   }
 
-  // 获取第一辆车的信息（用于显示证件信息）
-  const firstVehicle = vehicles.length > 0 ? vehicles[0] : null
+  // 预览图片
+  const previewImage = (url: string, allUrls: string[]) => {
+    Taro.previewImage({
+      current: url,
+      urls: allUrls
+    })
+  }
+
+  // 格式化日期
+  const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return '未填写'
+    try {
+      return new Date(dateStr).toLocaleDateString('zh-CN')
+    } catch {
+      return dateStr
+    }
+  }
+
+  // 格式化角色
+  const formatRole = (role: string): string => {
+    const roleMap: Record<string, string> = {
+      driver: '司机',
+      manager: '管理员',
+      super_admin: '超级管理员'
+    }
+    return roleMap[role] || role
+  }
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        <View className="p-4">
+        <View className="p-4 pb-20">
           {/* 页面标题卡片 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-2xl p-6 mb-4 shadow-lg">
+          <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
             <View className="flex items-center justify-between">
-              <View className="flex-1">
-                <View className="flex items-center mb-2">
-                  <View className="i-mdi-account-circle text-3xl text-white mr-3" />
-                  <Text className="text-2xl font-bold text-white">个人信息</Text>
+              <View className="flex items-center flex-1">
+                <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
+                <View>
+                  <Text className="text-2xl font-bold text-gray-800 block mb-1">个人信息</Text>
+                  <Text className="text-sm text-gray-500 block">查看和管理您的个人资料</Text>
                 </View>
-                <Text className="text-blue-100 text-sm">查看和编辑您的个人资料</Text>
               </View>
-              <View
-                className="bg-white/20 backdrop-blur rounded-full p-3 active:scale-95 transition-all"
+              <Button
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg break-keep text-sm"
+                size="mini"
                 onClick={handleGoBack}>
-                <View className="i-mdi-arrow-left text-white text-2xl" />
-              </View>
+                <View className="flex items-center">
+                  <View className="i-mdi-arrow-left text-base mr-1" />
+                  <Text>返回</Text>
+                </View>
+              </Button>
             </View>
           </View>
 
           {loading ? (
-            <View className="flex flex-col items-center justify-center py-20">
-              <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4" />
-              <Text className="text-gray-600 font-medium">加载中...</Text>
+            <View className="bg-white rounded-2xl p-8 text-center">
+              <Text className="text-gray-500">加载中...</Text>
             </View>
           ) : (
             <>
-              {/* 个人信息卡片 */}
+              {/* 基本信息卡片 */}
               <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
-                <View className="flex items-center justify-between mb-4">
-                  <View className="flex items-center">
-                    <View className="i-mdi-card-account-details text-blue-600 text-xl mr-2" />
-                    <Text className="text-lg font-bold text-gray-800">基本信息</Text>
-                  </View>
-                  {!editing && (
-                    <View
-                      className="flex items-center bg-blue-50 rounded-lg px-3 py-2 active:scale-95 transition-all"
-                      onClick={handleStartEdit}>
-                      <View className="i-mdi-pencil text-blue-600 text-base mr-1" />
-                      <Text className="text-blue-600 text-sm font-medium">编辑</Text>
-                    </View>
-                  )}
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-account-details text-blue-600 text-xl mr-2" />
+                  <Text className="text-lg font-bold text-gray-800">基本信息</Text>
                 </View>
 
-                {/* 信息项 */}
                 <View className="space-y-4">
-                  {/* 姓名 */}
-                  <View>
-                    <View className="flex items-center mb-2">
-                      <View className="i-mdi-account text-gray-500 text-base mr-2" />
-                      <Text className="text-gray-600 text-sm">姓名</Text>
-                      <Text className="text-red-500 text-sm ml-1">*</Text>
-                    </View>
-                    {editing ? (
-                      <View style={{overflow: 'hidden'}}>
-                        <Input
-                          type="text"
-                          value={editForm.name}
-                          onInput={(e) => setEditForm({...editForm, name: e.detail.value})}
-                          placeholder="请输入姓名"
-                          className="bg-gray-50 text-gray-800 px-4 py-3 rounded-lg border border-gray-200 w-full text-base"
-                        />
+                  {/* 姓名（只读，从身份证读取） */}
+                  <View className="border-b border-gray-100 pb-3">
+                    <View className="flex items-center justify-between">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-account text-gray-600 text-lg mr-2" />
+                        <Text className="text-gray-600 text-sm">姓名</Text>
                       </View>
-                    ) : (
-                      <View className="bg-gray-50 px-4 py-3 rounded-lg">
-                        <Text className="text-gray-800 text-base">{profile?.name || '未设置'}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* 手机号 */}
-                  <View>
-                    <View className="flex items-center mb-2">
-                      <View className="i-mdi-phone text-gray-500 text-base mr-2" />
-                      <Text className="text-gray-600 text-sm">手机号</Text>
-                    </View>
-                    {editing ? (
-                      <View style={{overflow: 'hidden'}}>
-                        <Input
-                          type="text"
-                          value={editForm.phone}
-                          onInput={(e) => setEditForm({...editForm, phone: e.detail.value})}
-                          placeholder="请输入手机号"
-                          className="bg-gray-50 text-gray-800 px-4 py-3 rounded-lg border border-gray-200 w-full text-base"
-                        />
-                      </View>
-                    ) : (
-                      <View className="bg-gray-50 px-4 py-3 rounded-lg">
-                        <Text className="text-gray-800 text-base">{profile?.phone || '未设置'}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* 邮箱 */}
-                  <View>
-                    <View className="flex items-center mb-2">
-                      <View className="i-mdi-email text-gray-500 text-base mr-2" />
-                      <Text className="text-gray-600 text-sm">邮箱</Text>
-                    </View>
-                    {editing ? (
-                      <View style={{overflow: 'hidden'}}>
-                        <Input
-                          type="text"
-                          value={editForm.email}
-                          onInput={(e) => setEditForm({...editForm, email: e.detail.value})}
-                          placeholder="请输入邮箱"
-                          className="bg-gray-50 text-gray-800 px-4 py-3 rounded-lg border border-gray-200 w-full text-base"
-                        />
-                      </View>
-                    ) : (
-                      <View className="bg-gray-50 px-4 py-3 rounded-lg">
-                        <Text className="text-gray-800 text-base">{profile?.email || '未设置'}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* 角色 */}
-                  <View>
-                    <View className="flex items-center mb-2">
-                      <View className="i-mdi-shield-account text-gray-500 text-base mr-2" />
-                      <Text className="text-gray-600 text-sm">角色</Text>
-                    </View>
-                    <View className="bg-gray-50 px-4 py-3 rounded-lg">
-                      <Text className="text-gray-800 text-base">
-                        {profile?.role === 'driver'
-                          ? '司机'
-                          : profile?.role === 'manager'
-                            ? '管理员'
-                            : profile?.role === 'super_admin'
-                              ? '超级管理员'
-                              : '未知'}
+                      <Text className="text-gray-800 text-sm font-medium">
+                        {driverLicense?.id_card_name || '未填写'}
                       </Text>
                     </View>
+                    <Text className="text-xs text-gray-400 mt-1 ml-7">来自身份证信息</Text>
                   </View>
 
-                  {/* 注册时间 */}
-                  <View>
-                    <View className="flex items-center mb-2">
-                      <View className="i-mdi-calendar text-gray-500 text-base mr-2" />
-                      <Text className="text-gray-600 text-sm">注册时间</Text>
+                  {/* 手机号（可编辑） */}
+                  <View className="border-b border-gray-100 pb-3">
+                    <View className="flex items-center justify-between mb-2">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-phone text-gray-600 text-lg mr-2" />
+                        <Text className="text-gray-600 text-sm">手机号</Text>
+                      </View>
+                      {!editingPhone && (
+                        <Button
+                          className="bg-blue-50 text-blue-600 px-3 py-1 rounded break-keep text-xs"
+                          size="mini"
+                          onClick={handleStartEditPhone}>
+                          修改
+                        </Button>
+                      )}
                     </View>
-                    <View className="bg-gray-50 px-4 py-3 rounded-lg">
-                      <Text className="text-gray-800 text-base">
-                        {profile?.created_at
-                          ? new Date(profile.created_at).toLocaleDateString('zh-CN', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit'
-                            })
-                          : '未知'}
+                    {editingPhone ? (
+                      <View>
+                        <View style={{overflow: 'hidden'}} className="mb-2">
+                          <Input
+                            type="number"
+                            maxlength={11}
+                            placeholder="请输入手机号"
+                            value={editForm.phone}
+                            onInput={(e) => setEditForm((prev) => ({...prev, phone: e.detail.value}))}
+                            className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full text-sm"
+                          />
+                        </View>
+                        <View className="flex gap-2">
+                          <Button
+                            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded break-keep text-sm"
+                            size="mini"
+                            onClick={handleCancelEditPhone}>
+                            取消
+                          </Button>
+                          <Button
+                            className="flex-1 bg-blue-600 text-white py-2 rounded break-keep text-sm"
+                            size="mini"
+                            onClick={handleSavePhone}>
+                            保存
+                          </Button>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text className="text-gray-800 text-sm font-medium ml-7">{profile?.phone || '未填写'}</Text>
+                    )}
+                  </View>
+
+                  {/* 登录密码（可修改） */}
+                  <View className="border-b border-gray-100 pb-3">
+                    <View className="flex items-center justify-between mb-2">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-lock text-gray-600 text-lg mr-2" />
+                        <Text className="text-gray-600 text-sm">登录密码</Text>
+                      </View>
+                      {!editingPassword && (
+                        <Button
+                          className="bg-blue-50 text-blue-600 px-3 py-1 rounded break-keep text-xs"
+                          size="mini"
+                          onClick={handleStartEditPassword}>
+                          修改
+                        </Button>
+                      )}
+                    </View>
+                    {editingPassword ? (
+                      <View>
+                        <View style={{overflow: 'hidden'}} className="mb-2">
+                          <Input
+                            type="text"
+                            password
+                            placeholder="请输入新密码（至少6位）"
+                            value={editForm.newPassword}
+                            onInput={(e) => setEditForm((prev) => ({...prev, newPassword: e.detail.value}))}
+                            className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full text-sm mb-2"
+                          />
+                        </View>
+                        <View style={{overflow: 'hidden'}} className="mb-2">
+                          <Input
+                            type="text"
+                            password
+                            placeholder="请再次输入新密码"
+                            value={editForm.confirmPassword}
+                            onInput={(e) => setEditForm((prev) => ({...prev, confirmPassword: e.detail.value}))}
+                            className="bg-gray-50 text-gray-800 px-3 py-2 rounded border border-gray-200 w-full text-sm"
+                          />
+                        </View>
+                        <View className="flex gap-2">
+                          <Button
+                            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded break-keep text-sm"
+                            size="mini"
+                            onClick={handleCancelEditPassword}>
+                            取消
+                          </Button>
+                          <Button
+                            className="flex-1 bg-blue-600 text-white py-2 rounded break-keep text-sm"
+                            size="mini"
+                            onClick={handleSavePassword}>
+                            保存
+                          </Button>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text className="text-gray-800 text-sm font-medium ml-7">••••••</Text>
+                    )}
+                  </View>
+
+                  {/* 用户角色（只读） */}
+                  <View className="border-b border-gray-100 pb-3">
+                    <View className="flex items-center justify-between">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-shield-account text-gray-600 text-lg mr-2" />
+                        <Text className="text-gray-600 text-sm">用户角色</Text>
+                      </View>
+                      <Text className="text-gray-800 text-sm font-medium">
+                        {profile ? formatRole(profile.role) : '未知'}
                       </Text>
                     </View>
+                    <Text className="text-xs text-gray-400 mt-1 ml-7">由系统分配</Text>
+                  </View>
+
+                  {/* 注册时间（只读） */}
+                  <View className="pb-3">
+                    <View className="flex items-center justify-between">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-calendar-clock text-gray-600 text-lg mr-2" />
+                        <Text className="text-gray-600 text-sm">注册时间</Text>
+                      </View>
+                      <Text className="text-gray-800 text-sm font-medium">
+                        {profile ? formatDate(profile.created_at) : '未知'}
+                      </Text>
+                    </View>
+                    <Text className="text-xs text-gray-400 mt-1 ml-7">账户创建时间</Text>
                   </View>
                 </View>
-
-                {/* 编辑模式下的操作按钮 */}
-                {editing && (
-                  <View className="flex gap-3 mt-6">
-                    <Button
-                      className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg break-keep text-base"
-                      size="default"
-                      onClick={handleCancelEdit}>
-                      <View className="flex items-center justify-center">
-                        <View className="i-mdi-close text-base mr-1" />
-                        <Text className="font-medium">取消</Text>
-                      </View>
-                    </Button>
-                    <Button
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg break-keep text-base shadow-lg"
-                      size="default"
-                      onClick={handleSaveEdit}>
-                      <View className="flex items-center justify-center">
-                        <View className="i-mdi-check text-base mr-1" />
-                        <Text className="font-medium">保存</Text>
-                      </View>
-                    </Button>
-                  </View>
-                )}
               </View>
 
-              {/* 证件信息卡片 */}
-              {firstVehicle && (
+              {/* 身份证信息卡片 */}
+              {driverLicense && (driverLicense.id_card_number || driverLicense.id_card_name) && (
                 <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
                   <View className="flex items-center mb-4">
-                    <View className="i-mdi-card-account-details-outline text-green-600 text-xl mr-2" />
-                    <Text className="text-lg font-bold text-gray-800">证件信息</Text>
-                    <Text className="text-xs text-gray-500 ml-2">（来自车辆行驶证）</Text>
+                    <View className="i-mdi-card-account-details text-green-600 text-xl mr-2" />
+                    <Text className="text-lg font-bold text-gray-800">身份证信息</Text>
+                    <Text className="text-xs text-gray-500 ml-2">（系统自动读取）</Text>
                   </View>
 
-                  {/* 证件信息项 */}
                   <View className="space-y-3">
-                    {/* 车主姓名 */}
-                    {firstVehicle.owner_name && (
+                    {/* 姓名 */}
+                    {driverLicense.id_card_name && (
                       <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">车主姓名</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.owner_name}</Text>
+                        <Text className="text-gray-600 text-sm">姓名</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.id_card_name}</Text>
                       </View>
                     )}
 
-                    {/* 车牌号 */}
-                    {firstVehicle.plate_number && (
+                    {/* 身份证号 */}
+                    {driverLicense.id_card_number && (
                       <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">车牌号</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.plate_number}</Text>
+                        <Text className="text-gray-600 text-sm">身份证号</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.id_card_number}</Text>
                       </View>
                     )}
 
-                    {/* 车辆识别代号 */}
-                    {firstVehicle.vin && (
+                    {/* 出生日期 */}
+                    {driverLicense.id_card_birth_date && (
                       <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">车辆识别代号</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.vin}</Text>
+                        <Text className="text-gray-600 text-sm">出生日期</Text>
+                        <Text className="text-gray-800 text-sm font-medium">
+                          {formatDate(driverLicense.id_card_birth_date)}
+                        </Text>
                       </View>
                     )}
 
-                    {/* 注册日期 */}
-                    {firstVehicle.register_date && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">注册日期</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.register_date}</Text>
-                      </View>
-                    )}
-
-                    {/* 发证日期 */}
-                    {firstVehicle.issue_date && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">发证日期</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.issue_date}</Text>
-                      </View>
-                    )}
-
-                    {/* 检验有效期 */}
-                    {firstVehicle.inspection_valid_until && (
+                    {/* 住址 */}
+                    {driverLicense.id_card_address && (
                       <View className="flex items-center justify-between py-2">
-                        <Text className="text-gray-600 text-sm">检验有效期</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{firstVehicle.inspection_valid_until}</Text>
+                        <Text className="text-gray-600 text-sm">住址</Text>
+                        <Text className="text-gray-800 text-sm font-medium text-right flex-1 ml-4">
+                          {driverLicense.id_card_address}
+                        </Text>
                       </View>
                     )}
                   </View>
                 </View>
               )}
 
-              {/* 行驶证照片卡片 */}
-              {firstVehicle &&
-                (firstVehicle.driving_license_main_photo ||
-                  firstVehicle.driving_license_sub_photo ||
-                  firstVehicle.driving_license_sub_back_photo) && (
+              {/* 驾驶证信息卡片 */}
+              {driverLicense && (driverLicense.license_number || driverLicense.license_class) && (
+                <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
+                  <View className="flex items-center mb-4">
+                    <View className="i-mdi-card-account-details-outline text-orange-600 text-xl mr-2" />
+                    <Text className="text-lg font-bold text-gray-800">驾驶证信息</Text>
+                    <Text className="text-xs text-gray-500 ml-2">（系统自动读取）</Text>
+                  </View>
+
+                  <View className="space-y-3">
+                    {/* 驾驶证号 */}
+                    {driverLicense.license_number && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">驾驶证号</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.license_number}</Text>
+                      </View>
+                    )}
+
+                    {/* 准驾车型 */}
+                    {driverLicense.license_class && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">准驾车型</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.license_class}</Text>
+                      </View>
+                    )}
+
+                    {/* 初次领证日期 */}
+                    {driverLicense.valid_from && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">初次领证日期</Text>
+                        <Text className="text-gray-800 text-sm font-medium">
+                          {formatDate(driverLicense.valid_from)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* 有效期至 */}
+                    {driverLicense.valid_to && (
+                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
+                        <Text className="text-gray-600 text-sm">有效期至</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{formatDate(driverLicense.valid_to)}</Text>
+                      </View>
+                    )}
+
+                    {/* 发证机关 */}
+                    {driverLicense.issue_authority && (
+                      <View className="flex items-center justify-between py-2">
+                        <Text className="text-gray-600 text-sm">发证机关</Text>
+                        <Text className="text-gray-800 text-sm font-medium text-right flex-1 ml-4">
+                          {driverLicense.issue_authority}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* 证件照片卡片 */}
+              {driverLicense &&
+                (driverLicense.id_card_photo_front ||
+                  driverLicense.id_card_photo_back ||
+                  driverLicense.driving_license_photo) && (
                   <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
                     <View className="flex items-center mb-4">
                       <View className="i-mdi-image-multiple text-purple-600 text-xl mr-2" />
-                      <Text className="text-lg font-bold text-gray-800">行驶证照片</Text>
+                      <Text className="text-lg font-bold text-gray-800">证件照片</Text>
                     </View>
 
                     <View className="space-y-4">
-                      {/* 行驶证主页 */}
-                      {firstVehicle.driving_license_main_photo && (
+                      {/* 身份证正面 */}
+                      {driverLicense.id_card_photo_front && (
                         <View>
-                          <Text className="text-gray-600 text-sm mb-2">行驶证主页</Text>
+                          <Text className="text-gray-600 text-sm mb-2">身份证正面</Text>
                           <Image
-                            src={getImageUrl(firstVehicle.driving_license_main_photo)}
+                            src={getImageUrl(driverLicense.id_card_photo_front)}
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '200px'}}
+                            onClick={() =>
+                              previewImage(
+                                getImageUrl(driverLicense.id_card_photo_front),
+                                [
+                                  driverLicense.id_card_photo_front,
+                                  driverLicense.id_card_photo_back,
+                                  driverLicense.driving_license_photo
+                                ]
+                                  .filter(Boolean)
+                                  .map((p) => getImageUrl(p))
+                              )
+                            }
                           />
                         </View>
                       )}
 
-                      {/* 行驶证副页 */}
-                      {firstVehicle.driving_license_sub_photo && (
+                      {/* 身份证背面 */}
+                      {driverLicense.id_card_photo_back && (
                         <View>
-                          <Text className="text-gray-600 text-sm mb-2">行驶证副页</Text>
+                          <Text className="text-gray-600 text-sm mb-2">身份证背面</Text>
                           <Image
-                            src={getImageUrl(firstVehicle.driving_license_sub_photo)}
+                            src={getImageUrl(driverLicense.id_card_photo_back)}
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '200px'}}
+                            onClick={() =>
+                              previewImage(
+                                getImageUrl(driverLicense.id_card_photo_back),
+                                [
+                                  driverLicense.id_card_photo_front,
+                                  driverLicense.id_card_photo_back,
+                                  driverLicense.driving_license_photo
+                                ]
+                                  .filter(Boolean)
+                                  .map((p) => getImageUrl(p))
+                              )
+                            }
                           />
                         </View>
                       )}
 
-                      {/* 行驶证副页背页 */}
-                      {firstVehicle.driving_license_sub_back_photo && (
+                      {/* 驾驶证照片 */}
+                      {driverLicense.driving_license_photo && (
                         <View>
-                          <Text className="text-gray-600 text-sm mb-2">行驶证副页背页</Text>
+                          <Text className="text-gray-600 text-sm mb-2">驾驶证</Text>
                           <Image
-                            src={getImageUrl(firstVehicle.driving_license_sub_back_photo)}
+                            src={getImageUrl(driverLicense.driving_license_photo)}
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '200px'}}
+                            onClick={() =>
+                              previewImage(
+                                getImageUrl(driverLicense.driving_license_photo),
+                                [
+                                  driverLicense.id_card_photo_front,
+                                  driverLicense.id_card_photo_back,
+                                  driverLicense.driving_license_photo
+                                ]
+                                  .filter(Boolean)
+                                  .map((p) => getImageUrl(p))
+                              )
+                            }
                           />
                         </View>
                       )}
@@ -440,17 +628,16 @@ const DriverProfile: React.FC = () => {
                   <View className="i-mdi-information text-blue-600 text-xl mr-2 mt-0.5" />
                   <View className="flex-1">
                     <Text className="text-blue-800 text-sm block mb-1 font-medium">温馨提示</Text>
-                    <Text className="text-blue-700 text-xs block">
-                      请确保您的个人信息准确无误，以便管理员能够及时联系到您。
+                    <Text className="text-blue-700 text-xs block mb-1">• 您只能修改手机号和登录密码</Text>
+                    <Text className="text-blue-700 text-xs block mb-1">
+                      • 姓名、身份证号等信息由系统从证件自动读取，无法修改
                     </Text>
+                    <Text className="text-blue-700 text-xs block">• 如需更新证件信息，请联系管理员</Text>
                   </View>
                 </View>
               </View>
             </>
           )}
-
-          {/* 底部间距 */}
-          <View className="h-8" />
         </View>
       </ScrollView>
     </View>
