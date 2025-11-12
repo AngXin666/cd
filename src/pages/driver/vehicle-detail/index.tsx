@@ -8,7 +8,6 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {supabase} from '@/client/supabase'
 import {getVehicleById} from '@/db/api'
 import type {Vehicle} from '@/db/types'
 
@@ -49,25 +48,20 @@ const VehicleDetail: React.FC = () => {
     })
   }
 
-  // 获取图片公开URL
-  const getPublicUrl = (path: string | null) => {
-    if (!path) return ''
-    const {data} = supabase.storage.from('app-7cdqf07mbu9t_vehicles').getPublicUrl(path)
-    return data.publicUrl
-  }
-
-  // 收集所有照片URL
+  // 收集所有照片URL（数据库中已保存完整URL，直接使用）
   const getAllPhotos = () => {
     if (!vehicle) return []
     const photos: string[] = []
-    if (vehicle.left_front_photo) photos.push(getPublicUrl(vehicle.left_front_photo))
-    if (vehicle.right_front_photo) photos.push(getPublicUrl(vehicle.right_front_photo))
-    if (vehicle.left_rear_photo) photos.push(getPublicUrl(vehicle.left_rear_photo))
-    if (vehicle.right_rear_photo) photos.push(getPublicUrl(vehicle.right_rear_photo))
-    if (vehicle.dashboard_photo) photos.push(getPublicUrl(vehicle.dashboard_photo))
-    if (vehicle.rear_door_photo) photos.push(getPublicUrl(vehicle.rear_door_photo))
-    if (vehicle.cargo_box_photo) photos.push(getPublicUrl(vehicle.cargo_box_photo))
-    if (vehicle.driving_license_photo) photos.push(getPublicUrl(vehicle.driving_license_photo))
+    if (vehicle.left_front_photo) photos.push(vehicle.left_front_photo)
+    if (vehicle.right_front_photo) photos.push(vehicle.right_front_photo)
+    if (vehicle.left_rear_photo) photos.push(vehicle.left_rear_photo)
+    if (vehicle.right_rear_photo) photos.push(vehicle.right_rear_photo)
+    if (vehicle.dashboard_photo) photos.push(vehicle.dashboard_photo)
+    if (vehicle.rear_door_photo) photos.push(vehicle.rear_door_photo)
+    if (vehicle.cargo_box_photo) photos.push(vehicle.cargo_box_photo)
+    if (vehicle.driving_license_main_photo) photos.push(vehicle.driving_license_main_photo)
+    if (vehicle.driving_license_sub_photo) photos.push(vehicle.driving_license_sub_photo)
+    if (vehicle.driving_license_sub_back_photo) photos.push(vehicle.driving_license_sub_back_photo)
     return photos
   }
 
@@ -154,56 +148,70 @@ const VehicleDetail: React.FC = () => {
               <PhotoCard
                 title="左前照片"
                 icon="i-mdi-car-front"
-                url={getPublicUrl(vehicle.left_front_photo)}
+                url={vehicle.left_front_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
                 title="右前照片"
                 icon="i-mdi-car-front"
-                url={getPublicUrl(vehicle.right_front_photo)}
+                url={vehicle.right_front_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
                 title="左后照片"
                 icon="i-mdi-car-back"
-                url={getPublicUrl(vehicle.left_rear_photo)}
+                url={vehicle.left_rear_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
                 title="右后照片"
                 icon="i-mdi-car-back"
-                url={getPublicUrl(vehicle.right_rear_photo)}
+                url={vehicle.right_rear_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
                 title="仪表盘"
                 icon="i-mdi-speedometer"
-                url={getPublicUrl(vehicle.dashboard_photo)}
+                url={vehicle.dashboard_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
                 title="后门"
                 icon="i-mdi-door-open"
-                url={getPublicUrl(vehicle.rear_door_photo)}
+                url={vehicle.rear_door_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
                 title="货箱"
                 icon="i-mdi-package-variant"
-                url={getPublicUrl(vehicle.cargo_box_photo)}
+                url={vehicle.cargo_box_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
-                title="行驶证"
+                title="行驶证主页"
                 icon="i-mdi-card-account-details"
-                url={getPublicUrl(vehicle.driving_license_photo)}
+                url={vehicle.driving_license_main_photo || ''}
+                allPhotos={allPhotos}
+                onPreview={previewImage}
+              />
+              <PhotoCard
+                title="行驶证副页"
+                icon="i-mdi-card-account-details"
+                url={vehicle.driving_license_sub_photo || ''}
+                allPhotos={allPhotos}
+                onPreview={previewImage}
+              />
+              <PhotoCard
+                title="行驶证副页背面"
+                icon="i-mdi-card-account-details"
+                url={vehicle.driving_license_sub_back_photo || ''}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
