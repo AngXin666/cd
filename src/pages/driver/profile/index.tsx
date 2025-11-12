@@ -293,7 +293,7 @@ const DriverProfile: React.FC = () => {
               <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
                 <View className="flex items-center mb-4">
                   <View className="i-mdi-account-details text-blue-600 text-xl mr-2" />
-                  <Text className="text-lg font-bold text-gray-800">基本信息</Text>
+                  <Text className="text-lg font-bold text-gray-800">个人信息</Text>
                 </View>
 
                 <View className="space-y-4">
@@ -358,6 +358,118 @@ const DriverProfile: React.FC = () => {
                       <Text className="text-gray-800 text-sm font-medium ml-7">{profile?.phone || '未填写'}</Text>
                     )}
                   </View>
+
+                  {/* 身份证号 */}
+                  {driverLicense?.id_card_number && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-card-account-details text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">身份证号</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.id_card_number}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 出生日期 */}
+                  {driverLicense?.id_card_birth_date && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-cake-variant text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">出生日期</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium">
+                          {formatDate(driverLicense.id_card_birth_date)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 住址 */}
+                  {driverLicense?.id_card_address && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-home-map-marker text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">住址</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium text-right flex-1 ml-4">
+                          {driverLicense.id_card_address}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 驾驶证号 */}
+                  {driverLicense?.license_number && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-card-account-details-outline text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">驾驶证号</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.license_number}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 准驾车型 */}
+                  {driverLicense?.license_class && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-car text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">准驾车型</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.license_class}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 初次领证日期 */}
+                  {driverLicense?.valid_from && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-calendar-check text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">初次领证日期</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium">
+                          {formatDate(driverLicense.valid_from)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 有效期至 */}
+                  {driverLicense?.valid_to && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-calendar-clock text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">有效期至</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium">{formatDate(driverLicense.valid_to)}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 发证机关 */}
+                  {driverLicense?.issue_authority && (
+                    <View className="border-b border-gray-100 pb-3">
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
+                          <View className="i-mdi-office-building text-gray-600 text-lg mr-2" />
+                          <Text className="text-gray-600 text-sm">发证机关</Text>
+                        </View>
+                        <Text className="text-gray-800 text-sm font-medium text-right flex-1 ml-4">
+                          {driverLicense.issue_authority}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
 
                   {/* 登录密码（可修改） */}
                   <View className="border-b border-gray-100 pb-3">
@@ -446,112 +558,6 @@ const DriverProfile: React.FC = () => {
                   </View>
                 </View>
               </View>
-
-              {/* 身份证信息卡片 */}
-              {driverLicense && (driverLicense.id_card_number || driverLicense.id_card_name) && (
-                <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
-                  <View className="flex items-center mb-4">
-                    <View className="i-mdi-card-account-details text-green-600 text-xl mr-2" />
-                    <Text className="text-lg font-bold text-gray-800">身份证信息</Text>
-                    <Text className="text-xs text-gray-500 ml-2">（系统自动读取）</Text>
-                  </View>
-
-                  <View className="space-y-3">
-                    {/* 姓名 */}
-                    {driverLicense.id_card_name && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">姓名</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.id_card_name}</Text>
-                      </View>
-                    )}
-
-                    {/* 身份证号 */}
-                    {driverLicense.id_card_number && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">身份证号</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.id_card_number}</Text>
-                      </View>
-                    )}
-
-                    {/* 出生日期 */}
-                    {driverLicense.id_card_birth_date && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">出生日期</Text>
-                        <Text className="text-gray-800 text-sm font-medium">
-                          {formatDate(driverLicense.id_card_birth_date)}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* 住址 */}
-                    {driverLicense.id_card_address && (
-                      <View className="flex items-center justify-between py-2">
-                        <Text className="text-gray-600 text-sm">住址</Text>
-                        <Text className="text-gray-800 text-sm font-medium text-right flex-1 ml-4">
-                          {driverLicense.id_card_address}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              )}
-
-              {/* 驾驶证信息卡片 */}
-              {driverLicense && (driverLicense.license_number || driverLicense.license_class) && (
-                <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
-                  <View className="flex items-center mb-4">
-                    <View className="i-mdi-card-account-details-outline text-orange-600 text-xl mr-2" />
-                    <Text className="text-lg font-bold text-gray-800">驾驶证信息</Text>
-                    <Text className="text-xs text-gray-500 ml-2">（系统自动读取）</Text>
-                  </View>
-
-                  <View className="space-y-3">
-                    {/* 驾驶证号 */}
-                    {driverLicense.license_number && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">驾驶证号</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.license_number}</Text>
-                      </View>
-                    )}
-
-                    {/* 准驾车型 */}
-                    {driverLicense.license_class && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">准驾车型</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{driverLicense.license_class}</Text>
-                      </View>
-                    )}
-
-                    {/* 初次领证日期 */}
-                    {driverLicense.valid_from && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">初次领证日期</Text>
-                        <Text className="text-gray-800 text-sm font-medium">
-                          {formatDate(driverLicense.valid_from)}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* 有效期至 */}
-                    {driverLicense.valid_to && (
-                      <View className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <Text className="text-gray-600 text-sm">有效期至</Text>
-                        <Text className="text-gray-800 text-sm font-medium">{formatDate(driverLicense.valid_to)}</Text>
-                      </View>
-                    )}
-
-                    {/* 发证机关 */}
-                    {driverLicense.issue_authority && (
-                      <View className="flex items-center justify-between py-2">
-                        <Text className="text-gray-600 text-sm">发证机关</Text>
-                        <Text className="text-gray-800 text-sm font-medium text-right flex-1 ml-4">
-                          {driverLicense.issue_authority}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              )}
 
               {/* 证件照片卡片 */}
               {driverLicense &&
