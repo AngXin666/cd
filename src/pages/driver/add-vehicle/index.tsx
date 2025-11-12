@@ -18,6 +18,20 @@ import {recognizeDriverLicense, recognizeIdCardFront} from '@/utils/ocrUtils'
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 
 /**
+ * 显示OCR识别错误信息
+ * @param error 错误对象
+ */
+const showOcrError = (error: unknown) => {
+  console.error('识别失败:', error)
+  const errorMessage = error instanceof Error ? error.message : '识别失败，请重新拍摄'
+  Taro.showToast({
+    title: errorMessage,
+    icon: 'none',
+    duration: 3000
+  })
+}
+
+/**
  * 计算驾龄（以年为单位）
  * @param validFrom 领证时间 (YYYY-MM-DD)
  * @returns 驾龄（年）
@@ -149,11 +163,10 @@ const AddVehicle: React.FC = () => {
         }))
         Taro.showToast({title: '主页识别成功', icon: 'success'})
       } else {
-        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
+        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
       }
     } catch (error) {
-      console.error('识别失败:', error)
-      Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
+      showOcrError(error)
     } finally {
       Taro.hideLoading()
     }
@@ -188,11 +201,10 @@ const AddVehicle: React.FC = () => {
         }))
         Taro.showToast({title: '副页识别成功', icon: 'success'})
       } else {
-        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
+        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
       }
     } catch (error) {
-      console.error('识别失败:', error)
-      Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
+      showOcrError(error)
     } finally {
       Taro.hideLoading()
     }
@@ -222,11 +234,10 @@ const AddVehicle: React.FC = () => {
         }))
         Taro.showToast({title: '副页背页识别成功', icon: 'success'})
       } else {
-        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
+        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
       }
     } catch (error) {
-      console.error('识别失败:', error)
-      Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none'})
+      showOcrError(error)
     } finally {
       Taro.hideLoading()
     }
@@ -256,8 +267,8 @@ const AddVehicle: React.FC = () => {
         Taro.showToast({title: '识别成功', icon: 'success'})
       }
     } catch (error) {
-      console.error('识别失败:', error)
-      Taro.showToast({title: '识别失败，请手动填写', icon: 'none'})
+      showOcrError(error)
+      // 错误已通过showOcrError显示
     } finally {
       Taro.hideLoading()
     }
@@ -290,8 +301,8 @@ const AddVehicle: React.FC = () => {
         Taro.showToast({title: '识别成功', icon: 'success'})
       }
     } catch (error) {
-      console.error('识别失败:', error)
-      Taro.showToast({title: '识别失败，请手动填写', icon: 'none'})
+      showOcrError(error)
+      // 错误已通过showOcrError显示
     } finally {
       Taro.hideLoading()
     }

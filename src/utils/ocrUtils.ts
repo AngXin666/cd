@@ -230,12 +230,36 @@ export async function recognizeDocument(
         },
         onError: (error: Error) => {
           console.error('OCR识别失败:', error)
-          reject(error)
+
+          // 提供更友好的错误信息
+          let errorMessage = '识别失败，请重试'
+
+          if (error.message.includes('network')) {
+            errorMessage = '网络连接失败，请检查网络后重试'
+          } else if (error.message.includes('timeout')) {
+            errorMessage = '识别超时，请重新拍摄清晰的照片'
+          } else if (error.message.includes('401') || error.message.includes('403')) {
+            errorMessage = '认证失败，请联系管理员'
+          } else if (error.message.includes('500')) {
+            errorMessage = '服务器错误，请稍后重试'
+          }
+
+          reject(new Error(errorMessage))
         }
       })
     })
   } catch (error) {
     console.error('OCR识别异常:', error)
+
+    // 处理图片处理阶段的错误
+    if (error instanceof Error) {
+      if (error.message.includes('compress')) {
+        throw new Error('图片压缩失败，请重新拍摄')
+      } else if (error.message.includes('base64')) {
+        throw new Error('图片格式转换失败，请重新拍摄')
+      }
+    }
+
     return null
   }
 }
