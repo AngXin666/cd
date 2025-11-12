@@ -355,8 +355,178 @@ const AddVehicle: React.FC = () => {
     }
   }
 
+  /**
+   * 检查行驶证识别结果的完整性
+   * @returns {missingFields: string[], isComplete: boolean}
+   */
+  const checkRecognitionResult = (): {missingFields: string[]; isComplete: boolean} => {
+    const missingFields: string[] = []
+
+    // 检查主页必填字段
+    if (!formData.plate_number) missingFields.push('车牌号码')
+    if (!formData.brand) missingFields.push('品牌')
+    if (!formData.model) missingFields.push('型号')
+    if (!formData.vin) missingFields.push('车辆识别代号')
+    if (!formData.vehicle_type) missingFields.push('车辆类型')
+    if (!formData.owner_name) missingFields.push('所有人')
+
+    // 检查副页必填字段
+    if (!formData.archive_number) missingFields.push('档案编号')
+    if (!formData.inspection_valid_until) missingFields.push('检验有效期')
+
+    return {
+      missingFields,
+      isComplete: missingFields.length === 0
+    }
+  }
+
+  /**
+   * 显示识别失败对话框，提供重新识别或重新导入选项
+   * @param missingFields 缺失的字段列表
+   */
+  const showRecognitionFailureDialog = async (missingFields: string[]) => {
+    const fieldList = missingFields.join('、')
+    const message = `以下信息未能识别成功：\n\n${fieldList}\n\n请选择后续操作：`
+
+    const res = await Taro.showModal({
+      title: '识别失败',
+      content: message,
+      confirmText: '重新识别',
+      cancelText: '重新导入',
+      confirmColor: '#3b82f6',
+      cancelColor: '#ef4444'
+    })
+
+    if (res.confirm) {
+      // 用户选择重新识别
+      await handleReRecognize()
+    } else if (res.cancel) {
+      // 用户选择重新导入
+      handleReImport()
+    }
+  }
+
+  /**
+   * 重新识别：使用已上传的照片重新进行识别
+   */
+  const handleReRecognize = async () => {
+    Taro.showLoading({title: '重新识别中...'})
+    try {
+      // 重新识别主页
+      if (photos.driving_license_main) {
+        await handleRecognizeDrivingLicenseMain()
+      }
+
+      // 重新识别副页
+      if (photos.driving_license_sub) {
+        await handleRecognizeDrivingLicenseSub()
+      }
+
+      // 重新识别副页背页
+      if (photos.driving_license_sub_back) {
+        await handleRecognizeDrivingLicenseSubBack()
+      }
+
+      // 再次检查识别结果
+      const {missingFields, isComplete} = checkRecognitionResult()
+      if (isComplete) {
+        Taro.showToast({
+          title: '重新识别成功',
+          icon: 'success'
+        })
+      } else {
+        Taro.showToast({
+          title: `仍有${missingFields.length}个字段未识别`,
+          icon: 'none',
+          duration: 3000
+        })
+      }
+    } catch (error) {
+      console.error('重新识别失败:', error)
+      Taro.showToast({
+        title: '重新识别失败',
+        icon: 'none'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  /**
+   * 重新导入：清空照片，让用户重新拍摄
+   */
+  const handleReImport = () => {
+    // 清空行驶证照片
+    setPhotos((prev) => ({
+      ...prev,
+      driving_license_main: '',
+      driving_license_sub: '',
+      driving_license_sub_back: ''
+    }))
+
+    // 清空识别结果
+    setFormData((prev) => ({
+      ...prev,
+      plate_number: '',
+      brand: '',
+      model: '',
+      vin: '',
+      vehicle_type: '',
+      owner_name: '',
+      archive_number: '',
+      inspection_valid_until: '',
+      engine_number: '',
+      register_date: '',
+      issue_date: '',
+      use_character: '',
+      mandatory_scrap_date: '',
+      inspection_date: ''
+    }))
+
+    Taro.showToast({
+      title: '已清空，请重新拍摄',
+      icon: 'none',
+      duration: 2000
+    })
+  }
+
   // 下一步
-  const handleNext = () => {
+  const handleNext = async () => {
+    // 步骤0：行驶证识别 - 需要特殊处理
+    if (currentStep === 0) {
+      // 首先检查是否已拍摄所有照片
+      if (!photos.driving_license_main) {
+        Taro.showToast({title: '请拍摄行驶证主页', icon: 'none'})
+        return
+      }
+      if (!photos.driving_license_sub) {
+        Taro.showToast({title: '请拍摄行驶证副页', icon: 'none'})
+        return
+      }
+      if (!photos.driving_license_sub_back) {
+        Taro.showToast({title: '请拍摄行驶证副页背页', icon: 'none'})
+        return
+      }
+
+      // 检查识别结果的完整性
+      const {missingFields, isComplete} = checkRecognitionResult()
+
+      if (!isComplete) {
+        // 识别不完整，显示失败对话框
+        await showRecognitionFailureDialog(missingFields)
+        return
+      }
+
+      // 识别完整，继续下一步
+      Taro.showToast({
+        title: '识别完成，进入下一步',
+        icon: 'success'
+      })
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+      return
+    }
+
+    // 其他步骤使用原有的验证逻辑
     if (validateStep(currentStep)) {
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
     }
