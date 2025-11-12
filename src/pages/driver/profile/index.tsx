@@ -212,7 +212,16 @@ const DriverProfile: React.FC = () => {
       console.log('⚠️ 图片路径为空')
       return ''
     }
+
     console.log('📸 原始图片路径:', path)
+
+    // 如果已经是完整的URL，直接返回
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      console.log('✅ 已经是完整URL，直接使用')
+      return path
+    }
+
+    // 否则从storage生成公共URL
     const bucketName = `${process.env.TARO_APP_APP_ID}_avatars`
     console.log('🗂️ 使用的bucket:', bucketName)
     const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
