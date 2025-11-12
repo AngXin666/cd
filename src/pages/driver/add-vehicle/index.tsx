@@ -413,6 +413,7 @@ const AddVehicle: React.FC = () => {
       // 插入车辆信息
       const vehicleData: VehicleInput = {
         user_id: user.id,
+        warehouse_id: null, // 司机添加车辆时暂不分配仓库，由管理员后续分配
         plate_number: formData.plate_number!,
         brand: formData.brand!,
         model: formData.model!,
