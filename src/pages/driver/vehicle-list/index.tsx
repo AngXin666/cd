@@ -139,9 +139,9 @@ const VehicleList: React.FC = () => {
                   className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all"
                   onClick={() => handleViewDetail(vehicle.id)}>
                   {/* 车辆照片 */}
-                  {vehicle.front_photo && (
+                  {vehicle.left_front_photo && (
                     <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                      <Image src={vehicle.front_photo} mode="aspectFill" className="w-full h-full" />
+                      <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
                       {/* 状态标签 */}
                       <View className="absolute top-3 right-3">
                         <View
@@ -170,7 +170,7 @@ const VehicleList: React.FC = () => {
                         <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1 mr-2">
                           <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
                         </View>
-                        {!vehicle.front_photo && (
+                        {!vehicle.left_front_photo && (
                           <View
                             className={`rounded-full px-2 py-0.5 ${
                               vehicle.status === 'active' ? 'bg-green-100' : 'bg-gray-100'

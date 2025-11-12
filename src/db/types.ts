@@ -453,13 +453,15 @@ export interface Vehicle {
   use_character: string | null
   register_date: string | null
   issue_date: string | null
-  // 车辆照片
-  front_photo: string | null
-  back_photo: string | null
-  left_photo: string | null
-  right_photo: string | null
-  tire_photo: string | null
-  driving_license_photo: string | null
+  // 车辆照片（7个角度）
+  left_front_photo: string | null // 左前照片
+  right_front_photo: string | null // 右前照片
+  left_rear_photo: string | null // 左后照片
+  right_rear_photo: string | null // 右后照片
+  dashboard_photo: string | null // 仪表盘照片
+  rear_door_photo: string | null // 后门照片
+  cargo_box_photo: string | null // 货箱照片
+  driving_license_photo: string | null // 行驶证照片
   created_at: string
   updated_at: string
 }
@@ -481,11 +483,13 @@ export interface VehicleInput {
   use_character?: string | null
   register_date?: string | null
   issue_date?: string | null
-  front_photo?: string | null
-  back_photo?: string | null
-  left_photo?: string | null
-  right_photo?: string | null
-  tire_photo?: string | null
+  left_front_photo?: string | null
+  right_front_photo?: string | null
+  left_rear_photo?: string | null
+  right_rear_photo?: string | null
+  dashboard_photo?: string | null
+  rear_door_photo?: string | null
+  cargo_box_photo?: string | null
   driving_license_photo?: string | null
 }
 
@@ -505,11 +509,13 @@ export interface VehicleUpdate {
   use_character?: string | null
   register_date?: string | null
   issue_date?: string | null
-  front_photo?: string | null
-  back_photo?: string | null
-  left_photo?: string | null
-  right_photo?: string | null
-  tire_photo?: string | null
+  left_front_photo?: string | null
+  right_front_photo?: string | null
+  left_rear_photo?: string | null
+  right_rear_photo?: string | null
+  dashboard_photo?: string | null
+  rear_door_photo?: string | null
+  cargo_box_photo?: string | null
   driving_license_photo?: string | null
 }
 

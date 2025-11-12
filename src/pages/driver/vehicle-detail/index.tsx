@@ -60,11 +60,13 @@ const VehicleDetail: React.FC = () => {
   const getAllPhotos = () => {
     if (!vehicle) return []
     const photos: string[] = []
-    if (vehicle.front_photo) photos.push(getPublicUrl(vehicle.front_photo))
-    if (vehicle.back_photo) photos.push(getPublicUrl(vehicle.back_photo))
-    if (vehicle.left_photo) photos.push(getPublicUrl(vehicle.left_photo))
-    if (vehicle.right_photo) photos.push(getPublicUrl(vehicle.right_photo))
-    if (vehicle.tire_photo) photos.push(getPublicUrl(vehicle.tire_photo))
+    if (vehicle.left_front_photo) photos.push(getPublicUrl(vehicle.left_front_photo))
+    if (vehicle.right_front_photo) photos.push(getPublicUrl(vehicle.right_front_photo))
+    if (vehicle.left_rear_photo) photos.push(getPublicUrl(vehicle.left_rear_photo))
+    if (vehicle.right_rear_photo) photos.push(getPublicUrl(vehicle.right_rear_photo))
+    if (vehicle.dashboard_photo) photos.push(getPublicUrl(vehicle.dashboard_photo))
+    if (vehicle.rear_door_photo) photos.push(getPublicUrl(vehicle.rear_door_photo))
+    if (vehicle.cargo_box_photo) photos.push(getPublicUrl(vehicle.cargo_box_photo))
     if (vehicle.driving_license_photo) photos.push(getPublicUrl(vehicle.driving_license_photo))
     return photos
   }
@@ -150,37 +152,51 @@ const VehicleDetail: React.FC = () => {
             </View>
             <View className="grid grid-cols-2 gap-3">
               <PhotoCard
-                title="前方照片"
+                title="左前照片"
                 icon="i-mdi-car-front"
-                url={getPublicUrl(vehicle.front_photo)}
+                url={getPublicUrl(vehicle.left_front_photo)}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
-                title="后方照片"
+                title="右前照片"
+                icon="i-mdi-car-front"
+                url={getPublicUrl(vehicle.right_front_photo)}
+                allPhotos={allPhotos}
+                onPreview={previewImage}
+              />
+              <PhotoCard
+                title="左后照片"
                 icon="i-mdi-car-back"
-                url={getPublicUrl(vehicle.back_photo)}
+                url={getPublicUrl(vehicle.left_rear_photo)}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
-                title="左侧照片"
-                icon="i-mdi-car-side"
-                url={getPublicUrl(vehicle.left_photo)}
+                title="右后照片"
+                icon="i-mdi-car-back"
+                url={getPublicUrl(vehicle.right_rear_photo)}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
-                title="右侧照片"
-                icon="i-mdi-car-side"
-                url={getPublicUrl(vehicle.right_photo)}
+                title="仪表盘"
+                icon="i-mdi-speedometer"
+                url={getPublicUrl(vehicle.dashboard_photo)}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
               <PhotoCard
-                title="轮胎照片"
-                icon="i-mdi-tire"
-                url={getPublicUrl(vehicle.tire_photo)}
+                title="后门"
+                icon="i-mdi-door-open"
+                url={getPublicUrl(vehicle.rear_door_photo)}
+                allPhotos={allPhotos}
+                onPreview={previewImage}
+              />
+              <PhotoCard
+                title="货箱"
+                icon="i-mdi-package-variant"
+                url={getPublicUrl(vehicle.cargo_box_photo)}
                 allPhotos={allPhotos}
                 onPreview={previewImage}
               />
