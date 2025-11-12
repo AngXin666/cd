@@ -3493,16 +3493,23 @@ export async function getVehicleById(vehicleId: string): Promise<Vehicle | null>
  */
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
   try {
+    console.log('insertVehicle - 开始插入车辆数据')
     const {data, error} = await supabase.from('vehicles').insert(vehicle).select().maybeSingle()
 
     if (error) {
-      console.error('添加车辆失败:', error)
+      console.error('添加车辆失败 - Supabase错误:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       return null
     }
 
+    console.log('insertVehicle - 插入成功:', data)
     return data
   } catch (error) {
-    console.error('添加车辆异常:', error)
+    console.error('添加车辆异常 - 捕获异常:', error)
     return null
   }
 }

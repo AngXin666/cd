@@ -399,15 +399,15 @@ const AddVehicle: React.FC = () => {
         engine_number: formData.engine_number,
         register_date: formData.register_date,
         issue_date: formData.issue_date,
-        // 副页字段
+        // 副页字段 - 只在有值时传入
         archive_number: formData.archive_number,
-        total_mass: formData.total_mass,
-        approved_passengers: formData.approved_passengers,
-        curb_weight: formData.curb_weight,
-        approved_load: formData.approved_load,
-        overall_dimension_length: formData.overall_dimension_length,
-        overall_dimension_width: formData.overall_dimension_width,
-        overall_dimension_height: formData.overall_dimension_height,
+        total_mass: formData.total_mass || null,
+        approved_passengers: formData.approved_passengers || null,
+        curb_weight: formData.curb_weight || null,
+        approved_load: formData.approved_load || null,
+        overall_dimension_length: formData.overall_dimension_length || null,
+        overall_dimension_width: formData.overall_dimension_width || null,
+        overall_dimension_height: formData.overall_dimension_height || null,
         inspection_valid_until: formData.inspection_valid_until,
         // 副页背页字段
         mandatory_scrap_date: formData.mandatory_scrap_date,
@@ -426,7 +426,15 @@ const AddVehicle: React.FC = () => {
         status: 'active'
       }
 
-      await insertVehicle(vehicleData)
+      // 插入车辆信息
+      console.log('准备插入车辆数据:', vehicleData)
+      const insertedVehicle = await insertVehicle(vehicleData)
+
+      if (!insertedVehicle) {
+        throw new Error('车辆信息保存失败')
+      }
+
+      console.log('车辆信息保存成功:', insertedVehicle)
 
       // 插入驾驶员证件信息
       if (Object.keys(uploadedDriverPhotos).length > 0) {
@@ -447,7 +455,9 @@ const AddVehicle: React.FC = () => {
           status: 'active'
         }
 
-        await upsertDriverLicense(driverLicenseInput)
+        console.log('准备插入驾驶员证件数据:', driverLicenseInput)
+        const insertedLicense = await upsertDriverLicense(driverLicenseInput)
+        console.log('驾驶员证件保存结果:', insertedLicense)
       }
 
       Taro.hideLoading()
@@ -458,9 +468,16 @@ const AddVehicle: React.FC = () => {
         Taro.switchTab({url: '/pages/driver/vehicle-list/index'})
       }, 1500)
     } catch (error) {
-      console.error('提交失败:', error)
+      console.error('提交失败详情:', error)
       Taro.hideLoading()
-      Taro.showToast({title: '提交失败，请重试', icon: 'none'})
+
+      // 显示更详细的错误信息
+      const errorMessage = error instanceof Error ? error.message : '提交失败，请重试'
+      Taro.showToast({
+        title: errorMessage,
+        icon: 'none',
+        duration: 3000
+      })
     } finally {
       setSubmitting(false)
     }
