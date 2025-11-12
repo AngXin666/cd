@@ -210,6 +210,74 @@ export async function autoRotateImage(imagePath: string): Promise<string> {
 }
 
 /**
+ * 强制图片横向显示
+ * 如果图片是竖向的（高度>宽度），自动旋转90度使其横向显示
+ * @param imagePath 图片路径
+ * @returns 处理后的图片路径（Base64格式）
+ */
+export async function ensureLandscapeOrientation(imagePath: string): Promise<string> {
+  try {
+    // 转换为Base64
+    const base64 = await imageToBase64(imagePath)
+
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const width = img.width
+          const height = img.height
+
+          console.log(`📐 图片尺寸: ${width}x${height}`)
+
+          // 如果图片是横向的（宽度>=高度），直接返回
+          if (width >= height) {
+            console.log('✅ 图片已经是横向，无需旋转')
+            resolve(base64)
+            return
+          }
+
+          // 图片是竖向的，需要旋转90度
+          console.log('🔄 图片是竖向，旋转90度使其横向显示')
+
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('无法创建Canvas上下文'))
+            return
+          }
+
+          // 旋转90度后，宽高互换
+          canvas.width = height
+          canvas.height = width
+
+          // 顺时针旋转90度
+          ctx.translate(height, 0)
+          ctx.rotate(Math.PI / 2)
+          ctx.drawImage(img, 0, 0)
+
+          // 转换为Base64
+          const mimeType = base64.match(/data:(.*?);/)?.[1] || 'image/jpeg'
+          const rotatedBase64 = canvas.toDataURL(mimeType, 0.95)
+
+          console.log(`✅ 旋转完成，新尺寸: ${canvas.width}x${canvas.height}`)
+          resolve(rotatedBase64)
+        } catch (error) {
+          console.error('旋转图片失败:', error)
+          reject(error)
+        }
+      }
+      img.onerror = () => {
+        reject(new Error('加载图片失败'))
+      }
+      img.src = base64
+    })
+  } catch (error) {
+    console.warn('强制横向显示失败，使用原图:', error)
+    return imagePath
+  }
+}
+
+/**
  * 将图片路径转换为Base64格式
  * @param imagePath 图片路径
  * @returns Base64字符串
@@ -339,24 +407,35 @@ export function compressImage(imagePath: string, quality = 0.8): Promise<string>
  * @param imagePath 图片路径
  * @param bucketName 存储桶名称
  * @param fileName 文件名
+ * @param forceLandscape 是否强制横向显示（默认true）
  * @returns 图片的公开URL
  */
 export async function uploadImageToStorage(
   imagePath: string,
   bucketName: string,
-  fileName: string
+  fileName: string,
+  forceLandscape: boolean = true
 ): Promise<string | null> {
   try {
-    // 1. 自动旋转图片（修正方向）
-    const rotatedPath = await autoRotateImage(imagePath)
+    console.log('📤 开始上传图片:', fileName)
 
-    // 2. 压缩图片
+    // 1. 强制横向显示（如果需要）
+    let processedPath = imagePath
+    if (forceLandscape) {
+      console.log('🔄 检查并调整图片方向...')
+      processedPath = await ensureLandscapeOrientation(imagePath)
+    }
+
+    // 2. 自动旋转图片（修正EXIF方向）
+    const rotatedPath = await autoRotateImage(processedPath)
+
+    // 3. 压缩图片
     const compressedPath = await compressImage(rotatedPath, 0.8)
 
-    // 3. 转换为Base64
+    // 4. 转换为Base64
     const base64Image = await imageToBase64(compressedPath)
 
-    // 4. 将Base64转换为Blob
+    // 5. 将Base64转换为Blob
     const base64Data = base64Image.split(',')[1]
     const mimeType = base64Image.match(/data:(.*?);/)?.[1] || 'image/jpeg'
 
@@ -374,6 +453,7 @@ export async function uploadImageToStorage(
 
       // 获取公开URL
       const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
+      console.log('✅ 图片上传成功:', urlData.publicUrl)
       return urlData.publicUrl
     } else {
       // H5环境：转换为Blob
@@ -394,6 +474,7 @@ export async function uploadImageToStorage(
 
       // 获取公开URL
       const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
+      console.log('✅ 图片上传成功:', urlData.publicUrl)
       return urlData.publicUrl
     }
   } catch (error) {
