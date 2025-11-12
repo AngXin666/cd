@@ -204,7 +204,7 @@ const DriverProfile: React.FC = () => {
   // 获取图片公共URL
   const getImageUrl = (path: string | null): string => {
     if (!path) return ''
-    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_driver_images`).getPublicUrl(path)
+    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_avatars`).getPublicUrl(path)
     return data.publicUrl
   }
 
