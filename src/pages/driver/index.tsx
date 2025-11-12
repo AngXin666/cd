@@ -439,6 +439,14 @@ const DriverHome: React.FC = () => {
                 <View className="i-mdi-car text-5xl text-cyan-600 mb-3" />
                 <Text className="text-base font-medium text-gray-800">车辆管理</Text>
               </View>
+
+              {/* 个人信息 */}
+              <View
+                className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all shadow"
+                onClick={() => navigateTo({url: '/pages/driver/profile/index'})}>
+                <View className="i-mdi-account-circle text-5xl text-green-600 mb-3" />
+                <Text className="text-base font-medium text-gray-800">个人信息</Text>
+              </View>
             </View>
           </View>
 
