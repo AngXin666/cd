@@ -93,7 +93,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   "register_date": "注册日期(YYYY-MM-DD格式)",
   "issue_date": "发证日期(YYYY-MM-DD格式)"
 }
-只返回JSON数据，不要其他说明文字。`,
+重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`,
 
   driving_license_sub: `请识别这张行驶证副页，提取以下信息并以JSON格式返回：
 {
@@ -110,7 +110,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
 注意：
 1. 数字类型字段请返回纯数字，不要包含单位
 2. 如果某个字段无法识别，请返回null
-3. 只返回JSON数据，不要其他说明文字`,
+3. 重要：只返回纯JSON数据，不要在JSON中添加任何注释、括号说明或额外文字`,
 
   driving_license_sub_back: `请识别这张行驶证副页背页，提取以下信息并以JSON格式返回：
 {
@@ -124,7 +124,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
 3. 如果副页正面的检验有效期已过期，副页背面会有新的年检记录和新的检验有效期
 4. 请优先识别最新（最下方）的年检记录
 5. 如果某个字段无法识别，请返回null
-6. 只返回JSON数据，不要其他说明文字`,
+6. 重要：只返回纯JSON数据，不要在JSON中添加任何注释、括号说明或额外文字`,
 
   id_card_front: `请识别这张身份证正面，提取以下信息并以JSON格式返回：
 {
@@ -133,7 +133,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   "address": "地址",
   "birth_date": "出生日期(YYYY-MM-DD格式)"
 }
-只返回JSON数据，不要其他说明文字。`,
+重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`,
 
   id_card_back: `请识别这张身份证反面，提取以下信息并以JSON格式返回：
 {
@@ -141,7 +141,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   "valid_from": "有效期起始日期(YYYY-MM-DD格式)",
   "valid_to": "有效期截止日期(YYYY-MM-DD格式或'长期')"
 }
-只返回JSON数据，不要其他说明文字。`,
+重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`,
 
   driver_license: `请识别这张驾驶证，提取以下信息并以JSON格式返回：
 {
@@ -153,7 +153,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   "valid_to": "有效期截止日期(YYYY-MM-DD格式)",
   "issue_authority": "发证机关"
 }
-只返回JSON数据，不要其他说明文字。`
+重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`
 }
 
 /**
@@ -215,9 +215,28 @@ export async function recognizeDocument(
             onProgress?.('正在解析识别结果...')
 
             // 解析JSON结果
+            // 1. 首先尝试提取JSON对象
             const jsonMatch = fullContent.match(/\{[\s\S]*\}/)
             if (jsonMatch) {
-              const result = JSON.parse(jsonMatch[0])
+              let jsonStr = jsonMatch[0]
+
+              // 2. 清理JSON字符串中的注释
+              // 移除行内注释（如：// 注释 或 （注释））
+              jsonStr = jsonStr.replace(/\/\/[^\n]*/g, '') // 移除 // 注释
+              jsonStr = jsonStr.replace(/（[^）]*）/g, '') // 移除中文括号注释
+              jsonStr = jsonStr.replace(/\([^)]*\)/g, '') // 移除英文括号注释
+
+              // 3. 清理多余的空白字符
+              jsonStr = jsonStr.replace(/\s+/g, ' ').trim()
+
+              // 4. 修复可能的JSON格式问题
+              // 移除最后一个属性值后的逗号（如果有）
+              jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1')
+
+              console.log('清理后的JSON字符串:', jsonStr)
+
+              // 5. 解析JSON
+              const result = JSON.parse(jsonStr)
               resolve(result)
             } else {
               console.error('无法从响应中提取JSON:', fullContent)
@@ -225,6 +244,7 @@ export async function recognizeDocument(
             }
           } catch (error) {
             console.error('解析OCR结果失败:', error)
+            console.error('原始内容:', fullContent)
             reject(new Error('识别结果解析失败'))
           }
         },
