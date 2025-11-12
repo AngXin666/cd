@@ -309,6 +309,127 @@ const AddVehicle: React.FC = () => {
   }
 
   // 验证当前步骤
+  /**
+   * 检查驾驶员证件识别结果的完整性
+   * @returns {missingFields: string[], isComplete: boolean}
+   */
+  const checkDriverLicenseRecognition = (): {missingFields: string[]; isComplete: boolean} => {
+    const missingFields: string[] = []
+
+    // 检查身份证识别结果
+    if (!driverLicenseData.id_card_number) missingFields.push('身份证号码')
+    if (!driverLicenseData.id_card_name) missingFields.push('姓名')
+
+    // 检查驾驶证识别结果
+    if (!driverLicenseData.license_number) missingFields.push('驾驶证号')
+    if (!driverLicenseData.license_class) missingFields.push('准驾车型')
+    if (!driverLicenseData.valid_from) missingFields.push('初次领证日期')
+    if (!driverLicenseData.valid_to) missingFields.push('有效期至')
+
+    return {
+      missingFields,
+      isComplete: missingFields.length === 0
+    }
+  }
+
+  /**
+   * 显示驾驶员证件识别失败对话框
+   * @param missingFields 缺失的字段列表
+   */
+  const showDriverLicenseRecognitionFailureDialog = async (missingFields: string[]) => {
+    const fieldList = missingFields.join('、')
+    const message = `以下证件信息未能识别成功：\n\n${fieldList}\n\n请选择后续操作：`
+
+    const res = await Taro.showModal({
+      title: '证件识别失败',
+      content: message,
+      confirmText: '重新识别',
+      cancelText: '重新拍摄',
+      confirmColor: '#3b82f6',
+      cancelColor: '#ef4444'
+    })
+
+    if (res.confirm) {
+      // 用户选择重新识别
+      await handleReRecognizeDriverLicense()
+    } else if (res.cancel) {
+      // 用户选择重新拍摄
+      handleReImportDriverLicense()
+    }
+  }
+
+  /**
+   * 重新识别驾驶员证件：使用已上传的照片重新进行识别
+   */
+  const handleReRecognizeDriverLicense = async () => {
+    Taro.showLoading({title: '重新识别中...'})
+    try {
+      // 重新识别身份证正面
+      if (driverPhotos.id_card_front) {
+        await handleRecognizeIdCardFront()
+      }
+
+      // 重新识别驾驶证
+      if (driverPhotos.driver_license) {
+        await handleRecognizeDriverLicense()
+      }
+
+      // 再次检查识别结果
+      const {missingFields, isComplete} = checkDriverLicenseRecognition()
+      if (isComplete) {
+        Taro.showToast({
+          title: '重新识别成功',
+          icon: 'success'
+        })
+      } else {
+        Taro.showToast({
+          title: `仍有${missingFields.length}个字段未识别`,
+          icon: 'none',
+          duration: 3000
+        })
+      }
+    } catch (error) {
+      console.error('重新识别失败:', error)
+      Taro.showToast({
+        title: '重新识别失败',
+        icon: 'none'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  /**
+   * 重新拍摄驾驶员证件：清空照片，让用户重新拍摄
+   */
+  const handleReImportDriverLicense = () => {
+    // 清空驾驶员证件照片
+    setDriverPhotos({
+      id_card_front: '',
+      id_card_back: '',
+      driver_license: ''
+    })
+
+    // 清空识别结果
+    setDriverLicenseData({
+      id_card_number: '',
+      id_card_name: '',
+      id_card_address: '',
+      id_card_birth_date: '',
+      license_number: '',
+      license_class: '',
+      valid_from: '',
+      valid_to: '',
+      issue_authority: ''
+    })
+
+    Taro.showToast({
+      title: '已清空，请重新拍摄证件',
+      icon: 'none',
+      duration: 2000
+    })
+  }
+
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 0: // 行驶证识别 - 需要三张照片
@@ -539,7 +660,16 @@ const AddVehicle: React.FC = () => {
 
   // 提交表单
   const handleSubmit = async () => {
+    // 验证当前步骤的基本要求（照片是否已拍摄）
     if (!validateStep(currentStep)) {
+      return
+    }
+
+    // 特别验证驾驶员证件识别结果
+    const {missingFields, isComplete} = checkDriverLicenseRecognition()
+    if (!isComplete) {
+      // 证件识别不完整，显示失败对话框
+      await showDriverLicenseRecognitionFailureDialog(missingFields)
       return
     }
 
@@ -971,109 +1101,223 @@ const AddVehicle: React.FC = () => {
           {/* 步骤3: 驾驶员证件 */}
           {currentStep === 2 && (
             <View>
-              <PhotoCapture
-                title="身份证正面"
-                description="请拍摄身份证正面"
-                tips={['确保照片清晰', '避免反光', '包含所有信息']}
-                value={driverPhotos.id_card_front}
-                onChange={(path) => setDriverPhotos((prev) => ({...prev, id_card_front: path}))}
-              />
-
-              {driverPhotos.id_card_front && (
-                <View className="mb-4">
-                  <Button
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
-                    size="default"
-                    onClick={handleRecognizeIdCardFront}>
-                    <View className="flex items-center justify-center">
-                      <View className="i-mdi-text-recognition text-xl mr-2"></View>
-                      <Text className="font-medium">识别身份证</Text>
-                    </View>
-                  </Button>
+              {/* 用户引导提示 */}
+              <View className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-5 mb-6 border-2 border-blue-200">
+                <View className="flex items-center mb-3">
+                  <View className="i-mdi-information text-2xl text-blue-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-blue-800">证件识别要求</Text>
                 </View>
-              )}
-
-              <PhotoCapture
-                title="身份证反面"
-                description="请拍摄身份证反面"
-                tips={['确保照片清晰', '避免反光', '包含所有信息']}
-                value={driverPhotos.id_card_back}
-                onChange={(path) => setDriverPhotos((prev) => ({...prev, id_card_back: path}))}
-              />
-
-              <PhotoCapture
-                title="驾驶证"
-                description="请拍摄驾驶证主页"
-                tips={['确保照片清晰', '避免反光', '包含所有信息']}
-                value={driverPhotos.driver_license}
-                onChange={(path) => setDriverPhotos((prev) => ({...prev, driver_license: path}))}
-              />
-
-              {driverPhotos.driver_license && (
-                <View className="mb-4">
-                  <Button
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
-                    size="default"
-                    onClick={handleRecognizeDriverLicense}>
-                    <View className="flex items-center justify-center">
-                      <View className="i-mdi-text-recognition text-xl mr-2"></View>
-                      <Text className="font-medium">识别驾驶证</Text>
-                    </View>
-                  </Button>
-                </View>
-              )}
-
-              {/* 识别结果 */}
-              {(driverLicenseData.id_card_number || driverLicenseData.license_number) && (
-                <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
-                  <View className="flex items-center mb-4">
-                    <View className="i-mdi-check-circle text-2xl text-green-600 mr-2"></View>
-                    <Text className="text-lg font-bold text-gray-800">识别结果</Text>
+                <View className="space-y-2">
+                  <View className="flex items-start">
+                    <View className="i-mdi-check-circle text-base text-green-600 mr-2 mt-0.5"></View>
+                    <Text className="text-sm text-gray-700 flex-1">确保证件照片清晰完整，包含所有文字信息</Text>
                   </View>
-                  <View className="space-y-3">
-                    {/* 基本信息 */}
-                    {driverLicenseData.id_card_name && (
-                      <InfoDisplay label="姓名" value={driverLicenseData.id_card_name} highlight />
-                    )}
-                    {driverLicenseData.id_card_number && (
-                      <InfoDisplay label="身份证号" value={driverLicenseData.id_card_number} />
-                    )}
-                    {driverLicenseData.id_card_address && (
-                      <InfoDisplay label="住址" value={driverLicenseData.id_card_address} />
-                    )}
-
-                    {/* 驾驶证信息 */}
-                    {driverLicenseData.license_number && (
-                      <InfoDisplay label="驾驶证编号" value={driverLicenseData.license_number} />
-                    )}
-                    {driverLicenseData.license_class && (
-                      <InfoDisplay label="准驾车型" value={driverLicenseData.license_class} />
-                    )}
-                    {driverLicenseData.valid_from && (
-                      <InfoDisplay
-                        label="领证时间"
-                        value={new Date(driverLicenseData.valid_from).toLocaleDateString('zh-CN')}
-                      />
-                    )}
-                    {driverLicenseData.valid_from && (
-                      <InfoDisplay
-                        label="驾龄"
-                        value={`${calculateDrivingYears(driverLicenseData.valid_from)} 年`}
-                        highlight
-                      />
-                    )}
-                    {driverLicenseData.valid_to && (
-                      <InfoDisplay
-                        label="有效期至"
-                        value={new Date(driverLicenseData.valid_to).toLocaleDateString('zh-CN')}
-                      />
-                    )}
-                    {driverLicenseData.issue_authority && (
-                      <InfoDisplay label="发证机关" value={driverLicenseData.issue_authority} />
-                    )}
+                  <View className="flex items-start">
+                    <View className="i-mdi-check-circle text-base text-green-600 mr-2 mt-0.5"></View>
+                    <Text className="text-sm text-gray-700 flex-1">避免反光、阴影和模糊</Text>
+                  </View>
+                  <View className="flex items-start">
+                    <View className="i-mdi-check-circle text-base text-green-600 mr-2 mt-0.5"></View>
+                    <Text className="text-sm text-gray-700 flex-1">拍摄后请点击"识别"按钮，系统将自动提取证件信息</Text>
+                  </View>
+                  <View className="flex items-start">
+                    <View className="i-mdi-alert-circle text-base text-orange-600 mr-2 mt-0.5"></View>
+                    <Text className="text-sm text-orange-700 flex-1 font-medium">
+                      只有成功识别所有必填信息后才能提交
+                    </Text>
                   </View>
                 </View>
-              )}
+              </View>
+
+              {/* 身份证正面 */}
+              <View className="bg-white rounded-2xl p-5 mb-6 shadow-md">
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-card-account-details text-2xl text-blue-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">身份证正面</Text>
+                  <View className="ml-2 bg-red-100 px-2 py-0.5 rounded">
+                    <Text className="text-xs text-red-600 font-medium">必填</Text>
+                  </View>
+                </View>
+
+                <PhotoCapture
+                  title=""
+                  description="请拍摄身份证正面，包含姓名、身份证号等信息"
+                  tips={['确保照片清晰', '避免反光和阴影', '包含所有文字信息']}
+                  value={driverPhotos.id_card_front}
+                  onChange={(path) => setDriverPhotos((prev) => ({...prev, id_card_front: path}))}
+                />
+
+                {driverPhotos.id_card_front && (
+                  <View className="mt-3">
+                    <Button
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                      size="default"
+                      onClick={handleRecognizeIdCardFront}>
+                      <View className="flex items-center justify-center">
+                        <View className="i-mdi-text-recognition text-xl mr-2"></View>
+                        <Text className="font-medium">识别身份证</Text>
+                      </View>
+                    </Button>
+                  </View>
+                )}
+
+                {/* 身份证识别结果 */}
+                {driverLicenseData.id_card_number && (
+                  <View className="mt-4 pt-4 border-t border-gray-200">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-check-circle text-xl text-green-600 mr-2"></View>
+                      <Text className="text-base font-semibold text-gray-700">识别结果</Text>
+                    </View>
+                    <View className="space-y-2">
+                      {driverLicenseData.id_card_name && (
+                        <InfoDisplay label="姓名" value={driverLicenseData.id_card_name} highlight />
+                      )}
+                      {driverLicenseData.id_card_number && (
+                        <InfoDisplay label="身份证号" value={driverLicenseData.id_card_number} />
+                      )}
+                      {driverLicenseData.id_card_address && (
+                        <InfoDisplay label="住址" value={driverLicenseData.id_card_address} />
+                      )}
+                      {driverLicenseData.id_card_birth_date && (
+                        <InfoDisplay
+                          label="出生日期"
+                          value={new Date(driverLicenseData.id_card_birth_date).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* 身份证反面 */}
+              <View className="bg-white rounded-2xl p-5 mb-6 shadow-md">
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-card-account-details-outline text-2xl text-purple-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">身份证反面</Text>
+                  <View className="ml-2 bg-red-100 px-2 py-0.5 rounded">
+                    <Text className="text-xs text-red-600 font-medium">必填</Text>
+                  </View>
+                </View>
+
+                <PhotoCapture
+                  title=""
+                  description="请拍摄身份证反面，包含签发机关、有效期等信息"
+                  tips={['确保照片清晰', '避免反光和阴影', '包含所有文字信息']}
+                  value={driverPhotos.id_card_back}
+                  onChange={(path) => setDriverPhotos((prev) => ({...prev, id_card_back: path}))}
+                />
+              </View>
+
+              {/* 驾驶证 */}
+              <View className="bg-white rounded-2xl p-5 mb-6 shadow-md">
+                <View className="flex items-center mb-4">
+                  <View className="i-mdi-car-key text-2xl text-green-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">驾驶证主页</Text>
+                  <View className="ml-2 bg-red-100 px-2 py-0.5 rounded">
+                    <Text className="text-xs text-red-600 font-medium">必填</Text>
+                  </View>
+                </View>
+
+                <PhotoCapture
+                  title=""
+                  description="请拍摄驾驶证主页，包含驾驶证号、准驾车型等信息"
+                  tips={['确保照片清晰', '避免反光和阴影', '包含所有文字信息']}
+                  value={driverPhotos.driver_license}
+                  onChange={(path) => setDriverPhotos((prev) => ({...prev, driver_license: path}))}
+                />
+
+                {driverPhotos.driver_license && (
+                  <View className="mt-3">
+                    <Button
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                      size="default"
+                      onClick={handleRecognizeDriverLicense}>
+                      <View className="flex items-center justify-center">
+                        <View className="i-mdi-text-recognition text-xl mr-2"></View>
+                        <Text className="font-medium">识别驾驶证</Text>
+                      </View>
+                    </Button>
+                  </View>
+                )}
+
+                {/* 驾驶证识别结果 */}
+                {driverLicenseData.license_number && (
+                  <View className="mt-4 pt-4 border-t border-gray-200">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-check-circle text-xl text-green-600 mr-2"></View>
+                      <Text className="text-base font-semibold text-gray-700">识别结果</Text>
+                    </View>
+                    <View className="space-y-2">
+                      {driverLicenseData.license_number && (
+                        <InfoDisplay label="驾驶证编号" value={driverLicenseData.license_number} />
+                      )}
+                      {driverLicenseData.license_class && (
+                        <InfoDisplay label="准驾车型" value={driverLicenseData.license_class} highlight />
+                      )}
+                      {driverLicenseData.valid_from && (
+                        <InfoDisplay
+                          label="初次领证日期"
+                          value={new Date(driverLicenseData.valid_from).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                      {driverLicenseData.valid_from && (
+                        <InfoDisplay
+                          label="驾龄"
+                          value={`${calculateDrivingYears(driverLicenseData.valid_from)} 年`}
+                          highlight
+                        />
+                      )}
+                      {driverLicenseData.valid_to && (
+                        <InfoDisplay
+                          label="有效期至"
+                          value={new Date(driverLicenseData.valid_to).toLocaleDateString('zh-CN')}
+                        />
+                      )}
+                      {driverLicenseData.issue_authority && (
+                        <InfoDisplay label="发证机关" value={driverLicenseData.issue_authority} />
+                      )}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* 识别状态提示 */}
+              {(() => {
+                const {missingFields, isComplete} = checkDriverLicenseRecognition()
+                if (
+                  driverPhotos.id_card_front &&
+                  driverPhotos.id_card_back &&
+                  driverPhotos.driver_license &&
+                  !isComplete
+                ) {
+                  return (
+                    <View className="bg-orange-50 rounded-2xl p-5 mb-6 border-2 border-orange-200">
+                      <View className="flex items-center mb-3">
+                        <View className="i-mdi-alert text-2xl text-orange-600 mr-2"></View>
+                        <Text className="text-lg font-bold text-orange-800">识别未完成</Text>
+                      </View>
+                      <Text className="text-sm text-orange-700 mb-3">
+                        以下信息尚未识别成功：{missingFields.join('、')}
+                      </Text>
+                      <Text className="text-sm text-orange-700">
+                        请点击对应的"识别"按钮，或重新拍摄更清晰的证件照片
+                      </Text>
+                    </View>
+                  )
+                }
+                if (isComplete) {
+                  return (
+                    <View className="bg-green-50 rounded-2xl p-5 mb-6 border-2 border-green-200">
+                      <View className="flex items-center">
+                        <View className="i-mdi-check-circle text-2xl text-green-600 mr-2"></View>
+                        <Text className="text-lg font-bold text-green-800">识别完成</Text>
+                      </View>
+                      <Text className="text-sm text-green-700 mt-2">所有必填信息已成功识别，可以提交了</Text>
+                    </View>
+                  )
+                }
+                return null
+              })()}
             </View>
           )}
 
