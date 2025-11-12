@@ -84,9 +84,9 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
       {imagePath ? (
         <View className="mb-3">
           <View
-            className="relative w-full h-56 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-inner active:scale-98 transition-all"
+            className="relative w-full bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-inner active:scale-98 transition-all"
             onClick={disabled ? undefined : handlePreviewImage}>
-            <Image src={imagePath} mode="aspectFit" className="w-full h-full" />
+            <Image src={imagePath} mode="widthFix" className="w-full" />
             {/* 预览提示 */}
             <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
               <View className="flex items-center justify-center">
