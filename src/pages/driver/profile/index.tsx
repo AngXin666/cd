@@ -36,6 +36,7 @@ const DriverProfile: React.FC = () => {
     try {
       // 加载个人资料
       const profileData = await getCurrentUserProfile()
+      console.log('个人资料数据:', profileData)
       setProfile(profileData)
       // 初始化编辑表单
       setEditForm((prev) => ({
@@ -45,6 +46,10 @@ const DriverProfile: React.FC = () => {
 
       // 加载驾驶证信息
       const licenseData = await getDriverLicense(user.id)
+      console.log('驾驶证信息:', licenseData)
+      console.log('身份证正面路径:', licenseData?.id_card_photo_front)
+      console.log('身份证背面路径:', licenseData?.id_card_photo_back)
+      console.log('驾驶证照片路径:', licenseData?.driving_license_photo)
       setDriverLicense(licenseData)
     } catch (error) {
       console.error('加载个人资料失败:', error)
@@ -203,8 +208,15 @@ const DriverProfile: React.FC = () => {
 
   // 获取图片公共URL
   const getImageUrl = (path: string | null): string => {
-    if (!path) return ''
-    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_avatars`).getPublicUrl(path)
+    if (!path) {
+      console.log('图片路径为空')
+      return ''
+    }
+    console.log('原始图片路径:', path)
+    const bucketName = `${process.env.TARO_APP_APP_ID}_avatars`
+    console.log('使用的bucket:', bucketName)
+    const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
+    console.log('生成的公共URL:', data.publicUrl)
     return data.publicUrl
   }
 
@@ -553,6 +565,13 @@ const DriverProfile: React.FC = () => {
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '200px'}}
+                            onError={(e) => {
+                              console.error('身份证正面图片加载失败:', e)
+                              console.error('图片URL:', getImageUrl(driverLicense.id_card_photo_front))
+                            }}
+                            onLoad={() => {
+                              console.log('身份证正面图片加载成功')
+                            }}
                             onClick={() =>
                               previewImage(
                                 getImageUrl(driverLicense.id_card_photo_front),
@@ -578,6 +597,13 @@ const DriverProfile: React.FC = () => {
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '200px'}}
+                            onError={(e) => {
+                              console.error('身份证背面图片加载失败:', e)
+                              console.error('图片URL:', getImageUrl(driverLicense.id_card_photo_back))
+                            }}
+                            onLoad={() => {
+                              console.log('身份证背面图片加载成功')
+                            }}
                             onClick={() =>
                               previewImage(
                                 getImageUrl(driverLicense.id_card_photo_back),
@@ -603,6 +629,13 @@ const DriverProfile: React.FC = () => {
                             mode="aspectFit"
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '200px'}}
+                            onError={(e) => {
+                              console.error('驾驶证照片加载失败:', e)
+                              console.error('图片URL:', getImageUrl(driverLicense.driving_license_photo))
+                            }}
+                            onLoad={() => {
+                              console.log('驾驶证照片加载成功')
+                            }}
                             onClick={() =>
                               previewImage(
                                 getImageUrl(driverLicense.driving_license_photo),
