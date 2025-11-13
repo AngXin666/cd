@@ -151,22 +151,23 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
 }
 重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`,
 
-  driver_license: `请识别这张驾驶证，提取以下信息并以JSON格式返回：
+  driver_license: `请仔细识别这张中国驾驶证，提取以下信息并以JSON格式返回：
 {
   "name": "姓名",
-  "license_number": "证号（驾驶证编号）",
-  "license_class": "准驾车型",
+  "license_number": "证号（驾驶证编号，通常是18位数字）",
+  "license_class": "准驾车型（如C1、C2、B2等）",
   "first_issue_date": "初次领证日期(YYYY-MM-DD格式)",
   "valid_from": "有效期起始日期(YYYY-MM-DD格式)",
-  "valid_until": "有效期截止日期(YYYY-MM-DD格式)",
+  "valid_until": "有效期截止日期(YYYY-MM-DD格式，如果是长期有效则返回'长期')",
   "issue_authority": "发证机关"
 }
-注意：
-1. 初次领证日期是驾驶证上的"初次领证日期"字段
-2. 有效期起始日期是"有效期限"中的起始日期
-3. 有效期截止日期是"有效期限"中的截止日期
-4. 如果某个字段无法识别，请返回null
-5. 重要：只返回纯JSON数据，不要在JSON中添加任何注释、括号说明或额外文字`
+识别要点：
+1. 证号通常在照片下方，是一串18位数字
+2. 准驾车型在"准驾车型"标签后，如C1、C2、B2等
+3. 初次领证日期在"初次领证日期"标签后
+4. 有效期限通常显示为"YYYY-MM-DD至YYYY-MM-DD"或"YYYY-MM-DD至长期"
+5. 如果某个字段无法识别，请返回null
+6. 重要：只返回纯JSON数据，不要添加任何注释或额外文字`
 }
 
 /**

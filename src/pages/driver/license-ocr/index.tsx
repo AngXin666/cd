@@ -112,12 +112,12 @@ const LicenseOCR: React.FC = () => {
    * 验证驾驶证识别结果
    */
   const validateDriverLicense = (result: any): boolean => {
-    // 必须包含驾驶证号和准驾车型
-    if (!result?.license_number || !result?.vehicle_type) {
+    // 必须包含驾驶证号或准驾车型（至少一个）
+    if (!result?.license_number && !result?.license_class) {
       return false
     }
-    // 驾驶证号必须是18位（与身份证号相同）
-    if (result.license_number.length !== 18) {
+    // 如果有驾驶证号，检查长度（通常是18位，但也可能有其他格式）
+    if (result.license_number && result.license_number.length < 15) {
       return false
     }
     return true
