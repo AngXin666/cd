@@ -3622,6 +3622,31 @@ export async function getVehicleById(vehicleId: string): Promise<Vehicle | null>
 }
 
 /**
+ * 根据司机ID获取车辆列表
+ */
+export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]> {
+  logger.db('查询', 'vehicles', {driverId})
+  try {
+    const {data, error} = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('user_id', driverId)
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      logger.error('获取司机车辆列表失败', error)
+      return []
+    }
+
+    logger.info('成功获取司机车辆列表', {driverId, count: data?.length || 0})
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    logger.error('获取司机车辆列表异常', error)
+    return []
+  }
+}
+
+/**
  * 添加车辆
  */
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
