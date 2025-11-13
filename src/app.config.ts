@@ -20,6 +20,7 @@ const pages = [
   'pages/driver/leave/apply/index',
   'pages/driver/leave/resign/index',
   'pages/driver/profile/index',
+  'pages/driver/license-ocr/index',
   'pages/driver/vehicle-list/index',
   'pages/driver/add-vehicle/index',
   'pages/driver/vehicle-detail/index',
