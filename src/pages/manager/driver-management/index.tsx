@@ -546,9 +546,9 @@ const DriverManagement: React.FC = () => {
                                 e.stopPropagation()
                                 handleViewDriverProfile(driver.id)
                               }}
-                              className="flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
-                              <View className="i-mdi-account-card text-white text-base mr-1.5" />
-                              <Text className="text-white text-sm font-medium">个人信息</Text>
+                              className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-2.5 active:bg-blue-100 transition-all">
+                              <View className="i-mdi-account-card text-blue-600 text-base mr-1.5" />
+                              <Text className="text-blue-700 text-sm font-medium">个人信息</Text>
                             </View>
                             {/* 查看车辆按钮 */}
                             <View
@@ -556,9 +556,9 @@ const DriverManagement: React.FC = () => {
                                 e.stopPropagation()
                                 handleViewDriverVehicles(driver.id)
                               }}
-                              className="flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
-                              <View className="i-mdi-car text-white text-base mr-1.5" />
-                              <Text className="text-white text-sm font-medium">车辆管理</Text>
+                              className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg py-2.5 active:bg-green-100 transition-all">
+                              <View className="i-mdi-car text-green-600 text-base mr-1.5" />
+                              <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
                             </View>
                             {/* 仓库分配按钮 */}
                             <View
@@ -566,9 +566,9 @@ const DriverManagement: React.FC = () => {
                                 e.stopPropagation()
                                 handleWarehouseAssignClick(driver)
                               }}
-                              className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
-                              <View className="i-mdi-warehouse text-white text-base mr-1.5" />
-                              <Text className="text-white text-sm font-medium">仓库分配</Text>
+                              className="flex items-center justify-center bg-purple-50 border border-purple-200 rounded-lg py-2.5 active:bg-purple-100 transition-all">
+                              <View className="i-mdi-warehouse text-purple-600 text-base mr-1.5" />
+                              <Text className="text-purple-700 text-sm font-medium">仓库分配</Text>
                             </View>
                             {/* 司机类型切换按钮 */}
                             <View
@@ -576,9 +576,9 @@ const DriverManagement: React.FC = () => {
                                 e.stopPropagation()
                                 handleToggleDriverType(driver)
                               }}
-                              className="flex items-center justify-center bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
-                              <View className="i-mdi-swap-horizontal text-white text-base mr-1.5" />
-                              <Text className="text-white text-xs font-medium">
+                              className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg py-2.5 active:bg-orange-100 transition-all">
+                              <View className="i-mdi-swap-horizontal text-orange-600 text-base mr-1.5" />
+                              <Text className="text-orange-700 text-xs font-medium">
                                 {driver.driver_type === 'driver_with_vehicle' ? '切换为纯司机' : '切换为带车'}
                               </Text>
                             </View>
@@ -619,7 +619,7 @@ const DriverManagement: React.FC = () => {
                                 <View className="flex gap-2 mt-3">
                                   <Button
                                     size="default"
-                                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded text-sm"
+                                    className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-2 rounded text-sm"
                                     onClick={() => {
                                       setWarehouseAssignExpanded(null)
                                       setSelectedWarehouseIds([])
@@ -628,7 +628,7 @@ const DriverManagement: React.FC = () => {
                                   </Button>
                                   <Button
                                     size="default"
-                                    className="flex-1 bg-purple-600 text-white py-2 rounded text-sm"
+                                    className="flex-1 bg-purple-50 border border-purple-300 text-purple-700 py-2 rounded text-sm"
                                     onClick={() => handleSaveWarehouseAssignment(driver.id)}>
                                     保存
                                   </Button>
