@@ -54,9 +54,15 @@ export interface DrivingLicenseSubBackOcrResult {
 
 export interface IdCardOcrResult {
   name?: string // 姓名
-  id_card_number?: string // 身份证号
+  id_number?: string // 身份证号
   address?: string // 地址
   birth_date?: string // 出生日期
+}
+
+export interface IdCardBackOcrResult {
+  issue_authority?: string // 签发机关
+  valid_from?: string // 有效期起始日期
+  valid_until?: string // 有效期截止日期
 }
 
 export interface DriverLicenseOcrResult {
@@ -64,8 +70,9 @@ export interface DriverLicenseOcrResult {
   license_number?: string // 驾驶证编号（证号）
   address?: string // 住址
   license_class?: string // 准驾车型
-  valid_from?: string // 有效期起始日期（领证时间）
-  valid_to?: string // 有效期截止日期
+  first_issue_date?: string // 初次领证日期
+  valid_from?: string // 有效期起始日期
+  valid_until?: string // 有效期截止日期（有效期至）
   issue_authority?: string // 发证机关
 }
 
@@ -74,6 +81,7 @@ export type OcrResult =
   | DrivingLicenseSubOcrResult
   | DrivingLicenseSubBackOcrResult
   | IdCardOcrResult
+  | IdCardBackOcrResult
   | DriverLicenseOcrResult
 
 /**
@@ -129,7 +137,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
   id_card_front: `请识别这张身份证正面，提取以下信息并以JSON格式返回：
 {
   "name": "姓名",
-  "id_card_number": "身份证号",
+  "id_number": "身份证号",
   "address": "地址",
   "birth_date": "出生日期(YYYY-MM-DD格式)"
 }
@@ -139,7 +147,7 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
 {
   "issue_authority": "签发机关",
   "valid_from": "有效期起始日期(YYYY-MM-DD格式)",
-  "valid_to": "有效期截止日期(YYYY-MM-DD格式或'长期')"
+  "valid_until": "有效期截止日期(YYYY-MM-DD格式或'长期')"
 }
 重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`,
 
@@ -147,13 +155,18 @@ const OCR_PROMPTS: Record<OcrDocumentType, string> = {
 {
   "name": "姓名",
   "license_number": "证号（驾驶证编号）",
-  "address": "住址",
   "license_class": "准驾车型",
-  "valid_from": "有效期起始日期(YYYY-MM-DD格式，即领证时间)",
-  "valid_to": "有效期截止日期(YYYY-MM-DD格式)",
+  "first_issue_date": "初次领证日期(YYYY-MM-DD格式)",
+  "valid_from": "有效期起始日期(YYYY-MM-DD格式)",
+  "valid_until": "有效期截止日期(YYYY-MM-DD格式)",
   "issue_authority": "发证机关"
 }
-重要：只返回纯JSON数据，不要添加任何注释、说明或额外文字。`
+注意：
+1. 初次领证日期是驾驶证上的"初次领证日期"字段
+2. 有效期起始日期是"有效期限"中的起始日期
+3. 有效期截止日期是"有效期限"中的截止日期
+4. 如果某个字段无法识别，请返回null
+5. 重要：只返回纯JSON数据，不要在JSON中添加任何注释、括号说明或额外文字`
 }
 
 /**

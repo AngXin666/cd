@@ -16,19 +16,40 @@ import {recognizeDriverLicense, recognizeIdCardBack, recognizeIdCardFront} from 
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 
 /**
- * 计算驾龄（以年为单位）
+ * 计算年龄（根据出生日期）
  */
-const calculateDrivingYears = (validFrom: string | undefined): number => {
-  if (!validFrom) return 0
+const calculateAge = (birthDate: string | undefined): number => {
+  if (!birthDate) return 0
   try {
-    const issueDate = new Date(validFrom)
+    const birth = new Date(birthDate)
     const today = new Date()
-    const years = today.getFullYear() - issueDate.getFullYear()
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    const dayDiff = today.getDate() - birth.getDate()
+
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--
+    }
+    return Math.max(0, age)
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * 计算驾龄（根据初次领证日期）
+ */
+const calculateDrivingYears = (firstIssueDate: string | undefined): number => {
+  if (!firstIssueDate) return 0
+  try {
+    const issueDate = new Date(firstIssueDate)
+    const today = new Date()
+    let years = today.getFullYear() - issueDate.getFullYear()
     const monthDiff = today.getMonth() - issueDate.getMonth()
     const dayDiff = today.getDate() - issueDate.getDate()
 
     if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-      return Math.max(0, years - 1)
+      years--
     }
     return Math.max(0, years)
   } catch {
@@ -182,10 +203,12 @@ const LicenseOCR: React.FC = () => {
         id_card_name: ocrData.idCardFront?.name || '',
         id_card_number: ocrData.idCardFront?.id_number || '',
         id_card_address: ocrData.idCardFront?.address || '',
+        id_card_birth_date: ocrData.idCardFront?.birth_date || null,
         id_card_photo_front: idCardFrontPath,
         id_card_photo_back: idCardBackPath,
         license_number: ocrData.driverLicense?.license_number || '',
         license_class: ocrData.driverLicense?.license_class || '',
+        first_issue_date: ocrData.driverLicense?.first_issue_date || null,
         valid_from: ocrData.driverLicense?.valid_from || '',
         valid_to: ocrData.driverLicense?.valid_until || '',
         issue_authority: ocrData.driverLicense?.issue_authority || '',
@@ -314,28 +337,88 @@ const LicenseOCR: React.FC = () => {
                     <View className="space-y-2">
                       {currentStep === 0 && (
                         <>
-                          <Text className="text-sm text-gray-700 block">姓名：{getCurrentOcrData().name}</Text>
-                          <Text className="text-sm text-gray-700 block">身份证号：{getCurrentOcrData().id_number}</Text>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              姓名：{getCurrentOcrData().name || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              身份证号：{getCurrentOcrData().id_number || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              出生日期：{getCurrentOcrData().birth_date || '未识别'}
+                            </Text>
+                          </View>
+                          {getCurrentOcrData().birth_date && (
+                            <View>
+                              <Text className="text-sm text-gray-700 block">
+                                年龄：{calculateAge(getCurrentOcrData().birth_date)} 岁
+                              </Text>
+                            </View>
+                          )}
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              地址：{getCurrentOcrData().address || '未识别'}
+                            </Text>
+                          </View>
                         </>
                       )}
                       {currentStep === 1 && (
                         <>
-                          <Text className="text-sm text-gray-700 block">
-                            签发机关：{getCurrentOcrData().issue_authority}
-                          </Text>
-                          <Text className="text-sm text-gray-700 block">
-                            有效期：{getCurrentOcrData().valid_from} 至 {getCurrentOcrData().valid_until}
-                          </Text>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              签发机关：{getCurrentOcrData().issue_authority || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              有效期起：{getCurrentOcrData().valid_from || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              有效期止：{getCurrentOcrData().valid_until || '未识别'}
+                            </Text>
+                          </View>
                         </>
                       )}
                       {currentStep === 2 && (
                         <>
-                          <Text className="text-sm text-gray-700 block">
-                            驾驶证号：{getCurrentOcrData().license_number}
-                          </Text>
-                          <Text className="text-sm text-gray-700 block">
-                            准驾车型：{getCurrentOcrData().license_class}
-                          </Text>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              驾驶证号：{getCurrentOcrData().license_number || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              准驾车型：{getCurrentOcrData().license_class || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              初次领证日期：{getCurrentOcrData().first_issue_date || '未识别'}
+                            </Text>
+                          </View>
+                          {getCurrentOcrData().first_issue_date && (
+                            <View>
+                              <Text className="text-sm text-gray-700 block">
+                                驾龄：{calculateDrivingYears(getCurrentOcrData().first_issue_date)} 年
+                              </Text>
+                            </View>
+                          )}
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              有效期起：{getCurrentOcrData().valid_from || '未识别'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm text-gray-700 block">
+                              有效期止：{getCurrentOcrData().valid_until || '未识别'}
+                            </Text>
+                          </View>
                         </>
                       )}
                     </View>

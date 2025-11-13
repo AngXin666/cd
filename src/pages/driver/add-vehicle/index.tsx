@@ -259,7 +259,7 @@ const AddVehicle: React.FC = () => {
       if (result) {
         setDriverLicenseData((prev) => ({
           ...prev,
-          id_card_number: result.id_card_number || prev.id_card_number,
+          id_card_number: result.id_number || prev.id_card_number,
           id_card_name: result.name || prev.id_card_name,
           id_card_address: result.address || prev.id_card_address,
           id_card_birth_date: result.birth_date || prev.id_card_birth_date
@@ -295,7 +295,7 @@ const AddVehicle: React.FC = () => {
           license_number: result.license_number || prev.license_number,
           license_class: result.license_class || prev.license_class,
           valid_from: result.valid_from || prev.valid_from,
-          valid_to: result.valid_to || prev.valid_to,
+          valid_to: result.valid_until || prev.valid_to,
           issue_authority: result.issue_authority || prev.issue_authority
         }))
         Taro.showToast({title: '识别成功', icon: 'success'})

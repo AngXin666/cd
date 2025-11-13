@@ -611,6 +611,7 @@ export interface DriverLicenseInput {
   id_card_photo_back?: string | null
   license_number?: string | null
   license_class?: string | null
+  first_issue_date?: string | null
   valid_from?: string | null
   valid_to?: string | null
   issue_authority?: string | null
@@ -628,6 +629,7 @@ export interface DriverLicenseUpdate {
   id_card_photo_back?: string | null
   license_number?: string | null
   license_class?: string | null
+  first_issue_date?: string | null
   valid_from?: string | null
   valid_to?: string | null
   issue_authority?: string | null
