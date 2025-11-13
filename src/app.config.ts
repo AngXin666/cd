@@ -6,6 +6,7 @@ const pages = [
   'pages/super-admin/index',
   'pages/profile/index',
   'pages/profile/settings/index',
+  'pages/profile/change-phone/index',
   'pages/profile/change-password/index',
   'pages/profile/help/index',
   'pages/profile/feedback/index',

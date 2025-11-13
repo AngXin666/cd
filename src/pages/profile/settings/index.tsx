@@ -16,6 +16,17 @@ const SettingsPage: React.FC = () => {
               <Text className="text-base font-bold text-gray-800">账户与安全</Text>
             </View>
 
+            {/* 修改手机号 */}
+            <View
+              className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
+              onClick={() => navigateTo({url: '/pages/profile/change-phone/index'})}>
+              <View className="flex items-center">
+                <View className="i-mdi-phone-settings text-2xl text-blue-900 mr-3" />
+                <Text className="text-sm text-gray-800">修改手机号</Text>
+              </View>
+              <View className="i-mdi-chevron-right text-xl text-gray-400" />
+            </View>
+
             {/* 修改密码 */}
             <View
               className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
