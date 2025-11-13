@@ -11,6 +11,10 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
 import type {Profile, Vehicle} from '@/db/types'
+import {createLogger} from '@/utils/logger'
+
+// 创建页面日志记录器
+const logger = createLogger('VehicleList')
 
 const VehicleList: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -22,37 +26,52 @@ const VehicleList: React.FC = () => {
 
   // 加载司机信息
   const loadDriverInfo = useCallback(async (driverId: string) => {
+    logger.info('开始加载司机信息', {driverId})
     try {
       const driver = await getProfileById(driverId)
       setTargetDriver(driver)
+      logger.info('司机信息加载成功', {driverId, driverName: driver?.name})
     } catch (error) {
-      console.error('加载司机信息失败:', error)
+      logger.error('加载司机信息失败', error)
     }
   }, [])
 
   // 获取URL参数中的司机ID
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
+    logger.info('页面参数', {params})
     if (params?.driverId) {
       setTargetDriverId(params.driverId)
       setIsManagerView(true)
+      logger.info('管理员查看模式', {targetDriverId: params.driverId})
       // 加载司机信息
       loadDriverInfo(params.driverId)
+    } else {
+      logger.info('司机自己查看模式', {userId: user?.id})
     }
-  }, [loadDriverInfo])
+  }, [loadDriverInfo, user])
 
   // 加载车辆列表
   const loadVehicles = useCallback(async () => {
     // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
     const driverId = targetDriverId || user?.id
-    if (!driverId) return
+    if (!driverId) {
+      logger.warn('无法加载车辆：缺少司机ID', {targetDriverId, userId: user?.id})
+      return
+    }
 
+    logger.info('开始加载车辆列表', {driverId, isManagerView})
     setLoading(true)
     try {
       const data = await getDriverVehicles(driverId)
       setVehicles(data)
+      logger.info('车辆列表加载成功', {
+        driverId,
+        vehicleCount: data.length,
+        vehicles: data.map((v) => ({id: v.id, plate: v.plate_number}))
+      })
     } catch (error) {
-      console.error('加载车辆列表失败:', error)
+      logger.error('加载车辆列表失败', error)
       Taro.showToast({
         title: '加载失败',
         icon: 'none'
@@ -60,7 +79,7 @@ const VehicleList: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [user, targetDriverId])
+  }, [user, targetDriverId, isManagerView])
 
   // 页面显示时加载数据
   useDidShow(() => {

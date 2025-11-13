@@ -3521,6 +3521,7 @@ export async function getWarehousesDataVolume(warehouseIds: string[], userId?: s
 export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
   logger.db('查询', 'vehicles', {driverId})
   try {
+    logger.info('开始查询司机车辆', {driverId})
     const {data, error} = await supabase
       .from('vehicles')
       .select('*')
@@ -3528,14 +3529,24 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
       .order('created_at', {ascending: false})
 
     if (error) {
-      logger.error('获取司机车辆失败', error)
+      logger.error('获取司机车辆失败', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        driverId
+      })
       return []
     }
 
-    logger.info(`成功获取司机车辆列表，共 ${data?.length || 0} 辆`, {driverId, count: data?.length})
+    logger.info(`成功获取司机车辆列表，共 ${data?.length || 0} 辆`, {
+      driverId,
+      count: data?.length,
+      vehicleIds: data?.map((v) => v.id)
+    })
     return Array.isArray(data) ? data : []
   } catch (error) {
-    logger.error('获取司机车辆异常', error)
+    logger.error('获取司机车辆异常', {error, driverId})
     return []
   }
 }
