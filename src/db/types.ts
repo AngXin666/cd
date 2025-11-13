@@ -47,11 +47,6 @@ export interface ProfileUpdate {
   driver_type?: DriverType | null // 司机类型
 }
 
-// 包含实名信息的司机资料（用于显示）
-export interface ProfileWithRealName extends Profile {
-  real_name?: string | null // 实名（来自driver_licenses表的id_card_name）
-}
-
 // 考勤状态类型
 export type AttendanceStatus = 'normal' | 'late' | 'early' | 'absent'
 

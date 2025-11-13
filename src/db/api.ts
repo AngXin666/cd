@@ -30,7 +30,6 @@ import type {
   PieceWorkStats,
   Profile,
   ProfileUpdate,
-  ProfileWithRealName,
   ResignationApplication,
   ResignationApplicationInput,
   UserRole,
@@ -213,39 +212,6 @@ export async function getProfileById(id: string): Promise<Profile | null> {
   }
 
   return data
-}
-
-/**
- * 获取包含实名信息的司机资料
- * 会关联driver_licenses表获取实名信息（id_card_name）
- */
-export async function getProfileWithRealName(id: string): Promise<ProfileWithRealName | null> {
-  // 首先获取基本资料
-  const profile = await getProfileById(id)
-  if (!profile) {
-    return null
-  }
-
-  // 如果是司机，尝试获取实名信息
-  if (profile.role === 'driver') {
-    const {data: license} = await supabase
-      .from('driver_licenses')
-      .select('id_card_name')
-      .eq('user_id', id)
-      .maybeSingle()
-
-    // 返回包含实名的资料
-    return {
-      ...profile,
-      real_name: license?.id_card_name || null
-    }
-  }
-
-  // 非司机直接返回
-  return {
-    ...profile,
-    real_name: null
-  }
 }
 
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
