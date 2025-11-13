@@ -3454,7 +3454,7 @@ export async function getWarehouseDataVolume(
       .from('attendance_records')
       .select('id', {count: 'exact', head: true})
       .eq('warehouse_id', warehouseId)
-      .eq('clock_in_date', today)
+      .eq('work_date', today)
 
     if (userId) {
       todayAttendanceQuery = todayAttendanceQuery.eq('user_id', userId)
@@ -3467,7 +3467,7 @@ export async function getWarehouseDataVolume(
       .from('attendance_records')
       .select('id', {count: 'exact', head: true})
       .eq('warehouse_id', warehouseId)
-      .gte('clock_in_date', firstDayOfMonth)
+      .gte('work_date', firstDayOfMonth)
 
     if (userId) {
       monthAttendanceQuery = monthAttendanceQuery.eq('user_id', userId)
