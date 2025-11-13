@@ -5,7 +5,6 @@ const pages = [
   'pages/manager/index',
   'pages/super-admin/index',
   'pages/profile/index',
-  'pages/profile/edit/index',
   'pages/profile/settings/index',
   'pages/profile/change-password/index',
   'pages/profile/help/index',

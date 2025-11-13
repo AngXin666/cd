@@ -395,16 +395,6 @@ const ProfilePage: React.FC = () => {
 
               <View
                 className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
-                onClick={() => navigateTo({url: '/pages/profile/edit/index'})}>
-                <View className="flex items-center">
-                  <View className="i-mdi-account-edit text-2xl text-blue-900 mr-3" />
-                  <Text className="text-sm text-gray-800">编辑资料</Text>
-                </View>
-                <View className="i-mdi-chevron-right text-xl text-gray-400" />
-              </View>
-
-              <View
-                className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
                 onClick={() => navigateTo({url: '/pages/profile/settings/index'})}>
                 <View className="flex items-center">
                   <View className="i-mdi-cog text-2xl text-blue-900 mr-3" />
