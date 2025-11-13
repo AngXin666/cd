@@ -99,20 +99,10 @@ const DriverProfile: React.FC = () => {
     }
   }
 
-  // 跳转到车辆管理页面重新录入
+  // 跳转到驾驶证拍照页面录入信息
   const handleReEnter = () => {
-    Taro.showModal({
-      title: '重新录入',
-      content: '请前往车辆管理页面，添加车辆时会自动录入您的个人信息',
-      showCancel: true,
-      confirmText: '前往',
-      cancelText: '稍后'
-    }).then((res) => {
-      if (res.confirm) {
-        Taro.switchTab({
-          url: '/pages/driver/vehicles/index'
-        })
-      }
+    Taro.navigateTo({
+      url: '/pages/driver/license-ocr/index'
     })
   }
 
@@ -506,16 +496,31 @@ const DriverProfile: React.FC = () => {
                     <View className="i-mdi-cog text-gray-600 text-xl mr-2" />
                     <Text className="text-lg font-bold text-gray-800">信息管理</Text>
                   </View>
+
+                  {/* 编辑证件信息按钮 */}
+                  <Button
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg break-keep text-sm mb-3"
+                    size="default"
+                    onClick={handleReEnter}>
+                    <View className="flex items-center justify-center">
+                      <View className="i-mdi-camera text-lg mr-2" />
+                      <Text>重新拍照录入证件</Text>
+                    </View>
+                  </Button>
+
+                  {/* 删除信息按钮 */}
                   <Button
                     className="w-full bg-red-50 text-red-600 py-3 rounded-lg break-keep text-sm border border-red-200"
                     size="default"
                     onClick={handleDeleteInfo}>
                     <View className="flex items-center justify-center">
                       <View className="i-mdi-delete text-lg mr-2" />
-                      <Text>删除个人信息并重新录入</Text>
+                      <Text>删除所有个人信息</Text>
                     </View>
                   </Button>
-                  <Text className="text-xs text-gray-500 mt-2 text-center">删除后需要重新拍照录入证件信息</Text>
+                  <Text className="text-xs text-gray-500 mt-2 text-center">
+                    可以直接重新拍照更新证件，或删除后重新录入
+                  </Text>
                 </View>
               ) : (
                 <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
@@ -524,15 +529,15 @@ const DriverProfile: React.FC = () => {
                     <Text className="text-lg font-bold text-gray-800">未录入信息</Text>
                   </View>
                   <Text className="text-gray-600 text-sm mb-4 text-center">
-                    您还没有录入个人信息，请前往车辆管理页面添加车辆时录入
+                    您还没有录入个人信息，请拍照录入您的身份证和驾驶证
                   </Text>
                   <Button
                     className="w-full bg-blue-600 text-white py-3 rounded-lg break-keep text-sm"
                     size="default"
                     onClick={handleReEnter}>
                     <View className="flex items-center justify-center">
-                      <View className="i-mdi-plus-circle text-lg mr-2" />
-                      <Text>前往录入</Text>
+                      <View className="i-mdi-camera text-lg mr-2" />
+                      <Text>立即录入证件信息</Text>
                     </View>
                   </Button>
                 </View>
