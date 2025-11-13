@@ -100,16 +100,10 @@ const LicenseOCR: React.FC = () => {
 
         Taro.hideLoading()
         Taro.showToast({
-          title: '识别成功',
-          icon: 'success'
+          title: '识别成功，请确认信息',
+          icon: 'success',
+          duration: 2000
         })
-
-        // 自动进入下一步
-        if (currentStep < 2) {
-          setTimeout(() => {
-            setCurrentStep(currentStep + 1)
-          }, 500)
-        }
       } catch (error) {
         Taro.hideLoading()
         console.error('识别失败:', error)
@@ -365,8 +359,8 @@ const LicenseOCR: React.FC = () => {
                       size="default"
                       onClick={() => setCurrentStep(currentStep + 1)}>
                       <View className="flex items-center justify-center">
-                        <View className="i-mdi-arrow-right text-lg mr-2" />
-                        <Text>下一步</Text>
+                        <View className="i-mdi-check-circle text-lg mr-2" />
+                        <Text>确认并继续</Text>
                       </View>
                     </Button>
                   ) : (
@@ -377,7 +371,7 @@ const LicenseOCR: React.FC = () => {
                       disabled={submitting}>
                       <View className="flex items-center justify-center">
                         <View className="i-mdi-check text-lg mr-2" />
-                        <Text>完成保存</Text>
+                        <Text>确认并保存</Text>
                       </View>
                     </Button>
                   )}
