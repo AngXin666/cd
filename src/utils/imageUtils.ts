@@ -425,6 +425,7 @@ export async function uploadImageToStorage(
   try {
     console.log('📤 开始上传图片:', fileName)
     console.log('📍 当前环境:', Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? '小程序' : 'H5')
+    console.log('📁 原始图片路径:', imagePath)
 
     // 小程序环境：简化处理流程
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
@@ -432,15 +433,21 @@ export async function uploadImageToStorage(
 
       // 1. 压缩图片
       const compressedPath = await compressImage(imagePath, 0.8)
-      console.log('✅ 图片压缩完成')
+      console.log('✅ 图片压缩完成，压缩后路径:', compressedPath)
 
-      // 2. 直接上传文件路径
+      // 2. 直接上传文件路径（小程序环境使用tempFilePath）
       const {data, error} = await supabase.storage.from(bucketName).upload(fileName, {
-        uri: compressedPath
+        tempFilePath: compressedPath
       } as any)
 
       if (error) {
         console.error('❌ 上传图片失败:', error)
+        console.error('❌ 错误详情:', JSON.stringify(error))
+        return null
+      }
+
+      if (!data || !data.path) {
+        console.error('❌ 上传返回数据异常:', data)
         return null
       }
 
@@ -495,6 +502,7 @@ export async function uploadImageToStorage(
     return urlData.publicUrl
   } catch (error) {
     console.error('❌ 上传图片异常:', error)
+    console.error('❌ 异常详情:', error instanceof Error ? error.message : String(error))
     return null
   }
 }
