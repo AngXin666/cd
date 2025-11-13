@@ -2072,13 +2072,24 @@ export async function changePassword(newPassword: string): Promise<{success: boo
 
     if (error) {
       console.error('修改密码失败:', error)
-      return {success: false, error: error.message}
+
+      // 将英文错误信息转换为中文
+      let errorMessage = error.message
+      if (errorMessage.includes('New password should be different from the old password')) {
+        errorMessage = '新密码不能与原密码相同'
+      } else if (errorMessage.includes('Password should be at least')) {
+        errorMessage = '密码长度至少8位'
+      } else if (errorMessage.includes('Invalid password')) {
+        errorMessage = '密码格式不正确'
+      }
+
+      return {success: false, error: errorMessage}
     }
 
     return {success: true}
   } catch (error) {
     console.error('修改密码异常:', error)
-    return {success: false, error: '修改密码失败'}
+    return {success: false, error: '修改密码失败，请稍后重试'}
   }
 }
 

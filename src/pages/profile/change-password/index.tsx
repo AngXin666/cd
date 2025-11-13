@@ -1,5 +1,5 @@
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
-import {navigateBack, showLoading, showToast} from '@tarojs/taro'
+import {hideLoading, navigateBack, showLoading, showToast} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
@@ -70,19 +70,32 @@ const ChangePasswordPage: React.FC = () => {
     setLoading(true)
     showLoading({title: '修改中...'})
 
-    // 注意：Supabase不支持验证旧密码，直接更新新密码
-    // 在实际应用中，应该先验证旧密码
-    const result = await changePassword(newPassword)
+    try {
+      const result = await changePassword(newPassword)
+      hideLoading()
+      setLoading(false)
 
-    setLoading(false)
-
-    if (result.success) {
-      showToast({title: '密码修改成功', icon: 'success'})
-      setTimeout(() => {
-        navigateBack()
-      }, 1500)
-    } else {
-      showToast({title: result.error || '密码修改失败', icon: 'error'})
+      if (result.success) {
+        showToast({title: '密码修改成功', icon: 'success', duration: 2000})
+        setTimeout(() => {
+          navigateBack()
+        }, 1500)
+      } else {
+        showToast({
+          title: result.error || '密码修改失败，请稍后重试',
+          icon: 'none',
+          duration: 3000
+        })
+      }
+    } catch (error) {
+      hideLoading()
+      setLoading(false)
+      console.error('修改密码异常:', error)
+      showToast({
+        title: '密码修改失败，请稍后重试',
+        icon: 'none',
+        duration: 3000
+      })
     }
   }
 
