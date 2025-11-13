@@ -12,6 +12,10 @@ import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {deleteDriverLicense, getCurrentUserProfile, getDriverLicense} from '@/db/api'
 import type {DriverLicense, Profile} from '@/db/types'
+import {createLogger} from '@/utils/logger'
+
+// 创建页面日志记录器
+const logger = createLogger('DriverProfile')
 
 const DriverProfile: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -23,22 +27,32 @@ const DriverProfile: React.FC = () => {
   const loadProfile = useCallback(async () => {
     if (!user) return
 
+    logger.pageView('司机个人信息页面', {userId: user.id})
     setLoading(true)
     try {
       // 加载个人资料
+      logger.info('开始加载个人资料')
       const profileData = await getCurrentUserProfile()
-      console.log('👤 个人资料数据:', profileData)
+      logger.info('个人资料加载完成', {hasData: !!profileData})
       setProfile(profileData)
 
       // 加载驾驶证信息
+      logger.info('开始加载驾驶证信息')
       const licenseData = await getDriverLicense(user.id)
-      console.log('📋 驾驶证信息:', licenseData)
-      console.log('🆔 身份证正面路径:', licenseData?.id_card_photo_front)
-      console.log('🆔 身份证背面路径:', licenseData?.id_card_photo_back)
-      console.log('🚗 驾驶证照片路径:', licenseData?.driving_license_photo)
+      logger.info('驾驶证信息加载完成', {
+        hasData: !!licenseData,
+        hasIdCardFront: !!licenseData?.id_card_photo_front,
+        hasIdCardBack: !!licenseData?.id_card_photo_back,
+        hasDriverLicense: !!licenseData?.driving_license_photo
+      })
+      logger.debug('证件照片路径详情', {
+        idCardFront: licenseData?.id_card_photo_front,
+        idCardBack: licenseData?.id_card_photo_back,
+        driverLicense: licenseData?.driving_license_photo
+      })
       setDriverLicense(licenseData)
     } catch (error) {
-      console.error('❌ 加载个人资料失败:', error)
+      logger.error('加载个人资料失败', error)
       Taro.showToast({
         title: '加载失败',
         icon: 'none'
@@ -56,6 +70,8 @@ const DriverProfile: React.FC = () => {
   const handleDeleteInfo = async () => {
     if (!user) return
 
+    logger.userAction('请求删除个人信息', {userId: user.id})
+
     // 二次确认
     const res = await Taro.showModal({
       title: '确认删除',
@@ -65,8 +81,12 @@ const DriverProfile: React.FC = () => {
       confirmColor: '#ef4444'
     })
 
-    if (!res.confirm) return
+    if (!res.confirm) {
+      logger.info('用户取消删除操作')
+      return
+    }
 
+    logger.info('开始删除个人信息', {userId: user.id})
     Taro.showLoading({title: '删除中...'})
     try {
       const success = await deleteDriverLicense(user.id)
@@ -77,6 +97,7 @@ const DriverProfile: React.FC = () => {
 
       // 清空本地状态
       setDriverLicense(null)
+      logger.info('个人信息删除成功', {userId: user.id})
 
       Taro.showToast({
         title: '删除成功',
@@ -89,7 +110,7 @@ const DriverProfile: React.FC = () => {
         loadProfile()
       }, 2000)
     } catch (error) {
-      console.error('删除个人信息失败:', error)
+      logger.error('删除个人信息失败', error)
       Taro.showToast({
         title: '删除失败，请重试',
         icon: 'none'
@@ -114,28 +135,30 @@ const DriverProfile: React.FC = () => {
   // 获取图片公共URL
   const getImageUrl = (path: string | null): string => {
     if (!path) {
-      console.log('⚠️ 图片路径为空')
+      logger.debug('图片路径为空')
       return ''
     }
 
-    console.log('📸 原始图片路径:', path)
-    console.log('📸 路径类型:', typeof path)
-    console.log('📸 路径长度:', path.length)
+    logger.debug('处理图片路径', {path, pathType: typeof path, pathLength: path.length})
 
     // 如果已经是完整的URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      console.log('✅ 已经是完整URL，直接使用')
+      logger.debug('已经是完整URL，直接使用', {path})
       return path
     }
 
     // 否则从storage生成公共URL
-    // 注意：这里应该使用vehicles bucket，因为证件照片存储在vehicles bucket中
     const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
-    console.log('🗂️ 使用的bucket:', bucketName)
-    console.log('🗂️ 相对路径:', path)
-    const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
-    console.log('🔗 生成的公共URL:', data.publicUrl)
-    return data.publicUrl
+    logger.debug('从存储桶生成图片URL', {bucketName, relativePath: path})
+
+    try {
+      const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
+      logger.debug('图片URL生成成功', {path, url: data.publicUrl})
+      return data.publicUrl
+    } catch (error) {
+      logger.error('获取图片URL失败', {path, bucketName, error})
+      return ''
+    }
   }
 
   // 预览图片
@@ -397,14 +420,14 @@ const DriverProfile: React.FC = () => {
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '120px'}}
                             onError={(e) => {
-                              console.error('===== 身份证正面图片加载失败 =====')
-                              console.error('错误事件:', e)
-                              console.error('原始路径:', driverLicense.id_card_photo_front)
-                              console.error('生成的URL:', getImageUrl(driverLicense.id_card_photo_front))
-                              console.error('================================')
+                              logger.error('身份证正面图片加载失败', {
+                                event: e,
+                                originalPath: driverLicense.id_card_photo_front,
+                                generatedUrl: getImageUrl(driverLicense.id_card_photo_front)
+                              })
                             }}
                             onLoad={() => {
-                              console.log('✅ 身份证正面图片加载成功')
+                              logger.debug('身份证正面图片加载成功')
                             }}
                             onClick={() =>
                               previewImage(
@@ -432,11 +455,14 @@ const DriverProfile: React.FC = () => {
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '120px'}}
                             onError={(e) => {
-                              console.error('身份证背面图片加载失败:', e)
-                              console.error('图片URL:', getImageUrl(driverLicense.id_card_photo_back))
+                              logger.error('身份证背面图片加载失败', {
+                                event: e,
+                                originalPath: driverLicense.id_card_photo_back,
+                                generatedUrl: getImageUrl(driverLicense.id_card_photo_back)
+                              })
                             }}
                             onLoad={() => {
-                              console.log('身份证背面图片加载成功')
+                              logger.debug('身份证背面图片加载成功')
                             }}
                             onClick={() =>
                               previewImage(
@@ -464,11 +490,14 @@ const DriverProfile: React.FC = () => {
                             className="w-full rounded-lg border border-gray-200"
                             style={{height: '120px'}}
                             onError={(e) => {
-                              console.error('驾驶证照片加载失败:', e)
-                              console.error('图片URL:', getImageUrl(driverLicense.driving_license_photo))
+                              logger.error('驾驶证照片加载失败', {
+                                event: e,
+                                originalPath: driverLicense.driving_license_photo,
+                                generatedUrl: getImageUrl(driverLicense.driving_license_photo)
+                              })
                             }}
                             onLoad={() => {
-                              console.log('驾驶证照片加载成功')
+                              logger.debug('驾驶证照片加载成功')
                             }}
                             onClick={() =>
                               previewImage(

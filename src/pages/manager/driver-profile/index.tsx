@@ -77,9 +77,15 @@ const DriverProfileView: React.FC = () => {
       return ''
     }
 
-    // 使用vehicles存储桶（用于存储证件和车辆照片）
+    // 如果已经是完整的URL，直接返回
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      logger.debug('已经是完整URL，直接使用', {path})
+      return path
+    }
+
+    // 否则从storage生成公共URL
     const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
-    logger.debug('获取图片URL', {path, bucketName})
+    logger.debug('从存储桶生成图片URL', {path, bucketName})
 
     try {
       const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
