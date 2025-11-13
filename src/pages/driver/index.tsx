@@ -4,8 +4,8 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {ClockInReminderModal} from '@/components/attendance'
-import {getCurrentUserProfile} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {getCurrentUserProfile, getDriverLicense} from '@/db/api'
+import type {DriverLicense, Profile} from '@/db/types'
 import {useDriverDashboard, useDriverWarehouses, useWarehousesSorted} from '@/hooks'
 import type {AttendanceCheckResult} from '@/utils/attendance-check'
 import {checkTodayAttendance} from '@/utils/attendance-check'
@@ -13,6 +13,7 @@ import {checkTodayAttendance} from '@/utils/attendance-check'
 const DriverHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -27,6 +28,11 @@ const DriverHome: React.FC = () => {
     try {
       const data = await getCurrentUserProfile()
       setProfile(data)
+      // 加载司机的驾驶证信息以获取真实姓名
+      if (user?.id) {
+        const license = await getDriverLicense(user.id)
+        setDriverLicense(license)
+      }
     } catch (error) {
       console.error('[DriverHome] 加载用户资料失败:', error)
       Taro.showToast({
@@ -35,7 +41,7 @@ const DriverHome: React.FC = () => {
         duration: 2000
       })
     }
-  }, [])
+  }, [user?.id])
 
   // 检测打卡状态
   const checkAttendance = useCallback(async () => {
@@ -209,6 +215,24 @@ const DriverHome: React.FC = () => {
     })
   }
 
+  // 获取显示名称（优先显示驾驶证上的真实姓名）
+  const getDisplayName = () => {
+    // 优先显示驾驶证上的真实姓名
+    if (driverLicense?.id_card_name) {
+      return driverLicense.id_card_name
+    }
+    // 其次显示profile中的姓名
+    if (profile?.name) {
+      return profile.name
+    }
+    // 再次显示手机号
+    if (profile?.phone) {
+      return profile.phone
+    }
+    // 最后显示默认值
+    return '司机'
+  }
+
   // 处理打卡提醒弹窗 - 点击"立即打卡"
   const handleClockInConfirm = () => {
     setShowClockInReminder(false)
@@ -263,9 +287,7 @@ const DriverHome: React.FC = () => {
             <View className="flex items-center justify-between">
               <View className="flex-1">
                 <Text className="text-white text-2xl font-bold block mb-2">司机工作台</Text>
-                <Text className="text-blue-100 text-sm block">
-                  欢迎回来，{profile?.name || profile?.phone || '司机'}
-                </Text>
+                <Text className="text-blue-100 text-sm block">欢迎回来，{getDisplayName()}</Text>
               </View>
               {/* 请假状态提示 */}
               {attendanceCheck?.onLeave && (
