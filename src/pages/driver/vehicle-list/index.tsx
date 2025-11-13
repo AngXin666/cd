@@ -9,7 +9,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
+import {debugAuthStatus, deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
 import type {Profile, Vehicle} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -63,6 +63,18 @@ const VehicleList: React.FC = () => {
     logger.info('开始加载车辆列表', {driverId, isManagerView})
     setLoading(true)
     try {
+      // 调试：检查认证状态
+      const authStatus = await debugAuthStatus()
+      logger.info('认证状态检查', authStatus)
+
+      // 如果认证用户ID与查询的司机ID不匹配，记录警告
+      if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
+        logger.warn('认证用户ID与查询司机ID不匹配', {
+          authUserId: authStatus.userId,
+          queryDriverId: driverId
+        })
+      }
+
       const data = await getDriverVehicles(driverId)
       setVehicles(data)
       logger.info('车辆列表加载成功', {
@@ -194,7 +206,24 @@ const VehicleList: React.FC = () => {
                   <View className="i-mdi-car-off text-6xl text-blue-300"></View>
                 </View>
                 <Text className="text-gray-800 text-lg font-medium mb-2">暂无车辆信息</Text>
-                <Text className="text-gray-500 text-sm">点击上方按钮添加您的第一辆车</Text>
+                <Text className="text-gray-500 text-sm mb-4">
+                  {isManagerView ? '该司机还未添加车辆' : '点击上方按钮添加您的第一辆车'}
+                </Text>
+
+                {/* 调试信息 */}
+                {process.env.NODE_ENV === 'development' && (
+                  <View className="mt-6 w-full bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <Text className="text-gray-700 text-xs font-medium mb-2 block">调试信息：</Text>
+                    <Text className="text-gray-600 text-xs block mb-1">当前用户ID: {user?.id || '未获取'}</Text>
+                    <Text className="text-gray-600 text-xs block mb-1">
+                      查询司机ID: {targetDriverId || user?.id || '未设置'}
+                    </Text>
+                    <Text className="text-gray-600 text-xs block mb-1">
+                      查看模式: {isManagerView ? '管理员查看' : '司机自己查看'}
+                    </Text>
+                    <Text className="text-gray-600 text-xs block">请查看浏览器控制台获取详细日志</Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : (

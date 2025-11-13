@@ -3516,6 +3516,51 @@ export async function getWarehousesDataVolume(warehouseIds: string[], userId?: s
 // ==================== 车辆管理 API ====================
 
 /**
+ * 测试函数：获取当前认证用户信息
+ * 用于调试RLS策略问题
+ */
+export async function debugAuthStatus(): Promise<{
+  authenticated: boolean
+  userId: string | null
+  email: string | null
+  role: string | null
+}> {
+  try {
+    // 获取当前session
+    const {
+      data: {session},
+      error: sessionError
+    } = await supabase.auth.getSession()
+
+    if (sessionError) {
+      logger.error('获取session失败', sessionError)
+      return {authenticated: false, userId: null, email: null, role: null}
+    }
+
+    if (!session) {
+      logger.warn('未找到有效session')
+      return {authenticated: false, userId: null, email: null, role: null}
+    }
+
+    logger.info('当前认证状态', {
+      userId: session.user.id,
+      email: session.user.email,
+      role: session.user.role
+    })
+
+    return {
+      authenticated: true,
+      userId: session.user.id,
+      email: session.user.email || null,
+      role: session.user.role || null
+    }
+  } catch (error) {
+    logger.error('检查认证状态异常', error)
+    return {authenticated: false, userId: null, email: null, role: null}
+  }
+}
+
+/**
  * 获取司机的所有车辆
  */
 export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
