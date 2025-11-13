@@ -3,12 +3,16 @@
 ## 更新日期
 2025-11-05
 
+## 更新历史
+- **2025-11-05 初版**：添加司机详细信息展示、司机类型标签
+- **2025-11-05 更新**：添加入职时间和在职天数显示
+
 ## 更新内容
 
 ### 1. 新增功能
 - **司机详细信息展示**：在司机列表中直接显示司机的详细信息
 - **司机类型标签**：自动识别并显示"纯司机"或"带车司机"标签
-- **完整信息展示**：包括年龄、手机号、车牌、驾驶证类型、驾龄、住址等
+- **完整信息展示**：包括年龄、手机号、车牌、驾驶证类型、驾龄、住址、入职时间、在职天数等
 
 ### 2. UI优化
 - **卡片式设计**：采用圆角卡片布局，带有渐变色和阴影效果
@@ -22,14 +26,17 @@
 ```typescript
 // src/db/api.ts
 export async function getDriverDetailInfo(driverId: string)
+export async function getVehiclesByDriverId(driverId: string)
 ```
-该函数获取司机的完整信息，包括：
+`getDriverDetailInfo` 函数获取司机的完整信息，包括：
 - 基本资料（profile）
 - 驾驶证信息（license）
 - 车辆信息（vehicles）
 - 计算得出的年龄（age）
 - 计算得出的驾龄（drivingYears）
 - 司机类型（driverType）
+- 入职时间（joinDate）
+- 在职天数（workDays）
 
 #### 3.2 司机类型判断逻辑
 - **带车司机**：拥有至少一辆车辆的司机
@@ -38,6 +45,8 @@ export async function getDriverDetailInfo(driverId: string)
 #### 3.3 信息展示规则
 - **年龄**：从身份证出生日期计算得出
 - **驾龄**：从驾驶证初次领证日期计算得出
+- **入职时间**：优先使用 `join_date` 字段，如果没有则使用 `created_at` 字段
+- **在职天数**：从入职时间到当前日期的天数差
 - **车牌号**：如果有多辆车，用顿号（、）分隔显示
 - **住址**：显示身份证上的地址信息
 
@@ -54,6 +63,8 @@ export async function getDriverDetailInfo(driverId: string)
 - **驾龄**：显示年数（如果有驾驶证信息）
 - **准驾车型**：显示驾驶证类型（如C1、B2等）
 - **车辆数量**：显示拥有的车辆数量
+- **入职时间**：显示司机的入职日期
+- **在职天数**：显示从入职到当前的天数
 
 #### 4.3 附加信息
 - **车牌号**：橙色渐变背景，显示所有车辆的车牌号
@@ -67,6 +78,8 @@ export async function getDriverDetailInfo(driverId: string)
   - 绿色 - 实名认证标签、驾龄图标
   - 橙色 - 带车司机标签、车辆相关信息
   - 紫色 - 驾驶证类型图标
+  - 青色 - 入职时间图标
+  - 靛蓝色 - 在职天数图标
   - 灰色 - 背景和边框
 
 #### 5.2 图标使用
@@ -75,6 +88,8 @@ export async function getDriverDetailInfo(driverId: string)
 - 方向盘图标（i-mdi-steering）：驾龄
 - 卡片图标（i-mdi-card-account-details）：驾驶证类型
 - 汽车图标（i-mdi-car）：车辆信息
+- 日历勾选图标（i-mdi-calendar-check）：入职时间
+- 时钟图标（i-mdi-clock-outline）：在职天数
 - 地图标记图标（i-mdi-home-map-marker）：住址
 
 ### 6. 功能保持不变
