@@ -83,6 +83,47 @@ const LicenseOCR: React.FC = () => {
   ]
 
   /**
+   * 验证身份证正面识别结果
+   */
+  const validateIdCardFront = (result: any): boolean => {
+    // 必须包含姓名和身份证号
+    if (!result?.name || !result?.id_number) {
+      return false
+    }
+    // 身份证号必须是18位
+    if (result.id_number.length !== 18) {
+      return false
+    }
+    return true
+  }
+
+  /**
+   * 验证身份证背面识别结果
+   */
+  const validateIdCardBack = (result: any): boolean => {
+    // 必须包含签发机关或有效期
+    if (!result?.issuing_authority && !result?.valid_until) {
+      return false
+    }
+    return true
+  }
+
+  /**
+   * 验证驾驶证识别结果
+   */
+  const validateDriverLicense = (result: any): boolean => {
+    // 必须包含驾驶证号和准驾车型
+    if (!result?.license_number || !result?.vehicle_type) {
+      return false
+    }
+    // 驾驶证号必须是18位（与身份证号相同）
+    if (result.license_number.length !== 18) {
+      return false
+    }
+    return true
+  }
+
+  /**
    * 选择照片（支持相机和相册）
    */
   const handleChooseImage = async (type: 'camera' | 'album') => {
@@ -101,25 +142,58 @@ const LicenseOCR: React.FC = () => {
       try {
         // 根据当前步骤识别不同的证件
         let ocrResult: any = null
+        let isValid = false
+        let errorMessage = ''
 
         if (currentStep === 0) {
           // 识别身份证正面
           ocrResult = await recognizeIdCardFront(tempPath)
-          setPhotos((prev) => ({...prev, idCardFront: tempPath}))
-          setOcrData((prev) => ({...prev, idCardFront: ocrResult}))
+          isValid = validateIdCardFront(ocrResult)
+          errorMessage = '这不是有效的身份证正面照片，请确保拍摄的是身份证正面（有照片和姓名的一面）'
         } else if (currentStep === 1) {
           // 识别身份证背面
           ocrResult = await recognizeIdCardBack(tempPath)
-          setPhotos((prev) => ({...prev, idCardBack: tempPath}))
-          setOcrData((prev) => ({...prev, idCardBack: ocrResult}))
+          isValid = validateIdCardBack(ocrResult)
+          errorMessage = '这不是有效的身份证背面照片，请确保拍摄的是身份证背面（有签发机关和有效期的一面）'
         } else if (currentStep === 2) {
           // 识别驾驶证
           ocrResult = await recognizeDriverLicense(tempPath)
+          isValid = validateDriverLicense(ocrResult)
+          errorMessage = '这不是有效的驾驶证照片，请确保拍摄的是驾驶证主页（有照片和驾驶证号的一面）'
+        }
+
+        Taro.hideLoading()
+
+        // 验证识别结果
+        if (!isValid) {
+          Taro.showModal({
+            title: '证件类型不匹配',
+            content: errorMessage,
+            showCancel: true,
+            confirmText: '重新拍摄',
+            cancelText: '取消',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                // 用户选择重新拍摄
+                handleChooseImage('camera')
+              }
+            }
+          })
+          return
+        }
+
+        // 验证通过，保存识别结果
+        if (currentStep === 0) {
+          setPhotos((prev) => ({...prev, idCardFront: tempPath}))
+          setOcrData((prev) => ({...prev, idCardFront: ocrResult}))
+        } else if (currentStep === 1) {
+          setPhotos((prev) => ({...prev, idCardBack: tempPath}))
+          setOcrData((prev) => ({...prev, idCardBack: ocrResult}))
+        } else if (currentStep === 2) {
           setPhotos((prev) => ({...prev, driverLicense: tempPath}))
           setOcrData((prev) => ({...prev, driverLicense: ocrResult}))
         }
 
-        Taro.hideLoading()
         Taro.showToast({
           title: '识别成功，请确认信息',
           icon: 'success',
