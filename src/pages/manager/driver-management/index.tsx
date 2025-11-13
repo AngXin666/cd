@@ -28,6 +28,8 @@ type DriverDetailInfo = {
   age: number | null
   drivingYears: number | null
   driverType: string
+  joinDate: string | null
+  workDays: number | null
 }
 
 const DriverManagement: React.FC = () => {
@@ -487,6 +489,28 @@ const DriverManagement: React.FC = () => {
                                     </Text>
                                   </View>
                                 </View>
+
+                                {/* 入职时间 */}
+                                {detail.joinDate && (
+                                  <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                                    <View className="i-mdi-calendar-check text-teal-600 text-lg mr-2" />
+                                    <View className="flex-1">
+                                      <Text className="text-gray-500 text-xs block">入职时间</Text>
+                                      <Text className="text-gray-900 text-sm font-medium">{detail.joinDate}</Text>
+                                    </View>
+                                  </View>
+                                )}
+
+                                {/* 在职天数 */}
+                                {detail.workDays !== null && (
+                                  <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                                    <View className="i-mdi-clock-outline text-indigo-600 text-lg mr-2" />
+                                    <View className="flex-1">
+                                      <Text className="text-gray-500 text-xs block">在职天数</Text>
+                                      <Text className="text-gray-900 text-sm font-medium">{detail.workDays}天</Text>
+                                    </View>
+                                  </View>
+                                )}
                               </View>
 
                               {/* 车牌号（如果有车辆） */}

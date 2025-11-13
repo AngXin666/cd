@@ -3895,6 +3895,25 @@ export async function getDriverDetailInfo(driverId: string) {
       }
     }
 
+    // 计算在职天数
+    let workDays: number | null = null
+    let joinDate: string | null = null
+
+    // 优先使用join_date，如果没有则使用created_at
+    if (profile.join_date) {
+      joinDate = profile.join_date
+    } else if (profile.created_at) {
+      joinDate = profile.created_at.split('T')[0] // 只取日期部分
+    }
+
+    if (joinDate) {
+      const join = new Date(joinDate)
+      const today = new Date()
+      // 计算天数差
+      const timeDiff = today.getTime() - join.getTime()
+      workDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24))
+    }
+
     // 判断司机类型：有车辆则为带车司机，否则为纯司机
     const driverType = vehicles.length > 0 ? '带车司机' : '纯司机'
 
@@ -3904,7 +3923,9 @@ export async function getDriverDetailInfo(driverId: string) {
       vehicles,
       age,
       drivingYears,
-      driverType
+      driverType,
+      joinDate,
+      workDays
     }
   } catch (error) {
     console.error('获取司机详细信息失败:', error)
