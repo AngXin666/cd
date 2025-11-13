@@ -762,6 +762,52 @@ export async function getAllDriverWarehouses(): Promise<DriverWarehouse[]> {
 }
 
 /**
+ * 获取指定司机的仓库分配列表
+ */
+export async function getWarehouseAssignmentsByDriver(driverId: string): Promise<DriverWarehouse[]> {
+  const {data, error} = await supabase
+    .from('driver_warehouses')
+    .select('*')
+    .eq('driver_id', driverId)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取司机仓库分配失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 删除指定司机的所有仓库分配
+ */
+export async function deleteWarehouseAssignmentsByDriver(driverId: string): Promise<boolean> {
+  const {error} = await supabase.from('driver_warehouses').delete().eq('driver_id', driverId)
+
+  if (error) {
+    console.error('删除司机仓库分配失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 插入单个仓库分配
+ */
+export async function insertWarehouseAssignment(input: DriverWarehouseInput): Promise<boolean> {
+  const {error} = await supabase.from('driver_warehouses').insert(input)
+
+  if (error) {
+    console.error('插入仓库分配失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
  * 批量设置司机的仓库
  */
 export async function setDriverWarehouses(
@@ -3914,8 +3960,13 @@ export async function getDriverDetailInfo(driverId: string) {
       workDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24))
     }
 
-    // 判断司机类型：有车辆则为带车司机，否则为纯司机
-    const driverType = vehicles.length > 0 ? '带车司机' : '纯司机'
+    // 从profile中读取司机类型
+    const driverType =
+      profile.driver_type === 'driver_with_vehicle'
+        ? '带车司机'
+        : profile.driver_type === 'driver'
+          ? '纯司机'
+          : '未设置'
 
     return {
       profile,

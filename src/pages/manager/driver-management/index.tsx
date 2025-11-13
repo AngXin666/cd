@@ -1,15 +1,18 @@
-import {Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import {
   createDriver,
+  deleteWarehouseAssignmentsByDriver,
   getAllDriversWithRealName,
   getDriverDetailInfo,
   getDriverWarehouseIds,
   getManagerWarehouses,
-  setDriverWarehouses
+  getWarehouseAssignmentsByDriver,
+  insertWarehouseAssignment,
+  updateProfile
 } from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 import {createLogger} from '@/utils/logger'
@@ -36,12 +39,13 @@ const DriverManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [drivers, setDrivers] = useState<DriverWithRealName[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [selectedDriver, setSelectedDriver] = useState<DriverWithRealName | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
-  const [loading, setLoading] = useState(false)
 
   // 司机详细信息
   const [driverDetails, setDriverDetails] = useState<Map<string, DriverDetailInfo>>(new Map())
+
+  // 仓库分配展开状态（记录哪个司机的仓库分配面板是展开的）
+  const [warehouseAssignExpanded, setWarehouseAssignExpanded] = useState<string | null>(null)
 
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -106,7 +110,7 @@ const DriverManagement: React.FC = () => {
   }, [user?.id])
 
   // 加载司机的仓库分配
-  const loadDriverWarehouses = useCallback(
+  const _loadDriverWarehouses = useCallback(
     async (driverId: string) => {
       logger.info('开始加载司机仓库分配', {driverId})
       try {
@@ -139,11 +143,10 @@ const DriverManagement: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
-  // 选择司机
-  const handleSelectDriver = async (driver: DriverWithRealName) => {
+  // 选择司机（已废弃，保留用于兼容性）
+  const _handleSelectDriver = async (driver: DriverWithRealName) => {
     logger.userAction('选择司机', {driverId: driver.id, driverName: driver.real_name || driver.name})
-    setSelectedDriver(driver)
-    await loadDriverWarehouses(driver.id)
+    // 功能已移至卡片内的仓库分配按钮
   }
 
   // 查看司机的个人信息
@@ -160,76 +163,6 @@ const DriverManagement: React.FC = () => {
     Taro.navigateTo({
       url: `/pages/driver/vehicle-list/index?driverId=${driverId}`
     })
-  }
-
-  // 保存仓库分配
-  const handleSave = async () => {
-    if (!selectedDriver) {
-      showToast({title: '请先选择司机', icon: 'none'})
-      return
-    }
-
-    logger.userAction('保存司机仓库分配', {
-      driverId: selectedDriver.id,
-      driverName: selectedDriver.name,
-      selectedWarehouses: selectedWarehouseIds
-    })
-
-    setLoading(true)
-    showLoading({title: '保存中...'})
-
-    try {
-      // 获取司机当前所有的仓库分配
-      const allWarehouseIds = await getDriverWarehouseIds(selectedDriver.id)
-      // 移除管理员负责的仓库
-      const managerWarehouseIds = warehouses.map((w) => w.id)
-      const otherWarehouseIds = allWarehouseIds.filter((id) => !managerWarehouseIds.includes(id))
-      // 合并：其他仓库 + 管理员新分配的仓库
-      const finalWarehouseIds = [...otherWarehouseIds, ...selectedWarehouseIds]
-
-      logger.debug('仓库分配详情', {
-        allWarehouseIds,
-        managerWarehouseIds,
-        otherWarehouseIds,
-        selectedWarehouseIds,
-        finalWarehouseIds
-      })
-
-      const success = await setDriverWarehouses(selectedDriver.id, finalWarehouseIds)
-
-      Taro.hideLoading()
-      setLoading(false)
-
-      if (success) {
-        logger.info('保存司机仓库分配成功', {driverId: selectedDriver.id, warehouseCount: finalWarehouseIds.length})
-        showToast({
-          title: '保存成功，司机端将实时同步',
-          icon: 'success',
-          duration: 3000
-        })
-      } else {
-        logger.error('保存司机仓库分配失败', {driverId: selectedDriver.id})
-        showToast({
-          title: '保存失败，请重试',
-          icon: 'error',
-          duration: 2000
-        })
-      }
-    } catch (error) {
-      logger.error('保存司机仓库分配异常', error)
-      Taro.hideLoading()
-      setLoading(false)
-      showToast({
-        title: '保存失败，请重试',
-        icon: 'error',
-        duration: 2000
-      })
-    }
-  }
-
-  // 处理复选框变化
-  const handleCheckboxChange = (e: any) => {
-    setSelectedWarehouseIds(e.detail.value)
   }
 
   // 切换添加司机表单显示
@@ -294,6 +227,79 @@ const DriverManagement: React.FC = () => {
       showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
     }
   }
+
+  // 切换司机类型
+  const handleToggleDriverType = useCallback(
+    async (driver: DriverWithRealName) => {
+      const currentType = driver.driver_type
+      const newType = currentType === 'driver_with_vehicle' ? 'driver' : 'driver_with_vehicle'
+      const newTypeText = newType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
+
+      showLoading({title: '切换中...'})
+
+      const success = await updateProfile(driver.id, {driver_type: newType})
+
+      Taro.hideLoading()
+
+      if (success) {
+        showToast({title: `已切换为${newTypeText}`, icon: 'success'})
+        // 刷新司机列表和详细信息
+        await loadDrivers()
+        // 重新加载该司机的详细信息
+        const detail = await getDriverDetailInfo(driver.id)
+        if (detail) {
+          setDriverDetails((prev) => new Map(prev).set(driver.id, detail))
+        }
+      } else {
+        showToast({title: '切换失败', icon: 'error'})
+      }
+    },
+    [loadDrivers]
+  )
+
+  // 处理仓库分配按钮点击
+  const handleWarehouseAssignClick = useCallback(
+    async (driver: DriverWithRealName) => {
+      if (warehouseAssignExpanded === driver.id) {
+        // 如果已经展开，则收起
+        setWarehouseAssignExpanded(null)
+        setSelectedWarehouseIds([])
+      } else {
+        // 展开仓库分配面板
+        setWarehouseAssignExpanded(driver.id)
+        // 加载该司机已分配的仓库
+        showLoading({title: '加载中...'})
+        const assignments = await getWarehouseAssignmentsByDriver(driver.id)
+        Taro.hideLoading()
+        setSelectedWarehouseIds(assignments.map((a) => a.warehouse_id))
+      }
+    },
+    [warehouseAssignExpanded]
+  )
+
+  // 保存仓库分配
+  const handleSaveWarehouseAssignment = useCallback(
+    async (driverId: string) => {
+      showLoading({title: '保存中...'})
+
+      // 先删除该司机的所有仓库分配
+      await deleteWarehouseAssignmentsByDriver(driverId)
+
+      // 添加新的仓库分配
+      for (const warehouseId of selectedWarehouseIds) {
+        await insertWarehouseAssignment({
+          driver_id: driverId,
+          warehouse_id: warehouseId
+        })
+      }
+
+      Taro.hideLoading()
+      showToast({title: '保存成功', icon: 'success'})
+      setWarehouseAssignExpanded(null)
+      setSelectedWarehouseIds([])
+    },
+    [selectedWarehouseIds]
+  )
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -393,17 +399,9 @@ const DriverManagement: React.FC = () => {
                     {filteredDrivers.map((driver) => {
                       const detail = driverDetails.get(driver.id)
                       return (
-                        <View
-                          key={driver.id}
-                          className={`rounded-xl border-2 overflow-hidden ${
-                            selectedDriver?.id === driver.id
-                              ? 'border-blue-600 bg-gradient-to-br from-blue-50 to-white'
-                              : 'border-gray-200 bg-white'
-                          }`}>
+                        <View key={driver.id} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
                           {/* 司机头部信息 */}
-                          <View
-                            className="p-4 flex items-center justify-between"
-                            onClick={() => handleSelectDriver(driver)}>
+                          <View className="p-4 flex items-center justify-between">
                             <View className="flex items-center flex-1">
                               <View className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-full p-3 mr-3 shadow-md">
                                 <View className="i-mdi-account text-white text-2xl" />
@@ -435,9 +433,6 @@ const DriverManagement: React.FC = () => {
                                 <Text className="text-gray-500 text-sm">{driver.phone || '未设置手机号'}</Text>
                               </View>
                             </View>
-                            {selectedDriver?.id === driver.id && (
-                              <View className="i-mdi-check-circle text-blue-600 text-2xl" />
-                            )}
                           </View>
 
                           {/* 司机详细信息 */}
@@ -544,14 +539,14 @@ const DriverManagement: React.FC = () => {
                           )}
 
                           {/* 操作按钮 */}
-                          <View className="flex gap-2 p-3 bg-gray-50 border-t border-gray-100">
+                          <View className="grid grid-cols-2 gap-2 p-3 bg-gray-50 border-t border-gray-100">
                             {/* 查看个人信息按钮 */}
                             <View
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleViewDriverProfile(driver.id)
                               }}
-                              className="flex-1 flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
+                              className="flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
                               <View className="i-mdi-account-card text-white text-base mr-1.5" />
                               <Text className="text-white text-sm font-medium">个人信息</Text>
                             </View>
@@ -561,11 +556,86 @@ const DriverManagement: React.FC = () => {
                                 e.stopPropagation()
                                 handleViewDriverVehicles(driver.id)
                               }}
-                              className="flex-1 flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
+                              className="flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
                               <View className="i-mdi-car text-white text-base mr-1.5" />
                               <Text className="text-white text-sm font-medium">车辆管理</Text>
                             </View>
+                            {/* 仓库分配按钮 */}
+                            <View
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleWarehouseAssignClick(driver)
+                              }}
+                              className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
+                              <View className="i-mdi-warehouse text-white text-base mr-1.5" />
+                              <Text className="text-white text-sm font-medium">仓库分配</Text>
+                            </View>
+                            {/* 司机类型切换按钮 */}
+                            <View
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleToggleDriverType(driver)
+                              }}
+                              className="flex items-center justify-center bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg py-2.5 active:scale-98 transition-all shadow-sm">
+                              <View className="i-mdi-swap-horizontal text-white text-base mr-1.5" />
+                              <Text className="text-white text-xs font-medium">
+                                {driver.driver_type === 'driver_with_vehicle' ? '切换为纯司机' : '切换为带车'}
+                              </Text>
+                            </View>
                           </View>
+
+                          {/* 仓库分配面板 */}
+                          {warehouseAssignExpanded === driver.id && (
+                            <View className="px-3 pb-3 bg-gray-50 border-t border-gray-200">
+                              <View className="bg-white rounded-lg p-3 mt-2">
+                                <View className="flex items-center justify-between mb-3">
+                                  <View className="flex items-center">
+                                    <View className="i-mdi-warehouse text-purple-600 text-lg mr-2" />
+                                    <Text className="text-gray-800 text-sm font-bold">选择仓库</Text>
+                                  </View>
+                                  <Text className="text-gray-500 text-xs">已选 {selectedWarehouseIds.length} 个</Text>
+                                </View>
+                                <CheckboxGroup
+                                  onChange={(e) => {
+                                    setSelectedWarehouseIds(e.detail.value as string[])
+                                  }}>
+                                  <View className="space-y-2 max-h-60 overflow-y-auto">
+                                    {warehouses.map((warehouse) => (
+                                      <View key={warehouse.id} className="flex items-center bg-gray-50 rounded-lg p-2">
+                                        <Checkbox
+                                          value={warehouse.id}
+                                          checked={selectedWarehouseIds.includes(warehouse.id)}
+                                          className="mr-2"
+                                        />
+                                        <View className="flex-1">
+                                          <Text className="text-gray-800 text-sm font-medium block">
+                                            {warehouse.name}
+                                          </Text>
+                                        </View>
+                                      </View>
+                                    ))}
+                                  </View>
+                                </CheckboxGroup>
+                                <View className="flex gap-2 mt-3">
+                                  <Button
+                                    size="default"
+                                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded text-sm"
+                                    onClick={() => {
+                                      setWarehouseAssignExpanded(null)
+                                      setSelectedWarehouseIds([])
+                                    }}>
+                                    取消
+                                  </Button>
+                                  <Button
+                                    size="default"
+                                    className="flex-1 bg-purple-600 text-white py-2 rounded text-sm"
+                                    onClick={() => handleSaveWarehouseAssignment(driver.id)}>
+                                    保存
+                                  </Button>
+                                </View>
+                              </View>
+                            </View>
+                          )}
                         </View>
                       )
                     })}
@@ -582,72 +652,6 @@ const DriverManagement: React.FC = () => {
                   </View>
                 )}
               </View>
-
-              {/* 仓库分配 */}
-              {selectedDriver && (
-                <View className="bg-white rounded-lg p-4 mb-4 shadow">
-                  <View className="flex items-center mb-3">
-                    <View className="i-mdi-warehouse text-blue-600 text-xl mr-2" />
-                    <Text className="text-gray-800 text-base font-bold">分配仓库</Text>
-                  </View>
-                  <View className="mb-3 bg-blue-50 rounded-lg p-3">
-                    <Text className="text-blue-800 text-sm block">
-                      当前司机：{selectedDriver.name || selectedDriver.phone || selectedDriver.email}
-                    </Text>
-                  </View>
-                  <CheckboxGroup onChange={handleCheckboxChange}>
-                    <View className="space-y-2">
-                      {warehouses.map((warehouse) => (
-                        <View key={warehouse.id} className="flex items-center bg-gray-50 rounded-lg p-3">
-                          <Checkbox
-                            value={warehouse.id}
-                            checked={selectedWarehouseIds.includes(warehouse.id)}
-                            className="mr-3"
-                          />
-                          <View className="flex-1">
-                            <Text className="text-gray-800 text-sm block">{warehouse.name}</Text>
-                          </View>
-                          <View className={`px-2 py-1 rounded ${warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
-                            <Text className={`text-xs ${warehouse.is_active ? 'text-green-600' : 'text-gray-500'}`}>
-                              {warehouse.is_active ? '启用' : '禁用'}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  </CheckboxGroup>
-                </View>
-              )}
-
-              {/* 保存按钮 */}
-              {selectedDriver && (
-                <View className="bg-white rounded-lg p-4 shadow">
-                  <View
-                    className={`flex items-center justify-center bg-blue-600 rounded-xl p-4 active:scale-98 transition-all ${
-                      loading ? 'opacity-50' : ''
-                    }`}
-                    onClick={loading ? undefined : handleSave}>
-                    <View className="i-mdi-content-save text-2xl text-white mr-2" />
-                    <Text className="text-base font-bold text-white">保存分配</Text>
-                  </View>
-                </View>
-              )}
-
-              {/* 操作提示 */}
-              {!selectedDriver && (
-                <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <View className="flex items-start">
-                    <View className="i-mdi-information text-yellow-600 text-xl mr-2 mt-0.5" />
-                    <View className="flex-1">
-                      <Text className="text-yellow-800 text-sm block mb-1 font-medium">操作提示</Text>
-                      <Text className="text-yellow-700 text-xs block">1. 先选择要分配仓库的司机</Text>
-                      <Text className="text-yellow-700 text-xs block">2. 勾选该司机可以工作的仓库</Text>
-                      <Text className="text-yellow-700 text-xs block">3. 点击保存按钮完成分配</Text>
-                      <Text className="text-yellow-700 text-xs block">4. 您只能分配自己负责的仓库</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
             </>
           )}
         </View>
