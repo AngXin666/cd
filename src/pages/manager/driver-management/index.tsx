@@ -233,7 +233,20 @@ const DriverManagement: React.FC = () => {
     async (driver: DriverWithRealName) => {
       const currentType = driver.driver_type
       const newType = currentType === 'driver_with_vehicle' ? 'driver' : 'driver_with_vehicle'
+      const currentTypeText = currentType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
       const newTypeText = newType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
+
+      // 二次确认
+      const result = await Taro.showModal({
+        title: '确认切换司机类型',
+        content: `确定要将 ${driver.real_name || driver.name || '该司机'} 从【${currentTypeText}】切换为【${newTypeText}】吗？`,
+        confirmText: '确定',
+        cancelText: '取消'
+      })
+
+      if (!result.confirm) {
+        return
+      }
 
       showLoading({title: '切换中...'})
 
@@ -280,6 +293,30 @@ const DriverManagement: React.FC = () => {
   // 保存仓库分配
   const handleSaveWarehouseAssignment = useCallback(
     async (driverId: string) => {
+      // 获取司机信息用于显示名称
+      const driver = drivers.find((d) => d.id === driverId)
+      const driverName = driver?.real_name || driver?.name || '该司机'
+
+      // 获取选中的仓库名称
+      const selectedWarehouseNames = warehouses
+        .filter((w) => selectedWarehouseIds.includes(w.id))
+        .map((w) => w.name)
+        .join('、')
+
+      const warehouseText = selectedWarehouseIds.length > 0 ? selectedWarehouseNames : '无'
+
+      // 二次确认
+      const result = await Taro.showModal({
+        title: '确认保存仓库分配',
+        content: `确定要为 ${driverName} 分配以下仓库吗？\n\n${warehouseText}\n\n${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分配）' : ''}`,
+        confirmText: '确定',
+        cancelText: '取消'
+      })
+
+      if (!result.confirm) {
+        return
+      }
+
       showLoading({title: '保存中...'})
 
       // 先删除该司机的所有仓库分配
@@ -298,7 +335,7 @@ const DriverManagement: React.FC = () => {
       setWarehouseAssignExpanded(null)
       setSelectedWarehouseIds([])
     },
-    [selectedWarehouseIds]
+    [selectedWarehouseIds, drivers, warehouses]
   )
 
   return (
