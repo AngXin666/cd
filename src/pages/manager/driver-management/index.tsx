@@ -34,10 +34,7 @@ const DriverManagement: React.FC = () => {
     }
     const keyword = searchKeyword.trim().toLowerCase()
     return drivers.filter(
-      (driver) =>
-        driver.name?.toLowerCase().includes(keyword) ||
-        driver.phone?.toLowerCase().includes(keyword) ||
-        driver.email?.toLowerCase().includes(keyword)
+      (driver) => driver.name?.toLowerCase().includes(keyword) || driver.phone?.toLowerCase().includes(keyword)
     )
   }, [drivers, searchKeyword])
 
@@ -305,7 +302,7 @@ const DriverManagement: React.FC = () => {
                     <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
                     <Input
                       type="text"
-                      placeholder="搜索司机姓名、手机号或邮箱"
+                      placeholder="搜索司机姓名或手机号"
                       value={searchKeyword}
                       onInput={(e) => setSearchKeyword(e.detail.value)}
                       className="flex-1 text-sm"
@@ -368,7 +365,7 @@ const DriverManagement: React.FC = () => {
                               <Text className="text-gray-800 text-base font-medium block">
                                 {driver.name || '未设置姓名'}
                               </Text>
-                              <Text className="text-gray-500 text-xs block">{driver.phone || driver.email}</Text>
+                              <Text className="text-gray-500 text-xs block">{driver.phone || '未设置手机号'}</Text>
                             </View>
                           </View>
                           {selectedDriver?.id === driver.id && (

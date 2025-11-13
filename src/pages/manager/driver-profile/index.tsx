@@ -51,6 +51,7 @@ const DriverProfileView: React.FC = () => {
       logger.info('驾驶证信息加载完成', {
         driverId,
         hasData: !!licenseData,
+        driverName: licenseData?.id_card_name,
         hasIdCard: !!licenseData?.id_card_photo_front,
         hasDriverLicense: !!licenseData?.driving_license_photo
       })
@@ -161,17 +162,11 @@ const DriverProfileView: React.FC = () => {
           <View className="space-y-3">
             <View className="flex justify-between py-2 border-b border-border">
               <Text className="text-muted-foreground text-sm">姓名</Text>
-              <Text className="text-foreground text-sm font-medium">
-                {profile?.name || driverLicense.id_card_name || '未设置'}
-              </Text>
-            </View>
-            <View className="flex justify-between py-2 border-b border-border">
-              <Text className="text-muted-foreground text-sm">手机号</Text>
-              <Text className="text-foreground text-sm font-medium">{profile?.phone || '未设置'}</Text>
+              <Text className="text-foreground text-sm font-medium">{driverLicense.id_card_name || '未识别'}</Text>
             </View>
             <View className="flex justify-between py-2">
-              <Text className="text-muted-foreground text-sm">邮箱</Text>
-              <Text className="text-foreground text-sm font-medium">{profile?.email || '未设置'}</Text>
+              <Text className="text-muted-foreground text-sm">手机号</Text>
+              <Text className="text-foreground text-sm font-medium">{profile?.phone || '未设置'}</Text>
             </View>
           </View>
         </View>
