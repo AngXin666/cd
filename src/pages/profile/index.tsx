@@ -377,6 +377,22 @@ const ProfilePage: React.FC = () => {
 
             {/* 个人设置菜单 */}
             <View className="bg-white rounded-xl mb-4 shadow overflow-hidden">
+              {/* 个人信息 - 仅司机角色显示 */}
+              {profile?.role === 'driver' && (
+                <View
+                  className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
+                  onClick={() => navigateTo({url: '/pages/driver/profile/index'})}>
+                  <View className="flex items-center">
+                    <View className="i-mdi-card-account-details text-2xl text-blue-900 mr-3" />
+                    <View className="flex-1">
+                      <Text className="text-sm text-gray-800 font-medium block">个人信息</Text>
+                      <Text className="text-xs text-gray-500 block mt-0.5">查看身份证、驾驶证等证件信息</Text>
+                    </View>
+                  </View>
+                  <View className="i-mdi-chevron-right text-xl text-gray-400" />
+                </View>
+              )}
+
               <View
                 className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
                 onClick={() => navigateTo({url: '/pages/profile/edit/index'})}>
