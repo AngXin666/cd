@@ -31,6 +31,7 @@ const pages = [
   'pages/manager/driver-leave-detail/index',
   'pages/manager/warehouse-categories/index',
   'pages/manager/driver-management/index',
+  'pages/manager/driver-profile/index',
   'pages/manager/staff-management/index',
   'pages/super-admin/warehouse-management/index',
   'pages/super-admin/warehouse-detail/index',

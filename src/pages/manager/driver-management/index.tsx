@@ -86,6 +86,13 @@ const DriverManagement: React.FC = () => {
     await loadDriverWarehouses(driver.id)
   }
 
+  // 查看司机的个人信息
+  const handleViewDriverProfile = (driverId: string) => {
+    Taro.navigateTo({
+      url: `/pages/manager/driver-profile/index?driverId=${driverId}`
+    })
+  }
+
   // 查看司机的车辆
   const handleViewDriverVehicles = (driverId: string) => {
     Taro.navigateTo({
@@ -316,15 +323,28 @@ const DriverManagement: React.FC = () => {
                             <View className="i-mdi-check-circle text-blue-600 text-xl" />
                           )}
                         </View>
-                        {/* 查看车辆按钮 */}
-                        <View
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleViewDriverVehicles(driver.id)
-                          }}
-                          className="flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-98 transition-all">
-                          <View className="i-mdi-car text-white text-base mr-1" />
-                          <Text className="text-white text-xs font-medium">查看车辆</Text>
+                        {/* 操作按钮 */}
+                        <View className="flex gap-2 mt-2">
+                          {/* 查看个人信息按钮 */}
+                          <View
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewDriverProfile(driver.id)
+                            }}
+                            className="flex-1 flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-98 transition-all">
+                            <View className="i-mdi-account-card text-white text-base mr-1" />
+                            <Text className="text-white text-xs font-medium">个人信息</Text>
+                          </View>
+                          {/* 查看车辆按钮 */}
+                          <View
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewDriverVehicles(driver.id)
+                            }}
+                            className="flex-1 flex items-center justify-center bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-98 transition-all">
+                            <View className="i-mdi-car text-white text-base mr-1" />
+                            <Text className="text-white text-xs font-medium">车辆管理</Text>
+                          </View>
                         </View>
                       </View>
                     ))}

@@ -591,6 +591,7 @@ export interface DriverLicense {
   // 驾驶证信息
   license_number: string | null
   license_class: string | null
+  first_issue_date: string | null
   valid_from: string | null
   valid_to: string | null
   issue_authority: string | null
