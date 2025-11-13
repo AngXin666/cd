@@ -9,8 +9,8 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {debugAuthStatus, deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
-import type {Profile, Vehicle} from '@/db/types'
+import {debugAuthStatus, deleteVehicle, getDriverVehicles, getProfileWithRealName} from '@/db/api'
+import type {ProfileWithRealName, Vehicle} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
@@ -21,7 +21,7 @@ const VehicleList: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(false)
   const [targetDriverId, setTargetDriverId] = useState<string>('')
-  const [targetDriver, setTargetDriver] = useState<Profile | null>(null)
+  const [targetDriver, setTargetDriver] = useState<ProfileWithRealName | null>(null)
   const [isManagerView, setIsManagerView] = useState(false)
 
   // 加载司机信息
@@ -31,9 +31,14 @@ const VehicleList: React.FC = () => {
       callStack: new Error().stack?.split('\n').slice(0, 5).join('\n')
     })
     try {
-      const driver = await getProfileById(driverId)
+      const driver = await getProfileWithRealName(driverId)
       setTargetDriver(driver)
-      logger.info('司机信息加载成功', {driverId, driverName: driver?.name, driverRole: driver?.role})
+      logger.info('司机信息加载成功', {
+        driverId,
+        driverName: driver?.name,
+        driverRealName: driver?.real_name,
+        driverRole: driver?.role
+      })
     } catch (error) {
       logger.error('加载司机信息失败', error)
     }
@@ -172,7 +177,9 @@ const VehicleList: React.FC = () => {
                   <Text className="text-2xl font-bold text-white">{isManagerView ? '司机车辆' : '我的车辆'}</Text>
                 </View>
                 <Text className="text-blue-100 text-sm">
-                  {isManagerView ? `查看 ${targetDriver?.name || '司机'} 的车辆信息` : '管理您的车辆信息'}
+                  {isManagerView
+                    ? `查看 ${targetDriver?.real_name || targetDriver?.name || '司机'} 的车辆信息`
+                    : '管理您的车辆信息'}
                 </Text>
               </View>
               <View className="bg-white/20 backdrop-blur rounded-full px-4 py-2">
