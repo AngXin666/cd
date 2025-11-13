@@ -521,6 +521,21 @@ const DriverManagement: React.FC = () => {
                                 </View>
                               )}
 
+                              {/* 身份证号码 */}
+                              {detail.license?.id_card_number && (
+                                <View className="mt-2 bg-indigo-50 rounded-lg p-2 border border-indigo-200">
+                                  <View className="flex items-start">
+                                    <View className="i-mdi-card-account-details text-indigo-600 text-base mr-2 mt-0.5" />
+                                    <View className="flex-1">
+                                      <Text className="text-gray-600 text-xs block mb-0.5">身份证号码</Text>
+                                      <Text className="text-gray-900 text-xs font-mono tracking-wide">
+                                        {detail.license.id_card_number}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                </View>
+                              )}
+
                               {/* 住址 */}
                               {detail.license?.id_card_address && (
                                 <View className="mt-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
