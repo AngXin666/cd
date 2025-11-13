@@ -243,7 +243,7 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
           }
 
           // 图片是竖向的，需要旋转90度
-          console.log('🔄 图片是竖向，旋转90度使其横向显示')
+          console.log('🔄 图片是竖向，逆时针旋转90度使其横向显示')
 
           const canvas = document.createElement('canvas')
           const ctx = canvas.getContext('2d')
@@ -256,9 +256,9 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
           canvas.width = height
           canvas.height = width
 
-          // 顺时针旋转90度
-          ctx.translate(height, 0)
-          ctx.rotate(Math.PI / 2)
+          // 逆时针旋转90度（-90度）
+          ctx.translate(0, width)
+          ctx.rotate(-Math.PI / 2)
           ctx.drawImage(img, 0, 0)
 
           // 转换为Base64
@@ -460,18 +460,18 @@ export async function uploadImageToStorage(
     // H5环境：完整处理流程
     console.log('🌐 H5环境：使用完整处理流程')
 
-    // 1. 强制横向显示（如果需要）
-    let processedPath = imagePath
+    // 1. 先自动旋转图片（修正EXIF方向）
+    const rotatedPath = await autoRotateImage(imagePath)
+
+    // 2. 强制横向显示（如果需要）
+    let processedPath = rotatedPath
     if (forceLandscape) {
       console.log('🔄 检查并调整图片方向...')
-      processedPath = await ensureLandscapeOrientation(imagePath)
+      processedPath = await ensureLandscapeOrientation(rotatedPath)
     }
 
-    // 2. 自动旋转图片（修正EXIF方向）
-    const rotatedPath = await autoRotateImage(processedPath)
-
     // 3. 压缩图片
-    const compressedPath = await compressImage(rotatedPath, 0.8)
+    const compressedPath = await compressImage(processedPath, 0.8)
 
     // 4. 转换为Base64
     const base64Image = await imageToBase64(compressedPath)
