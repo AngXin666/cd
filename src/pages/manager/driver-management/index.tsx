@@ -3,18 +3,27 @@ import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tar
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import {createDriver, getAllProfiles, getDriverWarehouseIds, getManagerWarehouses, setDriverWarehouses} from '@/db/api'
+import {
+  createDriver,
+  getAllDriversWithRealName,
+  getDriverWarehouseIds,
+  getManagerWarehouses,
+  setDriverWarehouses
+} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
 const logger = createLogger('DriverManagement')
 
+// 扩展Profile类型，包含实名信息
+type DriverWithRealName = Profile & {real_name: string | null}
+
 const DriverManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [drivers, setDrivers] = useState<Profile[]>([])
+  const [drivers, setDrivers] = useState<DriverWithRealName[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [selectedDriver, setSelectedDriver] = useState<Profile | null>(null)
+  const [selectedDriver, setSelectedDriver] = useState<DriverWithRealName | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -27,25 +36,29 @@ const DriverManagement: React.FC = () => {
   const [newDriverName, setNewDriverName] = useState('')
   const [addingDriver, setAddingDriver] = useState(false)
 
-  // 过滤后的司机列表
+  // 过滤后的司机列表（支持搜索实名）
   const filteredDrivers = useMemo(() => {
     if (!searchKeyword.trim()) {
       return drivers
     }
     const keyword = searchKeyword.trim().toLowerCase()
     return drivers.filter(
-      (driver) => driver.name?.toLowerCase().includes(keyword) || driver.phone?.toLowerCase().includes(keyword)
+      (driver) =>
+        driver.name?.toLowerCase().includes(keyword) ||
+        driver.phone?.toLowerCase().includes(keyword) ||
+        driver.real_name?.toLowerCase().includes(keyword)
     )
   }, [drivers, searchKeyword])
 
   // 加载司机列表
   const loadDrivers = useCallback(async () => {
-    logger.info('开始加载司机列表')
+    logger.info('开始加载司机列表（包含实名）')
     try {
-      const profiles = await getAllProfiles()
-      const driverList = profiles.filter((p) => p.role === 'driver')
+      const driverList = await getAllDriversWithRealName()
       setDrivers(driverList)
-      logger.info(`成功加载司机列表，共 ${driverList.length} 名司机`)
+      logger.info(`成功加载司机列表，共 ${driverList.length} 名司机`, {
+        withRealName: driverList.filter((d) => d.real_name).length
+      })
     } catch (error) {
       logger.error('加载司机列表失败', error)
     }
@@ -100,8 +113,8 @@ const DriverManagement: React.FC = () => {
   })
 
   // 选择司机
-  const handleSelectDriver = async (driver: Profile) => {
-    logger.userAction('选择司机', {driverId: driver.id, driverName: driver.name})
+  const handleSelectDriver = async (driver: DriverWithRealName) => {
+    logger.userAction('选择司机', {driverId: driver.id, driverName: driver.real_name || driver.name})
     setSelectedDriver(driver)
     await loadDriverWarehouses(driver.id)
   }
@@ -362,10 +375,17 @@ const DriverManagement: React.FC = () => {
                           <View className="flex items-center flex-1">
                             <View className="i-mdi-account text-blue-600 text-2xl mr-3" />
                             <View className="flex-1">
-                              <Text className="text-gray-800 text-base font-medium block">
-                                {driver.name || '未设置姓名'}
-                              </Text>
-                              <Text className="text-gray-500 text-xs block">{driver.phone || '未设置手机号'}</Text>
+                              <View className="flex items-center gap-2">
+                                <Text className="text-gray-800 text-base font-medium">
+                                  {driver.real_name || driver.name || '未设置姓名'}
+                                </Text>
+                                {driver.real_name && (
+                                  <View className="bg-green-100 px-2 py-0.5 rounded">
+                                    <Text className="text-green-700 text-xs">已实名</Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text className="text-gray-500 text-xs block mt-1">{driver.phone || '未设置手机号'}</Text>
                             </View>
                           </View>
                           {selectedDriver?.id === driver.id && (

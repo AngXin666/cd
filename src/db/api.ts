@@ -161,6 +161,46 @@ export async function getAllProfiles(): Promise<Profile[]> {
 }
 
 /**
+ * 获取所有司机档案（包含实名信息）
+ * 通过LEFT JOIN driver_licenses表获取身份证姓名
+ */
+export async function getAllDriversWithRealName(): Promise<Array<Profile & {real_name: string | null}>> {
+  logger.db('查询', 'profiles + driver_licenses', {role: 'driver'})
+  try {
+    const {data, error} = await supabase
+      .from('profiles')
+      .select(
+        `
+        *,
+        driver_licenses!driver_licenses_driver_id_fkey(id_card_name)
+      `
+      )
+      .eq('role', 'driver')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      logger.error('获取司机列表失败', error)
+      return []
+    }
+
+    // 转换数据格式，提取real_name
+    const drivers = (data || []).map((item: any) => {
+      const {driver_licenses, ...profile} = item
+      return {
+        ...profile,
+        real_name: driver_licenses?.id_card_name || null
+      }
+    })
+
+    logger.info(`成功获取司机列表，共 ${drivers.length} 名司机`)
+    return drivers
+  } catch (error) {
+    logger.error('获取司机列表异常', error)
+    return []
+  }
+}
+
+/**
  * 根据ID获取用户档案
  */
 export async function getProfileById(id: string): Promise<Profile | null> {

@@ -153,34 +153,20 @@ const DriverProfileView: React.FC = () => {
   return (
     <ScrollView scrollY className="min-h-screen bg-background">
       <View className="p-4 pb-8">
-        {/* 司机基本信息 */}
+        {/* 个人信息（合并司机信息和身份证信息） */}
         <View className="bg-card rounded-xl p-5 mb-4 shadow-sm">
           <View className="flex items-center mb-4">
             <View className="i-mdi-account-circle text-primary text-3xl mr-3" />
-            <Text className="text-foreground text-xl font-bold">司机信息</Text>
+            <Text className="text-foreground text-xl font-bold">个人信息</Text>
           </View>
           <View className="space-y-3">
             <View className="flex justify-between py-2 border-b border-border">
               <Text className="text-muted-foreground text-sm">姓名</Text>
               <Text className="text-foreground text-sm font-medium">{driverLicense.id_card_name || '未识别'}</Text>
             </View>
-            <View className="flex justify-between py-2">
+            <View className="flex justify-between py-2 border-b border-border">
               <Text className="text-muted-foreground text-sm">手机号</Text>
               <Text className="text-foreground text-sm font-medium">{profile?.phone || '未设置'}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 身份证信息 */}
-        <View className="bg-card rounded-xl p-5 mb-4 shadow-sm">
-          <View className="flex items-center mb-4">
-            <View className="i-mdi-card-account-details text-primary text-3xl mr-3" />
-            <Text className="text-foreground text-xl font-bold">身份证信息</Text>
-          </View>
-          <View className="space-y-3">
-            <View className="flex justify-between py-2 border-b border-border">
-              <Text className="text-muted-foreground text-sm">姓名</Text>
-              <Text className="text-foreground text-sm font-medium">{driverLicense.id_card_name || '未识别'}</Text>
             </View>
             <View className="flex justify-between py-2 border-b border-border">
               <Text className="text-muted-foreground text-sm">身份证号</Text>
