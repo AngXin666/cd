@@ -689,7 +689,10 @@ const AddVehicle: React.FC = () => {
       for (const [key, path] of Object.entries(photos)) {
         if (path) {
           const fileName = generateUniqueFileName(`vehicle_${key}`, 'jpg')
-          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName)
+          // 判断是否需要强制横向显示
+          // 行驶证照片需要横向显示，其他照片保持原始方向
+          const needLandscape = key.includes('driving_license')
+          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
           if (!uploadedPath) {
             throw new Error(`上传${key}照片失败`)
           }
@@ -702,7 +705,8 @@ const AddVehicle: React.FC = () => {
       for (const [key, path] of Object.entries(driverPhotos)) {
         if (path) {
           const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
-          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName)
+          // 证件照片不需要强制横向显示，保持原始方向
+          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
           if (!uploadedPath) {
             throw new Error(`上传${key}证件照片失败`)
           }
