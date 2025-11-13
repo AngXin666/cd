@@ -3826,3 +3826,63 @@ export async function deleteDriverLicense(driverId: string): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * 获取司机的详细信息（包括驾驶证和车辆信息）
+ * @param driverId 司机ID
+ * @returns 司机详细信息
+ */
+export async function getDriverDetailInfo(driverId: string) {
+  try {
+    // 获取司机基本信息
+    const profile = await getProfileById(driverId)
+    if (!profile) {
+      return null
+    }
+
+    // 获取驾驶证信息
+    const license = await getDriverLicense(driverId)
+
+    // 获取车辆信息
+    const vehicles = await getVehiclesByDriverId(driverId)
+
+    // 计算年龄
+    let age: number | null = null
+    if (license?.id_card_birth_date) {
+      const birth = new Date(license.id_card_birth_date)
+      const today = new Date()
+      age = today.getFullYear() - birth.getFullYear()
+      const monthDiff = today.getMonth() - birth.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--
+      }
+    }
+
+    // 计算驾龄
+    let drivingYears: number | null = null
+    if (license?.first_issue_date) {
+      const issueDate = new Date(license.first_issue_date)
+      const today = new Date()
+      drivingYears = today.getFullYear() - issueDate.getFullYear()
+      const monthDiff = today.getMonth() - issueDate.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < issueDate.getDate())) {
+        drivingYears--
+      }
+    }
+
+    // 判断司机类型：有车辆则为带车司机，否则为纯司机
+    const driverType = vehicles.length > 0 ? '带车司机' : '纯司机'
+
+    return {
+      profile,
+      license,
+      vehicles,
+      age,
+      drivingYears,
+      driverType
+    }
+  } catch (error) {
+    console.error('获取司机详细信息失败:', error)
+    return null
+  }
+}
