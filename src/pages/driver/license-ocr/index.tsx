@@ -180,20 +180,20 @@ const LicenseOCR: React.FC = () => {
     try {
       // 上传照片到存储桶
       const idCardFrontPath = await uploadImageToStorage(
-        BUCKET_NAME,
         photos.idCardFront,
+        BUCKET_NAME,
         generateUniqueFileName('id_card_front', 'jpg')
       )
 
       const idCardBackPath = await uploadImageToStorage(
-        BUCKET_NAME,
         photos.idCardBack,
+        BUCKET_NAME,
         generateUniqueFileName('id_card_back', 'jpg')
       )
 
       const driverLicensePath = await uploadImageToStorage(
-        BUCKET_NAME,
         photos.driverLicense,
+        BUCKET_NAME,
         generateUniqueFileName('driver_license', 'jpg')
       )
 
