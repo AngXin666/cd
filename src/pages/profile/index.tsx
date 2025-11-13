@@ -3,13 +3,14 @@ import Taro, {navigateTo, showModal, switchTab, useDidShow, usePullDownRefresh} 
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getCurrentUserProfile, getDriverStats, getManagerStats, getSuperAdminStats} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {getCurrentUserProfile, getDriverLicense, getDriverStats, getManagerStats, getSuperAdminStats} from '@/db/api'
+import type {DriverLicense, Profile} from '@/db/types'
 
 const ProfilePage: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<any>(null)
+  const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
 
   const loadProfile = useCallback(async () => {
     const data = await getCurrentUserProfile()
@@ -20,6 +21,9 @@ const ProfilePage: React.FC = () => {
       if (data.role === 'driver') {
         const driverStats = await getDriverStats(user.id)
         setStats(driverStats)
+        // 加载司机的驾驶证信息以获取真实姓名
+        const license = await getDriverLicense(user.id)
+        setDriverLicense(license)
       } else if (data.role === 'manager') {
         const managerStats = await getManagerStats(user.id)
         setStats(managerStats)
@@ -82,6 +86,16 @@ const ProfilePage: React.FC = () => {
   const maskPhone = (phone: string | null) => {
     if (!phone) return '未设置'
     return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+  }
+
+  // 获取显示名称（司机优先显示真实姓名）
+  const getDisplayName = () => {
+    // 如果是司机角色，优先显示驾驶证上的真实姓名
+    if (profile?.role === 'driver' && driverLicense?.id_card_name) {
+      return driverLicense.id_card_name
+    }
+    // 其他角色或未录入驾驶证信息时，显示profile中的姓名
+    return profile?.name || profile?.nickname || '未设置姓名'
   }
 
   // 格式化金额
@@ -165,9 +179,7 @@ const ProfilePage: React.FC = () => {
 
               {/* 姓名和角色 */}
               <View className="flex-1">
-                <Text className="text-2xl font-bold text-white block mb-1">
-                  {profile?.name || profile?.nickname || '未设置姓名'}
-                </Text>
+                <Text className="text-2xl font-bold text-white block mb-1">{getDisplayName()}</Text>
                 <View className="flex items-center">
                   <View
                     className="px-3 py-1 rounded-full"
