@@ -5,6 +5,10 @@ import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import {createDriver, getAllProfiles, getDriverWarehouseIds, getManagerWarehouses, setDriverWarehouses} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
+import {createLogger} from '@/utils/logger'
+
+// 创建页面日志记录器
+const logger = createLogger('DriverManagement')
 
 const DriverManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -39,27 +43,45 @@ const DriverManagement: React.FC = () => {
 
   // 加载司机列表
   const loadDrivers = useCallback(async () => {
-    const profiles = await getAllProfiles()
-    const driverList = profiles.filter((p) => p.role === 'driver')
-    setDrivers(driverList)
+    logger.info('开始加载司机列表')
+    try {
+      const profiles = await getAllProfiles()
+      const driverList = profiles.filter((p) => p.role === 'driver')
+      setDrivers(driverList)
+      logger.info(`成功加载司机列表，共 ${driverList.length} 名司机`)
+    } catch (error) {
+      logger.error('加载司机列表失败', error)
+    }
   }, [])
 
   // 加载管理员负责的仓库列表（只加载启用的仓库）
   const loadWarehouses = useCallback(async () => {
     if (!user?.id) return
-    const data = await getManagerWarehouses(user.id)
-    const enabledWarehouses = data.filter((w) => w.is_active)
-    setWarehouses(enabledWarehouses)
+    logger.info('开始加载管理员仓库列表', {managerId: user.id})
+    try {
+      const data = await getManagerWarehouses(user.id)
+      const enabledWarehouses = data.filter((w) => w.is_active)
+      setWarehouses(enabledWarehouses)
+      logger.info(`成功加载仓库列表，共 ${enabledWarehouses.length} 个启用仓库`)
+    } catch (error) {
+      logger.error('加载仓库列表失败', error)
+    }
   }, [user?.id])
 
   // 加载司机的仓库分配
   const loadDriverWarehouses = useCallback(
     async (driverId: string) => {
-      const warehouseIds = await getDriverWarehouseIds(driverId)
-      // 只显示管理员负责的且启用的仓库
-      const managerWarehouseIds = warehouses.map((w) => w.id)
-      const filteredIds = warehouseIds.filter((id) => managerWarehouseIds.includes(id))
-      setSelectedWarehouseIds(filteredIds)
+      logger.info('开始加载司机仓库分配', {driverId})
+      try {
+        const warehouseIds = await getDriverWarehouseIds(driverId)
+        // 只显示管理员负责的且启用的仓库
+        const managerWarehouseIds = warehouses.map((w) => w.id)
+        const filteredIds = warehouseIds.filter((id) => managerWarehouseIds.includes(id))
+        setSelectedWarehouseIds(filteredIds)
+        logger.info(`成功加载司机仓库分配，共 ${filteredIds.length} 个仓库`, {driverId, warehouseIds: filteredIds})
+      } catch (error) {
+        logger.error('加载司机仓库分配失败', error)
+      }
     },
     [warehouses]
   )
@@ -82,12 +104,14 @@ const DriverManagement: React.FC = () => {
 
   // 选择司机
   const handleSelectDriver = async (driver: Profile) => {
+    logger.userAction('选择司机', {driverId: driver.id, driverName: driver.name})
     setSelectedDriver(driver)
     await loadDriverWarehouses(driver.id)
   }
 
   // 查看司机的个人信息
   const handleViewDriverProfile = (driverId: string) => {
+    logger.userAction('查看司机个人信息', {driverId})
     Taro.navigateTo({
       url: `/pages/manager/driver-profile/index?driverId=${driverId}`
     })
@@ -95,6 +119,7 @@ const DriverManagement: React.FC = () => {
 
   // 查看司机的车辆
   const handleViewDriverVehicles = (driverId: string) => {
+    logger.userAction('查看司机车辆', {driverId})
     Taro.navigateTo({
       url: `/pages/driver/vehicle-list/index?driverId=${driverId}`
     })
@@ -107,29 +132,56 @@ const DriverManagement: React.FC = () => {
       return
     }
 
+    logger.userAction('保存司机仓库分配', {
+      driverId: selectedDriver.id,
+      driverName: selectedDriver.name,
+      selectedWarehouses: selectedWarehouseIds
+    })
+
     setLoading(true)
     showLoading({title: '保存中...'})
 
-    // 获取司机当前所有的仓库分配
-    const allWarehouseIds = await getDriverWarehouseIds(selectedDriver.id)
-    // 移除管理员负责的仓库
-    const managerWarehouseIds = warehouses.map((w) => w.id)
-    const otherWarehouseIds = allWarehouseIds.filter((id) => !managerWarehouseIds.includes(id))
-    // 合并：其他仓库 + 管理员新分配的仓库
-    const finalWarehouseIds = [...otherWarehouseIds, ...selectedWarehouseIds]
+    try {
+      // 获取司机当前所有的仓库分配
+      const allWarehouseIds = await getDriverWarehouseIds(selectedDriver.id)
+      // 移除管理员负责的仓库
+      const managerWarehouseIds = warehouses.map((w) => w.id)
+      const otherWarehouseIds = allWarehouseIds.filter((id) => !managerWarehouseIds.includes(id))
+      // 合并：其他仓库 + 管理员新分配的仓库
+      const finalWarehouseIds = [...otherWarehouseIds, ...selectedWarehouseIds]
 
-    const success = await setDriverWarehouses(selectedDriver.id, finalWarehouseIds)
-
-    Taro.hideLoading()
-    setLoading(false)
-
-    if (success) {
-      showToast({
-        title: '保存成功，司机端将实时同步',
-        icon: 'success',
-        duration: 3000
+      logger.debug('仓库分配详情', {
+        allWarehouseIds,
+        managerWarehouseIds,
+        otherWarehouseIds,
+        selectedWarehouseIds,
+        finalWarehouseIds
       })
-    } else {
+
+      const success = await setDriverWarehouses(selectedDriver.id, finalWarehouseIds)
+
+      Taro.hideLoading()
+      setLoading(false)
+
+      if (success) {
+        logger.info('保存司机仓库分配成功', {driverId: selectedDriver.id, warehouseCount: finalWarehouseIds.length})
+        showToast({
+          title: '保存成功，司机端将实时同步',
+          icon: 'success',
+          duration: 3000
+        })
+      } else {
+        logger.error('保存司机仓库分配失败', {driverId: selectedDriver.id})
+        showToast({
+          title: '保存失败，请重试',
+          icon: 'error',
+          duration: 2000
+        })
+      }
+    } catch (error) {
+      logger.error('保存司机仓库分配异常', error)
+      Taro.hideLoading()
+      setLoading(false)
       showToast({
         title: '保存失败，请重试',
         icon: 'error',

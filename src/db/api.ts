@@ -1,4 +1,5 @@
 import {supabase} from '@/client/supabase'
+import {createLogger} from '@/utils/logger'
 import type {
   ApplicationReviewInput,
   AttendanceRecord,
@@ -40,6 +41,9 @@ import type {
   WarehouseUpdate,
   WarehouseWithRule
 } from './types'
+
+// 创建数据库操作日志记录器
+const logger = createLogger('DatabaseAPI')
 
 /**
  * 获取本地日期字符串（YYYY-MM-DD格式）
@@ -3475,6 +3479,7 @@ export async function getWarehousesDataVolume(warehouseIds: string[], userId?: s
  * 获取司机的所有车辆
  */
 export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
+  logger.db('查询', 'vehicles', {driverId})
   try {
     const {data, error} = await supabase
       .from('vehicles')
@@ -3483,13 +3488,14 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
       .order('created_at', {ascending: false})
 
     if (error) {
-      console.error('获取司机车辆失败:', error)
+      logger.error('获取司机车辆失败', error)
       return []
     }
 
+    logger.info(`成功获取司机车辆列表，共 ${data?.length || 0} 辆`, {driverId, count: data?.length})
     return Array.isArray(data) ? data : []
   } catch (error) {
-    console.error('获取司机车辆异常:', error)
+    logger.error('获取司机车辆异常', error)
     return []
   }
 }
@@ -3498,17 +3504,23 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
  * 根据ID获取车辆信息
  */
 export async function getVehicleById(vehicleId: string): Promise<Vehicle | null> {
+  logger.db('查询', 'vehicles', {vehicleId})
   try {
     const {data, error} = await supabase.from('vehicles').select('*').eq('id', vehicleId).maybeSingle()
 
     if (error) {
-      console.error('获取车辆信息失败:', error)
+      logger.error('获取车辆信息失败', error)
       return null
     }
 
+    if (data) {
+      logger.info('成功获取车辆信息', {vehicleId, plate: data.plate_number})
+    } else {
+      logger.warn('车辆不存在', {vehicleId})
+    }
     return data
   } catch (error) {
-    console.error('获取车辆信息异常:', error)
+    logger.error('获取车辆信息异常', error)
     return null
   }
 }
@@ -3517,24 +3529,25 @@ export async function getVehicleById(vehicleId: string): Promise<Vehicle | null>
  * 添加车辆
  */
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
+  logger.db('插入', 'vehicles', {plate: vehicle.plate_number})
   try {
-    console.log('insertVehicle - 开始插入车辆数据')
     const {data, error} = await supabase.from('vehicles').insert(vehicle).select().maybeSingle()
 
     if (error) {
-      console.error('添加车辆失败 - Supabase错误:', {
+      logger.error('添加车辆失败', {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        code: error.code
+        code: error.code,
+        vehicle
       })
       return null
     }
 
-    console.log('insertVehicle - 插入成功:', data)
+    logger.info('成功添加车辆', {vehicleId: data?.id, plate: data?.plate_number})
     return data
   } catch (error) {
-    console.error('添加车辆异常 - 捕获异常:', error)
+    logger.error('添加车辆异常', error)
     return null
   }
 }
@@ -3543,6 +3556,7 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
  * 更新车辆信息
  */
 export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): Promise<Vehicle | null> {
+  logger.db('更新', 'vehicles', {vehicleId, updates})
   try {
     const {data, error} = await supabase
       .from('vehicles')
@@ -3552,13 +3566,14 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
       .maybeSingle()
 
     if (error) {
-      console.error('更新车辆信息失败:', error)
+      logger.error('更新车辆信息失败', error)
       return null
     }
 
+    logger.info('成功更新车辆信息', {vehicleId, plate: data?.plate_number})
     return data
   } catch (error) {
-    console.error('更新车辆信息异常:', error)
+    logger.error('更新车辆信息异常', error)
     return null
   }
 }
@@ -3567,17 +3582,19 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
  * 删除车辆
  */
 export async function deleteVehicle(vehicleId: string): Promise<boolean> {
+  logger.db('删除', 'vehicles', {vehicleId})
   try {
     const {error} = await supabase.from('vehicles').delete().eq('id', vehicleId)
 
     if (error) {
-      console.error('删除车辆失败:', error)
+      logger.error('删除车辆失败', error)
       return false
     }
 
+    logger.info('成功删除车辆', {vehicleId})
     return true
   } catch (error) {
-    console.error('删除车辆异常:', error)
+    logger.error('删除车辆异常', error)
     return false
   }
 }
@@ -3588,17 +3605,23 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
  * 获取驾驶员证件信息
  */
 export async function getDriverLicense(driverId: string): Promise<DriverLicense | null> {
+  logger.db('查询', 'driver_licenses', {driverId})
   try {
     const {data, error} = await supabase.from('driver_licenses').select('*').eq('driver_id', driverId).maybeSingle()
 
     if (error) {
-      console.error('获取驾驶员证件信息失败:', error)
+      logger.error('获取驾驶员证件信息失败', error)
       return null
     }
 
+    if (data) {
+      logger.info('成功获取驾驶员证件信息', {driverId, hasIdCard: !!data.id_card_front_url})
+    } else {
+      logger.warn('驾驶员证件信息不存在', {driverId})
+    }
     return data
   } catch (error) {
-    console.error('获取驾驶员证件信息异常:', error)
+    logger.error('获取驾驶员证件信息异常', error)
     return null
   }
 }
@@ -3607,6 +3630,7 @@ export async function getDriverLicense(driverId: string): Promise<DriverLicense 
  * 添加或更新驾驶员证件信息
  */
 export async function upsertDriverLicense(license: DriverLicenseInput): Promise<DriverLicense | null> {
+  logger.db('插入/更新', 'driver_licenses', {driverId: license.driver_id})
   try {
     const {data, error} = await supabase
       .from('driver_licenses')
@@ -3615,13 +3639,14 @@ export async function upsertDriverLicense(license: DriverLicenseInput): Promise<
       .maybeSingle()
 
     if (error) {
-      console.error('保存驾驶员证件信息失败:', error)
+      logger.error('保存驾驶员证件信息失败', error)
       return null
     }
 
+    logger.info('成功保存驾驶员证件信息', {driverId: license.driver_id})
     return data
   } catch (error) {
-    console.error('保存驾驶员证件信息异常:', error)
+    logger.error('保存驾驶员证件信息异常', error)
     return null
   }
 }
@@ -3633,6 +3658,7 @@ export async function updateDriverLicense(
   driverId: string,
   updates: DriverLicenseUpdate
 ): Promise<DriverLicense | null> {
+  logger.db('更新', 'driver_licenses', {driverId, updates})
   try {
     const {data, error} = await supabase
       .from('driver_licenses')
@@ -3642,13 +3668,14 @@ export async function updateDriverLicense(
       .maybeSingle()
 
     if (error) {
-      console.error('更新驾驶员证件信息失败:', error)
+      logger.error('更新驾驶员证件信息失败', error)
       return null
     }
 
+    logger.info('成功更新驾驶员证件信息', {driverId})
     return data
   } catch (error) {
-    console.error('更新驾驶员证件信息异常:', error)
+    logger.error('更新驾驶员证件信息异常', error)
     return null
   }
 }

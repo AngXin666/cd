@@ -11,6 +11,10 @@ import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getDriverLicense, getProfileById} from '@/db/api'
 import type {DriverLicense, Profile} from '@/db/types'
+import {createLogger} from '@/utils/logger'
+
+// 创建页面日志记录器
+const logger = createLogger('DriverProfileView')
 
 const DriverProfileView: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -24,6 +28,7 @@ const DriverProfileView: React.FC = () => {
   // 加载司机资料和证件信息
   const loadProfile = useCallback(async () => {
     if (!driverId) {
+      logger.warn('缺少司机ID参数')
       Taro.showToast({
         title: '缺少司机ID',
         icon: 'none'
@@ -31,19 +36,27 @@ const DriverProfileView: React.FC = () => {
       return
     }
 
+    logger.pageView('司机个人信息页面', {driverId, managerId: user?.id})
     setLoading(true)
     try {
       // 加载司机资料
+      logger.info('开始加载司机资料', {driverId})
       const profileData = await getProfileById(driverId)
-      console.log('👤 司机资料数据:', profileData)
+      logger.info('司机资料加载完成', {driverId, hasData: !!profileData})
       setProfile(profileData)
 
       // 加载驾驶证信息
+      logger.info('开始加载驾驶证信息', {driverId})
       const licenseData = await getDriverLicense(driverId)
-      console.log('📋 驾驶证信息:', licenseData)
+      logger.info('驾驶证信息加载完成', {
+        driverId,
+        hasData: !!licenseData,
+        hasIdCard: !!licenseData?.id_card_photo_front,
+        hasDriverLicense: !!licenseData?.driving_license_photo
+      })
       setDriverLicense(licenseData)
     } catch (error) {
-      console.error('❌ 加载司机资料失败:', error)
+      logger.error('加载司机资料失败', error)
       Taro.showToast({
         title: '加载失败',
         icon: 'none'
@@ -51,7 +64,7 @@ const DriverProfileView: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [driverId])
+  }, [driverId, user?.id])
 
   useDidShow(() => {
     loadProfile()
@@ -59,10 +72,23 @@ const DriverProfileView: React.FC = () => {
 
   // 获取图片的公开URL
   const getImageUrl = (path: string | null | undefined): string => {
-    if (!path) return ''
-    const bucketName = process.env.TARO_APP_APP_ID || ''
-    const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
-    return data.publicUrl
+    if (!path) {
+      logger.debug('图片路径为空')
+      return ''
+    }
+
+    // 使用vehicles存储桶（用于存储证件和车辆照片）
+    const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
+    logger.debug('获取图片URL', {path, bucketName})
+
+    try {
+      const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
+      logger.debug('图片URL生成成功', {path, url: data.publicUrl})
+      return data.publicUrl
+    } catch (error) {
+      logger.error('获取图片URL失败', {path, bucketName, error})
+      return ''
+    }
   }
 
   // 计算年龄
