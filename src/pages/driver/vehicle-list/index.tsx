@@ -55,11 +55,13 @@ const VehicleList: React.FC = () => {
       logger.info('管理员查看模式', {targetDriverId: driverId})
       // 加载司机信息
       loadDriverInfo(driverId)
+      // 注意：不在这里调用loadVehicles，因为它会在useDidShow中自动调用
     } else {
       logger.info('司机自己查看模式', {userId: user?.id})
       // 清空targetDriverId，确保使用当前用户ID
       setTargetDriverId('')
       setIsManagerView(false)
+      // 注意：不在这里调用loadVehicles，因为它会在useDidShow中自动调用
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -120,8 +122,17 @@ const VehicleList: React.FC = () => {
 
   // 页面显示时加载数据
   useDidShow(() => {
+    logger.info('useDidShow被调用', {targetDriverId, userId: user?.id, isManagerView})
     loadVehicles()
   })
+
+  // 当targetDriverId变化时，重新加载车辆列表
+  useEffect(() => {
+    if (targetDriverId) {
+      logger.info('targetDriverId变化，重新加载车辆', {targetDriverId})
+      loadVehicles()
+    }
+  }, [targetDriverId, loadVehicles])
 
   // 添加车辆
   const handleAddVehicle = () => {
