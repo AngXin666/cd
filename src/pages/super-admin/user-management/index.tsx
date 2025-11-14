@@ -51,6 +51,8 @@ const UserManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [warehouseAssignExpanded, setWarehouseAssignExpanded] = useState<string | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
+  // 存储每个司机已分配的仓库信息
+  const [driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, Warehouse[]>>(new Map())
 
   // 标签页选项
   const tabs = [
@@ -127,6 +129,9 @@ const UserManagement: React.FC = () => {
 
       // 为所有司机加载详细信息（用于显示入职时间、在职天数等）
       const driverDetails = new Map<string, DriverDetailInfo>()
+      const driverWarehouses = new Map<string, Warehouse[]>()
+      const allWarehouses = await getAllWarehouses()
+
       await Promise.all(
         usersWithRealName
           .filter((u) => u.role === 'driver')
@@ -135,10 +140,17 @@ const UserManagement: React.FC = () => {
             if (detail) {
               driverDetails.set(u.id, detail)
             }
+
+            // 加载司机已分配的仓库
+            const assignments = await getWarehouseAssignmentsByDriver(u.id)
+            const assignedWarehouses = allWarehouses.filter((w) => assignments.some((a) => a.warehouse_id === w.id))
+            driverWarehouses.set(u.id, assignedWarehouses)
           })
       )
       setUserDetails(driverDetails)
+      setDriverWarehouseMap(driverWarehouses)
       console.log('✅ 已加载司机详细信息，数量:', driverDetails.size)
+      console.log('✅ 已加载司机仓库分配信息')
     } catch (error) {
       console.error('❌ 加载用户列表失败:', error)
       showToast({title: '加载失败', icon: 'error'})
@@ -324,6 +336,14 @@ const UserManagement: React.FC = () => {
       showToast({title: '保存成功', icon: 'success'})
       setWarehouseAssignExpanded(null)
       setSelectedWarehouseIds([])
+
+      // 更新司机仓库映射
+      const assignedWarehouses = warehouses.filter((w) => selectedWarehouseIds.includes(w.id))
+      setDriverWarehouseMap((prev) => {
+        const newMap = new Map(prev)
+        newMap.set(userId, assignedWarehouses)
+        return newMap
+      })
     },
     [selectedWarehouseIds, users, warehouses]
   )
@@ -641,6 +661,21 @@ const UserManagement: React.FC = () => {
                               </Text>
                             </View>
                           )}
+                          {/* 已分配仓库 */}
+                          {(() => {
+                            const assignedWarehouses = driverWarehouseMap.get(u.id) || []
+                            if (assignedWarehouses.length > 0) {
+                              return (
+                                <View className="flex items-center">
+                                  <View className="i-mdi-warehouse text-gray-400 text-base mr-2" />
+                                  <Text className="text-sm text-gray-600">
+                                    仓库：{assignedWarehouses.map((w) => w.name).join('、')}
+                                  </Text>
+                                </View>
+                              )
+                            }
+                            return null
+                          })()}
                         </>
                       )}
                       {/* 管理员显示：电话和登录账号 */}
@@ -791,28 +826,30 @@ const UserManagement: React.FC = () => {
                           </View>
                         ) : (
                           <View className="space-y-2 mb-3">
-                            {warehouses.map((warehouse) => (
-                              <View
-                                key={warehouse.id}
-                                onClick={() => handleToggleWarehouse(warehouse.id)}
-                                className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                                  selectedWarehouseIds.includes(warehouse.id)
-                                    ? 'bg-blue-50 border-blue-500'
-                                    : 'bg-white border-gray-200'
-                                }`}>
-                                <View className="flex items-center">
+                            {warehouses.map((warehouse) => {
+                              const isSelected = selectedWarehouseIds.includes(warehouse.id)
+                              return (
+                                <View
+                                  key={warehouse.id}
+                                  onClick={() => handleToggleWarehouse(warehouse.id)}
+                                  className={`flex items-center p-3 rounded-lg border-2 transition-all ${
+                                    isSelected ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-300'
+                                  }`}>
+                                  {/* Checkbox 在左侧 */}
                                   <View
-                                    className={`i-mdi-${selectedWarehouseIds.includes(warehouse.id) ? 'checkbox-marked' : 'checkbox-blank-outline'} text-xl mr-2 ${
-                                      selectedWarehouseIds.includes(warehouse.id) ? 'text-blue-600' : 'text-gray-400'
-                                    }`}
-                                  />
+                                    className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mr-3 transition-all ${
+                                      isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-400'
+                                    }`}>
+                                    {isSelected && <View className="i-mdi-check text-white text-base" />}
+                                  </View>
+                                  {/* 仓库名称 */}
                                   <Text
-                                    className={`text-sm ${selectedWarehouseIds.includes(warehouse.id) ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
+                                    className={`text-sm flex-1 ${isSelected ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
                                     {warehouse.name}
                                   </Text>
                                 </View>
-                              </View>
-                            ))}
+                              )
+                            })}
                           </View>
                         )}
                         <View className="flex gap-2">
