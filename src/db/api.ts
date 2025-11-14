@@ -2706,8 +2706,15 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
     return false
   }
 
-  // 2. 如果没有新的仓库，直接返回成功
+  // 2. 如果没有新的仓库，清除缓存并返回成功
   if (warehouseIds.length === 0) {
+    // 清除该管理员的仓库缓存
+    try {
+      const {clearManagerWarehousesCache} = await import('@/utils/cache')
+      clearManagerWarehousesCache(managerId)
+    } catch (err) {
+      console.error('清除缓存失败:', err)
+    }
     return true
   }
 
@@ -2722,6 +2729,15 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   if (insertError) {
     console.error('插入新的仓库关联失败:', insertError)
     return false
+  }
+
+  // 4. 成功后清除该管理员的仓库缓存，确保下次登录时获取最新数据
+  try {
+    const {clearManagerWarehousesCache} = await import('@/utils/cache')
+    clearManagerWarehousesCache(managerId)
+    console.log(`[API] 已清除管理员 ${managerId} 的仓库缓存`)
+  } catch (err) {
+    console.error('清除缓存失败:', err)
   }
 
   return true

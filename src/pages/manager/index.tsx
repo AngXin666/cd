@@ -106,7 +106,7 @@ const ManagerHome: React.FC = () => {
   useDidShow(() => {
     if (user) {
       loadProfile()
-      // 刷新仓库列表（使用缓存）
+      // 强制刷新仓库列表（不使用缓存，确保获取最新数据）
       refreshWarehouses()
       refreshSorting() // 刷新仓库排序
       // 刷新当前仓库的仪表板数据（使用缓存）

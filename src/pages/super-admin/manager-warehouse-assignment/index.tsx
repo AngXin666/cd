@@ -76,9 +76,19 @@ const ManagerWarehouseAssignment: React.FC = () => {
 
     if (success) {
       Taro.showToast({
-        title: '保存成功',
-        icon: 'success'
+        title: '分配成功，数据已同步',
+        icon: 'success',
+        duration: 2000
       })
+      // 提示管理员重新登录以查看最新数据
+      setTimeout(() => {
+        Taro.showModal({
+          title: '提示',
+          content: `已为 ${selectedManager.name || selectedManager.phone} 分配仓库。管理员下次登录时将自动同步最新数据。`,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      }, 2000)
     } else {
       Taro.showToast({
         title: '保存失败',
