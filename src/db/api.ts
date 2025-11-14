@@ -3990,11 +3990,7 @@ export async function getDriverDetailInfo(driverId: string) {
 
     // 从profile中读取司机类型
     const driverType =
-      profile.driver_type === 'driver_with_vehicle'
-        ? '带车司机'
-        : profile.driver_type === 'driver'
-          ? '纯司机'
-          : '未设置'
+      profile.driver_type === 'with_vehicle' ? '带车司机' : profile.driver_type === 'pure' ? '纯司机' : '未设置'
 
     return {
       profile,

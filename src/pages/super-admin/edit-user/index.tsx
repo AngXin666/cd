@@ -57,7 +57,7 @@ const EditUser: React.FC = () => {
 
         if (data.role === 'driver') {
           // 司机角色：根据 driver_type 来区分
-          if (data.driver_type === 'driver_with_vehicle') {
+          if (data.driver_type === 'with_vehicle') {
             // 带车司机（索引1）
             roleIndex = 1
             roleLabel = '带车司机'
@@ -149,21 +149,21 @@ const EditUser: React.FC = () => {
       console.log('选中的角色值:', selectedRole)
 
       // 根据选择的角色类型决定 driver_type 和 vehicle_plate 的值
-      let finalDriverType: 'driver' | 'driver_with_vehicle' | null = null
+      let finalDriverType: 'pure' | 'with_vehicle' | null = null
       let finalVehiclePlate: string | null = null
 
       if (selectedLabel === '纯司机') {
-        // 纯司机：driver_type = 'driver'，vehicle_plate 保留用户输入
-        finalDriverType = 'driver'
+        // 纯司机：driver_type = 'pure'，vehicle_plate 保留用户输入
+        finalDriverType = 'pure'
         const trimmedPlate = vehiclePlate.trim()
         finalVehiclePlate = trimmedPlate || null
-        console.log('纯司机 - driver_type: driver, 车牌号:', finalVehiclePlate || '(无)')
+        console.log('纯司机 - driver_type: pure, 车牌号:', finalVehiclePlate || '(无)')
       } else if (selectedLabel === '带车司机') {
-        // 带车司机：driver_type = 'driver_with_vehicle'，vehicle_plate 保留用户输入
-        finalDriverType = 'driver_with_vehicle'
+        // 带车司机：driver_type = 'with_vehicle'，vehicle_plate 保留用户输入
+        finalDriverType = 'with_vehicle'
         const trimmedPlate = vehiclePlate.trim()
         finalVehiclePlate = trimmedPlate || null
-        console.log('带车司机 - driver_type: driver_with_vehicle, 车牌号:', finalVehiclePlate || '(无)')
+        console.log('带车司机 - driver_type: with_vehicle, 车牌号:', finalVehiclePlate || '(无)')
       } else if (selectedLabel === '管理员') {
         // 管理员：driver_type = null，vehicle_plate = null
         finalDriverType = null

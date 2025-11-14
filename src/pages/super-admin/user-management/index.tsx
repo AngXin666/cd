@@ -230,9 +230,9 @@ const UserManagement: React.FC = () => {
       }
 
       const currentType = targetUser.driver_type
-      const newType = currentType === 'driver_with_vehicle' ? 'driver' : 'driver_with_vehicle'
-      const currentTypeText = currentType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
-      const newTypeText = newType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
+      const newType = currentType === 'with_vehicle' ? 'driver' : 'with_vehicle'
+      const currentTypeText = currentType === 'with_vehicle' ? '带车司机' : '纯司机'
+      const newTypeText = newType === 'with_vehicle' ? '带车司机' : '纯司机'
 
       // 二次确认
       const result = await Taro.showModal({
@@ -506,15 +506,13 @@ const UserManagement: React.FC = () => {
   // 获取司机类型
   const getDriverType = (targetUser: UserWithRealName) => {
     if (targetUser.role !== 'driver') return null
-    return targetUser.driver_type === 'driver_with_vehicle' ? '带车司机' : '纯司机'
+    return targetUser.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
   }
 
   // 获取司机类型颜色
   const getDriverTypeColor = (targetUser: UserWithRealName) => {
     if (targetUser.role !== 'driver') return ''
-    return targetUser.driver_type === 'driver_with_vehicle'
-      ? 'bg-purple-100 text-purple-700'
-      : 'bg-orange-100 text-orange-700'
+    return targetUser.driver_type === 'with_vehicle' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
   }
 
   return (
@@ -749,7 +747,7 @@ const UserManagement: React.FC = () => {
                         className="flex items-center justify-center bg-purple-50 border border-purple-200 rounded-lg py-2.5 active:bg-purple-100 transition-all">
                         <View className="i-mdi-swap-horizontal text-purple-600 text-lg mr-1.5" />
                         <Text className="text-purple-700 text-sm font-medium">
-                          {u.driver_type === 'driver_with_vehicle' ? '切换成纯司机' : '切换成带车司机'}
+                          {u.driver_type === 'with_vehicle' ? '切换成纯司机' : '切换成带车司机'}
                         </Text>
                       </View>
                     )}

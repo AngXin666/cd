@@ -225,7 +225,7 @@ const PieceWorkEntry: React.FC = () => {
           if (priceConfig) {
             // 根据司机类型选择对应的价格
             const price =
-              driverProfile.driver_type === 'driver_with_vehicle'
+              driverProfile.driver_type === 'with_vehicle'
                 ? priceConfig.driverWithVehiclePrice
                 : priceConfig.driverPrice
 
@@ -267,9 +267,7 @@ const PieceWorkEntry: React.FC = () => {
       if (priceConfig) {
         // 根据司机类型选择对应的价格
         const price =
-          driverProfile.driver_type === 'driver_with_vehicle'
-            ? priceConfig.driverWithVehiclePrice
-            : priceConfig.driverPrice
+          driverProfile.driver_type === 'with_vehicle' ? priceConfig.driverWithVehiclePrice : priceConfig.driverPrice
 
         unitPrice = price.toString()
         unitPriceLocked = true
@@ -671,7 +669,7 @@ const PieceWorkEntry: React.FC = () => {
               {driverProfile && (
                 <View className="bg-white bg-opacity-20 rounded-full px-3 py-1">
                   <Text className="text-white text-xs">
-                    {driverProfile.driver_type === 'driver_with_vehicle' ? '带车司机' : '纯司机'}
+                    {driverProfile.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'}
                   </Text>
                 </View>
               )}

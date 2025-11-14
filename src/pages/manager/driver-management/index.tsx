@@ -232,9 +232,9 @@ const DriverManagement: React.FC = () => {
   const handleToggleDriverType = useCallback(
     async (driver: DriverWithRealName) => {
       const currentType = driver.driver_type
-      const newType = currentType === 'driver_with_vehicle' ? 'driver' : 'driver_with_vehicle'
-      const currentTypeText = currentType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
-      const newTypeText = newType === 'driver_with_vehicle' ? '带车司机' : '纯司机'
+      const newType = currentType === 'with_vehicle' ? 'pure' : 'with_vehicle'
+      const currentTypeText = currentType === 'with_vehicle' ? '带车司机' : '纯司机'
+      const newTypeText = newType === 'with_vehicle' ? '带车司机' : '纯司机'
 
       // 二次确认
       const result = await Taro.showModal({
@@ -631,7 +631,7 @@ const DriverManagement: React.FC = () => {
                               className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg py-2.5 active:bg-orange-100 transition-all">
                               <View className="i-mdi-swap-horizontal text-orange-600 text-base mr-1.5" />
                               <Text className="text-orange-700 text-xs font-medium">
-                                {driver.driver_type === 'driver_with_vehicle' ? '切换为纯司机' : '切换为带车'}
+                                {driver.driver_type === 'with_vehicle' ? '切换为纯司机' : '切换为带车'}
                               </Text>
                             </View>
                           </View>

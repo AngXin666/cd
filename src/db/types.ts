@@ -1,7 +1,7 @@
 export type UserRole = 'driver' | 'manager' | 'super_admin'
 
-// 司机类型
-export type DriverType = 'driver' | 'driver_with_vehicle'
+// 司机类型（与数据库枚举值匹配）
+export type DriverType = 'pure' | 'with_vehicle'
 
 // 扩展角色类型，用于UI显示（已废弃，使用 driver_type 字段代替）
 export type ExtendedUserRole = 'pure_driver' | 'driver_with_vehicle' | 'manager' | 'super_admin'
@@ -12,7 +12,7 @@ export interface Profile {
   email: string | null
   name: string | null
   role: UserRole
-  driver_type: DriverType | null // 司机类型：driver=纯司机，driver_with_vehicle=带车司机
+  driver_type: DriverType | null // 司机类型：pure=纯司机，with_vehicle=带车司机
   avatar_url: string | null
   nickname: string | null
   address_province: string | null
