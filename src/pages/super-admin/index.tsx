@@ -146,7 +146,7 @@ const SuperAdminHome: React.FC = () => {
   }, [])
 
   const handleManageUsers = () => {
-    navigateTo({url: '/pages/super-admin/staff-management/index'})
+    navigateTo({url: '/pages/super-admin/user-management/index'})
   }
 
   const handleManageWarehouses = () => {
