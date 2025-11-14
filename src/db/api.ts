@@ -2901,8 +2901,7 @@ export async function createDriver(phone: string, name: string): Promise<Profile
     const insertData = {
       phone,
       name,
-      role: 'driver',
-      login_account: `${phone}@fleet.com`,
+      role: 'driver' as UserRole,
       email: `${phone}@fleet.com`
     }
     console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
@@ -2927,7 +2926,6 @@ export async function createDriver(phone: string, name: string): Promise<Profile
     console.log('  - 手机号:', data.phone)
     console.log('  - 姓名:', data.name)
     console.log('  - 角色:', data.role)
-    console.log('  - 登录账号:', data.login_account)
     console.log('  - 邮箱:', data.email)
     console.log('  - 创建时间:', data.created_at)
     console.log('  - 完整数据:', JSON.stringify(data, null, 2))
