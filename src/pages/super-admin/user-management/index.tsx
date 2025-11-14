@@ -10,6 +10,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {
+  createUser,
   deleteWarehouseAssignmentsByDriver,
   getAllUsers,
   getAllWarehouses,
@@ -53,6 +54,14 @@ const UserManagement: React.FC = () => {
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   // 存储每个司机已分配的仓库信息
   const [driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, Warehouse[]>>(new Map())
+
+  // 添加用户相关状态
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [newUserPhone, setNewUserPhone] = useState('')
+  const [newUserName, setNewUserName] = useState('')
+  const [newUserRole, setNewUserRole] = useState<'driver' | 'manager'>('driver')
+  const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure')
+  const [addingUser, setAddingUser] = useState(false)
 
   // 标签页选项
   const tabs = [
@@ -220,6 +229,87 @@ const UserManagement: React.FC = () => {
       url: `/pages/driver/vehicle-list/index?driverId=${userId}`
     })
   }, [])
+
+  // 切换添加用户表单显示
+  const toggleAddUser = () => {
+    setShowAddUser(!showAddUser)
+    if (!showAddUser) {
+      // 重置表单
+      setNewUserPhone('')
+      setNewUserName('')
+      setNewUserRole('driver')
+      setNewDriverType('pure')
+    }
+  }
+
+  // 处理添加用户
+  const handleAddUser = async () => {
+    // 验证输入
+    if (!newUserPhone.trim()) {
+      showToast({title: '请输入手机号', icon: 'none'})
+      return
+    }
+    if (!newUserName.trim()) {
+      showToast({title: '请输入姓名', icon: 'none'})
+      return
+    }
+
+    // 验证手机号格式
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(newUserPhone.trim())) {
+      showToast({title: '请输入正确的手机号', icon: 'none'})
+      return
+    }
+
+    setAddingUser(true)
+    showLoading({title: '添加中...'})
+
+    // 调用创建用户函数
+    const newUser = await createUser(
+      newUserPhone.trim(),
+      newUserName.trim(),
+      newUserRole,
+      newUserRole === 'driver' ? newDriverType : undefined
+    )
+
+    Taro.hideLoading()
+    setAddingUser(false)
+
+    if (newUser) {
+      // 显示详细的创建成功信息
+      const loginAccount = `${newUserPhone.trim()}@fleet.com`
+      const roleText = newUserRole === 'driver' ? '司机' : '管理员'
+      const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
+      const defaultPassword = '123456'
+
+      let content = `姓名：${newUserName.trim()}\n手机号码：${newUserPhone.trim()}\n用户角色：${roleText}\n`
+
+      if (newUserRole === 'driver') {
+        content += `司机类型：${driverTypeText}\n`
+      }
+
+      content += `登录账号：${loginAccount}\n默认密码：${defaultPassword}`
+
+      Taro.showModal({
+        title: '用户创建成功',
+        content,
+        showCancel: false,
+        confirmText: '知道了',
+        success: () => {
+          // 重置表单
+          setNewUserPhone('')
+          setNewUserName('')
+          setNewUserRole('driver')
+          setNewDriverType('pure')
+          setShowAddUser(false)
+          // 刷新用户列表
+          loadUsers()
+        }
+      })
+    } else {
+      showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
+    }
+  }
 
   // 切换用户类型（仅司机）
   const handleToggleUserType = useCallback(
@@ -558,6 +648,156 @@ const UserManagement: React.FC = () => {
               />
             </View>
           </View>
+
+          {/* 添加用户按钮 */}
+          <View className="mb-4">
+            <View
+              onClick={toggleAddUser}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg py-3 px-4 flex items-center justify-center shadow-md active:scale-98 transition-all">
+              <View className={`${showAddUser ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
+              <Text className="text-white text-xs font-medium">
+                {showAddUser ? '取消' : `添加${activeTab === 'driver' ? '司机' : '管理员'}`}
+              </Text>
+            </View>
+          </View>
+
+          {/* 添加用户表单 */}
+          {showAddUser && (
+            <View className="bg-blue-50 rounded-lg p-4 mb-3 border-2 border-blue-200">
+              {/* 手机号 */}
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">手机号</Text>
+                <Input
+                  type="number"
+                  maxlength={11}
+                  placeholder="请输入11位手机号"
+                  value={newUserPhone}
+                  onInput={(e) => setNewUserPhone(e.detail.value)}
+                  className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
+                />
+              </View>
+
+              {/* 姓名 */}
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">姓名</Text>
+                <Input
+                  type="text"
+                  placeholder={`请输入${activeTab === 'driver' ? '司机' : '管理员'}姓名`}
+                  value={newUserName}
+                  onInput={(e) => setNewUserName(e.detail.value)}
+                  className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
+                />
+              </View>
+
+              {/* 用户角色选择 */}
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">用户角色</Text>
+                <View className="flex gap-2">
+                  <View
+                    onClick={() => setNewUserRole('driver')}
+                    className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                      newUserRole === 'driver'
+                        ? 'bg-blue-600 border-blue-600'
+                        : 'bg-white border-gray-300 active:bg-gray-50'
+                    }`}>
+                    <View
+                      className={`i-mdi-account-hard-hat text-base mr-1.5 ${
+                        newUserRole === 'driver' ? 'text-white' : 'text-gray-600'
+                      }`}
+                    />
+                    <Text
+                      className={`text-sm font-medium ${newUserRole === 'driver' ? 'text-white' : 'text-gray-700'}`}>
+                      司机
+                    </Text>
+                  </View>
+                  <View
+                    onClick={() => setNewUserRole('manager')}
+                    className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                      newUserRole === 'manager'
+                        ? 'bg-blue-600 border-blue-600'
+                        : 'bg-white border-gray-300 active:bg-gray-50'
+                    }`}>
+                    <View
+                      className={`i-mdi-account-tie text-base mr-1.5 ${
+                        newUserRole === 'manager' ? 'text-white' : 'text-gray-600'
+                      }`}
+                    />
+                    <Text
+                      className={`text-sm font-medium ${newUserRole === 'manager' ? 'text-white' : 'text-gray-700'}`}>
+                      管理员
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 司机类型选择（仅当选择司机角色时显示） */}
+              {newUserRole === 'driver' && (
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">司机类型</Text>
+                  <View className="flex gap-2">
+                    <View
+                      onClick={() => setNewDriverType('pure')}
+                      className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                        newDriverType === 'pure'
+                          ? 'bg-blue-600 border-blue-600'
+                          : 'bg-white border-gray-300 active:bg-gray-50'
+                      }`}>
+                      <View
+                        className={`i-mdi-account text-base mr-1.5 ${
+                          newDriverType === 'pure' ? 'text-white' : 'text-gray-600'
+                        }`}
+                      />
+                      <Text
+                        className={`text-sm font-medium ${newDriverType === 'pure' ? 'text-white' : 'text-gray-700'}`}>
+                        纯司机
+                      </Text>
+                    </View>
+                    <View
+                      onClick={() => setNewDriverType('with_vehicle')}
+                      className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                        newDriverType === 'with_vehicle'
+                          ? 'bg-blue-600 border-blue-600'
+                          : 'bg-white border-gray-300 active:bg-gray-50'
+                      }`}>
+                      <View
+                        className={`i-mdi-truck text-base mr-1.5 ${
+                          newDriverType === 'with_vehicle' ? 'text-white' : 'text-gray-600'
+                        }`}
+                      />
+                      <Text
+                        className={`text-sm font-medium ${
+                          newDriverType === 'with_vehicle' ? 'text-white' : 'text-gray-700'
+                        }`}>
+                        带车司机
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* 密码提示 */}
+              <View className="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <View className="flex items-start">
+                  <View className="i-mdi-information text-yellow-600 text-base mr-2 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-yellow-800 text-xs leading-relaxed">
+                      默认密码为 <Text className="font-bold">123456</Text>，用户首次登录后请及时修改密码
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 确认添加按钮 */}
+              <View
+                onClick={addingUser ? undefined : handleAddUser}
+                className={`flex items-center justify-center bg-blue-600 rounded-lg py-2 active:scale-98 transition-all ${
+                  addingUser ? 'opacity-50' : ''
+                }`}>
+                <View className="i-mdi-check text-white text-base mr-1" />
+                <Text className="text-white text-sm font-medium">确认添加</Text>
+              </View>
+            </View>
+          )}
 
           {/* 用户列表 */}
           {loading ? (
