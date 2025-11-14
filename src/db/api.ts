@@ -2859,7 +2859,11 @@ export async function getCurrentUserPermissions(): Promise<ManagerPermission | n
  * @param name 姓名
  * @returns 创建的司机资料，如果失败返回null
  */
-export async function createDriver(phone: string, name: string): Promise<Profile | null> {
+export async function createDriver(
+  phone: string,
+  name: string,
+  driverType: 'pure' | 'with_vehicle' = 'pure'
+): Promise<Profile | null> {
   const timestamp = new Date().toISOString()
   console.log(`\n${'='.repeat(80)}`)
   console.log('🚀 [createDriver] 函数调用开始')
@@ -2867,6 +2871,7 @@ export async function createDriver(phone: string, name: string): Promise<Profile
   console.log('📱 输入参数:')
   console.log('  - 手机号:', phone)
   console.log('  - 姓名:', name)
+  console.log('  - 司机类型:', driverType)
   console.log(`${'='.repeat(80)}\n`)
 
   try {
@@ -2902,7 +2907,9 @@ export async function createDriver(phone: string, name: string): Promise<Profile
       phone,
       name,
       role: 'driver' as UserRole,
-      email: `${phone}@fleet.com`
+      email: `${phone}@fleet.com`,
+      driver_type: driverType,
+      join_date: new Date().toISOString().split('T')[0] // 设置入职日期为今天
     }
     console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
 
@@ -2927,6 +2934,8 @@ export async function createDriver(phone: string, name: string): Promise<Profile
     console.log('  - 姓名:', data.name)
     console.log('  - 角色:', data.role)
     console.log('  - 邮箱:', data.email)
+    console.log('  - 司机类型:', data.driver_type)
+    console.log('  - 入职日期:', data.join_date)
     console.log('  - 创建时间:', data.created_at)
     console.log('  - 完整数据:', JSON.stringify(data, null, 2))
     console.log('')

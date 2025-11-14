@@ -230,7 +230,7 @@ const UserManagement: React.FC = () => {
       }
 
       const currentType = targetUser.driver_type
-      const newType = currentType === 'with_vehicle' ? 'driver' : 'with_vehicle'
+      const newType = currentType === 'with_vehicle' ? 'pure' : 'with_vehicle'
       const currentTypeText = currentType === 'with_vehicle' ? '带车司机' : '纯司机'
       const newTypeText = newType === 'with_vehicle' ? '带车司机' : '纯司机'
 

@@ -54,6 +54,7 @@ const DriverManagement: React.FC = () => {
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [newDriverPhone, setNewDriverPhone] = useState('')
   const [newDriverName, setNewDriverName] = useState('')
+  const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure') // 默认为纯司机
   const [addingDriver, setAddingDriver] = useState(false)
 
   // 过滤后的司机列表（支持搜索实名）
@@ -172,6 +173,7 @@ const DriverManagement: React.FC = () => {
       // 重置表单
       setNewDriverPhone('')
       setNewDriverName('')
+      setNewDriverType('pure') // 重置为默认值
     }
   }
 
@@ -197,7 +199,8 @@ const DriverManagement: React.FC = () => {
     setAddingDriver(true)
     showLoading({title: '添加中...'})
 
-    const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim())
+    // 传递司机类型参数
+    const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim(), newDriverType)
 
     Taro.hideLoading()
     setAddingDriver(false)
@@ -205,19 +208,20 @@ const DriverManagement: React.FC = () => {
     if (newDriver) {
       // 显示详细的创建成功信息
       const loginAccount = `${newDriverPhone.trim()}@fleet.com`
-      const driverType = '普通司机'
+      const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
       const defaultPassword = '123456'
       const plateNumber = newDriver.vehicle_plate || '未设置'
 
       Taro.showModal({
         title: '司机创建成功',
-        content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverType}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
+        content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverTypeText}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
         showCancel: false,
         confirmText: '知道了',
         success: () => {
           // 重置表单
           setNewDriverPhone('')
           setNewDriverName('')
+          setNewDriverType('pure')
           setShowAddDriver(false)
           // 刷新司机列表
           loadDrivers()
@@ -419,6 +423,59 @@ const DriverManagement: React.FC = () => {
                         onInput={(e) => setNewDriverName(e.detail.value)}
                         className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
                       />
+                    </View>
+                    <View className="mb-3">
+                      <Text className="text-gray-700 text-sm block mb-2">司机类型</Text>
+                      <View className="flex gap-2">
+                        <View
+                          onClick={() => setNewDriverType('pure')}
+                          className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                            newDriverType === 'pure'
+                              ? 'bg-blue-600 border-blue-600'
+                              : 'bg-white border-gray-300 active:bg-gray-50'
+                          }`}>
+                          <View
+                            className={`i-mdi-account text-base mr-1.5 ${
+                              newDriverType === 'pure' ? 'text-white' : 'text-gray-600'
+                            }`}
+                          />
+                          <Text
+                            className={`text-sm font-medium ${
+                              newDriverType === 'pure' ? 'text-white' : 'text-gray-700'
+                            }`}>
+                            纯司机
+                          </Text>
+                        </View>
+                        <View
+                          onClick={() => setNewDriverType('with_vehicle')}
+                          className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                            newDriverType === 'with_vehicle'
+                              ? 'bg-blue-600 border-blue-600'
+                              : 'bg-white border-gray-300 active:bg-gray-50'
+                          }`}>
+                          <View
+                            className={`i-mdi-truck text-base mr-1.5 ${
+                              newDriverType === 'with_vehicle' ? 'text-white' : 'text-gray-600'
+                            }`}
+                          />
+                          <Text
+                            className={`text-sm font-medium ${
+                              newDriverType === 'with_vehicle' ? 'text-white' : 'text-gray-700'
+                            }`}>
+                            带车司机
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View className="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <View className="flex items-start">
+                        <View className="i-mdi-information text-yellow-600 text-base mr-2 mt-0.5" />
+                        <View className="flex-1">
+                          <Text className="text-yellow-800 text-xs leading-relaxed">
+                            默认密码为 <Text className="font-bold">123456</Text>，司机首次登录后请及时修改密码
+                          </Text>
+                        </View>
+                      </View>
                     </View>
                     <View
                       onClick={addingDriver ? undefined : handleAddDriver}

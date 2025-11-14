@@ -42,14 +42,14 @@ const StaffManagement: React.FC = () => {
     can_manage_categories: false
   })
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'driver' | 'driver_with_vehicle'>('all')
+  const [driverTypeFilter, setDriverTypeFilter] = useState<'all' | 'pure' | 'with_vehicle'>('all')
   const [loading, setLoading] = useState(false)
 
   // 司机类型选择器选项
   const driverTypeOptions = [
     {label: '全部司机', value: 'all'},
-    {label: '纯司机', value: 'driver'},
-    {label: '带车司机', value: 'driver_with_vehicle'}
+    {label: '纯司机', value: 'pure'},
+    {label: '带车司机', value: 'with_vehicle'}
   ]
 
   // 加载所有仓库列表（超级管理员可以看到所有仓库）
@@ -121,7 +121,7 @@ const StaffManagement: React.FC = () => {
 
   // 过滤司机
   const filterDrivers = useCallback(
-    (driverList: Profile[], keyword: string, typeFilter: 'all' | 'driver' | 'driver_with_vehicle') => {
+    (driverList: Profile[], keyword: string, typeFilter: 'all' | 'pure' | 'with_vehicle') => {
       let filtered = driverList
 
       // 司机类型过滤
@@ -180,7 +180,7 @@ const StaffManagement: React.FC = () => {
   const _handleDriverTypeFilterChange = useCallback(
     (e: any) => {
       const selectedIndex = e.detail.value
-      const selectedType = driverTypeOptions[selectedIndex].value as 'all' | 'driver' | 'driver_with_vehicle'
+      const selectedType = driverTypeOptions[selectedIndex].value as 'all' | 'pure' | 'with_vehicle'
       setDriverTypeFilter(selectedType)
       filterDrivers(drivers, searchKeyword, selectedType)
     },
