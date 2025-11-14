@@ -15,7 +15,7 @@ import {
   updateProfile
 } from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
-import {CACHE_KEYS, clearManagerDriversCache, getCache, setCache} from '@/utils/cache'
+import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
@@ -78,8 +78,8 @@ const DriverManagement: React.FC = () => {
 
     // 如果不是强制刷新，先尝试从缓存加载
     if (!forceRefresh) {
-      const cachedDrivers = getCache<DriverWithRealName[]>(CACHE_KEYS.MANAGER_DRIVERS)
-      const cachedDetails = getCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.MANAGER_DRIVER_DETAILS)
+      const cachedDrivers = getVersionedCache<DriverWithRealName[]>(CACHE_KEYS.MANAGER_DRIVERS)
+      const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.MANAGER_DRIVER_DETAILS)
 
       if (cachedDrivers && cachedDetails) {
         logger.info(`从缓存加载司机列表，共 ${cachedDrivers.length} 名司机`)
@@ -110,11 +110,11 @@ const DriverManagement: React.FC = () => {
       setDriverDetails(detailsMap)
       logger.info(`成功加载司机详细信息，共 ${detailsMap.size} 名司机`)
 
-      // 缓存数据（5分钟有效期）
-      setCache(CACHE_KEYS.MANAGER_DRIVERS, driverList, 5 * 60 * 1000)
+      // 使用带版本号的缓存（5分钟有效期）
+      setVersionedCache(CACHE_KEYS.MANAGER_DRIVERS, driverList, 5 * 60 * 1000)
       // Map 需要转换为普通对象才能缓存
       const detailsObj = Object.fromEntries(detailsMap)
-      setCache(CACHE_KEYS.MANAGER_DRIVER_DETAILS, detailsObj, 5 * 60 * 1000)
+      setVersionedCache(CACHE_KEYS.MANAGER_DRIVER_DETAILS, detailsObj, 5 * 60 * 1000)
     } catch (error) {
       logger.error('加载司机列表失败', error)
     }
@@ -247,8 +247,8 @@ const DriverManagement: React.FC = () => {
           setNewDriverName('')
           setNewDriverType('pure')
           setShowAddDriver(false)
-          // 清除缓存并强制刷新司机列表
-          clearManagerDriversCache()
+          // 数据更新，增加版本号并清除相关缓存
+          onDataUpdated([CACHE_KEYS.MANAGER_DRIVERS, CACHE_KEYS.MANAGER_DRIVER_DETAILS])
           loadDrivers(true)
         }
       })
@@ -285,8 +285,8 @@ const DriverManagement: React.FC = () => {
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
-        // 清除缓存并强制刷新司机列表和详细信息
-        clearManagerDriversCache()
+        // 数据更新，增加版本号并清除相关缓存
+        onDataUpdated([CACHE_KEYS.MANAGER_DRIVERS, CACHE_KEYS.MANAGER_DRIVER_DETAILS])
         await loadDrivers(true)
         // 重新加载该司机的详细信息
         const detail = await getDriverDetailInfo(driver.id)

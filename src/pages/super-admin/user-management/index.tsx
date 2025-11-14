@@ -23,7 +23,7 @@ import {
   updateUserRole
 } from '@/db/api'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
-import {CACHE_KEYS, clearSuperAdminUsersCache, getCache, setCache} from '@/utils/cache'
+import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 // 司机详细信息类型
@@ -115,8 +115,8 @@ const UserManagement: React.FC = () => {
 
       // 如果不是强制刷新，先尝试从缓存加载
       if (!forceRefresh) {
-        const cachedUsers = getCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
-        const cachedDetails = getCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
+        const cachedUsers = getVersionedCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
+        const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
 
         if (cachedUsers && cachedDetails) {
           console.log(`✅ 从缓存加载用户列表，共 ${cachedUsers.length} 名用户`)
@@ -181,11 +181,11 @@ const UserManagement: React.FC = () => {
         console.log('✅ 已加载司机详细信息，数量:', driverDetails.size)
         console.log('✅ 已加载司机仓库分配信息')
 
-        // 缓存数据（5分钟有效期）
-        setCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
+        // 使用带版本号的缓存（5分钟有效期）
+        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
         // Map 需要转换为普通对象才能缓存
         const detailsObj = Object.fromEntries(driverDetails)
-        setCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
+        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
       } catch (error) {
         console.error('❌ 加载用户列表失败:', error)
         showToast({title: '加载失败', icon: 'error'})
@@ -330,8 +330,8 @@ const UserManagement: React.FC = () => {
           setNewUserRole('driver')
           setNewDriverType('pure')
           setShowAddUser(false)
-          // 清除缓存并强制刷新用户列表
-          clearSuperAdminUsersCache()
+          // 数据更新，增加版本号并清除相关缓存
+          onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
           loadUsers(true)
         }
       })
@@ -373,8 +373,8 @@ const UserManagement: React.FC = () => {
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
-        // 清除缓存并强制刷新用户列表
-        clearSuperAdminUsersCache()
+        // 数据更新，增加版本号并清除相关缓存
+        onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
         await loadUsers(true)
         // 重新加载该用户的详细信息
         const detail = await getDriverDetailInfo(targetUser.id)
@@ -517,8 +517,8 @@ const UserManagement: React.FC = () => {
         const success = await updateUserRole(targetUser.id, targetRole)
         if (success) {
           showToast({title: '修改成功', icon: 'success'})
-          // 清除缓存并强制刷新用户列表
-          clearSuperAdminUsersCache()
+          // 数据更新，增加版本号并清除相关缓存
+          onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
           await loadUsers(true)
         } else {
           showToast({title: '修改失败', icon: 'error'})
