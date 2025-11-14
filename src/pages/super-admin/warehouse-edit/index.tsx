@@ -6,6 +6,7 @@ import {useCallback, useEffect, useState} from 'react'
 import {
   addManagerWarehouse,
   createAttendanceRule,
+  createCategory,
   getAllCategories,
   getAllUsers,
   getAllWarehouses,
@@ -55,6 +56,16 @@ const WarehouseEdit: React.FC = () => {
   // 其他仓库（用于复制配置）
   const [allWarehouses, setAllWarehouses] = useState<Warehouse[]>([])
   const [_showCopyDialog, _setShowCopyDialog] = useState(false)
+
+  // 新建品类
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryDriverPrice, setNewCategoryDriverPrice] = useState('')
+  const [newCategoryVehiclePrice, setNewCategoryVehiclePrice] = useState('')
+
+  // 导入其他仓库品类
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [selectedWarehouseForImport, setSelectedWarehouseForImport] = useState<string>('')
 
   // 加载仓库信息
   const loadWarehouse = useCallback(async (id: string) => {
@@ -248,7 +259,7 @@ const WarehouseEdit: React.FC = () => {
   }
 
   // 从其他仓库复制配置
-  const handleCopyFromWarehouse = async () => {
+  const _handleCopyFromWarehouse = async () => {
     if (allWarehouses.length === 0) {
       showToast({title: '暂无其他仓库', icon: 'none'})
       return
@@ -311,11 +322,116 @@ const WarehouseEdit: React.FC = () => {
     }
   }
 
-  // 跳转到品类管理
-  const goToCategoryManagement = () => {
-    Taro.navigateTo({
-      url: '/pages/super-admin/category-management/index'
-    })
+  // 打开新建品类对话框
+  const openNewCategoryDialog = () => {
+    setNewCategoryName('')
+    setNewCategoryDriverPrice('')
+    setNewCategoryVehiclePrice('')
+    setShowNewCategoryDialog(true)
+  }
+
+  // 创建新品类
+  const handleCreateCategory = async () => {
+    // 验证必填项
+    if (!newCategoryName.trim()) {
+      showToast({title: '请输入品类名称', icon: 'error'})
+      return
+    }
+
+    showLoading({title: '创建中...'})
+    try {
+      const newCategory = await createCategory({
+        name: newCategoryName.trim()
+      })
+
+      if (newCategory) {
+        // 刷新品类列表
+        await loadCategoriesAndPrices(warehouseId)
+
+        // 自动选中新品类并设置价格
+        const newSelected = new Set(selectedCategories)
+        newSelected.add(newCategory.id)
+        setSelectedCategories(newSelected)
+
+        if (newCategoryDriverPrice) {
+          const newDriverPrices = new Map(categoryDriverPrices)
+          newDriverPrices.set(newCategory.id, newCategoryDriverPrice)
+          setCategoryDriverPrices(newDriverPrices)
+        }
+
+        if (newCategoryVehiclePrice) {
+          const newVehiclePrices = new Map(categoryVehiclePrices)
+          newVehiclePrices.set(newCategory.id, newCategoryVehiclePrice)
+          setCategoryVehiclePrices(newVehiclePrices)
+        }
+
+        showToast({title: '品类创建成功', icon: 'success'})
+        setShowNewCategoryDialog(false)
+
+        // 清除缓存
+        onDataUpdated([CACHE_KEYS.WAREHOUSE_CATEGORIES])
+      } else {
+        showToast({title: '创建失败', icon: 'error'})
+      }
+    } catch (error) {
+      console.error('创建品类失败:', error)
+      showToast({title: '创建失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 打开导入品类对话框
+  const openImportDialog = () => {
+    if (allWarehouses.length === 0) {
+      showToast({title: '暂无其他仓库', icon: 'none'})
+      return
+    }
+    setSelectedWarehouseForImport('')
+    setShowImportDialog(true)
+  }
+
+  // 导入其他仓库的品类配置
+  const handleImportCategories = async () => {
+    if (!selectedWarehouseForImport) {
+      showToast({title: '请选择仓库', icon: 'error'})
+      return
+    }
+
+    showLoading({title: '导入中...'})
+    try {
+      // 获取选中仓库的品类价格
+      const prices = await getCategoryPricesByWarehouse(selectedWarehouseForImport)
+
+      if (prices.length === 0) {
+        showToast({title: '该仓库暂无品类配置', icon: 'none'})
+        Taro.hideLoading()
+        return
+      }
+
+      // 合并到当前配置
+      const newDriverPrices = new Map(categoryDriverPrices)
+      const newVehiclePrices = new Map(categoryVehiclePrices)
+      const newSelected = new Set(selectedCategories)
+
+      for (const price of prices) {
+        newDriverPrices.set(price.category_id, String(price.driver_price))
+        newVehiclePrices.set(price.category_id, String(price.driver_with_vehicle_price))
+        newSelected.add(price.category_id)
+      }
+
+      setCategoryDriverPrices(newDriverPrices)
+      setCategoryVehiclePrices(newVehiclePrices)
+      setSelectedCategories(newSelected)
+
+      showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
+      setShowImportDialog(false)
+    } catch (error) {
+      console.error('导入品类失败:', error)
+      showToast({title: '导入失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
   }
 
   // 保存仓库信息
@@ -609,31 +725,34 @@ const WarehouseEdit: React.FC = () => {
           <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
             <View className="flex items-center justify-between mb-4">
               <Text className="text-gray-800 font-bold text-lg">品类设置</Text>
-              <View className="flex items-center">
+              <View className="flex items-center gap-2">
                 <Text className="text-gray-500 text-sm mr-2">已选择 {selectedCategories.size} 个品类</Text>
                 <Button
                   size="mini"
+                  className="bg-green-500 text-white text-xs break-keep mr-2"
+                  onClick={openImportDialog}>
+                  导入品类
+                </Button>
+                <Button
+                  size="mini"
                   className="bg-blue-500 text-white text-xs break-keep"
-                  onClick={goToCategoryManagement}>
+                  onClick={openNewCategoryDialog}>
                   新建品类
                 </Button>
               </View>
             </View>
 
-            {/* 快捷操作 */}
+            {/* 快捷操作提示 */}
             {allWarehouses.length > 0 && (
-              <View className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
-                <View className="flex items-center justify-between">
+              <View className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <View className="flex items-start">
+                  <View className="i-mdi-lightbulb-on text-xl text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
                   <View className="flex-1">
-                    <Text className="text-orange-900 font-medium text-sm">快速配置</Text>
-                    <Text className="text-orange-700 text-xs mt-1">从其他仓库复制品类和价格配置</Text>
+                    <Text className="text-blue-900 font-medium text-sm">快捷提示</Text>
+                    <Text className="text-blue-700 text-xs mt-1">
+                      可以点击"导入品类"从其他仓库快速导入品类配置，或点击"新建品类"直接创建新品类
+                    </Text>
                   </View>
-                  <Button
-                    size="mini"
-                    className="bg-orange-500 text-white text-xs break-keep"
-                    onClick={handleCopyFromWarehouse}>
-                    复制配置
-                  </Button>
                 </View>
               </View>
             )}
@@ -642,13 +761,7 @@ const WarehouseEdit: React.FC = () => {
               <View className="text-center py-8">
                 <View className="i-mdi-package-variant text-5xl text-gray-300 mx-auto mb-2" />
                 <Text className="text-gray-400 text-sm">暂无品类</Text>
-                <Text className="text-gray-400 text-xs mt-1">请先在品类管理中添加品类</Text>
-                <Button
-                  size="mini"
-                  className="bg-blue-500 text-white text-xs break-keep mt-3"
-                  onClick={goToCategoryManagement}>
-                  去添加品类
-                </Button>
+                <Text className="text-gray-400 text-xs mt-1">点击上方按钮新建品类或从其他仓库导入</Text>
               </View>
             ) : (
               <View>
@@ -797,6 +910,145 @@ const WarehouseEdit: React.FC = () => {
             )}
           </View>
         </View>
+
+        {/* 新建品类对话框 */}
+        {showNewCategoryDialog && (
+          <View className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <View className="bg-white rounded-lg p-6 m-4 w-full max-w-md">
+              <View className="flex items-center justify-between mb-4">
+                <Text className="text-gray-900 font-bold text-lg">新建品类</Text>
+                <View
+                  className="i-mdi-close text-2xl text-gray-500 cursor-pointer"
+                  onClick={() => setShowNewCategoryDialog(false)}
+                />
+              </View>
+
+              <View className="mb-4">
+                <Text className="text-gray-700 text-sm mb-2">
+                  品类名称 <Text className="text-red-500">*</Text>
+                </Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                    placeholder="例如：装卸货物"
+                    value={newCategoryName}
+                    onInput={(e) => setNewCategoryName(e.detail.value)}
+                  />
+                </View>
+              </View>
+
+              <View className="mb-4">
+                <Text className="text-gray-700 text-sm mb-2">纯司机单价（可选）</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                    type="digit"
+                    placeholder="请输入单价"
+                    value={newCategoryDriverPrice}
+                    onInput={(e) => setNewCategoryDriverPrice(e.detail.value)}
+                  />
+                </View>
+                <Text className="text-gray-500 text-xs mt-1">创建后会自动选中该品类并设置价格</Text>
+              </View>
+
+              <View className="mb-6">
+                <Text className="text-gray-700 text-sm mb-2">带车司机单价（可选）</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                    type="digit"
+                    placeholder="请输入单价"
+                    value={newCategoryVehiclePrice}
+                    onInput={(e) => setNewCategoryVehiclePrice(e.detail.value)}
+                  />
+                </View>
+              </View>
+
+              <View className="flex gap-3">
+                <Button
+                  size="default"
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg break-keep text-base"
+                  onClick={() => setShowNewCategoryDialog(false)}>
+                  取消
+                </Button>
+                <Button
+                  size="default"
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg break-keep text-base"
+                  onClick={handleCreateCategory}>
+                  创建
+                </Button>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 导入品类对话框 */}
+        {showImportDialog && (
+          <View className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <View className="bg-white rounded-lg p-6 m-4 w-full max-w-md">
+              <View className="flex items-center justify-between mb-4">
+                <Text className="text-gray-900 font-bold text-lg">导入品类配置</Text>
+                <View
+                  className="i-mdi-close text-2xl text-gray-500 cursor-pointer"
+                  onClick={() => setShowImportDialog(false)}
+                />
+              </View>
+
+              <View className="mb-4">
+                <Text className="text-gray-700 text-sm mb-3">选择要导入的仓库</Text>
+                <View className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <View className="flex items-start">
+                    <View className="i-mdi-information text-lg text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <Text className="text-blue-700 text-xs flex-1">
+                      将会导入选中仓库的所有品类配置（包括品类和单价），并与当前配置合并
+                    </Text>
+                  </View>
+                </View>
+
+                {allWarehouses.map((warehouse) => (
+                  <View
+                    key={warehouse.id}
+                    className={`border rounded-lg p-3 mb-2 cursor-pointer ${
+                      selectedWarehouseForImport === warehouse.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                    onClick={() => setSelectedWarehouseForImport(warehouse.id)}>
+                    <View className="flex items-center justify-between">
+                      <View className="flex-1">
+                        <Text
+                          className={`font-medium text-sm ${
+                            selectedWarehouseForImport === warehouse.id ? 'text-blue-900' : 'text-gray-900'
+                          }`}>
+                          {warehouse.name}
+                        </Text>
+                        <Text className="text-gray-500 text-xs mt-1">{warehouse.is_active ? '运营中' : '已停用'}</Text>
+                      </View>
+                      {selectedWarehouseForImport === warehouse.id && (
+                        <View className="i-mdi-check-circle text-2xl text-blue-600" />
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <View className="flex gap-3">
+                <Button
+                  size="default"
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg break-keep text-base"
+                  onClick={() => setShowImportDialog(false)}>
+                  取消
+                </Button>
+                <Button
+                  size="default"
+                  className="flex-1 bg-green-600 text-white py-3 rounded-lg break-keep text-base"
+                  onClick={handleImportCategories}>
+                  导入
+                </Button>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* 底部保存按钮 */}
         <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
