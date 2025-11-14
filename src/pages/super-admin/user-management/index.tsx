@@ -649,20 +649,20 @@ const UserManagement: React.FC = () => {
             </View>
           </View>
 
-          {/* 添加用户按钮 */}
-          <View className="mb-4">
-            <View
-              onClick={toggleAddUser}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg py-3 px-4 flex items-center justify-center shadow-md active:scale-98 transition-all">
-              <View className={`${showAddUser ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
-              <Text className="text-white text-xs font-medium">
-                {showAddUser ? '取消' : `添加${activeTab === 'driver' ? '司机' : '管理员'}`}
-              </Text>
+          {/* 添加用户按钮（仅在司机管理标签页显示） */}
+          {activeTab === 'driver' && (
+            <View className="mb-4">
+              <View
+                onClick={toggleAddUser}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg py-3 px-4 flex items-center justify-center shadow-md active:scale-98 transition-all">
+                <View className={`${showAddUser ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
+                <Text className="text-white text-xs font-medium">{showAddUser ? '取消' : '添加用户'}</Text>
+              </View>
             </View>
-          </View>
+          )}
 
-          {/* 添加用户表单 */}
-          {showAddUser && (
+          {/* 添加用户表单（仅在司机管理标签页显示） */}
+          {activeTab === 'driver' && showAddUser && (
             <View className="bg-blue-50 rounded-lg p-4 mb-3 border-2 border-blue-200">
               {/* 手机号 */}
               <View className="mb-3">
@@ -682,7 +682,7 @@ const UserManagement: React.FC = () => {
                 <Text className="text-gray-700 text-sm block mb-2">姓名</Text>
                 <Input
                   type="text"
-                  placeholder={`请输入${activeTab === 'driver' ? '司机' : '管理员'}姓名`}
+                  placeholder={`请输入${newUserRole === 'driver' ? '司机' : '管理员'}姓名`}
                   value={newUserName}
                   onInput={(e) => setNewUserName(e.detail.value)}
                   className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
