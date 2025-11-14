@@ -43,6 +43,9 @@ DROP POLICY IF EXISTS "管理员可以创建用户" ON profiles;
 DROP POLICY IF EXISTS "管理员可以删除用户" ON profiles;
 DROP POLICY IF EXISTS "管理员可以更新所有用户" ON profiles;
 DROP POLICY IF EXISTS "管理员可以查看所有用户" ON profiles;
+DROP POLICY IF EXISTS "管理员可以查看管辖仓库的司机档案" ON profiles;
+DROP POLICY IF EXISTS "管理员可以查看管辖仓库的司机" ON profiles;
+DROP POLICY IF EXISTS "管理员可以修改管辖仓库的司机" ON profiles;
 
 -- ============================================
 -- 禁用 profiles 表的 RLS
