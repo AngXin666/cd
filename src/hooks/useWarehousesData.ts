@@ -1,9 +1,9 @@
+import type {RealtimeChannel} from '@supabase/supabase-js'
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getManagerWarehouses} from '@/db/api'
 import type {Warehouse} from '@/db/types'
-import type {RealtimeChannel} from '@supabase/supabase-js'
 
 // 缓存配置
 const WAREHOUSES_CACHE_KEY = 'manager_warehouses_cache'
