@@ -14,14 +14,15 @@ const ManagerHome: React.FC = () => {
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 使用仓库数据管理 Hook（原始列表）
+  // 使用仓库数据管理 Hook（原始列表，启用实时更新）
   const {
     warehouses: rawWarehouses,
     loading: warehousesLoading,
     refresh: refreshWarehouses
   } = useWarehousesData({
     managerId: user?.id || '',
-    cacheEnabled: true
+    cacheEnabled: true,
+    enableRealtime: true // 启用实时更新
   })
 
   // 使用仓库排序 Hook（按数据量排序）

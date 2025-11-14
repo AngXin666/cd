@@ -1,7 +1,9 @@
 import Taro from '@tarojs/taro'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
+import {supabase} from '@/client/supabase'
 import {getManagerWarehouses} from '@/db/api'
 import type {Warehouse} from '@/db/types'
+import type {RealtimeChannel} from '@supabase/supabase-js'
 
 // 缓存配置
 const WAREHOUSES_CACHE_KEY = 'manager_warehouses_cache'
@@ -16,18 +18,20 @@ interface CachedWarehouses {
 interface UseWarehousesDataOptions {
   managerId: string
   cacheEnabled?: boolean
+  enableRealtime?: boolean // 是否启用实时更新
 }
 
 /**
  * 仓库列表数据管理 Hook
- * 提供仓库列表加载、缓存功能
+ * 提供仓库列表加载、缓存、实时更新功能
  */
 export function useWarehousesData(options: UseWarehousesDataOptions) {
-  const {managerId, cacheEnabled = true} = options
+  const {managerId, cacheEnabled = true, enableRealtime = false} = options
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
   // 从缓存读取仓库列表
   const loadFromCache = useCallback((): Warehouse[] | null => {
@@ -128,6 +132,58 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
       loadWarehouses()
     }
   }, [managerId, loadWarehouses])
+
+  // 设置实时订阅
+  useEffect(() => {
+    if (!enableRealtime || !managerId) {
+      return
+    }
+
+    console.log('[useWarehousesData] 启用实时订阅，管理员ID:', managerId)
+
+    // 创建实时频道
+    const channel = supabase
+      .channel(`manager_warehouses_${managerId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
+          schema: 'public',
+          table: 'manager_warehouses',
+          filter: `manager_id=eq.${managerId}` // 只监听当前管理员的变化
+        },
+        (payload) => {
+          console.log('[useWarehousesData] 检测到仓库分配变化:', payload)
+
+          // 显示提示信息
+          Taro.showToast({
+            title: '仓库分配已更新',
+            icon: 'success',
+            duration: 2000
+          })
+
+          // 自动刷新数据
+          setTimeout(() => {
+            console.log('[useWarehousesData] 自动刷新仓库列表')
+            refresh()
+          }, 500) // 延迟500ms，确保数据库操作完成
+        }
+      )
+      .subscribe((status) => {
+        console.log('[useWarehousesData] 订阅状态:', status)
+      })
+
+    channelRef.current = channel
+
+    // 清理函数
+    return () => {
+      console.log('[useWarehousesData] 清理实时订阅')
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+    }
+  }, [enableRealtime, managerId, refresh])
 
   return {
     warehouses,
