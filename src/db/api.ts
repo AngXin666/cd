@@ -1266,16 +1266,23 @@ export async function getCategoryPriceForDriver(
 
 // 获取管理员的仓库列表
 export async function getManagerWarehouses(managerId: string): Promise<Warehouse[]> {
+  console.log('[getManagerWarehouses] 开始查询，管理员ID:', managerId)
+  
   const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
 
+  console.log('[getManagerWarehouses] 查询结果:', {data, error})
+
   if (error) {
-    console.error('获取管理员仓库失败:', error)
+    console.error('[getManagerWarehouses] 获取管理员仓库失败:', error)
     return []
   }
 
   if (!data || data.length === 0) {
+    console.log('[getManagerWarehouses] 没有找到仓库分配数据')
     return []
   }
+
+  console.log('[getManagerWarehouses] 找到仓库ID列表:', data.map((item) => item.warehouse_id))
 
   const warehouseIds = data.map((item) => item.warehouse_id)
   const {data: warehouses, error: warehouseError} = await supabase
@@ -1284,12 +1291,16 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
     .in('id', warehouseIds)
     .order('name', {ascending: true})
 
+  console.log('[getManagerWarehouses] 仓库详情查询结果:', {warehouses, warehouseError})
+
   if (warehouseError) {
-    console.error('获取仓库信息失败:', warehouseError)
+    console.error('[getManagerWarehouses] 获取仓库信息失败:', warehouseError)
     return []
   }
 
-  return Array.isArray(warehouses) ? warehouses : []
+  const result = Array.isArray(warehouses) ? warehouses : []
+  console.log('[getManagerWarehouses] 最终返回仓库数量:', result.length)
+  return result
 }
 
 // 获取仓库的管理员列表

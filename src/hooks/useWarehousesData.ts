@@ -87,6 +87,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
   // 加载仓库列表
   const loadWarehouses = useCallback(
     async (forceRefresh = false) => {
+      console.log('[useWarehousesData] 开始加载仓库列表，managerId:', managerId, 'forceRefresh:', forceRefresh)
       setLoading(true)
       setError(null)
 
@@ -95,14 +96,17 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
         if (!forceRefresh) {
           const cachedData = loadFromCache()
           if (cachedData) {
+            console.log('[useWarehousesData] 从缓存加载，仓库数量:', cachedData.length)
             setWarehouses(cachedData)
             setLoading(false)
             return cachedData
           }
         }
 
+        console.log('[useWarehousesData] 从服务器加载数据...')
         // 从服务器加载数据
         const warehousesData = await getManagerWarehouses(managerId)
+        console.log('[useWarehousesData] 服务器返回仓库数量:', warehousesData.length)
         setWarehouses(warehousesData)
 
         // 保存到缓存
@@ -110,7 +114,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
 
         return warehousesData
       } catch (err) {
-        console.error('加载仓库列表失败:', err)
+        console.error('[useWarehousesData] 加载仓库列表失败:', err)
         setError('加载仓库列表失败')
         return []
       } finally {
