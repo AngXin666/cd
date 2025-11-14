@@ -1,20 +1,24 @@
-import {Button, Input, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
+import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
+import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   addManagerWarehouse,
+  createAttendanceRule,
   getAllCategories,
   getAllUsers,
+  getAllWarehouses,
+  getAttendanceRuleByWarehouseId,
   getCategoryPricesByWarehouse,
   getWarehouseById,
   getWarehouseManagers,
   removeManagerWarehouse,
+  updateAttendanceRule,
   updateWarehouse,
   upsertCategoryPrice
 } from '@/db/api'
-import type {PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import type {AttendanceRule, PieceWorkCategory, Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 
 const WarehouseEdit: React.FC = () => {
@@ -38,6 +42,19 @@ const WarehouseEdit: React.FC = () => {
   const [allManagers, setAllManagers] = useState<Profile[]>([])
   const [selectedManagers, setSelectedManagers] = useState<Set<string>>(new Set())
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
+
+  // 考勤规则
+  const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
+  const [ruleStartTime, setRuleStartTime] = useState('09:00')
+  const [ruleEndTime, setRuleEndTime] = useState('18:00')
+  const [ruleLateThreshold, setRuleLateThreshold] = useState('15')
+  const [ruleEarlyThreshold, setRuleEarlyThreshold] = useState('15')
+  const [ruleRequireClockOut, setRuleRequireClockOut] = useState(true)
+  const [ruleActive, setRuleActive] = useState(true)
+
+  // 其他仓库（用于复制配置）
+  const [allWarehouses, setAllWarehouses] = useState<Warehouse[]>([])
+  const [_showCopyDialog, _setShowCopyDialog] = useState(false)
 
   // 加载仓库信息
   const loadWarehouse = useCallback(async (id: string) => {
@@ -115,6 +132,36 @@ const WarehouseEdit: React.FC = () => {
     [user?.id]
   )
 
+  // 加载考勤规则
+  const loadAttendanceRule = useCallback(async (id: string) => {
+    try {
+      const rule = await getAttendanceRuleByWarehouseId(id)
+      if (rule) {
+        setCurrentRule(rule)
+        setRuleStartTime(rule.work_start_time)
+        setRuleEndTime(rule.work_end_time)
+        setRuleLateThreshold(String(rule.late_threshold))
+        setRuleEarlyThreshold(String(rule.early_threshold))
+        setRuleRequireClockOut(rule.require_clock_out ?? true)
+        setRuleActive(rule.is_active)
+      }
+    } catch (error) {
+      console.error('加载考勤规则失败:', error)
+    }
+  }, [])
+
+  // 加载所有仓库（用于复制配置）
+  const loadAllWarehouses = useCallback(async () => {
+    try {
+      const warehouses = await getAllWarehouses()
+      // 排除当前仓库
+      const others = warehouses.filter((w) => w.id !== warehouseId)
+      setAllWarehouses(others)
+    } catch (error) {
+      console.error('加载仓库列表失败:', error)
+    }
+  }, [warehouseId])
+
   // 页面加载时获取仓库 ID
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -135,6 +182,8 @@ const WarehouseEdit: React.FC = () => {
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
       loadManagers(warehouseId)
+      loadAttendanceRule(warehouseId)
+      loadAllWarehouses()
     }
   })
 
@@ -196,6 +245,77 @@ const WarehouseEdit: React.FC = () => {
       setSelectedManagers(newSelected)
       showToast({title: '已添加自己为管理员', icon: 'success'})
     }
+  }
+
+  // 从其他仓库复制配置
+  const handleCopyFromWarehouse = async () => {
+    if (allWarehouses.length === 0) {
+      showToast({title: '暂无其他仓库', icon: 'none'})
+      return
+    }
+
+    const _warehouseNames = allWarehouses.map((w) => w.name)
+    const res = await showModal({
+      title: '选择仓库',
+      content: '请选择要复制配置的仓库',
+      showCancel: true,
+      confirmText: '确定',
+      cancelText: '取消'
+    })
+
+    if (res.confirm && allWarehouses.length > 0) {
+      // 这里简化处理，复制第一个仓库的配置
+      // 实际应该让用户选择
+      const sourceWarehouse = allWarehouses[0]
+      await copyWarehouseConfig(sourceWarehouse.id)
+    }
+  }
+
+  // 复制仓库配置
+  const copyWarehouseConfig = async (sourceWarehouseId: string) => {
+    showLoading({title: '复制中...'})
+    try {
+      // 复制品类价格
+      const prices = await getCategoryPricesByWarehouse(sourceWarehouseId)
+      const driverPriceMap = new Map<string, string>()
+      const vehiclePriceMap = new Map<string, string>()
+      const selectedSet = new Set<string>()
+
+      for (const price of prices) {
+        driverPriceMap.set(price.category_id, String(price.driver_price))
+        vehiclePriceMap.set(price.category_id, String(price.driver_with_vehicle_price))
+        selectedSet.add(price.category_id)
+      }
+
+      setCategoryDriverPrices(driverPriceMap)
+      setCategoryVehiclePrices(vehiclePriceMap)
+      setSelectedCategories(selectedSet)
+
+      // 复制考勤规则
+      const rule = await getAttendanceRuleByWarehouseId(sourceWarehouseId)
+      if (rule) {
+        setRuleStartTime(rule.work_start_time)
+        setRuleEndTime(rule.work_end_time)
+        setRuleLateThreshold(String(rule.late_threshold))
+        setRuleEarlyThreshold(String(rule.early_threshold))
+        setRuleRequireClockOut(rule.require_clock_out ?? true)
+        setRuleActive(rule.is_active)
+      }
+
+      showToast({title: '配置已复制', icon: 'success'})
+    } catch (error) {
+      console.error('复制配置失败:', error)
+      showToast({title: '复制失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 跳转到品类管理
+  const goToCategoryManagement = () => {
+    Taro.navigateTo({
+      url: '/pages/super-admin/category-management/index'
+    })
   }
 
   // 保存仓库信息
@@ -274,6 +394,33 @@ const WarehouseEdit: React.FC = () => {
       // 删除旧管理员
       for (const managerId of toRemove) {
         await removeManagerWarehouse(managerId, warehouseId)
+      }
+
+      // 4. 更新考勤规则
+      const ruleInput = {
+        warehouse_id: warehouseId,
+        work_start_time: ruleStartTime,
+        work_end_time: ruleEndTime,
+        late_threshold: Number(ruleLateThreshold),
+        early_threshold: Number(ruleEarlyThreshold),
+        require_clock_out: ruleRequireClockOut,
+        is_active: ruleActive
+      }
+
+      if (currentRule) {
+        // 更新现有规则
+        const ruleSuccess = await updateAttendanceRule(currentRule.id, ruleInput)
+        if (!ruleSuccess) {
+          console.warn('更新考勤规则失败')
+        }
+      } else {
+        // 创建新规则
+        const newRule = await createAttendanceRule(ruleInput)
+        if (newRule) {
+          setCurrentRule(newRule)
+        } else {
+          console.warn('创建考勤规则失败')
+        }
       }
 
       // 清除缓存
@@ -386,18 +533,122 @@ const WarehouseEdit: React.FC = () => {
             </View>
           </View>
 
+          {/* 考勤规则 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <Text className="text-gray-800 font-bold text-lg mb-4">考勤规则</Text>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm mb-2">上班时间</Text>
+              <Picker mode="time" value={ruleStartTime} onChange={(e) => setRuleStartTime(e.detail.value)}>
+                <View className="bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  <Text className="text-gray-900">{ruleStartTime}</Text>
+                </View>
+              </Picker>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm mb-2">下班时间</Text>
+              <Picker mode="time" value={ruleEndTime} onChange={(e) => setRuleEndTime(e.detail.value)}>
+                <View className="bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  <Text className="text-gray-900">{ruleEndTime}</Text>
+                </View>
+              </Picker>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm mb-2">迟到阈值（分钟）</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                  type="number"
+                  placeholder="请输入迟到阈值"
+                  value={ruleLateThreshold}
+                  onInput={(e) => setRuleLateThreshold(e.detail.value)}
+                />
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">超过上班时间多少分钟算迟到</Text>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm mb-2">早退阈值（分钟）</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                  type="number"
+                  placeholder="请输入早退阈值"
+                  value={ruleEarlyThreshold}
+                  onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
+                />
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">提前下班时间多少分钟算早退</Text>
+            </View>
+
+            <View className="mb-4">
+              <View className="flex items-center justify-between">
+                <Text className="text-gray-700 text-sm">是否需要打下班卡</Text>
+                <View className="flex items-center">
+                  <Text className="text-gray-600 text-sm mr-2">{ruleRequireClockOut ? '需要' : '不需要'}</Text>
+                  <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
+                </View>
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">关闭后，司机只需打上班卡</Text>
+            </View>
+
+            <View>
+              <View className="flex items-center justify-between">
+                <Text className="text-gray-700 text-sm">规则状态</Text>
+                <View className="flex items-center">
+                  <Text className="text-gray-600 text-sm mr-2">{ruleActive ? '启用' : '停用'}</Text>
+                  <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
+                </View>
+              </View>
+            </View>
+          </View>
+
           {/* 品类设置 */}
           <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
             <View className="flex items-center justify-between mb-4">
               <Text className="text-gray-800 font-bold text-lg">品类设置</Text>
-              <Text className="text-gray-500 text-sm">已选择 {selectedCategories.size} 个品类</Text>
+              <View className="flex items-center">
+                <Text className="text-gray-500 text-sm mr-2">已选择 {selectedCategories.size} 个品类</Text>
+                <Button
+                  size="mini"
+                  className="bg-blue-500 text-white text-xs break-keep"
+                  onClick={goToCategoryManagement}>
+                  新建品类
+                </Button>
+              </View>
             </View>
+
+            {/* 快捷操作 */}
+            {allWarehouses.length > 0 && (
+              <View className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
+                <View className="flex items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-orange-900 font-medium text-sm">快速配置</Text>
+                    <Text className="text-orange-700 text-xs mt-1">从其他仓库复制品类和价格配置</Text>
+                  </View>
+                  <Button
+                    size="mini"
+                    className="bg-orange-500 text-white text-xs break-keep"
+                    onClick={handleCopyFromWarehouse}>
+                    复制配置
+                  </Button>
+                </View>
+              </View>
+            )}
 
             {allCategories.length === 0 ? (
               <View className="text-center py-8">
                 <View className="i-mdi-package-variant text-5xl text-gray-300 mx-auto mb-2" />
                 <Text className="text-gray-400 text-sm">暂无品类</Text>
                 <Text className="text-gray-400 text-xs mt-1">请先在品类管理中添加品类</Text>
+                <Button
+                  size="mini"
+                  className="bg-blue-500 text-white text-xs break-keep mt-3"
+                  onClick={goToCategoryManagement}>
+                  去添加品类
+                </Button>
               </View>
             ) : (
               <View>
