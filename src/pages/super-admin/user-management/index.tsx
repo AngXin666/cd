@@ -124,6 +124,21 @@ const UserManagement: React.FC = () => {
 
       setUsers(usersWithRealName)
       filterUsers(usersWithRealName, searchKeyword, roleFilter)
+
+      // 为所有司机加载详细信息（用于显示入职时间、在职天数等）
+      const driverDetails = new Map<string, DriverDetailInfo>()
+      await Promise.all(
+        usersWithRealName
+          .filter((u) => u.role === 'driver')
+          .map(async (u) => {
+            const detail = await getDriverDetailInfo(u.id)
+            if (detail) {
+              driverDetails.set(u.id, detail)
+            }
+          })
+      )
+      setUserDetails(driverDetails)
+      console.log('✅ 已加载司机详细信息，数量:', driverDetails.size)
     } catch (error) {
       console.error('❌ 加载用户列表失败:', error)
       showToast({title: '加载失败', icon: 'error'})
@@ -588,17 +603,66 @@ const UserManagement: React.FC = () => {
 
                     {/* 基本信息 */}
                     <View className="space-y-1">
-                      {u.phone && (
-                        <View className="flex items-center">
-                          <View className="i-mdi-phone text-gray-400 text-base mr-2" />
-                          <Text className="text-sm text-gray-600">{u.phone}</Text>
-                        </View>
+                      {/* 司机显示：电话、入职时间、在职天数 */}
+                      {u.role === 'driver' && (
+                        <>
+                          {u.phone && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-phone text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">{u.phone}</Text>
+                            </View>
+                          )}
+                          {detail?.joinDate && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-calendar-check text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">入职时间：{detail.joinDate}</Text>
+                            </View>
+                          )}
+                          {detail?.workDays !== null && detail?.workDays !== undefined && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-calendar-clock text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">在职天数：{detail.workDays}天</Text>
+                            </View>
+                          )}
+                          {/* 如果有实名信息，显示年龄、驾龄、车牌号 */}
+                          {detail?.age !== null && detail?.age !== undefined && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-account-clock text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">年龄：{detail.age}岁</Text>
+                            </View>
+                          )}
+                          {detail?.drivingYears !== null && detail?.drivingYears !== undefined && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-steering text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">驾龄：{detail.drivingYears}年</Text>
+                            </View>
+                          )}
+                          {detail?.vehicles && detail.vehicles.length > 0 && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-car text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">
+                                车牌：{detail.vehicles.map((v) => v.plate_number).join('、')}
+                              </Text>
+                            </View>
+                          )}
+                        </>
                       )}
-                      {u.login_account && (
-                        <View className="flex items-center">
-                          <View className="i-mdi-account text-gray-400 text-base mr-2" />
-                          <Text className="text-sm text-gray-600">{u.login_account}</Text>
-                        </View>
+                      {/* 管理员显示：电话和登录账号 */}
+                      {u.role !== 'driver' && (
+                        <>
+                          {u.phone && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-phone text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">{u.phone}</Text>
+                            </View>
+                          )}
+                          {u.login_account && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-account text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">{u.login_account}</Text>
+                            </View>
+                          )}
+                        </>
                       )}
                     </View>
                   </View>
