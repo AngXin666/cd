@@ -341,10 +341,10 @@ const UserManagement: React.FC = () => {
 
       if (targetUser.role === 'manager') {
         targetRole = 'driver'
-        confirmMessage = `确认将管理员"${targetUser.real_name || targetUser.name || targetUser.phone}"降级为司机吗？`
+        confirmMessage = `确认将管理员"${targetUser.real_name || targetUser.name || targetUser.phone}"降级为司机吗？\n\n降级后将失去管理员权限。`
       } else {
         targetRole = 'manager'
-        confirmMessage = `确认将司机"${targetUser.real_name || targetUser.name || targetUser.phone}"升级为管理员吗？`
+        confirmMessage = `确认将司机"${targetUser.real_name || targetUser.name || targetUser.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
       }
 
       // 显示确认对话框
@@ -706,20 +706,24 @@ const UserManagement: React.FC = () => {
                         }}
                         className="flex items-center justify-center bg-purple-50 border border-purple-200 rounded-lg py-2.5 active:bg-purple-100 transition-all">
                         <View className="i-mdi-swap-horizontal text-purple-600 text-lg mr-1.5" />
-                        <Text className="text-purple-700 text-sm font-medium">类型切换</Text>
+                        <Text className="text-purple-700 text-sm font-medium">
+                          {u.driver_type === 'driver_with_vehicle' ? '切换成纯司机' : '切换成带车司机'}
+                        </Text>
                       </View>
                     )}
 
-                    {/* 编辑按钮 */}
-                    <View
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEditUser(u)
-                      }}
-                      className="flex items-center justify-center bg-emerald-50 border border-emerald-200 rounded-lg py-2.5 active:bg-emerald-100 transition-all">
-                      <View className="i-mdi-pencil text-emerald-600 text-lg mr-1.5" />
-                      <Text className="text-emerald-700 text-sm font-medium">编辑</Text>
-                    </View>
+                    {/* 编辑按钮（仅管理员可见） */}
+                    {u.role !== 'driver' && (
+                      <View
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditUser(u)
+                        }}
+                        className="flex items-center justify-center bg-emerald-50 border border-emerald-200 rounded-lg py-2.5 active:bg-emerald-100 transition-all">
+                        <View className="i-mdi-pencil text-emerald-600 text-lg mr-1.5" />
+                        <Text className="text-emerald-700 text-sm font-medium">编辑</Text>
+                      </View>
+                    )}
 
                     {/* 重置密码按钮 */}
                     <View
@@ -742,7 +746,7 @@ const UserManagement: React.FC = () => {
                         className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
                         <View className="i-mdi-account-convert text-sky-600 text-lg mr-1.5" />
                         <Text className="text-sky-700 text-sm font-medium">
-                          {u.role === 'manager' ? '降级' : '升级'}
+                          {u.role === 'manager' ? '降级为司机' : '提升管理员'}
                         </Text>
                       </View>
                     )}
