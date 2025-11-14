@@ -33,7 +33,7 @@ const ManagerHome: React.FC = () => {
   } = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
-    hideEmpty: true // 隐藏完全没有数据的仓库
+    hideEmpty: false // 不隐藏空仓库，让管理员能看到所有分配的仓库
   })
 
   // 使用排序后的仓库列表
