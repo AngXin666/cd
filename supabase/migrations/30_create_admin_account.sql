@@ -48,7 +48,11 @@ INSERT INTO auth.users (
   updated_at,
   raw_app_meta_data,
   raw_user_meta_data,
-  is_super_admin
+  is_super_admin,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change
 ) VALUES (
   '00000000-0000-0000-0000-000000000001'::uuid,
   '00000000-0000-0000-0000-000000000000'::uuid,
@@ -63,14 +67,22 @@ INSERT INTO auth.users (
   NOW(),
   '{"provider":"phone","providers":["phone"]}'::jsonb,
   '{}'::jsonb,
-  false
+  false,
+  '', -- confirmation_token 设置为空字符串，避免 NULL 转换错误
+  '', -- recovery_token 设置为空字符串
+  '', -- email_change_token_new 设置为空字符串
+  ''  -- email_change 设置为空字符串
 ) ON CONFLICT (id) DO UPDATE SET
   encrypted_password = crypt('admin123', gen_salt('bf')),
   phone = EXCLUDED.phone,
   email = EXCLUDED.email,
   phone_confirmed_at = NOW(),
   email_confirmed_at = NOW(),
-  updated_at = NOW();
+  updated_at = NOW(),
+  confirmation_token = '',
+  recovery_token = '',
+  email_change_token_new = '',
+  email_change = '';
 
 -- ============================================
 -- 创建 profiles 记录
