@@ -173,7 +173,7 @@ const UserManagement: React.FC = () => {
   )
 
   // 切换用户详细信息展开状态
-  const handleToggleUserDetail = useCallback(
+  const _handleToggleUserDetail = useCallback(
     async (userId: string) => {
       if (expandedUserId === userId) {
         // 收起
@@ -569,19 +569,13 @@ const UserManagement: React.FC = () => {
           ) : (
             filteredUsers.map((u) => {
               const detail = userDetails.get(u.id)
-              const isExpanded = expandedUserId === u.id
+              const _isExpanded = expandedUserId === u.id
               const isWarehouseExpanded = warehouseAssignExpanded === u.id
 
               return (
                 <View key={u.id} className="bg-white rounded-xl mb-3 shadow-sm overflow-hidden">
-                  {/* 用户基本信息 - 可点击展开 */}
-                  <View
-                    className="p-4"
-                    onClick={() => {
-                      if (u.role === 'driver') {
-                        handleToggleUserDetail(u.id)
-                      }
-                    }}>
+                  {/* 用户基本信息 */}
+                  <View className="p-4">
                     <View className="flex items-center justify-between mb-2">
                       <View className="flex items-center flex-1">
                         <Text className="text-lg font-bold text-gray-800 mr-2">
@@ -596,47 +590,49 @@ const UserManagement: React.FC = () => {
                           </View>
                         )}
                       </View>
-                      {u.role === 'driver' && (
-                        <View className={`i-mdi-chevron-${isExpanded ? 'up' : 'down'} text-gray-400 text-2xl`} />
-                      )}
                     </View>
 
                     {/* 基本信息 */}
                     <View className="space-y-1">
-                      {/* 司机显示：电话、入职时间、在职天数 */}
+                      {/* 司机显示：电话、年龄、驾龄、在职天数、入职时间 */}
                       {u.role === 'driver' && (
                         <>
+                          {/* 电话号码 */}
                           {u.phone && (
                             <View className="flex items-center">
                               <View className="i-mdi-phone text-gray-400 text-base mr-2" />
                               <Text className="text-sm text-gray-600">{u.phone}</Text>
                             </View>
                           )}
-                          {detail?.joinDate && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-calendar-check text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">入职时间：{detail.joinDate}</Text>
-                            </View>
-                          )}
-                          {detail?.workDays !== null && detail?.workDays !== undefined && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-calendar-clock text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">在职天数：{detail.workDays}天</Text>
-                            </View>
-                          )}
-                          {/* 如果有实名信息，显示年龄、驾龄、车牌号 */}
+                          {/* 年龄 */}
                           {detail?.age !== null && detail?.age !== undefined && (
                             <View className="flex items-center">
                               <View className="i-mdi-account-clock text-gray-400 text-base mr-2" />
                               <Text className="text-sm text-gray-600">年龄：{detail.age}岁</Text>
                             </View>
                           )}
+                          {/* 驾龄 */}
                           {detail?.drivingYears !== null && detail?.drivingYears !== undefined && (
                             <View className="flex items-center">
                               <View className="i-mdi-steering text-gray-400 text-base mr-2" />
                               <Text className="text-sm text-gray-600">驾龄：{detail.drivingYears}年</Text>
                             </View>
                           )}
+                          {/* 在职天数 */}
+                          {detail?.workDays !== null && detail?.workDays !== undefined && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-calendar-clock text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">在职天数：{detail.workDays}天</Text>
+                            </View>
+                          )}
+                          {/* 入职时间 */}
+                          {detail?.joinDate && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-calendar-check text-gray-400 text-base mr-2" />
+                              <Text className="text-sm text-gray-600">入职时间：{detail.joinDate}</Text>
+                            </View>
+                          )}
+                          {/* 车牌号码 */}
                           {detail?.vehicles && detail.vehicles.length > 0 && (
                             <View className="flex items-center">
                               <View className="i-mdi-car text-gray-400 text-base mr-2" />
@@ -666,59 +662,6 @@ const UserManagement: React.FC = () => {
                       )}
                     </View>
                   </View>
-
-                  {/* 司机详细信息（展开时显示） */}
-                  {u.role === 'driver' && isExpanded && detail && (
-                    <View className="px-4 pb-3 border-t border-gray-100">
-                      <View className="pt-3 space-y-2">
-                        {/* 车辆信息 */}
-                        {detail.vehicles && detail.vehicles.length > 0 && (
-                          <View className="bg-green-50 rounded-lg p-3 border border-green-200">
-                            <View className="flex items-center mb-1">
-                              <View className="i-mdi-car text-green-600 text-lg mr-2" />
-                              <Text className="text-green-800 text-xs font-medium">车辆信息</Text>
-                            </View>
-                            <View className="flex items-center">
-                              <Text className="text-gray-600 text-xs mr-2">车牌号：</Text>
-                              <Text className="text-gray-900 text-sm font-bold">
-                                {detail.vehicles.map((v) => v.plate_number).join('、')}
-                              </Text>
-                            </View>
-                          </View>
-                        )}
-
-                        {/* 身份证号码 */}
-                        {detail.license?.id_card_number && (
-                          <View className="bg-indigo-50 rounded-lg p-2 border border-indigo-200">
-                            <View className="flex items-start">
-                              <View className="i-mdi-card-account-details text-indigo-600 text-base mr-2 mt-0.5" />
-                              <View className="flex-1">
-                                <Text className="text-gray-600 text-xs block mb-0.5">身份证号码</Text>
-                                <Text className="text-gray-900 text-xs font-mono tracking-wide">
-                                  {detail.license.id_card_number}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
-                        )}
-
-                        {/* 住址 */}
-                        {detail.license?.id_card_address && (
-                          <View className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                            <View className="flex items-start">
-                              <View className="i-mdi-home-map-marker text-blue-600 text-base mr-2 mt-0.5" />
-                              <View className="flex-1">
-                                <Text className="text-gray-600 text-xs block mb-0.5">住址</Text>
-                                <Text className="text-gray-900 text-xs leading-relaxed">
-                                  {detail.license.id_card_address}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  )}
 
                   {/* 操作按钮 */}
                   <View className="grid grid-cols-2 gap-2 p-3 bg-gray-50 border-t border-gray-100">
@@ -810,7 +753,7 @@ const UserManagement: React.FC = () => {
                         className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
                         <View className="i-mdi-account-convert text-sky-600 text-lg mr-1.5" />
                         <Text className="text-sky-700 text-sm font-medium">
-                          {u.role === 'manager' ? '降级为司机' : '提升管理员'}
+                          {u.role === 'manager' ? '降级为司机' : '提升为管理员'}
                         </Text>
                       </View>
                     )}
