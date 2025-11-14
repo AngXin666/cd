@@ -34,6 +34,7 @@ const pages = [
   'pages/manager/driver-profile/index',
   'pages/manager/staff-management/index',
   'pages/super-admin/warehouse-management/index',
+  'pages/super-admin/warehouse-edit/index',
   'pages/super-admin/warehouse-detail/index',
   'pages/super-admin/driver-warehouse-assignment/index',
   'pages/super-admin/manager-warehouse-assignment/index',

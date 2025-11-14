@@ -21,8 +21,8 @@ const WarehouseManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
   const [showAddWarehouse, setShowAddWarehouse] = useState(false)
   const [showEditWarehouse, setShowEditWarehouse] = useState(false)
-  const [currentWarehouse, setCurrentWarehouse] = useState<WarehouseWithRule | null>(null)
-  const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
+  const [currentWarehouse, _setCurrentWarehouse] = useState<WarehouseWithRule | null>(null)
+  const [currentRule, _setCurrentRule] = useState<AttendanceRule | null>(null)
 
   // 新仓库表单
   const [newWarehouseName, setNewWarehouseName] = useState('')
@@ -118,35 +118,11 @@ const WarehouseManagement: React.FC = () => {
     }
   }
 
-  // 显示编辑仓库对话框（合并考勤规则）
+  // 跳转到编辑仓库页面
   const handleShowEditWarehouse = (warehouse: WarehouseWithRule) => {
-    setCurrentWarehouse(warehouse)
-    setEditWarehouseName(warehouse.name)
-    setEditWarehouseActive(warehouse.is_active)
-    setEditMaxLeaveDays(String(warehouse.max_leave_days || 7))
-    setEditResignationNoticeDays(String(warehouse.resignation_notice_days || 30))
-
-    // 加载考勤规则数据
-    if (warehouse.rule) {
-      setCurrentRule(warehouse.rule)
-      setRuleStartTime(warehouse.rule.work_start_time)
-      setRuleEndTime(warehouse.rule.work_end_time)
-      setRuleLateThreshold(String(warehouse.rule.late_threshold))
-      setRuleEarlyThreshold(String(warehouse.rule.early_threshold))
-      setRuleRequireClockOut(warehouse.rule.require_clock_out ?? true)
-      setRuleActive(warehouse.rule.is_active)
-    } else {
-      // 如果没有规则，使用默认值
-      setCurrentRule(null)
-      setRuleStartTime('09:00')
-      setRuleEndTime('18:00')
-      setRuleLateThreshold('15')
-      setRuleEarlyThreshold('15')
-      setRuleRequireClockOut(true)
-      setRuleActive(true)
-    }
-
-    setShowEditWarehouse(true)
+    Taro.navigateTo({
+      url: `/pages/super-admin/warehouse-edit/index?id=${warehouse.id}`
+    })
   }
 
   // 查看仓库详情

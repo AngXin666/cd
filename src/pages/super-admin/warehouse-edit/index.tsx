@@ -1,0 +1,561 @@
+import {Button, Input, ScrollView, Switch, Text, View} from '@tarojs/components'
+import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
+import {useAuth} from 'miaoda-auth-taro'
+import type React from 'react'
+import {useCallback, useEffect, useState} from 'react'
+import {
+  addManagerWarehouse,
+  getAllCategories,
+  getAllUsers,
+  getCategoryPricesByWarehouse,
+  getWarehouseById,
+  getWarehouseManagers,
+  removeManagerWarehouse,
+  updateWarehouse,
+  upsertCategoryPrice
+} from '@/db/api'
+import type {PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
+
+const WarehouseEdit: React.FC = () => {
+  const {user} = useAuth({guard: true})
+  const [warehouseId, setWarehouseId] = useState<string>('')
+  const [_warehouse, setWarehouse] = useState<Warehouse | null>(null)
+
+  // 基本信息
+  const [name, setName] = useState('')
+  const [isActive, setIsActive] = useState(true)
+  const [maxLeaveDays, setMaxLeaveDays] = useState('7')
+  const [resignationNoticeDays, setResignationNoticeDays] = useState('30')
+
+  // 品类和价格
+  const [allCategories, setAllCategories] = useState<PieceWorkCategory[]>([])
+  const [categoryDriverPrices, setCategoryDriverPrices] = useState<Map<string, string>>(new Map())
+  const [categoryVehiclePrices, setCategoryVehiclePrices] = useState<Map<string, string>>(new Map())
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+
+  // 管理员
+  const [allManagers, setAllManagers] = useState<Profile[]>([])
+  const [selectedManagers, setSelectedManagers] = useState<Set<string>>(new Set())
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null)
+
+  // 加载仓库信息
+  const loadWarehouse = useCallback(async (id: string) => {
+    showLoading({title: '加载中...'})
+    try {
+      const warehouseData = await getWarehouseById(id)
+      if (warehouseData) {
+        setWarehouse(warehouseData)
+        setName(warehouseData.name)
+        setIsActive(warehouseData.is_active)
+        setMaxLeaveDays(String(warehouseData.max_leave_days || 7))
+        setResignationNoticeDays(String(warehouseData.resignation_notice_days || 30))
+      }
+    } catch (error) {
+      console.error('加载仓库信息失败:', error)
+      showToast({title: '加载失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }, [])
+
+  // 加载品类和价格
+  const loadCategoriesAndPrices = useCallback(async (id: string) => {
+    try {
+      // 加载所有品类
+      const categories = await getAllCategories()
+      setAllCategories(categories)
+
+      // 加载该仓库的品类价格
+      const prices = await getCategoryPricesByWarehouse(id)
+      const driverPriceMap = new Map<string, string>()
+      const vehiclePriceMap = new Map<string, string>()
+      const selectedSet = new Set<string>()
+
+      for (const price of prices) {
+        driverPriceMap.set(price.category_id, String(price.driver_price))
+        vehiclePriceMap.set(price.category_id, String(price.driver_with_vehicle_price))
+        selectedSet.add(price.category_id)
+      }
+
+      setCategoryDriverPrices(driverPriceMap)
+      setCategoryVehiclePrices(vehiclePriceMap)
+      setSelectedCategories(selectedSet)
+    } catch (error) {
+      console.error('加载品类信息失败:', error)
+    }
+  }, [])
+
+  // 加载管理员
+  const loadManagers = useCallback(
+    async (id: string) => {
+      try {
+        // 加载所有管理员和超级管理员
+        const allUsers = await getAllUsers()
+        const managers = allUsers.filter((u) => u.role === 'manager' || u.role === 'super_admin')
+        setAllManagers(managers)
+
+        // 加载当前用户信息
+        const current = managers.find((m) => m.id === user?.id)
+        if (current) {
+          setCurrentUser(current)
+        }
+
+        // 加载该仓库的管理员
+        const warehouseManagers = await getWarehouseManagers(id)
+        const managerSet = new Set<string>()
+        for (const manager of warehouseManagers) {
+          managerSet.add(manager.id)
+        }
+        setSelectedManagers(managerSet)
+      } catch (error) {
+        console.error('加载管理员信息失败:', error)
+      }
+    },
+    [user?.id]
+  )
+
+  // 页面加载时获取仓库 ID
+  useEffect(() => {
+    const instance = Taro.getCurrentInstance()
+    const id = instance.router?.params?.id
+    if (id) {
+      setWarehouseId(id)
+    } else {
+      showToast({title: '缺少仓库ID', icon: 'error'})
+      setTimeout(() => {
+        Taro.navigateBack()
+      }, 1500)
+    }
+  }, [])
+
+  // 加载数据
+  useDidShow(() => {
+    if (warehouseId) {
+      loadWarehouse(warehouseId)
+      loadCategoriesAndPrices(warehouseId)
+      loadManagers(warehouseId)
+    }
+  })
+
+  // 切换品类选择
+  const toggleCategory = (categoryId: string) => {
+    const newSelected = new Set(selectedCategories)
+    if (newSelected.has(categoryId)) {
+      newSelected.delete(categoryId)
+      // 删除价格
+      const newDriverPrices = new Map(categoryDriverPrices)
+      const newVehiclePrices = new Map(categoryVehiclePrices)
+      newDriverPrices.delete(categoryId)
+      newVehiclePrices.delete(categoryId)
+      setCategoryDriverPrices(newDriverPrices)
+      setCategoryVehiclePrices(newVehiclePrices)
+    } else {
+      newSelected.add(categoryId)
+      // 设置默认价格
+      const newDriverPrices = new Map(categoryDriverPrices)
+      const newVehiclePrices = new Map(categoryVehiclePrices)
+      newDriverPrices.set(categoryId, '0')
+      newVehiclePrices.set(categoryId, '0')
+      setCategoryDriverPrices(newDriverPrices)
+      setCategoryVehiclePrices(newVehiclePrices)
+    }
+    setSelectedCategories(newSelected)
+  }
+
+  // 更新纯司机价格
+  const updateDriverPrice = (categoryId: string, price: string) => {
+    const newPrices = new Map(categoryDriverPrices)
+    newPrices.set(categoryId, price)
+    setCategoryDriverPrices(newPrices)
+  }
+
+  // 更新带车司机价格
+  const updateVehiclePrice = (categoryId: string, price: string) => {
+    const newPrices = new Map(categoryVehiclePrices)
+    newPrices.set(categoryId, price)
+    setCategoryVehiclePrices(newPrices)
+  }
+
+  // 切换管理员选择
+  const toggleManager = (managerId: string) => {
+    const newSelected = new Set(selectedManagers)
+    if (newSelected.has(managerId)) {
+      newSelected.delete(managerId)
+    } else {
+      newSelected.add(managerId)
+    }
+    setSelectedManagers(newSelected)
+  }
+
+  // 快速选择自己为管理员
+  const selectSelfAsManager = () => {
+    if (currentUser) {
+      const newSelected = new Set(selectedManagers)
+      newSelected.add(currentUser.id)
+      setSelectedManagers(newSelected)
+      showToast({title: '已添加自己为管理员', icon: 'success'})
+    }
+  }
+
+  // 保存仓库信息
+  const handleSave = async () => {
+    // 验证必填项
+    if (!name.trim()) {
+      showToast({title: '请输入仓库名称', icon: 'error'})
+      return
+    }
+
+    if (selectedManagers.size === 0) {
+      showToast({title: '请至少选择一个管理员', icon: 'error'})
+      return
+    }
+
+    // 验证品类价格
+    for (const categoryId of selectedCategories) {
+      const driverPrice = categoryDriverPrices.get(categoryId)
+      const vehiclePrice = categoryVehiclePrices.get(categoryId)
+      const category = allCategories.find((c) => c.id === categoryId)
+
+      if (!driverPrice || Number.isNaN(Number(driverPrice)) || Number(driverPrice) < 0) {
+        showToast({title: `请为品类"${category?.name}"设置有效的纯司机单价`, icon: 'error'})
+        return
+      }
+
+      if (!vehiclePrice || Number.isNaN(Number(vehiclePrice)) || Number(vehiclePrice) < 0) {
+        showToast({title: `请为品类"${category?.name}"设置有效的带车司机单价`, icon: 'error'})
+        return
+      }
+    }
+
+    showLoading({title: '保存中...'})
+    try {
+      // 1. 更新仓库基本信息
+      const success = await updateWarehouse(warehouseId, {
+        name: name.trim(),
+        is_active: isActive,
+        max_leave_days: Number(maxLeaveDays),
+        resignation_notice_days: Number(resignationNoticeDays)
+      })
+
+      if (!success) {
+        throw new Error('更新仓库信息失败')
+      }
+
+      // 2. 更新品类价格
+      for (const categoryId of selectedCategories) {
+        const priceInput = {
+          warehouse_id: warehouseId,
+          category_id: categoryId,
+          driver_price: Number(categoryDriverPrices.get(categoryId) || 0),
+          driver_with_vehicle_price: Number(categoryVehiclePrices.get(categoryId) || 0)
+        }
+
+        const priceSuccess = await upsertCategoryPrice(priceInput)
+        if (!priceSuccess) {
+          console.warn(`更新品类 ${categoryId} 价格失败`)
+        }
+      }
+
+      // 3. 更新管理员
+      // 获取原有管理员
+      const oldManagers = await getWarehouseManagers(warehouseId)
+      const oldManagerIds = new Set(oldManagers.map((m) => m.id))
+
+      // 找出需要添加和删除的管理员
+      const toAdd = Array.from(selectedManagers).filter((id) => !oldManagerIds.has(id))
+      const toRemove = Array.from(oldManagerIds).filter((id) => !selectedManagers.has(id))
+
+      // 添加新管理员
+      for (const managerId of toAdd) {
+        await addManagerWarehouse(managerId, warehouseId)
+      }
+
+      // 删除旧管理员
+      for (const managerId of toRemove) {
+        await removeManagerWarehouse(managerId, warehouseId)
+      }
+
+      // 清除缓存
+      onDataUpdated([
+        CACHE_KEYS.ALL_WAREHOUSES,
+        CACHE_KEYS.WAREHOUSE_CATEGORIES,
+        CACHE_KEYS.WAREHOUSE_ASSIGNMENTS,
+        CACHE_KEYS.MANAGER_WAREHOUSES,
+        CACHE_KEYS.DASHBOARD_DATA
+      ])
+
+      showToast({title: '保存成功', icon: 'success'})
+      setTimeout(() => {
+        Taro.navigateBack()
+      }, 1500)
+    } catch (error) {
+      console.error('保存失败:', error)
+      showToast({title: '保存失败', icon: 'error'})
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  return (
+    <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <ScrollView scrollY className="h-screen box-border">
+        <View className="p-4 pb-24">
+          {/* 说明卡片 */}
+          <View className="bg-blue-50 rounded-lg p-4 mb-4 border-l-4 border-blue-500">
+            <View className="flex items-start mb-2">
+              <View className="i-mdi-information text-2xl text-blue-600 mr-2 flex-shrink-0" />
+              <Text className="text-blue-900 font-bold text-base">设置说明</Text>
+            </View>
+            <View className="ml-8">
+              <View className="mb-2">
+                <Text className="text-blue-800 text-sm">
+                  1. <Text className="font-bold">品类设置</Text>
+                  ：为仓库配置可用的计件品类和单价，司机才能在该仓库提交计件工作报告
+                </Text>
+              </View>
+              <View className="mb-2">
+                <Text className="text-blue-800 text-sm">
+                  2. <Text className="font-bold">管理员设置</Text>
+                  ：必须为仓库指定至少一个管理员，管理员可以审批该仓库的请假申请和计件报告
+                </Text>
+              </View>
+              <View>
+                <Text className="text-blue-800 text-sm">
+                  3. <Text className="font-bold">超级管理员</Text>：您可以将自己设置为管理员，这样就能直接管理该仓库
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 基本信息 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <Text className="text-gray-800 font-bold text-lg mb-4">基本信息</Text>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm mb-2">
+                仓库名称 <Text className="text-red-500">*</Text>
+              </Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                  placeholder="请输入仓库名称"
+                  value={name}
+                  onInput={(e) => setName(e.detail.value)}
+                />
+              </View>
+            </View>
+
+            <View className="mb-4">
+              <View className="flex items-center justify-between">
+                <Text className="text-gray-700 text-sm">仓库状态</Text>
+                <View className="flex items-center">
+                  <Text className="text-gray-600 text-sm mr-2">{isActive ? '启用' : '停用'}</Text>
+                  <Switch checked={isActive} onChange={(e) => setIsActive(e.detail.value)} />
+                </View>
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">停用后，司机将无法在该仓库打卡和提交计件</Text>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-700 text-sm mb-2">最大请假天数</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                  type="number"
+                  placeholder="请输入最大请假天数"
+                  value={maxLeaveDays}
+                  onInput={(e) => setMaxLeaveDays(e.detail.value)}
+                />
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">司机单次请假不能超过此天数</Text>
+            </View>
+
+            <View>
+              <Text className="text-gray-700 text-sm mb-2">离职提前通知天数</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                  type="number"
+                  placeholder="请输入离职提前通知天数"
+                  value={resignationNoticeDays}
+                  onInput={(e) => setResignationNoticeDays(e.detail.value)}
+                />
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">司机离职需要提前通知的天数</Text>
+            </View>
+          </View>
+
+          {/* 品类设置 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <View className="flex items-center justify-between mb-4">
+              <Text className="text-gray-800 font-bold text-lg">品类设置</Text>
+              <Text className="text-gray-500 text-sm">已选择 {selectedCategories.size} 个品类</Text>
+            </View>
+
+            {allCategories.length === 0 ? (
+              <View className="text-center py-8">
+                <View className="i-mdi-package-variant text-5xl text-gray-300 mx-auto mb-2" />
+                <Text className="text-gray-400 text-sm">暂无品类</Text>
+                <Text className="text-gray-400 text-xs mt-1">请先在品类管理中添加品类</Text>
+              </View>
+            ) : (
+              <View>
+                {allCategories.map((category) => {
+                  const isSelected = selectedCategories.has(category.id)
+                  const driverPrice = categoryDriverPrices.get(category.id) || '0'
+                  const vehiclePrice = categoryVehiclePrices.get(category.id) || '0'
+
+                  return (
+                    <View
+                      key={category.id}
+                      className={`border rounded-lg p-3 mb-3 ${
+                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'
+                      }`}>
+                      <View className="flex items-center justify-between mb-2">
+                        <View className="flex items-center flex-1">
+                          <View
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-2 ${
+                              isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                            }`}
+                            onClick={() => toggleCategory(category.id)}>
+                            {isSelected && <View className="i-mdi-check text-white text-sm" />}
+                          </View>
+                          <Text className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
+                            {category.name}
+                          </Text>
+                        </View>
+                        <Text className={`text-xs ${category.is_active ? 'text-green-600' : 'text-gray-400'}`}>
+                          {category.is_active ? '启用中' : '已停用'}
+                        </Text>
+                      </View>
+
+                      {isSelected && (
+                        <View className="ml-7 space-y-2">
+                          <View>
+                            <Text className="text-gray-600 text-xs mb-1">纯司机单价（元/件）</Text>
+                            <View style={{overflow: 'hidden'}}>
+                              <Input
+                                className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
+                                type="digit"
+                                placeholder="请输入纯司机单价"
+                                value={driverPrice}
+                                onInput={(e) => updateDriverPrice(category.id, e.detail.value)}
+                              />
+                            </View>
+                          </View>
+                          <View className="mt-2">
+                            <Text className="text-gray-600 text-xs mb-1">带车司机单价（元/件）</Text>
+                            <View style={{overflow: 'hidden'}}>
+                              <Input
+                                className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
+                                type="digit"
+                                placeholder="请输入带车司机单价"
+                                value={vehiclePrice}
+                                onInput={(e) => updateVehiclePrice(category.id, e.detail.value)}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* 管理员设置 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <View className="flex items-center justify-between mb-4">
+              <Text className="text-gray-800 font-bold text-lg">
+                管理员设置 <Text className="text-red-500 text-sm">*</Text>
+              </Text>
+              <Text className="text-gray-500 text-sm">已选择 {selectedManagers.size} 个管理员</Text>
+            </View>
+
+            {/* 快速添加自己 */}
+            {currentUser && !selectedManagers.has(currentUser.id) && (
+              <View className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
+                <View className="flex items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="text-orange-900 font-medium text-sm">快速添加</Text>
+                    <Text className="text-orange-700 text-xs mt-1">将自己设置为该仓库的管理员</Text>
+                  </View>
+                  <Button
+                    size="mini"
+                    className="bg-orange-500 text-white text-xs break-keep"
+                    onClick={selectSelfAsManager}>
+                    添加自己
+                  </Button>
+                </View>
+              </View>
+            )}
+
+            {allManagers.length === 0 ? (
+              <View className="text-center py-8">
+                <View className="i-mdi-account-supervisor text-5xl text-gray-300 mx-auto mb-2" />
+                <Text className="text-gray-400 text-sm">暂无可用管理员</Text>
+              </View>
+            ) : (
+              <View>
+                {allManagers.map((manager) => {
+                  const isSelected = selectedManagers.has(manager.id)
+                  const isSelf = manager.id === user?.id
+
+                  return (
+                    <View
+                      key={manager.id}
+                      className={`border rounded-lg p-3 mb-3 ${
+                        isSelected ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'
+                      }`}
+                      onClick={() => toggleManager(manager.id)}>
+                      <View className="flex items-center">
+                        <View
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                            isSelected ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                          }`}>
+                          {isSelected && <View className="i-mdi-check text-white text-sm" />}
+                        </View>
+                        <View className="flex-1">
+                          <View className="flex items-center">
+                            <Text className={`font-medium ${isSelected ? 'text-green-900' : 'text-gray-700'}`}>
+                              {manager.name || manager.phone || manager.email || '未命名'}
+                            </Text>
+                            {isSelf && (
+                              <View className="ml-2 bg-blue-100 px-2 py-0.5 rounded">
+                                <Text className="text-blue-700 text-xs">我</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text className="text-gray-500 text-xs mt-1">
+                            {manager.role === 'super_admin' ? '超级管理员' : '普通管理员'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+
+            {selectedManagers.size === 0 && (
+              <View className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                <Text className="text-red-700 text-xs">⚠️ 必须至少选择一个管理员才能保存</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* 底部保存按钮 */}
+        <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+          <Button className="w-full bg-blue-600 text-white py-3 rounded-lg break-keep text-base" onClick={handleSave}>
+            保存设置
+          </Button>
+        </View>
+      </ScrollView>
+    </View>
+  )
+}
+
+export default WarehouseEdit

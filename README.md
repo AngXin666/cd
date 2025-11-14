@@ -477,10 +477,21 @@ const MyPage: React.FC = () => {
 
 ### 仓库管理系统（超级管理员）
 - **仓库信息管理**：添加、编辑、删除仓库信息
+- **专用编辑页面**：点击编辑按钮跳转到专门的仓库编辑页面，提供完整的配置功能
+- **品类配置**：
+  - 为仓库选择可用的计件品类
+  - 设置纯司机单价和带车司机单价
+  - 未配置品类的仓库，司机无法提交计件工作报告
+- **管理员分配**：
+  - 必须为仓库指定至少一个管理员才能保存
+  - 支持选择多个管理员
+  - 超级管理员可以将自己设置为仓库管理员
+  - 快速添加功能，一键将自己设为管理员
 - **考勤规则配置**：设置上下班时间、迟到阈值、早退阈值
 - **下班卡设置**：设置是否需要打下班卡
 - **仓库状态管理**：启用或禁用仓库
 - **实时预览**：查看仓库考勤规则
+- **智能说明**：编辑页面提供详细的设置说明和作用解释
 
 ### 司机仓库分配系统（超级管理员）
 - **司机仓库分配**：为司机分配可以工作的仓库
@@ -582,6 +593,7 @@ const MyPage: React.FC = () => {
 | `/pages/super-admin/staff-management/index` | 员工管理 | 司机管理（按仓库切换）和管理员管理（权限查看） |
 | `/pages/super-admin/permission-config/index` | 权限配置 | 管理员权限和仓库分配配置 |
 | `/pages/super-admin/warehouse-management/index` | 仓库管理 | 仓库和考勤规则管理 |
+| `/pages/super-admin/warehouse-edit/index` | 编辑仓库 | 专用仓库编辑页面（品类配置、管理员分配） |
 | `/pages/super-admin/warehouse-detail/index` | 仓库详情 | 查看仓库完整信息（司机数量、管理员、规则等） |
 | `/pages/super-admin/driver-warehouse-assignment/index` | 司机仓库分配 | 为司机分配工作仓库 |
 | `/pages/super-admin/manager-warehouse-assignment/index` | 管理员仓库分配 | 为管理员分配管辖仓库 |
