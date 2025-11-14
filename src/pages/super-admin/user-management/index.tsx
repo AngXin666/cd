@@ -93,9 +93,17 @@ const UserManagement: React.FC = () => {
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
+    console.log('========================================')
+    console.log('📋 超级管理端用户管理：开始加载用户列表')
+    console.log('当前登录用户:', user)
+    console.log('========================================')
+
     setLoading(true)
     try {
       const data = await getAllUsers()
+
+      console.log('✅ 成功获取用户数据，数量:', data.length)
+      console.log('用户列表:', data)
 
       // 为每个用户获取真实姓名（从驾驶证信息中）
       const usersWithRealName = await Promise.all(
@@ -111,6 +119,8 @@ const UserManagement: React.FC = () => {
         })
       )
 
+      console.log('✅ 处理后的用户数据（含真实姓名）:', usersWithRealName)
+
       setUsers(usersWithRealName)
       filterUsers(usersWithRealName, searchKeyword, roleFilter)
     } catch (error) {
@@ -119,7 +129,7 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, roleFilter, filterUsers])
+  }, [searchKeyword, roleFilter, filterUsers, user])
 
   // 搜索关键词变化
   const handleSearchChange = useCallback(
@@ -513,7 +523,18 @@ const UserManagement: React.FC = () => {
           ) : filteredUsers.length === 0 ? (
             <View className="bg-white rounded-lg p-8 text-center shadow-sm">
               <View className="i-mdi-account-off text-6xl text-gray-300 mx-auto mb-3" />
-              <Text className="text-gray-500 block">暂无用户数据</Text>
+              <Text className="text-gray-500 block mb-4">暂无用户数据</Text>
+
+              {/* 调试信息 */}
+              <View className="bg-gray-50 rounded-lg p-4 text-left">
+                <Text className="text-xs text-gray-700 font-bold block mb-2">调试信息：</Text>
+                <Text className="text-xs text-gray-600 block mb-1">总用户数: {users.length}</Text>
+                <Text className="text-xs text-gray-600 block mb-1">过滤后用户数: {filteredUsers.length}</Text>
+                <Text className="text-xs text-gray-600 block mb-1">当前角色筛选: {roleFilter}</Text>
+                <Text className="text-xs text-gray-600 block mb-1">搜索关键词: {searchKeyword || '无'}</Text>
+                <Text className="text-xs text-gray-600 block mb-1">当前用户ID: {user?.id || '未登录'}</Text>
+                <Text className="text-xs text-gray-600 block">请查看浏览器控制台获取详细日志</Text>
+              </View>
             </View>
           ) : (
             filteredUsers.map((u) => {
