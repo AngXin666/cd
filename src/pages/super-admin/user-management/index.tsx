@@ -23,6 +23,7 @@ import {
   updateUserRole
 } from '@/db/api'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
+import {CACHE_KEYS, clearSuperAdminUsersCache, getCache, setCache} from '@/utils/cache'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 // 司机详细信息类型
@@ -104,69 +105,96 @@ const UserManagement: React.FC = () => {
   }, [])
 
   // 加载用户列表
-  const loadUsers = useCallback(async () => {
-    console.log('========================================')
-    console.log('📋 超级管理端用户管理：开始加载用户列表')
-    console.log('当前登录用户:', user)
-    console.log('========================================')
+  const loadUsers = useCallback(
+    async (forceRefresh: boolean = false) => {
+      console.log('========================================')
+      console.log('📋 超级管理端用户管理：开始加载用户列表')
+      console.log('当前登录用户:', user)
+      console.log('强制刷新:', forceRefresh)
+      console.log('========================================')
 
-    setLoading(true)
-    try {
-      const data = await getAllUsers()
+      // 如果不是强制刷新，先尝试从缓存加载
+      if (!forceRefresh) {
+        const cachedUsers = getCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
+        const cachedDetails = getCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
 
-      console.log('✅ 成功获取用户数据，数量:', data.length)
-      console.log('用户列表:', data)
+        if (cachedUsers && cachedDetails) {
+          console.log(`✅ 从缓存加载用户列表，共 ${cachedUsers.length} 名用户`)
+          setUsers(cachedUsers)
+          filterUsers(cachedUsers, searchKeyword, roleFilter)
+          // 将普通对象转换为 Map
+          const detailsMap = new Map(Object.entries(cachedDetails))
+          setUserDetails(detailsMap)
+          return
+        }
+      }
 
-      // 为每个用户获取真实姓名（从驾驶证信息中）
-      const usersWithRealName = await Promise.all(
-        data.map(async (u) => {
-          if (u.role === 'driver') {
-            const license = await getDriverLicense(u.id)
-            return {
-              ...u,
-              real_name: license?.id_card_name || u.name
+      // 从数据库加载
+      setLoading(true)
+      try {
+        const data = await getAllUsers()
+
+        console.log('✅ 成功获取用户数据，数量:', data.length)
+        console.log('用户列表:', data)
+
+        // 为每个用户获取真实姓名（从驾驶证信息中）
+        const usersWithRealName = await Promise.all(
+          data.map(async (u) => {
+            if (u.role === 'driver') {
+              const license = await getDriverLicense(u.id)
+              return {
+                ...u,
+                real_name: license?.id_card_name || u.name
+              }
             }
-          }
-          return {...u, real_name: u.name}
-        })
-      )
-
-      console.log('✅ 处理后的用户数据（含真实姓名）:', usersWithRealName)
-
-      setUsers(usersWithRealName)
-      filterUsers(usersWithRealName, searchKeyword, roleFilter)
-
-      // 为所有司机加载详细信息（用于显示入职时间、在职天数等）
-      const driverDetails = new Map<string, DriverDetailInfo>()
-      const driverWarehouses = new Map<string, Warehouse[]>()
-      const allWarehouses = await getAllWarehouses()
-
-      await Promise.all(
-        usersWithRealName
-          .filter((u) => u.role === 'driver')
-          .map(async (u) => {
-            const detail = await getDriverDetailInfo(u.id)
-            if (detail) {
-              driverDetails.set(u.id, detail)
-            }
-
-            // 加载司机已分配的仓库
-            const assignments = await getWarehouseAssignmentsByDriver(u.id)
-            const assignedWarehouses = allWarehouses.filter((w) => assignments.some((a) => a.warehouse_id === w.id))
-            driverWarehouses.set(u.id, assignedWarehouses)
+            return {...u, real_name: u.name}
           })
-      )
-      setUserDetails(driverDetails)
-      setDriverWarehouseMap(driverWarehouses)
-      console.log('✅ 已加载司机详细信息，数量:', driverDetails.size)
-      console.log('✅ 已加载司机仓库分配信息')
-    } catch (error) {
-      console.error('❌ 加载用户列表失败:', error)
-      showToast({title: '加载失败', icon: 'error'})
-    } finally {
-      setLoading(false)
-    }
-  }, [searchKeyword, roleFilter, filterUsers, user])
+        )
+
+        console.log('✅ 处理后的用户数据（含真实姓名）:', usersWithRealName)
+
+        setUsers(usersWithRealName)
+        filterUsers(usersWithRealName, searchKeyword, roleFilter)
+
+        // 为所有司机加载详细信息（用于显示入职时间、在职天数等）
+        const driverDetails = new Map<string, DriverDetailInfo>()
+        const driverWarehouses = new Map<string, Warehouse[]>()
+        const allWarehouses = await getAllWarehouses()
+
+        await Promise.all(
+          usersWithRealName
+            .filter((u) => u.role === 'driver')
+            .map(async (u) => {
+              const detail = await getDriverDetailInfo(u.id)
+              if (detail) {
+                driverDetails.set(u.id, detail)
+              }
+
+              // 加载司机已分配的仓库
+              const assignments = await getWarehouseAssignmentsByDriver(u.id)
+              const assignedWarehouses = allWarehouses.filter((w) => assignments.some((a) => a.warehouse_id === w.id))
+              driverWarehouses.set(u.id, assignedWarehouses)
+            })
+        )
+        setUserDetails(driverDetails)
+        setDriverWarehouseMap(driverWarehouses)
+        console.log('✅ 已加载司机详细信息，数量:', driverDetails.size)
+        console.log('✅ 已加载司机仓库分配信息')
+
+        // 缓存数据（5分钟有效期）
+        setCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
+        // Map 需要转换为普通对象才能缓存
+        const detailsObj = Object.fromEntries(driverDetails)
+        setCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
+      } catch (error) {
+        console.error('❌ 加载用户列表失败:', error)
+        showToast({title: '加载失败', icon: 'error'})
+      } finally {
+        setLoading(false)
+      }
+    },
+    [searchKeyword, roleFilter, filterUsers, user]
+  )
 
   // 搜索关键词变化
   const handleSearchChange = useCallback(
@@ -302,8 +330,9 @@ const UserManagement: React.FC = () => {
           setNewUserRole('driver')
           setNewDriverType('pure')
           setShowAddUser(false)
-          // 刷新用户列表
-          loadUsers()
+          // 清除缓存并强制刷新用户列表
+          clearSuperAdminUsersCache()
+          loadUsers(true)
         }
       })
     } else {
@@ -344,7 +373,9 @@ const UserManagement: React.FC = () => {
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
-        await loadUsers()
+        // 清除缓存并强制刷新用户列表
+        clearSuperAdminUsersCache()
+        await loadUsers(true)
         // 重新加载该用户的详细信息
         const detail = await getDriverDetailInfo(targetUser.id)
         if (detail) {
@@ -486,7 +517,9 @@ const UserManagement: React.FC = () => {
         const success = await updateUserRole(targetUser.id, targetRole)
         if (success) {
           showToast({title: '修改成功', icon: 'success'})
-          await loadUsers()
+          // 清除缓存并强制刷新用户列表
+          clearSuperAdminUsersCache()
+          await loadUsers(true)
         } else {
           showToast({title: '修改失败', icon: 'error'})
         }
