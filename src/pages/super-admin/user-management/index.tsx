@@ -4,7 +4,7 @@
  * 参考普通管理端的司机管理实现
  */
 
-import {Input, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -37,8 +37,11 @@ const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserWithRealName[]>([])
   const [filteredUsers, setFilteredUsers] = useState<UserWithRealName[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all')
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('driver') // 默认显示司机
   const [loading, setLoading] = useState(false)
+
+  // 标签页状态：'driver' 或 'manager'
+  const [activeTab, setActiveTab] = useState<'driver' | 'manager'>('driver')
 
   // 用户详细信息展开状态
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
@@ -49,12 +52,10 @@ const UserManagement: React.FC = () => {
   const [warehouseAssignExpanded, setWarehouseAssignExpanded] = useState<string | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
 
-  // 角色选择器选项
-  const roleOptions = [
-    {label: '全部角色', value: 'all'},
-    {label: '超级管理员', value: 'super_admin'},
-    {label: '管理员', value: 'manager'},
-    {label: '司机', value: 'driver'}
+  // 标签页选项
+  const tabs = [
+    {key: 'driver' as const, label: '司机管理', icon: 'i-mdi-account-hard-hat'},
+    {key: 'manager' as const, label: '管理员管理', icon: 'i-mdi-account-tie'}
   ]
 
   // 过滤用户
@@ -141,13 +142,17 @@ const UserManagement: React.FC = () => {
     [users, roleFilter, filterUsers]
   )
 
-  // 角色筛选变化
-  const handleRoleFilterChange = useCallback(
-    (e: any) => {
-      const selectedIndex = Number(e.detail.value)
-      const role = roleOptions[selectedIndex].value as 'all' | UserRole
+  // 标签页切换
+  const handleTabChange = useCallback(
+    (tab: 'driver' | 'manager') => {
+      setActiveTab(tab)
+      // 切换标签时自动设置角色筛选
+      const role: UserRole = tab === 'driver' ? 'driver' : 'manager'
       setRoleFilter(role)
       filterUsers(users, searchKeyword, role)
+      // 收起所有展开的详情
+      setExpandedUserId(null)
+      setWarehouseAssignExpanded(null)
     },
     [users, searchKeyword, filterUsers]
   )
@@ -487,30 +492,37 @@ const UserManagement: React.FC = () => {
             <Text className="text-blue-100 text-sm block">管理系统所有用户和角色权限</Text>
           </View>
 
-          {/* 搜索和筛选 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
-            {/* 搜索框 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-600 mb-2 block">搜索用户</Text>
-              <View style={{overflow: 'hidden'}}>
-                <Input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                  placeholder="输入姓名、手机号或邮箱"
-                  value={searchKeyword}
-                  onInput={handleSearchChange}
+          {/* 标签页切换 */}
+          <View className="bg-white rounded-lg p-2 mb-4 shadow-sm flex flex-row">
+            {tabs.map((tab) => (
+              <View
+                key={tab.key}
+                onClick={() => handleTabChange(tab.key)}
+                className={`flex-1 flex flex-col items-center justify-center py-3 rounded-lg transition-all active:scale-95 ${
+                  activeTab === tab.key
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-md'
+                    : 'bg-gray-50 hover:bg-gray-100'
+                }`}>
+                <View
+                  className={`${tab.icon} text-2xl mb-1 ${activeTab === tab.key ? 'text-white' : 'text-gray-500'}`}
                 />
+                <Text className={`text-sm font-medium ${activeTab === tab.key ? 'text-white' : 'text-gray-600'}`}>
+                  {tab.label}
+                </Text>
               </View>
-            </View>
+            ))}
+          </View>
 
-            {/* 角色筛选 */}
-            <View>
-              <Text className="text-sm text-gray-600 mb-2 block">角色筛选</Text>
-              <Picker mode="selector" range={roleOptions.map((o) => o.label)} onChange={handleRoleFilterChange}>
-                <View className="flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                  <Text className="text-gray-800">{roleOptions.find((o) => o.value === roleFilter)?.label}</Text>
-                  <View className="i-mdi-chevron-down text-gray-400 text-xl" />
-                </View>
-              </Picker>
+          {/* 搜索框 */}
+          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <Text className="text-sm text-gray-600 mb-2 block">搜索{activeTab === 'driver' ? '司机' : '管理员'}</Text>
+            <View style={{overflow: 'hidden'}}>
+              <Input
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                placeholder={`输入${activeTab === 'driver' ? '司机' : '管理员'}姓名、手机号或邮箱`}
+                value={searchKeyword}
+                onInput={handleSearchChange}
+              />
             </View>
           </View>
 
@@ -523,11 +535,14 @@ const UserManagement: React.FC = () => {
           ) : filteredUsers.length === 0 ? (
             <View className="bg-white rounded-lg p-8 text-center shadow-sm">
               <View className="i-mdi-account-off text-6xl text-gray-300 mx-auto mb-3" />
-              <Text className="text-gray-500 block mb-4">暂无用户数据</Text>
+              <Text className="text-gray-500 block mb-4">暂无{activeTab === 'driver' ? '司机' : '管理员'}数据</Text>
 
               {/* 调试信息 */}
               <View className="bg-gray-50 rounded-lg p-4 text-left">
                 <Text className="text-xs text-gray-700 font-bold block mb-2">调试信息：</Text>
+                <Text className="text-xs text-gray-600 block mb-1">
+                  当前标签: {activeTab === 'driver' ? '司机管理' : '管理员管理'}
+                </Text>
                 <Text className="text-xs text-gray-600 block mb-1">总用户数: {users.length}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">过滤后用户数: {filteredUsers.length}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">当前角色筛选: {roleFilter}</Text>
