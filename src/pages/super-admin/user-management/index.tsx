@@ -175,7 +175,7 @@ const UserManagement: React.FC = () => {
   // 查看用户车辆管理
   const handleViewUserVehicles = useCallback((userId: string) => {
     navigateTo({
-      url: `/pages/manager/vehicle-management/index?driverId=${userId}`
+      url: `/pages/driver/vehicle-list/index?driverId=${userId}`
     })
   }, [])
 
