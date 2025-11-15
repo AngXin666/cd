@@ -23,6 +23,7 @@ const VehicleDetail: React.FC = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('pickup')
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
   useLoad((options) => {
     const {id} = options
@@ -73,6 +74,12 @@ const VehicleDetail: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // 处理图片加载失败
+  const handleImageError = (photoUrl: string, photoType: string, index: number) => {
+    logger.error(`${photoType}加载失败`, {photoUrl, index})
+    setFailedImages((prev) => new Set(prev).add(photoUrl))
   }
 
   // 删除车辆（测试功能）
@@ -302,17 +309,24 @@ const VehicleDetail: React.FC = () => {
                           className="relative rounded-lg overflow-hidden bg-gray-100"
                           onClick={() => {
                             const urls = vehicle.pickup_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
-                            if (photoUrl && urls.length > 0) {
+                            if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
                               previewImage(photoUrl, urls)
                             }
                           }}>
                           {photoUrl ? (
-                            <Image
-                              src={photoUrl}
-                              mode="aspectFill"
-                              className="w-full h-24"
-                              onError={() => logger.error('提车照片加载失败', {photo, index})}
-                            />
+                            failedImages.has(photoUrl) ? (
+                              <View className="w-full h-24 flex flex-col items-center justify-center bg-red-50">
+                                <View className="i-mdi-image-broken text-2xl text-red-400 mb-1"></View>
+                                <Text className="text-red-600 text-xs">加载失败</Text>
+                              </View>
+                            ) : (
+                              <Image
+                                src={photoUrl}
+                                mode="aspectFill"
+                                className="w-full h-24"
+                                onError={() => handleImageError(photoUrl, '提车照片', index)}
+                              />
+                            )
                           ) : (
                             <View className="w-full h-24 flex items-center justify-center">
                               <View className="i-mdi-image-off text-2xl text-gray-400"></View>
@@ -356,17 +370,24 @@ const VehicleDetail: React.FC = () => {
                           className="relative rounded-lg overflow-hidden bg-gray-100"
                           onClick={() => {
                             const urls = vehicle.return_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
-                            if (photoUrl && urls.length > 0) {
+                            if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
                               previewImage(photoUrl, urls)
                             }
                           }}>
                           {photoUrl ? (
-                            <Image
-                              src={photoUrl}
-                              mode="aspectFill"
-                              className="w-full h-24"
-                              onError={() => logger.error('还车照片加载失败', {photo, index})}
-                            />
+                            failedImages.has(photoUrl) ? (
+                              <View className="w-full h-24 flex flex-col items-center justify-center bg-red-50">
+                                <View className="i-mdi-image-broken text-2xl text-red-400 mb-1"></View>
+                                <Text className="text-red-600 text-xs">加载失败</Text>
+                              </View>
+                            ) : (
+                              <Image
+                                src={photoUrl}
+                                mode="aspectFill"
+                                className="w-full h-24"
+                                onError={() => handleImageError(photoUrl, '还车照片', index)}
+                              />
+                            )
                           ) : (
                             <View className="w-full h-24 flex items-center justify-center">
                               <View className="i-mdi-image-off text-2xl text-gray-400"></View>
@@ -407,24 +428,31 @@ const VehicleDetail: React.FC = () => {
                           className="relative rounded-lg overflow-hidden bg-gray-100"
                           onClick={() => {
                             const urls = vehicle.registration_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
-                            if (photoUrl && urls.length > 0) {
+                            if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
                               previewImage(photoUrl, urls)
                             }
                           }}>
                           {photoUrl ? (
-                            <>
-                              <Image
-                                src={photoUrl}
-                                mode="aspectFit"
-                                className="w-full h-32 bg-gray-100"
-                                onError={() => logger.error('行驶证照片加载失败', {photo, index})}
-                              />
-                              <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                                <Text className="text-white text-xs font-medium">
-                                  {index === 0 ? '主页' : index === 1 ? '副页' : '副页背面'}
-                                </Text>
+                            failedImages.has(photoUrl) ? (
+                              <View className="w-full h-32 flex flex-col items-center justify-center bg-red-50">
+                                <View className="i-mdi-image-broken text-3xl text-red-400 mb-1"></View>
+                                <Text className="text-red-600 text-xs">加载失败</Text>
                               </View>
-                            </>
+                            ) : (
+                              <>
+                                <Image
+                                  src={photoUrl}
+                                  mode="aspectFit"
+                                  className="w-full h-32 bg-gray-100"
+                                  onError={() => handleImageError(photoUrl, '行驶证照片', index)}
+                                />
+                                <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                  <Text className="text-white text-xs font-medium">
+                                    {index === 0 ? '主页' : index === 1 ? '副页' : '副页背面'}
+                                  </Text>
+                                </View>
+                              </>
+                            )
                           ) : (
                             <View className="w-full h-32 flex items-center justify-center">
                               <View className="i-mdi-image-off text-3xl text-gray-400"></View>
