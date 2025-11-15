@@ -2239,30 +2239,38 @@ export async function getDriverAttendanceStats(
   const attendanceDays = attendanceData?.length || 0
   const lateDays = attendanceData?.filter((record) => record.status === 'late').length || 0
 
-  // 获取已批准的请假记录
+  // 获取已批准的请假记录（修正查询条件，确保覆盖所有相关请假）
   const {data: leaveData, error: leaveError} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
     .eq('user_id', userId)
     .eq('status', 'approved')
-    .or(
-      `and(start_date.gte.${startDate},start_date.lte.${endDate}),and(end_date.gte.${startDate},end_date.lte.${endDate})`
-    )
+    .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
 
   if (leaveError) {
     console.error('获取请假记录失败:', leaveError)
     return {attendanceDays, lateDays, leaveDays: 0}
   }
 
-  // 计算请假天数
+  // 计算请假天数（只计算在指定日期范围内的天数）
   let leaveDays = 0
   if (leaveData && leaveData.length > 0) {
     for (const record of leaveData) {
-      const start = new Date(Math.max(new Date(record.start_date).getTime(), new Date(startDate).getTime()))
-      const end = new Date(Math.min(new Date(record.end_date).getTime(), new Date(endDate).getTime()))
-      const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-      if (days > 0) {
-        leaveDays += days
+      const leaveStart = new Date(record.start_date)
+      const leaveEnd = new Date(record.end_date)
+      const rangeStart = new Date(startDate)
+      const rangeEnd = new Date(endDate)
+
+      // 计算请假记录与查询范围的交集
+      const overlapStart = new Date(Math.max(leaveStart.getTime(), rangeStart.getTime()))
+      const overlapEnd = new Date(Math.min(leaveEnd.getTime(), rangeEnd.getTime()))
+
+      // 如果有交集，计算天数
+      if (overlapStart <= overlapEnd) {
+        const days = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        if (days > 0) {
+          leaveDays += days
+        }
       }
     }
   }
