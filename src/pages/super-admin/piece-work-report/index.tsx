@@ -537,7 +537,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             weeklyCompletionRate = (weeklyQuantity / weeklyTarget) * 100
           }
 
-          // 计算本月达标率（考虑新员工入职日期）
+          // 计算本月达标率（考虑新员工入职日期和请假天数）
           let monthlyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
@@ -557,8 +557,21 @@ const SuperAdminPieceWorkReport: React.FC = () => {
               }
             }
 
-            // 不扣除请假天数，直接使用实际天数
-            const monthlyTarget = dailyTarget * daysInMonth
+            // 获取当前仓库的允许请假天数
+            const currentWarehouse = warehouses[currentWarehouseIndex]
+            const maxLeaveDays = currentWarehouse?.max_leave_days || 0
+
+            // 计算本月实际请假天数（从考勤统计中获取）
+            const actualLeaveDays = attendanceStats.leaveDays || 0
+
+            // 如果实际请假天数超过允许范围，则扣除超出的部分
+            let workDaysInMonth = daysInMonth
+            if (actualLeaveDays > maxLeaveDays) {
+              const excessLeaveDays = actualLeaveDays - maxLeaveDays
+              workDaysInMonth = Math.max(daysInMonth - excessLeaveDays, 0)
+            }
+
+            const monthlyTarget = dailyTarget * workDaysInMonth
             monthlyCompletionRate = monthlyTarget > 0 ? (monthlyQuantity / monthlyTarget) * 100 : 0
           }
 
@@ -609,7 +622,9 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     calculateQuantityInRange,
     getMonthRange,
     getTodayRange,
-    getWeekRange
+    getWeekRange,
+    currentWarehouseIndex,
+    warehouses[currentWarehouseIndex]
   ])
 
   // 计算仪表盘数据
@@ -1096,8 +1111,22 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
                           // 计算从起始日期到今天的天数（包含起始日和今天）
                           const diffTime = today.getTime() - startDate.getTime()
-                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-                          return Math.max(diffDays, 0)
+                          let daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+                          // 获取当前仓库的允许请假天数
+                          const currentWarehouse = warehouses[currentWarehouseIndex]
+                          const maxLeaveDays = currentWarehouse?.max_leave_days || 0
+
+                          // 获取实际请假天数
+                          const actualLeaveDays = summary.leaveDays || 0
+
+                          // 如果实际请假天数超过允许范围，则扣除超出的部分
+                          if (actualLeaveDays > maxLeaveDays) {
+                            const excessLeaveDays = actualLeaveDays - maxLeaveDays
+                            daysInMonth = Math.max(daysInMonth - excessLeaveDays, 0)
+                          }
+
+                          return Math.max(daysInMonth, 0)
                         })()}天
                       </Text>
                     </View>

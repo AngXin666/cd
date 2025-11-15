@@ -1,4 +1,4 @@
-# 司机汇总达标率修复文档
+# 司机汇总达标率修复文档（最终版）
 
 ## 修复日期
 2025-11-15
@@ -10,6 +10,7 @@
 1. **顶部大环形图不需要** - 只需要保留三个小环形图
 2. **本周已工作天数计算错误** - 在职2天，显示"已工作3天"
 3. **本月应工作天数计算错误** - 显示"应工作1天"不合理，没有周末节假日
+4. **本月达标率计算逻辑需要优化** - 应该根据仓库设置的允许请假天数来判断是否扣除
 
 ## 根本原因分析
 
@@ -27,7 +28,7 @@
 
 ### 问题2：本月应工作天数计算错误
 **原因**：
-- 扣除了 `MONTHLY_ALLOWED_LEAVE_DAYS`（每月允许请假天数2天）
+- 最初扣除了固定的 `MONTHLY_ALLOWED_LEAVE_DAYS`（每月允许请假天数2天）
 - 对于新员工，入职天数很少，扣除2天后变成0或负数
 - 用户需求：不考虑周末节假日，只计算实际日历天数
 
@@ -35,6 +36,17 @@
 - 员工本月14号入职，今天15号
 - 错误逻辑：2天 - 2天（请假）= 0天
 - 正确逻辑：应该是2天（14号、15号）
+
+### 问题3：本月达标率计算逻辑需要优化
+**用户需求**：
+- 本月达标率的计算应该根据仓库设置的允许请假天数来判断
+- 如果司机的请假天数在允许范围内（≤ 仓库设置的允许请假天数），则不扣除请假天数
+- 如果司机的请假天数超过允许范围，则需要扣除超出的部分
+
+**示例**：
+- 仓库设置：允许请假2天
+- 司机A：本月请假1天 → 不扣除，应工作天数 = 实际天数
+- 司机B：本月请假3天 → 扣除超出的1天，应工作天数 = 实际天数 - 1
 
 ## 修复方案
 
@@ -98,10 +110,10 @@
 2. 直接计算从起始日期到今天的天数，而不是使用 `dayOfWeek`
 3. 明确包含起始日和今天（+1）
 
-### 3. 修复本月应工作天数计算 ✅
+### 3. 修复本月应工作天数计算（智能扣除请假天数）✅
 **修改位置**：
-- `src/pages/manager/piece-work-report/index.tsx` (行1054-1072)
-- `src/pages/super-admin/piece-work-report/index.tsx` (行1089-1107)
+- `src/pages/manager/piece-work-report/index.tsx` (行1062-1093)
+- `src/pages/super-admin/piece-work-report/index.tsx` (行1097-1128)
 
 **修改前**：
 ```typescript
@@ -139,49 +151,39 @@
   
   // 计算从起始日期到今天的天数（包含起始日和今天）
   const diffTime = today.getTime() - startDate.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-  return Math.max(diffDays, 0)
+  let daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+  
+  // 获取当前仓库的允许请假天数
+  const currentWarehouse = warehouses[currentWarehouseIndex]
+  const maxLeaveDays = currentWarehouse?.max_leave_days || 0
+  
+  // 获取实际请假天数
+  const actualLeaveDays = summary.leaveDays || 0
+  
+  // 如果实际请假天数超过允许范围，则扣除超出的部分
+  if (actualLeaveDays > maxLeaveDays) {
+    const excessLeaveDays = actualLeaveDays - maxLeaveDays
+    daysInMonth = Math.max(daysInMonth - excessLeaveDays, 0)
+  }
+  
+  return Math.max(daysInMonth, 0)
 })()}天
 ```
 
 **关键改进**：
-1. 移除了 `MONTHLY_ALLOWED_LEAVE_DAYS` 的扣除
-2. 使用 `Math.floor` 而不是 `Math.ceil`
-3. 直接计算从起始日期到今天的天数
+1. 使用 `Math.floor` 而不是 `Math.ceil`
+2. 直接计算从起始日期到今天的天数
+3. **智能扣除请假天数**：
+   - 从仓库设置中获取 `max_leave_days`（允许请假天数）
+   - 获取司机本月实际请假天数
+   - 只有当实际请假天数超过允许范围时，才扣除超出的部分
 
-### 4. 修复达标率计算逻辑 ✅
+### 4. 修复达标率计算逻辑（智能扣除请假天数）✅
 **修改位置**：
-- `src/pages/manager/piece-work-report/index.tsx` (行524-547)
-- `src/pages/super-admin/piece-work-report/index.tsx` (行543-566)
+- `src/pages/manager/piece-work-report/index.tsx` (行521-557)
+- `src/pages/super-admin/piece-work-report/index.tsx` (行540-576)
 
 **修改前**：
-```typescript
-// 计算本月达标率（考虑新员工入职日期和允许请假天数）
-let monthlyCompletionRate = 0
-if (dailyTarget > 0) {
-  const today = new Date()
-  let daysInMonth = today.getDate()
-  
-  if (summary.joinDate) {
-    const joinDate = new Date(summary.joinDate)
-    const monthStart = getMonthRange().start
-    const monthStartDate = new Date(monthStart)
-    
-    if (joinDate > monthStartDate) {
-      const diffTime = Math.abs(today.getTime() - joinDate.getTime())
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-      daysInMonth = Math.min(diffDays, daysInMonth)
-    }
-  }
-  
-  // 扣除允许的请假天数
-  const workDaysInMonth = Math.max(daysInMonth - MONTHLY_ALLOWED_LEAVE_DAYS, 0)
-  const monthlyTarget = dailyTarget * workDaysInMonth
-  monthlyCompletionRate = monthlyTarget > 0 ? (monthlyQuantity / monthlyTarget) * 100 : 0
-}
-```
-
-**修改后**：
 ```typescript
 // 计算本月达标率（考虑新员工入职日期）
 let monthlyCompletionRate = 0
@@ -207,77 +209,168 @@ if (dailyTarget > 0) {
 }
 ```
 
-**关键改进**：
-移除了请假天数的扣除，直接使用实际天数计算目标
-
-### 5. 移除不再使用的配置常量 ✅
-**修改位置**：
-- `src/pages/manager/piece-work-report/index.tsx` (行115-116)
-- `src/pages/super-admin/piece-work-report/index.tsx` (行115-116)
-
-**删除内容**：
+**修改后**：
 ```typescript
-// 配置常量
-const MONTHLY_ALLOWED_LEAVE_DAYS = 2 // 每月允许的请假天数
+// 计算本月达标率（考虑新员工入职日期和请假天数）
+let monthlyCompletionRate = 0
+if (dailyTarget > 0) {
+  const today = new Date()
+  let daysInMonth = today.getDate()
+  
+  if (summary.joinDate) {
+    const joinDate = new Date(summary.joinDate)
+    const monthStart = getMonthRange().start
+    const monthStartDate = new Date(monthStart)
+    
+    if (joinDate > monthStartDate) {
+      const diffTime = Math.abs(today.getTime() - joinDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+      daysInMonth = Math.min(diffDays, daysInMonth)
+    }
+  }
+  
+  // 获取当前仓库的允许请假天数
+  const currentWarehouse = warehouses[currentWarehouseIndex]
+  const maxLeaveDays = currentWarehouse?.max_leave_days || 0
+  
+  // 计算本月实际请假天数（从考勤统计中获取）
+  const actualLeaveDays = attendanceStats.leaveDays || 0
+  
+  // 如果实际请假天数超过允许范围，则扣除超出的部分
+  let workDaysInMonth = daysInMonth
+  if (actualLeaveDays > maxLeaveDays) {
+    const excessLeaveDays = actualLeaveDays - maxLeaveDays
+    workDaysInMonth = Math.max(daysInMonth - excessLeaveDays, 0)
+  }
+  
+  const monthlyTarget = dailyTarget * workDaysInMonth
+  monthlyCompletionRate = monthlyTarget > 0 ? (monthlyQuantity / monthlyTarget) * 100 : 0
+}
 ```
+
+**关键改进**：
+1. 从仓库设置中获取 `max_leave_days`
+2. 从考勤统计中获取实际请假天数
+3. **智能扣除逻辑**：只有当实际请假天数超过允许范围时，才扣除超出的部分
+4. 确保达标率计算与UI显示的应工作天数保持一致
 
 ## 修复效果
 
-### 修复前
+### 场景1：请假天数在允许范围内
 ```
+仓库设置：允许请假2天
 司机：邱吉兴
 入职日期：2025-11-14
 在职天数：2天
+本月请假：1天
 
-当天达标率：33%
+修复前：
+本月达标率：100% - 应工作0天 ❌ 错误（2天 - 2天固定扣除）
+
+修复后：
+本月达标率：100% - 应工作2天 ✅ 正确（不扣除请假天数）
+```
+
+### 场景2：请假天数超过允许范围
+```
+仓库设置：允许请假2天
+司机：张三
+入职日期：2025-11-01
+在职天数：15天
+本月请假：4天
+
+修复前：
+本月达标率：XX% - 应工作13天 ❌ 错误（15天 - 2天固定扣除）
+
+修复后：
+本月达标率：XX% - 应工作13天 ✅ 正确（15天 - (4天 - 2天允许) = 13天）
+```
+
+### 场景3：新员工本周入职
+```
+仓库设置：允许请假2天
+司机：李四
+入职日期：2025-11-14（周四）
+今天：2025-11-15（周五）
+本月请假：0天
+
+修复前：
 本周达标率：40% - 已工作3天 ❌ 错误
-本月达标率：100% - 应工作1天 ❌ 错误
-```
+本月达标率：100% - 应工作0天 ❌ 错误
 
-### 修复后
-```
-司机：邱吉兴
-入职日期：2025-11-14
-在职天数：2天
-
-当天达标率：33%
+修复后：
 本周达标率：40% - 已工作2天 ✅ 正确
 本月达标率：100% - 应工作2天 ✅ 正确
 ```
 
 ## 计算示例
 
-### 示例1：新员工本周入职
+### 示例1：请假天数在允许范围内
 **场景**：
-- 今天：2025-11-15（周五）
-- 入职日期：2025-11-14（周四）
-- 本周一：2025-11-11
+- 仓库设置：允许请假2天
+- 今天：2025-11-15
+- 入职日期：2025-11-01
+- 本月请假：1天
 
 **计算**：
-- 本周已工作天数：从11-14到11-15 = 2天（周四、周五）
-- 本月应工作天数：从11-14到11-15 = 2天
+- 本月实际天数：15天
+- 允许请假天数：2天
+- 实际请假天数：1天
+- 超出请假天数：0天（1 ≤ 2）
+- 本月应工作天数：15天（不扣除）
 
-### 示例2：老员工
+### 示例2：请假天数超过允许范围
 **场景**：
-- 今天：2025-11-15（周五）
-- 入职日期：2025-01-01
-- 本周一：2025-11-11
+- 仓库设置：允许请假2天
+- 今天：2025-11-15
+- 入职日期：2025-11-01
+- 本月请假：4天
 
 **计算**：
-- 本周已工作天数：从11-11到11-15 = 5天（周一到周五）
-- 本月应工作天数：从11-01到11-15 = 15天
+- 本月实际天数：15天
+- 允许请假天数：2天
+- 实际请假天数：4天
+- 超出请假天数：2天（4 - 2）
+- 本月应工作天数：13天（15 - 2）
 
-### 示例3：本月入职但非本周
+### 示例3：新员工请假超标
 **场景**：
-- 今天：2025-11-15（周五）
-- 入职日期：2025-11-10（上周日）
-- 本周一：2025-11-11
+- 仓库设置：允许请假2天
+- 今天：2025-11-15
+- 入职日期：2025-11-10
+- 本月请假：3天
 
 **计算**：
-- 本周已工作天数：从11-11到11-15 = 5天（周一到周五）
-- 本月应工作天数：从11-10到11-15 = 6天
+- 本月实际天数：6天（从11-10到11-15）
+- 允许请假天数：2天
+- 实际请假天数：3天
+- 超出请假天数：1天（3 - 2）
+- 本月应工作天数：5天（6 - 1）
 
 ## 技术细节
+
+### 智能扣除请假天数的逻辑
+```typescript
+// 获取当前仓库的允许请假天数
+const currentWarehouse = warehouses[currentWarehouseIndex]
+const maxLeaveDays = currentWarehouse?.max_leave_days || 0
+
+// 计算本月实际请假天数（从考勤统计中获取）
+const actualLeaveDays = attendanceStats.leaveDays || 0
+
+// 如果实际请假天数超过允许范围，则扣除超出的部分
+let workDaysInMonth = daysInMonth
+if (actualLeaveDays > maxLeaveDays) {
+  const excessLeaveDays = actualLeaveDays - maxLeaveDays
+  workDaysInMonth = Math.max(daysInMonth - excessLeaveDays, 0)
+}
+```
+
+**说明**：
+1. 从仓库表的 `max_leave_days` 字段获取允许请假天数
+2. 从考勤统计的 `leaveDays` 字段获取实际请假天数
+3. 只有当 `actualLeaveDays > maxLeaveDays` 时才扣除超出的部分
+4. 扣除的天数 = `actualLeaveDays - maxLeaveDays`
 
 ### 日期计算公式
 ```typescript
@@ -308,8 +401,8 @@ const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 ### 影响功能
 1. 司机汇总页面的达标率展示
 2. 本周已工作天数显示
-3. 本月应工作天数显示
-4. 本月达标率计算
+3. 本月应工作天数显示（智能扣除请假天数）
+4. 本月达标率计算（智能扣除请假天数）
 
 ### 不影响功能
 1. 当天达标率计算（保持不变）
@@ -317,33 +410,48 @@ const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 3. 件数统计（保持不变）
 4. 考勤统计（保持不变）
 
+### 新增依赖
+- 依赖仓库表的 `max_leave_days` 字段
+- 依赖考勤统计的 `leaveDays` 字段
+
 ## 测试建议
 
-### 测试场景1：新员工本周入职
+### 测试场景1：请假天数在允许范围内
+1. 设置仓库允许请假天数为2天
+2. 创建一个司机，本月请假1天
+3. 录入一些计件记录
+4. 查看司机汇总页面
+5. 验证"应工作X天"是否等于实际天数（不扣除请假天数）
+
+### 测试场景2：请假天数超过允许范围
+1. 设置仓库允许请假天数为2天
+2. 创建一个司机，本月请假4天
+3. 录入一些计件记录
+4. 查看司机汇总页面
+5. 验证"应工作X天"是否等于实际天数减去超出的请假天数（实际天数 - 2天）
+
+### 测试场景3：新员工本周入职
 1. 创建一个本周入职的司机
 2. 录入一些计件记录
 3. 查看司机汇总页面
 4. 验证"已工作X天"和"应工作X天"是否正确
 
-### 测试场景2：新员工本月入职但非本周
-1. 创建一个本月但非本周入职的司机
-2. 录入一些计件记录
-3. 查看司机汇总页面
-4. 验证"已工作X天"和"应工作X天"是否正确
+### 测试场景4：新员工请假超标
+1. 设置仓库允许请假天数为2天
+2. 创建一个本月入职的新员工（入职5天）
+3. 让该员工请假3天
+4. 录入一些计件记录
+5. 查看司机汇总页面
+6. 验证"应工作X天"是否等于5天 - 1天（超出的请假天数）= 4天
 
-### 测试场景3：老员工
-1. 使用一个很早就入职的司机
-2. 录入一些计件记录
-3. 查看司机汇总页面
-4. 验证"已工作X天"和"应工作X天"是否正确
-
-### 测试场景4：周日
-1. 在周日测试
-2. 验证本周已工作天数是否为7天（周一到周日）
-
-### 测试场景5：月初
-1. 在月初（1号或2号）测试
-2. 验证本月应工作天数是否正确
+### 测试场景5：不同仓库的允许请假天数
+1. 创建两个仓库，分别设置允许请假天数为1天和3天
+2. 创建两个司机，分别分配到这两个仓库
+3. 让两个司机都请假2天
+4. 查看司机汇总页面
+5. 验证：
+   - 仓库1的司机：应工作天数 = 实际天数 - 1天（超出）
+   - 仓库2的司机：应工作天数 = 实际天数（不超出）
 
 ## 总结
 
@@ -351,11 +459,20 @@ const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 
 ✅ **移除顶部大环形图** - 界面更简洁
 ✅ **修复本周已工作天数计算** - 使用正确的日期差计算方法
-✅ **修复本月应工作天数计算** - 移除请假天数扣除，使用实际日历天数
-✅ **修复达标率计算逻辑** - 不再扣除请假天数
-✅ **移除不再使用的配置** - 删除 MONTHLY_ALLOWED_LEAVE_DAYS 常量
+✅ **修复本月应工作天数计算** - 智能扣除请假天数
+✅ **修复达标率计算逻辑** - 智能扣除请假天数
+✅ **实现智能请假天数扣除** - 根据仓库设置的允许请假天数来判断是否扣除
 
-修复后的计算逻辑更加准确和合理，符合用户的实际需求。
+**核心改进**：
+1. 本周已工作天数：使用实际日历天数计算
+2. 本月应工作天数：根据仓库设置智能扣除超出的请假天数
+3. 本月达标率：与应工作天数保持一致的计算逻辑
+
+**智能扣除逻辑**：
+- 如果实际请假天数 ≤ 允许请假天数：不扣除
+- 如果实际请假天数 > 允许请假天数：只扣除超出的部分
+
+修复后的计算逻辑更加准确、合理和灵活，符合用户的实际需求。
 
 ---
 
@@ -363,5 +480,5 @@ const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 **修复状态**: ✅ 完成
 **影响范围**: 普通管理端 + 超级管理端
 **修改文件**: 2 个
-**删除代码**: 约50行
-**新增代码**: 约40行
+**核心改进**: 智能扣除请假天数
+**新增逻辑**: 根据仓库设置的允许请假天数来判断是否扣除
