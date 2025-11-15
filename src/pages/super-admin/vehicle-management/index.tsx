@@ -101,7 +101,7 @@ const VehicleManagement: React.FC = () => {
   // 查看司机详情
   const handleViewDriver = (driverId: string) => {
     Taro.navigateTo({
-      url: `/pages/super-admin/staff-management/index?driverId=${driverId}`
+      url: `/pages/super-admin/user-detail/index?id=${driverId}`
     })
   }
 
