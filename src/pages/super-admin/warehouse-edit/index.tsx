@@ -209,6 +209,7 @@ const WarehouseEdit: React.FC = () => {
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
     const id = instance.router?.params?.id
+    console.log('获取到的仓库ID:', id)
     if (id) {
       setWarehouseId(id)
     } else {
@@ -219,16 +220,26 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [])
 
-  // 加载数据
-  useDidShow(() => {
-    // 始终加载管理员列表
-    loadManagers(warehouseId)
-
+  // 当 warehouseId 变化时加载数据
+  useEffect(() => {
     if (warehouseId) {
+      console.log('开始加载仓库数据，ID:', warehouseId)
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
       loadAttendanceRule(warehouseId)
+      loadManagers(warehouseId)
       loadAllWarehouses()
+    }
+  }, [warehouseId, loadWarehouse, loadCategoriesAndPrices, loadAttendanceRule, loadManagers, loadAllWarehouses])
+
+  // 页面显示时刷新数据
+  useDidShow(() => {
+    if (warehouseId) {
+      console.log('页面显示，刷新数据')
+      loadWarehouse(warehouseId)
+      loadCategoriesAndPrices(warehouseId)
+      loadAttendanceRule(warehouseId)
+      loadManagers(warehouseId)
     }
   })
 
