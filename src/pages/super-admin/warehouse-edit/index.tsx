@@ -73,6 +73,7 @@ const WarehouseEdit: React.FC = () => {
     showLoading({title: '加载中...'})
     try {
       const warehouseData = await getWarehouseById(id)
+      console.log('加载的仓库数据:', warehouseData)
       if (warehouseData) {
         setWarehouse(warehouseData)
         setName(warehouseData.name)
@@ -80,6 +81,13 @@ const WarehouseEdit: React.FC = () => {
         setMaxLeaveDays(String(warehouseData.max_leave_days || 7))
         setResignationNoticeDays(String(warehouseData.resignation_notice_days || 30))
         setDailyTarget(warehouseData.daily_target ? String(warehouseData.daily_target) : '')
+        console.log('设置的状态:', {
+          name: warehouseData.name,
+          isActive: warehouseData.is_active,
+          maxLeaveDays: warehouseData.max_leave_days,
+          resignationNoticeDays: warehouseData.resignation_notice_days,
+          dailyTarget: warehouseData.daily_target
+        })
       }
     } catch (error) {
       console.error('加载仓库信息失败:', error)
@@ -94,10 +102,12 @@ const WarehouseEdit: React.FC = () => {
     try {
       // 加载所有品类
       const categories = await getAllCategories()
+      console.log('所有品类:', categories)
       setAllCategories(categories)
 
       // 加载该仓库的品类价格
       const prices = await getCategoryPricesByWarehouse(id)
+      console.log('仓库品类价格:', prices)
       const driverPriceMap = new Map<string, string>()
       const vehiclePriceMap = new Map<string, string>()
       const selectedSet = new Set<string>()
@@ -107,6 +117,10 @@ const WarehouseEdit: React.FC = () => {
         vehiclePriceMap.set(price.category_id, String(price.driver_with_vehicle_price))
         selectedSet.add(price.category_id)
       }
+
+      console.log('已选择的品类:', Array.from(selectedSet))
+      console.log('纯司机价格:', Array.from(driverPriceMap.entries()))
+      console.log('带车司机价格:', Array.from(vehiclePriceMap.entries()))
 
       setCategoryDriverPrices(driverPriceMap)
       setCategoryVehiclePrices(vehiclePriceMap)
@@ -153,6 +167,7 @@ const WarehouseEdit: React.FC = () => {
   const loadAttendanceRule = useCallback(async (id: string) => {
     try {
       const rule = await getAttendanceRuleByWarehouseId(id)
+      console.log('加载的考勤规则:', rule)
       if (rule) {
         setCurrentRule(rule)
         setRuleStartTime(rule.work_start_time)
@@ -161,6 +176,14 @@ const WarehouseEdit: React.FC = () => {
         setRuleEarlyThreshold(String(rule.early_threshold))
         setRuleRequireClockOut(rule.require_clock_out ?? true)
         setRuleActive(rule.is_active)
+        console.log('设置的考勤规则状态:', {
+          startTime: rule.work_start_time,
+          endTime: rule.work_end_time,
+          lateThreshold: rule.late_threshold,
+          earlyThreshold: rule.early_threshold,
+          requireClockOut: rule.require_clock_out,
+          isActive: rule.is_active
+        })
       }
     } catch (error) {
       console.error('加载考勤规则失败:', error)
