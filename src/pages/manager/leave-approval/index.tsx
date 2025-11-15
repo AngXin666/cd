@@ -1092,7 +1092,7 @@ const ManagerLeaveApproval: React.FC = () => {
                 driverStats.map((stats) => (
                   <View
                     key={stats.driverId}
-                    className={`bg-white rounded-xl p-4 mb-3 shadow-md ${stats.isFullAttendance ? 'border-2 border-yellow-400' : ''}`}
+                    className={`relative bg-white rounded-xl p-4 mb-3 shadow-md ${stats.isFullAttendance ? 'border-2 border-yellow-400' : ''}`}
                     onClick={() => navigateToDriverDetail(stats.driverId)}>
                     {/* 满勤徽章 */}
                     {stats.isFullAttendance && (
