@@ -1073,7 +1073,7 @@ const ManagerPieceWorkReport: React.FC = () => {
                         label="本周达标率"
                       />
                       <Text className="text-xs text-gray-500 mt-1">
-                        已工作{(() => {
+                        应工作{(() => {
                           const today = new Date()
                           const weekStart = new Date(getMondayDateString())
 
@@ -1088,8 +1088,26 @@ const ManagerPieceWorkReport: React.FC = () => {
 
                           // 计算从起始日期到今天的天数（包含起始日和今天）
                           const diffTime = today.getTime() - startDate.getTime()
-                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-                          return Math.max(diffDays, 0)
+                          const daysInWeek = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+                          // 获取本周的请假天数（从 summary 中获取，需要在数据加载时计算）
+                          // 注意：这里简化处理，实际应该从后端获取本周请假天数
+                          // 暂时使用 0，因为 summary 中没有 weeklyLeaveDays 字段
+                          const weeklyLeaveDays = 0
+
+                          // 获取当前仓库的允许请假天数（按比例计算本周允许的请假天数）
+                          const currentWarehouse = warehouses[currentWarehouseIndex]
+                          const monthlyMaxLeaveDays = currentWarehouse?.max_leave_days || 0
+                          // 假设一个月30天，计算本周允许的请假天数
+                          const weeklyMaxLeaveDays = Math.floor((monthlyMaxLeaveDays * daysInWeek) / 30)
+
+                          // 计算合规请假天数（不超过允许的请假天数）
+                          const validLeaveDays = Math.min(weeklyLeaveDays, weeklyMaxLeaveDays)
+
+                          // 计算本周应工作天数 = 本周天数 - 合规请假天数
+                          const workDaysInWeek = Math.max(daysInWeek - validLeaveDays, 0)
+
+                          return workDaysInWeek
                         })()}天
                       </Text>
                     </View>
@@ -1118,22 +1136,22 @@ const ManagerPieceWorkReport: React.FC = () => {
 
                           // 计算从起始日期到今天的天数（包含起始日和今天）
                           const diffTime = today.getTime() - startDate.getTime()
-                          let daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+                          const daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+                          // 获取本月的请假天数
+                          const monthlyLeaveDays = summary.leaveDays || 0
 
                           // 获取当前仓库的允许请假天数
                           const currentWarehouse = warehouses[currentWarehouseIndex]
                           const maxLeaveDays = currentWarehouse?.max_leave_days || 0
 
-                          // 获取实际请假天数
-                          const actualLeaveDays = summary.leaveDays || 0
+                          // 计算合规请假天数（不超过允许的请假天数）
+                          const validLeaveDays = Math.min(monthlyLeaveDays, maxLeaveDays)
 
-                          // 如果实际请假天数超过允许范围，则扣除超出的部分
-                          if (actualLeaveDays > maxLeaveDays) {
-                            const excessLeaveDays = actualLeaveDays - maxLeaveDays
-                            daysInMonth = Math.max(daysInMonth - excessLeaveDays, 0)
-                          }
+                          // 计算本月应工作天数 = 本月天数 - 合规请假天数
+                          const workDaysInMonth = Math.max(daysInMonth - validLeaveDays, 0)
 
-                          return Math.max(daysInMonth, 0)
+                          return workDaysInMonth
                         })()}天
                       </Text>
                     </View>
