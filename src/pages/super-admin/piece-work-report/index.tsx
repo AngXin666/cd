@@ -334,13 +334,31 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
   // 计算统计数据
   const totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
-  const totalAmount = records.reduce((sum, r) => {
+  const _totalAmount = records.reduce((sum, r) => {
     const baseAmount = (r.quantity || 0) * (r.unit_price || 0)
     const upstairsAmount = r.need_upstairs ? (r.quantity || 0) * (r.upstairs_price || 0) : 0
     const sortingAmount = r.need_sorting ? (r.sorting_quantity || 0) * (r.sorting_unit_price || 0) : 0
     return sum + baseAmount + upstairsAmount + sortingAmount
   }, 0)
   const uniqueDrivers = new Set(records.map((r) => r.user_id)).size
+
+  // 计算每日指标数（根据选中的仓库）
+  const dailyTarget = useMemo(() => {
+    if (selectedWarehouseIndex === 0) {
+      // 所有仓库：累加所有仓库的每日指标数
+      return warehouses.reduce((sum, w) => sum + (w.daily_target || 0), 0)
+    } else {
+      // 特定仓库：返回该仓库的每日指标数
+      const warehouse = warehouses[selectedWarehouseIndex - 1]
+      return warehouse?.daily_target || 0
+    }
+  }, [warehouses, selectedWarehouseIndex])
+
+  // 计算目标完成率
+  const completionRate = useMemo(() => {
+    if (dailyTarget === 0) return 0
+    return (totalQuantity / dailyTarget) * 100
+  }, [totalQuantity, dailyTarget])
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -354,13 +372,18 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <View className="i-mdi-package-variant text-lg text-blue-900" />
               </View>
               <Text className="text-2xl font-bold text-blue-900 block">{totalQuantity}</Text>
+              <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}</Text>
             </View>
             <View className="bg-white rounded-lg p-3 shadow">
               <View className="flex items-center justify-between mb-1">
-                <Text className="text-xs text-gray-600">总金额</Text>
-                <View className="i-mdi-currency-cny text-lg text-orange-600" />
+                <Text className="text-xs text-gray-600">目标完成率</Text>
+                <View className="i-mdi-chart-line text-lg text-green-600" />
               </View>
-              <Text className="text-2xl font-bold text-orange-600 block">¥{totalAmount.toFixed(2)}</Text>
+              <Text
+                className={`text-2xl font-bold block ${completionRate >= 100 ? 'text-green-600' : 'text-orange-600'}`}>
+                {completionRate.toFixed(1)}%
+              </Text>
+              <Text className="text-xs text-gray-500 mt-1">{completionRate >= 100 ? '已达标' : '未达标'}</Text>
             </View>
             <View className="bg-white rounded-lg p-3 shadow">
               <View className="flex items-center justify-between mb-1">
@@ -368,6 +391,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <View className="i-mdi-account-group text-lg text-blue-900" />
               </View>
               <Text className="text-2xl font-bold text-blue-900 block">{uniqueDrivers}</Text>
+              <Text className="text-xs text-gray-500 mt-1">已有司机</Text>
             </View>
           </View>
 
