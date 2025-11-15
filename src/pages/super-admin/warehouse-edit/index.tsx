@@ -453,6 +453,10 @@ const WarehouseEdit: React.FC = () => {
       setCategoryVehiclePrices(newVehiclePrices)
       setSelectedCategories(newSelected)
 
+      // 重新加载品类列表以确保所有品类都能显示
+      const categories = await getAllCategories()
+      setAllCategories(categories)
+
       showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
       setShowImportDialog(false)
     } catch (error) {
