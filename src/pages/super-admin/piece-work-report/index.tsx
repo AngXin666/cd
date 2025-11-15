@@ -322,11 +322,22 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         driverSummariesBase.map(async (summary) => {
           const attendanceStats = await getDriverAttendanceStats(summary.driverId, startDate, endDate)
 
-          // 计算每日达标率
-          // 达标率 = (总件数 / 每日指标数) * 100%
+          // 计算司机月度达标率（修正算法：考虑实际出勤天数）
           let driverCompletionRate = 0
+
+          // 1. 检查每日指标是否有效
           if (dailyTarget > 0) {
-            driverCompletionRate = (summary.totalQuantity / dailyTarget) * 100
+            // 2. 获取实际出勤天数
+            const actualAttendanceDays = attendanceStats.attendanceDays
+
+            // 3. 检查出勤天数是否有效
+            if (actualAttendanceDays > 0) {
+              // 4. 计算该司机的总目标 = 每日指标 × 实际出勤天数
+              const driverTotalTarget = dailyTarget * actualAttendanceDays
+
+              // 5. 计算达标率 = 司机总完成件数 / 司机总目标
+              driverCompletionRate = (summary.totalQuantity / driverTotalTarget) * 100
+            }
           }
 
           return {
@@ -429,11 +440,30 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   }, 0)
   const _uniqueDrivers = new Set(records.map((r) => r.user_id)).size
 
-  // 计算目标完成率
-  const _completionRate = useMemo(() => {
+  // 计算当日达标率（修正算法：考虑出勤司机数）
+  const completionRate = useMemo(() => {
+    // 1. 检查每日指标是否有效
     if (dailyTarget === 0) return 0
-    return (totalQuantity / dailyTarget) * 100
-  }, [totalQuantity, dailyTarget])
+
+    // 2. 获取当日出勤司机数
+    const todayDriversCount = dashboardData.todayDrivers
+
+    // 3. 检查出勤司机数是否有效
+    if (todayDriversCount === 0) return 0
+
+    // 4. 计算当日总目标 = 每日指标 × 出勤司机数
+    const todayTotalTarget = dailyTarget * todayDriversCount
+
+    // 5. 计算达标率 = 总完成件数 / 总目标
+    return (totalQuantity / todayTotalTarget) * 100
+  }, [totalQuantity, dailyTarget, dashboardData.todayDrivers])
+
+  // 计算月度平均达标率
+  const monthlyCompletionRate = useMemo(() => {
+    if (driverSummaries.length === 0) return 0
+    const totalRate = driverSummaries.reduce((sum, s) => sum + s.completionRate, 0)
+    return totalRate / driverSummaries.length
+  }, [driverSummaries])
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -448,24 +478,34 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
             {/* 四个指标卡片 */}
             <View className="grid grid-cols-2 gap-4">
-              {/* 当日达标率 - 空白状态 */}
+              {/* 当日达标率 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-calendar-today text-white text-xl" />
                   <Text className="text-white text-opacity-90 text-sm">当日达标率</Text>
                 </View>
-                <Text className="text-white text-3xl font-bold">--</Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">暂无数据</Text>
+                <Text className="text-white text-3xl font-bold">
+                  {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
+                </Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">
+                  {dashboardData.todayDrivers > 0
+                    ? `目标: ${(dailyTarget * dashboardData.todayDrivers).toFixed(0)}件`
+                    : '暂无数据'}
+                </Text>
               </View>
 
-              {/* 月度达标率 - 空白状态 */}
+              {/* 月度达标率 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-calendar-month text-white text-xl" />
                   <Text className="text-white text-opacity-90 text-sm">月度达标率</Text>
                 </View>
-                <Text className="text-white text-3xl font-bold">--</Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">暂无数据</Text>
+                <Text className="text-white text-3xl font-bold">
+                  {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
+                </Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">
+                  {driverSummaries.length > 0 ? '平均值' : '暂无数据'}
+                </Text>
               </View>
 
               {/* 司机总数 */}
