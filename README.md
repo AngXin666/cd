@@ -905,3 +905,53 @@ TARO_APP_APP_ID=app-7cdqf07mbu9t
 - ✅ 基础用户认证系统
 - ✅ 多角色权限管理
 - ✅ 司机、管理员、超级管理员三端界面
+
+---
+
+## 故障排查
+
+### 缓存问题
+
+如果遇到以下情况，可能是缓存问题：
+- 页面显示旧的内容
+- 出现 `ReferenceError: xxx is not defined` 错误
+- 代码更新后没有生效
+
+#### 快速解决方案
+
+**方法 1：使用清理脚本（推荐）**
+```bash
+./clear-cache.sh
+```
+
+**方法 2：手动清理**
+```bash
+# 1. 停止开发服务器（Ctrl+C）
+# 2. 清理缓存
+rm -rf dist .temp node_modules/.cache
+# 3. 重新启动
+pnpm run dev:h5
+```
+
+**方法 3：清理浏览器缓存**
+- 按 `F12` 打开开发者工具
+- 右键点击刷新按钮
+- 选择"清空缓存并硬性重新加载"
+
+详细说明请查看：[CACHE_CLEAR_GUIDE.md](CACHE_CLEAR_GUIDE.md)
+
+### 考勤缓存优化
+
+考勤系统使用了智能缓存机制：
+- 考勤记录缓存30分钟
+- 仓库分配缓存30分钟
+- 减少频繁的数据库查询
+- 提升页面加载速度
+
+详细说明请查看：[ATTENDANCE_CACHE_OPTIMIZATION.md](ATTENDANCE_CACHE_OPTIMIZATION.md)
+
+### 其他问题
+
+如果遇到其他问题，请查看：
+- [ISSUE_RESOLUTION.md](ISSUE_RESOLUTION.md) - 问题解决报告
+- [CACHE_AND_UI_UPDATES.md](CACHE_AND_UI_UPDATES.md) - 缓存优化和界面更新日志
