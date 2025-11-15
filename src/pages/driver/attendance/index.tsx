@@ -35,8 +35,10 @@ const Attendance: React.FC = () => {
     loadRecords()
   }, [loadRecords])
 
+  // 页面显示时不自动刷新，使用缓存数据
+  // 用户可以通过下拉刷新来更新数据
   useDidShow(() => {
-    loadRecords()
+    // 不再自动刷新，依赖缓存
   })
 
   // 下拉刷新

@@ -1,4 +1,5 @@
 import {supabase} from '@/client/supabase'
+import {CACHE_KEYS, clearCache, getCache, setCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 import type {
   ApplicationReviewInput,
@@ -269,6 +270,18 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
     return null
   }
 
+  // 清除考勤缓存
+  if (data) {
+    const date = new Date(data.work_date)
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const cacheKey = `${CACHE_KEYS.ATTENDANCE_MONTHLY}_${data.user_id}_${year}_${month}`
+    clearCache(cacheKey)
+    // 清除所有记录缓存
+    const allCacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${year}_${month}`
+    clearCache(allCacheKey)
+  }
+
   return data
 }
 
@@ -281,6 +294,23 @@ export async function updateClockOut(id: string, update: AttendanceRecordUpdate)
   if (error) {
     console.error('更新下班打卡失败:', error)
     return false
+  }
+
+  // 清除考勤缓存（需要先获取记录信息）
+  const {data: record} = await supabase
+    .from('attendance_records')
+    .select('user_id, work_date')
+    .eq('id', id)
+    .maybeSingle()
+  if (record) {
+    const date = new Date(record.work_date)
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const cacheKey = `${CACHE_KEYS.ATTENDANCE_MONTHLY}_${record.user_id}_${year}_${month}`
+    clearCache(cacheKey)
+    // 清除所有记录缓存
+    const allCacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${year}_${month}`
+    clearCache(allCacheKey)
   }
 
   return true
@@ -309,8 +339,18 @@ export async function getTodayAttendance(userId: string): Promise<AttendanceReco
 
 /**
  * 获取当月考勤记录
+ * 使用30分钟缓存，减少频繁查询
  */
 export async function getMonthlyAttendance(userId: string, year: number, month: number): Promise<AttendanceRecord[]> {
+  // 生成缓存键
+  const cacheKey = `${CACHE_KEYS.ATTENDANCE_MONTHLY}_${userId}_${year}_${month}`
+
+  // 尝试从缓存获取
+  const cached = getCache<AttendanceRecord[]>(cacheKey)
+  if (cached) {
+    return cached
+  }
+
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = getLocalDateString(new Date(year, month, 0))
 
@@ -327,13 +367,28 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
     return []
   }
 
-  return Array.isArray(data) ? data : []
+  const result = Array.isArray(data) ? data : []
+
+  // 缓存30分钟
+  setCache(cacheKey, result, 30 * 60 * 1000)
+
+  return result
 }
 
 /**
  * 获取所有用户的考勤记录（管理员使用）
+ * 使用30分钟缓存，减少频繁查询
  */
 export async function getAllAttendanceRecords(year?: number, month?: number): Promise<AttendanceRecord[]> {
+  // 生成缓存键
+  const cacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${year || 'all'}_${month || 'all'}`
+
+  // 尝试从缓存获取
+  const cached = getCache<AttendanceRecord[]>(cacheKey)
+  if (cached) {
+    return cached
+  }
+
   let query = supabase.from('attendance_records').select('*')
 
   if (year && month) {
@@ -349,7 +404,12 @@ export async function getAllAttendanceRecords(year?: number, month?: number): Pr
     return []
   }
 
-  return Array.isArray(data) ? data : []
+  const result = Array.isArray(data) ? data : []
+
+  // 缓存30分钟
+  setCache(cacheKey, result, 30 * 60 * 1000)
+
+  return result
 }
 
 /**

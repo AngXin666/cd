@@ -39,6 +39,10 @@ export const CACHE_KEYS = {
   DRIVER_LEAVE: 'driver_leave_cache',
   DRIVER_PIECE_WORK: 'driver_piece_work_cache',
 
+  // 考勤管理缓存（长期缓存）
+  ATTENDANCE_MONTHLY: 'attendance_monthly_cache',
+  ATTENDANCE_ALL_RECORDS: 'attendance_all_records_cache',
+
   // 数据版本号（用于检测数据更新）
   DATA_VERSION: 'data_version_cache'
 } as const
@@ -322,6 +326,19 @@ export function clearDriverCache(driverId?: string) {
     console.log(`[Cache] 已清除司机端缓存${driverId ? ` (司机ID: ${driverId})` : ''}`)
   } catch (err) {
     console.error('[Cache] 清除司机端缓存失败:', err)
+  }
+}
+
+/**
+ * 清除考勤管理缓存
+ */
+export function clearAttendanceCache() {
+  try {
+    clearCache(CACHE_KEYS.ATTENDANCE_MONTHLY)
+    clearCache(CACHE_KEYS.ATTENDANCE_ALL_RECORDS)
+    console.log('[Cache] 已清除考勤管理缓存')
+  } catch (err) {
+    console.error('[Cache] 清除考勤管理缓存失败:', err)
   }
 }
 

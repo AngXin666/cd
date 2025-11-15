@@ -129,6 +129,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
   }, [loadData])
 
   useDidShow(() => {
+    // 考勤数据已使用30分钟缓存，减少频繁查询
+    // 但仍需刷新请假申请等其他数据
     loadData()
     // 更新刷新时间戳，触发在职天数重新计算
     setRefreshTimestamp(Date.now())
