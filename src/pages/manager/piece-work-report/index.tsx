@@ -519,73 +519,52 @@ const ManagerPieceWorkReport: React.FC = () => {
             )}
           </View>
 
-          {/* 快捷排序按钮 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <Text className="text-sm font-bold text-gray-800 block mb-3">快捷排序</Text>
-            <View className="flex gap-2">
-              <View
-                onClick={() => {
-                  if (sortBy === 'completion') {
-                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-                  } else {
-                    setSortBy('completion')
-                    setSortOrder('desc')
-                  }
-                }}
-                className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
-                  sortBy === 'completion' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                }`}>
+          {/* 排序按钮 */}
+          <View className="flex gap-2 mb-4">
+            <View
+              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'completion' ? 'bg-blue-600' : 'bg-white'}`}
+              onClick={() => {
+                if (sortBy === 'completion') {
+                  setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                } else {
+                  setSortBy('completion')
+                  setSortOrder('desc')
+                }
+              }}>
+              <View className="flex items-center justify-center gap-1">
                 <View
-                  className={`i-mdi-chart-line text-base mr-1 ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
+                  className={`i-mdi-chart-line text-base ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs ${sortBy === 'completion' ? 'text-white' : 'text-gray-700'}`}>达标率</Text>
+                <Text className={`text-xs font-bold ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}>
+                  按达标率排序
+                </Text>
                 {sortBy === 'completion' && (
                   <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
                   />
                 )}
               </View>
-              <View
-                onClick={() => {
-                  if (sortBy === 'quantity') {
-                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-                  } else {
-                    setSortBy('quantity')
-                    setSortOrder('desc')
-                  }
-                }}
-                className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
-                  sortBy === 'quantity' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                }`}>
+            </View>
+            <View
+              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'quantity' ? 'bg-blue-600' : 'bg-white'}`}
+              onClick={() => {
+                if (sortBy === 'quantity') {
+                  setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                } else {
+                  setSortBy('quantity')
+                  setSortOrder('desc')
+                }
+              }}>
+              <View className="flex items-center justify-center gap-1">
                 <View
-                  className={`i-mdi-package-variant text-base mr-1 ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
+                  className={`i-mdi-package-variant text-base ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs ${sortBy === 'quantity' ? 'text-white' : 'text-gray-700'}`}>件数</Text>
+                <Text className={`text-xs font-bold ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}>
+                  按件数排序
+                </Text>
                 {sortBy === 'quantity' && (
                   <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
-                  />
-                )}
-              </View>
-              <View
-                onClick={() => {
-                  if (sortBy === 'leave') {
-                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-                  } else {
-                    setSortBy('leave')
-                    setSortOrder('desc')
-                  }
-                }}
-                className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
-                  sortBy === 'leave' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                }`}>
-                <View
-                  className={`i-mdi-calendar-remove text-base mr-1 ${sortBy === 'leave' ? 'text-white' : 'text-gray-600'}`}
-                />
-                <Text className={`text-xs ${sortBy === 'leave' ? 'text-white' : 'text-gray-700'}`}>请假</Text>
-                {sortBy === 'leave' && (
-                  <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'leave' ? 'text-white' : 'text-gray-600'}`}
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
                   />
                 )}
               </View>
@@ -593,98 +572,110 @@ const ManagerPieceWorkReport: React.FC = () => {
           </View>
 
           {/* 司机汇总列表 */}
-          <View className="bg-white rounded-lg p-4 shadow">
-            <View className="flex items-center justify-between mb-3">
-              <Text className="text-base font-bold text-gray-800">司机汇总</Text>
-              <Text className="text-xs text-gray-500">共 {driverSummaries.length} 位司机</Text>
+          <View className="flex items-center justify-between mb-3">
+            <Text className="text-base font-bold text-gray-800">司机汇总</Text>
+            <Text className="text-xs text-gray-500">共 {driverSummaries.length} 位司机</Text>
+          </View>
+
+          {driverSummaries.length === 0 ? (
+            <View className="bg-white rounded-lg p-8 text-center shadow">
+              <View className="i-mdi-account-off text-6xl text-gray-300 mb-4 mx-auto" />
+              <Text className="text-gray-500 block">暂无司机数据</Text>
             </View>
+          ) : (
+            driverSummaries.map((summary) => (
+              <View
+                key={summary.driverId}
+                className={`bg-white rounded-xl p-4 mb-3 shadow-md ${summary.completionRate >= 100 ? 'border-2 border-green-400' : ''}`}
+                onClick={() => handleViewDriverDetail(summary.driverId)}>
+                {/* 达标徽章 */}
+                {summary.completionRate >= 100 && (
+                  <View className="absolute top-2 right-2 bg-gradient-to-r from-green-400 to-green-500 px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                    <View className="i-mdi-check-circle text-white text-sm" />
+                    <Text className="text-xs text-white font-bold">达标</Text>
+                  </View>
+                )}
 
-            {driverSummaries.length === 0 ? (
-              <View className="text-center py-12">
-                <View className="i-mdi-account-off text-6xl text-gray-300 mx-auto mb-3" />
-                <Text className="text-sm text-gray-400 block">暂无数据</Text>
-              </View>
-            ) : (
-              <View>
-                {driverSummaries.map((summary) => (
-                  <View
-                    key={summary.driverId}
-                    className="mb-3 p-4 bg-gradient-to-r from-blue-50 to-white rounded-lg border border-gray-100"
-                    onClick={() => handleViewDriverDetail(summary.driverId)}>
-                    {/* 司机信息头部 */}
-                    <View className="flex items-start justify-between mb-3">
-                      <View className="flex-1">
-                        <View className="flex items-center mb-1">
-                          <View className="i-mdi-account-circle text-2xl text-blue-900 mr-2" />
-                          <Text className="text-base font-bold text-gray-800">
-                            {summary.driverName || summary.driverPhone || '未知司机'}
-                          </Text>
-                        </View>
-                        {summary.driverPhone && summary.driverName && (
-                          <Text className="text-xs text-gray-500 ml-8">{summary.driverPhone}</Text>
-                        )}
-                      </View>
-                      <View
-                        className={`px-3 py-1 rounded-full ${summary.completionRate >= 100 ? 'bg-green-600' : 'bg-orange-500'}`}>
-                        <Text className="text-sm text-white font-bold">{summary.completionRate.toFixed(1)}%</Text>
-                      </View>
-                    </View>
-
-                    {/* 统计信息 */}
-                    <View className="flex items-center gap-4 mb-3 ml-8">
-                      <View className="flex items-center">
-                        <View className="i-mdi-package-variant text-base text-gray-500 mr-1" />
-                        <Text className="text-sm text-gray-600">总件数: {summary.totalQuantity}</Text>
-                      </View>
-                      <View className="flex items-center">
-                        <View className="i-mdi-file-document text-base text-gray-500 mr-1" />
-                        <Text className="text-sm text-gray-600">记录数: {summary.recordCount}</Text>
-                      </View>
-                    </View>
-
-                    {/* 考勤信息 */}
-                    <View className="flex items-center gap-4 mb-3 ml-8">
-                      <View className="flex items-center">
-                        <View className="i-mdi-calendar-check text-base text-green-600 mr-1" />
-                        <Text className="text-sm text-gray-600">出勤: {summary.attendanceDays}天</Text>
-                      </View>
-                      <View className="flex items-center">
-                        <View className="i-mdi-clock-alert text-base text-orange-600 mr-1" />
-                        <Text className="text-sm text-gray-600">迟到: {summary.lateDays}天</Text>
-                      </View>
-                      <View className="flex items-center">
-                        <View className="i-mdi-calendar-remove text-base text-red-600 mr-1" />
-                        <Text className="text-sm text-gray-600">请假: {summary.leaveDays}天</Text>
-                      </View>
-                    </View>
-
-                    {/* 关联仓库 */}
-                    <View className="ml-8">
-                      <View className="flex items-start">
-                        <View className="i-mdi-warehouse text-base text-gray-500 mr-1 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500">关联仓库: </Text>
-                          <View className="flex flex-wrap gap-1 mt-1">
-                            {summary.warehouseNames.map((name, index) => (
-                              <View key={index} className="bg-blue-100 px-2 py-0.5 rounded">
-                                <Text className="text-xs text-blue-700">{name}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* 查看详情提示 */}
-                    <View className="flex items-center justify-end mt-3">
-                      <Text className="text-xs text-blue-600 mr-1">查看详细记录</Text>
-                      <View className="i-mdi-chevron-right text-base text-blue-600" />
+                {/* 司机信息头部 */}
+                <View className="flex items-center justify-between mb-4">
+                  <View className="flex items-center flex-1">
+                    <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
+                    <View className="flex-1">
+                      <Text className="text-base font-bold text-gray-800 block">
+                        {summary.driverName || summary.driverPhone || '未知司机'}
+                      </Text>
+                      {summary.driverPhone && summary.driverName && (
+                        <Text className="text-xs text-gray-500 block">{summary.driverPhone}</Text>
+                      )}
+                      <Text className="text-xs text-gray-500 block mt-1">
+                        {summary.warehouseNames.length > 0 ? summary.warehouseNames.join('、') : '未分配仓库'}
+                      </Text>
                     </View>
                   </View>
-                ))}
+                </View>
+
+                {/* 达标率圆环 */}
+                <View className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+                  <View className="relative w-20 h-20">
+                    <View
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background: `conic-gradient(${
+                          summary.completionRate >= 100
+                            ? '#10b981'
+                            : summary.completionRate >= 80
+                              ? '#f59e0b'
+                              : '#ef4444'
+                        } ${Math.min(summary.completionRate, 100) * 3.6}deg, #e5e7eb 0deg)`
+                      }}
+                    />
+                    <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                      <View>
+                        <Text className="text-xl font-bold text-gray-800 text-center block">
+                          {summary.completionRate.toFixed(0)}
+                        </Text>
+                        <Text className="text-xs text-gray-500 text-center">%</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View className="flex-1">
+                    <View className="flex items-center justify-between mb-2">
+                      <Text className="text-sm text-gray-600">完成件数</Text>
+                      <Text className="text-sm font-bold text-blue-600">
+                        {summary.totalQuantity} / {dailyTarget} 件
+                      </Text>
+                    </View>
+                    <View className="flex items-center justify-between">
+                      <Text className="text-sm text-gray-600">记录数</Text>
+                      <Text className="text-sm font-bold text-green-600">{summary.recordCount} 条</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 考勤统计数据 */}
+                <View className="grid grid-cols-3 gap-3">
+                  <View className="text-center bg-green-50 rounded-lg py-2">
+                    <Text className="text-xl font-bold text-green-600 block">{summary.attendanceDays}</Text>
+                    <Text className="text-xs text-gray-600">出勤天数</Text>
+                  </View>
+                  <View className="text-center bg-orange-50 rounded-lg py-2">
+                    <Text className="text-xl font-bold text-orange-600 block">{summary.lateDays}</Text>
+                    <Text className="text-xs text-gray-600">迟到天数</Text>
+                  </View>
+                  <View className="text-center bg-red-50 rounded-lg py-2">
+                    <Text className="text-xl font-bold text-red-600 block">{summary.leaveDays}</Text>
+                    <Text className="text-xs text-gray-600">请假天数</Text>
+                  </View>
+                </View>
+
+                {/* 查看详情提示 */}
+                <View className="flex items-center justify-center mt-3 pt-3 border-t border-gray-100">
+                  <Text className="text-xs text-blue-600 mr-1">查看详细记录</Text>
+                  <View className="i-mdi-chevron-right text-sm text-blue-600" />
+                </View>
               </View>
-            )}
-          </View>
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
