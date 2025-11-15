@@ -342,15 +342,21 @@ export async function getTodayAttendance(userId: string): Promise<AttendanceReco
  * 使用30分钟缓存，减少频繁查询
  */
 export async function getMonthlyAttendance(userId: string, year: number, month: number): Promise<AttendanceRecord[]> {
+  console.log(`📊 [考勤查询] 开始查询 - 用户:${userId}, 年月:${year}-${month}`)
+  
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.ATTENDANCE_MONTHLY}_${userId}_${year}_${month}`
+  console.log(`🔑 [考勤查询] 缓存键: ${cacheKey}`)
 
   // 尝试从缓存获取
   const cached = getCache<AttendanceRecord[]>(cacheKey)
   if (cached) {
+    console.log(`✅ [考勤查询] 使用缓存数据，记录数: ${cached.length}`)
     return cached
   }
 
+  console.log(`🔄 [考勤查询] 缓存未命中，从数据库查询...`)
+  
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = getLocalDateString(new Date(year, month, 0))
 
@@ -363,14 +369,16 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
     .order('work_date', {ascending: false})
 
   if (error) {
-    console.error('获取当月考勤记录失败:', error)
+    console.error('❌ [考勤查询] 获取当月考勤记录失败:', error)
     return []
   }
 
   const result = Array.isArray(data) ? data : []
+  console.log(`✅ [考勤查询] 数据库查询成功，记录数: ${result.length}`)
 
   // 缓存30分钟
   setCache(cacheKey, result, 30 * 60 * 1000)
+  console.log(`💾 [考勤查询] 已缓存数据，有效期: 30分钟`)
 
   return result
 }
@@ -380,14 +388,20 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
  * 使用30分钟缓存，减少频繁查询
  */
 export async function getAllAttendanceRecords(year?: number, month?: number): Promise<AttendanceRecord[]> {
+  console.log(`📊 [管理员考勤查询] 开始查询 - 年月:${year || '全部'}-${month || '全部'}`)
+  
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${year || 'all'}_${month || 'all'}`
+  console.log(`🔑 [管理员考勤查询] 缓存键: ${cacheKey}`)
 
   // 尝试从缓存获取
   const cached = getCache<AttendanceRecord[]>(cacheKey)
   if (cached) {
+    console.log(`✅ [管理员考勤查询] 使用缓存数据，记录数: ${cached.length}`)
     return cached
   }
+
+  console.log(`🔄 [管理员考勤查询] 缓存未命中，从数据库查询...`)
 
   let query = supabase.from('attendance_records').select('*')
 
@@ -400,14 +414,16 @@ export async function getAllAttendanceRecords(year?: number, month?: number): Pr
   const {data, error} = await query.order('work_date', {ascending: false})
 
   if (error) {
-    console.error('获取所有考勤记录失败:', error)
+    console.error('❌ [管理员考勤查询] 获取所有考勤记录失败:', error)
     return []
   }
 
   const result = Array.isArray(data) ? data : []
+  console.log(`✅ [管理员考勤查询] 数据库查询成功，记录数: ${result.length}`)
 
   // 缓存30分钟
   setCache(cacheKey, result, 30 * 60 * 1000)
+  console.log(`💾 [管理员考勤查询] 已缓存数据，有效期: 30分钟`)
 
   return result
 }
@@ -1415,6 +1431,19 @@ export async function getCategoryPriceForDriver(
 export async function getManagerWarehouses(managerId: string): Promise<Warehouse[]> {
   console.log('[getManagerWarehouses] 开始查询，管理员ID:', managerId)
 
+  // 生成缓存键
+  const cacheKey = `${CACHE_KEYS.WAREHOUSE_ASSIGNMENTS}_${managerId}`
+  console.log('[getManagerWarehouses] 缓存键:', cacheKey)
+
+  // 尝试从缓存获取
+  const cached = getCache<Warehouse[]>(cacheKey)
+  if (cached) {
+    console.log(`✅ [getManagerWarehouses] 使用缓存数据，仓库数: ${cached.length}`)
+    return cached
+  }
+
+  console.log('[getManagerWarehouses] 缓存未命中，从数据库查询...')
+
   const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
 
   console.log('[getManagerWarehouses] 查询结果:', {data, error})
@@ -1426,6 +1455,8 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
 
   if (!data || data.length === 0) {
     console.log('[getManagerWarehouses] 没有找到仓库分配数据')
+    // 缓存空结果，避免重复查询（缓存5分钟）
+    setCache(cacheKey, [], 5 * 60 * 1000)
     return []
   }
 
@@ -1450,6 +1481,11 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
 
   const result = Array.isArray(warehouses) ? warehouses : []
   console.log('[getManagerWarehouses] 最终返回仓库数量:', result.length)
+  
+  // 缓存30分钟
+  setCache(cacheKey, result, 30 * 60 * 1000)
+  console.log('[getManagerWarehouses] 已缓存数据，有效期: 30分钟')
+  
   return result
 }
 
