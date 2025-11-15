@@ -1,8 +1,12 @@
 /**
- * 车辆列表页面 - 优化版
+ * 车辆列表页面 - 提车/还车管理版
  * 显示司机名下的所有车辆
  * 支持管理员查看指定司机的车辆
- * 注意：车辆录入后不能删除，仅能查看详情
+ * 功能：
+ * - 提车录入：添加新车辆时自动记录提车时间
+ * - 还车录入：对已提车的车辆进行还车操作
+ * - 动态按钮：根据车辆状态显示不同的操作按钮
+ * - 智能控制：有未还车车辆时隐藏"添加新车辆"按钮
  */
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
@@ -173,6 +177,59 @@ const VehicleList: React.FC = () => {
     })
   }
 
+  // 还车录入
+  const handleReturnVehicle = (vehicleId: string, plateNumber: string) => {
+    Taro.navigateTo({
+      url: `/pages/driver/return-vehicle/index?id=${vehicleId}&plate=${plateNumber}`
+    })
+  }
+
+  // 判断是否应该显示"添加新车辆"按钮
+  const shouldShowAddButton = (): boolean => {
+    // 如果没有车辆，显示按钮
+    if (vehicles.length === 0) return true
+    
+    // 如果有任何车辆处于"已提车未还车"状态，隐藏按钮
+    const hasPickedUpVehicle = vehicles.some(v => v.status === 'picked_up')
+    return !hasPickedUpVehicle
+  }
+
+  // 获取车辆状态显示文本
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'picked_up':
+        return '已提车'
+      case 'returned':
+        return '已还车'
+      case 'active':
+        return '使用中'
+      case 'inactive':
+        return '已停用'
+      case 'maintenance':
+        return '维护中'
+      default:
+        return status
+    }
+  }
+
+  // 获取车辆状态颜色
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'picked_up':
+        return 'bg-green-500'
+      case 'returned':
+        return 'bg-gray-500'
+      case 'active':
+        return 'bg-blue-500'
+      case 'inactive':
+        return 'bg-red-500'
+      case 'maintenance':
+        return 'bg-yellow-500'
+      default:
+        return 'bg-gray-500'
+    }
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
@@ -212,8 +269,8 @@ const VehicleList: React.FC = () => {
             </View>
           )}
 
-          {/* 添加车辆按钮 - 只在司机自己的视图显示 */}
-          {!isManagerView && (
+          {/* 添加车辆按钮 - 只在司机自己的视图且满足条件时显示 */}
+          {!isManagerView && shouldShowAddButton() && (
             <View className="mb-4">
               <Button
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl break-keep text-base shadow-lg"
@@ -221,7 +278,7 @@ const VehicleList: React.FC = () => {
                 onClick={handleAddVehicle}>
                 <View className="flex items-center justify-center">
                   <View className="i-mdi-plus-circle-outline text-2xl mr-2"></View>
-                  <Text className="font-medium">添加新车辆</Text>
+                  <Text className="font-medium">添加新车辆（提车录入）</Text>
                 </View>
               </Button>
             </View>
@@ -299,19 +356,9 @@ const VehicleList: React.FC = () => {
                         <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1 mr-2">
                           <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
                         </View>
-                        {!vehicle.left_front_photo && (
-                          <View
-                            className={`rounded-full px-2 py-0.5 ${
-                              vehicle.status === 'active' ? 'bg-green-100' : 'bg-gray-100'
-                            }`}>
-                            <Text
-                              className={`text-xs font-medium ${
-                                vehicle.status === 'active' ? 'text-green-600' : 'text-gray-600'
-                              }`}>
-                              {vehicle.status === 'active' ? '使用中' : '已停用'}
-                            </Text>
-                          </View>
-                        )}
+                        <View className={`rounded-full px-2 py-0.5 ${getStatusColor(vehicle.status)}`}>
+                          <Text className="text-white text-xs font-medium">{getStatusText(vehicle.status)}</Text>
+                        </View>
                       </View>
                       <Text className="text-gray-800 text-base font-medium">
                         {vehicle.brand} {vehicle.model}
@@ -340,10 +387,44 @@ const VehicleList: React.FC = () => {
                       )}
                     </View>
 
+                    {/* 提车/还车时间 */}
+                    {(vehicle.pickup_time || vehicle.return_time) && (
+                      <View className="mb-4 space-y-2">
+                        {vehicle.pickup_time && (
+                          <View className="flex items-center">
+                            <View className="i-mdi-clock-check-outline text-base text-green-600 mr-2"></View>
+                            <Text className="text-xs text-gray-600">
+                              提车时间：{new Date(vehicle.pickup_time).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </Text>
+                          </View>
+                        )}
+                        {vehicle.return_time && (
+                          <View className="flex items-center">
+                            <View className="i-mdi-clock-check text-base text-gray-600 mr-2"></View>
+                            <Text className="text-xs text-gray-600">
+                              还车时间：{new Date(vehicle.return_time).toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
                     {/* 操作按钮 */}
                     <View className="flex gap-2 pt-3 border-t border-gray-100">
                       <Button
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                        className={`${vehicle.status === 'picked_up' && !isManagerView ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
                         size="default"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -354,6 +435,21 @@ const VehicleList: React.FC = () => {
                           <Text className="font-medium">查看详情</Text>
                         </View>
                       </Button>
+                      {/* 还车按钮 - 仅在已提车未还车且非管理员视图时显示 */}
+                      {vehicle.status === 'picked_up' && !isManagerView && (
+                        <Button
+                          className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                          size="default"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleReturnVehicle(vehicle.id, vehicle.plate_number)
+                          }}>
+                          <View className="flex items-center justify-center">
+                            <View className="i-mdi-car-arrow-left text-base mr-1"></View>
+                            <Text className="font-medium">还车</Text>
+                          </View>
+                        </Button>
+                      )}
                     </View>
                   </View>
                 </View>

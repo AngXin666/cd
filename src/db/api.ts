@@ -4228,6 +4228,39 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
   }
 }
 
+/**
+ * 还车录入
+ * @param vehicleId 车辆ID
+ * @param returnPhotos 还车照片URL数组
+ * @returns 更新后的车辆信息
+ */
+export async function returnVehicle(vehicleId: string, returnPhotos: string[]): Promise<Vehicle | null> {
+  logger.db('更新', 'vehicles', {vehicleId, action: '还车录入'})
+  try {
+    const {data, error} = await supabase
+      .from('vehicles')
+      .update({
+        status: 'returned',
+        return_time: new Date().toISOString(),
+        return_photos: returnPhotos
+      })
+      .eq('id', vehicleId)
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      logger.error('还车录入失败', error)
+      return null
+    }
+
+    logger.info('成功完成还车录入', {vehicleId})
+    return data
+  } catch (error) {
+    logger.error('还车录入异常', error)
+    return null
+  }
+}
+
 // ==================== 驾驶员证件管理 API ====================
 
 /**

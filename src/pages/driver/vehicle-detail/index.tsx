@@ -1,6 +1,9 @@
 /**
- * 车辆详情页面 - 优化版
- * 显示车辆的完整信息和照片
+ * 车辆详情页面 - 标签页版
+ * 功能：
+ * - 使用标签页展示提车照片、还车照片、行驶证照片
+ * - 显示提车时间和还车时间
+ * - 展示车辆基本信息
  */
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
@@ -8,14 +11,17 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {getDriverLicense, getVehicleById} from '@/db/api'
-import type {DriverLicense, Vehicle} from '@/db/types'
+import {getVehicleById} from '@/db/api'
+import {supabase} from '@/client/supabase'
+import type {Vehicle} from '@/db/types'
+
+type TabType = 'pickup' | 'return' | 'registration'
 
 const VehicleDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
-  const [_driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<TabType>('pickup')
 
   useLoad((options) => {
     const {id} = options
@@ -24,19 +30,12 @@ const VehicleDetail: React.FC = () => {
     }
   })
 
-  // 加载车辆详情和驾驶员证件信息
+  // 加载车辆详情
   const loadVehicleDetail = async (vehicleId: string) => {
     setLoading(true)
     try {
-      // 加载车辆信息
       const vehicleData = await getVehicleById(vehicleId)
       setVehicle(vehicleData)
-
-      // 加载驾驶员证件信息
-      if (vehicleData?.user_id) {
-        const licenseData = await getDriverLicense(vehicleData.user_id)
-        setDriverLicense(licenseData)
-      }
     } catch (error) {
       console.error('加载车辆详情失败:', error)
       Taro.showToast({
@@ -48,6 +47,13 @@ const VehicleDetail: React.FC = () => {
     }
   }
 
+  // 获取照片的公开URL
+  const getPhotoUrl = (path: string): string => {
+    if (!path) return ''
+    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_images`).getPublicUrl(path)
+    return data.publicUrl
+  }
+
   // 预览图片
   const previewImage = (url: string, urls: string[]) => {
     Taro.previewImage({
@@ -56,21 +62,52 @@ const VehicleDetail: React.FC = () => {
     })
   }
 
-  // 收集所有照片URL（数据库中已保存完整URL，直接使用）
-  const getAllPhotos = () => {
-    if (!vehicle) return []
-    const photos: string[] = []
-    if (vehicle.left_front_photo) photos.push(vehicle.left_front_photo)
-    if (vehicle.right_front_photo) photos.push(vehicle.right_front_photo)
-    if (vehicle.left_rear_photo) photos.push(vehicle.left_rear_photo)
-    if (vehicle.right_rear_photo) photos.push(vehicle.right_rear_photo)
-    if (vehicle.dashboard_photo) photos.push(vehicle.dashboard_photo)
-    if (vehicle.rear_door_photo) photos.push(vehicle.rear_door_photo)
-    if (vehicle.cargo_box_photo) photos.push(vehicle.cargo_box_photo)
-    if (vehicle.driving_license_main_photo) photos.push(vehicle.driving_license_main_photo)
-    if (vehicle.driving_license_sub_photo) photos.push(vehicle.driving_license_sub_photo)
-    if (vehicle.driving_license_sub_back_photo) photos.push(vehicle.driving_license_sub_back_photo)
-    return photos
+  // 格式化时间
+  const formatTime = (time: string | null): string => {
+    if (!time) return '未记录'
+    return new Date(time).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  // 获取车辆状态文本
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'picked_up':
+        return '已提车'
+      case 'returned':
+        return '已还车'
+      case 'active':
+        return '使用中'
+      case 'inactive':
+        return '已停用'
+      case 'maintenance':
+        return '维护中'
+      default:
+        return status
+    }
+  }
+
+  // 获取车辆状态颜色
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'picked_up':
+        return 'bg-green-500'
+      case 'returned':
+        return 'bg-gray-500'
+      case 'active':
+        return 'bg-blue-500'
+      case 'inactive':
+        return 'bg-red-500'
+      case 'maintenance':
+        return 'bg-yellow-500'
+      default:
+        return 'bg-gray-500'
+    }
   }
 
   if (loading) {
@@ -95,8 +132,6 @@ const VehicleDetail: React.FC = () => {
     )
   }
 
-  const allPhotos = getAllPhotos()
-
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
@@ -113,11 +148,8 @@ const VehicleDetail: React.FC = () => {
                 </Text>
                 {vehicle.color && <Text className="text-blue-100 text-sm">颜色：{vehicle.color}</Text>}
               </View>
-              <View
-                className={`rounded-full px-4 py-2 ${vehicle.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}`}>
-                <Text className="text-white text-sm font-medium">
-                  {vehicle.status === 'active' ? '使用中' : '已停用'}
-                </Text>
+              <View className={`rounded-full px-4 py-2 ${getStatusColor(vehicle.status)}`}>
+                <Text className="text-white text-sm font-medium">{getStatusText(vehicle.status)}</Text>
               </View>
             </View>
           </View>
@@ -137,92 +169,153 @@ const VehicleDetail: React.FC = () => {
                 label="注册日期"
                 value={vehicle.register_date ? new Date(vehicle.register_date).toLocaleDateString('zh-CN') : '未填写'}
               />
-              <InfoRow
-                icon="i-mdi-calendar-check"
-                label="发证日期"
-                value={vehicle.issue_date ? new Date(vehicle.issue_date).toLocaleDateString('zh-CN') : '未填写'}
-              />
             </View>
           </View>
 
-          {/* 车辆照片卡片 */}
-          <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
-            <View className="flex items-center mb-4">
-              <View className="i-mdi-camera text-2xl text-blue-600 mr-2"></View>
-              <Text className="text-lg font-bold text-gray-800">车辆照片</Text>
+          {/* 标签页导航 */}
+          <View className="bg-white rounded-t-2xl shadow-md">
+            <View className="flex border-b border-gray-200">
+              <View
+                className={`flex-1 py-4 text-center ${activeTab === 'pickup' ? 'border-b-2 border-blue-600' : ''}`}
+                onClick={() => setActiveTab('pickup')}>
+                <Text className={`font-medium ${activeTab === 'pickup' ? 'text-blue-600' : 'text-gray-600'}`}>
+                  提车照片
+                </Text>
+              </View>
+              <View
+                className={`flex-1 py-4 text-center ${activeTab === 'return' ? 'border-b-2 border-blue-600' : ''}`}
+                onClick={() => setActiveTab('return')}>
+                <Text className={`font-medium ${activeTab === 'return' ? 'text-blue-600' : 'text-gray-600'}`}>
+                  还车照片
+                </Text>
+              </View>
+              <View
+                className={`flex-1 py-4 text-center ${activeTab === 'registration' ? 'border-b-2 border-blue-600' : ''}`}
+                onClick={() => setActiveTab('registration')}>
+                <Text className={`font-medium ${activeTab === 'registration' ? 'text-blue-600' : 'text-gray-600'}`}>
+                  行驶证照片
+                </Text>
+              </View>
             </View>
-            <View className="grid grid-cols-2 gap-3">
-              <PhotoCard
-                title="左前照片"
-                icon="i-mdi-car-front"
-                url={vehicle.left_front_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="右前照片"
-                icon="i-mdi-car-front"
-                url={vehicle.right_front_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="左后照片"
-                icon="i-mdi-car-back"
-                url={vehicle.left_rear_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="右后照片"
-                icon="i-mdi-car-back"
-                url={vehicle.right_rear_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="仪表盘"
-                icon="i-mdi-speedometer"
-                url={vehicle.dashboard_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="后门"
-                icon="i-mdi-door-open"
-                url={vehicle.rear_door_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="货箱"
-                icon="i-mdi-package-variant"
-                url={vehicle.cargo_box_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="行驶证主页"
-                icon="i-mdi-card-account-details"
-                url={vehicle.driving_license_main_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="行驶证副页"
-                icon="i-mdi-card-account-details"
-                url={vehicle.driving_license_sub_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-              <PhotoCard
-                title="行驶证副页背面"
-                icon="i-mdi-card-account-details"
-                url={vehicle.driving_license_sub_back_photo || ''}
-                allPhotos={allPhotos}
-                onPreview={previewImage}
-              />
-            </View>
+          </View>
+
+          {/* 标签页内容 */}
+          <View className="bg-white rounded-b-2xl p-5 mb-4 shadow-md">
+            {/* 提车照片标签页 */}
+            {activeTab === 'pickup' && (
+              <View>
+                {/* 提车时间 */}
+                <View className="bg-green-50 rounded-lg p-4 mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-clock-check-outline text-2xl text-green-600 mr-2"></View>
+                    <View className="flex-1">
+                      <Text className="text-sm text-gray-600 mb-1">提车录入时间</Text>
+                      <Text className="text-base text-gray-800 font-bold">{formatTime(vehicle.pickup_time)}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 提车照片网格 */}
+                {vehicle.pickup_photos && vehicle.pickup_photos.length > 0 ? (
+                  <View className="grid grid-cols-3 gap-3">
+                    {vehicle.pickup_photos.map((photo, index) => (
+                      <View
+                        key={index}
+                        className="relative rounded-lg overflow-hidden"
+                        onClick={() =>
+                          previewImage(getPhotoUrl(photo), vehicle.pickup_photos?.map((p) => getPhotoUrl(p)) || [])
+                        }>
+                        <Image src={getPhotoUrl(photo)} mode="aspectFill" className="w-full h-24" />
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="flex flex-col items-center justify-center py-12">
+                    <View className="i-mdi-image-off text-5xl text-gray-300 mb-2"></View>
+                    <Text className="text-gray-500">暂无提车照片</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 还车照片标签页 */}
+            {activeTab === 'return' && (
+              <View>
+                {/* 还车时间 */}
+                <View className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-clock-check text-2xl text-gray-600 mr-2"></View>
+                    <View className="flex-1">
+                      <Text className="text-sm text-gray-600 mb-1">还车录入时间</Text>
+                      <Text className="text-base text-gray-800 font-bold">{formatTime(vehicle.return_time)}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 还车照片网格 */}
+                {vehicle.return_photos && vehicle.return_photos.length > 0 ? (
+                  <View className="grid grid-cols-3 gap-3">
+                    {vehicle.return_photos.map((photo, index) => (
+                      <View
+                        key={index}
+                        className="relative rounded-lg overflow-hidden"
+                        onClick={() =>
+                          previewImage(getPhotoUrl(photo), vehicle.return_photos?.map((p) => getPhotoUrl(p)) || [])
+                        }>
+                        <Image src={getPhotoUrl(photo)} mode="aspectFill" className="w-full h-24" />
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="flex flex-col items-center justify-center py-12">
+                    <View className="i-mdi-image-off text-5xl text-gray-300 mb-2"></View>
+                    <Text className="text-gray-500">暂无还车照片</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 行驶证照片标签页 */}
+            {activeTab === 'registration' && (
+              <View>
+                {/* 提示信息 */}
+                <View className="bg-blue-50 rounded-lg p-4 mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-information-outline text-2xl text-blue-600 mr-2"></View>
+                    <Text className="text-sm text-gray-600">行驶证照片在提车时录入</Text>
+                  </View>
+                </View>
+
+                {/* 行驶证照片网格 */}
+                {vehicle.registration_photos && vehicle.registration_photos.length > 0 ? (
+                  <View className="grid grid-cols-2 gap-3">
+                    {vehicle.registration_photos.map((photo, index) => (
+                      <View
+                        key={index}
+                        className="relative rounded-lg overflow-hidden"
+                        onClick={() =>
+                          previewImage(
+                            getPhotoUrl(photo),
+                            vehicle.registration_photos?.map((p) => getPhotoUrl(p)) || []
+                          )
+                        }>
+                        <Image src={getPhotoUrl(photo)} mode="aspectFit" className="w-full h-32 bg-gray-100" />
+                        <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                          <Text className="text-white text-xs font-medium">
+                            {index === 0 ? '主页' : index === 1 ? '副页' : '副页背面'}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="flex flex-col items-center justify-center py-12">
+                    <View className="i-mdi-image-off text-5xl text-gray-300 mb-2"></View>
+                    <Text className="text-gray-500">暂无行驶证照片</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* 底部间距 */}
@@ -247,39 +340,6 @@ const InfoRow: React.FC<InfoRowProps> = ({icon, label, value}) => (
       <Text className="text-sm text-gray-500 block mb-0.5">{label}</Text>
       <Text className="text-base text-gray-800 font-medium">{value}</Text>
     </View>
-  </View>
-)
-
-// 照片卡片组件
-interface PhotoCardProps {
-  title: string
-  icon: string
-  url: string
-  allPhotos: string[]
-  onPreview: (url: string, urls: string[]) => void
-}
-
-const PhotoCard: React.FC<PhotoCardProps> = ({title, icon, url, allPhotos, onPreview}) => (
-  <View
-    className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden active:scale-95 transition-all"
-    onClick={() => url && onPreview(url, allPhotos)}>
-    {url ? (
-      <View className="relative">
-        <Image src={url} mode="aspectFill" className="w-full h-32" />
-        <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-          <View className="flex items-center">
-            <View className={`${icon} text-base text-white mr-1`}></View>
-            <Text className="text-white text-xs font-medium">{title}</Text>
-          </View>
-        </View>
-      </View>
-    ) : (
-      <View className="flex flex-col items-center justify-center h-32">
-        <View className={`${icon} text-3xl text-gray-300 mb-2`}></View>
-        <Text className="text-xs text-gray-400">{title}</Text>
-        <Text className="text-xs text-gray-400">未上传</Text>
-      </View>
-    )}
   </View>
 )
 

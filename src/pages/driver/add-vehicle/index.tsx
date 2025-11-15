@@ -754,7 +754,15 @@ const AddVehicle: React.FC = () => {
         driving_license_main_photo: uploadedPhotos.driving_license_main,
         driving_license_sub_photo: uploadedPhotos.driving_license_sub,
         driving_license_sub_back_photo: uploadedPhotos.driving_license_sub_back,
-        status: 'active'
+        // 提车录入相关字段
+        status: 'picked_up', // 默认状态为"已提车"
+        pickup_time: new Date().toISOString(), // 记录提车时间
+        pickup_photos: Object.values(uploadedPhotos).filter(Boolean), // 提车照片（车辆照片）
+        registration_photos: [
+          uploadedPhotos.driving_license_main,
+          uploadedPhotos.driving_license_sub,
+          uploadedPhotos.driving_license_sub_back
+        ].filter(Boolean) // 行驶证照片
       }
 
       // 插入车辆信息

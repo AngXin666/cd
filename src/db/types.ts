@@ -483,6 +483,12 @@ export interface Vehicle {
   driving_license_main_photo: string | null // 行驶证主页照片
   driving_license_sub_photo: string | null // 行驶证副页照片
   driving_license_sub_back_photo: string | null // 行驶证副页背页照片
+  // 提车/还车管理字段
+  pickup_time: string | null // 提车时间
+  return_time: string | null // 还车时间
+  pickup_photos: string[] // 提车照片URL数组
+  return_photos: string[] // 还车照片URL数组
+  registration_photos: string[] // 行驶证照片URL数组
   created_at: string
   updated_at: string
 }
@@ -532,6 +538,12 @@ export interface VehicleInput {
   driving_license_main_photo?: string | null
   driving_license_sub_photo?: string | null
   driving_license_sub_back_photo?: string | null
+  // 提车/还车管理字段
+  pickup_time?: string | null
+  return_time?: string | null
+  pickup_photos?: string[]
+  return_photos?: string[]
+  registration_photos?: string[]
 }
 
 // 车辆信息更新类型
@@ -578,6 +590,12 @@ export interface VehicleUpdate {
   driving_license_main_photo?: string | null
   driving_license_sub_photo?: string | null
   driving_license_sub_back_photo?: string | null
+  // 提车/还车管理字段
+  pickup_time?: string | null
+  return_time?: string | null
+  pickup_photos?: string[]
+  return_photos?: string[]
+  registration_photos?: string[]
 }
 
 // 驾驶员证件信息类型
