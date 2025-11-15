@@ -75,7 +75,13 @@ interface DriverSummary {
   driverPhone: string
   totalQuantity: number
   totalAmount: number
-  completionRate: number // 达标率（基于在职天数）
+  completionRate: number // 总达标率（基于在职天数）
+  dailyCompletionRate: number // 当天达标率
+  weeklyCompletionRate: number // 本周达标率
+  monthlyCompletionRate: number // 本月达标率
+  dailyQuantity: number // 当日件数
+  weeklyQuantity: number // 本周件数
+  monthlyQuantity: number // 本月件数
   warehouses: Set<string> // 关联的仓库ID集合
   warehouseNames: string[] // 关联的仓库名称列表
   recordCount: number // 记录数量
@@ -371,7 +377,13 @@ const ManagerPieceWorkReport: React.FC = () => {
           warehouseNames: [],
           recordCount: 0,
           joinDate: driver?.join_date || null,
-          daysEmployed
+          daysEmployed,
+          dailyCompletionRate: 0,
+          weeklyCompletionRate: 0,
+          monthlyCompletionRate: 0,
+          dailyQuantity: 0,
+          weeklyQuantity: 0,
+          monthlyQuantity: 0
         })
       }
 
@@ -405,29 +417,98 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 司机汇总数据（含考勤）
   const [driverSummaries, setDriverSummaries] = useState<DriverSummary[]>([])
 
+  // 辅助函数：获取今天的日期范围
+  const getTodayRange = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString().split('T')[0]
+    return {start: todayStr, end: todayStr}
+  }
+
+  // 辅助函数：获取本周的日期范围（周一到今天）
+  const getWeekRange = () => {
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // 周一为起点
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - diff)
+    monday.setHours(0, 0, 0, 0)
+    const mondayStr = monday.toISOString().split('T')[0]
+    const todayStr = today.toISOString().split('T')[0]
+    return {start: mondayStr, end: todayStr}
+  }
+
+  // 辅助函数：获取本月的日期范围（本月1号到今天）
+  const getMonthRange = () => {
+    const today = new Date()
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+    firstDay.setHours(0, 0, 0, 0)
+    const firstDayStr = firstDay.toISOString().split('T')[0]
+    const todayStr = today.toISOString().split('T')[0]
+    return {start: firstDayStr, end: todayStr}
+  }
+
+  // 辅助函数：计算指定日期范围内的件数
+  const calculateQuantityInRange = (driverId: string, startDate: string, endDate: string): number => {
+    return records
+      .filter((record) => {
+        if (record.user_id !== driverId) return false
+        const recordDate = record.work_date
+        return recordDate >= startDate && recordDate <= endDate
+      })
+      .reduce((sum, record) => sum + (record.quantity || 0), 0)
+  }
+
   // 加载考勤数据并合并
   useEffect(() => {
     const loadAttendanceData = async () => {
+      // 获取日期范围
+      const todayRange = getTodayRange()
+      const weekRange = getWeekRange()
+      const monthRange = getMonthRange()
+
       const summariesWithAttendance = await Promise.all(
         driverSummariesBase.map(async (summary) => {
           const attendanceStats = await getDriverAttendanceStats(summary.driverId, startDate, endDate)
 
-          // 计算司机达标率（基于在职天数）
+          // 计算当天、本周、本月的件数
+          const dailyQuantity = calculateQuantityInRange(summary.driverId, todayRange.start, todayRange.end)
+          const weeklyQuantity = calculateQuantityInRange(summary.driverId, weekRange.start, weekRange.end)
+          const monthlyQuantity = calculateQuantityInRange(summary.driverId, monthRange.start, monthRange.end)
+
+          // 计算司机总达标率（基于在职天数）
           let driverCompletionRate = 0
-
-          // 1. 检查每日指标是否有效
           if (dailyTarget > 0) {
-            // 2. 获取在职天数（如果没有入职日期，则使用出勤天数）
             const daysForCalculation = summary.daysEmployed > 0 ? summary.daysEmployed : attendanceStats.attendanceDays
-
-            // 3. 检查天数是否有效
             if (daysForCalculation > 0) {
-              // 4. 计算该司机的总目标 = 每日指标 × 在职天数
               const driverTotalTarget = dailyTarget * daysForCalculation
-
-              // 5. 计算达标率 = 司机总完成件数 / 司机总目标
               driverCompletionRate = (summary.totalQuantity / driverTotalTarget) * 100
             }
+          }
+
+          // 计算当天达标率
+          let dailyCompletionRate = 0
+          if (dailyTarget > 0) {
+            dailyCompletionRate = (dailyQuantity / dailyTarget) * 100
+          }
+
+          // 计算本周达标率（周一到今天的天数）
+          let weeklyCompletionRate = 0
+          if (dailyTarget > 0) {
+            const today = new Date()
+            const dayOfWeek = today.getDay()
+            const daysInWeek = dayOfWeek === 0 ? 7 : dayOfWeek // 周日算7天，其他按实际天数
+            const weeklyTarget = dailyTarget * daysInWeek
+            weeklyCompletionRate = (weeklyQuantity / weeklyTarget) * 100
+          }
+
+          // 计算本月达标率（本月1号到今天的天数）
+          let monthlyCompletionRate = 0
+          if (dailyTarget > 0) {
+            const today = new Date()
+            const daysInMonth = today.getDate() // 本月已过天数
+            const monthlyTarget = dailyTarget * daysInMonth
+            monthlyCompletionRate = (monthlyQuantity / monthlyTarget) * 100
           }
 
           return {
@@ -435,7 +516,13 @@ const ManagerPieceWorkReport: React.FC = () => {
             attendanceDays: attendanceStats.attendanceDays,
             lateDays: attendanceStats.lateDays,
             leaveDays: attendanceStats.leaveDays,
-            completionRate: driverCompletionRate
+            completionRate: driverCompletionRate,
+            dailyCompletionRate,
+            weeklyCompletionRate,
+            monthlyCompletionRate,
+            dailyQuantity,
+            weeklyQuantity,
+            monthlyQuantity
           }
         })
       )
@@ -461,7 +548,18 @@ const ManagerPieceWorkReport: React.FC = () => {
     } else {
       setDriverSummaries([])
     }
-  }, [driverSummariesBase, startDate, endDate, sortOrder, sortBy, dailyTarget])
+  }, [
+    driverSummariesBase,
+    startDate,
+    endDate,
+    sortOrder,
+    sortBy,
+    dailyTarget,
+    calculateQuantityInRange,
+    getMonthRange,
+    getTodayRange,
+    getWeekRange
+  ])
 
   // 计算仪表盘数据
   useEffect(() => {
@@ -883,27 +981,35 @@ const ManagerPieceWorkReport: React.FC = () => {
 
                     {/* 右侧信息 */}
                     <View className="flex-1">
-                      {/* 完成率状态卡片 */}
-                      <View className="rounded-lg px-3 py-2 mb-2" style={{backgroundColor: status.bgColor}}>
-                        <View className="flex items-center justify-between">
-                          <Text className="text-xs" style={{color: status.textColor}}>
-                            完成率
-                          </Text>
-                          <Text className="text-lg font-bold" style={{color: status.textColor}}>
-                            {(summary.completionRate || 0).toFixed(1)}%
+                      {/* 三个达标率卡片 */}
+                      <View className="grid grid-cols-3 gap-2 mb-2">
+                        {/* 当天达标率 */}
+                        <View className="text-center bg-blue-50 rounded-lg py-2">
+                          <Text className="text-xs text-gray-600 mb-1">当天达标率</Text>
+                          <Text className="text-lg font-bold text-blue-600">
+                            {(summary.dailyCompletionRate || 0).toFixed(1)}%
                           </Text>
                         </View>
-                        <Text className="text-xs mt-1" style={{color: status.textColor}}>
-                          {status.label}
-                        </Text>
+                        {/* 本周达标率 */}
+                        <View className="text-center bg-green-50 rounded-lg py-2">
+                          <Text className="text-xs text-gray-600 mb-1">本周达标率</Text>
+                          <Text className="text-lg font-bold text-green-600">
+                            {(summary.weeklyCompletionRate || 0).toFixed(1)}%
+                          </Text>
+                        </View>
+                        {/* 本月达标率 */}
+                        <View className="text-center bg-purple-50 rounded-lg py-2">
+                          <Text className="text-xs text-gray-600 mb-1">本月达标率</Text>
+                          <Text className="text-lg font-bold text-purple-600">
+                            {(summary.monthlyCompletionRate || 0).toFixed(1)}%
+                          </Text>
+                        </View>
                       </View>
 
                       {/* 完成件数 */}
                       <View className="flex items-center justify-between">
                         <Text className="text-sm text-gray-600">完成件数</Text>
-                        <Text className="text-sm font-bold text-blue-600">
-                          {summary.totalQuantity} / {dailyTarget} 件
-                        </Text>
+                        <Text className="text-sm font-bold text-blue-600">{summary.totalQuantity} 件</Text>
                       </View>
                     </View>
                   </View>
@@ -920,19 +1026,19 @@ const ManagerPieceWorkReport: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* 考勤统计数据 */}
+                  {/* 件数统计 */}
                   <View className="grid grid-cols-3 gap-3">
+                    <View className="text-center bg-blue-50 rounded-lg py-2">
+                      <Text className="text-xl font-bold text-blue-600 block">{summary.dailyQuantity}</Text>
+                      <Text className="text-xs text-gray-600">当日件数</Text>
+                    </View>
                     <View className="text-center bg-green-50 rounded-lg py-2">
-                      <Text className="text-xl font-bold text-green-600 block">{summary.attendanceDays}</Text>
-                      <Text className="text-xs text-gray-600">出勤天数</Text>
+                      <Text className="text-xl font-bold text-green-600 block">{summary.weeklyQuantity}</Text>
+                      <Text className="text-xs text-gray-600">本周件数</Text>
                     </View>
-                    <View className="text-center bg-orange-50 rounded-lg py-2">
-                      <Text className="text-xl font-bold text-orange-600 block">{summary.lateDays}</Text>
-                      <Text className="text-xs text-gray-600">迟到天数</Text>
-                    </View>
-                    <View className="text-center bg-red-50 rounded-lg py-2">
-                      <Text className="text-xl font-bold text-red-600 block">{summary.leaveDays}</Text>
-                      <Text className="text-xs text-gray-600">请假天数</Text>
+                    <View className="text-center bg-purple-50 rounded-lg py-2">
+                      <Text className="text-xl font-bold text-purple-600 block">{summary.monthlyQuantity}</Text>
+                      <Text className="text-xs text-gray-600">本月件数</Text>
                     </View>
                   </View>
 
