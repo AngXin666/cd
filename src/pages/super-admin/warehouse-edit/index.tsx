@@ -116,11 +116,12 @@ const WarehouseEdit: React.FC = () => {
 
   // 加载管理员
   const loadManagers = useCallback(
-    async (id: string) => {
+    async (id?: string) => {
       try {
         // 加载所有管理员和超级管理员
         const allUsers = await getAllUsers()
         const managers = allUsers.filter((u) => u.role === 'manager' || u.role === 'super_admin')
+        console.log('加载到的管理员列表:', managers)
         setAllManagers(managers)
 
         // 加载当前用户信息
@@ -129,13 +130,16 @@ const WarehouseEdit: React.FC = () => {
           setCurrentUser(current)
         }
 
-        // 加载该仓库的管理员
-        const warehouseManagers = await getWarehouseManagers(id)
-        const managerSet = new Set<string>()
-        for (const manager of warehouseManagers) {
-          managerSet.add(manager.id)
+        // 如果有仓库ID，加载该仓库的管理员
+        if (id) {
+          const warehouseManagers = await getWarehouseManagers(id)
+          console.log('仓库已分配的管理员:', warehouseManagers)
+          const managerSet = new Set<string>()
+          for (const manager of warehouseManagers) {
+            managerSet.add(manager.id)
+          }
+          setSelectedManagers(managerSet)
         }
-        setSelectedManagers(managerSet)
       } catch (error) {
         console.error('加载管理员信息失败:', error)
       }
@@ -189,10 +193,12 @@ const WarehouseEdit: React.FC = () => {
 
   // 加载数据
   useDidShow(() => {
+    // 始终加载管理员列表
+    loadManagers(warehouseId)
+
     if (warehouseId) {
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
-      loadManagers(warehouseId)
       loadAttendanceRule(warehouseId)
       loadAllWarehouses()
     }
@@ -403,6 +409,8 @@ const WarehouseEdit: React.FC = () => {
       // 获取选中仓库的品类价格
       const prices = await getCategoryPricesByWarehouse(selectedWarehouseForImport)
 
+      console.log('导入品类数据:', prices)
+
       if (prices.length === 0) {
         showToast({title: '该仓库暂无品类配置', icon: 'none'})
         Taro.hideLoading()
@@ -428,7 +436,7 @@ const WarehouseEdit: React.FC = () => {
       setShowImportDialog(false)
     } catch (error) {
       console.error('导入品类失败:', error)
-      showToast({title: '导入失败', icon: 'error'})
+      showToast({title: `导入失败: ${error}`, icon: 'error'})
     } finally {
       Taro.hideLoading()
     }
@@ -1005,31 +1013,40 @@ const WarehouseEdit: React.FC = () => {
                   </View>
                 </View>
 
-                {allWarehouses.map((warehouse) => (
-                  <View
-                    key={warehouse.id}
-                    className={`border rounded-lg p-3 mb-2 cursor-pointer ${
-                      selectedWarehouseForImport === warehouse.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 bg-white'
-                    }`}
-                    onClick={() => setSelectedWarehouseForImport(warehouse.id)}>
-                    <View className="flex items-center justify-between">
-                      <View className="flex-1">
-                        <Text
-                          className={`font-medium text-sm ${
-                            selectedWarehouseForImport === warehouse.id ? 'text-blue-900' : 'text-gray-900'
-                          }`}>
-                          {warehouse.name}
-                        </Text>
-                        <Text className="text-gray-500 text-xs mt-1">{warehouse.is_active ? '运营中' : '已停用'}</Text>
-                      </View>
-                      {selectedWarehouseForImport === warehouse.id && (
-                        <View className="i-mdi-check-circle text-2xl text-blue-600" />
-                      )}
-                    </View>
+                {allWarehouses.length === 0 ? (
+                  <View className="text-center py-8">
+                    <View className="i-mdi-warehouse text-5xl text-gray-300 mx-auto mb-2" />
+                    <Text className="text-gray-400 text-sm">暂无其他仓库</Text>
                   </View>
-                ))}
+                ) : (
+                  allWarehouses.map((warehouse) => (
+                    <View
+                      key={warehouse.id}
+                      className={`border rounded-lg p-3 mb-2 cursor-pointer ${
+                        selectedWarehouseForImport === warehouse.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                      onClick={() => setSelectedWarehouseForImport(warehouse.id)}>
+                      <View className="flex items-center justify-between">
+                        <View className="flex-1">
+                          <Text
+                            className={`font-medium text-sm ${
+                              selectedWarehouseForImport === warehouse.id ? 'text-blue-900' : 'text-gray-900'
+                            }`}>
+                            {warehouse.name}
+                          </Text>
+                          <Text className="text-gray-500 text-xs mt-1">
+                            {warehouse.is_active ? '运营中' : '已停用'}
+                          </Text>
+                        </View>
+                        {selectedWarehouseForImport === warehouse.id && (
+                          <View className="i-mdi-check-circle text-2xl text-blue-600" />
+                        )}
+                      </View>
+                    </View>
+                  ))
+                )}
               </View>
 
               <View className="flex gap-3">
