@@ -384,6 +384,37 @@ export async function getAttendanceRecordsByUserAndWarehouse(
   return Array.isArray(data) ? data : []
 }
 
+/**
+ * 获取指定仓库在指定日期范围内的考勤记录
+ */
+export async function getAttendanceRecordsByWarehouse(
+  warehouseId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<AttendanceRecord[]> {
+  let query = supabase
+    .from('attendance_records')
+    .select('*')
+    .eq('warehouse_id', warehouseId)
+    .order('work_date', {ascending: false})
+
+  if (startDate) {
+    query = query.gte('work_date', startDate)
+  }
+  if (endDate) {
+    query = query.lte('work_date', endDate)
+  }
+
+  const {data, error} = await query
+
+  if (error) {
+    console.error('获取仓库考勤记录失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
 // ==================== 仓库管理 ====================
 
 /**

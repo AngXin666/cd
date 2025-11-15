@@ -6,6 +6,7 @@ import {useCallback, useEffect, useMemo, useState} from 'react'
 import {
   getActiveCategories,
   getAllWarehouses,
+  getAttendanceRecordsByWarehouse,
   getDriverAttendanceStats,
   getDriverProfiles,
   getPieceWorkRecordsByWarehouse
@@ -49,6 +50,14 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
   const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
+
+  // 仪表盘数据
+  const [dashboardData, setDashboardData] = useState({
+    todayCompletionRate: 0, // 当日达标率
+    monthCompletionRate: 0, // 月度达标率
+    totalDrivers: 0, // 司机总数
+    todayDrivers: 0 // 当日司机个数（以考勤为准）
+  })
 
   // 处理仓库切换
   const handleWarehouseChange = useCallback((e: any) => {
@@ -354,6 +363,104 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     }
   }, [driverSummariesBase, startDate, endDate, sortOrder, sortBy, dailyTarget])
 
+  // 计算仪表盘数据
+  useEffect(() => {
+    const calculateDashboardData = async () => {
+      if (!user?.id || warehouses.length === 0 || !startDate || !endDate) return
+
+      try {
+        const warehouse = warehouses[currentWarehouseIndex]
+        if (!warehouse) return
+
+        const today = getLocalDateString()
+        const firstDayOfMonth = getFirstDayOfMonthString()
+
+        // 获取当日考勤记录
+        const todayAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, today, today)
+        const todayDriversSet = new Set(todayAttendance.map((a) => a.user_id))
+        const todayDriversCount = todayDriversSet.size
+
+        // 获取当月考勤记录
+        const monthAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, firstDayOfMonth, today)
+        const monthDriversSet = new Set(monthAttendance.map((a) => a.user_id))
+
+        // 获取当日计件记录
+        const todayRecords = await getPieceWorkRecordsByWarehouse(warehouse.id, today, today)
+        const _todayQuantity = todayRecords.reduce((sum, r) => sum + (r.quantity || 0), 0)
+
+        // 获取当月计件记录
+        const monthRecords = await getPieceWorkRecordsByWarehouse(warehouse.id, firstDayOfMonth, today)
+
+        // 计算当日达标率：当日完成指标的司机数 / 当日有考勤的司机数
+        let todayCompletionRate = 0
+        if (todayDriversCount > 0) {
+          const todayCompletedDrivers = Array.from(todayDriversSet).filter((driverId) => {
+            const driverRecords = todayRecords.filter((r) => r.user_id === driverId)
+            const driverQuantity = driverRecords.reduce((sum, r) => sum + (r.quantity || 0), 0)
+            return driverQuantity >= (warehouse.daily_target || 0)
+          }).length
+          todayCompletionRate = (todayCompletedDrivers / todayDriversCount) * 100
+        }
+
+        // 计算月度达标率：本月平均每天完成指标的司机数 / 本月平均每天有考勤的司机数
+        let monthCompletionRate = 0
+        if (monthDriversSet.size > 0) {
+          // 按日期分组统计
+          const dateMap = new Map<string, {drivers: Set<string>; completedDrivers: Set<string>}>()
+
+          monthAttendance.forEach((a) => {
+            if (!dateMap.has(a.work_date)) {
+              dateMap.set(a.work_date, {drivers: new Set(), completedDrivers: new Set()})
+            }
+            dateMap.get(a.work_date)?.drivers.add(a.user_id)
+          })
+
+          monthRecords.forEach((r) => {
+            if (!dateMap.has(r.work_date)) {
+              dateMap.set(r.work_date, {drivers: new Set(), completedDrivers: new Set()})
+            }
+          })
+
+          // 计算每天的达标情况
+          dateMap.forEach((value, date) => {
+            value.drivers.forEach((driverId) => {
+              const driverRecords = monthRecords.filter((r) => r.user_id === driverId && r.work_date === date)
+              const driverQuantity = driverRecords.reduce((sum, r) => sum + (r.quantity || 0), 0)
+              if (driverQuantity >= (warehouse.daily_target || 0)) {
+                value.completedDrivers.add(driverId)
+              }
+            })
+          })
+
+          // 计算平均达标率
+          let totalDailyRate = 0
+          let daysCount = 0
+          dateMap.forEach((value) => {
+            if (value.drivers.size > 0) {
+              totalDailyRate += (value.completedDrivers.size / value.drivers.size) * 100
+              daysCount++
+            }
+          })
+          monthCompletionRate = daysCount > 0 ? totalDailyRate / daysCount : 0
+        }
+
+        // 司机总数
+        const totalDrivers = drivers.length
+
+        setDashboardData({
+          todayCompletionRate,
+          monthCompletionRate,
+          totalDrivers,
+          todayDrivers: todayDriversCount
+        })
+      } catch (error) {
+        console.error('计算仪表盘数据失败:', error)
+      }
+    }
+
+    calculateDashboardData()
+  }, [user?.id, warehouses, currentWarehouseIndex, drivers, startDate, endDate])
+
   // 获取品类名称
   const _getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId)
@@ -368,10 +475,10 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     const sortingAmount = r.need_sorting ? (r.sorting_quantity || 0) * (r.sorting_unit_price || 0) : 0
     return sum + baseAmount + upstairsAmount + sortingAmount
   }, 0)
-  const uniqueDrivers = new Set(records.map((r) => r.user_id)).size
+  const _uniqueDrivers = new Set(records.map((r) => r.user_id)).size
 
   // 计算目标完成率
-  const completionRate = useMemo(() => {
+  const _completionRate = useMemo(() => {
     if (dailyTarget === 0) return 0
     return (totalQuantity / dailyTarget) * 100
   }, [totalQuantity, dailyTarget])
@@ -380,58 +487,59 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
-          {/* 整体目标完成率卡片 */}
+          {/* 仪表盘卡片 */}
           <View className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
             <View className="flex items-center justify-between mb-4">
-              <Text className="text-white text-lg font-bold">整体目标完成率</Text>
+              <Text className="text-white text-lg font-bold">数据仪表盘</Text>
               <View className="i-mdi-chart-box text-white text-2xl" />
             </View>
 
-            <View className="flex items-center gap-6">
-              {/* 圆环图 */}
-              <View className="relative w-28 h-28">
-                <View
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: `conic-gradient(${
-                      completionRate >= 100 ? '#10b981' : completionRate >= 80 ? '#fbbf24' : '#ef4444'
-                    } ${Math.min(completionRate, 100) * 3.6}deg, rgba(255,255,255,0.3) 0deg)`
-                  }}
-                />
-                <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-                  <View>
-                    <Text className="text-3xl font-bold text-gray-800 text-center block">
-                      {completionRate.toFixed(0)}
-                    </Text>
-                    <Text className="text-sm text-gray-500 text-center">%</Text>
-                  </View>
+            {/* 四个指标卡片 */}
+            <View className="grid grid-cols-2 gap-4">
+              {/* 当日达标率 */}
+              <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                <View className="flex items-center gap-2 mb-2">
+                  <View className="i-mdi-calendar-today text-white text-xl" />
+                  <Text className="text-white text-opacity-90 text-sm">当日达标率</Text>
                 </View>
+                <Text className="text-white text-3xl font-bold">{dashboardData.todayCompletionRate.toFixed(0)}%</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">
+                  {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers}人出勤` : '暂无出勤'}
+                </Text>
               </View>
 
-              {/* 统计信息 */}
-              <View className="flex-1">
-                <View className="mb-3">
-                  <Text className="text-white text-opacity-90 text-sm block mb-1">总完成件数</Text>
-                  <Text className="text-white text-2xl font-bold">{totalQuantity} 件</Text>
+              {/* 月度达标率 */}
+              <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                <View className="flex items-center gap-2 mb-2">
+                  <View className="i-mdi-calendar-month text-white text-xl" />
+                  <Text className="text-white text-opacity-90 text-sm">月度达标率</Text>
                 </View>
-                <View className="mb-3">
-                  <Text className="text-white text-opacity-90 text-sm block mb-1">每日目标</Text>
-                  <Text className="text-white text-xl font-bold">{dailyTarget} 件</Text>
-                </View>
-                <View>
-                  <Text className="text-white text-opacity-90 text-sm block mb-1">参与司机</Text>
-                  <Text className="text-white text-xl font-bold">{uniqueDrivers} 人</Text>
-                </View>
+                <Text className="text-white text-3xl font-bold">{dashboardData.monthCompletionRate.toFixed(0)}%</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">本月平均</Text>
               </View>
-            </View>
 
-            {/* 达标状态 */}
-            <View className="mt-4 pt-4 border-t border-white border-opacity-20">
-              <View className="flex items-center justify-between">
-                <Text className="text-white text-opacity-90 text-sm">完成状态</Text>
-                <View className={`px-3 py-1 rounded-full ${completionRate >= 100 ? 'bg-green-500' : 'bg-orange-500'}`}>
-                  <Text className="text-white text-sm font-bold">{completionRate >= 100 ? '✓ 已达标' : '未达标'}</Text>
+              {/* 司机总数 */}
+              <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                <View className="flex items-center gap-2 mb-2">
+                  <View className="i-mdi-account-group text-white text-xl" />
+                  <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
                 </View>
+                <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">全部司机</Text>
+              </View>
+
+              {/* 当日司机个数 */}
+              <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                <View className="flex items-center gap-2 mb-2">
+                  <View className="i-mdi-account-check text-white text-xl" />
+                  <Text className="text-white text-opacity-90 text-sm">当日出勤</Text>
+                </View>
+                <Text className="text-white text-3xl font-bold">{dashboardData.todayDrivers}</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">
+                  {dashboardData.totalDrivers > 0
+                    ? `${((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100).toFixed(0)}%出勤率`
+                    : '暂无数据'}
+                </Text>
               </View>
             </View>
           </View>
