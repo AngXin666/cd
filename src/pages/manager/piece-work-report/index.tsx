@@ -343,27 +343,46 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 计算仪表盘数据
   useEffect(() => {
     const calculateDashboardData = async () => {
-      if (!user?.id || warehouses.length === 0) return
+      if (!user?.id) {
+        console.log('仪表盘数据计算：用户未登录')
+        return
+      }
+
+      if (warehouses.length === 0) {
+        console.log('仪表盘数据计算：没有仓库数据')
+        setDashboardData({
+          totalDrivers: 0,
+          todayDrivers: 0
+        })
+        return
+      }
 
       try {
         const warehouse = warehouses[currentWarehouseIndex]
-        if (!warehouse) return
+        if (!warehouse) {
+          console.log('仪表盘数据计算：当前仓库索引无效', currentWarehouseIndex)
+          return
+        }
 
+        console.log('仪表盘数据计算：开始计算', warehouse.name)
         const today = getLocalDateString()
 
         // 获取当前分配至指定仓库的所有司机
         const warehouseDrivers = await getDriversByWarehouse(warehouse.id)
         const totalDrivers = warehouseDrivers.length
+        console.log('仪表盘数据计算：仓库司机总数', totalDrivers)
 
         // 获取当日考勤记录
         const todayAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, today, today)
         const todayDriversSet = new Set(todayAttendance.map((a) => a.user_id))
         const todayDriversCount = todayDriversSet.size
+        console.log('仪表盘数据计算：当日出勤司机数', todayDriversCount)
 
         setDashboardData({
           totalDrivers,
           todayDrivers: todayDriversCount
         })
+        console.log('仪表盘数据计算：完成', {totalDrivers, todayDrivers: todayDriversCount})
       } catch (error) {
         console.error('计算仪表盘数据失败:', error)
       }
