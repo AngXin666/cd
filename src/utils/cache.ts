@@ -39,6 +39,9 @@ export const CACHE_KEYS = {
   DRIVER_LEAVE: 'driver_leave_cache',
   DRIVER_PIECE_WORK: 'driver_piece_work_cache',
 
+  // 车辆管理缓存
+  ALL_VEHICLES: 'all_vehicles_cache',
+
   // 考勤管理缓存（长期缓存）
   ATTENDANCE_MONTHLY: 'attendance_monthly_cache',
   ATTENDANCE_ALL_RECORDS: 'attendance_all_records_cache',

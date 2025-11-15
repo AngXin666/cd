@@ -4208,11 +4208,53 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
 }
 
 /**
- * 删除车辆
+ * 删除车辆（包含图片文件）
  */
 export async function deleteVehicle(vehicleId: string): Promise<boolean> {
   logger.db('删除', 'vehicles', {vehicleId})
   try {
+    // 1. 先获取车辆信息，获取所有图片路径
+    const vehicle = await getVehicleById(vehicleId)
+    if (!vehicle) {
+      logger.error('车辆不存在', {vehicleId})
+      return false
+    }
+
+    // 2. 收集所有图片路径
+    const allPhotos: string[] = []
+    if (vehicle.pickup_photos) {
+      allPhotos.push(...vehicle.pickup_photos)
+    }
+    if (vehicle.return_photos) {
+      allPhotos.push(...vehicle.return_photos)
+    }
+    if (vehicle.registration_photos) {
+      allPhotos.push(...vehicle.registration_photos)
+    }
+
+    // 3. 删除存储桶中的图片文件
+    const bucketName = `${process.env.TARO_APP_APP_ID}_images`
+    if (allPhotos.length > 0) {
+      logger.info('开始删除图片文件', {vehicleId, photoCount: allPhotos.length})
+
+      // 过滤出相对路径（不是完整URL的）
+      const photoPaths = allPhotos.filter((photo) => {
+        return photo && !photo.startsWith('http://') && !photo.startsWith('https://')
+      })
+
+      if (photoPaths.length > 0) {
+        const {error: storageError} = await supabase.storage.from(bucketName).remove(photoPaths)
+
+        if (storageError) {
+          logger.warn('删除部分图片文件失败', {error: storageError, paths: photoPaths})
+          // 继续删除数据库记录，即使图片删除失败
+        } else {
+          logger.info('成功删除图片文件', {vehicleId, deletedCount: photoPaths.length})
+        }
+      }
+    }
+
+    // 4. 删除数据库记录
     const {error} = await supabase.from('vehicles').delete().eq('id', vehicleId)
 
     if (error) {
@@ -4220,7 +4262,11 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       return false
     }
 
-    logger.info('成功删除车辆', {vehicleId})
+    // 5. 清除相关缓存
+    clearCache(CACHE_KEYS.DRIVER_VEHICLES)
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    logger.info('成功删除车辆及关联文件', {vehicleId, photoCount: allPhotos.length})
     return true
   } catch (error) {
     logger.error('删除车辆异常', error)

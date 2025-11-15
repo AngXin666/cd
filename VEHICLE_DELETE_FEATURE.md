@@ -1,10 +1,35 @@
 # 车辆删除功能说明文档
 
+## 📋 更新记录
+
+### v1.1.0 (2025-11-16)
+**重要更新**：修复了两个关键问题
+
+✅ **修复1：删除后列表自动刷新**
+- 问题：删除车辆后，列表页面仍显示已删除的车辆
+- 解决：删除成功后自动清除缓存，列表立即刷新
+
+✅ **修复2：自动删除图片文件**
+- 问题：删除车辆后，存储桶中的图片文件仍然存在
+- 解决：删除车辆时同时删除所有关联的图片文件
+
+### v1.0.0 (2025-11-16)
+- 初始版本：基础删除功能
+
+---
+
 ## 功能概述
 
 为方便开发和测试阶段快速清理测试数据，在司机端车辆详情页面添加了临时的车辆删除功能。
 
 ⚠️ **重要提示**：这是一个临时测试功能，建议在生产环境上线前移除。
+
+**核心功能**：
+- ✅ 删除数据库中的车辆记录
+- ✅ 自动删除存储桶中的图片文件（提车、还车、行驶证照片）
+- ✅ 自动清除缓存，列表立即刷新
+- ✅ 完整的确认机制和错误处理
+- ✅ 详细的日志记录
 
 ---
 
@@ -108,22 +133,70 @@ logger.userAction('删除车辆', {
 
 ## 技术实现
 
-### 数据库操作
+### 数据库操作（v1.1.0 更新）
 
-使用 `deleteVehicle` API函数：
+使用增强版的 `deleteVehicle` API函数：
 
 ```typescript
 export async function deleteVehicle(vehicleId: string): Promise<boolean> {
   logger.db('删除', 'vehicles', {vehicleId})
   try {
+    // 1. 先获取车辆信息，获取所有图片路径
+    const vehicle = await getVehicleById(vehicleId)
+    if (!vehicle) {
+      logger.error('车辆不存在', {vehicleId})
+      return false
+    }
+
+    // 2. 收集所有图片路径
+    const allPhotos: string[] = []
+    if (vehicle.pickup_photos) {
+      allPhotos.push(...vehicle.pickup_photos)
+    }
+    if (vehicle.return_photos) {
+      allPhotos.push(...vehicle.return_photos)
+    }
+    if (vehicle.registration_photos) {
+      allPhotos.push(...vehicle.registration_photos)
+    }
+
+    // 3. 删除存储桶中的图片文件
+    const bucketName = `${process.env.TARO_APP_APP_ID}_images`
+    if (allPhotos.length > 0) {
+      logger.info('开始删除图片文件', {vehicleId, photoCount: allPhotos.length})
+      
+      // 过滤出相对路径（不是完整URL的）
+      const photoPaths = allPhotos.filter(photo => {
+        return photo && !photo.startsWith('http://') && !photo.startsWith('https://')
+      })
+
+      if (photoPaths.length > 0) {
+        const {error: storageError} = await supabase.storage
+          .from(bucketName)
+          .remove(photoPaths)
+
+        if (storageError) {
+          logger.warn('删除部分图片文件失败', {error: storageError, paths: photoPaths})
+          // 继续删除数据库记录，即使图片删除失败
+        } else {
+          logger.info('成功删除图片文件', {vehicleId, deletedCount: photoPaths.length})
+        }
+      }
+    }
+
+    // 4. 删除数据库记录
     const {error} = await supabase.from('vehicles').delete().eq('id', vehicleId)
-    
+
     if (error) {
       logger.error('删除车辆失败', error)
       return false
     }
-    
-    logger.info('成功删除车辆', {vehicleId})
+
+    // 5. 清除相关缓存
+    clearCache(CACHE_KEYS.DRIVER_VEHICLES)
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    logger.info('成功删除车辆及关联文件', {vehicleId, photoCount: allPhotos.length})
     return true
   } catch (error) {
     logger.error('删除车辆异常', error)
@@ -131,6 +204,13 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
   }
 }
 ```
+
+**v1.1.0 新增功能**：
+1. ✅ 删除前获取车辆完整信息
+2. ✅ 收集所有图片路径（提车、还车、行驶证）
+3. ✅ 批量删除存储桶中的图片文件
+4. ✅ 清除相关缓存（司机端和管理端）
+5. ✅ 详细的日志记录
 
 ### 权限控制
 
@@ -140,15 +220,30 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
 - 管理员可以删除所有车辆
 - 未登录用户无法删除任何车辆
 
-### 删除范围
+### 删除范围（v1.1.0 更新）
 
 **会删除**：
 - ✅ 数据库中的车辆记录（`vehicles`表）
+- ✅ 存储桶中的图片文件（提车、还车、行驶证照片）**【新增】**
+- ✅ 相关缓存数据（司机端和管理端列表缓存）**【新增】**
 
 **不会删除**：
-- ❌ 存储桶中的图片文件
 - ❌ 审核历史记录（如果有）
-- ❌ 关联的其他数据
+- ❌ 其他关联数据
+
+### 缓存管理（v1.1.0 新增）
+
+删除成功后自动清除以下缓存：
+
+```typescript
+clearCache(CACHE_KEYS.DRIVER_VEHICLES)  // 司机端车辆列表缓存
+clearCache(CACHE_KEYS.ALL_VEHICLES)     // 管理端车辆列表缓存
+```
+
+**效果**：
+- 删除后返回列表页面，列表立即刷新
+- 不再显示已删除的车辆
+- 无需手动刷新页面
 
 ---
 
@@ -248,18 +343,37 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
 - 检查数据库连接
 - 联系管理员检查权限
 
-### 问题4：删除后图片仍存在
+### ~~问题4：删除后图片仍存在~~（v1.1.0 已修复）
 
-**说明**：
-- 这是正常现象
+**v1.0.0 问题**：
 - 删除车辆不会删除图片文件
 - 图片文件需要手动清理
 
-**清理方法**：
-1. 登录Supabase控制台
-2. 进入Storage → Buckets
-3. 找到对应的图片文件
-4. 手动删除
+**v1.1.0 修复**：
+- ✅ 删除车辆时自动删除所有关联图片
+- ✅ 批量删除提车、还车、行驶证照片
+- ✅ 详细的日志记录
+
+**如果仍有图片残留**：
+1. 检查日志，查看是否有删除失败的记录
+2. 登录Supabase控制台手动清理
+3. 检查图片路径格式是否正确
+
+### 问题5：删除后列表仍显示车辆（v1.1.0 已修复）
+
+**v1.0.0 问题**：
+- 删除后返回列表，车辆仍然显示
+- 需要手动刷新页面
+
+**v1.1.0 修复**：
+- ✅ 删除成功后自动清除缓存
+- ✅ 列表页面立即刷新
+- ✅ 无需手动操作
+
+**如果列表仍未刷新**：
+1. 检查网络连接
+2. 手动下拉刷新列表
+3. 退出重新进入页面
 
 ---
 
@@ -463,6 +577,9 @@ const handleDeleteVehicle = async () => {
 
 ---
 
-**文档版本**：v1.0.0  
+**文档版本**：v1.1.0  
 **创建日期**：2025-11-16  
-**最后更新**：2025-11-16
+**最后更新**：2025-11-16  
+**更新内容**：
+- v1.1.0：修复删除后列表刷新问题，添加图片文件自动删除功能
+- v1.0.0：初始版本，基础删除功能
