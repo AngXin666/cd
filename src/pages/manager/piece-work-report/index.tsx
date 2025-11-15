@@ -365,34 +365,59 @@ const ManagerPieceWorkReport: React.FC = () => {
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
-          {/* 统计卡片 */}
-          <View className="grid grid-cols-3 gap-3 mb-4">
-            <View className="bg-white rounded-lg p-3 shadow">
-              <View className="flex items-center justify-between mb-1">
-                <Text className="text-xs text-gray-600">总件数</Text>
-                <View className="i-mdi-package-variant text-lg text-blue-900" />
-              </View>
-              <Text className="text-2xl font-bold text-blue-900 block">{totalQuantity}</Text>
-              <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}</Text>
+          {/* 整体目标完成率卡片 */}
+          <View className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
+            <View className="flex items-center justify-between mb-4">
+              <Text className="text-white text-lg font-bold">整体目标完成率</Text>
+              <View className="i-mdi-chart-box text-white text-2xl" />
             </View>
-            <View className="bg-white rounded-lg p-3 shadow">
-              <View className="flex items-center justify-between mb-1">
-                <Text className="text-xs text-gray-600">目标完成率</Text>
-                <View className="i-mdi-chart-line text-lg text-green-600" />
+
+            <View className="flex items-center gap-6">
+              {/* 圆环图 */}
+              <View className="relative w-28 h-28">
+                <View
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: `conic-gradient(${
+                      completionRate >= 100 ? '#10b981' : completionRate >= 80 ? '#fbbf24' : '#ef4444'
+                    } ${Math.min(completionRate, 100) * 3.6}deg, rgba(255,255,255,0.3) 0deg)`
+                  }}
+                />
+                <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                  <View>
+                    <Text className="text-3xl font-bold text-gray-800 text-center block">
+                      {completionRate.toFixed(0)}
+                    </Text>
+                    <Text className="text-sm text-gray-500 text-center">%</Text>
+                  </View>
+                </View>
               </View>
-              <Text
-                className={`text-2xl font-bold block ${completionRate >= 100 ? 'text-green-600' : 'text-orange-600'}`}>
-                {completionRate.toFixed(1)}%
-              </Text>
-              <Text className="text-xs text-gray-500 mt-1">{completionRate >= 100 ? '已达标' : '未达标'}</Text>
+
+              {/* 统计信息 */}
+              <View className="flex-1">
+                <View className="mb-3">
+                  <Text className="text-white text-opacity-90 text-sm block mb-1">总完成件数</Text>
+                  <Text className="text-white text-2xl font-bold">{totalQuantity} 件</Text>
+                </View>
+                <View className="mb-3">
+                  <Text className="text-white text-opacity-90 text-sm block mb-1">每日目标</Text>
+                  <Text className="text-white text-xl font-bold">{dailyTarget} 件</Text>
+                </View>
+                <View>
+                  <Text className="text-white text-opacity-90 text-sm block mb-1">参与司机</Text>
+                  <Text className="text-white text-xl font-bold">{uniqueDrivers} 人</Text>
+                </View>
+              </View>
             </View>
-            <View className="bg-white rounded-lg p-3 shadow">
-              <View className="flex items-center justify-between mb-1">
-                <Text className="text-xs text-gray-600">司机数</Text>
-                <View className="i-mdi-account-group text-lg text-blue-900" />
+
+            {/* 达标状态 */}
+            <View className="mt-4 pt-4 border-t border-white border-opacity-20">
+              <View className="flex items-center justify-between">
+                <Text className="text-white text-opacity-90 text-sm">完成状态</Text>
+                <View className={`px-3 py-1 rounded-full ${completionRate >= 100 ? 'bg-green-500' : 'bg-orange-500'}`}>
+                  <Text className="text-white text-sm font-bold">{completionRate >= 100 ? '✓ 已达标' : '未达标'}</Text>
+                </View>
               </View>
-              <Text className="text-2xl font-bold text-blue-900 block">{uniqueDrivers}</Text>
-              <Text className="text-xs text-gray-500 mt-1">已有司机</Text>
             </View>
           </View>
 
