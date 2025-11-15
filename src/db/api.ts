@@ -36,6 +36,7 @@ import type {
   Vehicle,
   VehicleInput,
   VehicleUpdate,
+  VehicleWithDriver,
   Warehouse,
   WarehouseInput,
   WarehouseUpdate,
@@ -3937,6 +3938,64 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
     return Array.isArray(data) ? data : []
   } catch (error) {
     logger.error('获取司机车辆异常', {error, driverId})
+    return []
+  }
+}
+
+/**
+ * 获取所有车辆信息（包含司机信息）
+ * 用于超级管理员查看所有车辆
+ */
+export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
+  logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
+  try {
+    logger.info('开始查询所有车辆及司机信息')
+    const {data, error} = await supabase
+      .from('vehicles')
+      .select(
+        `
+        *,
+        profiles!vehicles_user_id_fkey (
+          id,
+          name,
+          phone,
+          email
+        )
+      `
+      )
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      logger.error('获取所有车辆失败', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      return []
+    }
+
+    // 转换数据格式
+    const vehicles: VehicleWithDriver[] = (data || []).map((item: any) => {
+      const profile = item.profiles
+      return {
+        ...item,
+        driver_id: profile?.id || null,
+        driver_name: profile?.name || null,
+        driver_phone: profile?.phone || null,
+        driver_email: profile?.email || null,
+        profiles: undefined // 移除嵌套的 profiles 对象
+      }
+    })
+
+    logger.info(`成功获取所有车辆列表，共 ${vehicles.length} 辆`, {
+      count: vehicles.length,
+      withDriver: vehicles.filter((v) => v.driver_id).length,
+      withoutDriver: vehicles.filter((v) => !v.driver_id).length
+    })
+    return vehicles
+  } catch (error) {
+    logger.error('获取所有车辆异常', {error})
     return []
   }
 }

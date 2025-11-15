@@ -153,8 +153,8 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/warehouse-management/index'})
   }
 
-  const handleDriverWarehouseAssignment = () => {
-    navigateTo({url: '/pages/super-admin/driver-warehouse-assignment/index'})
+  const handleVehicleManagement = () => {
+    navigateTo({url: '/pages/super-admin/vehicle-management/index'})
   }
 
   const handleCategoryManagement = () => {
@@ -471,12 +471,12 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-xs text-gray-700 font-medium">计件品类</Text>
               </View>
 
-              {/* 司机分配 */}
+              {/* 车辆管理 */}
               <View
-                onClick={handleDriverWarehouseAssignment}
+                onClick={handleVehicleManagement}
                 className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
-                <View className="i-mdi-account-arrow-right text-3xl text-orange-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">司机分配</Text>
+                <View className="i-mdi-car-multiple text-3xl text-orange-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">车辆管理</Text>
               </View>
             </View>
           </View>

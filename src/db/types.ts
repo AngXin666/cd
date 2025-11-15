@@ -640,3 +640,11 @@ export interface DriverLicenseUpdate {
   driving_license_photo?: string | null
   status?: string
 }
+
+// 车辆信息（包含司机信息）
+export interface VehicleWithDriver extends Vehicle {
+  driver_id?: string | null
+  driver_name?: string | null
+  driver_phone?: string | null
+  driver_email?: string | null
+}
