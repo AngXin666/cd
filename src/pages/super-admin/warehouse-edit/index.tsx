@@ -32,6 +32,7 @@ const WarehouseEdit: React.FC = () => {
   const [isActive, setIsActive] = useState(true)
   const [maxLeaveDays, setMaxLeaveDays] = useState('7')
   const [resignationNoticeDays, setResignationNoticeDays] = useState('30')
+  const [dailyTarget, setDailyTarget] = useState('')
 
   // 品类和价格
   const [allCategories, setAllCategories] = useState<PieceWorkCategory[]>([])
@@ -78,6 +79,7 @@ const WarehouseEdit: React.FC = () => {
         setIsActive(warehouseData.is_active)
         setMaxLeaveDays(String(warehouseData.max_leave_days || 7))
         setResignationNoticeDays(String(warehouseData.resignation_notice_days || 30))
+        setDailyTarget(warehouseData.daily_target ? String(warehouseData.daily_target) : '')
       }
     } catch (error) {
       console.error('加载仓库信息失败:', error)
@@ -480,6 +482,15 @@ const WarehouseEdit: React.FC = () => {
       return
     }
 
+    // 验证每日指标（如果填写了）
+    if (dailyTarget.trim() !== '') {
+      const targetNum = Number(dailyTarget)
+      if (Number.isNaN(targetNum) || targetNum < 0) {
+        showToast({title: '每日指标必须是非负整数', icon: 'error'})
+        return
+      }
+    }
+
     // 验证品类价格
     for (const categoryId of selectedCategories) {
       const driverPrice = categoryDriverPrices.get(categoryId)
@@ -504,7 +515,8 @@ const WarehouseEdit: React.FC = () => {
         name: name.trim(),
         is_active: isActive,
         max_leave_days: Number(maxLeaveDays),
-        resignation_notice_days: Number(resignationNoticeDays)
+        resignation_notice_days: Number(resignationNoticeDays),
+        daily_target: dailyTarget.trim() !== '' ? Number(dailyTarget) : null
       })
 
       if (!success) {
@@ -667,7 +679,7 @@ const WarehouseEdit: React.FC = () => {
               <Text className="text-gray-500 text-xs mt-1">司机单次请假不能超过此天数</Text>
             </View>
 
-            <View>
+            <View className="mb-4">
               <Text className="text-gray-700 text-sm mb-2">离职提前通知天数</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
@@ -679,6 +691,20 @@ const WarehouseEdit: React.FC = () => {
                 />
               </View>
               <Text className="text-gray-500 text-xs mt-1">司机离职需要提前通知的天数</Text>
+            </View>
+
+            <View>
+              <Text className="text-gray-700 text-sm mb-2">每日指标数（选填）</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                  type="number"
+                  placeholder="请输入每日指标数（件）"
+                  value={dailyTarget}
+                  onInput={(e) => setDailyTarget(e.detail.value)}
+                />
+              </View>
+              <Text className="text-gray-500 text-xs mt-1">司机每天需要完成的件数目标，不填则不进行目标考核</Text>
             </View>
           </View>
 

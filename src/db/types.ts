@@ -88,6 +88,7 @@ export interface Warehouse {
   is_active: boolean
   max_leave_days: number
   resignation_notice_days: number
+  daily_target?: number | null // 每日指标数（件），可选
   created_at: string
   updated_at: string
 }
@@ -98,6 +99,7 @@ export interface WarehouseInput {
   is_active?: boolean
   max_leave_days?: number
   resignation_notice_days?: number
+  daily_target?: number | null
 }
 
 // 更新仓库的输入接口
@@ -106,6 +108,7 @@ export interface WarehouseUpdate {
   is_active?: boolean
   max_leave_days?: number
   resignation_notice_days?: number
+  daily_target?: number | null
 }
 
 // 考勤规则接口
