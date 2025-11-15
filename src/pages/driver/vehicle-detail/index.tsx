@@ -12,7 +12,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getVehicleById} from '@/db/api'
+import {deleteVehicle, getVehicleById} from '@/db/api'
 import type {Vehicle} from '@/db/types'
 import {logger} from '@/utils/logger'
 
@@ -73,6 +73,59 @@ const VehicleDetail: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // 删除车辆（测试功能）
+  const handleDeleteVehicle = async () => {
+    if (!vehicle) return
+
+    try {
+      const result = await Taro.showModal({
+        title: '确认删除',
+        content: `确定要删除车辆 ${vehicle.plate_number} 吗？此操作不可恢复！`,
+        confirmText: '删除',
+        cancelText: '取消',
+        confirmColor: '#ef4444'
+      })
+
+      if (!result.confirm) {
+        return
+      }
+
+      Taro.showLoading({title: '删除中...'})
+
+      const success = await deleteVehicle(vehicle.id)
+
+      Taro.hideLoading()
+
+      if (success) {
+        logger.userAction('删除车辆', {vehicleId: vehicle.id, plateNumber: vehicle.plate_number})
+        Taro.showToast({
+          title: '删除成功',
+          icon: 'success',
+          duration: 2000
+        })
+
+        // 延迟返回列表页面
+        setTimeout(() => {
+          Taro.navigateBack()
+        }, 2000)
+      } else {
+        Taro.showToast({
+          title: '删除失败',
+          icon: 'error',
+          duration: 2000
+        })
+      }
+    } catch (error) {
+      logger.error('删除车辆失败', {error, vehicleId: vehicle.id})
+      Taro.hideLoading()
+      Taro.showToast({
+        title: '删除失败',
+        icon: 'error',
+        duration: 2000
+      })
+    }
   }
 
   // 获取车辆状态文本
@@ -151,6 +204,28 @@ const VehicleDetail: React.FC = () => {
               </View>
               <View className={`rounded-full px-4 py-2 ${getStatusColor(vehicle.status)}`}>
                 <Text className="text-white text-sm font-medium">{getStatusText(vehicle.status)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 测试功能：删除按钮 */}
+          <View className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
+            <View className="flex items-center justify-between">
+              <View className="flex-1">
+                <View className="flex items-center mb-1">
+                  <View className="i-mdi-alert text-xl text-red-600 mr-2"></View>
+                  <Text className="text-red-900 font-bold">测试功能</Text>
+                </View>
+                <Text className="text-red-700 text-sm">删除此车辆记录，方便重新录入测试</Text>
+              </View>
+              <View
+                className="bg-red-500 rounded-lg px-6 py-3 ml-4"
+                onClick={handleDeleteVehicle}
+                style={{cursor: 'pointer'}}>
+                <View className="flex items-center">
+                  <View className="i-mdi-delete text-xl text-white mr-1"></View>
+                  <Text className="text-white font-bold">删除</Text>
+                </View>
               </View>
             </View>
           </View>
