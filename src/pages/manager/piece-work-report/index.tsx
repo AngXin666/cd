@@ -774,6 +774,22 @@ const ManagerPieceWorkReport: React.FC = () => {
                 <Text className="text-sm text-gray-600">
                   当前仓库 ({currentWarehouseIndex + 1}/{warehouses.length})
                 </Text>
+                {/* 刷新按钮 */}
+                <View
+                  onClick={async () => {
+                    Taro.showLoading({title: '刷新中...'})
+                    await Promise.all([loadData(), loadRecords()])
+                    Taro.hideLoading()
+                    Taro.showToast({
+                      title: '刷新成功',
+                      icon: 'success',
+                      duration: 1500
+                    })
+                  }}
+                  className="flex items-center gap-1 bg-blue-900 text-white px-3 py-1.5 rounded-full">
+                  <View className="i-mdi-refresh text-base" />
+                  <Text className="text-xs">刷新数据</Text>
+                </View>
               </View>
               <View className="bg-white rounded-xl shadow-md overflow-hidden">
                 <Swiper
