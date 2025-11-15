@@ -17,6 +17,56 @@ import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 
+// 完成率状态判断和样式配置
+interface CompletionRateStatus {
+  label: string // 状态文字
+  bgColor: string // 背景色
+  textColor: string // 文字颜色
+  ringColor: string // 圆环颜色
+  badgeBgColor: string // 徽章背景色
+}
+
+const getCompletionRateStatus = (rate: number): CompletionRateStatus => {
+  if (rate > 110) {
+    // 超额完成
+    return {
+      label: '超额完成',
+      bgColor: '#dcfce7', // green-100
+      textColor: '#15803d', // green-700
+      ringColor: '#10b981', // green-500
+      badgeBgColor: 'linear-gradient(135deg, #10b981, #059669)' // green-500 to green-600
+    }
+  }
+  if (rate >= 100) {
+    // 达标
+    return {
+      label: '达标',
+      bgColor: '#dbeafe', // blue-100
+      textColor: '#1e40af', // blue-700
+      ringColor: '#3b82f6', // blue-500
+      badgeBgColor: 'linear-gradient(135deg, #3b82f6, #2563eb)' // blue-500 to blue-600
+    }
+  }
+  if (rate >= 70) {
+    // 不达标
+    return {
+      label: '不达标',
+      bgColor: '#fed7aa', // orange-200
+      textColor: '#c2410c', // orange-700
+      ringColor: '#f97316', // orange-500
+      badgeBgColor: 'linear-gradient(135deg, #f97316, #ea580c)' // orange-500 to orange-600
+    }
+  }
+  // 严重不达标
+  return {
+    label: '严重不达标',
+    bgColor: '#fecaca', // red-200
+    textColor: '#b91c1c', // red-700
+    ringColor: '#ef4444', // red-500
+    badgeBgColor: 'linear-gradient(135deg, #ef4444, #dc2626)' // red-500 to red-600
+  }
+}
+
 // 司机汇总数据结构
 interface DriverSummary {
   driverId: string
@@ -791,98 +841,117 @@ const SuperAdminPieceWorkReport: React.FC = () => {
               <Text className="text-gray-500 block">暂无司机数据</Text>
             </View>
           ) : (
-            driverSummaries.map((summary) => (
-              <View
-                key={summary.driverId}
-                className={`bg-white rounded-xl p-4 mb-3 shadow-md ${summary.completionRate >= 100 ? 'border-2 border-green-400' : ''}`}
-                onClick={() => handleViewDriverDetail(summary.driverId)}>
-                {/* 达标徽章 */}
-                {summary.completionRate >= 100 && (
-                  <View className="absolute top-2 right-2 bg-gradient-to-r from-green-400 to-green-500 px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
-                    <View className="i-mdi-check-circle text-white text-sm" />
-                    <Text className="text-xs text-white font-bold">达标</Text>
-                  </View>
-                )}
-
-                {/* 司机信息头部 */}
-                <View className="flex items-center justify-between mb-4">
-                  <View className="flex items-center flex-1">
-                    <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
-                    <View className="flex-1">
-                      <Text className="text-base font-bold text-gray-800 block">
-                        {summary.driverName || summary.driverPhone || '未知司机'}
-                      </Text>
-                      {summary.driverPhone && summary.driverName && (
-                        <Text className="text-xs text-gray-500 block">{summary.driverPhone}</Text>
-                      )}
-                      <Text className="text-xs text-gray-500 block mt-1">
-                        {summary.warehouseNames.length > 0 ? summary.warehouseNames.join('、') : '未分配仓库'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* 达标率圆环 */}
-                <View className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
-                  <View className="relative w-20 h-20">
+            driverSummaries.map((summary) => {
+              const status = getCompletionRateStatus(summary.completionRate || 0)
+              return (
+                <View
+                  key={summary.driverId}
+                  className="bg-white rounded-xl p-4 mb-3 shadow-md"
+                  onClick={() => handleViewDriverDetail(summary.driverId)}>
+                  {/* 状态徽章 */}
+                  <View
+                    className="absolute top-2 right-2 px-3 py-1 rounded-full flex items-center gap-1 shadow-md"
+                    style={{background: status.badgeBgColor}}>
                     <View
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background: `conic-gradient(${
-                          (summary.completionRate || 0) >= 100
-                            ? '#10b981'
-                            : (summary.completionRate || 0) >= 80
-                              ? '#f59e0b'
-                              : '#ef4444'
-                        } ${Math.min(summary.completionRate || 0, 100) * 3.6}deg, #e5e7eb 0deg)`
-                      }}
+                      className={`${
+                        status.label === '超额完成'
+                          ? 'i-mdi-trophy'
+                          : status.label === '达标'
+                            ? 'i-mdi-check-circle'
+                            : status.label === '不达标'
+                              ? 'i-mdi-alert-circle'
+                              : 'i-mdi-alert-octagon'
+                      } text-white text-sm`}
                     />
-                    <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-                      <View>
-                        <Text className="text-xl font-bold text-gray-800 text-center block">
-                          {(summary.completionRate || 0).toFixed(0)}
+                    <Text className="text-xs text-white font-bold">{status.label}</Text>
+                  </View>
+
+                  {/* 司机信息头部 */}
+                  <View className="flex items-center justify-between mb-4">
+                    <View className="flex items-center flex-1">
+                      <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
+                      <View className="flex-1">
+                        <Text className="text-base font-bold text-gray-800 block">
+                          {summary.driverName || summary.driverPhone || '未知司机'}
                         </Text>
-                        <Text className="text-xs text-gray-500 text-center">%</Text>
+                        {summary.driverPhone && summary.driverName && (
+                          <Text className="text-xs text-gray-500 block">{summary.driverPhone}</Text>
+                        )}
+                        <Text className="text-xs text-gray-500 block mt-1">
+                          {summary.warehouseNames.length > 0 ? summary.warehouseNames.join('、') : '未分配仓库'}
+                        </Text>
                       </View>
                     </View>
                   </View>
-                  <View className="flex-1">
-                    <View className="flex items-center justify-between mb-2">
-                      <Text className="text-sm text-gray-600">完成件数</Text>
-                      <Text className="text-sm font-bold text-blue-600">
-                        {summary.totalQuantity} / {dailyTarget} 件
-                      </Text>
-                    </View>
-                    <View className="flex items-center justify-between">
-                      <Text className="text-sm text-gray-600">记录数</Text>
-                      <Text className="text-sm font-bold text-green-600">{summary.recordCount} 条</Text>
-                    </View>
-                  </View>
-                </View>
 
-                {/* 考勤统计数据 */}
-                <View className="grid grid-cols-3 gap-3">
-                  <View className="text-center bg-green-50 rounded-lg py-2">
-                    <Text className="text-xl font-bold text-green-600 block">{summary.attendanceDays}</Text>
-                    <Text className="text-xs text-gray-600">出勤天数</Text>
-                  </View>
-                  <View className="text-center bg-orange-50 rounded-lg py-2">
-                    <Text className="text-xl font-bold text-orange-600 block">{summary.lateDays}</Text>
-                    <Text className="text-xs text-gray-600">迟到天数</Text>
-                  </View>
-                  <View className="text-center bg-red-50 rounded-lg py-2">
-                    <Text className="text-xl font-bold text-red-600 block">{summary.leaveDays}</Text>
-                    <Text className="text-xs text-gray-600">请假天数</Text>
-                  </View>
-                </View>
+                  {/* 达标率显示区域 */}
+                  <View className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+                    {/* 圆环进度 */}
+                    <View className="relative w-20 h-20">
+                      <View
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background: `conic-gradient(${status.ringColor} ${Math.min(summary.completionRate || 0, 100) * 3.6}deg, #e5e7eb 0deg)`
+                        }}
+                      />
+                      <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                        <Text className="text-xl font-bold text-gray-800 text-center block">
+                          {(summary.completionRate || 0).toFixed(0)}%
+                        </Text>
+                      </View>
+                    </View>
 
-                {/* 查看详情提示 */}
-                <View className="flex items-center justify-center mt-3 pt-3 border-t border-gray-100">
-                  <Text className="text-xs text-blue-600 mr-1">查看详细记录</Text>
-                  <View className="i-mdi-chevron-right text-sm text-blue-600" />
+                    {/* 右侧信息 */}
+                    <View className="flex-1">
+                      {/* 完成率状态卡片 */}
+                      <View className="rounded-lg px-3 py-2 mb-2" style={{backgroundColor: status.bgColor}}>
+                        <View className="flex items-center justify-between">
+                          <Text className="text-xs" style={{color: status.textColor}}>
+                            完成率
+                          </Text>
+                          <Text className="text-lg font-bold" style={{color: status.textColor}}>
+                            {(summary.completionRate || 0).toFixed(1)}%
+                          </Text>
+                        </View>
+                        <Text className="text-xs mt-1" style={{color: status.textColor}}>
+                          {status.label}
+                        </Text>
+                      </View>
+
+                      {/* 完成件数 */}
+                      <View className="flex items-center justify-between">
+                        <Text className="text-sm text-gray-600">完成件数</Text>
+                        <Text className="text-sm font-bold text-blue-600">
+                          {summary.totalQuantity} / {dailyTarget} 件
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* 考勤统计数据 */}
+                  <View className="grid grid-cols-3 gap-3">
+                    <View className="text-center bg-green-50 rounded-lg py-2">
+                      <Text className="text-xl font-bold text-green-600 block">{summary.attendanceDays}</Text>
+                      <Text className="text-xs text-gray-600">出勤天数</Text>
+                    </View>
+                    <View className="text-center bg-orange-50 rounded-lg py-2">
+                      <Text className="text-xl font-bold text-orange-600 block">{summary.lateDays}</Text>
+                      <Text className="text-xs text-gray-600">迟到天数</Text>
+                    </View>
+                    <View className="text-center bg-red-50 rounded-lg py-2">
+                      <Text className="text-xl font-bold text-red-600 block">{summary.leaveDays}</Text>
+                      <Text className="text-xs text-gray-600">请假天数</Text>
+                    </View>
+                  </View>
+
+                  {/* 查看详情提示 */}
+                  <View className="flex items-center justify-center mt-3 pt-3 border-t border-gray-100">
+                    <Text className="text-xs text-blue-600 mr-1">查看详细记录</Text>
+                    <View className="i-mdi-chevron-right text-sm text-blue-600" />
+                  </View>
                 </View>
-              </View>
-            ))
+              )
+            })
           )}
         </View>
       </ScrollView>
