@@ -112,9 +112,6 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
   const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
 
-  // 配置常量
-  const MONTHLY_ALLOWED_LEAVE_DAYS = 2 // 每月允许的请假天数
-
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
     totalDrivers: 0, // 司机总数（当前分配至指定仓库的所有司机）
@@ -540,7 +537,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             weeklyCompletionRate = (weeklyQuantity / weeklyTarget) * 100
           }
 
-          // 计算本月达标率（考虑新员工入职日期和允许请假天数）
+          // 计算本月达标率（考虑新员工入职日期）
           let monthlyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
@@ -560,9 +557,8 @@ const SuperAdminPieceWorkReport: React.FC = () => {
               }
             }
 
-            // 扣除允许的请假天数
-            const workDaysInMonth = Math.max(daysInMonth - MONTHLY_ALLOWED_LEAVE_DAYS, 0)
-            const monthlyTarget = dailyTarget * workDaysInMonth
+            // 不扣除请假天数，直接使用实际天数
+            const monthlyTarget = dailyTarget * daysInMonth
             monthlyCompletionRate = monthlyTarget > 0 ? (monthlyQuantity / monthlyTarget) * 100 : 0
           }
 
@@ -1033,33 +1029,6 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* 达标率显示区域 */}
-                  <View className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
-                    {/* 圆环进度 */}
-                    <View className="relative w-20 h-20">
-                      <View
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          background: `conic-gradient(${status.ringColor} ${Math.min(summary.completionRate || 0, 100) * 3.6}deg, #e5e7eb 0deg)`
-                        }}
-                      />
-                      <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-                        <Text className="text-xl font-bold text-gray-800 text-center block">
-                          {(summary.completionRate || 0).toFixed(0)}%
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 右侧信息 */}
-                    <View className="flex-1">
-                      {/* 完成件数 */}
-                      <View className="flex items-center justify-between">
-                        <Text className="text-sm text-gray-600">完成件数</Text>
-                        <Text className="text-sm font-bold text-blue-600">{summary.totalQuantity} 件</Text>
-                      </View>
-                    </View>
-                  </View>
-
                   {/* 三个环形图达标率 */}
                   <View className="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
                     {/* 当天达标率环形图 */}
@@ -1070,9 +1039,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                         strokeWidth={6}
                         label="当天达标率"
                       />
-                      <Text className="text-xs text-gray-500 mt-1">
-                        目标: {dailyTarget}件
-                      </Text>
+                      <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}件</Text>
                     </View>
 
                     {/* 本周达标率环形图 */}
@@ -1086,19 +1053,21 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                       <Text className="text-xs text-gray-500 mt-1">
                         已工作{(() => {
                           const today = new Date()
-                          const dayOfWeek = today.getDay()
-                          let days = dayOfWeek === 0 ? 7 : dayOfWeek
-                          // 考虑新员工入职日期
+                          const weekStart = new Date(getMondayDateString())
+
+                          // 计算实际工作的起始日期（本周一或入职日，取较晚的）
+                          let startDate = weekStart
                           if (summary.joinDate) {
                             const joinDate = new Date(summary.joinDate)
-                            const weekStart = new Date(getMondayDateString())
                             if (joinDate > weekStart) {
-                              const diffTime = Math.abs(today.getTime() - joinDate.getTime())
-                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-                              days = Math.min(diffDays, days)
+                              startDate = joinDate
                             }
                           }
-                          return days
+
+                          // 计算从起始日期到今天的天数（包含起始日和今天）
+                          const diffTime = today.getTime() - startDate.getTime()
+                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+                          return Math.max(diffDays, 0)
                         })()}天
                       </Text>
                     </View>
@@ -1114,18 +1083,21 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                       <Text className="text-xs text-gray-500 mt-1">
                         应工作{(() => {
                           const today = new Date()
-                          let days = today.getDate()
-                          // 考虑新员工入职日期
+                          const monthStart = new Date(getFirstDayOfMonthString())
+
+                          // 计算实际工作的起始日期（本月1号或入职日，取较晚的）
+                          let startDate = monthStart
                           if (summary.joinDate) {
                             const joinDate = new Date(summary.joinDate)
-                            const monthStart = new Date(getFirstDayOfMonthString())
                             if (joinDate > monthStart) {
-                              const diffTime = Math.abs(today.getTime() - joinDate.getTime())
-                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-                              days = Math.min(diffDays, days)
+                              startDate = joinDate
                             }
                           }
-                          return Math.max(days - MONTHLY_ALLOWED_LEAVE_DAYS, 0)
+
+                          // 计算从起始日期到今天的天数（包含起始日和今天）
+                          const diffTime = today.getTime() - startDate.getTime()
+                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+                          return Math.max(diffDays, 0)
                         })()}天
                       </Text>
                     </View>

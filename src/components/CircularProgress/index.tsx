@@ -1,5 +1,5 @@
-import {View, Text} from '@tarojs/components'
-import React from 'react'
+import {Text, View} from '@tarojs/components'
+import type React from 'react'
 
 interface CircularProgressProps {
   percentage: number // 百分比 0-100
@@ -76,8 +76,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
               left: 0,
               right: 0,
               bottom: 0
-            }}
-          >
+            }}>
             <Text className="text-lg font-bold" style={{color: progressColor}}>
               {validPercentage.toFixed(0)}%
             </Text>
