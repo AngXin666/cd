@@ -9,6 +9,7 @@ import {
   getCurrentUserProfile,
   getDriverAttendanceStats,
   getDriverProfiles,
+  getDriversByWarehouse,
   getManagerWarehouses,
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
@@ -53,10 +54,8 @@ const ManagerPieceWorkReport: React.FC = () => {
 
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
-    todayCompletionRate: 0, // 当日达标率
-    monthCompletionRate: 0, // 月度达标率
-    totalDrivers: 0, // 司机总数
-    todayDrivers: 0 // 当日司机个数（以考勤为准）
+    totalDrivers: 0, // 司机总数（当前分配至指定仓库的所有司机）
+    todayDrivers: 0 // 当日出勤司机个数
   })
 
   // 处理仓库切换
@@ -344,89 +343,24 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 计算仪表盘数据
   useEffect(() => {
     const calculateDashboardData = async () => {
-      if (!user?.id || warehouses.length === 0 || !startDate || !endDate) return
+      if (!user?.id || warehouses.length === 0) return
 
       try {
         const warehouse = warehouses[currentWarehouseIndex]
         if (!warehouse) return
 
         const today = getLocalDateString()
-        const firstDayOfMonth = getFirstDayOfMonthString()
+
+        // 获取当前分配至指定仓库的所有司机
+        const warehouseDrivers = await getDriversByWarehouse(warehouse.id)
+        const totalDrivers = warehouseDrivers.length
 
         // 获取当日考勤记录
         const todayAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, today, today)
         const todayDriversSet = new Set(todayAttendance.map((a) => a.user_id))
         const todayDriversCount = todayDriversSet.size
 
-        // 获取当月考勤记录
-        const monthAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, firstDayOfMonth, today)
-        const monthDriversSet = new Set(monthAttendance.map((a) => a.user_id))
-
-        // 获取当日计件记录
-        const todayRecords = await getPieceWorkRecordsByWarehouse(warehouse.id, today, today)
-
-        // 获取当月计件记录
-        const monthRecords = await getPieceWorkRecordsByWarehouse(warehouse.id, firstDayOfMonth, today)
-
-        // 计算当日达标率：当日完成指标的司机数 / 当日有考勤的司机数
-        let todayCompletionRate = 0
-        if (todayDriversCount > 0) {
-          const todayCompletedDrivers = Array.from(todayDriversSet).filter((driverId) => {
-            const driverRecords = todayRecords.filter((r) => r.user_id === driverId)
-            const driverQuantity = driverRecords.reduce((sum, r) => sum + (r.quantity || 0), 0)
-            return driverQuantity >= (warehouse.daily_target || 0)
-          }).length
-          todayCompletionRate = (todayCompletedDrivers / todayDriversCount) * 100
-        }
-
-        // 计算月度达标率：本月平均每天完成指标的司机数 / 本月平均每天有考勤的司机数
-        let monthCompletionRate = 0
-        if (monthDriversSet.size > 0) {
-          // 按日期分组统计
-          const dateMap = new Map<string, {drivers: Set<string>; completedDrivers: Set<string>}>()
-
-          monthAttendance.forEach((a) => {
-            if (!dateMap.has(a.work_date)) {
-              dateMap.set(a.work_date, {drivers: new Set(), completedDrivers: new Set()})
-            }
-            dateMap.get(a.work_date)?.drivers.add(a.user_id)
-          })
-
-          monthRecords.forEach((r) => {
-            if (!dateMap.has(r.work_date)) {
-              dateMap.set(r.work_date, {drivers: new Set(), completedDrivers: new Set()})
-            }
-          })
-
-          // 计算每天的达标情况
-          dateMap.forEach((value, date) => {
-            value.drivers.forEach((driverId) => {
-              const driverRecords = monthRecords.filter((r) => r.user_id === driverId && r.work_date === date)
-              const driverQuantity = driverRecords.reduce((sum, r) => sum + (r.quantity || 0), 0)
-              if (driverQuantity >= (warehouse.daily_target || 0)) {
-                value.completedDrivers.add(driverId)
-              }
-            })
-          })
-
-          // 计算平均达标率
-          let totalDailyRate = 0
-          let daysCount = 0
-          dateMap.forEach((value) => {
-            if (value.drivers.size > 0) {
-              totalDailyRate += (value.completedDrivers.size / value.drivers.size) * 100
-              daysCount++
-            }
-          })
-          monthCompletionRate = daysCount > 0 ? totalDailyRate / daysCount : 0
-        }
-
-        // 司机总数
-        const totalDrivers = drivers.length
-
         setDashboardData({
-          todayCompletionRate,
-          monthCompletionRate,
           totalDrivers,
           todayDrivers: todayDriversCount
         })
@@ -436,7 +370,7 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
 
     calculateDashboardData()
-  }, [user?.id, warehouses, currentWarehouseIndex, drivers, startDate, endDate])
+  }, [user?.id, warehouses, currentWarehouseIndex])
 
   // 计算统计数据
   const totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
@@ -467,26 +401,24 @@ const ManagerPieceWorkReport: React.FC = () => {
 
             {/* 四个指标卡片 */}
             <View className="grid grid-cols-2 gap-4">
-              {/* 当日达标率 */}
+              {/* 当日达标率 - 空白状态 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-calendar-today text-white text-xl" />
                   <Text className="text-white text-opacity-90 text-sm">当日达标率</Text>
                 </View>
-                <Text className="text-white text-3xl font-bold">{dashboardData.todayCompletionRate.toFixed(0)}%</Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">
-                  {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers}人出勤` : '暂无出勤'}
-                </Text>
+                <Text className="text-white text-3xl font-bold">--</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">暂无数据</Text>
               </View>
 
-              {/* 月度达标率 */}
+              {/* 月度达标率 - 空白状态 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-calendar-month text-white text-xl" />
                   <Text className="text-white text-opacity-90 text-sm">月度达标率</Text>
                 </View>
-                <Text className="text-white text-3xl font-bold">{dashboardData.monthCompletionRate.toFixed(0)}%</Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">本月平均</Text>
+                <Text className="text-white text-3xl font-bold">--</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">暂无数据</Text>
               </View>
 
               {/* 司机总数 */}
@@ -496,10 +428,10 @@ const ManagerPieceWorkReport: React.FC = () => {
                   <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
                 </View>
                 <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">全部司机</Text>
+                <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库分配</Text>
               </View>
 
-              {/* 当日司机个数 */}
+              {/* 当日出勤司机 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-account-check text-white text-xl" />
@@ -508,7 +440,7 @@ const ManagerPieceWorkReport: React.FC = () => {
                 <Text className="text-white text-3xl font-bold">{dashboardData.todayDrivers}</Text>
                 <Text className="text-white text-opacity-70 text-xs mt-1">
                   {dashboardData.totalDrivers > 0
-                    ? `${((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100).toFixed(0)}%出勤率`
+                    ? `${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
                     : '暂无数据'}
                 </Text>
               </View>
