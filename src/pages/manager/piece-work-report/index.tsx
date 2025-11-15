@@ -497,46 +497,45 @@ const ManagerPieceWorkReport: React.FC = () => {
           let weeklyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
-            const dayOfWeek = today.getDay()
-            let daysInWeek = dayOfWeek === 0 ? 7 : dayOfWeek // 周日算7天，其他按实际天数
+            const weekStart = getWeekRange().start
+            const weekStartDate = new Date(weekStart)
 
-            // 如果是新员工，需要考虑入职日期
+            // 计算实际工作的起始日期（本周一或入职日，取较晚的）
+            let startDate = weekStartDate
             if (summary.joinDate) {
               const joinDate = new Date(summary.joinDate)
-              const weekStart = getWeekRange().start
-              const weekStartDate = new Date(weekStart)
-
-              // 如果入职日期在本周内，只计算入职后的天数
               if (joinDate > weekStartDate) {
-                const diffTime = Math.abs(today.getTime() - joinDate.getTime())
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 包含入职当天
-                daysInWeek = Math.min(diffDays, daysInWeek)
+                startDate = joinDate
               }
             }
 
+            // 计算从起始日期到今天的天数（包含起始日和今天）
+            const diffTime = today.getTime() - startDate.getTime()
+            const daysInWeek = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+
             const weeklyTarget = dailyTarget * daysInWeek
-            weeklyCompletionRate = (weeklyQuantity / weeklyTarget) * 100
+            weeklyCompletionRate = weeklyTarget > 0 ? (weeklyQuantity / weeklyTarget) * 100 : 0
           }
 
           // 计算本月达标率（考虑新员工入职日期和请假天数）
           let monthlyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
-            let daysInMonth = today.getDate() // 本月已过天数
+            const monthStart = getMonthRange().start
+            const monthStartDate = new Date(monthStart)
 
-            // 如果是新员工，需要考虑入职日期
+            // 计算实际工作的起始日期（本月1号或入职日，取较晚的）
+            let startDate = monthStartDate
             if (summary.joinDate) {
               const joinDate = new Date(summary.joinDate)
-              const monthStart = getMonthRange().start
-              const monthStartDate = new Date(monthStart)
-
-              // 如果入职日期在本月内，只计算入职后的天数
               if (joinDate > monthStartDate) {
-                const diffTime = Math.abs(today.getTime() - joinDate.getTime())
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 包含入职当天
-                daysInMonth = Math.min(diffDays, daysInMonth)
+                startDate = joinDate
               }
             }
+
+            // 计算从起始日期到今天的天数（包含起始日和今天）
+            const diffTime = today.getTime() - startDate.getTime()
+            const daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 
             // 获取当前仓库的允许请假天数
             const currentWarehouse = warehouses[currentWarehouseIndex]
