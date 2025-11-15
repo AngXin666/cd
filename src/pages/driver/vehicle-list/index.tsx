@@ -2,6 +2,7 @@
  * 车辆列表页面 - 优化版
  * 显示司机名下的所有车辆
  * 支持管理员查看指定司机的车辆
+ * 注意：车辆录入后不能删除，仅能查看详情
  */
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
@@ -9,9 +10,9 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {debugAuthStatus, deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
+import {debugAuthStatus, getDriverVehicles, getProfileById} from '@/db/api'
 import type {Profile, Vehicle} from '@/db/types'
-import {getVersionedCache, setVersionedCache, clearCache} from '@/utils/cache'
+import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
@@ -170,41 +171,6 @@ const VehicleList: React.FC = () => {
     Taro.navigateTo({
       url: `/pages/driver/vehicle-detail/index?id=${vehicleId}`
     })
-  }
-
-  // 删除车辆
-  const handleDeleteVehicle = async (vehicleId: string, plateNumber: string) => {
-    const res = await Taro.showModal({
-      title: '确认删除',
-      content: `确定要删除车辆 ${plateNumber} 吗？`
-    })
-
-    if (res.confirm) {
-      Taro.showLoading({title: '删除中...'})
-      const success = await deleteVehicle(vehicleId)
-      Taro.hideLoading()
-
-      if (success) {
-        // 清除缓存
-        const driverId = targetDriverId || user?.id
-        if (driverId) {
-          const cacheKey = `driver_vehicles_${driverId}`
-          clearCache(cacheKey)
-          logger.info('已清除车辆缓存', {cacheKey})
-        }
-
-        Taro.showToast({
-          title: '删除成功',
-          icon: 'success'
-        })
-        loadVehicles()
-      } else {
-        Taro.showToast({
-          title: '删除失败',
-          icon: 'error'
-        })
-      }
-    }
   }
 
   return (
@@ -377,7 +343,7 @@ const VehicleList: React.FC = () => {
                     {/* 操作按钮 */}
                     <View className="flex gap-2 pt-3 border-t border-gray-100">
                       <Button
-                        className={`${isManagerView ? 'w-full' : 'flex-1'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
                         size="default"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -388,20 +354,6 @@ const VehicleList: React.FC = () => {
                           <Text className="font-medium">查看详情</Text>
                         </View>
                       </Button>
-                      {!isManagerView && (
-                        <Button
-                          className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
-                          size="default"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteVehicle(vehicle.id, vehicle.plate_number)
-                          }}>
-                          <View className="flex items-center justify-center">
-                            <View className="i-mdi-delete text-base mr-1"></View>
-                            <Text className="font-medium">删除</Text>
-                          </View>
-                        </Button>
-                      )}
                     </View>
                   </View>
                 </View>
