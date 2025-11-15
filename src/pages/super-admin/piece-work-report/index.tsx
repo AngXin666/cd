@@ -74,13 +74,15 @@ interface DriverSummary {
   driverPhone: string
   totalQuantity: number
   totalAmount: number
-  completionRate: number // 每日达标率
+  completionRate: number // 达标率（基于在职天数）
   warehouses: Set<string>
   warehouseNames: string[]
   recordCount: number
   attendanceDays: number
   lateDays: number
   leaveDays: number
+  joinDate: string | null // 入职日期
+  daysEmployed: number // 在职天数
 }
 
 const SuperAdminPieceWorkReport: React.FC = () => {
@@ -370,10 +372,21 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       Omit<DriverSummary, 'attendanceDays' | 'lateDays' | 'leaveDays' | 'completionRate'>
     >()
 
+    // 计算在职天数的辅助函数
+    const calculateDaysEmployed = (joinDate: string | null): number => {
+      if (!joinDate) return 0
+      const join = new Date(joinDate)
+      const today = new Date()
+      const diffTime = Math.abs(today.getTime() - join.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays
+    }
+
     records.forEach((record) => {
       const driverId = record.user_id
       if (!summaryMap.has(driverId)) {
         const driver = drivers.find((d) => d.id === driverId)
+        const daysEmployed = calculateDaysEmployed(driver?.join_date || null)
         summaryMap.set(driverId, {
           driverId,
           driverName: driver?.name || '',
@@ -382,7 +395,9 @@ const SuperAdminPieceWorkReport: React.FC = () => {
           totalAmount: 0,
           warehouses: new Set<string>(),
           warehouseNames: [],
-          recordCount: 0
+          recordCount: 0,
+          joinDate: driver?.join_date || null,
+          daysEmployed
         })
       }
 
@@ -416,18 +431,18 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         driverSummariesBase.map(async (summary) => {
           const attendanceStats = await getDriverAttendanceStats(summary.driverId, startDate, endDate)
 
-          // 计算司机月度达标率（修正算法：考虑实际出勤天数）
+          // 计算司机达标率（基于在职天数）
           let driverCompletionRate = 0
 
           // 1. 检查每日指标是否有效
           if (dailyTarget > 0) {
-            // 2. 获取实际出勤天数
-            const actualAttendanceDays = attendanceStats.attendanceDays
+            // 2. 获取在职天数（如果没有入职日期，则使用出勤天数）
+            const daysForCalculation = summary.daysEmployed > 0 ? summary.daysEmployed : attendanceStats.attendanceDays
 
-            // 3. 检查出勤天数是否有效
-            if (actualAttendanceDays > 0) {
-              // 4. 计算该司机的总目标 = 每日指标 × 实际出勤天数
-              const driverTotalTarget = dailyTarget * actualAttendanceDays
+            // 3. 检查天数是否有效
+            if (daysForCalculation > 0) {
+              // 4. 计算该司机的总目标 = 每日指标 × 在职天数
+              const driverTotalTarget = dailyTarget * daysForCalculation
 
               // 5. 计算达标率 = 司机总完成件数 / 司机总目标
               driverCompletionRate = (summary.totalQuantity / driverTotalTarget) * 100
@@ -925,6 +940,18 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                           {summary.totalQuantity} / {dailyTarget} 件
                         </Text>
                       </View>
+                    </View>
+                  </View>
+
+                  {/* 入职信息 */}
+                  <View className="bg-blue-50 rounded-lg px-3 py-2 mb-4">
+                    <View className="flex items-center justify-between mb-1">
+                      <Text className="text-xs text-gray-600">入职日期</Text>
+                      <Text className="text-sm font-bold text-blue-700">{summary.joinDate || '未设置'}</Text>
+                    </View>
+                    <View className="flex items-center justify-between">
+                      <Text className="text-xs text-gray-600">在职天数</Text>
+                      <Text className="text-sm font-bold text-blue-700">{summary.daysEmployed} 天</Text>
                     </View>
                   </View>
 
