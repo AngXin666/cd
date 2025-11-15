@@ -149,6 +149,10 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/vehicle-management/index'})
   }
 
+  const handleVehicleReview = () => {
+    navigateTo({url: '/pages/super-admin/vehicle-review/index'})
+  }
+
   const handleCategoryManagement = () => {
     navigateTo({url: '/pages/super-admin/category-management/index'})
   }
@@ -426,6 +430,14 @@ const SuperAdminHome: React.FC = () => {
                 className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-car-multiple text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">车辆管理</Text>
+              </View>
+
+              {/* 车辆审核 */}
+              <View
+                onClick={handleVehicleReview}
+                className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
+                <View className="i-mdi-clipboard-check text-3xl text-yellow-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">车辆审核</Text>
               </View>
             </View>
           </View>

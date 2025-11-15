@@ -230,6 +230,38 @@ const VehicleList: React.FC = () => {
     }
   }
 
+  // 获取审核状态显示文本
+  const getReviewStatusText = (reviewStatus: string): string => {
+    switch (reviewStatus) {
+      case 'drafting':
+        return '录入中'
+      case 'pending_review':
+        return '待审核'
+      case 'need_supplement':
+        return '需补录'
+      case 'approved':
+        return '审核通过'
+      default:
+        return reviewStatus
+    }
+  }
+
+  // 获取审核状态颜色
+  const getReviewStatusColor = (reviewStatus: string): string => {
+    switch (reviewStatus) {
+      case 'drafting':
+        return 'bg-gray-500'
+      case 'pending_review':
+        return 'bg-orange-500'
+      case 'need_supplement':
+        return 'bg-red-500'
+      case 'approved':
+        return 'bg-green-500'
+      default:
+        return 'bg-gray-500'
+    }
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
@@ -352,12 +384,18 @@ const VehicleList: React.FC = () => {
                   <View className="p-4">
                     {/* 车牌号和品牌 */}
                     <View className="mb-3">
-                      <View className="flex items-center mb-2">
-                        <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1 mr-2">
+                      <View className="flex items-center mb-2 flex-wrap gap-2">
+                        <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1">
                           <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
                         </View>
                         <View className={`rounded-full px-2 py-0.5 ${getStatusColor(vehicle.status)}`}>
                           <Text className="text-white text-xs font-medium">{getStatusText(vehicle.status)}</Text>
+                        </View>
+                        {/* 审核状态标签 */}
+                        <View className={`rounded-full px-2 py-0.5 ${getReviewStatusColor(vehicle.review_status)}`}>
+                          <Text className="text-white text-xs font-medium">
+                            {getReviewStatusText(vehicle.review_status)}
+                          </Text>
                         </View>
                       </View>
                       <Text className="text-gray-800 text-base font-medium">
@@ -423,32 +461,53 @@ const VehicleList: React.FC = () => {
 
                     {/* 操作按钮 */}
                     <View className="flex gap-2 pt-3 border-t border-gray-100">
-                      <Button
-                        className={`${vehicle.status === 'picked_up' && !isManagerView ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
-                        size="default"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleViewDetail(vehicle.id)
-                        }}>
-                        <View className="flex items-center justify-center">
-                          <View className="i-mdi-eye text-base mr-1"></View>
-                          <Text className="font-medium">查看详情</Text>
-                        </View>
-                      </Button>
-                      {/* 还车按钮 - 仅在已提车未还车且非管理员视图时显示 */}
-                      {vehicle.status === 'picked_up' && !isManagerView && (
+                      {/* 根据审核状态显示不同的按钮 */}
+                      {vehicle.review_status === 'need_supplement' && !isManagerView ? (
+                        // 需补录状态：显示补录按钮
                         <Button
-                          className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                          className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
                           size="default"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleReturnVehicle(vehicle.id, vehicle.plate_number)
+                            Taro.navigateTo({url: `/pages/driver/supplement-photos/index?vehicleId=${vehicle.id}`})
                           }}>
                           <View className="flex items-center justify-center">
-                            <View className="i-mdi-car-arrow-left text-base mr-1"></View>
-                            <Text className="font-medium">还车</Text>
+                            <View className="i-mdi-image-plus text-base mr-1"></View>
+                            <Text className="font-medium">补录图片</Text>
                           </View>
                         </Button>
+                      ) : (
+                        <>
+                          <Button
+                            className={`${vehicle.status === 'picked_up' && !isManagerView && vehicle.review_status === 'approved' ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
+                            size="default"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewDetail(vehicle.id)
+                            }}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-eye text-base mr-1"></View>
+                              <Text className="font-medium">查看详情</Text>
+                            </View>
+                          </Button>
+                          {/* 还车按钮 - 仅在已提车未还车、审核通过且非管理员视图时显示 */}
+                          {vehicle.status === 'picked_up' &&
+                            !isManagerView &&
+                            vehicle.review_status === 'approved' && (
+                              <Button
+                                className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                                size="default"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleReturnVehicle(vehicle.id, vehicle.plate_number)
+                                }}>
+                                <View className="flex items-center justify-center">
+                                  <View className="i-mdi-car-arrow-left text-base mr-1"></View>
+                                  <Text className="font-medium">还车</Text>
+                                </View>
+                              </Button>
+                            )}
+                        </>
                       )}
                     </View>
                   </View>

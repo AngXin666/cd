@@ -14,8 +14,8 @@ import type React from 'react'
 import {useState} from 'react'
 import {getVehicleById, returnVehicle} from '@/db/api'
 import type {Vehicle} from '@/db/types'
-import {createLogger} from '@/utils/logger'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
+import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('ReturnVehicle')
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_images`

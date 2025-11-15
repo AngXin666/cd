@@ -534,6 +534,55 @@ const MyPage: React.FC = () => {
 - **数据统计**：自动计算总金额（基础金额+上楼费用），按品类统计数量和金额
 - **灵活配置**：支持设置是否需要上楼，上楼单价可单独设置
 
+### 车辆管理审核流程（新增功能）
+
+#### 核心功能
+建立从司机录入到超级管理员审核的闭环车辆管理流程，重点强化图片审核机制。
+
+#### 司机端功能
+- **车辆录入**：
+  - 支持"提车录入"与"还车录入"两种场景
+  - 提交车辆信息（含图片）后，系统自动记录并更新车辆状态
+  - 支持保存草稿和提交审核两种模式
+- **审核状态显示**：
+  - **录入中**：信息尚未提交，可以继续编辑
+  - **待审核**：信息已提交，等待管理员审核
+  - **需补录**：管理员审核后发现部分图片不符合要求，需要补充
+  - **审核通过**：所有信息符合要求，可以进行后续操作（如还车）
+- **图片补录**：
+  - 在"需补录"状态下，只能重新上传被管理员标记的图片
+  - 无法修改已锁定的图片
+  - 对比显示原图和新图
+  - 显示补录进度统计
+  - 补录完成后自动重新提交审核
+
+#### 超级管理端功能
+- **车辆信息审核页面**：
+  - 集中展示所有状态为"待审核"的车辆记录
+  - 显示司机信息和车辆基本信息
+  - 点击进入详细审核页面
+- **图片审核操作**：
+  - 逐张审查车辆图片
+  - **锁定功能**：对符合要求的图片进行锁定，防止被误删，司机端不可再修改
+  - **标记需补录**：对不符合要求的图片标记需补录，将其从记录中移除
+  - 系统自动记录需补拍项
+- **审核结果处理**：
+  - 若存在被标记的图片，将车辆状态置为"需补录"，并通知司机端补传
+  - 当所有图片均符合要求后，执行"通过审核"操作，更新为"审核通过"
+  - 支持填写审核备注
+
+#### 流程协同
+- 司机提交审核 → 状态变为"待审核"
+- 管理员审核发现问题 → 标记需补录 → 状态变为"需补录"
+- 司机补录图片 → 重新提交 → 状态变回"待审核"
+- 管理员审核通过 → 状态变为"审核通过"
+- 审核通过后才能进行还车等后续操作
+
+#### 数据结构
+- **审核状态枚举**：drafting（录入中）、pending_review（待审核）、need_supplement（需补录）、approved（审核通过）
+- **图片锁定**：使用 JSON 格式存储已锁定的图片索引
+- **需补录列表**：使用数组格式存储需要补录的图片标识（如 `pickup_photos_0`）
+
 ### 请假与离职管理系统
 - **请假申请**（司机）：
   - 司机可以提交请假申请
@@ -583,6 +632,11 @@ const MyPage: React.FC = () => {
 | `/pages/driver/leave/index` | 请假与离职 | 司机请假离职申请主页 |
 | `/pages/driver/leave/apply/index` | 申请请假 | 提交请假申请 |
 | `/pages/driver/leave/resign/index` | 申请离职 | 提交离职申请 |
+| `/pages/driver/vehicle-list/index` | 车辆列表 | 查看个人车辆列表和审核状态 |
+| `/pages/driver/add-vehicle/index` | 提车录入 | 录入提车信息和照片 |
+| `/pages/driver/vehicle-detail/index` | 车辆详情 | 查看车辆详细信息和照片 |
+| `/pages/driver/return-vehicle/index` | 还车录入 | 录入还车信息和照片 |
+| `/pages/driver/supplement-photos/index` | 补录图片 | 补录被管理员标记的图片 |
 | `/pages/manager/index` | 管理员工作台 | 普通管理端主页（tabBar） |
 | `/pages/manager/warehouse-categories/index` | 仓库品类配置 | 为管辖仓库配置可操作的计件品类 |
 | `/pages/manager/data-summary/index` | 数据汇总 | 查看计件数据报表和统计分析 |
@@ -603,6 +657,8 @@ const MyPage: React.FC = () => {
 | `/pages/manager/piece-work-report/index` | 数据统计 | 查看管辖仓库的计件和考勤数据报表 |
 | `/pages/manager/piece-work-report-detail/index` | 司机数据详情 | 查看司机的详细计件和考勤数据 |
 | `/pages/super-admin/leave-approval/index` | 请假离职审批 | 审批所有请假离职申请 |
+| `/pages/super-admin/vehicle-review/index` | 车辆审核列表 | 查看待审核车辆列表 |
+| `/pages/super-admin/vehicle-review-detail/index` | 车辆详细审核 | 审核车辆图片，锁定或标记需补录 |
 | `/pages/profile/index` | 个人中心 | 用户个人信息管理（tabBar） |
 | `/pages/profile/edit/index` | 编辑资料 | 编辑个人信息、头像、地址等 |
 | `/pages/profile/settings/index` | 设置 | 账户安全、关于我们等设置 |
@@ -779,11 +835,40 @@ const MyPage: React.FC = () => {
 | created_at | timestamptz | 创建时间 |
 | updated_at | timestamptz | 更新时间 |
 
+### vehicles 表（车辆信息）
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键，车辆ID |
+| driver_id | uuid | 司机ID（外键 -> profiles.id） |
+| plate_number | text | 车牌号 |
+| brand | text | 品牌 |
+| model | text | 型号 |
+| color | text | 颜色 |
+| status | vehicle_status | 车辆状态（picked_up/returned） |
+| pickup_time | timestamptz | 提车时间 |
+| return_time | timestamptz | 还车时间 |
+| pickup_photos | text[] | 提车照片路径数组 |
+| return_photos | text[] | 还车照片路径数组 |
+| registration_photos | text[] | 行驶证照片路径数组 |
+| review_status | review_status | 审核状态（drafting/pending_review/need_supplement/approved） |
+| locked_photos | jsonb | 已锁定的图片（JSON格式，存储各类型照片的索引） |
+| required_photos | text[] | 需要补录的图片列表（格式：`pickup_photos_0`） |
+| review_notes | text | 审核备注 |
+| reviewed_by | uuid | 审核人ID（外键 -> profiles.id） |
+| reviewed_at | timestamptz | 审核时间 |
+| created_at | timestamptz | 创建时间 |
+| updated_at | timestamptz | 更新时间 |
+
 ### Supabase Storage Buckets
 - **avatars**：用户头像存储
   - 文件大小限制：1MB
   - 支持格式：JPEG、PNG、WEBP
   - 访问权限：公开读取
+- **app-7cdqf07mbu9t_vehicles**：车辆照片存储
+  - 文件大小限制：5MB
+  - 支持格式：JPEG、PNG、WEBP
+  - 访问权限：公开读取
+  - 用途：存储提车照片、还车照片、行驶证照片
 
 ---
 

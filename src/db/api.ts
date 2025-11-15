@@ -4474,3 +4474,377 @@ export async function getDriverDetailInfo(driverId: string) {
     return null
   }
 }
+
+// ==================== 车辆审核管理 API ====================
+
+/**
+ * 提交车辆审核
+ * @param vehicleId 车辆ID
+ * @returns 是否成功
+ */
+export async function submitVehicleForReview(vehicleId: string): Promise<boolean> {
+  try {
+    logger.db('提交车辆审核', 'vehicles', {vehicleId})
+
+    const {error} = await supabase
+      .from('vehicles')
+      .update({
+        review_status: 'pending_review',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vehicleId)
+
+    if (error) {
+      logger.error('提交车辆审核失败', error)
+      return false
+    }
+
+    logger.info('提交车辆审核成功', {vehicleId})
+    return true
+  } catch (error) {
+    logger.error('提交车辆审核异常', error)
+    return false
+  }
+}
+
+/**
+ * 获取待审核车辆列表
+ * @returns 待审核车辆列表
+ */
+export async function getPendingReviewVehicles(): Promise<Vehicle[]> {
+  try {
+    logger.db('查询待审核车辆列表', 'vehicles', {})
+
+    const {data, error} = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('review_status', 'pending_review')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      logger.error('查询待审核车辆列表失败', error)
+      return []
+    }
+
+    logger.info('查询待审核车辆列表成功', {count: data?.length || 0})
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    logger.error('查询待审核车辆列表异常', error)
+    return []
+  }
+}
+
+/**
+ * 锁定图片
+ * @param vehicleId 车辆ID
+ * @param photoField 图片字段名（pickup_photos, return_photos, registration_photos）
+ * @param photoIndex 图片索引
+ * @returns 是否成功
+ */
+export async function lockPhoto(vehicleId: string, photoField: string, photoIndex: number): Promise<boolean> {
+  try {
+    logger.db('锁定图片', 'vehicles', {vehicleId, photoField, photoIndex})
+
+    // 先获取当前的 locked_photos
+    const {data: vehicle, error: fetchError} = await supabase
+      .from('vehicles')
+      .select('locked_photos')
+      .eq('id', vehicleId)
+      .maybeSingle()
+
+    if (fetchError || !vehicle) {
+      logger.error('获取车辆信息失败', fetchError)
+      return false
+    }
+
+    const lockedPhotos = vehicle.locked_photos || {}
+    const fieldLocks = lockedPhotos[photoField] || []
+
+    // 如果该索引尚未锁定，则添加
+    if (!fieldLocks.includes(photoIndex)) {
+      fieldLocks.push(photoIndex)
+      lockedPhotos[photoField] = fieldLocks
+
+      const {error: updateError} = await supabase
+        .from('vehicles')
+        .update({
+          locked_photos: lockedPhotos,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', vehicleId)
+
+      if (updateError) {
+        logger.error('锁定图片失败', updateError)
+        return false
+      }
+    }
+
+    logger.info('锁定图片成功', {vehicleId, photoField, photoIndex})
+    return true
+  } catch (error) {
+    logger.error('锁定图片异常', error)
+    return false
+  }
+}
+
+/**
+ * 解锁图片
+ * @param vehicleId 车辆ID
+ * @param photoField 图片字段名
+ * @param photoIndex 图片索引
+ * @returns 是否成功
+ */
+export async function unlockPhoto(vehicleId: string, photoField: string, photoIndex: number): Promise<boolean> {
+  try {
+    logger.db('解锁图片', 'vehicles', {vehicleId, photoField, photoIndex})
+
+    // 先获取当前的 locked_photos
+    const {data: vehicle, error: fetchError} = await supabase
+      .from('vehicles')
+      .select('locked_photos')
+      .eq('id', vehicleId)
+      .maybeSingle()
+
+    if (fetchError || !vehicle) {
+      logger.error('获取车辆信息失败', fetchError)
+      return false
+    }
+
+    const lockedPhotos = vehicle.locked_photos || {}
+    const fieldLocks = lockedPhotos[photoField] || []
+
+    // 移除锁定
+    const newFieldLocks = fieldLocks.filter((idx: number) => idx !== photoIndex)
+    lockedPhotos[photoField] = newFieldLocks
+
+    const {error: updateError} = await supabase
+      .from('vehicles')
+      .update({
+        locked_photos: lockedPhotos,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vehicleId)
+
+    if (updateError) {
+      logger.error('解锁图片失败', updateError)
+      return false
+    }
+
+    logger.info('解锁图片成功', {vehicleId, photoField, photoIndex})
+    return true
+  } catch (error) {
+    logger.error('解锁图片异常', error)
+    return false
+  }
+}
+
+/**
+ * 删除图片（标记为需补录）
+ * @param vehicleId 车辆ID
+ * @param photoField 图片字段名
+ * @param photoIndex 图片索引
+ * @returns 是否成功
+ */
+export async function markPhotoForDeletion(
+  vehicleId: string,
+  photoField: string,
+  photoIndex: number
+): Promise<boolean> {
+  try {
+    logger.db('标记图片需补录', 'vehicles', {vehicleId, photoField, photoIndex})
+
+    // 先获取当前的 required_photos
+    const {data: vehicle, error: fetchError} = await supabase
+      .from('vehicles')
+      .select('required_photos')
+      .eq('id', vehicleId)
+      .maybeSingle()
+
+    if (fetchError || !vehicle) {
+      logger.error('获取车辆信息失败', fetchError)
+      return false
+    }
+
+    const requiredPhotos = vehicle.required_photos || []
+    const photoKey = `${photoField}_${photoIndex}`
+
+    // 如果尚未标记，则添加
+    if (!requiredPhotos.includes(photoKey)) {
+      requiredPhotos.push(photoKey)
+
+      const {error: updateError} = await supabase
+        .from('vehicles')
+        .update({
+          required_photos: requiredPhotos,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', vehicleId)
+
+      if (updateError) {
+        logger.error('标记图片需补录失败', updateError)
+        return false
+      }
+    }
+
+    logger.info('标记图片需补录成功', {vehicleId, photoField, photoIndex})
+    return true
+  } catch (error) {
+    logger.error('标记图片需补录异常', error)
+    return false
+  }
+}
+
+/**
+ * 通过审核
+ * @param vehicleId 车辆ID
+ * @param reviewerId 审核人ID
+ * @param notes 审核备注
+ * @returns 是否成功
+ */
+export async function approveVehicle(vehicleId: string, reviewerId: string, notes: string): Promise<boolean> {
+  try {
+    logger.db('通过车辆审核', 'vehicles', {vehicleId, reviewerId, notes})
+
+    const {error} = await supabase
+      .from('vehicles')
+      .update({
+        review_status: 'approved',
+        review_notes: notes,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: reviewerId,
+        required_photos: [], // 清空需补录列表
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vehicleId)
+
+    if (error) {
+      logger.error('通过车辆审核失败', error)
+      return false
+    }
+
+    logger.info('通过车辆审核成功', {vehicleId})
+    return true
+  } catch (error) {
+    logger.error('通过车辆审核异常', error)
+    return false
+  }
+}
+
+/**
+ * 要求补录
+ * @param vehicleId 车辆ID
+ * @param reviewerId 审核人ID
+ * @param notes 审核备注
+ * @returns 是否成功
+ */
+export async function requireSupplement(vehicleId: string, reviewerId: string, notes: string): Promise<boolean> {
+  try {
+    logger.db('要求补录车辆信息', 'vehicles', {vehicleId, reviewerId, notes})
+
+    const {error} = await supabase
+      .from('vehicles')
+      .update({
+        review_status: 'need_supplement',
+        review_notes: notes,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: reviewerId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vehicleId)
+
+    if (error) {
+      logger.error('要求补录车辆信息失败', error)
+      return false
+    }
+
+    logger.info('要求补录车辆信息成功', {vehicleId})
+    return true
+  } catch (error) {
+    logger.error('要求补录车辆信息异常', error)
+    return false
+  }
+}
+
+/**
+ * 补录图片
+ * @param vehicleId 车辆ID
+ * @param photoField 图片字段名
+ * @param photoIndex 图片索引
+ * @param photoUrl 新图片URL
+ * @returns 是否成功
+ */
+export async function supplementPhoto(
+  vehicleId: string,
+  photoField: string,
+  photoIndex: number,
+  photoUrl: string
+): Promise<boolean> {
+  try {
+    logger.db('补录图片', 'vehicles', {vehicleId, photoField, photoIndex, photoUrl})
+
+    // 获取当前车辆信息
+    const {data: vehicle, error: fetchError} = await supabase
+      .from('vehicles')
+      .select('pickup_photos, return_photos, registration_photos, required_photos')
+      .eq('id', vehicleId)
+      .maybeSingle()
+
+    if (fetchError || !vehicle) {
+      logger.error('获取车辆信息失败', fetchError)
+      return false
+    }
+
+    // 更新图片数组
+    const photos = (vehicle as any)[photoField] || []
+    photos[photoIndex] = photoUrl
+
+    // 从需补录列表中移除
+    const requiredPhotos = vehicle.required_photos || []
+    const photoKey = `${photoField}_${photoIndex}`
+    const newRequiredPhotos = requiredPhotos.filter((key: string) => key !== photoKey)
+
+    const {error: updateError} = await supabase
+      .from('vehicles')
+      .update({
+        [photoField]: photos,
+        required_photos: newRequiredPhotos,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vehicleId)
+
+    if (updateError) {
+      logger.error('补录图片失败', updateError)
+      return false
+    }
+
+    logger.info('补录图片成功', {vehicleId, photoField, photoIndex})
+    return true
+  } catch (error) {
+    logger.error('补录图片异常', error)
+    return false
+  }
+}
+
+/**
+ * 获取需要补录的图片列表
+ * @param vehicleId 车辆ID
+ * @returns 需要补录的图片字段列表
+ */
+export async function getRequiredPhotos(vehicleId: string): Promise<string[]> {
+  try {
+    logger.db('获取需要补录的图片列表', 'vehicles', {vehicleId})
+
+    const {data, error} = await supabase.from('vehicles').select('required_photos').eq('id', vehicleId).maybeSingle()
+
+    if (error || !data) {
+      logger.error('获取需要补录的图片列表失败', error)
+      return []
+    }
+
+    logger.info('获取需要补录的图片列表成功', {vehicleId, count: data.required_photos?.length || 0})
+    return data.required_photos || []
+  } catch (error) {
+    logger.error('获取需要补录的图片列表异常', error)
+    return []
+  }
+}

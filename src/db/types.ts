@@ -6,6 +6,16 @@ export type DriverType = 'pure' | 'with_vehicle'
 // 扩展角色类型，用于UI显示（已废弃，使用 driver_type 字段代替）
 export type ExtendedUserRole = 'pure_driver' | 'driver_with_vehicle' | 'manager' | 'super_admin'
 
+// 车辆审核状态类型
+export type ReviewStatus = 'drafting' | 'pending_review' | 'need_supplement' | 'approved'
+
+// 图片锁定信息类型
+export interface LockedPhotos {
+  pickup_photos?: number[] // 已锁定的提车照片索引
+  return_photos?: number[] // 已锁定的还车照片索引
+  registration_photos?: number[] // 已锁定的行驶证照片索引
+}
+
 export interface Profile {
   id: string
   phone: string | null
@@ -489,6 +499,13 @@ export interface Vehicle {
   pickup_photos: string[] // 提车照片URL数组
   return_photos: string[] // 还车照片URL数组
   registration_photos: string[] // 行驶证照片URL数组
+  // 审核管理字段
+  review_status: ReviewStatus // 审核状态
+  locked_photos: LockedPhotos // 已锁定的图片信息
+  required_photos: string[] // 需要补录的图片字段列表
+  review_notes: string | null // 审核备注
+  reviewed_at: string | null // 审核时间
+  reviewed_by: string | null // 审核人ID
   created_at: string
   updated_at: string
 }
@@ -544,6 +561,13 @@ export interface VehicleInput {
   pickup_photos?: string[]
   return_photos?: string[]
   registration_photos?: string[]
+  // 审核管理字段
+  review_status?: ReviewStatus
+  locked_photos?: LockedPhotos
+  required_photos?: string[]
+  review_notes?: string | null
+  reviewed_at?: string | null
+  reviewed_by?: string | null
 }
 
 // 车辆信息更新类型
@@ -596,6 +620,13 @@ export interface VehicleUpdate {
   pickup_photos?: string[]
   return_photos?: string[]
   registration_photos?: string[]
+  // 审核管理字段
+  review_status?: ReviewStatus
+  locked_photos?: LockedPhotos
+  required_photos?: string[]
+  review_notes?: string | null
+  reviewed_at?: string | null
+  reviewed_by?: string | null
 }
 
 // 驾驶员证件信息类型

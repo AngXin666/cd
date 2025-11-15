@@ -659,7 +659,7 @@ const AddVehicle: React.FC = () => {
   }
 
   // 提交表单
-  const handleSubmit = async () => {
+  const handleSubmit = async (submitForReview: boolean = false) => {
     // 验证当前步骤的基本要求（照片是否已拍摄）
     if (!validateStep(currentStep)) {
       return
@@ -679,7 +679,7 @@ const AddVehicle: React.FC = () => {
     }
 
     setSubmitting(true)
-    Taro.showLoading({title: '提交中...'})
+    Taro.showLoading({title: submitForReview ? '提交审核中...' : '保存中...'})
 
     try {
       // 上传所有照片
@@ -762,7 +762,9 @@ const AddVehicle: React.FC = () => {
           uploadedPhotos.driving_license_main,
           uploadedPhotos.driving_license_sub,
           uploadedPhotos.driving_license_sub_back
-        ].filter(Boolean) // 行驶证照片
+        ].filter(Boolean), // 行驶证照片
+        // 审核状态
+        review_status: submitForReview ? 'pending_review' : 'drafting' // 根据参数设置审核状态
       }
 
       // 插入车辆信息
@@ -800,7 +802,10 @@ const AddVehicle: React.FC = () => {
       }
 
       Taro.hideLoading()
-      Taro.showToast({title: '添加成功', icon: 'success'})
+      Taro.showToast({
+        title: submitForReview ? '提交审核成功' : '保存成功',
+        icon: 'success'
+      })
 
       // 延迟返回
       setTimeout(() => {
@@ -1358,16 +1363,30 @@ const AddVehicle: React.FC = () => {
                 </View>
               </Button>
             ) : (
-              <Button
-                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
-                size="default"
-                onClick={handleSubmit}
-                disabled={submitting}>
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-check-circle text-xl mr-2"></View>
-                  <Text className="font-medium">{submitting ? '提交中...' : '完成'}</Text>
-                </View>
-              </Button>
+              <>
+                {/* 保存草稿按钮 */}
+                <Button
+                  className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                  size="default"
+                  onClick={() => handleSubmit(false)}
+                  disabled={submitting}>
+                  <View className="flex items-center justify-center">
+                    <View className="i-mdi-content-save text-xl mr-2"></View>
+                    <Text className="font-medium">{submitting ? '保存中...' : '保存草稿'}</Text>
+                  </View>
+                </Button>
+                {/* 提交审核按钮 */}
+                <Button
+                  className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                  size="default"
+                  onClick={() => handleSubmit(true)}
+                  disabled={submitting}>
+                  <View className="flex items-center justify-center">
+                    <View className="i-mdi-check-circle text-xl mr-2"></View>
+                    <Text className="font-medium">{submitting ? '提交中...' : '提交审核'}</Text>
+                  </View>
+                </Button>
+              </>
             )}
           </View>
         </View>
