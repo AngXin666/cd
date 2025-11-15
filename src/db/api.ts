@@ -343,7 +343,7 @@ export async function getTodayAttendance(userId: string): Promise<AttendanceReco
  */
 export async function getMonthlyAttendance(userId: string, year: number, month: number): Promise<AttendanceRecord[]> {
   console.log(`📊 [考勤查询] 开始查询 - 用户:${userId}, 年月:${year}-${month}`)
-  
+
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.ATTENDANCE_MONTHLY}_${userId}_${year}_${month}`
   console.log(`🔑 [考勤查询] 缓存键: ${cacheKey}`)
@@ -356,7 +356,7 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
   }
 
   console.log(`🔄 [考勤查询] 缓存未命中，从数据库查询...`)
-  
+
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = getLocalDateString(new Date(year, month, 0))
 
@@ -389,7 +389,7 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
  */
 export async function getAllAttendanceRecords(year?: number, month?: number): Promise<AttendanceRecord[]> {
   console.log(`📊 [管理员考勤查询] 开始查询 - 年月:${year || '全部'}-${month || '全部'}`)
-  
+
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${year || 'all'}_${month || 'all'}`
   console.log(`🔑 [管理员考勤查询] 缓存键: ${cacheKey}`)
@@ -1481,11 +1481,11 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
 
   const result = Array.isArray(warehouses) ? warehouses : []
   console.log('[getManagerWarehouses] 最终返回仓库数量:', result.length)
-  
+
   // 缓存30分钟
   setCache(cacheKey, result, 30 * 60 * 1000)
   console.log('[getManagerWarehouses] 已缓存数据，有效期: 30分钟')
-  
+
   return result
 }
 

@@ -3,14 +3,13 @@ import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@taro
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
-import {getAllProfiles, getAllWarehouses, getCurrentUserProfile} from '@/db/api'
+import {getAllWarehouses, getCurrentUserProfile} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
 import {useDriverStats, useSuperAdminDashboard, useWarehousesSorted} from '@/hooks'
 
 const SuperAdminHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [allUsers, setAllUsers] = useState<Profile[]>([])
   const [rawWarehouses, setRawWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
@@ -19,7 +18,6 @@ const SuperAdminHome: React.FC = () => {
   // 使用仓库排序 Hook（按数据量排序）
   const {
     warehouses: sortedWarehouses,
-    loading: sortingLoading,
     refresh: refreshSorting
   } = useWarehousesSorted({
     warehouses: rawWarehouses,
@@ -75,14 +73,11 @@ const SuperAdminHome: React.FC = () => {
     }
   }, [])
 
-  // 加载个人信息和用户列表
+  // 加载个人信息
   const loadData = useCallback(async () => {
     try {
       const profileData = await getCurrentUserProfile()
       setProfile(profileData)
-
-      const usersData = await getAllProfiles()
-      setAllUsers(usersData)
     } catch (error) {
       console.error('[SuperAdminHome] 加载数据失败:', error)
       Taro.showToast({
@@ -191,18 +186,8 @@ const SuperAdminHome: React.FC = () => {
     }
   }
 
-  const driverCount = allUsers.filter((u) => u.role === 'driver').length
-  const managerCount = allUsers.filter((u) => u.role === 'manager').length
-  const superAdminCount = allUsers.filter((u) => u.role === 'super_admin').length
-
   // 使用仪表板和司机统计的loading状态
   const loading = dashboardLoading || driverStatsLoading
-
-  // 获取当前选中的仓库名称
-  const _getCurrentWarehouseName = () => {
-    const warehouse = warehouses[currentWarehouseIndex]
-    return warehouse?.name || '未知仓库'
-  }
 
   // 初始加载状态：当用户信息还未加载时显示加载界面
   if (!user) {
@@ -355,7 +340,7 @@ const SuperAdminHome: React.FC = () => {
             {driverStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
                 {/* 司机实时统计 */}
-                <View className="mb-3">
+                <View>
                   <View className="flex items-center mb-2">
                     <View className="i-mdi-account-group text-sm text-blue-600 mr-1" />
                     <Text className="text-xs text-gray-600 font-medium">司机实时状态</Text>
@@ -387,39 +372,6 @@ const SuperAdminHome: React.FC = () => {
                       <View className="i-mdi-account-off text-xl text-purple-600 mb-1" />
                       <Text className="text-xs text-gray-600 block mb-1">未计件</Text>
                       <Text className="text-lg font-bold text-purple-900 block">{driverStats.idleDrivers}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* 分隔线 */}
-                <View className="border-t border-gray-200 my-3" />
-
-                {/* 系统用户统计 */}
-                <View>
-                  <View className="flex items-center mb-2">
-                    <View className="i-mdi-shield-account text-sm text-purple-600 mr-1" />
-                    <Text className="text-xs text-gray-600 font-medium">系统用户统计</Text>
-                  </View>
-                  <View className="grid grid-cols-3 gap-2">
-                    {/* 司机总数 */}
-                    <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-account text-lg text-blue-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">司机</Text>
-                      <Text className="text-base font-bold text-blue-900 block">{driverCount}</Text>
-                    </View>
-
-                    {/* 管理员数量 */}
-                    <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-shield-account text-lg text-green-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">管理员</Text>
-                      <Text className="text-base font-bold text-green-600 block">{managerCount}</Text>
-                    </View>
-
-                    {/* 超级管理员 */}
-                    <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-shield-star text-lg text-purple-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">超管</Text>
-                      <Text className="text-base font-bold text-purple-900 block">{superAdminCount}</Text>
                     </View>
                   </View>
                 </View>
