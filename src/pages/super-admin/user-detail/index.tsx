@@ -119,18 +119,6 @@ const UserDetail: React.FC = () => {
     }
   }
 
-  // 获取司机类型显示文本
-  const getDriverTypeText = (driverType: string | null) => {
-    switch (driverType) {
-      case 'with_vehicle':
-        return '带车司机'
-      case 'without_vehicle':
-        return '纯司机'
-      default:
-        return '未设置'
-    }
-  }
-
   // 编辑用户
   const handleEdit = () => {
     Taro.navigateTo({
@@ -258,22 +246,6 @@ const UserDetail: React.FC = () => {
             </View>
 
             <View className="space-y-3">
-              {/* 司机类型 */}
-              {userInfo.role === 'driver' && (
-                <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <Text className="text-sm text-gray-600">司机类型</Text>
-                  <View className="flex items-center">
-                    <View
-                      className={`${
-                        userInfo.driver_type === 'with_vehicle' ? 'i-mdi-car-side' : 'i-mdi-account'
-                      } text-base mr-1 ${
-                        userInfo.driver_type === 'with_vehicle' ? 'text-blue-600' : 'text-gray-600'
-                      }`}></View>
-                    <Text className="text-sm text-gray-800 font-medium">{getDriverTypeText(userInfo.driver_type)}</Text>
-                  </View>
-                </View>
-              )}
-
               {/* 入职日期 */}
               {userInfo.join_date && (
                 <View className="flex items-center justify-between py-3 border-b border-gray-100">
