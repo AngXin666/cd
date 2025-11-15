@@ -217,8 +217,13 @@ const ManagerPieceWorkReport: React.FC = () => {
         return
       }
 
+      // 确保日期范围至少包含今天（用于计算当日件数）
+      const today = new Date().toISOString().split('T')[0]
+      const actualStartDate = startDate <= today ? startDate : today
+      const actualEndDate = endDate >= today ? endDate : today
+
       // 生成缓存键（包含仓库ID、日期范围）
-      const cacheKey = `manager_piece_work_records_${warehouse.id}_${startDate}_${endDate}`
+      const cacheKey = `manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
       const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
 
       let data: PieceWorkRecord[] = []
@@ -228,7 +233,7 @@ const ManagerPieceWorkReport: React.FC = () => {
         data = cached
       } else {
         console.log('🔄 从数据库加载计件记录')
-        data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+        data = await getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
         // 保存到缓存（3分钟有效期）
         setVersionedCache(cacheKey, data, 3 * 60 * 1000)
       }
