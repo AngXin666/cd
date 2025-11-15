@@ -351,32 +351,32 @@ const SuperAdminLeaveApproval: React.FC = () => {
       }
     }
 
+    // 首先，为所有司机创建初始统计数据
+    for (const driver of drivers) {
+      statsMap.set(driver.id, {
+        driverId: driver.id,
+        driverName: getUserName(driver.id),
+        warehouseIds: [],
+        warehouseNames: [],
+        totalLeaveDays: 0,
+        leaveCount: 0,
+        resignationCount: 0,
+        attendanceCount: 0,
+        pendingCount: 0,
+        workDays: getDriverWorkDays(driver),
+        actualAttendanceDays: 0,
+        attendanceRate: 0,
+        isFullAttendance: false,
+        joinDate: driver.join_date,
+        workingDays: calculateWorkingDays(driver.join_date)
+      })
+    }
+
     // 处理请假申请
     for (const app of visibleLeave) {
-      const driver = drivers.find((d) => d.id === app.user_id)
-      if (!driver) continue
+      const stats = statsMap.get(app.user_id)
+      if (!stats) continue // 如果司机不存在（可能已删除），跳过
 
-      if (!statsMap.has(driver.id)) {
-        statsMap.set(driver.id, {
-          driverId: driver.id,
-          driverName: getUserName(driver.id),
-          warehouseIds: [],
-          warehouseNames: [],
-          totalLeaveDays: 0,
-          leaveCount: 0,
-          resignationCount: 0,
-          attendanceCount: 0,
-          pendingCount: 0,
-          workDays: getDriverWorkDays(driver),
-          actualAttendanceDays: 0,
-          attendanceRate: 0,
-          isFullAttendance: false,
-          joinDate: driver.join_date,
-          workingDays: calculateWorkingDays(driver.join_date)
-        })
-      }
-
-      const stats = statsMap.get(driver.id)!
       addWarehouseToStats(stats, app.warehouse_id)
       stats.leaveCount++
 
@@ -393,30 +393,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
     // 处理离职申请
     for (const app of visibleResignation) {
-      const driver = drivers.find((d) => d.id === app.user_id)
-      if (!driver) continue
+      const stats = statsMap.get(app.user_id)
+      if (!stats) continue // 如果司机不存在（可能已删除），跳过
 
-      if (!statsMap.has(driver.id)) {
-        statsMap.set(driver.id, {
-          driverId: driver.id,
-          driverName: getUserName(driver.id),
-          warehouseIds: [],
-          warehouseNames: [],
-          totalLeaveDays: 0,
-          leaveCount: 0,
-          resignationCount: 0,
-          attendanceCount: 0,
-          pendingCount: 0,
-          workDays: getDriverWorkDays(driver),
-          actualAttendanceDays: 0,
-          attendanceRate: 0,
-          isFullAttendance: false,
-          joinDate: driver.join_date,
-          workingDays: calculateWorkingDays(driver.join_date)
-        })
-      }
-
-      const stats = statsMap.get(driver.id)!
       addWarehouseToStats(stats, app.warehouse_id)
       stats.resignationCount++
 
@@ -448,40 +427,18 @@ const SuperAdminLeaveApproval: React.FC = () => {
     // 统计每个司机的打卡天数（去重，一天只算一次）- 基于所有仓库
     const attendanceDaysMap = new Map<string, Set<string>>()
     for (const record of allAttendanceForStats) {
-      const driver = drivers.find((d) => d.id === record.user_id)
-      if (!driver) continue
+      const stats = statsMap.get(record.user_id)
+      if (!stats) continue // 如果司机不存在（可能已删除），跳过
 
-      if (!statsMap.has(driver.id)) {
-        // 如果还没有这个司机的统计，创建新记录
-        statsMap.set(driver.id, {
-          driverId: driver.id,
-          driverName: getUserName(driver.id),
-          warehouseIds: [],
-          warehouseNames: [],
-          totalLeaveDays: 0,
-          leaveCount: 0,
-          resignationCount: 0,
-          attendanceCount: 0,
-          pendingCount: 0,
-          workDays: getDriverWorkDays(driver),
-          actualAttendanceDays: 0,
-          attendanceRate: 0,
-          isFullAttendance: false,
-          joinDate: driver.join_date,
-          workingDays: calculateWorkingDays(driver.join_date)
-        })
-      }
-
-      const stats = statsMap.get(driver.id)!
       addWarehouseToStats(stats, record.warehouse_id || '')
       stats.attendanceCount++
 
       // 记录打卡日期（用于计算实际出勤天数）
-      if (!attendanceDaysMap.has(driver.id)) {
-        attendanceDaysMap.set(driver.id, new Set())
+      if (!attendanceDaysMap.has(record.user_id)) {
+        attendanceDaysMap.set(record.user_id, new Set())
       }
       const checkInDate = new Date(record.clock_in_time).toISOString().split('T')[0]
-      attendanceDaysMap.get(driver.id)?.add(checkInDate)
+      attendanceDaysMap.get(record.user_id)?.add(checkInDate)
     }
 
     // 计算出勤率和满勤状态
@@ -1201,8 +1158,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
                         <Text className="text-xs text-gray-600">请假天数</Text>
                       </View>
                       <View className="text-center bg-blue-50 rounded-lg py-2">
-                        <Text className="text-xl font-bold text-blue-600 block">{stats.leaveCount}</Text>
-                        <Text className="text-xs text-gray-600">请假次数</Text>
+                        <Text className="text-xl font-bold text-blue-600 block">{stats.actualAttendanceDays}</Text>
+                        <Text className="text-xs text-gray-600">出勤天数</Text>
                       </View>
                       <View className="text-center bg-purple-50 rounded-lg py-2">
                         <Text className="text-xl font-bold text-purple-600 block">{stats.pendingCount}</Text>
