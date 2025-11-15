@@ -3,6 +3,7 @@ import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
+import CircularProgress from '@/components/CircularProgress'
 import {
   getActiveCategories,
   getAttendanceRecordsByWarehouse,
@@ -110,6 +111,9 @@ const ManagerPieceWorkReport: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
   const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
+
+  // 配置常量
+  const MONTHLY_ALLOWED_LEAVE_DAYS = 2 // 每月允许的请假天数
 
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
@@ -492,23 +496,55 @@ const ManagerPieceWorkReport: React.FC = () => {
             dailyCompletionRate = (dailyQuantity / dailyTarget) * 100
           }
 
-          // 计算本周达标率（周一到今天的天数）
+          // 计算本周达标率（考虑新员工入职日期）
           let weeklyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
             const dayOfWeek = today.getDay()
-            const daysInWeek = dayOfWeek === 0 ? 7 : dayOfWeek // 周日算7天，其他按实际天数
+            let daysInWeek = dayOfWeek === 0 ? 7 : dayOfWeek // 周日算7天，其他按实际天数
+
+            // 如果是新员工，需要考虑入职日期
+            if (summary.joinDate) {
+              const joinDate = new Date(summary.joinDate)
+              const weekStart = getWeekRange().start
+              const weekStartDate = new Date(weekStart)
+
+              // 如果入职日期在本周内，只计算入职后的天数
+              if (joinDate > weekStartDate) {
+                const diffTime = Math.abs(today.getTime() - joinDate.getTime())
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 包含入职当天
+                daysInWeek = Math.min(diffDays, daysInWeek)
+              }
+            }
+
             const weeklyTarget = dailyTarget * daysInWeek
             weeklyCompletionRate = (weeklyQuantity / weeklyTarget) * 100
           }
 
-          // 计算本月达标率（本月1号到今天的天数）
+          // 计算本月达标率（考虑新员工入职日期和允许请假天数）
           let monthlyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
-            const daysInMonth = today.getDate() // 本月已过天数
-            const monthlyTarget = dailyTarget * daysInMonth
-            monthlyCompletionRate = (monthlyQuantity / monthlyTarget) * 100
+            let daysInMonth = today.getDate() // 本月已过天数
+
+            // 如果是新员工，需要考虑入职日期
+            if (summary.joinDate) {
+              const joinDate = new Date(summary.joinDate)
+              const monthStart = getMonthRange().start
+              const monthStartDate = new Date(monthStart)
+
+              // 如果入职日期在本月内，只计算入职后的天数
+              if (joinDate > monthStartDate) {
+                const diffTime = Math.abs(today.getTime() - joinDate.getTime())
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 包含入职当天
+                daysInMonth = Math.min(diffDays, daysInMonth)
+              }
+            }
+
+            // 扣除允许的请假天数
+            const workDaysInMonth = Math.max(daysInMonth - MONTHLY_ALLOWED_LEAVE_DAYS, 0)
+            const monthlyTarget = dailyTarget * workDaysInMonth
+            monthlyCompletionRate = monthlyTarget > 0 ? (monthlyQuantity / monthlyTarget) * 100 : 0
           }
 
           return {
@@ -981,36 +1017,82 @@ const ManagerPieceWorkReport: React.FC = () => {
 
                     {/* 右侧信息 */}
                     <View className="flex-1">
-                      {/* 三个达标率卡片 */}
-                      <View className="grid grid-cols-3 gap-2 mb-2">
-                        {/* 当天达标率 */}
-                        <View className="text-center bg-blue-50 rounded-lg py-2">
-                          <Text className="text-xs text-gray-600 mb-1">当天达标率</Text>
-                          <Text className="text-lg font-bold text-blue-600">
-                            {(summary.dailyCompletionRate || 0).toFixed(1)}%
-                          </Text>
-                        </View>
-                        {/* 本周达标率 */}
-                        <View className="text-center bg-green-50 rounded-lg py-2">
-                          <Text className="text-xs text-gray-600 mb-1">本周达标率</Text>
-                          <Text className="text-lg font-bold text-green-600">
-                            {(summary.weeklyCompletionRate || 0).toFixed(1)}%
-                          </Text>
-                        </View>
-                        {/* 本月达标率 */}
-                        <View className="text-center bg-purple-50 rounded-lg py-2">
-                          <Text className="text-xs text-gray-600 mb-1">本月达标率</Text>
-                          <Text className="text-lg font-bold text-purple-600">
-                            {(summary.monthlyCompletionRate || 0).toFixed(1)}%
-                          </Text>
-                        </View>
-                      </View>
-
                       {/* 完成件数 */}
                       <View className="flex items-center justify-between">
                         <Text className="text-sm text-gray-600">完成件数</Text>
                         <Text className="text-sm font-bold text-blue-600">{summary.totalQuantity} 件</Text>
                       </View>
+                    </View>
+                  </View>
+
+                  {/* 三个环形图达标率 */}
+                  <View className="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
+                    {/* 当天达标率环形图 */}
+                    <View className="flex flex-col items-center">
+                      <CircularProgress
+                        percentage={summary.dailyCompletionRate || 0}
+                        size={70}
+                        strokeWidth={6}
+                        label="当天达标率"
+                      />
+                      <Text className="text-xs text-gray-500 mt-1">
+                        目标: {dailyTarget}件
+                      </Text>
+                    </View>
+
+                    {/* 本周达标率环形图 */}
+                    <View className="flex flex-col items-center">
+                      <CircularProgress
+                        percentage={summary.weeklyCompletionRate || 0}
+                        size={70}
+                        strokeWidth={6}
+                        label="本周达标率"
+                      />
+                      <Text className="text-xs text-gray-500 mt-1">
+                        已工作{(() => {
+                          const today = new Date()
+                          const dayOfWeek = today.getDay()
+                          let days = dayOfWeek === 0 ? 7 : dayOfWeek
+                          // 考虑新员工入职日期
+                          if (summary.joinDate) {
+                            const joinDate = new Date(summary.joinDate)
+                            const weekStart = new Date(getMondayDateString())
+                            if (joinDate > weekStart) {
+                              const diffTime = Math.abs(today.getTime() - joinDate.getTime())
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+                              days = Math.min(diffDays, days)
+                            }
+                          }
+                          return days
+                        })()}天
+                      </Text>
+                    </View>
+
+                    {/* 本月达标率环形图 */}
+                    <View className="flex flex-col items-center">
+                      <CircularProgress
+                        percentage={summary.monthlyCompletionRate || 0}
+                        size={70}
+                        strokeWidth={6}
+                        label="本月达标率"
+                      />
+                      <Text className="text-xs text-gray-500 mt-1">
+                        应工作{(() => {
+                          const today = new Date()
+                          let days = today.getDate()
+                          // 考虑新员工入职日期
+                          if (summary.joinDate) {
+                            const joinDate = new Date(summary.joinDate)
+                            const monthStart = new Date(getFirstDayOfMonthString())
+                            if (joinDate > monthStart) {
+                              const diffTime = Math.abs(today.getTime() - joinDate.getTime())
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+                              days = Math.min(diffDays, days)
+                            }
+                          }
+                          return Math.max(days - MONTHLY_ALLOWED_LEAVE_DAYS, 0)
+                        })()}天
+                      </Text>
                     </View>
                   </View>
 
