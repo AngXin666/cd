@@ -395,44 +395,55 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       return diffDays
     }
 
+    // 首先，为所有司机创建初始汇总数据
+    drivers.forEach((driver) => {
+      const daysEmployed = calculateDaysEmployed(driver.join_date || null)
+      summaryMap.set(driver.id, {
+        driverId: driver.id,
+        driverName: driver.name || '',
+        driverPhone: driver.phone || '',
+        driverType: driver.driver_type || null,
+        totalQuantity: 0,
+        totalAmount: 0,
+        warehouses: new Set<string>(),
+        warehouseNames: [],
+        recordCount: 0,
+        joinDate: driver.join_date || null,
+        daysEmployed,
+        dailyCompletionRate: 0,
+        weeklyCompletionRate: 0,
+        monthlyCompletionRate: 0,
+        dailyQuantity: 0,
+        weeklyQuantity: 0,
+        monthlyQuantity: 0
+      })
+    })
+
+    // 然后，累加计件工作记录
     records.forEach((record) => {
       const driverId = record.user_id
-      if (!summaryMap.has(driverId)) {
-        const driver = drivers.find((d) => d.id === driverId)
-        const daysEmployed = calculateDaysEmployed(driver?.join_date || null)
-        summaryMap.set(driverId, {
-          driverId,
-          driverName: driver?.name || '',
-          driverPhone: driver?.phone || '',
-          driverType: driver?.driver_type || null, // 添加司机类型
-          totalQuantity: 0,
-          totalAmount: 0,
-          warehouses: new Set<string>(),
-          warehouseNames: [],
-          recordCount: 0,
-          joinDate: driver?.join_date || null,
-          daysEmployed,
-          dailyCompletionRate: 0,
-          weeklyCompletionRate: 0,
-          monthlyCompletionRate: 0,
-          dailyQuantity: 0,
-          weeklyQuantity: 0,
-          monthlyQuantity: 0
-        })
-      }
+      const summary = summaryMap.get(driverId)
 
-      const summary = summaryMap.get(driverId)!
+      // 如果司机不在 summaryMap 中（可能是已删除的司机），跳过
+      if (!summary) return
+
+      // 累加数量
       summary.totalQuantity += record.quantity || 0
 
+      // 计算金额
       const baseAmount = (record.quantity || 0) * (record.unit_price || 0)
       const upstairsAmount = record.need_upstairs ? (record.quantity || 0) * (record.upstairs_price || 0) : 0
       const sortingAmount = record.need_sorting ? (record.sorting_quantity || 0) * (record.sorting_unit_price || 0) : 0
       summary.totalAmount += baseAmount + upstairsAmount + sortingAmount
 
+      // 记录仓库
       summary.warehouses.add(record.warehouse_id)
+
+      // 记录数量
       summary.recordCount += 1
     })
 
+    // 转换为数组并填充仓库名称
     const summaries = Array.from(summaryMap.values()).map((summary) => ({
       ...summary,
       warehouseNames: Array.from(summary.warehouses).map((wId) => getWarehouseName(wId))

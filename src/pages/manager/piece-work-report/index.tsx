@@ -369,33 +369,37 @@ const ManagerPieceWorkReport: React.FC = () => {
       return diffDays
     }
 
+    // 首先，为所有司机创建初始汇总数据
+    drivers.forEach((driver) => {
+      const daysEmployed = calculateDaysEmployed(driver.join_date || null)
+      summaryMap.set(driver.id, {
+        driverId: driver.id,
+        driverName: driver.name || '',
+        driverPhone: driver.phone || '',
+        driverType: driver.driver_type || null,
+        totalQuantity: 0,
+        totalAmount: 0,
+        warehouses: new Set<string>(),
+        warehouseNames: [],
+        recordCount: 0,
+        joinDate: driver.join_date || null,
+        daysEmployed,
+        dailyCompletionRate: 0,
+        weeklyCompletionRate: 0,
+        monthlyCompletionRate: 0,
+        dailyQuantity: 0,
+        weeklyQuantity: 0,
+        monthlyQuantity: 0
+      })
+    })
+
+    // 然后，累加计件工作记录
     records.forEach((record) => {
       const driverId = record.user_id
-      if (!summaryMap.has(driverId)) {
-        const driver = drivers.find((d) => d.id === driverId)
-        const daysEmployed = calculateDaysEmployed(driver?.join_date || null)
-        summaryMap.set(driverId, {
-          driverId,
-          driverName: driver?.name || '',
-          driverPhone: driver?.phone || '',
-          driverType: driver?.driver_type || null, // 添加司机类型
-          totalQuantity: 0,
-          totalAmount: 0,
-          warehouses: new Set<string>(),
-          warehouseNames: [],
-          recordCount: 0,
-          joinDate: driver?.join_date || null,
-          daysEmployed,
-          dailyCompletionRate: 0,
-          weeklyCompletionRate: 0,
-          monthlyCompletionRate: 0,
-          dailyQuantity: 0,
-          weeklyQuantity: 0,
-          monthlyQuantity: 0
-        })
-      }
+      const summary = summaryMap.get(driverId)
 
-      const summary = summaryMap.get(driverId)!
+      // 如果司机不在 summaryMap 中（可能是已删除的司机），跳过
+      if (!summary) return
 
       // 累加数量
       summary.totalQuantity += record.quantity || 0
