@@ -1139,6 +1139,60 @@ export async function deleteCategory(id: string): Promise<boolean> {
   return true
 }
 
+// 删除未被任何仓库使用的品类
+export async function deleteUnusedCategories(): Promise<{success: boolean; deletedCount: number; error?: string}> {
+  try {
+    // 查找所有品类
+    const {data: allCategories, error: categoriesError} = await supabase
+      .from('piece_work_categories')
+      .select('id')
+      .order('id', {ascending: true})
+
+    if (categoriesError) {
+      console.error('查询品类失败:', categoriesError)
+      return {success: false, deletedCount: 0, error: categoriesError.message}
+    }
+
+    if (!allCategories || allCategories.length === 0) {
+      return {success: true, deletedCount: 0}
+    }
+
+    // 查找所有被使用的品类ID
+    const {data: usedCategories, error: pricesError} = await supabase
+      .from('category_prices')
+      .select('category_id')
+      .order('category_id', {ascending: true})
+
+    if (pricesError) {
+      console.error('查询品类价格失败:', pricesError)
+      return {success: false, deletedCount: 0, error: pricesError.message}
+    }
+
+    // 获取被使用的品类ID集合
+    const usedCategoryIds = new Set(usedCategories?.map((p) => p.category_id) || [])
+
+    // 找出未被使用的品类
+    const unusedCategoryIds = allCategories.filter((c) => !usedCategoryIds.has(c.id)).map((c) => c.id)
+
+    if (unusedCategoryIds.length === 0) {
+      return {success: true, deletedCount: 0}
+    }
+
+    // 删除未使用的品类
+    const {error: deleteError} = await supabase.from('piece_work_categories').delete().in('id', unusedCategoryIds)
+
+    if (deleteError) {
+      console.error('删除未使用品类失败:', deleteError)
+      return {success: false, deletedCount: 0, error: deleteError.message}
+    }
+
+    return {success: true, deletedCount: unusedCategoryIds.length}
+  } catch (error) {
+    console.error('删除未使用品类异常:', error)
+    return {success: false, deletedCount: 0, error: String(error)}
+  }
+}
+
 // ==================== 品类价格配置 API ====================
 
 // 获取指定仓库的所有品类价格配置

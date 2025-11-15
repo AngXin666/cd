@@ -7,6 +7,7 @@ import {
   batchUpsertCategoryPrices,
   createCategory,
   deleteCategory,
+  deleteUnusedCategories,
   getAllCategories,
   getAllWarehouses,
   getCategoryPricesByWarehouse,
@@ -309,6 +310,47 @@ const CategoryManagement: React.FC = () => {
     }
   }
 
+  // 清理未使用的品类
+  const handleCleanUnusedCategories = async () => {
+    const confirmed = await confirmDelete('清理未使用品类', '确定要删除所有未被任何仓库使用的品类吗？此操作不可恢复。')
+    if (!confirmed) return
+
+    Taro.showLoading({title: '清理中...'})
+    try {
+      const result = await deleteUnusedCategories()
+
+      if (result.success) {
+        if (result.deletedCount > 0) {
+          Taro.showToast({
+            title: `已删除 ${result.deletedCount} 个未使用品类`,
+            icon: 'success',
+            duration: 2000
+          })
+          loadCategories()
+          loadCategoryPrices()
+        } else {
+          Taro.showToast({
+            title: '没有未使用的品类',
+            icon: 'none'
+          })
+        }
+      } else {
+        Taro.showToast({
+          title: result.error || '清理失败',
+          icon: 'error'
+        })
+      }
+    } catch (error) {
+      console.error('清理未使用品类异常:', error)
+      Taro.showToast({
+        title: '清理失败',
+        icon: 'error'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
   // 处理仓库切换
   const handleWarehouseChange = (e: any) => {
     setSelectedWarehouseIndex(e.detail.current)
@@ -320,8 +362,18 @@ const CategoryManagement: React.FC = () => {
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-700 to-blue-600 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">品类价格管理</Text>
-            <Text className="text-blue-100 text-sm block">为不同仓库的品类设置价格</Text>
+            <View className="flex items-center justify-between mb-2">
+              <View className="flex-1">
+                <Text className="text-white text-2xl font-bold block mb-2">品类价格管理</Text>
+                <Text className="text-blue-100 text-sm block">为不同仓库的品类设置价格</Text>
+              </View>
+              <Button
+                size="mini"
+                className="bg-red-500 text-white text-xs break-keep py-2"
+                onClick={handleCleanUnusedCategories}>
+                清理未使用品类
+              </Button>
+            </View>
           </View>
 
           {/* 仓库切换 */}
