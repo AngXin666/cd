@@ -543,7 +543,7 @@ export async function deleteWarehouse(id: string): Promise<boolean> {
 // ==================== 考勤规则管理 ====================
 
 /**
- * 获取仓库的考勤规则
+ * 获取仓库的考勤规则（返回最新的一条激活规则）
  */
 export async function getAttendanceRuleByWarehouseId(warehouseId: string): Promise<AttendanceRule | null> {
   const {data, error} = await supabase
@@ -551,14 +551,15 @@ export async function getAttendanceRuleByWarehouseId(warehouseId: string): Promi
     .select('*')
     .eq('warehouse_id', warehouseId)
     .eq('is_active', true)
-    .maybeSingle()
+    .order('created_at', {ascending: false})
+    .limit(1)
 
   if (error) {
     console.error('获取考勤规则失败:', error)
     return null
   }
 
-  return data
+  return Array.isArray(data) && data.length > 0 ? data[0] : null
 }
 
 /**
