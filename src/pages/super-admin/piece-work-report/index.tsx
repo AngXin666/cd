@@ -21,6 +21,7 @@ interface DriverSummary {
   driverPhone: string
   totalQuantity: number
   totalAmount: number
+  completionRate: number // 每日达标率
   warehouses: Set<string>
   warehouseNames: string[]
   recordCount: number
@@ -46,7 +47,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   const [endDate, setEndDate] = useState('')
   const [quickFilter, setQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [sortBy, setSortBy] = useState<'amount' | 'quantity' | 'leave'>('amount') // 排序依据
+  const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
   const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
 
   // 初始化日期范围（默认当月）
@@ -245,9 +246,24 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     [drivers]
   )
 
+  // 计算每日指标数（根据选中的仓库）
+  const dailyTarget = useMemo(() => {
+    if (selectedWarehouseIndex === 0) {
+      // 所有仓库：累加所有仓库的每日指标数
+      return warehouses.reduce((sum, w) => sum + (w.daily_target || 0), 0)
+    } else {
+      // 特定仓库：返回该仓库的每日指标数
+      const warehouse = warehouses[selectedWarehouseIndex - 1]
+      return warehouse?.daily_target || 0
+    }
+  }, [warehouses, selectedWarehouseIndex])
+
   // 计算司机汇总数据（不含考勤）
   const driverSummariesBase = useMemo(() => {
-    const summaryMap = new Map<string, Omit<DriverSummary, 'attendanceDays' | 'lateDays' | 'leaveDays'>>()
+    const summaryMap = new Map<
+      string,
+      Omit<DriverSummary, 'attendanceDays' | 'lateDays' | 'leaveDays' | 'completionRate'>
+    >()
 
     records.forEach((record) => {
       const driverId = record.user_id
@@ -294,11 +310,20 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       const summariesWithAttendance = await Promise.all(
         driverSummariesBase.map(async (summary) => {
           const attendanceStats = await getDriverAttendanceStats(summary.driverId, startDate, endDate)
+
+          // 计算每日达标率
+          // 达标率 = (总件数 / 每日指标数) * 100%
+          let driverCompletionRate = 0
+          if (dailyTarget > 0) {
+            driverCompletionRate = (summary.totalQuantity / dailyTarget) * 100
+          }
+
           return {
             ...summary,
             attendanceDays: attendanceStats.attendanceDays,
             lateDays: attendanceStats.lateDays,
-            leaveDays: attendanceStats.leaveDays
+            leaveDays: attendanceStats.leaveDays,
+            completionRate: driverCompletionRate
           }
         })
       )
@@ -306,8 +331,8 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       // 根据排序依据和排序顺序排序
       summariesWithAttendance.sort((a, b) => {
         let compareValue = 0
-        if (sortBy === 'amount') {
-          compareValue = b.totalAmount - a.totalAmount
+        if (sortBy === 'completion') {
+          compareValue = b.completionRate - a.completionRate
         } else if (sortBy === 'quantity') {
           compareValue = b.totalQuantity - a.totalQuantity
         } else if (sortBy === 'leave') {
@@ -324,7 +349,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     } else {
       setDriverSummaries([])
     }
-  }, [driverSummariesBase, startDate, endDate, sortOrder, sortBy])
+  }, [driverSummariesBase, startDate, endDate, sortOrder, sortBy, dailyTarget])
 
   // 获取品类名称
   const _getCategoryName = (categoryId: string) => {
@@ -341,18 +366,6 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     return sum + baseAmount + upstairsAmount + sortingAmount
   }, 0)
   const uniqueDrivers = new Set(records.map((r) => r.user_id)).size
-
-  // 计算每日指标数（根据选中的仓库）
-  const dailyTarget = useMemo(() => {
-    if (selectedWarehouseIndex === 0) {
-      // 所有仓库：累加所有仓库的每日指标数
-      return warehouses.reduce((sum, w) => sum + (w.daily_target || 0), 0)
-    } else {
-      // 特定仓库：返回该仓库的每日指标数
-      const warehouse = warehouses[selectedWarehouseIndex - 1]
-      return warehouse?.daily_target || 0
-    }
-  }, [warehouses, selectedWarehouseIndex])
 
   // 计算目标完成率
   const completionRate = useMemo(() => {
@@ -534,23 +547,23 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             <View className="flex gap-2">
               <View
                 onClick={() => {
-                  if (sortBy === 'amount') {
+                  if (sortBy === 'completion') {
                     setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
                   } else {
-                    setSortBy('amount')
+                    setSortBy('completion')
                     setSortOrder('desc')
                   }
                 }}
                 className={`flex-1 flex items-center justify-center py-2 rounded-lg ${
-                  sortBy === 'amount' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
+                  sortBy === 'completion' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
                 }`}>
                 <View
-                  className={`i-mdi-currency-cny text-base mr-1 ${sortBy === 'amount' ? 'text-white' : 'text-gray-600'}`}
+                  className={`i-mdi-chart-line text-base mr-1 ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs ${sortBy === 'amount' ? 'text-white' : 'text-gray-700'}`}>金额</Text>
-                {sortBy === 'amount' && (
+                <Text className={`text-xs ${sortBy === 'completion' ? 'text-white' : 'text-gray-700'}`}>达标率</Text>
+                {sortBy === 'completion' && (
                   <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'amount' ? 'text-white' : 'text-gray-600'}`}
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ml-1 ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
                   />
                 )}
               </View>
@@ -632,8 +645,9 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                           <Text className="text-xs text-gray-500 ml-8">{summary.driverPhone}</Text>
                         )}
                       </View>
-                      <View className="bg-orange-500 px-3 py-1 rounded-full">
-                        <Text className="text-sm text-white font-bold">¥{summary.totalAmount.toFixed(2)}</Text>
+                      <View
+                        className={`px-3 py-1 rounded-full ${summary.completionRate >= 100 ? 'bg-green-600' : 'bg-orange-500'}`}>
+                        <Text className="text-sm text-white font-bold">{summary.completionRate.toFixed(1)}%</Text>
                       </View>
                     </View>
 
