@@ -19,6 +19,8 @@ import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication
 interface DriverStats {
   driverId: string
   driverName: string
+  driverPhone: string | null // 手机号码
+  licensePlate: string | null // 车牌号
   warehouseIds: string[] // 改为数组，支持多个仓库
   warehouseNames: string[] // 改为数组，支持多个仓库名称
   totalLeaveDays: number
@@ -356,6 +358,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
       statsMap.set(driver.id, {
         driverId: driver.id,
         driverName: getUserName(driver.id),
+        driverPhone: driver.phone,
+        licensePlate: driver.license_plate,
         warehouseIds: [],
         warehouseNames: [],
         totalLeaveDays: 0,
@@ -1096,10 +1100,37 @@ const SuperAdminLeaveApproval: React.FC = () => {
                       <View className="flex items-center flex-1">
                         <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                         <View className="flex-1">
-                          <Text className="text-base font-bold text-gray-800 block">{stats.driverName}</Text>
-                          <Text className="text-xs text-gray-500 block">
-                            {stats.warehouseNames.length > 0 ? stats.warehouseNames.join('、') : '未分配仓库'}
-                          </Text>
+                          <View className="flex items-center gap-2 mb-1">
+                            <Text className="text-base font-bold text-gray-800">{stats.driverName}</Text>
+                            {/* 新司机标签 */}
+                            {stats.workingDays <= 7 && (
+                              <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">新司机</Text>
+                              </View>
+                            )}
+                          </View>
+                          {/* 手机号码 */}
+                          {stats.driverPhone && (
+                            <View className="flex items-center gap-1 mb-1">
+                              <View className="i-mdi-phone text-xs text-gray-400" />
+                              <Text className="text-xs text-gray-600">{stats.driverPhone}</Text>
+                            </View>
+                          )}
+                          {/* 车牌号 */}
+                          {stats.licensePlate && (
+                            <View className="flex items-center gap-1 mb-1">
+                              <View className="i-mdi-car text-xs text-gray-400" />
+                              <Text className="text-xs text-gray-600">{stats.licensePlate}</Text>
+                            </View>
+                          )}
+                          {/* 分配仓库 */}
+                          <View className="flex items-center gap-1 mb-1">
+                            <View className="i-mdi-warehouse text-xs text-gray-400" />
+                            <Text className="text-xs text-gray-600">
+                              {stats.warehouseNames.length > 0 ? stats.warehouseNames.join('、') : '未分配仓库'}
+                            </Text>
+                          </View>
+                          {/* 入职时间和在职天数 */}
                           {stats.joinDate && (
                             <View className="flex items-center gap-2 mt-1">
                               <Text className="text-xs text-gray-400">
