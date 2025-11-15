@@ -8,8 +8,8 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getDriverVehicles, getUserById} from '@/db/api'
-import type {Profile, Vehicle} from '@/db/types'
+import {getDriverVehicles, getDriverWarehouses, getUserById} from '@/db/api'
+import type {Profile, Vehicle, Warehouse} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
@@ -23,6 +23,17 @@ const UserDetail: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<Profile | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+
+  // 计算在职天数
+  const calculateWorkDays = (joinDate: string | null) => {
+    if (!joinDate) return 0
+    const join = new Date(joinDate)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - join.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
 
   // 加载用户信息
   const loadUserInfo = useCallback(async () => {
@@ -45,11 +56,15 @@ const UserDetail: React.FC = () => {
         setUserInfo(data)
         logger.info('用户信息加载成功', {userId, name: data.name})
 
-        // 如果是司机，加载车辆信息
+        // 如果是司机，加载车辆信息和仓库信息
         if (data.role === 'driver') {
           const vehicleData = await getDriverVehicles(userId)
           setVehicles(vehicleData)
           logger.info('司机车辆信息加载成功', {userId, vehicleCount: vehicleData.length})
+
+          const warehouseData = await getDriverWarehouses(userId)
+          setWarehouses(warehouseData)
+          logger.info('司机仓库信息加载成功', {userId, warehouseCount: warehouseData.length})
         }
       } else {
         logger.warn('用户不存在', {userId})
@@ -247,9 +262,17 @@ const UserDetail: React.FC = () => {
               {userInfo.role === 'driver' && (
                 <View className="flex items-center justify-between py-3 border-b border-gray-100">
                   <Text className="text-sm text-gray-600">司机类型</Text>
-                  <Text className="text-sm text-gray-800 font-medium">
-                    {getDriverTypeText(userInfo.driver_type)}
-                  </Text>
+                  <View className="flex items-center">
+                    <View
+                      className={`${
+                        userInfo.driver_type === 'with_vehicle' ? 'i-mdi-car-side' : 'i-mdi-account'
+                      } text-base mr-1 ${
+                        userInfo.driver_type === 'with_vehicle' ? 'text-blue-600' : 'text-gray-600'
+                      }`}></View>
+                    <Text className="text-sm text-gray-800 font-medium">
+                      {getDriverTypeText(userInfo.driver_type)}
+                    </Text>
+                  </View>
                 </View>
               )}
 
@@ -258,6 +281,18 @@ const UserDetail: React.FC = () => {
                 <View className="flex items-center justify-between py-3 border-b border-gray-100">
                   <Text className="text-sm text-gray-600">入职日期</Text>
                   <Text className="text-sm text-gray-800 font-medium">{userInfo.join_date}</Text>
+                </View>
+              )}
+
+              {/* 在职天数 */}
+              {userInfo.join_date && (
+                <View className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <Text className="text-sm text-gray-600">在职天数</Text>
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar-clock text-base text-blue-600 mr-1"></View>
+                    <Text className="text-sm text-blue-600 font-bold">{calculateWorkDays(userInfo.join_date)}</Text>
+                    <Text className="text-xs text-gray-500 ml-1">天</Text>
+                  </View>
                 </View>
               )}
 
@@ -326,6 +361,68 @@ const UserDetail: React.FC = () => {
                           )}
                         </View>
                         <View className="i-mdi-chevron-right text-2xl text-blue-400"></View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* 仓库信息卡片（仅司机显示） */}
+          {userInfo.role === 'driver' && (
+            <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
+              <View className="flex items-center justify-between mb-4">
+                <View className="flex items-center">
+                  <View className="i-mdi-warehouse text-2xl text-purple-600 mr-2"></View>
+                  <Text className="text-lg font-bold text-gray-800">分配仓库</Text>
+                </View>
+                <View className="bg-purple-100 rounded-full px-3 py-1">
+                  <Text className="text-xs text-purple-700 font-medium">{warehouses.length} 个</Text>
+                </View>
+              </View>
+
+              {warehouses.length === 0 ? (
+                <View className="flex flex-col items-center justify-center py-8">
+                  <View className="bg-gray-50 rounded-full p-4 mb-3">
+                    <View className="i-mdi-warehouse-off text-4xl text-gray-300"></View>
+                  </View>
+                  <Text className="text-gray-500 text-sm">暂未分配仓库</Text>
+                </View>
+              ) : (
+                <View className="space-y-3">
+                  {warehouses.map((warehouse) => (
+                    <View
+                      key={warehouse.id}
+                      className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
+                      <View className="flex items-center justify-between">
+                        <View className="flex-1">
+                          <View className="flex items-center mb-2">
+                            <View className="i-mdi-warehouse text-lg text-purple-600 mr-2"></View>
+                            <Text className="text-base text-purple-900 font-bold">{warehouse.name}</Text>
+                          </View>
+                          {warehouse.address && (
+                            <View className="flex items-center">
+                              <View className="i-mdi-map-marker text-sm text-purple-600 mr-1"></View>
+                              <Text className="text-xs text-purple-700 block">{warehouse.address}</Text>
+                            </View>
+                          )}
+                          {warehouse.status && (
+                            <View className="flex items-center mt-2">
+                              <View
+                                className={`rounded-full px-2 py-0.5 ${
+                                  warehouse.status === 'active' ? 'bg-green-100' : 'bg-gray-100'
+                                }`}>
+                                <Text
+                                  className={`text-xs font-medium ${
+                                    warehouse.status === 'active' ? 'text-green-600' : 'text-gray-600'
+                                  }`}>
+                                  {warehouse.status === 'active' ? '使用中' : '已停用'}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+                        </View>
                       </View>
                     </View>
                   ))}
