@@ -11,6 +11,7 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {debugAuthStatus, deleteVehicle, getDriverVehicles, getProfileById} from '@/db/api'
 import type {Profile, Vehicle} from '@/db/types'
+import {getVersionedCache, setVersionedCache, clearCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
@@ -23,6 +24,7 @@ const VehicleList: React.FC = () => {
   const [targetDriverId, setTargetDriverId] = useState<string>('')
   const [targetDriver, setTargetDriver] = useState<Profile | null>(null)
   const [isManagerView, setIsManagerView] = useState(false)
+  const [initialized, setInitialized] = useState(false) // 添加初始化标记
 
   // 加载司机信息
   const loadDriverInfo = useCallback(async (driverId: string) => {
@@ -54,14 +56,14 @@ const VehicleList: React.FC = () => {
       logger.info('管理员查看模式', {targetDriverId: driverId})
       // 加载司机信息
       loadDriverInfo(driverId)
-      // 注意：不在这里调用loadVehicles，因为它会在useDidShow中自动调用
     } else {
       logger.info('司机自己查看模式', {userId: user?.id})
       // 清空targetDriverId，确保使用当前用户ID
       setTargetDriverId('')
       setIsManagerView(false)
-      // 注意：不在这里调用loadVehicles，因为它会在useDidShow中自动调用
     }
+    // 标记初始化完成
+    setInitialized(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // 加载司机信息
@@ -69,7 +71,7 @@ const VehicleList: React.FC = () => {
     user?.id
   ]) // 只在组件挂载时执行一次
 
-  // 加载车辆列表
+  // 加载车辆列表（带缓存）
   const loadVehicles = useCallback(async () => {
     // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
     const driverId = targetDriverId || user?.id
@@ -89,19 +91,34 @@ const VehicleList: React.FC = () => {
     logger.info('开始加载车辆列表', {driverId, isManagerView})
     setLoading(true)
     try {
-      // 调试：检查认证状态
-      const authStatus = await debugAuthStatus()
-      logger.info('认证状态检查', authStatus)
+      // 生成缓存键
+      const cacheKey = `driver_vehicles_${driverId}`
+      const cached = getVersionedCache<Vehicle[]>(cacheKey)
 
-      // 如果认证用户ID与查询的司机ID不匹配，记录警告
-      if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
-        logger.warn('认证用户ID与查询司机ID不匹配', {
-          authUserId: authStatus.userId,
-          queryDriverId: driverId
-        })
+      let data: Vehicle[]
+
+      if (cached) {
+        logger.info('✅ 使用缓存的车辆列表', {driverId, vehicleCount: cached.length})
+        data = cached
+      } else {
+        logger.info('🔄 从数据库加载车辆列表', {driverId})
+        // 调试：检查认证状态
+        const authStatus = await debugAuthStatus()
+        logger.info('认证状态检查', authStatus)
+
+        // 如果认证用户ID与查询的司机ID不匹配，记录警告
+        if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
+          logger.warn('认证用户ID与查询司机ID不匹配', {
+            authUserId: authStatus.userId,
+            queryDriverId: driverId
+          })
+        }
+
+        data = await getDriverVehicles(driverId)
+        // 保存到缓存（3分钟有效期）
+        setVersionedCache(cacheKey, data, 3 * 60 * 1000)
       }
 
-      const data = await getDriverVehicles(driverId)
       setVehicles(data)
       logger.info('车辆列表加载成功', {
         driverId,
@@ -119,19 +136,27 @@ const VehicleList: React.FC = () => {
     }
   }, [user, targetDriverId, isManagerView])
 
-  // 页面显示时加载数据
+  // 页面显示时加载数据（只在初始化完成后）
   useDidShow(() => {
-    logger.info('useDidShow被调用', {targetDriverId, userId: user?.id, isManagerView})
-    loadVehicles()
-  })
-
-  // 当targetDriverId变化时，重新加载车辆列表
-  useEffect(() => {
-    if (targetDriverId) {
-      logger.info('targetDriverId变化，重新加载车辆', {targetDriverId})
+    logger.info('useDidShow被调用', {
+      initialized,
+      targetDriverId,
+      userId: user?.id,
+      isManagerView
+    })
+    // 只在初始化完成后才加载数据
+    if (initialized) {
       loadVehicles()
     }
-  }, [targetDriverId, loadVehicles])
+  })
+
+  // 当初始化完成后，加载车辆列表
+  useEffect(() => {
+    if (initialized) {
+      logger.info('初始化完成，加载车辆', {targetDriverId, userId: user?.id})
+      loadVehicles()
+    }
+  }, [initialized, loadVehicles])
 
   // 添加车辆
   const handleAddVehicle = () => {
@@ -160,6 +185,14 @@ const VehicleList: React.FC = () => {
       Taro.hideLoading()
 
       if (success) {
+        // 清除缓存
+        const driverId = targetDriverId || user?.id
+        if (driverId) {
+          const cacheKey = `driver_vehicles_${driverId}`
+          clearCache(cacheKey)
+          logger.info('已清除车辆缓存', {cacheKey})
+        }
+
         Taro.showToast({
           title: '删除成功',
           icon: 'success'
