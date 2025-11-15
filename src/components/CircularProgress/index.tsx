@@ -2,7 +2,7 @@ import {Text, View} from '@tarojs/components'
 import type React from 'react'
 
 interface CircularProgressProps {
-  percentage: number // 百分比 0-100
+  percentage: number // 百分比，可以超过100%（例如：185表示185%）
   size?: number // 圆环大小（像素）
   strokeWidth?: number // 圆环宽度（像素）
   color?: string // 圆环颜色
@@ -20,18 +20,21 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
   label = '',
   showPercentage = true
 }) => {
-  // 确保百分比在 0-100 之间
-  const validPercentage = Math.min(Math.max(percentage, 0), 100)
+  // 显示的百分比（可以超过100%）
+  const displayPercentage = Math.max(percentage, 0)
+
+  // 用于绘制圆环的百分比（限制在0-100之间）
+  const drawPercentage = Math.min(Math.max(percentage, 0), 100)
 
   // 计算圆环参数
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
-  const offset = circumference - (validPercentage / 100) * circumference
+  const offset = circumference - (drawPercentage / 100) * circumference
 
   // 根据达标率设置颜色
   const getColor = () => {
-    if (validPercentage >= 100) return '#10b981' // 绿色 - 达标
-    if (validPercentage >= 70) return '#f59e0b' // 黄色 - 警告
+    if (displayPercentage >= 100) return '#10b981' // 绿色 - 达标
+    if (displayPercentage >= 70) return '#f59e0b' // 黄色 - 警告
     return '#ef4444' // 红色 - 未达标
   }
 
@@ -78,7 +81,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
               bottom: 0
             }}>
             <Text className="text-lg font-bold" style={{color: progressColor}}>
-              {validPercentage.toFixed(0)}%
+              {displayPercentage.toFixed(0)}%
             </Text>
           </View>
         )}

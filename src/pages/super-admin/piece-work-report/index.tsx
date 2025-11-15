@@ -73,6 +73,7 @@ interface DriverSummary {
   driverId: string
   driverName: string
   driverPhone: string
+  driverType: 'pure' | 'with_vehicle' | null // 司机类型：纯司机/带车司机
   totalQuantity: number
   totalAmount: number
   completionRate: number // 总达标率（基于在职天数）
@@ -403,6 +404,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
           driverId,
           driverName: driver?.name || '',
           driverPhone: driver?.phone || '',
+          driverType: driver?.driver_type || null, // 添加司机类型
           totalQuantity: 0,
           totalAmount: 0,
           warehouses: new Set<string>(),
@@ -1055,9 +1057,25 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     <View className="flex items-center flex-1">
                       <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                       <View className="flex-1">
-                        <Text className="text-base font-bold text-gray-800 block">
-                          {summary.driverName || summary.driverPhone || '未知司机'}
-                        </Text>
+                        <View className="flex items-center gap-2 mb-1">
+                          <Text className="text-base font-bold text-gray-800">
+                            {summary.driverName || summary.driverPhone || '未知司机'}
+                          </Text>
+                          {/* 新司机标签 */}
+                          {summary.daysEmployed < 7 && (
+                            <View className="px-2 py-0.5 rounded bg-orange-100 flex items-center">
+                              <Text className="text-xs text-orange-600 font-bold">新司机</Text>
+                            </View>
+                          )}
+                          {/* 司机类型标签 */}
+                          {summary.driverType && (
+                            <View className="px-2 py-0.5 rounded bg-blue-100 flex items-center">
+                              <Text className="text-xs text-blue-600 font-medium">
+                                {summary.driverType === 'pure' ? '纯司机' : '带车司机'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                         {summary.driverPhone && summary.driverName && (
                           <Text className="text-xs text-gray-500 block">{summary.driverPhone}</Text>
                         )}
