@@ -51,20 +51,12 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
 
       // 加载计件记录
       let data: PieceWorkRecord[] = []
-      const selectedWarehouseIndex = Number(warehouseIndex) || 0
+      const currentWarehouseIndex = Number(warehouseIndex) || 0
 
-      if (selectedWarehouseIndex > 0) {
-        // 特定仓库
-        const warehouse = warehousesData[selectedWarehouseIndex - 1]
-        if (warehouse) {
-          data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
-        }
-      } else {
-        // 所有仓库
-        const allRecords = await Promise.all(
-          warehousesData.map((w) => getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
-        )
-        data = allRecords.flat()
+      // 加载当前选中仓库的记录
+      const warehouse = warehousesData[currentWarehouseIndex]
+      if (warehouse) {
+        data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
       }
 
       // 筛选该司机的记录
