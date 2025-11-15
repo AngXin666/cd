@@ -426,8 +426,10 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 辅助函数：获取今天的日期范围
   const getTodayRange = () => {
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayStr = today.toISOString().split('T')[0]
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    const todayStr = `${year}-${month}-${day}`
     return {start: todayStr, end: todayStr}
   }
 
@@ -438,9 +440,10 @@ const ManagerPieceWorkReport: React.FC = () => {
     const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // 周一为起点
     const monday = new Date(today)
     monday.setDate(today.getDate() - diff)
-    monday.setHours(0, 0, 0, 0)
-    const mondayStr = monday.toISOString().split('T')[0]
-    const todayStr = today.toISOString().split('T')[0]
+
+    // 使用本地时间格式化日期
+    const mondayStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     return {start: mondayStr, end: todayStr}
   }
 
@@ -448,9 +451,10 @@ const ManagerPieceWorkReport: React.FC = () => {
   const getMonthRange = () => {
     const today = new Date()
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-    firstDay.setHours(0, 0, 0, 0)
-    const firstDayStr = firstDay.toISOString().split('T')[0]
-    const todayStr = today.toISOString().split('T')[0]
+
+    // 使用本地时间格式化日期
+    const firstDayStr = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     return {start: firstDayStr, end: todayStr}
   }
 
