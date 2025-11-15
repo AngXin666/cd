@@ -1160,12 +1160,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
                           }}
                         />
                         <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-                          <View>
-                            <Text className="text-xl font-bold text-gray-800 text-center block">
-                              {stats.attendanceRate}
-                            </Text>
-                            <Text className="text-xs text-gray-500 text-center">%</Text>
-                          </View>
+                          <Text className="text-xl font-bold text-gray-800 text-center">{stats.attendanceRate}%</Text>
                         </View>
                       </View>
                       <View className="flex-1">
