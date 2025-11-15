@@ -13,6 +13,7 @@ import {
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 
@@ -72,11 +73,28 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     setEndDate(today)
   }, [])
 
-  // 加载基础数据
+  // 加载基础数据（带缓存）
   const loadData = useCallback(async () => {
     if (!user?.id) return
 
     try {
+      // 尝试从缓存加载仓库数据
+      const cacheKey = 'super_admin_piece_work_base_data'
+      const cached = getVersionedCache<{
+        warehouses: Warehouse[]
+        drivers: Profile[]
+        categories: PieceWorkCategory[]
+      }>(cacheKey)
+
+      if (cached) {
+        console.log('✅ 使用缓存的基础数据')
+        setWarehouses(cached.warehouses)
+        setDrivers(cached.drivers)
+        setCategories(cached.categories)
+        return
+      }
+
+      console.log('🔄 从数据库加载基础数据')
       // 加载所有仓库
       const warehousesData = await getAllWarehouses()
       setWarehouses(warehousesData)
@@ -88,6 +106,17 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       // 加载所有品类
       const categoriesData = await getActiveCategories()
       setCategories(categoriesData)
+
+      // 保存到缓存（5分钟有效期）
+      setVersionedCache(
+        cacheKey,
+        {
+          warehouses: warehousesData,
+          drivers: driversData,
+          categories: categoriesData
+        },
+        5 * 60 * 1000
+      )
     } catch (error) {
       console.error('加载数据失败:', error)
       Taro.showToast({
@@ -110,17 +139,32 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     return matchWithPinyin(name, keyword) || phone.toLowerCase().includes(keyword.toLowerCase())
   })
 
-  // 加载计件记录
+  // 加载计件记录（带缓存）
   const loadRecords = useCallback(async () => {
     if (warehouses.length === 0) return
 
     try {
       // 加载当前选中仓库的记录
       const warehouse = warehouses[currentWarehouseIndex]
+      if (!warehouse) {
+        setRecords([])
+        return
+      }
+
+      // 生成缓存键（包含仓库ID、日期范围）
+      const cacheKey = `super_admin_piece_work_records_${warehouse.id}_${startDate}_${endDate}`
+      const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
+
       let data: PieceWorkRecord[] = []
 
-      if (warehouse) {
+      if (cached) {
+        console.log('✅ 使用缓存的计件记录')
+        data = cached
+      } else {
+        console.log('🔄 从数据库加载计件记录')
         data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+        // 保存到缓存（3分钟有效期）
+        setVersionedCache(cacheKey, data, 3 * 60 * 1000)
       }
 
       // 司机筛选
