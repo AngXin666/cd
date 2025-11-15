@@ -571,7 +571,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <Text className="text-white text-3xl font-bold">{dashboardData.todayDrivers}</Text>
                 <Text className="text-white text-opacity-70 text-xs mt-1">
                   {dashboardData.totalDrivers > 0
-                    ? `${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
+                    ? `${dashboardData.todayDrivers}/${dashboardData.totalDrivers} (${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%)`
                     : '暂无数据'}
                 </Text>
               </View>

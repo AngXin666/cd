@@ -16,10 +16,7 @@ const SuperAdminHome: React.FC = () => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 使用仓库排序 Hook（按数据量排序）
-  const {
-    warehouses: sortedWarehouses,
-    refresh: refreshSorting
-  } = useWarehousesSorted({
+  const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
     hideEmpty: true // 隐藏完全没有数据的仓库
