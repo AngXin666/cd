@@ -169,8 +169,11 @@ const WarehouseEdit: React.FC = () => {
   const loadAllWarehouses = useCallback(async () => {
     try {
       const warehouses = await getAllWarehouses()
+      console.log('所有仓库列表:', warehouses)
+      console.log('当前仓库ID:', warehouseId)
       // 排除当前仓库
       const others = warehouses.filter((w) => w.id !== warehouseId)
+      console.log('过滤后的仓库列表:', others)
       setAllWarehouses(others)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
@@ -388,13 +391,31 @@ const WarehouseEdit: React.FC = () => {
   }
 
   // 打开导入品类对话框
-  const openImportDialog = () => {
-    if (allWarehouses.length === 0) {
-      showToast({title: '暂无其他仓库', icon: 'none'})
-      return
+  const openImportDialog = async () => {
+    console.log('打开导入对话框，当前仓库ID:', warehouseId)
+
+    try {
+      // 重新加载仓库列表以确保数据最新
+      const warehouses = await getAllWarehouses()
+      console.log('所有仓库:', warehouses)
+
+      // 排除当前仓库
+      const others = warehouses.filter((w) => w.id !== warehouseId)
+      console.log('可选择的其他仓库:', others)
+
+      setAllWarehouses(others)
+
+      if (others.length === 0) {
+        showToast({title: '暂无其他仓库', icon: 'none'})
+        return
+      }
+
+      setSelectedWarehouseForImport('')
+      setShowImportDialog(true)
+    } catch (error) {
+      console.error('加载仓库列表失败:', error)
+      showToast({title: '加载仓库列表失败', icon: 'error'})
     }
-    setSelectedWarehouseForImport('')
-    setShowImportDialog(true)
   }
 
   // 导入其他仓库的品类配置
