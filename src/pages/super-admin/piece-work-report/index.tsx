@@ -27,7 +27,7 @@ interface CompletionRateStatus {
   badgeBgColor: string // 徽章背景色
 }
 
-const getCompletionRateStatus = (rate: number): CompletionRateStatus => {
+const _getCompletionRateStatus = (rate: number): CompletionRateStatus => {
   if (rate > 110) {
     // 超额完成
     return {
@@ -1047,30 +1047,11 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             </View>
           ) : (
             driverSummaries.map((summary) => {
-              const status = getCompletionRateStatus(summary.completionRate || 0)
               return (
                 <View
                   key={summary.driverId}
                   className="bg-white rounded-xl p-4 mb-3 shadow-md"
                   onClick={() => handleViewDriverDetail(summary.driverId)}>
-                  {/* 状态徽章 */}
-                  <View
-                    className="absolute top-2 right-2 px-3 py-1 rounded-full flex items-center gap-1 shadow-md"
-                    style={{background: status.badgeBgColor}}>
-                    <View
-                      className={`${
-                        status.label === '超额完成'
-                          ? 'i-mdi-trophy'
-                          : status.label === '达标'
-                            ? 'i-mdi-check-circle'
-                            : status.label === '不达标'
-                              ? 'i-mdi-alert-circle'
-                              : 'i-mdi-alert-octagon'
-                      } text-white text-sm`}
-                    />
-                    <Text className="text-xs text-white font-bold">{status.label}</Text>
-                  </View>
-
                   {/* 司机信息头部 */}
                   <View className="flex items-center justify-between mb-4">
                     <View className="flex items-center flex-1">
