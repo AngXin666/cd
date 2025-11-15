@@ -216,6 +216,13 @@ const StaffManagement: React.FC = () => {
     setEditForm({name: '', phone: '', vehicle_plate: ''})
   }, [])
 
+  // 拨打电话
+  const handleCall = useCallback((phone: string) => {
+    Taro.makePhoneCall({
+      phoneNumber: phone
+    })
+  }, [])
+
   // 保存编辑
   const handleSaveEdit = useCallback(async () => {
     if (!editingDriver) return
@@ -427,9 +434,9 @@ const StaffManagement: React.FC = () => {
             </View>
             <View className="space-y-1">
               {driver.phone && (
-                <View className="flex items-center">
-                  <View className="i-mdi-phone text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.phone}</Text>
+                <View className="flex items-center" onClick={() => handleCall(driver.phone!)}>
+                  <View className="i-mdi-phone text-sm text-blue-500 mr-1" />
+                  <Text className="text-sm text-blue-600 underline">{driver.phone}</Text>
                 </View>
               )}
               {driver.login_account && (
@@ -495,9 +502,9 @@ const StaffManagement: React.FC = () => {
             </View>
             <View className="space-y-1">
               {driver.phone && (
-                <View className="flex items-center">
-                  <View className="i-mdi-phone text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.phone}</Text>
+                <View className="flex items-center" onClick={() => handleCall(driver.phone!)}>
+                  <View className="i-mdi-phone text-sm text-blue-500 mr-1" />
+                  <Text className="text-sm text-blue-600 underline">{driver.phone}</Text>
                 </View>
               )}
               {driver.login_account && (

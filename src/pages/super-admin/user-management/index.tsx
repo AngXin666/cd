@@ -586,6 +586,13 @@ const UserManagement: React.FC = () => {
     })
   }, [])
 
+  // 拨打电话
+  const handleCall = useCallback((phone: string) => {
+    Taro.makePhoneCall({
+      phoneNumber: phone
+    })
+  }, [])
+
   // 页面显示时加载数据
   useDidShow(() => {
     loadUsers()
@@ -890,9 +897,9 @@ const UserManagement: React.FC = () => {
                         <>
                           {/* 电话号码 */}
                           {u.phone && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-phone text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">{u.phone}</Text>
+                            <View className="flex items-center" onClick={() => handleCall(u.phone!)}>
+                              <View className="i-mdi-phone text-blue-500 text-base mr-2" />
+                              <Text className="text-sm text-blue-600 underline">{u.phone}</Text>
                             </View>
                           )}
                           {/* 年龄 */}
@@ -953,9 +960,9 @@ const UserManagement: React.FC = () => {
                       {u.role !== 'driver' && (
                         <>
                           {u.phone && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-phone text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">{u.phone}</Text>
+                            <View className="flex items-center" onClick={() => handleCall(u.phone!)}>
+                              <View className="i-mdi-phone text-blue-500 text-base mr-2" />
+                              <Text className="text-sm text-blue-600 underline">{u.phone}</Text>
                             </View>
                           )}
                           {u.login_account && (

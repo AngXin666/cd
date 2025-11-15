@@ -331,6 +331,13 @@ const StaffManagement: React.FC = () => {
     setEditForm({name: '', phone: '', email: ''})
   }, [])
 
+  // 拨打电话
+  const handleCall = useCallback((phone: string) => {
+    Taro.makePhoneCall({
+      phoneNumber: phone
+    })
+  }, [])
+
   // 保存管理员信息
   const handleSaveManager = useCallback(async () => {
     if (!editingManager) return
@@ -607,9 +614,9 @@ const StaffManagement: React.FC = () => {
               </View>
             </View>
             {manager.phone && (
-              <View className="flex items-center mb-1">
-                <View className="i-mdi-phone text-gray-400 mr-1" />
-                <Text className="text-sm text-gray-600">{manager.phone}</Text>
+              <View className="flex items-center mb-1" onClick={() => handleCall(manager.phone!)}>
+                <View className="i-mdi-phone text-blue-500 mr-1" />
+                <Text className="text-sm text-blue-600 underline">{manager.phone}</Text>
               </View>
             )}
             {manager.email && (
@@ -702,9 +709,9 @@ const StaffManagement: React.FC = () => {
             </View>
             <View className="space-y-1">
               {driver.phone && (
-                <View className="flex items-center">
-                  <View className="i-mdi-phone text-sm text-gray-400 mr-1" />
-                  <Text className="text-sm text-gray-600">{driver.phone}</Text>
+                <View className="flex items-center" onClick={() => handleCall(driver.phone!)}>
+                  <View className="i-mdi-phone text-sm text-blue-500 mr-1" />
+                  <Text className="text-sm text-blue-600 underline">{driver.phone}</Text>
                 </View>
               )}
               {driver.login_account && (
