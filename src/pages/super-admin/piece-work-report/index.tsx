@@ -722,18 +722,18 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                       className="absolute inset-0 rounded-full"
                       style={{
                         background: `conic-gradient(${
-                          summary.completionRate >= 100
+                          (summary.completionRate || 0) >= 100
                             ? '#10b981'
-                            : summary.completionRate >= 80
+                            : (summary.completionRate || 0) >= 80
                               ? '#f59e0b'
                               : '#ef4444'
-                        } ${Math.min(summary.completionRate, 100) * 3.6}deg, #e5e7eb 0deg)`
+                        } ${Math.min(summary.completionRate || 0, 100) * 3.6}deg, #e5e7eb 0deg)`
                       }}
                     />
                     <View className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
                       <View>
                         <Text className="text-xl font-bold text-gray-800 text-center block">
-                          {summary.completionRate.toFixed(0)}
+                          {(summary.completionRate || 0).toFixed(0)}
                         </Text>
                         <Text className="text-xs text-gray-500 text-center">%</Text>
                       </View>
