@@ -274,7 +274,18 @@ const SupplementPhotos: React.FC = () => {
                           <View className="flex-1">
                             <Text className="text-xs text-gray-500 mb-1">原图（不符合要求）</Text>
                             <View className="relative w-full h-32 rounded-lg overflow-hidden bg-gray-100">
-                              <Image src={originalUrl} mode="aspectFill" className="w-full h-full" />
+                              {originalUrl ? (
+                                <Image
+                                  src={originalUrl}
+                                  mode="aspectFill"
+                                  className="w-full h-full"
+                                  onError={() => logger.error('原图加载失败', {originalUrl, index})}
+                                />
+                              ) : (
+                                <View className="w-full h-full flex items-center justify-center">
+                                  <View className="i-mdi-image-off text-3xl text-gray-400"></View>
+                                </View>
+                              )}
                               <View className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
                                 <View className="bg-red-600 rounded-full p-1">
                                   <View className="i-mdi-close text-lg text-white"></View>
@@ -288,7 +299,12 @@ const SupplementPhotos: React.FC = () => {
                             <Text className="text-xs text-gray-500 mb-1">新图</Text>
                             {newPhotoPath ? (
                               <View className="relative w-full h-32 rounded-lg overflow-hidden bg-gray-100">
-                                <Image src={newPhotoPath} mode="aspectFill" className="w-full h-full" />
+                                <Image
+                                  src={newPhotoPath}
+                                  mode="aspectFill"
+                                  className="w-full h-full"
+                                  onError={() => logger.error('新图加载失败', {newPhotoPath, index})}
+                                />
                                 <View className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
                                   <View className="i-mdi-check text-base text-white"></View>
                                 </View>

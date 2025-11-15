@@ -359,7 +359,12 @@ const VehicleList: React.FC = () => {
                   {/* 车辆照片 */}
                   {vehicle.left_front_photo && (
                     <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                      <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
+                      <Image 
+                        src={vehicle.left_front_photo} 
+                        mode="aspectFill" 
+                        className="w-full h-full"
+                        onError={() => logger.error('车辆照片加载失败', {vehicleId: vehicle.id, photo: vehicle.left_front_photo})}
+                      />
                       {/* 状态标签 */}
                       <View className="absolute top-3 right-3">
                         <View

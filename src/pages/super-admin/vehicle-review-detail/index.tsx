@@ -338,8 +338,19 @@ const VehicleReviewDetail: React.FC = () => {
                         {/* 图片 */}
                         <View
                           className="relative w-full h-40 rounded-lg overflow-hidden bg-gray-100"
-                          onClick={() => previewImage(imageUrl, photos.map(getImageUrl))}>
-                          <Image src={imageUrl} mode="aspectFill" className="w-full h-full" />
+                          onClick={() => imageUrl && previewImage(imageUrl, photos.map(getImageUrl).filter(Boolean))}>
+                          {imageUrl ? (
+                            <Image
+                              src={imageUrl}
+                              mode="aspectFill"
+                              className="w-full h-full"
+                              onError={() => logger.error('图片加载失败', {imageUrl, field: config.field, index})}
+                            />
+                          ) : (
+                            <View className="w-full h-full flex items-center justify-center">
+                              <View className="i-mdi-image-off text-4xl text-gray-400"></View>
+                            </View>
+                          )}
 
                           {/* 锁定标识 */}
                           {locked && (

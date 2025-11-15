@@ -14,11 +14,12 @@ import {useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getVehicleById} from '@/db/api'
 import type {Vehicle} from '@/db/types'
+import {logger} from '@/utils/logger'
 
 type TabType = 'pickup' | 'return' | 'registration'
 
 const VehicleDetail: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('pickup')
@@ -218,16 +219,33 @@ const VehicleDetail: React.FC = () => {
                 {/* 提车照片网格 */}
                 {vehicle.pickup_photos && vehicle.pickup_photos.length > 0 ? (
                   <View className="grid grid-cols-3 gap-3">
-                    {vehicle.pickup_photos.map((photo, index) => (
-                      <View
-                        key={index}
-                        className="relative rounded-lg overflow-hidden"
-                        onClick={() =>
-                          previewImage(getPhotoUrl(photo), vehicle.pickup_photos?.map((p) => getPhotoUrl(p)) || [])
-                        }>
-                        <Image src={getPhotoUrl(photo)} mode="aspectFill" className="w-full h-24" />
-                      </View>
-                    ))}
+                    {vehicle.pickup_photos.map((photo, index) => {
+                      const photoUrl = getPhotoUrl(photo)
+                      return (
+                        <View
+                          key={index}
+                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          onClick={() => {
+                            const urls = vehicle.pickup_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
+                            if (photoUrl && urls.length > 0) {
+                              previewImage(photoUrl, urls)
+                            }
+                          }}>
+                          {photoUrl ? (
+                            <Image
+                              src={photoUrl}
+                              mode="aspectFill"
+                              className="w-full h-24"
+                              onError={() => logger.error('提车照片加载失败', {photo, index})}
+                            />
+                          ) : (
+                            <View className="w-full h-24 flex items-center justify-center">
+                              <View className="i-mdi-image-off text-2xl text-gray-400"></View>
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })}
                   </View>
                 ) : (
                   <View className="flex flex-col items-center justify-center py-12">
@@ -255,16 +273,33 @@ const VehicleDetail: React.FC = () => {
                 {/* 还车照片网格 */}
                 {vehicle.return_photos && vehicle.return_photos.length > 0 ? (
                   <View className="grid grid-cols-3 gap-3">
-                    {vehicle.return_photos.map((photo, index) => (
-                      <View
-                        key={index}
-                        className="relative rounded-lg overflow-hidden"
-                        onClick={() =>
-                          previewImage(getPhotoUrl(photo), vehicle.return_photos?.map((p) => getPhotoUrl(p)) || [])
-                        }>
-                        <Image src={getPhotoUrl(photo)} mode="aspectFill" className="w-full h-24" />
-                      </View>
-                    ))}
+                    {vehicle.return_photos.map((photo, index) => {
+                      const photoUrl = getPhotoUrl(photo)
+                      return (
+                        <View
+                          key={index}
+                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          onClick={() => {
+                            const urls = vehicle.return_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
+                            if (photoUrl && urls.length > 0) {
+                              previewImage(photoUrl, urls)
+                            }
+                          }}>
+                          {photoUrl ? (
+                            <Image
+                              src={photoUrl}
+                              mode="aspectFill"
+                              className="w-full h-24"
+                              onError={() => logger.error('还车照片加载失败', {photo, index})}
+                            />
+                          ) : (
+                            <View className="w-full h-24 flex items-center justify-center">
+                              <View className="i-mdi-image-off text-2xl text-gray-400"></View>
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })}
                   </View>
                 ) : (
                   <View className="flex flex-col items-center justify-center py-12">
@@ -289,24 +324,40 @@ const VehicleDetail: React.FC = () => {
                 {/* 行驶证照片网格 */}
                 {vehicle.registration_photos && vehicle.registration_photos.length > 0 ? (
                   <View className="grid grid-cols-2 gap-3">
-                    {vehicle.registration_photos.map((photo, index) => (
-                      <View
-                        key={index}
-                        className="relative rounded-lg overflow-hidden"
-                        onClick={() =>
-                          previewImage(
-                            getPhotoUrl(photo),
-                            vehicle.registration_photos?.map((p) => getPhotoUrl(p)) || []
-                          )
-                        }>
-                        <Image src={getPhotoUrl(photo)} mode="aspectFit" className="w-full h-32 bg-gray-100" />
-                        <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                          <Text className="text-white text-xs font-medium">
-                            {index === 0 ? '主页' : index === 1 ? '副页' : '副页背面'}
-                          </Text>
+                    {vehicle.registration_photos.map((photo, index) => {
+                      const photoUrl = getPhotoUrl(photo)
+                      return (
+                        <View
+                          key={index}
+                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          onClick={() => {
+                            const urls = vehicle.registration_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
+                            if (photoUrl && urls.length > 0) {
+                              previewImage(photoUrl, urls)
+                            }
+                          }}>
+                          {photoUrl ? (
+                            <>
+                              <Image
+                                src={photoUrl}
+                                mode="aspectFit"
+                                className="w-full h-32 bg-gray-100"
+                                onError={() => logger.error('行驶证照片加载失败', {photo, index})}
+                              />
+                              <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                <Text className="text-white text-xs font-medium">
+                                  {index === 0 ? '主页' : index === 1 ? '副页' : '副页背面'}
+                                </Text>
+                              </View>
+                            </>
+                          ) : (
+                            <View className="w-full h-32 flex items-center justify-center">
+                              <View className="i-mdi-image-off text-3xl text-gray-400"></View>
+                            </View>
+                          )}
                         </View>
-                      </View>
-                    ))}
+                      )
+                    })}
                   </View>
                 ) : (
                   <View className="flex flex-col items-center justify-center py-12">
