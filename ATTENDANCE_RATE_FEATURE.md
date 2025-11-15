@@ -5,36 +5,60 @@
 
 ## 功能描述
 
-在双管理端（普通管理端和超级管理端）的计件报表页面中，为"当日出勤"统计添加了出勤率百分比显示。
+在双管理端（普通管理端和超级管理端）的计件报表页面中，为"当日出勤率"统计卡片优化显示格式，与其他仪表盘卡片保持一致的视觉风格。
 
 ## 修改内容
 
 ### 1. 普通管理端计件报表
 **文件**: `src/pages/manager/piece-work-report/index.tsx`
 
-**修改位置**: 第 547-551 行
+**修改位置**: 第 540-556 行
 
 **最终版本**:
 ```tsx
-<Text className="text-white text-opacity-70 text-xs mt-1">
-  {dashboardData.totalDrivers > 0
-    ? `出勤率 ${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
-    : '暂无数据'}
-</Text>
+{/* 当日出勤司机 */}
+<View className="bg-white bg-opacity-20 rounded-lg p-4">
+  <View className="flex items-center gap-2 mb-2">
+    <View className="i-mdi-account-check text-white text-xl" />
+    <Text className="text-white text-opacity-90 text-sm">当日出勤率</Text>
+  </View>
+  <Text className="text-white text-3xl font-bold">
+    {dashboardData.totalDrivers > 0
+      ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
+      : '--'}
+  </Text>
+  <Text className="text-white text-opacity-70 text-xs mt-1">
+    {dashboardData.totalDrivers > 0
+      ? `出勤 ${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
+      : '暂无数据'}
+  </Text>
+</View>
 ```
 
 ### 2. 超级管理端计件报表
 **文件**: `src/pages/super-admin/piece-work-report/index.tsx`
 
-**修改位置**: 第 572-576 行
+**修改位置**: 第 565-581 行
 
 **最终版本**:
 ```tsx
-<Text className="text-white text-opacity-70 text-xs mt-1">
-  {dashboardData.totalDrivers > 0
-    ? `出勤率 ${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
-    : '暂无数据'}
-</Text>
+{/* 当日出勤司机 */}
+<View className="bg-white bg-opacity-20 rounded-lg p-4">
+  <View className="flex items-center gap-2 mb-2">
+    <View className="i-mdi-account-check text-white text-xl" />
+    <Text className="text-white text-opacity-90 text-sm">当日出勤率</Text>
+  </View>
+  <Text className="text-white text-3xl font-bold">
+    {dashboardData.totalDrivers > 0
+      ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
+      : '--'}
+  </Text>
+  <Text className="text-white text-opacity-70 text-xs mt-1">
+    {dashboardData.totalDrivers > 0
+      ? `出勤 ${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
+      : '暂无数据'}
+  </Text>
+</View>
 ```
 
 ## 功能说明
@@ -45,28 +69,68 @@
 ```
 
 ### 显示格式
-- **有数据时**: `出勤率 60%`
-  - 60% = 出勤率百分比
-- **无数据时**: `暂无数据`
+- **有数据时**: 
+  - 大号数字: `60%` （出勤率百分比）
+  - 小号文字: `出勤 3/5` （出勤人数/总人数）
+- **无数据时**: 
+  - 大号数字: `--`
+  - 小号文字: `暂无数据`
 
 ### 计算方式
 - 使用 `Math.round()` 对百分比进行四舍五入，显示整数百分比
 - 例如：
-  - 3/5 = 0.6 → 出勤率 60%
-  - 4/7 = 0.571... → 出勤率 57%
-  - 5/5 = 1.0 → 出勤率 100%
+  - 3/5 = 0.6 → 60%
+  - 4/7 = 0.571... → 57%
+  - 5/5 = 1.0 → 100%
 
 ## 界面效果
 
-### 当日出勤卡片
+### 当日出勤率卡片
 ```
 ┌─────────────────────────┐
-│ 👤 当日出勤              │
+│ 👤 当日出勤率            │  ← 标题
 │                         │
-│ 3                       │  ← 大号字体显示出勤人数
-│ 出勤率 60%              │  ← 小号字体显示出勤率
+│ 60%                     │  ← 大号字体显示出勤率百分比
+│ 出勤 3/5                │  ← 小号字体显示出勤人数
 └─────────────────────────┘
 ```
+
+### 与其他卡片对比
+
+**月度达标率卡片**:
+```
+┌─────────────────────────┐
+│ 📅 月度达标率            │
+│ 84.8%                   │  ← 大号百分比
+│ 平均值                  │  ← 小号说明
+└─────────────────────────┘
+```
+
+**当日出勤率卡片**（优化后）:
+```
+┌─────────────────────────┐
+│ 👤 当日出勤率            │
+│ 60%                     │  ← 大号百分比（与其他卡片一致）
+│ 出勤 3/5                │  ← 小号说明
+└─────────────────────────┘
+```
+
+## 设计理念
+
+### 1. 视觉一致性
+- 所有仪表盘卡片采用统一的显示格式
+- 大号数字显示关键指标（百分比或数量）
+- 小号文字显示辅助说明
+
+### 2. 信息层次
+- **标题**: 说明卡片内容（如"当日出勤率"）
+- **主要数据**: 最重要的指标（如"60%"）
+- **辅助信息**: 补充说明（如"出勤 3/5"）
+
+### 3. 用户体验
+- 快速扫描：大号百分比一目了然
+- 详细了解：小号文字提供具体人数
+- 统一风格：与其他卡片保持一致
 
 ## 使用场景
 
@@ -98,20 +162,24 @@ interface DashboardData {
 ## 边界情况处理
 
 ### 1. 总司机数为 0
-- 显示: `暂无数据`
+- 大号数字显示: `--`
+- 小号文字显示: `暂无数据`
 - 不计算出勤率，避免除以零错误
 
 ### 2. 出勤率为 0%
-- 显示: `出勤率 0%`
+- 大号数字显示: `0%`
+- 小号文字显示: `出勤 0/5`
 - 表示没有司机出勤
 
 ### 3. 出勤率为 100%
-- 显示: `出勤率 100%`
+- 大号数字显示: `100%`
+- 小号文字显示: `出勤 5/5`
 - 表示所有司机都已出勤
 
 ### 4. 小数百分比
 - 例如: 2/7 = 28.57%
-- 显示: `出勤率 29%` （四舍五入）
+- 大号数字显示: `29%` （四舍五入）
+- 小号文字显示: `出勤 2/7`
 
 ## 技术细节
 
@@ -124,7 +192,7 @@ Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
 1. `dashboardData.todayDrivers / dashboardData.totalDrivers` → 得到小数（如 0.6）
 2. `× 100` → 转换为百分比数值（如 60）
 3. `Math.round()` → 四舍五入为整数（如 60）
-4. 添加 `出勤率` 前缀和 `%` 符号 → 最终显示（如 出勤率 60%）
+4. 添加 `%` 符号 → 最终显示（如 60%）
 
 ### 性能考虑
 - 计算在渲染时进行，不需要额外的状态管理
@@ -137,20 +205,26 @@ Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
 1. **正常情况**
    - 总司机数 > 0，出勤司机数 > 0
    - 验证出勤率计算正确
+   - 验证显示格式与其他卡片一致
 
 2. **边界情况**
-   - 总司机数 = 0 → 显示"暂无数据"
-   - 出勤司机数 = 0 → 显示 "出勤率 0%"
-   - 出勤司机数 = 总司机数 → 显示 "出勤率 100%"
+   - 总司机数 = 0 → 显示"--"和"暂无数据"
+   - 出勤司机数 = 0 → 显示 "0%" 和 "出勤 0/X"
+   - 出勤司机数 = 总司机数 → 显示 "100%" 和 "出勤 X/X"
 
 3. **小数情况**
-   - 2/7 → 验证显示 "出勤率 29%"
-   - 3/7 → 验证显示 "出勤率 43%"
-   - 4/7 → 验证显示 "出勤率 57%"
+   - 2/7 → 验证显示 "29%" 和 "出勤 2/7"
+   - 3/7 → 验证显示 "43%" 和 "出勤 3/7"
+   - 4/7 → 验证显示 "57%" 和 "出勤 4/7"
 
 4. **仓库切换**
    - 切换不同仓库，验证出勤率正确更新
    - 验证数据与当前选中的仓库匹配
+
+5. **视觉一致性**
+   - 对比月度达标率卡片，验证字体大小一致
+   - 验证布局间距一致
+   - 验证颜色和透明度一致
 
 ## 相关功能
 
@@ -177,7 +251,7 @@ Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
 
 ### 2. 出勤率预警
 - 当出勤率低于某个阈值时显示警告
-- 例如：出勤率 < 60% 时显示红色
+- 例如：出勤率 < 60% 时显示橙色，< 40% 时显示红色
 
 ### 3. 详细统计
 - 点击出勤率卡片，查看详细的出勤名单
@@ -185,13 +259,14 @@ Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
 
 ### 4. 历史数据
 - 查看历史出勤率数据
-- 生成出勤率报表
+- 生成出勤率趋势图表
 
 ## 总结
 
 ✅ **功能完成**
-- 普通管理端计件报表已添加出勤率显示
-- 超级管理端计件报表已添加出勤率显示
+- 普通管理端计件报表已优化出勤率显示
+- 超级管理端计件报表已优化出勤率显示
+- 显示格式与其他仪表盘卡片保持一致
 
 ✅ **代码质量**
 - 代码简洁，易于维护
@@ -200,7 +275,7 @@ Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
 
 ✅ **用户体验**
 - 信息展示直观清晰
-- 出勤率百分比一目了然
+- 视觉风格统一一致
 - 帮助管理员快速了解出勤情况
 
 ---

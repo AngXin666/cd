@@ -541,12 +541,16 @@ const ManagerPieceWorkReport: React.FC = () => {
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-account-check text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">当日出勤</Text>
+                  <Text className="text-white text-opacity-90 text-sm">当日出勤率</Text>
                 </View>
-                <Text className="text-white text-3xl font-bold">{dashboardData.todayDrivers}</Text>
+                <Text className="text-white text-3xl font-bold">
+                  {dashboardData.totalDrivers > 0
+                    ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
+                    : '--'}
+                </Text>
                 <Text className="text-white text-opacity-70 text-xs mt-1">
                   {dashboardData.totalDrivers > 0
-                    ? `出勤率 ${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
+                    ? `出勤 ${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
                     : '暂无数据'}
                 </Text>
               </View>
