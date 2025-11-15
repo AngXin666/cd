@@ -1,4 +1,4 @@
-import {Input, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Input, Picker, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -40,7 +40,7 @@ const ManagerPieceWorkReport: React.FC = () => {
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
 
   // 筛选条件
-  const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
+  const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0) // 当前仓库索引（用于Swiper切换）
   const [selectedDriverId, setSelectedDriverId] = useState<string>('') // 改用ID而不是索引
   const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -49,6 +49,12 @@ const ManagerPieceWorkReport: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
   const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
+
+  // 处理仓库切换
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+  }, [])
 
   // 初始化日期范围（默认当月）
   useEffect(() => {
@@ -105,30 +111,17 @@ const ManagerPieceWorkReport: React.FC = () => {
     if (!startDate || !endDate || warehouses.length === 0) return
 
     try {
+      // 加载当前选中仓库的记录
+      const warehouse = warehouses[currentWarehouseIndex]
       let data: PieceWorkRecord[] = []
 
-      // 如果选择了特定仓库
-      if (selectedWarehouseIndex > 0) {
-        const warehouse = warehouses[selectedWarehouseIndex - 1]
-        if (warehouse) {
-          data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+      if (warehouse) {
+        data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+      }
 
-          // 如果还选择了特定司机，进一步筛选
-          if (selectedDriverId) {
-            data = data.filter((r) => r.user_id === selectedDriverId)
-          }
-        }
-      } else {
-        // 如果选择了"所有仓库"，加载所有管辖仓库的记录
-        const allRecords = await Promise.all(
-          warehouses.map((w) => getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
-        )
-        data = allRecords.flat()
-
-        // 如果选择了特定司机，筛选该司机的记录
-        if (selectedDriverId) {
-          data = data.filter((r) => r.user_id === selectedDriverId)
-        }
+      // 司机筛选
+      if (selectedDriverId) {
+        data = data.filter((r) => r.user_id === selectedDriverId)
       }
 
       // 按日期排序
@@ -147,7 +140,7 @@ const ManagerPieceWorkReport: React.FC = () => {
         duration: 2000
       })
     }
-  }, [startDate, endDate, warehouses, selectedWarehouseIndex, selectedDriverId, sortOrder])
+  }, [startDate, endDate, warehouses, currentWarehouseIndex, selectedDriverId, sortOrder])
 
   useEffect(() => {
     loadData()
@@ -211,7 +204,7 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 查看司机详情
   const handleViewDriverDetail = (driverId: string) => {
     navigateTo({
-      url: `/pages/manager/piece-work-report-detail/index?driverId=${driverId}&startDate=${startDate}&endDate=${endDate}&warehouseIndex=${selectedWarehouseIndex}`
+      url: `/pages/manager/piece-work-report-detail/index?driverId=${driverId}&startDate=${startDate}&endDate=${endDate}&warehouseIndex=${currentWarehouseIndex}`
     })
   }
 
@@ -235,15 +228,9 @@ const ManagerPieceWorkReport: React.FC = () => {
 
   // 计算每日指标数（根据选中的仓库）
   const dailyTarget = useMemo(() => {
-    if (selectedWarehouseIndex === 0) {
-      // 所有仓库：累加所有仓库的每日指标数
-      return warehouses.reduce((sum, w) => sum + (w.daily_target || 0), 0)
-    } else {
-      // 特定仓库：返回该仓库的每日指标数
-      const warehouse = warehouses[selectedWarehouseIndex - 1]
-      return warehouse?.daily_target || 0
-    }
-  }, [warehouses, selectedWarehouseIndex])
+    const warehouse = warehouses[currentWarehouseIndex]
+    return warehouse?.daily_target || 0
+  }, [warehouses, currentWarehouseIndex])
 
   // 计算司机汇总数据（不含考勤）
   const driverSummariesBase = useMemo(() => {
@@ -421,6 +408,35 @@ const ManagerPieceWorkReport: React.FC = () => {
             </View>
           </View>
 
+          {/* 仓库切换 */}
+          {warehouses.length > 0 && (
+            <View className="mb-4">
+              <View className="flex items-center justify-between mb-2">
+                <Text className="text-sm text-gray-600">
+                  当前仓库 ({currentWarehouseIndex + 1}/{warehouses.length})
+                </Text>
+              </View>
+              <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                <Swiper
+                  className="h-16"
+                  current={currentWarehouseIndex}
+                  onChange={handleWarehouseChange}
+                  indicatorDots
+                  indicatorColor="rgba(0, 0, 0, 0.2)"
+                  indicatorActiveColor="#1E3A8A">
+                  {warehouses.map((warehouse) => (
+                    <SwiperItem key={warehouse.id}>
+                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                      </View>
+                    </SwiperItem>
+                  ))}
+                </Swiper>
+              </View>
+            </View>
+          )}
+
           {/* 筛选区域 */}
           <View className="bg-white rounded-lg mb-4 shadow">
             {/* 筛选标题栏 - 可点击展开/收起 */}
@@ -437,23 +453,6 @@ const ManagerPieceWorkReport: React.FC = () => {
             {/* 筛选内容 - 可折叠 */}
             {showFilters && (
               <View className="px-4 pb-4">
-                {/* 仓库筛选 */}
-                <View className="mb-3">
-                  <Text className="text-sm text-gray-700 block mb-2">仓库</Text>
-                  <Picker
-                    mode="selector"
-                    range={['所有仓库', ...warehouses.map((w) => w.name)]}
-                    value={selectedWarehouseIndex}
-                    onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                    <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                      <Text className="text-sm text-gray-800">
-                        {selectedWarehouseIndex === 0 ? '所有仓库' : warehouses[selectedWarehouseIndex - 1]?.name}
-                      </Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-
                 {/* 司机筛选 */}
                 <View className="mb-3">
                   <Text className="text-sm text-gray-700 block mb-2">司机（支持拼音首字母搜索）</Text>
