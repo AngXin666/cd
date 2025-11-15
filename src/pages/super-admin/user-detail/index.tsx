@@ -269,9 +269,7 @@ const UserDetail: React.FC = () => {
                       } text-base mr-1 ${
                         userInfo.driver_type === 'with_vehicle' ? 'text-blue-600' : 'text-gray-600'
                       }`}></View>
-                    <Text className="text-sm text-gray-800 font-medium">
-                      {getDriverTypeText(userInfo.driver_type)}
-                    </Text>
+                    <Text className="text-sm text-gray-800 font-medium">{getDriverTypeText(userInfo.driver_type)}</Text>
                   </View>
                 </View>
               )}
@@ -356,9 +354,7 @@ const UserDetail: React.FC = () => {
                           <Text className="text-sm text-blue-900 font-medium block">
                             {vehicle.brand} {vehicle.model}
                           </Text>
-                          {vehicle.color && (
-                            <Text className="text-xs text-blue-700 block mt-1">{vehicle.color}</Text>
-                          )}
+                          {vehicle.color && <Text className="text-xs text-blue-700 block mt-1">{vehicle.color}</Text>}
                         </View>
                         <View className="i-mdi-chevron-right text-2xl text-blue-400"></View>
                       </View>
@@ -392,9 +388,7 @@ const UserDetail: React.FC = () => {
               ) : (
                 <View className="space-y-3">
                   {warehouses.map((warehouse) => (
-                    <View
-                      key={warehouse.id}
-                      className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
+                    <View key={warehouse.id} className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
                       <View className="flex items-center justify-between">
                         <View className="flex-1">
                           <View className="flex items-center mb-2">
