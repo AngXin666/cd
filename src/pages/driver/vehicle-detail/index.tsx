@@ -11,9 +11,9 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {supabase} from '@/client/supabase'
 import {deleteVehicle, getVehicleById} from '@/db/api'
 import type {Vehicle} from '@/db/types'
+import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
 
 type TabType = 'pickup' | 'return' | 'registration'
@@ -51,9 +51,8 @@ const VehicleDetail: React.FC = () => {
 
   // 获取照片的公开URL
   const getPhotoUrl = (path: string): string => {
-    if (!path) return ''
-    const {data} = supabase.storage.from(`${process.env.TARO_APP_APP_ID}_images`).getPublicUrl(path)
-    return data.publicUrl
+    const bucketName = `${process.env.TARO_APP_APP_ID}_images`
+    return getImagePublicUrl(path, bucketName)
   }
 
   // 预览图片

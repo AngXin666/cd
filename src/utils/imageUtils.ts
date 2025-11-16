@@ -520,6 +520,34 @@ export function generateUniqueFileName(prefix: string, extension: string = 'jpg'
 }
 
 /**
+ * 获取图片的公开URL
+ * 智能处理完整URL和相对路径
+ * @param path 图片路径（可以是完整URL或相对路径）
+ * @param bucketName 存储桶名称（当path是相对路径时使用）
+ * @returns 图片的公开URL
+ */
+export function getImagePublicUrl(path: string | null | undefined, bucketName: string): string {
+  // 空值检查
+  if (!path) {
+    return ''
+  }
+
+  // 如果已经是完整的URL（http或https开头），直接返回
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+
+  // 否则，通过getPublicUrl生成公开URL
+  try {
+    const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
+    return data.publicUrl
+  } catch (error) {
+    console.error('获取图片URL失败:', {path, bucketName, error})
+    return ''
+  }
+}
+
+/**
  * 选择图片（拍照或从相册选择）
  * @param count 最多选择的图片数量
  * @param sourceType 图片来源类型
