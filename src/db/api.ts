@@ -1,5 +1,5 @@
 import {supabase} from '@/client/supabase'
-import {CACHE_KEYS, clearCache, getCache, setCache} from '@/utils/cache'
+import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 import type {
   ApplicationReviewInput,
@@ -4174,6 +4174,10 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
       return null
     }
 
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
+
     logger.info('成功添加车辆', {vehicleId: data?.id, plate: data?.plate_number})
     return data
   } catch (error) {
@@ -4199,6 +4203,10 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
       logger.error('更新车辆信息失败', error)
       return null
     }
+
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('成功更新车辆信息', {vehicleId, plate: data?.plate_number})
     return data
@@ -4264,7 +4272,9 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
     }
 
     // 5. 清除相关缓存
-    clearCache(CACHE_KEYS.DRIVER_VEHICLES)
+    // 清除所有司机的车辆列表缓存（因为缓存键包含司机ID）
+    clearCacheByPrefix('driver_vehicles_')
+    // 清除全局车辆缓存
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('成功删除车辆及关联文件', {vehicleId, photoCount: allPhotos.length})
@@ -4299,6 +4309,10 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
       logger.error('还车录入失败', error)
       return null
     }
+
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('成功完成还车录入', {vehicleId})
     return data
@@ -4546,6 +4560,10 @@ export async function submitVehicleForReview(vehicleId: string): Promise<boolean
       return false
     }
 
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
+
     logger.info('提交车辆审核成功', {vehicleId})
     return true
   } catch (error) {
@@ -4624,6 +4642,10 @@ export async function lockPhoto(vehicleId: string, photoField: string, photoInde
         logger.error('锁定图片失败', updateError)
         return false
       }
+
+      // 清除相关缓存
+      clearCacheByPrefix('driver_vehicles_')
+      clearCache(CACHE_KEYS.ALL_VEHICLES)
     }
 
     logger.info('锁定图片成功', {vehicleId, photoField, photoIndex})
@@ -4676,6 +4698,10 @@ export async function unlockPhoto(vehicleId: string, photoField: string, photoIn
       logger.error('解锁图片失败', updateError)
       return false
     }
+
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('解锁图片成功', {vehicleId, photoField, photoIndex})
     return true
@@ -4769,6 +4795,10 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
       return false
     }
 
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
+
     logger.info('通过车辆审核成功', {vehicleId})
     return true
   } catch (error) {
@@ -4811,6 +4841,10 @@ export async function lockVehiclePhotos(
       return false
     }
 
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
+
     logger.info('一键锁定车辆照片成功', {vehicleId})
     return true
   } catch (error) {
@@ -4845,6 +4879,10 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
       logger.error('要求补录车辆信息失败', error)
       return false
     }
+
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('要求补录车辆信息成功', {vehicleId})
     return true

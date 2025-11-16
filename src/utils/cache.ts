@@ -123,6 +123,29 @@ export function clearCache(key: string): void {
 }
 
 /**
+ * 清除所有匹配前缀的缓存
+ * @param prefix 缓存键前缀
+ */
+export function clearCacheByPrefix(prefix: string): void {
+  try {
+    const info = Taro.getStorageInfoSync()
+    const keys = info.keys || []
+    let clearedCount = 0
+
+    keys.forEach((key) => {
+      if (key.startsWith(prefix)) {
+        Taro.removeStorageSync(key)
+        clearedCount++
+      }
+    })
+
+    console.log(`🗑️ [缓存] 已清除 ${clearedCount} 个前缀为 "${prefix}" 的缓存`)
+  } catch (error) {
+    console.error(`❌ [缓存] 清除前缀缓存失败: ${prefix}`, error)
+  }
+}
+
+/**
  * 检查缓存是否存在且有效
  * @param key 缓存键名
  * @returns 缓存是否有效
