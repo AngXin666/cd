@@ -734,23 +734,52 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   }, 0)
   const _uniqueDrivers = new Set(records.map((r) => r.user_id)).size
 
+  // 计算当日件数（只统计今天的数据）
+  const todayQuantity = useMemo(() => {
+    const today = getLocalDateString()
+    return records
+      .filter((r) => r.work_date === today)
+      .reduce((sum, r) => sum + (r.quantity || 0), 0)
+  }, [records])
+
   // 计算当日达标率（修正算法：考虑出勤司机数）
   const completionRate = useMemo(() => {
+    console.log('当日达标率计算：开始', {
+      todayQuantity,
+      totalQuantity,
+      dailyTarget,
+      todayDrivers: dashboardData.todayDrivers
+    })
+
     // 1. 检查每日指标是否有效
-    if (dailyTarget === 0) return 0
+    if (dailyTarget === 0) {
+      console.log('当日达标率计算：每日指标为0，返回0')
+      return 0
+    }
 
     // 2. 获取当日出勤司机数
     const todayDriversCount = dashboardData.todayDrivers
 
     // 3. 检查出勤司机数是否有效
-    if (todayDriversCount === 0) return 0
+    if (todayDriversCount === 0) {
+      console.log('当日达标率计算：当日出勤司机数为0，返回0')
+      return 0
+    }
 
     // 4. 计算当日总目标 = 每日指标 × 出勤司机数
     const todayTotalTarget = dailyTarget * todayDriversCount
 
-    // 5. 计算达标率 = 总完成件数 / 总目标
-    return (totalQuantity / todayTotalTarget) * 100
-  }, [totalQuantity, dailyTarget, dashboardData.todayDrivers])
+    // 5. 计算达标率 = 当日完成件数 / 当日总目标（使用todayQuantity而不是totalQuantity）
+    const rate = (todayQuantity / todayTotalTarget) * 100
+
+    console.log('当日达标率计算：完成', {
+      todayQuantity,
+      todayTotalTarget,
+      rate: rate.toFixed(1) + '%'
+    })
+
+    return rate
+  }, [todayQuantity, dailyTarget, dashboardData.todayDrivers])
 
   // 计算月度平均达标率
   const monthlyCompletionRate = useMemo(() => {
@@ -805,7 +834,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 </Text>
                 <Text className="text-white text-opacity-70 text-xs mt-1">
                   {dashboardData.todayDrivers > 0
-                    ? `目标: ${(dailyTarget * dashboardData.todayDrivers).toFixed(0)}件`
+                    ? `${todayQuantity}件 / 目标${(dailyTarget * dashboardData.todayDrivers).toFixed(0)}件`
                     : '暂无数据'}
                 </Text>
               </View>
