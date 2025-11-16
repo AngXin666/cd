@@ -24,6 +24,7 @@ const pages = [
   'pages/driver/vehicle-list/index',
   'pages/driver/add-vehicle/index',
   'pages/driver/vehicle-detail/index',
+  'pages/driver/edit-vehicle/index',
   'pages/driver/return-vehicle/index',
   'pages/driver/supplement-photos/index',
   'pages/manager/data-summary/index',

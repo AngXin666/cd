@@ -14,6 +14,7 @@ export interface LockedPhotos {
   pickup_photos?: number[] // 已锁定的提车照片索引
   return_photos?: number[] // 已锁定的还车照片索引
   registration_photos?: number[] // 已锁定的行驶证照片索引
+  damage_photos?: number[] // 已锁定的车损特写照片索引
 }
 
 export interface Profile {
@@ -499,6 +500,7 @@ export interface Vehicle {
   pickup_photos: string[] // 提车照片URL数组
   return_photos: string[] // 还车照片URL数组
   registration_photos: string[] // 行驶证照片URL数组
+  damage_photos: string[] // 车损特写照片URL数组
   // 审核管理字段
   review_status: ReviewStatus // 审核状态
   locked_photos: LockedPhotos // 已锁定的图片信息
@@ -561,6 +563,7 @@ export interface VehicleInput {
   pickup_photos?: string[]
   return_photos?: string[]
   registration_photos?: string[]
+  damage_photos?: string[]
   // 审核管理字段
   review_status?: ReviewStatus
   locked_photos?: LockedPhotos
@@ -620,6 +623,7 @@ export interface VehicleUpdate {
   pickup_photos?: string[]
   return_photos?: string[]
   registration_photos?: string[]
+  damage_photos?: string[]
   // 审核管理字段
   review_status?: ReviewStatus
   locked_photos?: LockedPhotos

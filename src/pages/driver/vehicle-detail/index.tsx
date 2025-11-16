@@ -16,7 +16,7 @@ import type {Vehicle} from '@/db/types'
 import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
 
-type TabType = 'pickup' | 'return' | 'registration'
+type TabType = 'pickup' | 'return' | 'registration' | 'damage'
 
 const VehicleDetail: React.FC = () => {
   useAuth({guard: true})
@@ -51,7 +51,7 @@ const VehicleDetail: React.FC = () => {
 
   // 获取照片的公开URL
   const getPhotoUrl = (path: string): string => {
-    const bucketName = `${process.env.TARO_APP_APP_ID}_images`
+    const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
     return getImagePublicUrl(path, bucketName)
   }
 
@@ -214,6 +214,32 @@ const VehicleDetail: React.FC = () => {
             </View>
           </View>
 
+          {/* 编辑照片按钮 */}
+          <View className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
+            <View className="flex items-center justify-between">
+              <View className="flex-1">
+                <View className="flex items-center mb-1">
+                  <View className="i-mdi-camera text-xl text-blue-600 mr-2"></View>
+                  <Text className="text-blue-900 font-bold">车辆照片管理</Text>
+                </View>
+                <Text className="text-blue-700 text-sm">上传或更新车辆照片和车损特写</Text>
+              </View>
+              <View
+                className="bg-blue-500 rounded-lg px-6 py-3 ml-4 active:bg-blue-600 transition-colors"
+                onClick={() => {
+                  Taro.navigateTo({
+                    url: `/pages/driver/edit-vehicle/index?id=${vehicle.id}`
+                  })
+                }}
+                style={{cursor: 'pointer'}}>
+                <View className="flex items-center">
+                  <View className="i-mdi-pencil text-xl text-white mr-1"></View>
+                  <Text className="text-white font-bold">编辑照片</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
           {/* 测试功能：删除按钮 */}
           <View className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
             <View className="flex items-center justify-between">
@@ -276,6 +302,13 @@ const VehicleDetail: React.FC = () => {
                 onClick={() => setActiveTab('registration')}>
                 <Text className={`font-medium ${activeTab === 'registration' ? 'text-blue-600' : 'text-gray-600'}`}>
                   行驶证照片
+                </Text>
+              </View>
+              <View
+                className={`flex-1 py-4 text-center ${activeTab === 'damage' ? 'border-b-2 border-blue-600' : ''}`}
+                onClick={() => setActiveTab('damage')}>
+                <Text className={`font-medium ${activeTab === 'damage' ? 'text-blue-600' : 'text-gray-600'}`}>
+                  车损特写
                 </Text>
               </View>
             </View>
@@ -465,6 +498,69 @@ const VehicleDetail: React.FC = () => {
                   <View className="flex flex-col items-center justify-center py-12">
                     <View className="i-mdi-image-off text-5xl text-gray-300 mb-2"></View>
                     <Text className="text-gray-500">暂无行驶证照片</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 车损特写照片标签页 */}
+            {activeTab === 'damage' && (
+              <View>
+                {/* 提示信息 */}
+                <View className="bg-orange-50 rounded-lg p-4 mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-information-outline text-2xl text-orange-600 mr-2"></View>
+                    <Text className="text-sm text-gray-600">车损特写照片用于记录车辆损伤情况</Text>
+                  </View>
+                </View>
+
+                {/* 车损照片网格 */}
+                {vehicle.damage_photos && vehicle.damage_photos.length > 0 ? (
+                  <View className="grid grid-cols-3 gap-2">
+                    {vehicle.damage_photos.map((photo, index) => {
+                      const photoUrl = getPhotoUrl(photo)
+                      return (
+                        <View
+                          key={index}
+                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          onClick={() => {
+                            const urls = vehicle.damage_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
+                            if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
+                              previewImage(photoUrl, urls)
+                            }
+                          }}>
+                          {photoUrl ? (
+                            failedImages.has(photoUrl) ? (
+                              <View className="w-full h-24 flex flex-col items-center justify-center bg-red-50">
+                                <View className="i-mdi-image-broken text-2xl text-red-400 mb-1"></View>
+                                <Text className="text-red-600 text-xs">加载失败</Text>
+                              </View>
+                            ) : (
+                              <>
+                                <Image
+                                  src={photoUrl}
+                                  mode="aspectFill"
+                                  className="w-full h-24 bg-gray-100"
+                                  onError={() => handleImageError(photoUrl, '车损照片', index)}
+                                />
+                                <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
+                                  <Text className="text-white text-xs font-medium">车损 {index + 1}</Text>
+                                </View>
+                              </>
+                            )
+                          ) : (
+                            <View className="w-full h-24 flex items-center justify-center">
+                              <View className="i-mdi-image-off text-2xl text-gray-400"></View>
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })}
+                  </View>
+                ) : (
+                  <View className="flex flex-col items-center justify-center py-12">
+                    <View className="i-mdi-image-off text-5xl text-gray-300 mb-2"></View>
+                    <Text className="text-gray-500">暂无车损照片</Text>
                   </View>
                 )}
               </View>

@@ -18,7 +18,7 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('ReturnVehicle')
-const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_images`
+const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
 
 const ReturnVehicle: React.FC = () => {
   const {user} = useAuth({guard: true})
