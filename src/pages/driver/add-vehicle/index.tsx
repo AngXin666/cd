@@ -3,7 +3,7 @@
  * 三步骤流程：行驶证识别 -> 车辆照片 -> 驾驶员证件
  */
 
-import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -132,6 +132,9 @@ const AddVehicle: React.FC = () => {
     id_card_back: '',
     driver_license: ''
   })
+
+  // 车损特写照片（多张）
+  const [damagePhotos, setDamagePhotos] = useState<{path: string; size: number}[]>([])
 
   // 识别行驶证主页
   const handleRecognizeDrivingLicenseMain = async () => {
@@ -653,6 +656,33 @@ const AddVehicle: React.FC = () => {
     }
   }
 
+  // 选择车损特写照片
+  const handleChooseDamagePhotos = async () => {
+    try {
+      const res = await Taro.chooseImage({
+        count: 9 - damagePhotos.length,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera']
+      })
+
+      const newPhotos = res.tempFiles.map((file) => ({
+        path: file.path,
+        size: file.size || 0
+      }))
+
+      setDamagePhotos([...damagePhotos, ...newPhotos])
+      console.log('选择车损照片', {count: newPhotos.length})
+    } catch (error) {
+      console.error('选择照片失败', error)
+    }
+  }
+
+  // 删除车损照片
+  const handleDeleteDamagePhoto = (index: number) => {
+    const newPhotos = damagePhotos.filter((_, i) => i !== index)
+    setDamagePhotos(newPhotos)
+  }
+
   // 上一步
   const handlePrev = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 0))
@@ -714,6 +744,19 @@ const AddVehicle: React.FC = () => {
         }
       }
 
+      // 上传车损特写照片
+      const uploadedDamagePhotos: string[] = []
+      for (let i = 0; i < damagePhotos.length; i++) {
+        const photo = damagePhotos[i]
+        const fileName = generateUniqueFileName(`pickup_damage_${i}`, 'jpg')
+        const uploadedPath = await uploadImageToStorage(photo.path, BUCKET_NAME, fileName, false)
+        if (uploadedPath) {
+          uploadedDamagePhotos.push(uploadedPath)
+        }
+      }
+
+      console.log('车损照片上传成功', {count: uploadedDamagePhotos.length})
+
       // 插入车辆信息
       const vehicleData: VehicleInput = {
         user_id: user.id,
@@ -773,6 +816,8 @@ const AddVehicle: React.FC = () => {
           uploadedPhotos.driving_license_sub,
           uploadedPhotos.driving_license_sub_back
         ].filter(Boolean), // 行驶证照片
+        // 车损特写照片
+        damage_photos: uploadedDamagePhotos.length > 0 ? uploadedDamagePhotos : null,
         // 审核状态
         review_status: submitForReview ? 'pending_review' : 'drafting' // 根据参数设置审核状态
       }
@@ -1122,6 +1167,48 @@ const AddVehicle: React.FC = () => {
                 value={photos.cargo_box}
                 onChange={(path) => setPhotos((prev) => ({...prev, cargo_box: path}))}
               />
+
+              {/* 车损特写照片（多张，可选） */}
+              <View className="bg-white rounded-2xl p-6 mt-6 shadow-md">
+                <View className="flex items-center justify-between mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-image-multiple text-2xl text-red-600 mr-2"></View>
+                    <Text className="text-lg font-bold text-gray-800">车损特写</Text>
+                    <Text className="text-xs text-gray-500 ml-2">（可选）</Text>
+                  </View>
+                  <Text className="text-xs text-gray-500">{damagePhotos.length}/9</Text>
+                </View>
+
+                <View className="flex flex-wrap gap-3">
+                  {damagePhotos.map((photo, index) => (
+                    <View key={index} className="relative">
+                      <Image
+                        src={photo.path}
+                        mode="aspectFill"
+                        className="w-24 h-24 rounded-lg border-2 border-gray-200"
+                      />
+                      <View
+                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                        onClick={() => handleDeleteDamagePhoto(index)}>
+                        <View className="i-mdi-close text-white text-sm"></View>
+                      </View>
+                    </View>
+                  ))}
+
+                  {damagePhotos.length < 9 && (
+                    <View
+                      className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50"
+                      onClick={handleChooseDamagePhotos}>
+                      <View className="flex flex-col items-center">
+                        <View className="i-mdi-plus text-3xl text-gray-400 mb-1"></View>
+                        <Text className="text-xs text-gray-500">添加照片</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                <Text className="text-xs text-gray-500 mt-3">提示：如有车辆损伤，请拍摄特写照片，最多上传9张</Text>
+              </View>
             </View>
           )}
 
