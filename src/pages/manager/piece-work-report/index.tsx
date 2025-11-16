@@ -722,9 +722,31 @@ const ManagerPieceWorkReport: React.FC = () => {
 
   // 计算月度平均达标率
   const monthlyCompletionRate = useMemo(() => {
-    if (driverSummaries.length === 0) return 0
-    const totalRate = driverSummaries.reduce((sum, s) => sum + s.completionRate, 0)
-    return totalRate / driverSummaries.length
+    console.log('月度达标率计算：司机汇总数据', {
+      driverSummariesLength: driverSummaries.length,
+      driverSummaries: driverSummaries.map((s) => ({
+        name: s.driverName,
+        completionRate: s.completionRate,
+        monthlyCompletionRate: s.monthlyCompletionRate
+      }))
+    })
+
+    if (driverSummaries.length === 0) {
+      console.log('月度达标率计算：无司机数据，返回 0')
+      return 0
+    }
+
+    // 使用每个司机的月度达标率，而不是总达标率
+    const totalRate = driverSummaries.reduce((sum, s) => sum + (s.monthlyCompletionRate || 0), 0)
+    const avgRate = totalRate / driverSummaries.length
+
+    console.log('月度达标率计算：完成', {
+      totalRate,
+      avgRate,
+      driverCount: driverSummaries.length
+    })
+
+    return avgRate
   }, [driverSummaries])
 
   return (
@@ -766,7 +788,7 @@ const ManagerPieceWorkReport: React.FC = () => {
                   {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
                 </Text>
                 <Text className="text-white text-opacity-70 text-xs mt-1">
-                  {driverSummaries.length > 0 ? '平均值' : '暂无数据'}
+                  {driverSummaries.length > 0 ? `当月${driverSummaries.length}位司机` : '暂无数据'}
                 </Text>
               </View>
 
