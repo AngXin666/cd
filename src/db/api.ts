@@ -4917,7 +4917,12 @@ export async function supplementPhoto(
       .maybeSingle()
 
     if (fetchError || !vehicle) {
-      logger.error('获取车辆信息失败', fetchError)
+      logger.error('获取车辆信息失败', {
+        fetchError,
+        vehicleId,
+        message: fetchError?.message,
+        details: fetchError?.details
+      })
       return false
     }
 
@@ -4930,6 +4935,15 @@ export async function supplementPhoto(
     const photoKey = `${photoField}_${photoIndex}`
     const newRequiredPhotos = requiredPhotos.filter((key: string) => key !== photoKey)
 
+    logger.info('准备更新车辆图片', {
+      vehicleId,
+      photoField,
+      photoIndex,
+      photosLength: photos.length,
+      requiredPhotosCount: requiredPhotos.length,
+      newRequiredPhotosCount: newRequiredPhotos.length
+    })
+
     const {error: updateError} = await supabase
       .from('vehicles')
       .update({
@@ -4940,14 +4954,27 @@ export async function supplementPhoto(
       .eq('id', vehicleId)
 
     if (updateError) {
-      logger.error('补录图片失败', updateError)
+      logger.error('补录图片失败', {
+        updateError,
+        vehicleId,
+        photoField,
+        photoIndex,
+        message: updateError?.message,
+        details: updateError?.details,
+        hint: updateError?.hint,
+        code: updateError?.code
+      })
       return false
     }
+
+    // 清除相关缓存
+    clearCacheByPrefix('driver_vehicles_')
+    clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('补录图片成功', {vehicleId, photoField, photoIndex})
     return true
   } catch (error) {
-    logger.error('补录图片异常', error)
+    logger.error('补录图片异常', {error, vehicleId, photoField, photoIndex})
     return false
   }
 }

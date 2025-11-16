@@ -145,8 +145,19 @@ const SupplementPhotos: React.FC = () => {
           try {
             // 上传所有新图片
             for (const [photoKey, tempPath] of Object.entries(newPhotos)) {
-              const [field, indexStr] = photoKey.split('_')
+              // 正确解析字段名和索引
+              // photoKey格式: "pickup_photos_5" 或 "return_photos_3"
+              const lastUnderscoreIndex = photoKey.lastIndexOf('_')
+              const field = photoKey.substring(0, lastUnderscoreIndex)
+              const indexStr = photoKey.substring(lastUnderscoreIndex + 1)
               const index = parseInt(indexStr, 10)
+
+              if (Number.isNaN(index)) {
+                logger.error('无效的图片索引', {photoKey, field, indexStr})
+                throw new Error(`无效的图片索引: ${photoKey}`)
+              }
+
+              logger.info('准备上传补录图片', {photoKey, field, index, tempPath})
 
               // 上传图片
               const fileName = generateUniqueFileName(`supplement_${field}_${index}`, 'jpg')
@@ -156,11 +167,15 @@ const SupplementPhotos: React.FC = () => {
                 throw new Error(`上传图片失败: ${photoKey}`)
               }
 
+              logger.info('图片上传成功，准备更新数据库', {photoKey, uploadedPath})
+
               // 更新数据库
               const success = await supplementPhoto(vehicle.id, field, index, uploadedPath)
               if (!success) {
                 throw new Error(`更新图片失败: ${photoKey}`)
               }
+
+              logger.info('图片补录成功', {photoKey})
             }
 
             // 提交审核
@@ -180,7 +195,8 @@ const SupplementPhotos: React.FC = () => {
             Taro.hideLoading()
             Taro.showToast({
               title: error instanceof Error ? error.message : '提交失败',
-              icon: 'none'
+              icon: 'none',
+              duration: 3000
             })
           } finally {
             setSubmitting(false)
