@@ -317,28 +317,33 @@ const VehicleHistory: React.FC = () => {
               {recordType === 'return' ? '还车照片' : '提车照片'}
             </Text>
           </View>
-          <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'registration' ? 'border-b-2 border-primary' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setRecordTab(record.id, 'registration')
-            }}>
-            <Text
-              className={`text-sm ${getRecordTab(record.id) === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              行驶证照片
-            </Text>
-          </View>
-          <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'personal' ? 'border-b-2 border-primary' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setRecordTab(record.id, 'personal')
-            }}>
-            <Text
-              className={`text-sm ${getRecordTab(record.id) === 'personal' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              个人信息
-            </Text>
-          </View>
+          {/* 只在提车记录中显示行驶证和个人信息Tab */}
+          {recordType === 'pickup' && (
+            <>
+              <View
+                className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'registration' ? 'border-b-2 border-primary' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setRecordTab(record.id, 'registration')
+                }}>
+                <Text
+                  className={`text-sm ${getRecordTab(record.id) === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+                  行驶证照片
+                </Text>
+              </View>
+              <View
+                className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'personal' ? 'border-b-2 border-primary' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setRecordTab(record.id, 'personal')
+                }}>
+                <Text
+                  className={`text-sm ${getRecordTab(record.id) === 'personal' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+                  个人信息
+                </Text>
+              </View>
+            </>
+          )}
           <View
             className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'damage' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
@@ -359,8 +364,8 @@ const VehicleHistory: React.FC = () => {
               recordType === 'return' ? record.return_photos || [] : record.pickup_photos || [],
               recordType === 'return' ? '还车照片' : '提车照片'
             )}
-          {/* 行驶证照片Tab */}
-          {getRecordTab(record.id) === 'registration' && (
+          {/* 行驶证照片Tab - 只在提车记录中显示 */}
+          {recordType === 'pickup' && getRecordTab(record.id) === 'registration' && (
             <View>
               {/* 行驶证主页 */}
               {record.driving_license_main_photo && (
@@ -449,8 +454,8 @@ const VehicleHistory: React.FC = () => {
                 )}
             </View>
           )}
-          {/* 个人信息Tab - 只显示身份证和驾驶证照片 */}
-          {getRecordTab(record.id) === 'personal' && (
+          {/* 个人信息Tab - 只显示身份证和驾驶证照片，只在提车记录中显示 */}
+          {recordType === 'pickup' && getRecordTab(record.id) === 'personal' && (
             <View>
               {/* 身份证正面 */}
               {record.id_card_photo_front && (
