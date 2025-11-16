@@ -19,6 +19,73 @@ const logger = createLogger('SuperAdminUserDetail')
 // Supabase Storage Bucket 名称
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
 
+// 获取图片公共URL的辅助函数
+const getImageUrl = (path: string | null | undefined): string => {
+  if (!path) {
+    logger.warn('图片路径为空')
+    return ''
+  }
+
+  try {
+    if (!BUCKET_NAME) {
+      logger.error('Supabase bucket 未配置')
+      return ''
+    }
+
+    const {data} = supabase.storage.from(BUCKET_NAME).getPublicUrl(path)
+    if (!data?.publicUrl) {
+      logger.warn('无法获取图片公共URL', {path})
+      return ''
+    }
+
+    return data.publicUrl
+  } catch (error) {
+    logger.error('获取图片URL失败', {error, path})
+    return ''
+  }
+}
+
+// 图片组件（带错误处理和占位符）
+const ImageWithFallback: React.FC<{
+  path: string | null | undefined
+  label: string
+  className: string
+  onPreview: (url: string) => void
+}> = ({path, label, className, onPreview}) => {
+  const [imageError, setImageError] = useState(false)
+  const imageUrl = getImageUrl(path)
+
+  if (!imageUrl || imageError) {
+    return (
+      <View className={`${className} bg-gray-100 rounded-xl flex items-center justify-center`}>
+        <View className="text-center">
+          <View className="i-mdi-image-off text-4xl text-gray-400 mb-2"></View>
+          <Text className="text-xs text-gray-400 block">{imageError ? '图片加载失败' : '暂无图片'}</Text>
+        </View>
+      </View>
+    )
+  }
+
+  return (
+    <View
+      className="relative bg-gray-100 rounded-xl overflow-hidden border-2 border-blue-200 active:scale-95 transition-all"
+      onClick={() => onPreview(imageUrl)}>
+      <Image
+        src={imageUrl}
+        mode="aspectFit"
+        className={className}
+        onError={() => {
+          logger.error('图片加载失败', {path, imageUrl})
+          setImageError(true)
+        }}
+      />
+      <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+        <Text className="text-white text-xs font-medium text-center block">{label}</Text>
+      </View>
+    </View>
+  )
+}
+
 const UserDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()
@@ -150,32 +217,6 @@ const UserDetail: React.FC = () => {
     })
   }
 
-  // 获取图片公共URL
-  const getImageUrl = (path: string | null | undefined): string => {
-    if (!path) {
-      logger.warn('图片路径为空')
-      return ''
-    }
-
-    try {
-      if (!BUCKET_NAME) {
-        logger.error('Supabase bucket 未配置')
-        return ''
-      }
-
-      const {data} = supabase.storage.from(BUCKET_NAME).getPublicUrl(path)
-      if (!data?.publicUrl) {
-        logger.warn('无法获取图片公共URL', {path})
-        return ''
-      }
-
-      return data.publicUrl
-    } catch (error) {
-      logger.error('获取图片URL失败', {error, path})
-      return ''
-    }
-  }
-
   // 预览图片
   const handlePreviewImage = (url: string) => {
     if (!url) {
@@ -208,28 +249,7 @@ const UserDetail: React.FC = () => {
 
   // 渲染图片组件（带错误处理）
   const renderImage = (path: string | null | undefined, label: string, className: string = 'w-full h-40') => {
-    const imageUrl = getImageUrl(path)
-    if (!imageUrl) {
-      return (
-        <View className={`${className} bg-gray-100 rounded-xl flex items-center justify-center`}>
-          <View className="text-center">
-            <View className="i-mdi-image-off text-4xl text-gray-400 mb-2"></View>
-            <Text className="text-xs text-gray-400 block">暂无图片</Text>
-          </View>
-        </View>
-      )
-    }
-
-    return (
-      <View
-        className="relative bg-gray-100 rounded-xl overflow-hidden border-2 border-blue-200 active:scale-95 transition-all"
-        onClick={() => handlePreviewImage(imageUrl)}>
-        <Image src={imageUrl} mode="aspectFit" className={className} onError={() => logger.error('图片加载失败', {path})} />
-        <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-          <Text className="text-white text-xs font-medium text-center block">{label}</Text>
-        </View>
-      </View>
-    )
+    return <ImageWithFallback path={path} label={label} className={className} onPreview={handlePreviewImage} />
   }
 
   if (loading) {
