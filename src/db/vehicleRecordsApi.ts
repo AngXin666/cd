@@ -3,8 +3,8 @@
  * 处理车辆基本信息和录入记录的增删改查
  */
 
-import {createLogger} from '../utils/logger'
 import {supabase} from '../client/supabase'
+import {createLogger} from '../utils/logger'
 import type {
   VehicleBase,
   VehicleBaseWithRecords,

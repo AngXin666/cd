@@ -4055,41 +4055,57 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
   logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
   try {
     logger.info('开始查询所有车辆及司机信息')
-    const {data, error} = await supabase
+
+    // 第一步：获取所有车辆
+    const {data: vehiclesData, error: vehiclesError} = await supabase
       .from('vehicles')
-      .select(
-        `
-        *,
-        profiles!vehicles_user_id_fkey (
-          id,
-          name,
-          phone,
-          email
-        )
-      `
-      )
+      .select('*')
       .order('created_at', {ascending: false})
 
-    if (error) {
+    if (vehiclesError) {
       logger.error('获取所有车辆失败', {
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
+        error: vehiclesError.message,
+        code: vehiclesError.code,
+        details: vehiclesError.details,
+        hint: vehiclesError.hint
       })
       return []
     }
 
-    // 转换数据格式
-    const vehicles: VehicleWithDriver[] = (data || []).map((item: any) => {
-      const profile = item.profiles
+    if (!vehiclesData || vehiclesData.length === 0) {
+      logger.info('没有找到任何车辆记录')
+      return []
+    }
+
+    // 第二步：获取所有相关的司机信息
+    const userIds = vehiclesData.map((v: any) => v.user_id).filter(Boolean)
+    const {data: profilesData, error: profilesError} = await supabase
+      .from('profiles')
+      .select('id, name, phone, email')
+      .in('id', userIds)
+
+    if (profilesError) {
+      logger.error('获取司机信息失败', {error: profilesError.message})
+      // 即使获取司机信息失败，也返回车辆数据（只是没有司机信息）
+    }
+
+    // 第三步：创建司机信息映射
+    const profilesMap = new Map()
+    if (profilesData) {
+      profilesData.forEach((profile: any) => {
+        profilesMap.set(profile.id, profile)
+      })
+    }
+
+    // 第四步：合并数据
+    const vehicles: VehicleWithDriver[] = vehiclesData.map((item: any) => {
+      const profile = profilesMap.get(item.user_id)
       return {
         ...item,
         driver_id: profile?.id || null,
         driver_name: profile?.name || null,
         driver_phone: profile?.phone || null,
-        driver_email: profile?.email || null,
-        profiles: undefined // 移除嵌套的 profiles 对象
+        driver_email: profile?.email || null
       }
     })
 
