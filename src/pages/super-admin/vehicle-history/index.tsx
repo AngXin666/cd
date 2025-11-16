@@ -87,7 +87,7 @@ const VehicleHistory: React.FC = () => {
   // 查看录入记录详情
   const handleViewRecord = (record: VehicleRecordWithDetails) => {
     Taro.navigateTo({
-      url: `/pages/super-admin/vehicle-review-detail/index?vehicleId=${record.id}`
+      url: `/pages/super-admin/vehicle-review-detail/index?vehicleId=${record.id}&fromHistory=true`
     })
   }
 

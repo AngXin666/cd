@@ -39,6 +39,7 @@ const VehicleReviewDetail: React.FC = () => {
   const [lockedPhotos, setLockedPhotos] = useState<LockedPhotos>({})
   const [requiredPhotos, setRequiredPhotos] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [fromHistory, setFromHistory] = useState(false) // 是否从历史记录页面跳转过来
 
   // 加载车辆信息
   const loadVehicle = useCallback(async (vehicleId: string) => {
@@ -69,7 +70,11 @@ const VehicleReviewDetail: React.FC = () => {
 
   // 页面加载时获取车辆ID
   useLoad((options) => {
-    const {vehicleId} = options
+    const {vehicleId, fromHistory: fromHistoryParam} = options
+    // 设置是否从历史记录页面跳转过来
+    if (fromHistoryParam === 'true') {
+      setFromHistory(true)
+    }
     if (vehicleId) {
       loadVehicle(vehicleId)
     } else {
@@ -345,7 +350,7 @@ const VehicleReviewDetail: React.FC = () => {
   return (
     <View style={{background: 'linear-gradient(to bottom, #FEF3C7, #FDE68A)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        <View className="p-4 pb-32">
+        <View className={`p-4 ${fromHistory ? 'pb-4' : 'pb-32'}`}>
           {/* 车辆基本信息 */}
           <View className="bg-white rounded-2xl p-4 mb-4 shadow-lg">
             <View className="flex items-center mb-3">
@@ -507,34 +512,36 @@ const VehicleReviewDetail: React.FC = () => {
           </View>
         </View>
 
-        {/* 底部操作按钮 */}
-        <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-          <View className="flex gap-2">
-            {/* 要求补录 */}
-            <Button
-              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
-              size="default"
-              onClick={handleRequireSupplement}
-              disabled={submitting}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-alert-circle text-lg mr-2"></View>
-                <Text className="font-medium">要求补录</Text>
-              </View>
-            </Button>
+        {/* 底部操作按钮 - 只在非历史记录页面显示 */}
+        {!fromHistory && (
+          <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+            <View className="flex gap-2">
+              {/* 要求补录 */}
+              <Button
+                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                size="default"
+                onClick={handleRequireSupplement}
+                disabled={submitting}>
+                <View className="flex items-center justify-center">
+                  <View className="i-mdi-alert-circle text-lg mr-2"></View>
+                  <Text className="font-medium">要求补录</Text>
+                </View>
+              </Button>
 
-            {/* 通过审核 */}
-            <Button
-              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
-              size="default"
-              onClick={handleApprove}
-              disabled={submitting}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-check-circle text-lg mr-2"></View>
-                <Text className="font-medium">通过审核</Text>
-              </View>
-            </Button>
+              {/* 通过审核 */}
+              <Button
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                size="default"
+                onClick={handleApprove}
+                disabled={submitting}>
+                <View className="flex items-center justify-center">
+                  <View className="i-mdi-check-circle text-lg mr-2"></View>
+                  <Text className="font-medium">通过审核</Text>
+                </View>
+              </Button>
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   )
