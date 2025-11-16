@@ -22,6 +22,7 @@ import type {
   FeedbackStatus,
   LeaveApplication,
   LeaveApplicationInput,
+  LockedPhotos,
   ManagerPermission,
   ManagerPermissionInput,
   PieceWorkCategory,
@@ -4772,6 +4773,48 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
     return true
   } catch (error) {
     logger.error('通过车辆审核异常', error)
+    return false
+  }
+}
+
+/**
+ * 一键锁定车辆（锁定所有未标记需要补录的照片）
+ * @param vehicleId 车辆ID
+ * @param reviewerId 审核人ID
+ * @param notes 审核备注
+ * @param lockedPhotos 已锁定的照片信息
+ * @returns 是否成功
+ */
+export async function lockVehiclePhotos(
+  vehicleId: string,
+  reviewerId: string,
+  notes: string,
+  lockedPhotos: LockedPhotos
+): Promise<boolean> {
+  try {
+    logger.db('一键锁定车辆照片', 'vehicles', {vehicleId, reviewerId, notes, lockedPhotos})
+
+    const {error} = await supabase
+      .from('vehicles')
+      .update({
+        review_status: 'approved',
+        locked_photos: lockedPhotos,
+        review_notes: notes,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: reviewerId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vehicleId)
+
+    if (error) {
+      logger.error('一键锁定车辆照片失败', error)
+      return false
+    }
+
+    logger.info('一键锁定车辆照片成功', {vehicleId})
+    return true
+  } catch (error) {
+    logger.error('一键锁定车辆照片异常', error)
     return false
   }
 }

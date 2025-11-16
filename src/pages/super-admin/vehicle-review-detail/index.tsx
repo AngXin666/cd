@@ -10,7 +10,15 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {approveVehicle, getVehicleById, lockPhoto, markPhotoForDeletion, requireSupplement, unlockPhoto} from '@/db/api'
+import {
+  approveVehicle,
+  getVehicleById,
+  lockPhoto,
+  lockVehiclePhotos,
+  markPhotoForDeletion,
+  requireSupplement,
+  unlockPhoto
+} from '@/db/api'
 import type {LockedPhotos, Vehicle} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -268,6 +276,73 @@ const VehicleReviewDetail: React.FC = () => {
     })
   }
 
+  // 一键锁定（锁定所有未标记需要补录的照片）
+  const handleLockAll = async () => {
+    if (!vehicle || !user) return
+
+    // 计算需要锁定的照片
+    const lockedPhotosData: LockedPhotos = {}
+    let totalLockedCount = 0
+
+    PHOTO_FIELDS.forEach(({field}) => {
+      const photos = vehicle[field] || []
+      const lockedIndices: number[] = []
+
+      photos.forEach((_, index) => {
+        // 如果不在需要补录列表中，则锁定
+        if (!requiredPhotos.includes(`${field}[${index}]`)) {
+          lockedIndices.push(index)
+          totalLockedCount++
+        }
+      })
+
+      if (lockedIndices.length > 0) {
+        lockedPhotosData[field] = lockedIndices
+      }
+    })
+
+    if (totalLockedCount === 0) {
+      Taro.showModal({
+        title: '提示',
+        content: '没有可以锁定的照片',
+        showCancel: false
+      })
+      return
+    }
+
+    const supplementCount = requiredPhotos.length
+
+    Taro.showModal({
+      title: '确认一键锁定',
+      content: `将锁定 ${totalLockedCount} 张照片${supplementCount > 0 ? `，保留 ${supplementCount} 张待补录` : ''}`,
+      success: async (res) => {
+        if (res.confirm) {
+          setSubmitting(true)
+          Taro.showLoading({title: '锁定中...'})
+
+          try {
+            const success = await lockVehiclePhotos(vehicle.id, user.id, reviewNotes, lockedPhotosData)
+            if (success) {
+              Taro.hideLoading()
+              Taro.showToast({title: '锁定成功', icon: 'success'})
+              setTimeout(() => {
+                Taro.navigateBack()
+              }, 1500)
+            } else {
+              throw new Error('锁定失败')
+            }
+          } catch (error) {
+            logger.error('一键锁定失败', error)
+            Taro.hideLoading()
+            Taro.showToast({title: '操作失败', icon: 'none'})
+          } finally {
+            setSubmitting(false)
+          }
+        }
+      }
+    })
+  }
+
   // 预览图片
   const previewImage = (url: string, urls: string[]) => {
     Taro.previewImage({
@@ -441,9 +516,10 @@ const VehicleReviewDetail: React.FC = () => {
 
         {/* 底部操作按钮 */}
         <View className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-          <View className="flex gap-2">
+          <View className="flex flex-col gap-2">
+            {/* 第一行：要求补录 */}
             <Button
-              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
               size="default"
               onClick={handleRequireSupplement}
               disabled={submitting}>
@@ -452,16 +528,30 @@ const VehicleReviewDetail: React.FC = () => {
                 <Text className="font-medium">要求补录</Text>
               </View>
             </Button>
-            <Button
-              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
-              size="default"
-              onClick={handleApprove}
-              disabled={submitting}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-check-circle text-lg mr-2"></View>
-                <Text className="font-medium">通过审核</Text>
-              </View>
-            </Button>
+
+            {/* 第二行：一键锁定 和 通过审核 */}
+            <View className="flex gap-2">
+              <Button
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                size="default"
+                onClick={handleLockAll}
+                disabled={submitting}>
+                <View className="flex items-center justify-center">
+                  <View className="i-mdi-lock text-lg mr-2"></View>
+                  <Text className="font-medium">一键锁定</Text>
+                </View>
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                size="default"
+                onClick={handleApprove}
+                disabled={submitting}>
+                <View className="flex items-center justify-center">
+                  <View className="i-mdi-check-circle text-lg mr-2"></View>
+                  <Text className="font-medium">通过审核</Text>
+                </View>
+              </Button>
+            </View>
           </View>
         </View>
       </ScrollView>
