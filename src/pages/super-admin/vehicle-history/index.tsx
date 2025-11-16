@@ -17,7 +17,8 @@ const logger = createLogger('VehicleHistory')
 const VehicleHistory: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()
-  const {plateNumber} = router.params
+  // 解码车牌号（URL参数可能被编码）
+  const plateNumber = router.params.plateNumber ? decodeURIComponent(router.params.plateNumber) : ''
 
   const [vehicle, setVehicle] = useState<VehicleBaseWithRecords | null>(null)
   const [loading, setLoading] = useState(false)
