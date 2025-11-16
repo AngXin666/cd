@@ -325,13 +325,37 @@ export async function getVehicleRecordsByVehicleId(vehicleId: string): Promise<V
       return []
     }
 
-    // 转换数据格式
-    const result: VehicleRecordWithDetails[] = records.map((record) => ({
-      ...record,
-      driver_name_profile: record.profiles?.name || null,
-      driver_phone: record.profiles?.phone || null,
-      driver_email: record.profiles?.email || null
-    }))
+    // 获取所有司机的身份证照片（从driver_licenses表）
+    const driverIds = records.map((r) => r.driver_id).filter(Boolean)
+    const {data: driverLicenses} = await supabase
+      .from('driver_licenses')
+      .select('driver_id, id_card_photo_front, id_card_photo_back')
+      .in('driver_id', driverIds)
+
+    // 创建司机ID到身份证照片的映射
+    const driverLicenseMap = new Map(
+      (driverLicenses || []).map((dl) => [
+        dl.driver_id,
+        {
+          id_card_photo_front: dl.id_card_photo_front,
+          id_card_photo_back: dl.id_card_photo_back
+        }
+      ])
+    )
+
+    // 转换数据格式，并填充身份证照片
+    const result: VehicleRecordWithDetails[] = records.map((record) => {
+      const driverLicense = driverLicenseMap.get(record.driver_id)
+      return {
+        ...record,
+        driver_name_profile: record.profiles?.name || null,
+        driver_phone: record.profiles?.phone || null,
+        driver_email: record.profiles?.email || null,
+        // 如果vehicle_records表中没有身份证照片，从driver_licenses表中获取
+        id_card_photo_front: record.id_card_photo_front || driverLicense?.id_card_photo_front || null,
+        id_card_photo_back: record.id_card_photo_back || driverLicense?.id_card_photo_back || null
+      }
+    })
 
     logger.info('获取录入记录成功', {vehicleId, count: result.length})
     return result
