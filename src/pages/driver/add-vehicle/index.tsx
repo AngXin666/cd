@@ -757,7 +757,17 @@ const AddVehicle: React.FC = () => {
         // 提车录入相关字段
         status: 'picked_up', // 默认状态为"已提车"
         pickup_time: new Date().toISOString(), // 记录提车时间
-        pickup_photos: Object.values(uploadedPhotos).filter(Boolean), // 提车照片（车辆照片）
+        // 提车照片（只包含车辆照片，不包含行驶证照片）
+        pickup_photos: [
+          uploadedPhotos.left_front,
+          uploadedPhotos.right_front,
+          uploadedPhotos.left_rear,
+          uploadedPhotos.right_rear,
+          uploadedPhotos.dashboard,
+          uploadedPhotos.rear_door,
+          uploadedPhotos.cargo_box
+        ].filter(Boolean),
+        // 行驶证照片（单独存储）
         registration_photos: [
           uploadedPhotos.driving_license_main,
           uploadedPhotos.driving_license_sub,
