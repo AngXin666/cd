@@ -8,6 +8,7 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import {supabase} from '@/client/supabase'
 import {getDriverLicense, getDriverVehicles, getDriverWarehouses, getUserById} from '@/db/api'
 import type {DriverLicense, Profile, Vehicle, Warehouse} from '@/db/types'
 import {createLogger} from '@/utils/logger'
@@ -149,7 +150,6 @@ const UserDetail: React.FC = () => {
   // 获取图片公共URL
   const getImageUrl = (path: string | null | undefined): string => {
     if (!path) return ''
-    const {supabase} = require('@/client/supabase')
     const bucket = process.env.TARO_APP_SUPABASE_BUCKET || ''
     const {data} = supabase.storage.from(bucket).getPublicUrl(path)
     return data?.publicUrl || ''
