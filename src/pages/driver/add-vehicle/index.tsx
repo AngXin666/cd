@@ -1515,16 +1515,16 @@ const AddVehicle: React.FC = () => {
                       {driverLicenseData.license_class && (
                         <InfoDisplay label="准驾车型" value={driverLicenseData.license_class} highlight />
                       )}
-                      {driverLicenseData.valid_from && (
+                      {driverLicenseData.first_issue_date && (
                         <InfoDisplay
                           label="初次领证日期"
-                          value={new Date(driverLicenseData.valid_from).toLocaleDateString('zh-CN')}
+                          value={new Date(driverLicenseData.first_issue_date).toLocaleDateString('zh-CN')}
                         />
                       )}
-                      {driverLicenseData.valid_from && (
+                      {driverLicenseData.first_issue_date && (
                         <InfoDisplay
                           label="驾龄"
-                          value={`${calculateDrivingYears(driverLicenseData.valid_from)} 年`}
+                          value={`${calculateDrivingYears(driverLicenseData.first_issue_date)} 年`}
                           highlight
                         />
                       )}

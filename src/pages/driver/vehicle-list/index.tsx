@@ -262,6 +262,54 @@ const VehicleList: React.FC = () => {
     }
   }
 
+  /**
+   * 获取车辆综合状态标识
+   * 根据review_status和status综合判断显示的状态
+   */
+  const getVehicleStatusBadge = (vehicle: Vehicle): {text: string; color: string; icon: string} => {
+    // 优先判断审核状态
+    if (vehicle.review_status === 'pending' || vehicle.review_status === 'pending_review') {
+      return {
+        text: '审核中',
+        color: 'bg-orange-500',
+        icon: 'i-mdi-clock-outline'
+      }
+    }
+
+    if (vehicle.review_status === 'rejected' || vehicle.review_status === 'need_supplement') {
+      return {
+        text: '需补录',
+        color: 'bg-red-500',
+        icon: 'i-mdi-alert-circle'
+      }
+    }
+
+    // 审核通过后，根据车辆状态判断
+    if (vehicle.review_status === 'approved') {
+      if (vehicle.status === 'returned' || vehicle.status === 'inactive') {
+        return {
+          text: '已停用',
+          color: 'bg-gray-500',
+          icon: 'i-mdi-close-circle'
+        }
+      }
+
+      // 已提车或使用中
+      return {
+        text: '已启用',
+        color: 'bg-green-500',
+        icon: 'i-mdi-check-circle'
+      }
+    }
+
+    // 默认状态
+    return {
+      text: '未知',
+      color: 'bg-gray-400',
+      icon: 'i-mdi-help-circle'
+    }
+  }
+
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
@@ -365,19 +413,14 @@ const VehicleList: React.FC = () => {
                         className="w-full h-full"
                         onError={() => logger.error('车辆照片加载失败', {vehicleId: vehicle.id, photo: vehicle.left_front_photo})}
                       />
-                      {/* 状态标签 */}
+                      {/* 状态标签 - 使用综合状态 */}
                       <View className="absolute top-3 right-3">
                         <View
-                          className={`backdrop-blur rounded-full px-3 py-1 ${
-                            vehicle.status === 'active' ? 'bg-green-500/90' : 'bg-gray-500/90'
-                          }`}>
+                          className={`backdrop-blur rounded-full px-3 py-1 ${getVehicleStatusBadge(vehicle).color}/90`}>
                           <View className="flex items-center">
-                            <View
-                              className={`w-2 h-2 rounded-full mr-1 ${
-                                vehicle.status === 'active' ? 'bg-white' : 'bg-gray-300'
-                              }`}></View>
+                            <View className={`${getVehicleStatusBadge(vehicle).icon} text-white text-sm mr-1`}></View>
                             <Text className="text-white text-xs font-medium">
-                              {vehicle.status === 'active' ? '使用中' : '已停用'}
+                              {getVehicleStatusBadge(vehicle).text}
                             </Text>
                           </View>
                         </View>
@@ -393,13 +436,11 @@ const VehicleList: React.FC = () => {
                         <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1">
                           <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
                         </View>
-                        <View className={`rounded-full px-2 py-0.5 ${getStatusColor(vehicle.status)}`}>
-                          <Text className="text-white text-xs font-medium">{getStatusText(vehicle.status)}</Text>
-                        </View>
-                        {/* 审核状态标签 */}
-                        <View className={`rounded-full px-2 py-0.5 ${getReviewStatusColor(vehicle.review_status)}`}>
+                        {/* 综合状态标签 */}
+                        <View className={`rounded-full px-3 py-1 flex items-center ${getVehicleStatusBadge(vehicle).color}`}>
+                          <View className={`${getVehicleStatusBadge(vehicle).icon} text-white text-sm mr-1`}></View>
                           <Text className="text-white text-xs font-medium">
-                            {getReviewStatusText(vehicle.review_status)}
+                            {getVehicleStatusBadge(vehicle).text}
                           </Text>
                         </View>
                       </View>

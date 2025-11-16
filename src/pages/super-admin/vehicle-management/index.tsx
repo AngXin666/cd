@@ -106,7 +106,7 @@ const VehicleManagement: React.FC = () => {
   }
 
   // 获取状态样式
-  const getStatusStyle = (status: string) => {
+  const _getStatusStyle = (status: string) => {
     switch (status) {
       case 'active':
         return {
@@ -132,6 +132,61 @@ const VehicleManagement: React.FC = () => {
           text: 'text-gray-600',
           label: '未知'
         }
+    }
+  }
+
+  /**
+   * 获取车辆综合状态标识
+   * 根据review_status和status综合判断显示的状态
+   */
+  const getVehicleStatusBadge = (
+    vehicle: VehicleWithDriver
+  ): {text: string; bg: string; textColor: string; icon: string} => {
+    // 优先判断审核状态
+    if (vehicle.review_status === 'pending' || vehicle.review_status === 'pending_review') {
+      return {
+        text: '审核中',
+        bg: 'bg-orange-100',
+        textColor: 'text-orange-600',
+        icon: 'i-mdi-clock-outline'
+      }
+    }
+
+    if (vehicle.review_status === 'rejected' || vehicle.review_status === 'need_supplement') {
+      return {
+        text: '需补录',
+        bg: 'bg-red-100',
+        textColor: 'text-red-600',
+        icon: 'i-mdi-alert-circle'
+      }
+    }
+
+    // 审核通过后，根据车辆状态判断
+    if (vehicle.review_status === 'approved') {
+      if (vehicle.status === 'returned' || vehicle.status === 'inactive') {
+        return {
+          text: '已停用',
+          bg: 'bg-gray-100',
+          textColor: 'text-gray-600',
+          icon: 'i-mdi-close-circle'
+        }
+      }
+
+      // 已提车或使用中
+      return {
+        text: '已启用',
+        bg: 'bg-green-100',
+        textColor: 'text-green-600',
+        icon: 'i-mdi-check-circle'
+      }
+    }
+
+    // 默认状态
+    return {
+      text: '未知',
+      bg: 'bg-gray-100',
+      textColor: 'text-gray-600',
+      icon: 'i-mdi-help-circle'
     }
   }
 
@@ -226,7 +281,7 @@ const VehicleManagement: React.FC = () => {
           ) : (
             <View className="space-y-4">
               {filteredVehicles.map((vehicle) => {
-                const statusStyle = getStatusStyle(vehicle.status)
+                const statusBadge = getVehicleStatusBadge(vehicle)
                 return (
                   <View
                     key={vehicle.id}
@@ -235,10 +290,11 @@ const VehicleManagement: React.FC = () => {
                     {vehicle.left_front_photo && (
                       <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
                         <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
-                        {/* 状态标签 */}
+                        {/* 状态标签 - 使用综合状态 */}
                         <View className="absolute top-3 right-3">
-                          <View className={`backdrop-blur rounded-full px-3 py-1 ${statusStyle.bg}`}>
-                            <Text className={`text-xs font-medium ${statusStyle.text}`}>{statusStyle.label}</Text>
+                          <View className={`backdrop-blur rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
+                            <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
+                            <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
                           </View>
                         </View>
                       </View>
@@ -253,8 +309,9 @@ const VehicleManagement: React.FC = () => {
                             <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
                           </View>
                           {!vehicle.left_front_photo && (
-                            <View className={`rounded-full px-2 py-0.5 ${statusStyle.bg}`}>
-                              <Text className={`text-xs font-medium ${statusStyle.text}`}>{statusStyle.label}</Text>
+                            <View className={`rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
+                              <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
+                              <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
                             </View>
                           )}
                         </View>
