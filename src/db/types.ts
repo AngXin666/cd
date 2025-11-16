@@ -794,6 +794,7 @@ export interface VehicleRecordWithDetails extends VehicleRecord {
   driver_name_profile?: string | null // 司机姓名（从profiles表）
   driver_phone?: string | null // 司机电话
   driver_email?: string | null // 司机邮箱
+  driving_license_photo?: string | null // 驾驶证照片（从driver_licenses表）
 }
 
 // 车辆基本信息（包含所有录入记录）
