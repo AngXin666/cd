@@ -15,15 +15,17 @@ import {createLogger} from '@/utils/logger'
 const logger = createLogger('VehicleHistory')
 
 const VehicleHistory: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  useAuth({guard: true})
   const router = useRouter()
   // 解码车牌号（URL参数可能被编码）
   const plateNumber = router.params.plateNumber ? decodeURIComponent(router.params.plateNumber) : ''
 
   const [vehicle, setVehicle] = useState<VehicleBaseWithRecords | null>(null)
   const [loading, setLoading] = useState(false)
-  // 为每个记录单独管理 activeTab 状态
-  const [recordTabs, setRecordTabs] = useState<Record<string, 'pickup' | 'registration' | 'license' | 'number'>>({})
+  // 为每个记录单独管理 activeTab 状态（添加 personal 个人信息照片）
+  const [recordTabs, setRecordTabs] = useState<
+    Record<string, 'pickup' | 'registration' | 'license' | 'number' | 'personal'>
+  >({})
 
   // 加载车辆历史记录
   const loadVehicleHistory = useCallback(async () => {
@@ -87,7 +89,7 @@ const VehicleHistory: React.FC = () => {
   // 查看录入记录详情
   const handleViewRecord = (record: VehicleRecordWithDetails) => {
     Taro.navigateTo({
-      url: `/pages/super-admin/vehicle-review-detail/index?id=${record.id}`
+      url: `/pages/super-admin/vehicle-review-detail/index?vehicleId=${record.id}`
     })
   }
 
@@ -129,7 +131,7 @@ const VehicleHistory: React.FC = () => {
   }
 
   // 设置记录的 activeTab
-  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'license' | 'number') => {
+  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'license' | 'number' | 'personal') => {
     setRecordTabs((prev) => ({
       ...prev,
       [recordId]: tab
@@ -195,7 +197,9 @@ const VehicleHistory: React.FC = () => {
         : {text: '进行中', bg: 'bg-blue-100', textColor: 'text-blue-600', icon: 'i-mdi-clock-outline'}
 
     return (
-      <View key={`group-${group.cycleNumber}`} className={`bg-white rounded-2xl p-4 mb-4 shadow-sm border-2 ${borderColor}`}>
+      <View
+        key={`group-${group.cycleNumber}`}
+        className={`bg-white rounded-2xl p-4 mb-4 shadow-sm border-2 ${borderColor}`}>
         {/* 使用周期标题 */}
         <View className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
           <View className="flex items-center">
@@ -348,6 +352,17 @@ const VehicleHistory: React.FC = () => {
               车牌特写
             </Text>
           </View>
+          <View
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'personal' ? 'border-b-2 border-primary' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setRecordTab(record.id, 'personal')
+            }}>
+            <Text
+              className={`text-sm ${getRecordTab(record.id) === 'personal' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+              身份证照片
+            </Text>
+          </View>
         </View>
 
         {/* 照片展示区域 - 支持点击放大 */}
@@ -388,6 +403,40 @@ const VehicleHistory: React.FC = () => {
             </View>
           )}
           {getRecordTab(record.id) === 'number' && renderPhotoGrid(record.damage_photos || [], '车牌特写')}
+          {getRecordTab(record.id) === 'personal' && (
+            <View>
+              {record.id_card_photo_front && (
+                <View
+                  className="mb-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const photos = [record.id_card_photo_front, record.id_card_photo_back].filter(Boolean)
+                    handlePreviewImage(record.id_card_photo_front, photos)
+                  }}>
+                  <Text className="text-xs text-gray-500 mb-1 block">身份证正面</Text>
+                  <Image src={record.id_card_photo_front} mode="widthFix" className="w-full rounded-lg" />
+                </View>
+              )}
+              {record.id_card_photo_back && (
+                <View
+                  className="mb-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const photos = [record.id_card_photo_front, record.id_card_photo_back].filter(Boolean)
+                    handlePreviewImage(record.id_card_photo_back, photos)
+                  }}>
+                  <Text className="text-xs text-gray-500 mb-1 block">身份证背面</Text>
+                  <Image src={record.id_card_photo_back} mode="widthFix" className="w-full rounded-lg" />
+                </View>
+              )}
+              {!record.id_card_photo_front && !record.id_card_photo_back && (
+                <View className="flex flex-col items-center justify-center py-10">
+                  <View className="i-mdi-card-account-details-outline text-4xl text-gray-300 mb-2"></View>
+                  <Text className="text-sm text-gray-400">暂无身份证照片</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* 查看详情按钮 */}

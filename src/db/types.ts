@@ -769,6 +769,9 @@ export interface VehicleRecord {
   license_valid_from: string | null
   license_valid_until: string | null
   id_card_number: string | null
+  // 身份证照片
+  id_card_photo_front: string | null
+  id_card_photo_back: string | null
   // 审核管理
   review_status: ReviewStatus
   locked_photos: LockedPhotos
