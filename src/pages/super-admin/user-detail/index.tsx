@@ -26,11 +26,22 @@ const getImageUrl = (path: string | null | undefined): string => {
     return ''
   }
 
+  logger.debug('处理图片路径', {path, pathType: typeof path, pathLength: path.length})
+
+  // 如果已经是完整的URL，直接返回
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    logger.debug('已经是完整URL，直接使用', {path})
+    return path
+  }
+
+  // 否则从storage生成公共URL
   try {
     if (!BUCKET_NAME) {
       logger.error('Supabase bucket 未配置')
       return ''
     }
+
+    logger.debug('从存储桶生成图片URL', {bucketName: BUCKET_NAME, relativePath: path})
 
     const {data} = supabase.storage.from(BUCKET_NAME).getPublicUrl(path)
     if (!data?.publicUrl) {
@@ -38,6 +49,7 @@ const getImageUrl = (path: string | null | undefined): string => {
       return ''
     }
 
+    logger.debug('图片URL生成成功', {path, url: data.publicUrl})
     return data.publicUrl
   } catch (error) {
     logger.error('获取图片URL失败', {error, path})
@@ -54,6 +66,16 @@ const ImageWithFallback: React.FC<{
 }> = ({path, label, className, onPreview}) => {
   const [imageError, setImageError] = useState(false)
   const imageUrl = getImageUrl(path)
+
+  // 记录图片URL生成结果
+  useEffect(() => {
+    logger.debug('ImageWithFallback 渲染', {
+      path,
+      imageUrl,
+      hasUrl: !!imageUrl,
+      imageError
+    })
+  }, [path, imageUrl, imageError])
 
   if (!imageUrl || imageError) {
     return (
@@ -74,9 +96,16 @@ const ImageWithFallback: React.FC<{
         src={imageUrl}
         mode="aspectFit"
         className={className}
-        onError={() => {
-          logger.error('图片加载失败', {path, imageUrl})
+        onError={(e) => {
+          logger.error('图片加载失败', {
+            event: e,
+            originalPath: path,
+            generatedUrl: imageUrl
+          })
           setImageError(true)
+        }}
+        onLoad={() => {
+          logger.debug('图片加载成功', {path, imageUrl})
         }}
       />
       <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
@@ -141,7 +170,18 @@ const UserDetail: React.FC = () => {
           // 加载司机证件信息
           const licenseData = await getDriverLicense(userId)
           setDriverLicense(licenseData)
-          logger.info('司机证件信息加载成功', {userId, hasLicense: !!licenseData})
+          logger.info('司机证件信息加载成功', {
+            userId,
+            hasLicense: !!licenseData,
+            hasIdCardFront: !!licenseData?.id_card_photo_front,
+            hasIdCardBack: !!licenseData?.id_card_photo_back,
+            hasDriverLicense: !!licenseData?.driving_license_photo
+          })
+          logger.debug('证件照片路径详情', {
+            idCardFront: licenseData?.id_card_photo_front,
+            idCardBack: licenseData?.id_card_photo_back,
+            driverLicense: licenseData?.driving_license_photo
+          })
         }
       } else {
         logger.warn('用户不存在', {userId})
