@@ -149,10 +149,29 @@ const UserDetail: React.FC = () => {
 
   // 获取图片公共URL
   const getImageUrl = (path: string | null | undefined): string => {
-    if (!path) return ''
-    const bucket = process.env.TARO_APP_SUPABASE_BUCKET || ''
-    const {data} = supabase.storage.from(bucket).getPublicUrl(path)
-    return data?.publicUrl || ''
+    if (!path) {
+      logger.warn('图片路径为空')
+      return ''
+    }
+
+    try {
+      const bucket = process.env.TARO_APP_SUPABASE_BUCKET
+      if (!bucket) {
+        logger.error('Supabase bucket 未配置')
+        return ''
+      }
+
+      const {data} = supabase.storage.from(bucket).getPublicUrl(path)
+      if (!data?.publicUrl) {
+        logger.warn('无法获取图片公共URL', {path})
+        return ''
+      }
+
+      return data.publicUrl
+    } catch (error) {
+      logger.error('获取图片URL失败', {error, path})
+      return ''
+    }
   }
 
   // 预览图片
@@ -164,10 +183,25 @@ const UserDetail: React.FC = () => {
       })
       return
     }
-    Taro.previewImage({
-      urls: [url],
-      current: url
-    })
+
+    try {
+      Taro.previewImage({
+        urls: [url],
+        current: url
+      }).catch((error) => {
+        logger.error('预览图片失败', {error, url})
+        Taro.showToast({
+          title: '预览图片失败',
+          icon: 'none'
+        })
+      })
+    } catch (error) {
+      logger.error('预览图片异常', {error, url})
+      Taro.showToast({
+        title: '预览图片失败',
+        icon: 'none'
+      })
+    }
   }
 
   if (loading) {
