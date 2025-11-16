@@ -206,6 +206,32 @@ const UserDetail: React.FC = () => {
     }
   }
 
+  // 渲染图片组件（带错误处理）
+  const renderImage = (path: string | null | undefined, label: string, className: string = 'w-full h-40') => {
+    const imageUrl = getImageUrl(path)
+    if (!imageUrl) {
+      return (
+        <View className={`${className} bg-gray-100 rounded-xl flex items-center justify-center`}>
+          <View className="text-center">
+            <View className="i-mdi-image-off text-4xl text-gray-400 mb-2"></View>
+            <Text className="text-xs text-gray-400 block">暂无图片</Text>
+          </View>
+        </View>
+      )
+    }
+
+    return (
+      <View
+        className="relative bg-gray-100 rounded-xl overflow-hidden border-2 border-blue-200 active:scale-95 transition-all"
+        onClick={() => handlePreviewImage(imageUrl)}>
+        <Image src={imageUrl} mode="aspectFit" className={className} onError={() => logger.error('图片加载失败', {path})} />
+        <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+          <Text className="text-white text-xs font-medium text-center block">{label}</Text>
+        </View>
+      </View>
+    )
+  }
+
   if (loading) {
     return (
       <View className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-blue-50 to-blue-100">
@@ -436,40 +462,10 @@ const UserDetail: React.FC = () => {
                   <Text className="text-sm text-gray-600 mb-3 block">身份证照片</Text>
                   <View className="flex gap-3">
                     {/* 身份证正面 */}
-                    {driverLicense.id_card_photo_front && (
-                      <View className="flex-1">
-                        <View
-                          className="relative bg-gray-100 rounded-xl overflow-hidden border-2 border-blue-200 active:scale-95 transition-all"
-                          onClick={() => handlePreviewImage(getImageUrl(driverLicense.id_card_photo_front))}>
-                          <Image
-                            src={getImageUrl(driverLicense.id_card_photo_front)}
-                            mode="aspectFit"
-                            className="w-full h-40"
-                          />
-                          <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                            <Text className="text-white text-xs font-medium text-center block">身份证正面</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
+                    <View className="flex-1">{renderImage(driverLicense?.id_card_photo_front, '身份证正面')}</View>
 
                     {/* 身份证反面 */}
-                    {driverLicense.id_card_photo_back && (
-                      <View className="flex-1">
-                        <View
-                          className="relative bg-gray-100 rounded-xl overflow-hidden border-2 border-blue-200 active:scale-95 transition-all"
-                          onClick={() => handlePreviewImage(getImageUrl(driverLicense.id_card_photo_back))}>
-                          <Image
-                            src={getImageUrl(driverLicense.id_card_photo_back)}
-                            mode="aspectFit"
-                            className="w-full h-40"
-                          />
-                          <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                            <Text className="text-white text-xs font-medium text-center block">身份证反面</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
+                    <View className="flex-1">{renderImage(driverLicense?.id_card_photo_back, '身份证反面')}</View>
                   </View>
                 </View>
               </View>
@@ -566,23 +562,10 @@ const UserDetail: React.FC = () => {
                 )}
 
                 {/* 驾驶证照片 */}
-                {driverLicense.driving_license_photo && (
-                  <View className="mt-4">
-                    <Text className="text-sm text-gray-600 mb-3 block">驾驶证照片</Text>
-                    <View
-                      className="relative bg-gray-100 rounded-xl overflow-hidden border-2 border-orange-200 active:scale-95 transition-all"
-                      onClick={() => handlePreviewImage(getImageUrl(driverLicense.driving_license_photo))}>
-                      <Image
-                        src={getImageUrl(driverLicense.driving_license_photo)}
-                        mode="aspectFit"
-                        className="w-full h-48"
-                      />
-                      <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                        <Text className="text-white text-sm font-medium text-center block">点击查看大图</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
+                <View className="mt-4">
+                  <Text className="text-sm text-gray-600 mb-3 block">驾驶证照片</Text>
+                  {renderImage(driverLicense?.driving_license_photo, '点击查看大图', 'w-full h-48')}
+                </View>
               </View>
             </View>
           )}
