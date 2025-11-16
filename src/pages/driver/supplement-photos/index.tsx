@@ -245,7 +245,13 @@ const SupplementPhotos: React.FC = () => {
             const photos = vehicle[config.field] || []
             const requiredIndices = requiredPhotos
               .filter((key) => key.startsWith(`${config.field}_`))
-              .map((key) => parseInt(key.split('_')[1], 10))
+              .map((key) => {
+                const parts = key.split('_')
+                const indexStr = parts[parts.length - 1] // 获取最后一部分作为索引
+                const index = parseInt(indexStr, 10)
+                return Number.isNaN(index) ? -1 : index // 如果解析失败，返回-1
+              })
+              .filter((index) => index >= 0) // 过滤掉无效的索引
 
             if (requiredIndices.length === 0) return null
 
@@ -266,7 +272,7 @@ const SupplementPhotos: React.FC = () => {
                     const newPhotoPath = newPhotos[photoKey]
 
                     return (
-                      <View key={index} className="border border-red-200 rounded-lg p-3">
+                      <View key={photoKey} className="border border-red-200 rounded-lg p-3">
                         <Text className="text-sm text-gray-700 mb-2">第 {index + 1} 张</Text>
 
                         <View className="flex gap-2">
