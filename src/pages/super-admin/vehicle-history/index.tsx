@@ -1,6 +1,6 @@
 /**
  * 超级管理员 - 车辆历史记录页面
- * 显示单个车辆的所有录入记录，按时间倒序排列
+ * 显示单个车辆的所有录入记录，按记录类型排序（提车在前，还车在后）
  */
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
@@ -22,7 +22,8 @@ const VehicleHistory: React.FC = () => {
 
   const [vehicle, setVehicle] = useState<VehicleBaseWithRecords | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'pickup' | 'registration' | 'license' | 'number'>('pickup')
+  // 为每个记录单独管理 activeTab 状态
+  const [recordTabs, setRecordTabs] = useState<Record<string, 'pickup' | 'registration' | 'license' | 'number'>>({})
 
   // 加载车辆历史记录
   const loadVehicleHistory = useCallback(async () => {
@@ -90,7 +91,15 @@ const VehicleHistory: React.FC = () => {
     })
   }
 
-  // 渲染照片网格
+  // 预览图片
+  const handlePreviewImage = (current: string, urls: string[]) => {
+    Taro.previewImage({
+      current,
+      urls
+    })
+  }
+
+  // 渲染照片网格（支持点击放大）
   const renderPhotoGrid = (photos: string[], title: string) => {
     if (!photos || photos.length === 0) return null
 
@@ -99,13 +108,32 @@ const VehicleHistory: React.FC = () => {
         <Text className="text-sm text-gray-600 mb-2 block">{title}</Text>
         <View className="flex flex-wrap gap-2">
           {photos.map((photo, index) => (
-            <View key={index} className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+            <View
+              key={index}
+              className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                handlePreviewImage(photo, photos)
+              }}>
               <Image src={photo} mode="aspectFill" className="w-full h-full" />
             </View>
           ))}
         </View>
       </View>
     )
+  }
+
+  // 获取或初始化记录的 activeTab
+  const getRecordTab = (recordId: string) => {
+    return recordTabs[recordId] || 'pickup'
+  }
+
+  // 设置记录的 activeTab
+  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'license' | 'number') => {
+    setRecordTabs((prev) => ({
+      ...prev,
+      [recordId]: tab
+    }))
   }
 
   // 渲染单个录入记录
@@ -177,75 +205,92 @@ const VehicleHistory: React.FC = () => {
           </View>
         )}
 
-        {/* Tab切换 */}
+        {/* Tab切换 - 每个记录独立管理 */}
         <View className="flex border-b border-gray-200 mb-3">
           <View
-            className={`flex-1 text-center py-2 ${activeTab === 'pickup' ? 'border-b-2 border-primary' : ''}`}
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'pickup' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              setActiveTab('pickup')
+              setRecordTab(record.id, 'pickup')
             }}>
-            <Text className={`text-sm ${activeTab === 'pickup' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+            <Text
+              className={`text-sm ${getRecordTab(record.id) === 'pickup' ? 'text-primary font-medium' : 'text-gray-600'}`}>
               {recordType === 'return' ? '还车照片' : '提车照片'}
             </Text>
           </View>
           <View
-            className={`flex-1 text-center py-2 ${activeTab === 'registration' ? 'border-b-2 border-primary' : ''}`}
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'registration' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              setActiveTab('registration')
+              setRecordTab(record.id, 'registration')
             }}>
-            <Text className={`text-sm ${activeTab === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+            <Text
+              className={`text-sm ${getRecordTab(record.id) === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
               行驶证照片
             </Text>
           </View>
           <View
-            className={`flex-1 text-center py-2 ${activeTab === 'license' ? 'border-b-2 border-primary' : ''}`}
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'license' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              setActiveTab('license')
+              setRecordTab(record.id, 'license')
             }}>
-            <Text className={`text-sm ${activeTab === 'license' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              行驶证照片
+            <Text
+              className={`text-sm ${getRecordTab(record.id) === 'license' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+              驾驶证照片
             </Text>
           </View>
           <View
-            className={`flex-1 text-center py-2 ${activeTab === 'number' ? 'border-b-2 border-primary' : ''}`}
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'number' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              setActiveTab('number')
+              setRecordTab(record.id, 'number')
             }}>
-            <Text className={`text-sm ${activeTab === 'number' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+            <Text
+              className={`text-sm ${getRecordTab(record.id) === 'number' ? 'text-primary font-medium' : 'text-gray-600'}`}>
               车牌特写
             </Text>
           </View>
         </View>
 
-        {/* 照片展示区域 */}
+        {/* 照片展示区域 - 支持点击放大 */}
         <View onClick={(e) => e.stopPropagation()}>
-          {activeTab === 'pickup' &&
+          {getRecordTab(record.id) === 'pickup' &&
             renderPhotoGrid(
               recordType === 'return' ? record.return_photos || [] : record.pickup_photos || [],
               recordType === 'return' ? '还车照片' : '提车照片'
             )}
-          {activeTab === 'registration' && renderPhotoGrid(record.registration_photos || [], '行驶证照片')}
-          {activeTab === 'license' && (
+          {getRecordTab(record.id) === 'registration' &&
+            renderPhotoGrid(record.registration_photos || [], '行驶证照片')}
+          {getRecordTab(record.id) === 'license' && (
             <View>
               {record.driving_license_main_photo && (
-                <View className="mb-2">
-                  <Text className="text-xs text-gray-500 mb-1 block">行驶证主页</Text>
+                <View
+                  className="mb-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const photos = [record.driving_license_main_photo, record.driving_license_sub_photo].filter(Boolean)
+                    handlePreviewImage(record.driving_license_main_photo, photos)
+                  }}>
+                  <Text className="text-xs text-gray-500 mb-1 block">驾驶证主页</Text>
                   <Image src={record.driving_license_main_photo} mode="widthFix" className="w-full rounded-lg" />
                 </View>
               )}
               {record.driving_license_sub_photo && (
-                <View className="mb-2">
-                  <Text className="text-xs text-gray-500 mb-1 block">行驶证副页</Text>
+                <View
+                  className="mb-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const photos = [record.driving_license_main_photo, record.driving_license_sub_photo].filter(Boolean)
+                    handlePreviewImage(record.driving_license_sub_photo, photos)
+                  }}>
+                  <Text className="text-xs text-gray-500 mb-1 block">驾驶证副页</Text>
                   <Image src={record.driving_license_sub_photo} mode="widthFix" className="w-full rounded-lg" />
                 </View>
               )}
             </View>
           )}
-          {activeTab === 'number' && renderPhotoGrid(record.damage_photos || [], '车牌特写')}
+          {getRecordTab(record.id) === 'number' && renderPhotoGrid(record.damage_photos || [], '车牌特写')}
         </View>
 
         {/* 查看详情按钮 */}
@@ -296,11 +341,23 @@ const VehicleHistory: React.FC = () => {
             </View>
           )}
 
-          {/* 录入记录列表 */}
+          {/* 录入记录列表 - 按记录类型排序（提车在前，还车在后） */}
           {!loading && vehicle && vehicle.records.length > 0 && (
             <View>
-              <Text className="text-sm text-gray-600 mb-3 block">录入记录（按时间倒序）</Text>
-              {vehicle.records.map((record, index) => renderRecord(record, index))}
+              <Text className="text-sm text-gray-600 mb-3 block">录入记录（提车记录在前，还车记录在后）</Text>
+              {vehicle.records
+                .sort((a, b) => {
+                  // 先按记录类型排序：提车记录（return_time 为 null）在前
+                  const aIsPickup = !a.return_time
+                  const bIsPickup = !b.return_time
+                  if (aIsPickup && !bIsPickup) return -1
+                  if (!aIsPickup && bIsPickup) return 1
+                  // 同类型记录按时间倒序排列
+                  const aTime = new Date(a.recorded_at || '').getTime()
+                  const bTime = new Date(b.recorded_at || '').getTime()
+                  return bTime - aTime
+                })
+                .map((record, index) => renderRecord(record, index))}
             </View>
           )}
 
