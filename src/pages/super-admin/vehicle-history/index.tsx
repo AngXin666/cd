@@ -23,7 +23,7 @@ const VehicleHistory: React.FC = () => {
   const [vehicle, setVehicle] = useState<VehicleBaseWithRecords | null>(null)
   const [loading, setLoading] = useState(false)
   // 为每个记录单独管理 activeTab 状态
-  const [recordTabs, setRecordTabs] = useState<Record<string, 'pickup' | 'registration' | 'personal' | 'damage'>>({})
+  const [recordTabs, setRecordTabs] = useState<Record<string, 'pickup' | 'personal' | 'damage'>>({})
 
   // 加载车辆历史记录
   const loadVehicleHistory = useCallback(async () => {
@@ -129,7 +129,7 @@ const VehicleHistory: React.FC = () => {
   }
 
   // 设置记录的 activeTab
-  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'personal' | 'damage') => {
+  const setRecordTab = (recordId: string, tab: 'pickup' | 'personal' | 'damage') => {
     setRecordTabs((prev) => ({
       ...prev,
       [recordId]: tab
@@ -318,17 +318,6 @@ const VehicleHistory: React.FC = () => {
             </Text>
           </View>
           <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'registration' ? 'border-b-2 border-primary' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setRecordTab(record.id, 'registration')
-            }}>
-            <Text
-              className={`text-sm ${getRecordTab(record.id) === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              行驶证照片
-            </Text>
-          </View>
-          <View
             className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'personal' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
@@ -359,11 +348,9 @@ const VehicleHistory: React.FC = () => {
               recordType === 'return' ? record.return_photos || [] : record.pickup_photos || [],
               recordType === 'return' ? '还车照片' : '提车照片'
             )}
-          {getRecordTab(record.id) === 'registration' &&
-            renderPhotoGrid(record.registration_photos || [], '行驶证照片')}
           {getRecordTab(record.id) === 'personal' && (
             <View>
-              {/* 驾驶证照片 */}
+              {/* 行驶证照片 */}
               {record.driving_license_main_photo && (
                 <View
                   className="mb-2"
@@ -372,12 +359,13 @@ const VehicleHistory: React.FC = () => {
                     const photos = [
                       record.driving_license_main_photo,
                       record.driving_license_sub_photo,
+                      ...(record.registration_photos || []),
                       record.id_card_photo_front,
                       record.id_card_photo_back
                     ].filter(Boolean)
                     handlePreviewImage(record.driving_license_main_photo, photos)
                   }}>
-                  <Text className="text-xs text-gray-500 mb-1 block">驾驶证主页</Text>
+                  <Text className="text-xs text-gray-500 mb-1 block">行驶证主页</Text>
                   <Image src={record.driving_license_main_photo} mode="widthFix" className="w-full rounded-lg" />
                 </View>
               )}
@@ -389,15 +377,38 @@ const VehicleHistory: React.FC = () => {
                     const photos = [
                       record.driving_license_main_photo,
                       record.driving_license_sub_photo,
+                      ...(record.registration_photos || []),
                       record.id_card_photo_front,
                       record.id_card_photo_back
                     ].filter(Boolean)
                     handlePreviewImage(record.driving_license_sub_photo, photos)
                   }}>
-                  <Text className="text-xs text-gray-500 mb-1 block">驾驶证副页</Text>
+                  <Text className="text-xs text-gray-500 mb-1 block">行驶证副页</Text>
                   <Image src={record.driving_license_sub_photo} mode="widthFix" className="w-full rounded-lg" />
                 </View>
               )}
+              {/* registration_photos 数组中的行驶证照片 */}
+              {record.registration_photos &&
+                record.registration_photos.length > 0 &&
+                record.registration_photos.map((photo, index) => (
+                  <View
+                    key={index}
+                    className="mb-2"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const photos = [
+                        record.driving_license_main_photo,
+                        record.driving_license_sub_photo,
+                        ...(record.registration_photos || []),
+                        record.id_card_photo_front,
+                        record.id_card_photo_back
+                      ].filter(Boolean)
+                      handlePreviewImage(photo, photos)
+                    }}>
+                    <Text className="text-xs text-gray-500 mb-1 block">行驶证照片 {index + 1}</Text>
+                    <Image src={photo} mode="widthFix" className="w-full rounded-lg" />
+                  </View>
+                ))}
               {/* 身份证照片 */}
               {record.id_card_photo_front && (
                 <View
@@ -407,6 +418,7 @@ const VehicleHistory: React.FC = () => {
                     const photos = [
                       record.driving_license_main_photo,
                       record.driving_license_sub_photo,
+                      ...(record.registration_photos || []),
                       record.id_card_photo_front,
                       record.id_card_photo_back
                     ].filter(Boolean)
@@ -424,6 +436,7 @@ const VehicleHistory: React.FC = () => {
                     const photos = [
                       record.driving_license_main_photo,
                       record.driving_license_sub_photo,
+                      ...(record.registration_photos || []),
                       record.id_card_photo_front,
                       record.id_card_photo_back
                     ].filter(Boolean)
@@ -436,6 +449,7 @@ const VehicleHistory: React.FC = () => {
               {/* 空状态提示 */}
               {!record.driving_license_main_photo &&
                 !record.driving_license_sub_photo &&
+                (!record.registration_photos || record.registration_photos.length === 0) &&
                 !record.id_card_photo_front &&
                 !record.id_card_photo_back && (
                   <View className="flex flex-col items-center justify-center py-10">
