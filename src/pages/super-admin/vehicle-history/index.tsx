@@ -136,33 +136,130 @@ const VehicleHistory: React.FC = () => {
     }))
   }
 
-  // 渲染单个录入记录
-  const renderRecord = (record: VehicleRecordWithDetails, _index: number) => {
-    const statusBadge = getReviewStatusBadge(record.review_status)
+  // 配对提车和还车记录
+  interface RecordGroup {
+    cycleNumber: number // 使用周期编号（第几次使用）
+    pickupRecord: VehicleRecordWithDetails | null // 提车记录
+    returnRecord: VehicleRecordWithDetails | null // 还车记录
+    status: 'completed' | 'in_progress' // 完成状态：已完成（有还车）或进行中（无还车）
+  }
 
-    // 判断记录类型
-    const recordType = record.return_time ? 'return' : 'pickup'
-    const recordTypeLabel = recordType === 'return' ? '还车记录' : '提车记录'
-    const recordTypeIcon = recordType === 'return' ? 'i-mdi-car-arrow-left' : 'i-mdi-car-arrow-right'
-    const recordTypeBg = recordType === 'return' ? 'bg-orange-100' : 'bg-blue-100'
-    const recordTypeText = recordType === 'return' ? 'text-orange-600' : 'text-blue-600'
+  const groupRecords = (records: VehicleRecordWithDetails[]): RecordGroup[] => {
+    // 按时间排序（从早到晚）
+    const sortedRecords = [...records].sort((a, b) => {
+      const aTime = new Date(a.pickup_time || a.recorded_at || '').getTime()
+      const bTime = new Date(b.pickup_time || b.recorded_at || '').getTime()
+      return aTime - bTime
+    })
+
+    // 分离提车和还车记录
+    const pickupRecords = sortedRecords.filter((r) => !r.return_time)
+    const returnRecords = sortedRecords.filter((r) => r.return_time)
+
+    const groups: RecordGroup[] = []
+
+    // 配对逻辑：按时间顺序配对
+    const maxLength = Math.max(pickupRecords.length, returnRecords.length)
+    for (let i = 0; i < maxLength; i++) {
+      const pickupRecord = pickupRecords[i] || null
+      const returnRecord = returnRecords[i] || null
+
+      groups.push({
+        cycleNumber: i + 1,
+        pickupRecord,
+        returnRecord,
+        status: returnRecord ? 'completed' : 'in_progress'
+      })
+    }
+
+    return groups
+  }
+
+  // 渲染使用周期分组
+  const renderRecordGroup = (group: RecordGroup, index: number) => {
+    // 使用不同的边框颜色区分不同的使用周期
+    const borderColors = [
+      'border-blue-300',
+      'border-green-300',
+      'border-purple-300',
+      'border-orange-300',
+      'border-pink-300',
+      'border-indigo-300'
+    ]
+    const borderColor = borderColors[index % borderColors.length]
+
+    // 状态标识
+    const statusBadge =
+      group.status === 'completed'
+        ? {text: '已完成', bg: 'bg-green-100', textColor: 'text-green-600', icon: 'i-mdi-check-circle'}
+        : {text: '进行中', bg: 'bg-blue-100', textColor: 'text-blue-600', icon: 'i-mdi-clock-outline'}
 
     return (
-      <View
-        key={record.id}
-        className="bg-white rounded-2xl p-4 mb-4 shadow-sm active:scale-98 transition-all"
-        onClick={() => handleViewRecord(record)}>
-        {/* 头部：记录类型和状态 */}
-        <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
+      <View key={`group-${group.cycleNumber}`} className={`bg-white rounded-2xl p-4 mb-4 shadow-sm border-2 ${borderColor}`}>
+        {/* 使用周期标题 */}
+        <View className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
           <View className="flex items-center">
-            <View className={`rounded-full px-3 py-1 flex items-center ${recordTypeBg} mr-2`}>
-              <View className={`${recordTypeIcon} text-sm mr-1 ${recordTypeText}`}></View>
-              <Text className={`text-xs font-medium ${recordTypeText}`}>{recordTypeLabel}</Text>
+            <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1 mr-2">
+              <Text className="text-white text-sm font-bold">第 {group.cycleNumber} 次使用</Text>
             </View>
             <View className={`rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
               <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
               <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
             </View>
+          </View>
+        </View>
+
+        {/* 提车记录 */}
+        {group.pickupRecord && (
+          <View className="mb-3">
+            <View className="flex items-center mb-2">
+              <View className="bg-blue-100 rounded px-2 py-1">
+                <Text className="text-blue-600 text-xs font-medium">提车</Text>
+              </View>
+            </View>
+            {renderRecord(group.pickupRecord, index, 'pickup')}
+          </View>
+        )}
+
+        {/* 还车记录 */}
+        {group.returnRecord && (
+          <View>
+            <View className="flex items-center mb-2">
+              <View className="bg-orange-100 rounded px-2 py-1">
+                <Text className="text-orange-600 text-xs font-medium">还车</Text>
+              </View>
+            </View>
+            {renderRecord(group.returnRecord, index, 'return')}
+          </View>
+        )}
+
+        {/* 如果没有还车记录，显示提示 */}
+        {!group.returnRecord && (
+          <View className="bg-blue-50 rounded-lg p-3 mt-3">
+            <View className="flex items-center">
+              <View className="i-mdi-information text-blue-600 text-base mr-2"></View>
+              <Text className="text-xs text-blue-600">该车辆当前正在使用中，尚未还车</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  // 渲染单个录入记录（简化版，用于分组显示）
+  const renderRecord = (record: VehicleRecordWithDetails, _index: number, recordType: 'pickup' | 'return') => {
+    const statusBadge = getReviewStatusBadge(record.review_status)
+
+    return (
+      <View
+        key={record.id}
+        className="bg-gray-50 rounded-xl p-3 active:scale-98 transition-all"
+        onClick={() => handleViewRecord(record)}>
+        {/* 头部：审核状态 */}
+        <View className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+          <View className={`rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
+            <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
+            <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
           </View>
         </View>
 
@@ -341,23 +438,11 @@ const VehicleHistory: React.FC = () => {
             </View>
           )}
 
-          {/* 录入记录列表 - 按记录类型排序（提车在前，还车在后） */}
+          {/* 录入记录列表 - 按使用周期分组显示 */}
           {!loading && vehicle && vehicle.records.length > 0 && (
             <View>
-              <Text className="text-sm text-gray-600 mb-3 block">录入记录（提车记录在前，还车记录在后）</Text>
-              {vehicle.records
-                .sort((a, b) => {
-                  // 先按记录类型排序：提车记录（return_time 为 null）在前
-                  const aIsPickup = !a.return_time
-                  const bIsPickup = !b.return_time
-                  if (aIsPickup && !bIsPickup) return -1
-                  if (!aIsPickup && bIsPickup) return 1
-                  // 同类型记录按时间倒序排列
-                  const aTime = new Date(a.recorded_at || '').getTime()
-                  const bTime = new Date(b.recorded_at || '').getTime()
-                  return bTime - aTime
-                })
-                .map((record, index) => renderRecord(record, index))}
+              <Text className="text-sm text-gray-600 mb-3 block">使用记录（按使用周期分组）</Text>
+              {groupRecords(vehicle.records).map((group, index) => renderRecordGroup(group, index))}
             </View>
           )}
 
