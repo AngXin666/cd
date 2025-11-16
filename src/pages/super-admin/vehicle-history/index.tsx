@@ -22,10 +22,8 @@ const VehicleHistory: React.FC = () => {
 
   const [vehicle, setVehicle] = useState<VehicleBaseWithRecords | null>(null)
   const [loading, setLoading] = useState(false)
-  // 为每个记录单独管理 activeTab 状态（添加 personal 个人信息照片）
-  const [recordTabs, setRecordTabs] = useState<
-    Record<string, 'pickup' | 'registration' | 'license' | 'number' | 'personal'>
-  >({})
+  // 为每个记录单独管理 activeTab 状态
+  const [recordTabs, setRecordTabs] = useState<Record<string, 'pickup' | 'registration' | 'personal' | 'damage'>>({})
 
   // 加载车辆历史记录
   const loadVehicleHistory = useCallback(async () => {
@@ -131,7 +129,7 @@ const VehicleHistory: React.FC = () => {
   }
 
   // 设置记录的 activeTab
-  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'license' | 'number' | 'personal') => {
+  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'personal' | 'damage') => {
     setRecordTabs((prev) => ({
       ...prev,
       [recordId]: tab
@@ -331,28 +329,6 @@ const VehicleHistory: React.FC = () => {
             </Text>
           </View>
           <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'license' ? 'border-b-2 border-primary' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setRecordTab(record.id, 'license')
-            }}>
-            <Text
-              className={`text-sm ${getRecordTab(record.id) === 'license' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              驾驶证照片
-            </Text>
-          </View>
-          <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'number' ? 'border-b-2 border-primary' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setRecordTab(record.id, 'number')
-            }}>
-            <Text
-              className={`text-sm ${getRecordTab(record.id) === 'number' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              车牌特写
-            </Text>
-          </View>
-          <View
             className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'personal' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
@@ -360,7 +336,18 @@ const VehicleHistory: React.FC = () => {
             }}>
             <Text
               className={`text-sm ${getRecordTab(record.id) === 'personal' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              身份证照片
+              个人信息
+            </Text>
+          </View>
+          <View
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'damage' ? 'border-b-2 border-primary' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setRecordTab(record.id, 'damage')
+            }}>
+            <Text
+              className={`text-sm ${getRecordTab(record.id) === 'damage' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+              车损特写
             </Text>
           </View>
         </View>
@@ -374,14 +361,20 @@ const VehicleHistory: React.FC = () => {
             )}
           {getRecordTab(record.id) === 'registration' &&
             renderPhotoGrid(record.registration_photos || [], '行驶证照片')}
-          {getRecordTab(record.id) === 'license' && (
+          {getRecordTab(record.id) === 'personal' && (
             <View>
+              {/* 驾驶证照片 */}
               {record.driving_license_main_photo && (
                 <View
                   className="mb-2"
                   onClick={(e) => {
                     e.stopPropagation()
-                    const photos = [record.driving_license_main_photo, record.driving_license_sub_photo].filter(Boolean)
+                    const photos = [
+                      record.driving_license_main_photo,
+                      record.driving_license_sub_photo,
+                      record.id_card_photo_front,
+                      record.id_card_photo_back
+                    ].filter(Boolean)
                     handlePreviewImage(record.driving_license_main_photo, photos)
                   }}>
                   <Text className="text-xs text-gray-500 mb-1 block">驾驶证主页</Text>
@@ -393,24 +386,30 @@ const VehicleHistory: React.FC = () => {
                   className="mb-2"
                   onClick={(e) => {
                     e.stopPropagation()
-                    const photos = [record.driving_license_main_photo, record.driving_license_sub_photo].filter(Boolean)
+                    const photos = [
+                      record.driving_license_main_photo,
+                      record.driving_license_sub_photo,
+                      record.id_card_photo_front,
+                      record.id_card_photo_back
+                    ].filter(Boolean)
                     handlePreviewImage(record.driving_license_sub_photo, photos)
                   }}>
                   <Text className="text-xs text-gray-500 mb-1 block">驾驶证副页</Text>
                   <Image src={record.driving_license_sub_photo} mode="widthFix" className="w-full rounded-lg" />
                 </View>
               )}
-            </View>
-          )}
-          {getRecordTab(record.id) === 'number' && renderPhotoGrid(record.damage_photos || [], '车牌特写')}
-          {getRecordTab(record.id) === 'personal' && (
-            <View>
+              {/* 身份证照片 */}
               {record.id_card_photo_front && (
                 <View
                   className="mb-2"
                   onClick={(e) => {
                     e.stopPropagation()
-                    const photos = [record.id_card_photo_front, record.id_card_photo_back].filter(Boolean)
+                    const photos = [
+                      record.driving_license_main_photo,
+                      record.driving_license_sub_photo,
+                      record.id_card_photo_front,
+                      record.id_card_photo_back
+                    ].filter(Boolean)
                     handlePreviewImage(record.id_card_photo_front, photos)
                   }}>
                   <Text className="text-xs text-gray-500 mb-1 block">身份证正面</Text>
@@ -422,21 +421,31 @@ const VehicleHistory: React.FC = () => {
                   className="mb-2"
                   onClick={(e) => {
                     e.stopPropagation()
-                    const photos = [record.id_card_photo_front, record.id_card_photo_back].filter(Boolean)
+                    const photos = [
+                      record.driving_license_main_photo,
+                      record.driving_license_sub_photo,
+                      record.id_card_photo_front,
+                      record.id_card_photo_back
+                    ].filter(Boolean)
                     handlePreviewImage(record.id_card_photo_back, photos)
                   }}>
                   <Text className="text-xs text-gray-500 mb-1 block">身份证背面</Text>
                   <Image src={record.id_card_photo_back} mode="widthFix" className="w-full rounded-lg" />
                 </View>
               )}
-              {!record.id_card_photo_front && !record.id_card_photo_back && (
-                <View className="flex flex-col items-center justify-center py-10">
-                  <View className="i-mdi-card-account-details-outline text-4xl text-gray-300 mb-2"></View>
-                  <Text className="text-sm text-gray-400">暂无身份证照片</Text>
-                </View>
-              )}
+              {/* 空状态提示 */}
+              {!record.driving_license_main_photo &&
+                !record.driving_license_sub_photo &&
+                !record.id_card_photo_front &&
+                !record.id_card_photo_back && (
+                  <View className="flex flex-col items-center justify-center py-10">
+                    <View className="i-mdi-card-account-details-outline text-4xl text-gray-300 mb-2"></View>
+                    <Text className="text-sm text-gray-400">暂无个人信息照片</Text>
+                  </View>
+                )}
             </View>
           )}
+          {getRecordTab(record.id) === 'damage' && renderPhotoGrid(record.damage_photos || [], '车损特写')}
         </View>
 
         {/* 查看详情按钮 */}
