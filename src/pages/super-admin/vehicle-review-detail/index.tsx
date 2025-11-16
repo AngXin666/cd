@@ -10,6 +10,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
 import {approveVehicle, getVehicleById, lockPhoto, markPhotoForDeletion, requireSupplement, unlockPhoto} from '@/db/api'
 import type {LockedPhotos, Vehicle} from '@/db/types'
 import {createLogger} from '@/utils/logger'
@@ -381,8 +382,27 @@ const VehicleReviewDetail: React.FC = () => {
                     const required = isPhotoRequired(config.field, index)
                     const imageUrl = getImageUrl(photo)
 
+                    // 获取照片位置配置
+                    let positionConfig
+                    if (config.field === 'pickup_photos' || config.field === 'return_photos') {
+                      positionConfig = getVehiclePhotoConfigByIndex(index)
+                    } else if (config.field === 'registration_photos') {
+                      positionConfig = getRegistrationPhotoConfigByIndex(index)
+                    }
+
                     return (
                       <View key={index} className="relative">
+                        {/* 照片位置标注 */}
+                        {positionConfig && (
+                          <View className="mb-2 bg-blue-50 rounded-lg p-2">
+                            <View className="flex items-center mb-1">
+                              <View className={`${positionConfig.icon} text-base text-blue-600 mr-1`}></View>
+                              <Text className="text-sm font-bold text-blue-900">{positionConfig.title}</Text>
+                            </View>
+                            <Text className="text-xs text-blue-700">{positionConfig.description}</Text>
+                          </View>
+                        )}
+
                         {/* 图片 */}
                         <View
                           className="relative w-full h-40 rounded-lg overflow-hidden bg-gray-100"
