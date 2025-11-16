@@ -16,6 +16,9 @@ import {createLogger} from '@/utils/logger'
 // 创建页面日志记录器
 const logger = createLogger('SuperAdminUserDetail')
 
+// Supabase Storage Bucket 名称
+const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
+
 const UserDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()
@@ -155,13 +158,12 @@ const UserDetail: React.FC = () => {
     }
 
     try {
-      const bucket = process.env.TARO_APP_SUPABASE_BUCKET
-      if (!bucket) {
+      if (!BUCKET_NAME) {
         logger.error('Supabase bucket 未配置')
         return ''
       }
 
-      const {data} = supabase.storage.from(bucket).getPublicUrl(path)
+      const {data} = supabase.storage.from(BUCKET_NAME).getPublicUrl(path)
       if (!data?.publicUrl) {
         logger.warn('无法获取图片公共URL', {path})
         return ''
