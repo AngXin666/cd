@@ -189,8 +189,12 @@ const VehicleList: React.FC = () => {
     // 如果没有车辆，显示按钮
     if (vehicles.length === 0) return true
     
-    // 如果有任何车辆处于"已提车未还车"状态，隐藏按钮
-    const hasPickedUpVehicle = vehicles.some(v => v.status === 'picked_up')
+    // 如果有任何车辆处于"已提车未还车"状态（active 且未还车），隐藏按钮
+    const hasPickedUpVehicle = vehicles.some(v => 
+      v.status === 'active' && 
+      v.review_status === 'approved' && 
+      !v.return_time
+    )
     return !hasPickedUpVehicle
   }
 
@@ -525,7 +529,7 @@ const VehicleList: React.FC = () => {
                       ) : (
                         <>
                           <Button
-                            className={`${vehicle.status === 'picked_up' && !isManagerView && vehicle.review_status === 'approved' ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
+                            className={`${vehicle.status === 'active' && !vehicle.return_time && !isManagerView && vehicle.review_status === 'approved' ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
                             size="default"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -537,7 +541,8 @@ const VehicleList: React.FC = () => {
                             </View>
                           </Button>
                           {/* 还车按钮 - 仅在已提车未还车、审核通过且非管理员视图时显示 */}
-                          {vehicle.status === 'picked_up' &&
+                          {vehicle.status === 'active' &&
+                            !vehicle.return_time &&
                             !isManagerView &&
                             vehicle.review_status === 'approved' && (
                               <Button
