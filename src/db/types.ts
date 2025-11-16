@@ -701,3 +701,168 @@ export interface VehicleWithDriver extends Vehicle {
   driver_phone?: string | null
   driver_email?: string | null
 }
+
+// ============================================
+// 新的车辆记录系统类型定义
+// ============================================
+
+// 车辆基本信息（vehicles_base表）
+export interface VehicleBase {
+  id: string
+  plate_number: string // 车牌号（唯一）
+  brand: string // 品牌
+  model: string // 型号
+  color: string | null // 颜色
+  vin: string | null // 车辆识别代号
+  vehicle_type: string | null // 车辆类型
+  owner_name: string | null // 所有人
+  use_character: string | null // 使用性质
+  register_date: string | null // 注册日期
+  engine_number: string | null // 发动机号码
+  created_at: string
+  updated_at: string
+}
+
+// 车辆录入记录（vehicle_records表）
+export interface VehicleRecord {
+  id: string
+  vehicle_id: string // 关联vehicles_base表
+  plate_number: string // 车牌号（冗余字段）
+  driver_id: string // 司机ID
+  warehouse_id: string | null // 仓库ID
+  record_type: 'pickup' | 'return' // 记录类型
+  // 行驶证信息
+  issue_date: string | null
+  archive_number: string | null
+  total_mass: number | null
+  approved_passengers: number | null
+  curb_weight: number | null
+  approved_load: number | null
+  overall_dimension_length: number | null
+  overall_dimension_width: number | null
+  overall_dimension_height: number | null
+  inspection_valid_until: string | null
+  inspection_date: string | null
+  mandatory_scrap_date: string | null
+  // 车辆照片
+  left_front_photo: string | null
+  right_front_photo: string | null
+  left_rear_photo: string | null
+  right_rear_photo: string | null
+  dashboard_photo: string | null
+  rear_door_photo: string | null
+  cargo_box_photo: string | null
+  // 行驶证照片
+  driving_license_main_photo: string | null
+  driving_license_sub_photo: string | null
+  driving_license_sub_back_photo: string | null
+  // 提车/还车照片
+  pickup_photos: string[]
+  return_photos: string[]
+  registration_photos: string[]
+  damage_photos: string[]
+  // 驾驶证信息
+  driver_name: string | null
+  license_number: string | null
+  license_class: string | null
+  first_issue_date: string | null
+  license_valid_from: string | null
+  license_valid_until: string | null
+  id_card_number: string | null
+  // 审核管理
+  review_status: ReviewStatus
+  locked_photos: LockedPhotos
+  required_photos: string[]
+  review_notes: string | null
+  reviewed_at: string | null
+  reviewed_by: string | null
+  // 时间字段
+  pickup_time: string | null
+  return_time: string | null
+  recorded_at: string // 录入时间
+  created_at: string
+  updated_at: string
+  notes: string | null
+}
+
+// 车辆录入记录（包含车辆基本信息和司机信息）
+export interface VehicleRecordWithDetails extends VehicleRecord {
+  vehicle?: VehicleBase // 车辆基本信息
+  driver_name_profile?: string | null // 司机姓名（从profiles表）
+  driver_phone?: string | null // 司机电话
+  driver_email?: string | null // 司机邮箱
+}
+
+// 车辆基本信息（包含所有录入记录）
+export interface VehicleBaseWithRecords extends VehicleBase {
+  records: VehicleRecordWithDetails[] // 所有录入记录，按时间倒序
+  latest_record?: VehicleRecordWithDetails // 最新的录入记录
+  total_records: number // 总记录数
+}
+
+// 车辆录入记录输入类型
+export interface VehicleRecordInput {
+  vehicle_id?: string // 如果已存在车辆，传入vehicle_id
+  plate_number: string // 车牌号（必填，用于自动归类）
+  driver_id: string
+  warehouse_id?: string | null
+  record_type?: 'pickup' | 'return'
+  // 行驶证信息
+  issue_date?: string | null
+  archive_number?: string | null
+  total_mass?: number | null
+  approved_passengers?: number | null
+  curb_weight?: number | null
+  approved_load?: number | null
+  overall_dimension_length?: number | null
+  overall_dimension_width?: number | null
+  overall_dimension_height?: number | null
+  inspection_valid_until?: string | null
+  inspection_date?: string | null
+  mandatory_scrap_date?: string | null
+  // 车辆照片
+  left_front_photo?: string | null
+  right_front_photo?: string | null
+  left_rear_photo?: string | null
+  right_rear_photo?: string | null
+  dashboard_photo?: string | null
+  rear_door_photo?: string | null
+  cargo_box_photo?: string | null
+  // 行驶证照片
+  driving_license_main_photo?: string | null
+  driving_license_sub_photo?: string | null
+  driving_license_sub_back_photo?: string | null
+  // 提车/还车照片
+  pickup_photos?: string[]
+  return_photos?: string[]
+  registration_photos?: string[]
+  damage_photos?: string[]
+  // 驾驶证信息
+  driver_name?: string | null
+  license_number?: string | null
+  license_class?: string | null
+  first_issue_date?: string | null
+  license_valid_from?: string | null
+  license_valid_until?: string | null
+  id_card_number?: string | null
+  // 审核管理
+  review_status?: ReviewStatus
+  locked_photos?: LockedPhotos
+  required_photos?: string[]
+  review_notes?: string | null
+  // 时间字段
+  pickup_time?: string | null
+  return_time?: string | null
+  recorded_at?: string
+  notes?: string | null
+  // 车辆基本信息（用于创建新车辆）
+  brand?: string
+  model?: string
+  color?: string | null
+  vin?: string | null
+  vehicle_type?: string | null
+  owner_name?: string | null
+  use_character?: string | null
+  register_date?: string | null
+  engine_number?: string | null
+}

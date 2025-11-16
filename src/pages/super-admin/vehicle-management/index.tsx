@@ -105,6 +105,13 @@ const VehicleManagement: React.FC = () => {
     })
   }
 
+  // 查看车辆历史记录
+  const handleViewHistory = (plateNumber: string) => {
+    Taro.navigateTo({
+      url: `/pages/super-admin/vehicle-history/index?plateNumber=${encodeURIComponent(plateNumber)}`
+    })
+  }
+
   // 获取状态样式
   const _getStatusStyle = (status: string) => {
     switch (status) {
@@ -378,25 +385,37 @@ const VehicleManagement: React.FC = () => {
                       </View>
 
                       {/* 操作按钮 */}
-                      <View className="flex gap-2">
-                        <View
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
-                          onClick={() => handleViewDetail(vehicle.id)}>
-                          <View className="flex items-center justify-center">
-                            <View className="i-mdi-eye text-base text-white mr-1"></View>
-                            <Text className="text-white text-sm font-medium">查看详情</Text>
-                          </View>
-                        </View>
-                        {vehicle.driver_id && (
+                      <View className="flex flex-col gap-2">
+                        {/* 第一行：查看详情和查看司机 */}
+                        <View className="flex gap-2">
                           <View
-                            className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
-                            onClick={() => handleViewDriver(vehicle.driver_id!)}>
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
+                            onClick={() => handleViewDetail(vehicle.id)}>
                             <View className="flex items-center justify-center">
-                              <View className="i-mdi-account text-base text-white mr-1"></View>
-                              <Text className="text-white text-sm font-medium">查看司机</Text>
+                              <View className="i-mdi-eye text-base text-white mr-1"></View>
+                              <Text className="text-white text-sm font-medium">查看详情</Text>
                             </View>
                           </View>
-                        )}
+                          {vehicle.driver_id && (
+                            <View
+                              className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleViewDriver(vehicle.driver_id!)}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-account text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">查看司机</Text>
+                              </View>
+                            </View>
+                          )}
+                        </View>
+                        {/* 第二行：查看历史记录 */}
+                        <View
+                          className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-95 transition-all"
+                          onClick={() => handleViewHistory(vehicle.plate_number)}>
+                          <View className="flex items-center justify-center">
+                            <View className="i-mdi-history text-base text-white mr-1"></View>
+                            <Text className="text-white text-sm font-medium">查看历史记录</Text>
+                          </View>
+                        </View>
                       </View>
                     </View>
                   </View>
