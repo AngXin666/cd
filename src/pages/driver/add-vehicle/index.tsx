@@ -7,11 +7,12 @@ import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useEffect, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import StepIndicator from '@/components/StepIndicator'
 import {insertVehicle, upsertDriverLicense} from '@/db/api'
 import type {DriverLicenseInput, VehicleInput} from '@/db/types'
+import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardFront} from '@/utils/ocrUtils'
 
@@ -135,6 +136,147 @@ const AddVehicle: React.FC = () => {
 
   // 车损特写照片（多张）
   const [damagePhotos, setDamagePhotos] = useState<{path: string; size: number}[]>([])
+
+  // 恢复草稿
+  useEffect(() => {
+    if (!user?.id) return
+
+    const loadDraft = async () => {
+      try {
+        const draft = await getDraft('add', user.id)
+        if (draft) {
+          // 询问用户是否恢复草稿
+          Taro.showModal({
+            title: '发现未完成的录入',
+            content: `上次保存时间：${draft.saved_at ? new Date(draft.saved_at).toLocaleString('zh-CN') : '未知'}\n是否继续录入？`,
+            confirmText: '继续录入',
+            cancelText: '重新开始',
+            success: (res) => {
+              if (res.confirm) {
+                // 恢复草稿数据
+                if (draft.plate_number) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    plate_number: draft.plate_number,
+                    brand: draft.brand,
+                    model: draft.model,
+                    color: draft.color,
+                    vin: draft.vin,
+                    engine_number: draft.engine_number,
+                    register_date: draft.register_date
+                  }))
+                }
+
+                if (draft.registration_front_photo || draft.registration_back_photo) {
+                  setPhotos((prev) => ({
+                    ...prev,
+                    driving_license_main: draft.registration_front_photo || '',
+                    driving_license_sub: draft.registration_back_photo || ''
+                  }))
+                }
+
+                if (draft.vehicle_photos && draft.vehicle_photos.length > 0) {
+                  setPhotos((prev) => ({
+                    ...prev,
+                    left_front: draft.vehicle_photos?.[0] || '',
+                    right_front: draft.vehicle_photos?.[1] || '',
+                    left_rear: draft.vehicle_photos?.[2] || '',
+                    right_rear: draft.vehicle_photos?.[3] || '',
+                    dashboard: draft.vehicle_photos?.[4] || '',
+                    rear_door: draft.vehicle_photos?.[5] || '',
+                    cargo_box: draft.vehicle_photos?.[6] || ''
+                  }))
+                }
+
+                if (draft.damage_photos && draft.damage_photos.length > 0) {
+                  setDamagePhotos(draft.damage_photos.map((path) => ({path, size: 0})))
+                }
+
+                if (draft.driver_name) {
+                  setDriverLicenseData((prev) => ({
+                    ...prev,
+                    id_card_name: draft.driver_name,
+                    id_card_number: draft.driver_id_number,
+                    license_number: draft.driver_license_number,
+                    license_class: draft.driver_license_class,
+                    valid_from: draft.driver_license_valid_from,
+                    valid_to: draft.driver_license_valid_until
+                  }))
+                }
+
+                if (draft.id_card_front_photo || draft.driver_license_photo) {
+                  setDriverPhotos((prev) => ({
+                    ...prev,
+                    id_card_front: draft.id_card_front_photo || '',
+                    driver_license: draft.driver_license_photo || ''
+                  }))
+                }
+
+                Taro.showToast({
+                  title: '草稿已恢复',
+                  icon: 'success'
+                })
+              } else {
+                // 删除草稿
+                deleteDraft('add', user.id)
+              }
+            }
+          })
+        }
+      } catch (error) {
+        console.error('恢复草稿失败:', error)
+      }
+    }
+
+    loadDraft()
+  }, [user?.id])
+
+  // 自动保存草稿
+  const saveCurrentDraft = useCallback(async () => {
+    if (!user?.id) return
+
+    const draft: VehicleDraft = {
+      plate_number: formData.plate_number,
+      brand: formData.brand,
+      model: formData.model,
+      color: formData.color,
+      vin: formData.vin,
+      engine_number: formData.engine_number,
+      register_date: formData.register_date,
+      registration_front_photo: photos.driving_license_main,
+      registration_back_photo: photos.driving_license_sub,
+      vehicle_photos: [
+        photos.left_front,
+        photos.right_front,
+        photos.left_rear,
+        photos.right_rear,
+        photos.dashboard,
+        photos.rear_door,
+        photos.cargo_box
+      ],
+      damage_photos: damagePhotos.map((p) => p.path),
+      driver_name: driverLicenseData.id_card_name,
+      driver_id_number: driverLicenseData.id_card_number,
+      driver_license_number: driverLicenseData.license_number,
+      driver_license_class: driverLicenseData.license_class,
+      driver_license_valid_from: driverLicenseData.valid_from,
+      driver_license_valid_until: driverLicenseData.valid_to,
+      id_card_front_photo: driverPhotos.id_card_front,
+      driver_license_photo: driverPhotos.driver_license
+    }
+
+    await saveDraft('add', user.id, draft)
+  }, [user?.id, formData, photos, damagePhotos, driverLicenseData, driverPhotos])
+
+  // 监听数据变化，自动保存草稿
+  useEffect(() => {
+    // 防抖保存
+    const timer = setTimeout(() => {
+      saveCurrentDraft()
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [saveCurrentDraft])
 
   // 识别行驶证主页
   const handleRecognizeDrivingLicenseMain = async () => {
@@ -861,6 +1003,11 @@ const AddVehicle: React.FC = () => {
         title: submitForReview ? '提交审核成功' : '保存成功',
         icon: 'success'
       })
+
+      // 删除草稿
+      if (user?.id) {
+        await deleteDraft('add', user.id)
+      }
 
       // 延迟返回
       setTimeout(() => {

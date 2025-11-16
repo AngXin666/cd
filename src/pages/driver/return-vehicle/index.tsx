@@ -12,10 +12,11 @@ import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import {getVehicleById, returnVehicle, updateVehicle} from '@/db/api'
 import type {Vehicle} from '@/db/types'
+import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
 
@@ -38,6 +39,7 @@ const ReturnVehicle: React.FC = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [vehicleId, setVehicleId] = useState<string>('')
 
   // 7张车辆照片（与提车相同）
   const [vehiclePhotos, setVehiclePhotos] = useState({
@@ -53,9 +55,92 @@ const ReturnVehicle: React.FC = () => {
   // 车损特写照片（多张）
   const [damagePhotos, setDamagePhotos] = useState<{path: string; size: number}[]>([])
 
+  // 恢复草稿
+  useEffect(() => {
+    if (!user?.id || !vehicleId) return
+
+    const loadDraft = async () => {
+      try {
+        const draft = await getDraft('return', `${user.id}_${vehicleId}`)
+        if (draft) {
+          // 询问用户是否恢复草稿
+          Taro.showModal({
+            title: '发现未完成的还车录入',
+            content: `上次保存时间：${draft.saved_at ? new Date(draft.saved_at).toLocaleString('zh-CN') : '未知'}\n是否继续录入？`,
+            confirmText: '继续录入',
+            cancelText: '重新开始',
+            success: (res) => {
+              if (res.confirm) {
+                // 恢复草稿数据
+                if (draft.vehicle_photos && draft.vehicle_photos.length > 0) {
+                  setVehiclePhotos({
+                    left_front: draft.vehicle_photos[0] || '',
+                    right_front: draft.vehicle_photos[1] || '',
+                    left_rear: draft.vehicle_photos[2] || '',
+                    right_rear: draft.vehicle_photos[3] || '',
+                    dashboard: draft.vehicle_photos[4] || '',
+                    rear_door: draft.vehicle_photos[5] || '',
+                    cargo_box: draft.vehicle_photos[6] || ''
+                  })
+                }
+
+                if (draft.damage_photos && draft.damage_photos.length > 0) {
+                  setDamagePhotos(draft.damage_photos.map((path) => ({path, size: 0})))
+                }
+
+                Taro.showToast({
+                  title: '草稿已恢复',
+                  icon: 'success'
+                })
+              } else {
+                // 删除草稿
+                deleteDraft('return', `${user.id}_${vehicleId}`)
+              }
+            }
+          })
+        }
+      } catch (error) {
+        console.error('恢复草稿失败:', error)
+      }
+    }
+
+    loadDraft()
+  }, [user?.id, vehicleId])
+
+  // 自动保存草稿
+  const saveCurrentDraft = useCallback(async () => {
+    if (!user?.id || !vehicleId) return
+
+    const draft: VehicleDraft = {
+      vehicle_photos: [
+        vehiclePhotos.left_front,
+        vehiclePhotos.right_front,
+        vehiclePhotos.left_rear,
+        vehiclePhotos.right_rear,
+        vehiclePhotos.dashboard,
+        vehiclePhotos.rear_door,
+        vehiclePhotos.cargo_box
+      ],
+      damage_photos: damagePhotos.map((p) => p.path)
+    }
+
+    await saveDraft('return', `${user.id}_${vehicleId}`, draft)
+  }, [user?.id, vehicleId, vehiclePhotos, damagePhotos])
+
+  // 监听数据变化，自动保存草稿
+  useEffect(() => {
+    // 防抖保存
+    const timer = setTimeout(() => {
+      saveCurrentDraft()
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [saveCurrentDraft])
+
   useLoad((options) => {
     const {id} = options
     if (id) {
+      setVehicleId(id)
       loadVehicleInfo(id)
     } else {
       Taro.showToast({
@@ -220,6 +305,12 @@ const ReturnVehicle: React.FC = () => {
           icon: 'success'
         })
         logger.info('还车成功', {vehicleId: vehicle.id})
+
+        // 删除草稿
+        if (user?.id && vehicleId) {
+          await deleteDraft('return', `${user.id}_${vehicleId}`)
+        }
+
         setTimeout(() => {
           Taro.navigateBack()
         }, 1500)
