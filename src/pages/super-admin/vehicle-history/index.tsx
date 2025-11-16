@@ -111,33 +111,70 @@ const VehicleHistory: React.FC = () => {
   const renderRecord = (record: VehicleRecordWithDetails, _index: number) => {
     const statusBadge = getReviewStatusBadge(record.review_status)
 
+    // 判断记录类型
+    const recordType = record.return_time ? 'return' : 'pickup'
+    const recordTypeLabel = recordType === 'return' ? '还车记录' : '提车记录'
+    const recordTypeIcon = recordType === 'return' ? 'i-mdi-car-arrow-left' : 'i-mdi-car-arrow-right'
+    const recordTypeBg = recordType === 'return' ? 'bg-orange-100' : 'bg-blue-100'
+    const recordTypeText = recordType === 'return' ? 'text-orange-600' : 'text-blue-600'
+
     return (
       <View
         key={record.id}
         className="bg-white rounded-2xl p-4 mb-4 shadow-sm active:scale-98 transition-all"
         onClick={() => handleViewRecord(record)}>
-        {/* 头部：时间和状态 */}
+        {/* 头部：记录类型和状态 */}
         <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
           <View className="flex items-center">
-            <View className="i-mdi-clock-outline text-primary text-lg mr-2"></View>
-            <Text className="text-sm text-gray-600">提车录入于 {formatDateTime(record.recorded_at)}</Text>
+            <View className={`rounded-full px-3 py-1 flex items-center ${recordTypeBg} mr-2`}>
+              <View className={`${recordTypeIcon} text-sm mr-1 ${recordTypeText}`}></View>
+              <Text className={`text-xs font-medium ${recordTypeText}`}>{recordTypeLabel}</Text>
+            </View>
+            <View className={`rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
+              <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
+              <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
+            </View>
           </View>
-          <View className={`rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
-            <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
-            <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
+        </View>
+
+        {/* 时间信息 */}
+        <View className="mb-3">
+          <View className="flex items-center mb-2">
+            <View className="i-mdi-clock-outline text-primary text-base mr-2"></View>
+            <Text className="text-sm text-gray-600">
+              {recordType === 'return' ? '还车时间' : '提车时间'}：
+              {formatDateTime(recordType === 'return' ? record.return_time : record.pickup_time)}
+            </Text>
+          </View>
+          <View className="flex items-center ml-6">
+            <Text className="text-xs text-gray-500">录入时间：{formatDateTime(record.recorded_at)}</Text>
           </View>
         </View>
 
         {/* 司机信息 */}
         <View className="mb-3">
           <View className="flex items-center mb-2">
-            <View className="i-mdi-account text-primary text-lg mr-2"></View>
+            <View className="i-mdi-account text-primary text-base mr-2"></View>
             <Text className="text-sm font-medium text-gray-800">
-              司机：{record.driver_name || record.driver_name_profile || '未知'}
+              操作司机：{record.driver_name || record.driver_name_profile || '未知'}
             </Text>
           </View>
-          {record.driver_phone && <Text className="text-xs text-gray-500 ml-6">电话：{record.driver_phone}</Text>}
+          {record.driver_phone && <Text className="text-xs text-gray-500 ml-6">联系电话：{record.driver_phone}</Text>}
         </View>
+
+        {/* 审核信息（如果有） */}
+        {record.reviewed_at && (
+          <View className="mb-3 bg-gray-50 rounded-lg p-2">
+            <View className="flex items-center mb-1">
+              <View className="i-mdi-account-check text-green-600 text-base mr-2"></View>
+              <Text className="text-xs text-gray-600">已审核</Text>
+            </View>
+            <Text className="text-xs text-gray-500 ml-6">审核时间：{formatDateTime(record.reviewed_at)}</Text>
+            {record.review_notes && (
+              <Text className="text-xs text-gray-600 ml-6 mt-1">审核备注：{record.review_notes}</Text>
+            )}
+          </View>
+        )}
 
         {/* Tab切换 */}
         <View className="flex border-b border-gray-200 mb-3">
@@ -148,7 +185,7 @@ const VehicleHistory: React.FC = () => {
               setActiveTab('pickup')
             }}>
             <Text className={`text-sm ${activeTab === 'pickup' ? 'text-primary font-medium' : 'text-gray-600'}`}>
-              提车照片
+              {recordType === 'return' ? '还车照片' : '提车照片'}
             </Text>
           </View>
           <View
@@ -185,7 +222,11 @@ const VehicleHistory: React.FC = () => {
 
         {/* 照片展示区域 */}
         <View onClick={(e) => e.stopPropagation()}>
-          {activeTab === 'pickup' && renderPhotoGrid(record.pickup_photos || [], '提车照片')}
+          {activeTab === 'pickup' &&
+            renderPhotoGrid(
+              recordType === 'return' ? record.return_photos || [] : record.pickup_photos || [],
+              recordType === 'return' ? '还车照片' : '提车照片'
+            )}
           {activeTab === 'registration' && renderPhotoGrid(record.registration_photos || [], '行驶证照片')}
           {activeTab === 'license' && (
             <View>

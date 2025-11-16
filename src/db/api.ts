@@ -4054,13 +4054,15 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
 export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
   logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
   try {
-    logger.info('开始查询所有车辆及司机信息')
+    logger.info('开始查询所有车辆及司机信息（仅最新记录）')
 
-    // 第一步：获取所有车辆
+    // 第一步：获取每辆车的最新记录
+    // 使用 DISTINCT ON 获取每个车牌号的最新记录
     const {data: vehiclesData, error: vehiclesError} = await supabase
       .from('vehicles')
       .select('*')
-      .order('created_at', {ascending: false})
+      .order('plate_number', {ascending: true})
+      .order('pickup_time', {ascending: false})
 
     if (vehiclesError) {
       logger.error('获取所有车辆失败', {
@@ -4077,8 +4079,17 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       return []
     }
 
-    // 第二步：获取所有相关的司机信息
-    const userIds = vehiclesData.map((v: any) => v.user_id).filter(Boolean)
+    // 第二步：按车牌号去重，只保留每辆车的最新记录
+    const latestVehiclesMap = new Map()
+    vehiclesData.forEach((vehicle: any) => {
+      if (!latestVehiclesMap.has(vehicle.plate_number)) {
+        latestVehiclesMap.set(vehicle.plate_number, vehicle)
+      }
+    })
+    const latestVehicles = Array.from(latestVehiclesMap.values())
+
+    // 第三步：获取所有相关的司机信息
+    const userIds = latestVehicles.map((v: any) => v.user_id).filter(Boolean)
     const {data: profilesData, error: profilesError} = await supabase
       .from('profiles')
       .select('id, name, phone, email')
@@ -4089,7 +4100,7 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       // 即使获取司机信息失败，也返回车辆数据（只是没有司机信息）
     }
 
-    // 第三步：创建司机信息映射
+    // 第四步：创建司机信息映射
     const profilesMap = new Map()
     if (profilesData) {
       profilesData.forEach((profile: any) => {
@@ -4097,8 +4108,8 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       })
     }
 
-    // 第四步：合并数据
-    const vehicles: VehicleWithDriver[] = vehiclesData.map((item: any) => {
+    // 第五步：合并数据
+    const vehicles: VehicleWithDriver[] = latestVehicles.map((item: any) => {
       const profile = profilesMap.get(item.user_id)
       return {
         ...item,
@@ -4109,7 +4120,7 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       }
     })
 
-    logger.info(`成功获取所有车辆列表，共 ${vehicles.length} 辆`, {
+    logger.info(`成功获取所有车辆列表（仅最新记录），共 ${vehicles.length} 辆`, {
       count: vehicles.length,
       withDriver: vehicles.filter((v) => v.driver_id).length,
       withoutDriver: vehicles.filter((v) => !v.driver_id).length
