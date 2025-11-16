@@ -18,7 +18,7 @@ const logger = createLogger('VehicleReviewDetail')
 
 // 图片字段配置
 interface PhotoFieldConfig {
-  field: 'pickup_photos' | 'return_photos' | 'registration_photos'
+  field: 'pickup_photos' | 'return_photos' | 'registration_photos' | 'damage_photos'
   label: string
   icon: string
 }
@@ -26,7 +26,8 @@ interface PhotoFieldConfig {
 const PHOTO_FIELDS: PhotoFieldConfig[] = [
   {field: 'pickup_photos', label: '提车照片', icon: 'i-mdi-car'},
   {field: 'return_photos', label: '还车照片', icon: 'i-mdi-car-arrow-left'},
-  {field: 'registration_photos', label: '行驶证照片', icon: 'i-mdi-card-account-details'}
+  {field: 'registration_photos', label: '行驶证照片', icon: 'i-mdi-card-account-details'},
+  {field: 'damage_photos', label: '车损特写', icon: 'i-mdi-image-multiple'}
 ]
 
 const VehicleReviewDetail: React.FC = () => {
