@@ -2,17 +2,19 @@
  * 还车录入页面
  * 功能：
  * - 显示车辆基本信息
- * - 上传还车照片
+ * - 按顺序拍摄7张车辆照片（与提车相同）
+ * - 上传多张车损特写照片
  * - 自动记录还车时间
  * - 更新车辆状态为"已还车"
  */
 
-import {Button, Image, ScrollView, Text, Textarea, View} from '@tarojs/components'
+import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {getVehicleById, returnVehicle} from '@/db/api'
+import PhotoCapture from '@/components/PhotoCapture'
+import {getVehicleById, returnVehicle, updateVehicle} from '@/db/api'
 import type {Vehicle} from '@/db/types'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
@@ -20,13 +22,36 @@ import {createLogger} from '@/utils/logger'
 const logger = createLogger('ReturnVehicle')
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
 
+// 车辆照片标签（与提车相同的7张照片）
+const VEHICLE_PHOTO_LABELS = [
+  {key: 'left_front', label: '左前照片', icon: 'i-mdi-car-side'},
+  {key: 'right_front', label: '右前照片', icon: 'i-mdi-car-side'},
+  {key: 'left_rear', label: '左后照片', icon: 'i-mdi-car-side'},
+  {key: 'right_rear', label: '右后照片', icon: 'i-mdi-car-side'},
+  {key: 'dashboard', label: '仪表盘照片', icon: 'i-mdi-speedometer'},
+  {key: 'rear_door', label: '后门照片', icon: 'i-mdi-car-back'},
+  {key: 'cargo_box', label: '货箱照片', icon: 'i-mdi-package-variant'}
+] as const
+
 const ReturnVehicle: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
-  const [returnPhotos, setReturnPhotos] = useState<{path: string; size: number}[]>([])
-  const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  // 7张车辆照片（与提车相同）
+  const [vehiclePhotos, setVehiclePhotos] = useState({
+    left_front: '',
+    right_front: '',
+    left_rear: '',
+    right_rear: '',
+    dashboard: '',
+    rear_door: '',
+    cargo_box: ''
+  })
+
+  // 车损特写照片（多张）
+  const [damagePhotos, setDamagePhotos] = useState<{path: string; size: number}[]>([])
 
   useLoad((options) => {
     const {id} = options
@@ -71,11 +96,11 @@ const ReturnVehicle: React.FC = () => {
     }
   }
 
-  // 选择还车照片
-  const handleChoosePhotos = async () => {
+  // 选择车损特写照片
+  const handleChooseDamagePhotos = async () => {
     try {
       const res = await Taro.chooseImage({
-        count: 9 - returnPhotos.length,
+        count: 9 - damagePhotos.length,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera']
       })
@@ -85,17 +110,37 @@ const ReturnVehicle: React.FC = () => {
         size: file.size || 0
       }))
 
-      setReturnPhotos([...returnPhotos, ...newPhotos])
-      logger.info('选择还车照片', {count: newPhotos.length})
+      setDamagePhotos([...damagePhotos, ...newPhotos])
+      logger.info('选择车损照片', {count: newPhotos.length})
     } catch (error) {
       logger.error('选择照片失败', error)
     }
   }
 
-  // 删除照片
-  const handleDeletePhoto = (index: number) => {
-    const newPhotos = returnPhotos.filter((_, i) => i !== index)
-    setReturnPhotos(newPhotos)
+  // 删除车损照片
+  const handleDeleteDamagePhoto = (index: number) => {
+    const newPhotos = damagePhotos.filter((_, i) => i !== index)
+    setDamagePhotos(newPhotos)
+  }
+
+  // 检查是否所有必填照片都已拍摄
+  const checkRequiredPhotos = (): boolean => {
+    const missingPhotos: string[] = []
+    VEHICLE_PHOTO_LABELS.forEach(({key, label}) => {
+      if (!vehiclePhotos[key]) {
+        missingPhotos.push(label)
+      }
+    })
+
+    if (missingPhotos.length > 0) {
+      Taro.showToast({
+        title: `请拍摄：${missingPhotos[0]}`,
+        icon: 'none',
+        duration: 2000
+      })
+      return false
+    }
+    return true
   }
 
   // 提交还车
@@ -108,11 +153,8 @@ const ReturnVehicle: React.FC = () => {
       return
     }
 
-    if (returnPhotos.length === 0) {
-      Taro.showToast({
-        title: '请至少上传一张还车照片',
-        icon: 'none'
-      })
+    // 检查必填照片
+    if (!checkRequiredPhotos()) {
       return
     }
 
@@ -120,25 +162,56 @@ const ReturnVehicle: React.FC = () => {
       setUploading(true)
       Taro.showLoading({title: '上传中...'})
 
-      // 上传照片到 Supabase
-      const uploadedPaths: string[] = []
-      for (let i = 0; i < returnPhotos.length; i++) {
-        const photo = returnPhotos[i]
-        const fileName = generateUniqueFileName(`return_${vehicle.id}`, 'jpg')
-        const uploadedPath = await uploadImageToStorage(photo.path, BUCKET_NAME, fileName, false)
-        if (uploadedPath) {
-          uploadedPaths.push(uploadedPath)
+      // 1. 上传7张车辆照片
+      const uploadedVehiclePhotos: Record<string, string> = {}
+      for (const [key, path] of Object.entries(vehiclePhotos)) {
+        if (path) {
+          const fileName = generateUniqueFileName(`return_${key}`, 'jpg')
+          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
+          if (!uploadedPath) {
+            throw new Error(`上传${key}照片失败`)
+          }
+          uploadedVehiclePhotos[key] = uploadedPath
         }
       }
 
-      if (uploadedPaths.length === 0) {
-        throw new Error('照片上传失败')
+      // 2. 上传车损特写照片
+      const uploadedDamagePhotos: string[] = []
+      for (let i = 0; i < damagePhotos.length; i++) {
+        const photo = damagePhotos[i]
+        const fileName = generateUniqueFileName(`return_damage_${i}`, 'jpg')
+        const uploadedPath = await uploadImageToStorage(photo.path, BUCKET_NAME, fileName, false)
+        if (uploadedPath) {
+          uploadedDamagePhotos.push(uploadedPath)
+        }
       }
 
-      logger.info('还车照片上传成功', {count: uploadedPaths.length})
+      logger.info('还车照片上传成功', {
+        vehiclePhotos: Object.keys(uploadedVehiclePhotos).length,
+        damagePhotos: uploadedDamagePhotos.length
+      })
 
-      // 调用还车API
-      const result = await returnVehicle(vehicle.id, uploadedPaths)
+      // 3. 构建还车照片数组（7张车辆照片）
+      const returnPhotoUrls = [
+        uploadedVehiclePhotos.left_front,
+        uploadedVehiclePhotos.right_front,
+        uploadedVehiclePhotos.left_rear,
+        uploadedVehiclePhotos.right_rear,
+        uploadedVehiclePhotos.dashboard,
+        uploadedVehiclePhotos.rear_door,
+        uploadedVehiclePhotos.cargo_box
+      ].filter(Boolean)
+
+      // 4. 调用还车API
+      const result = await returnVehicle(vehicle.id, returnPhotoUrls)
+
+      // 5. 如果有车损照片，更新车辆的damage_photos字段
+      if (uploadedDamagePhotos.length > 0 && result) {
+        await updateVehicle(vehicle.id, {
+          damage_photos: uploadedDamagePhotos
+        })
+      }
+
       Taro.hideLoading()
 
       if (result) {
@@ -192,7 +265,7 @@ const ReturnVehicle: React.FC = () => {
               <View className="i-mdi-car-arrow-left text-3xl text-orange-600 mr-3"></View>
               <Text className="text-2xl font-bold text-gray-800">还车录入</Text>
             </View>
-            <Text className="text-sm text-gray-500">请上传还车照片并确认还车</Text>
+            <Text className="text-sm text-gray-500">请按顺序拍摄车辆照片并上传车损特写</Text>
           </View>
 
           {/* 车辆信息卡片 */}
@@ -231,33 +304,55 @@ const ReturnVehicle: React.FC = () => {
             </View>
           </View>
 
-          {/* 还车照片上传 */}
+          {/* 车辆照片（7张，按顺序拍摄） */}
+          <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
+            <View className="flex items-center mb-4">
+              <View className="i-mdi-camera text-2xl text-orange-600 mr-2"></View>
+              <Text className="text-lg font-bold text-gray-800">车辆照片</Text>
+              <Text className="text-sm text-red-500 ml-1">*</Text>
+            </View>
+            <Text className="text-xs text-gray-500 mb-4">请按顺序拍摄以下7张车辆照片</Text>
+
+            {VEHICLE_PHOTO_LABELS.map(({key, label, icon}) => (
+              <View key={key} className="mb-4">
+                <PhotoCapture
+                  title={label}
+                  description=""
+                  tips={[]}
+                  value={vehiclePhotos[key]}
+                  onChange={(path) => setVehiclePhotos((prev) => ({...prev, [key]: path}))}
+                />
+              </View>
+            ))}
+          </View>
+
+          {/* 车损特写照片（多张，可选） */}
           <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
             <View className="flex items-center justify-between mb-4">
               <View className="flex items-center">
-                <View className="i-mdi-camera text-2xl text-orange-600 mr-2"></View>
-                <Text className="text-lg font-bold text-gray-800">还车照片</Text>
-                <Text className="text-sm text-red-500 ml-1">*</Text>
+                <View className="i-mdi-image-multiple text-2xl text-red-600 mr-2"></View>
+                <Text className="text-lg font-bold text-gray-800">车损特写</Text>
+                <Text className="text-xs text-gray-500 ml-2">（可选）</Text>
               </View>
-              <Text className="text-xs text-gray-500">{returnPhotos.length}/9</Text>
+              <Text className="text-xs text-gray-500">{damagePhotos.length}/9</Text>
             </View>
 
             <View className="flex flex-wrap gap-3">
-              {returnPhotos.map((photo, index) => (
+              {damagePhotos.map((photo, index) => (
                 <View key={index} className="relative">
                   <Image src={photo.path} mode="aspectFill" className="w-24 h-24 rounded-lg border-2 border-gray-200" />
                   <View
                     className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                    onClick={() => handleDeletePhoto(index)}>
+                    onClick={() => handleDeleteDamagePhoto(index)}>
                     <View className="i-mdi-close text-white text-sm"></View>
                   </View>
                 </View>
               ))}
 
-              {returnPhotos.length < 9 && (
+              {damagePhotos.length < 9 && (
                 <View
                   className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50"
-                  onClick={handleChoosePhotos}>
+                  onClick={handleChooseDamagePhotos}>
                   <View className="flex flex-col items-center">
                     <View className="i-mdi-plus text-3xl text-gray-400 mb-1"></View>
                     <Text className="text-xs text-gray-500">添加照片</Text>
@@ -266,27 +361,7 @@ const ReturnVehicle: React.FC = () => {
               )}
             </View>
 
-            <Text className="text-xs text-gray-500 mt-3">提示：请拍摄车辆外观、内饰等照片，最多上传9张</Text>
-          </View>
-
-          {/* 备注（可选） */}
-          <View className="bg-white rounded-2xl p-6 mb-4 shadow-md">
-            <View className="flex items-center mb-4">
-              <View className="i-mdi-note-text-outline text-2xl text-gray-600 mr-2"></View>
-              <Text className="text-lg font-bold text-gray-800">备注</Text>
-              <Text className="text-xs text-gray-500 ml-2">（可选）</Text>
-            </View>
-            <View style={{overflow: 'hidden'}}>
-              <Textarea
-                className="bg-gray-50 text-gray-800 px-3 py-2 rounded-lg border border-gray-200 w-full"
-                placeholder="请输入备注信息（可选）"
-                value={notes}
-                onInput={(e) => setNotes(e.detail.value)}
-                maxlength={200}
-                style={{minHeight: '100px'}}
-              />
-            </View>
-            <Text className="text-xs text-gray-500 mt-2 text-right">{notes.length}/200</Text>
+            <Text className="text-xs text-gray-500 mt-3">提示：如有车辆损伤，请拍摄特写照片，最多上传9张</Text>
           </View>
 
           {/* 提交按钮 */}
@@ -295,7 +370,7 @@ const ReturnVehicle: React.FC = () => {
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl break-keep text-base shadow-lg"
               size="default"
               onClick={handleSubmit}
-              disabled={uploading || returnPhotos.length === 0}>
+              disabled={uploading}>
               <View className="flex items-center justify-center">
                 {uploading ? (
                   <>
