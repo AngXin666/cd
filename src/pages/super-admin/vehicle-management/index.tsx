@@ -192,18 +192,6 @@ const VehicleManagement: React.FC = () => {
     return result
   }
 
-  /**
-   * 判断是否应该显示操作按钮组
-   * 当车辆审核状态为"已通过"且车辆状态为"已启用"时，不显示操作按钮组
-   */
-  const shouldShowActionButtons = (vehicle: VehicleWithDriver): boolean => {
-    // 如果审核已通过且车辆状态为active，则不显示操作按钮
-    if (vehicle.review_status === 'approved' && vehicle.status === 'active') {
-      return false
-    }
-    return true
-  }
-
   // 获取状态样式
   const _getStatusStyle = (status: string) => {
     switch (status) {
@@ -541,59 +529,57 @@ const VehicleManagement: React.FC = () => {
                         )}
                       </View>
 
-                      {/* 操作按钮 - 根据条件显示 */}
-                      {shouldShowActionButtons(vehicle) && (
-                        <View className="flex flex-col gap-2">
-                          {/* 第一行：查看详情、查看司机、车辆审核 */}
-                          <View className="flex gap-2">
-                            {/* 查看详情按钮 */}
-                            <View
-                              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
-                              onClick={() => handleViewDetail(vehicle.id)}>
-                              <View className="flex items-center justify-center">
-                                <View className="i-mdi-eye text-base text-white mr-1"></View>
-                                <Text className="text-white text-sm font-medium">查看详情</Text>
-                              </View>
+                      {/* 操作按钮 - 始终显示 */}
+                      <View className="flex flex-col gap-2">
+                        {/* 第一行：查看详情、查看司机、车辆审核 */}
+                        <View className="flex gap-2">
+                          {/* 查看详情按钮 */}
+                          <View
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
+                            onClick={() => handleViewDetail(vehicle.id)}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-eye text-base text-white mr-1"></View>
+                              <Text className="text-white text-sm font-medium">查看详情</Text>
                             </View>
-
-                            {/* 查看司机按钮 - 仅当有司机时显示 */}
-                            {vehicle.driver_id && (
-                              <View
-                                className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
-                                onClick={() => handleViewDriver(vehicle.driver_id!)}>
-                                <View className="flex items-center justify-center">
-                                  <View className="i-mdi-account text-base text-white mr-1"></View>
-                                  <Text className="text-white text-sm font-medium">查看司机</Text>
-                                </View>
-                              </View>
-                            )}
-
-                            {/* 车辆审核按钮 - 仅当需要审核时显示 */}
-                            {shouldShowReviewButton(vehicle) && (
-                              <View
-                                className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg py-2 active:scale-95 transition-all"
-                                onClick={() => handleReview(vehicle.id)}>
-                                <View className="flex items-center justify-center">
-                                  <View className="i-mdi-clipboard-check text-base text-white mr-1"></View>
-                                  <Text className="text-white text-sm font-medium">车辆审核</Text>
-                                </View>
-                              </View>
-                            )}
                           </View>
 
-                          {/* 第二行：查看历史记录 - 仅当有历史记录时显示 */}
-                          {hasHistory(vehicle) && (
+                          {/* 查看司机按钮 - 仅当有司机时显示 */}
+                          {vehicle.driver_id && (
                             <View
-                              className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-95 transition-all"
-                              onClick={() => handleViewHistory(vehicle.plate_number)}>
+                              className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleViewDriver(vehicle.driver_id!)}>
                               <View className="flex items-center justify-center">
-                                <View className="i-mdi-history text-base text-white mr-1"></View>
-                                <Text className="text-white text-sm font-medium">查看历史记录</Text>
+                                <View className="i-mdi-account text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">查看司机</Text>
+                              </View>
+                            </View>
+                          )}
+
+                          {/* 车辆审核按钮 - 仅当需要审核时显示 */}
+                          {shouldShowReviewButton(vehicle) && (
+                            <View
+                              className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleReview(vehicle.id)}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-clipboard-check text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">车辆审核</Text>
                               </View>
                             </View>
                           )}
                         </View>
-                      )}
+
+                        {/* 第二行：查看历史记录 - 仅当有历史记录时显示 */}
+                        {hasHistory(vehicle) && (
+                          <View
+                            className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-95 transition-all"
+                            onClick={() => handleViewHistory(vehicle.plate_number)}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-history text-base text-white mr-1"></View>
+                              <Text className="text-white text-sm font-medium">查看历史记录</Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 )
