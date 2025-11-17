@@ -4054,7 +4054,7 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
 export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
   logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
   try {
-    logger.info('开始查询所有车辆及司机信息（包括所有状态的车辆）')
+    logger.info('🚀 开始查询所有车辆及司机信息（包括所有状态的车辆）')
 
     // 第一步：获取每辆车的最新记录（包括所有状态）
     // 使用 DISTINCT ON 获取每个车牌号的最新记录
@@ -4065,8 +4065,15 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       .order('plate_number', {ascending: true})
       .order('pickup_time', {ascending: false})
 
+    logger.info('📊 Supabase查询结果', {
+      hasError: !!vehiclesError,
+      error: vehiclesError,
+      dataLength: vehiclesData?.length || 0,
+      data: vehiclesData
+    })
+
     if (vehiclesError) {
-      logger.error('获取所有车辆失败', {
+      logger.error('❌ 获取所有车辆失败', {
         error: vehiclesError.message,
         code: vehiclesError.code,
         details: vehiclesError.details,
@@ -4076,9 +4083,14 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
     }
 
     if (!vehiclesData || vehiclesData.length === 0) {
-      logger.info('没有找到任何车辆记录')
+      logger.info('⚠️ 没有找到任何车辆记录')
       return []
     }
+
+    logger.info('📝 原始车辆数据', {
+      count: vehiclesData.length,
+      vehicles: vehiclesData
+    })
 
     // 第二步：按车牌号去重，只保留每辆车的最新记录
     const latestVehiclesMap = new Map()
@@ -4088,6 +4100,11 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       }
     })
     const latestVehicles = Array.from(latestVehiclesMap.values())
+
+    logger.info('🔄 去重后的车辆数据', {
+      count: latestVehicles.length,
+      vehicles: latestVehicles
+    })
 
     // 第三步：获取所有相关的司机信息
     const userIds = latestVehicles.map((v: any) => v.user_id).filter(Boolean)

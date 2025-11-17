@@ -40,15 +40,23 @@ const VehicleManagement: React.FC = () => {
       } else {
         logger.info('🔄 从数据库加载车辆列表')
         data = await getAllVehiclesWithDrivers()
+        logger.info('📊 API返回的原始数据', {
+          dataLength: data.length,
+          data: data
+        })
         // 保存到缓存（5分钟有效期）
         setVersionedCache(cacheKey, data, 5 * 60 * 1000)
       }
 
+      logger.info('📝 设置车辆列表状态', {
+        vehicleCount: data.length,
+        vehicles: data
+      })
       setVehicles(data)
       setFilteredVehicles(data)
-      logger.info('车辆列表加载成功', {vehicleCount: data.length})
+      logger.info('✅ 车辆列表加载成功', {vehicleCount: data.length})
     } catch (error) {
-      logger.error('加载车辆列表失败', error)
+      logger.error('❌ 加载车辆列表失败', error)
       Taro.showToast({
         title: '加载失败',
         icon: 'none'
@@ -60,6 +68,14 @@ const VehicleManagement: React.FC = () => {
 
   // 页面显示时加载数据
   useDidShow(() => {
+    // 清除缓存，强制重新加载
+    const cacheKey = 'super_admin_all_vehicles'
+    try {
+      Taro.removeStorageSync(cacheKey)
+      logger.info('🗑️ 已清除缓存')
+    } catch (e) {
+      logger.warn('清除缓存失败', e)
+    }
     loadVehicles()
   })
 
