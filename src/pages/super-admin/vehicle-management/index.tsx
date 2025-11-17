@@ -128,6 +128,47 @@ const VehicleManagement: React.FC = () => {
     })
   }
 
+  // 车辆审核
+  const handleReview = (vehicleId: string) => {
+    Taro.navigateTo({
+      url: `/pages/super-admin/vehicle-review-detail/index?vehicleId=${vehicleId}`
+    })
+  }
+
+  /**
+   * 判断车辆是否需要显示审核按钮
+   * 仅当车辆状态为"待审核"或"需补录"时显示
+   */
+  const shouldShowReviewButton = (vehicle: VehicleWithDriver): boolean => {
+    return (
+      vehicle.review_status === 'pending' ||
+      vehicle.review_status === 'pending_review' ||
+      vehicle.review_status === 'need_supplement' ||
+      vehicle.review_status === 'rejected'
+    )
+  }
+
+  /**
+   * 判断车辆是否有历史记录
+   * 通过检查是否有return_time来判断
+   */
+  const hasHistory = (vehicle: VehicleWithDriver): boolean => {
+    // 如果有return_time，说明这辆车至少被使用过一次，有历史记录
+    return !!vehicle.return_time
+  }
+
+  /**
+   * 判断是否应该显示操作按钮组
+   * 当车辆审核状态为"已通过"且车辆状态为"已启用"时，不显示操作按钮组
+   */
+  const shouldShowActionButtons = (vehicle: VehicleWithDriver): boolean => {
+    // 如果审核已通过且车辆状态为active，则不显示操作按钮
+    if (vehicle.review_status === 'approved' && vehicle.status === 'active') {
+      return false
+    }
+    return true
+  }
+
   // 获取状态样式
   const _getStatusStyle = (status: string) => {
     switch (status) {
@@ -389,32 +430,40 @@ const VehicleManagement: React.FC = () => {
                           <View className="flex items-start">
                             <Text className="text-xs text-gray-600 w-16 flex-shrink-0">车辆类型：</Text>
                             <Text className="text-xs text-gray-800 flex-1">
-                              {vehicle.ownership_type === 'company' ? '公司车' : vehicle.ownership_type === 'personal' ? '个人车' : '未设置'}
+                              {vehicle.ownership_type === 'company'
+                                ? '公司车'
+                                : vehicle.ownership_type === 'personal'
+                                  ? '个人车'
+                                  : '未设置'}
                             </Text>
                           </View>
-                          
+
                           {/* 租赁方 */}
                           <View className="flex items-start">
                             <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租赁方：</Text>
                             <Text className="text-xs text-gray-800 flex-1">{vehicle.lessor_name || '未设置'}</Text>
                           </View>
-                          
+
                           {/* 承租方 */}
                           <View className="flex items-start">
                             <Text className="text-xs text-gray-600 w-16 flex-shrink-0">承租方：</Text>
                             <Text className="text-xs text-gray-800 flex-1">{vehicle.lessee_name || '未设置'}</Text>
                           </View>
-                          
+
                           {/* 租期 */}
                           <View className="flex items-start">
                             <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租期：</Text>
                             <Text className="text-xs text-gray-800 flex-1">
-                              {vehicle.lease_start_date ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN') : '未设置'}
+                              {vehicle.lease_start_date
+                                ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN')
+                                : '未设置'}
                               {' 至 '}
-                              {vehicle.lease_end_date ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN') : '未设置'}
+                              {vehicle.lease_end_date
+                                ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN')
+                                : '未设置'}
                             </Text>
                           </View>
-                          
+
                           {/* 交租时间 */}
                           <View className="flex items-start">
                             <Text className="text-xs text-gray-600 w-16 flex-shrink-0">交租时间：</Text>
@@ -422,13 +471,13 @@ const VehicleManagement: React.FC = () => {
                               {vehicle.rent_payment_day ? `每月${vehicle.rent_payment_day}号` : '未设置'}
                             </Text>
                           </View>
-                          
+
                           {/* 月租金 */}
                           <View className="flex items-start">
                             <Text className="text-xs text-gray-600 w-16 flex-shrink-0">月租金：</Text>
                             <Text className="text-xs font-bold text-amber-700 flex-1">
-                              {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null 
-                                ? `¥${vehicle.monthly_rent.toLocaleString()}` 
+                              {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null
+                                ? `¥${vehicle.monthly_rent.toLocaleString()}`
                                 : '未设置'}
                             </Text>
                           </View>
@@ -457,39 +506,59 @@ const VehicleManagement: React.FC = () => {
                         )}
                       </View>
 
-                      {/* 操作按钮 */}
-                      <View className="flex flex-col gap-2">
-                        {/* 第一行：查看详情和查看司机 */}
-                        <View className="flex gap-2">
-                          <View
-                            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
-                            onClick={() => handleViewDetail(vehicle.id)}>
-                            <View className="flex items-center justify-center">
-                              <View className="i-mdi-eye text-base text-white mr-1"></View>
-                              <Text className="text-white text-sm font-medium">查看详情</Text>
-                            </View>
-                          </View>
-                          {vehicle.driver_id && (
+                      {/* 操作按钮 - 根据条件显示 */}
+                      {shouldShowActionButtons(vehicle) && (
+                        <View className="flex flex-col gap-2">
+                          {/* 第一行：查看详情、查看司机、车辆审核 */}
+                          <View className="flex gap-2">
+                            {/* 查看详情按钮 */}
                             <View
-                              className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
-                              onClick={() => handleViewDriver(vehicle.driver_id!)}>
+                              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleViewDetail(vehicle.id)}>
                               <View className="flex items-center justify-center">
-                                <View className="i-mdi-account text-base text-white mr-1"></View>
-                                <Text className="text-white text-sm font-medium">查看司机</Text>
+                                <View className="i-mdi-eye text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">查看详情</Text>
+                              </View>
+                            </View>
+
+                            {/* 查看司机按钮 - 仅当有司机时显示 */}
+                            {vehicle.driver_id && (
+                              <View
+                                className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
+                                onClick={() => handleViewDriver(vehicle.driver_id!)}>
+                                <View className="flex items-center justify-center">
+                                  <View className="i-mdi-account text-base text-white mr-1"></View>
+                                  <Text className="text-white text-sm font-medium">查看司机</Text>
+                                </View>
+                              </View>
+                            )}
+
+                            {/* 车辆审核按钮 - 仅当需要审核时显示 */}
+                            {shouldShowReviewButton(vehicle) && (
+                              <View
+                                className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg py-2 active:scale-95 transition-all"
+                                onClick={() => handleReview(vehicle.id)}>
+                                <View className="flex items-center justify-center">
+                                  <View className="i-mdi-clipboard-check text-base text-white mr-1"></View>
+                                  <Text className="text-white text-sm font-medium">车辆审核</Text>
+                                </View>
+                              </View>
+                            )}
+                          </View>
+
+                          {/* 第二行：查看历史记录 - 仅当有历史记录时显示 */}
+                          {hasHistory(vehicle) && (
+                            <View
+                              className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleViewHistory(vehicle.plate_number)}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-history text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">查看历史记录</Text>
                               </View>
                             </View>
                           )}
                         </View>
-                        {/* 第二行：查看历史记录 */}
-                        <View
-                          className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-95 transition-all"
-                          onClick={() => handleViewHistory(vehicle.plate_number)}>
-                          <View className="flex items-center justify-center">
-                            <View className="i-mdi-history text-base text-white mr-1"></View>
-                            <Text className="text-white text-sm font-medium">查看历史记录</Text>
-                          </View>
-                        </View>
-                      </View>
+                      )}
                     </View>
                   </View>
                 )

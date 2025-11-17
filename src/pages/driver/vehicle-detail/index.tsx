@@ -327,34 +327,36 @@ const VehicleDetail: React.FC = () => {
           </View>
 
           {/* 补录照片按钮 - 只在审核不通过且有需要补录的照片时显示 */}
-          {vehicle.review_status === 'need_supplement' && vehicle.required_photos && vehicle.required_photos.length > 0 && (
-            <View className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
-              <View className="flex items-center justify-between">
-                <View className="flex-1">
-                  <View className="flex items-center mb-1">
-                    <View className="i-mdi-alert-circle text-xl text-red-600 mr-2"></View>
-                    <Text className="text-red-900 font-bold">需要补录照片</Text>
+          {vehicle.review_status === 'need_supplement' &&
+            vehicle.required_photos &&
+            vehicle.required_photos.length > 0 && (
+              <View className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
+                <View className="flex items-center justify-between">
+                  <View className="flex-1">
+                    <View className="flex items-center mb-1">
+                      <View className="i-mdi-alert-circle text-xl text-red-600 mr-2"></View>
+                      <Text className="text-red-900 font-bold">需要补录照片</Text>
+                    </View>
+                    <Text className="text-red-700 text-sm">
+                      审核未通过，需要重新拍摄 {vehicle.required_photos.length} 张照片
+                    </Text>
                   </View>
-                  <Text className="text-red-700 text-sm">
-                    审核未通过，需要重新拍摄 {vehicle.required_photos.length} 张照片
-                  </Text>
-                </View>
-                <View
-                  className="bg-red-500 rounded-lg px-6 py-3 ml-4 active:bg-red-600 transition-colors"
-                  onClick={() => {
-                    Taro.navigateTo({
-                      url: `/pages/driver/edit-vehicle/index?id=${vehicle.id}`
-                    })
-                  }}
-                  style={{cursor: 'pointer'}}>
-                  <View className="flex items-center">
-                    <View className="i-mdi-camera-plus text-xl text-white mr-1"></View>
-                    <Text className="text-white font-bold">补录照片</Text>
+                  <View
+                    className="bg-red-500 rounded-lg px-6 py-3 ml-4 active:bg-red-600 transition-colors"
+                    onClick={() => {
+                      Taro.navigateTo({
+                        url: `/pages/driver/edit-vehicle/index?id=${vehicle.id}`
+                      })
+                    }}
+                    style={{cursor: 'pointer'}}>
+                    <View className="flex items-center">
+                      <View className="i-mdi-camera-plus text-xl text-white mr-1"></View>
+                      <Text className="text-white font-bold">补录照片</Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
           {/* 测试功能：删除按钮 */}
           <View className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
