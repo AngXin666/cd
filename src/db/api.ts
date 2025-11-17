@@ -4054,14 +4054,14 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
 export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
   logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
   try {
-    logger.info('开始查询所有车辆及司机信息（仅最新记录，排除已还车）')
+    logger.info('开始查询所有车辆及司机信息（包括所有状态的车辆）')
 
-    // 第一步：获取每辆车的最新记录（排除已还车的记录）
+    // 第一步：获取每辆车的最新记录（包括所有状态）
     // 使用 DISTINCT ON 获取每个车牌号的最新记录
     const {data: vehiclesData, error: vehiclesError} = await supabase
       .from('vehicles')
       .select('*')
-      .is('return_time', null) // 只查询未还车的记录
+      // 移除 return_time 限制，超级管理员应该能看到所有车辆
       .order('plate_number', {ascending: true})
       .order('pickup_time', {ascending: false})
 
@@ -4121,10 +4121,12 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       }
     })
 
-    logger.info(`成功获取所有车辆列表（仅最新记录，排除已还车），共 ${vehicles.length} 辆`, {
+    logger.info(`成功获取所有车辆列表（包括所有状态），共 ${vehicles.length} 辆`, {
       count: vehicles.length,
       withDriver: vehicles.filter((v) => v.driver_id).length,
-      withoutDriver: vehicles.filter((v) => !v.driver_id).length
+      withoutDriver: vehicles.filter((v) => !v.driver_id).length,
+      returned: vehicles.filter((v) => v.return_time).length,
+      active: vehicles.filter((v) => !v.return_time).length
     })
     return vehicles
   } catch (error) {
