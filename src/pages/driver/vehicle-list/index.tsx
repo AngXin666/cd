@@ -467,51 +467,62 @@ const VehicleList: React.FC = () => {
                       )}
                     </View>
 
-                    {/* 租赁信息 */}
-                    {(vehicle.lessor_name || vehicle.lessee_name || vehicle.monthly_rent) && (
-                      <View className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
-                        <View className="flex items-center mb-2">
-                          <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
-                          <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
+                    {/* 租赁信息 - 始终显示 */}
+                    <View className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
+                      <View className="flex items-center mb-2">
+                        <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
+                        <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
+                      </View>
+                      <View className="space-y-1.5">
+                        {/* 车辆归属类型 */}
+                        <View className="flex items-start">
+                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">车辆类型：</Text>
+                          <Text className="text-xs text-gray-800 flex-1">
+                            {vehicle.ownership_type === 'company' ? '公司车' : vehicle.ownership_type === 'personal' ? '个人车' : '未设置'}
+                          </Text>
                         </View>
-                        <View className="space-y-1.5">
-                          {vehicle.lessor_name && (
-                            <View className="flex items-start">
-                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租赁方：</Text>
-                              <Text className="text-xs text-gray-800 flex-1">{vehicle.lessor_name}</Text>
-                            </View>
-                          )}
-                          {vehicle.lessee_name && (
-                            <View className="flex items-start">
-                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">承租方：</Text>
-                              <Text className="text-xs text-gray-800 flex-1">{vehicle.lessee_name}</Text>
-                            </View>
-                          )}
-                          {(vehicle.lease_start_date || vehicle.lease_end_date) && (
-                            <View className="flex items-start">
-                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租期：</Text>
-                              <Text className="text-xs text-gray-800 flex-1">
-                                {vehicle.lease_start_date ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN') : '未设置'}
-                                {' 至 '}
-                                {vehicle.lease_end_date ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN') : '未设置'}
-                              </Text>
-                            </View>
-                          )}
-                          {vehicle.rent_payment_day && (
-                            <View className="flex items-start">
-                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">交租时间：</Text>
-                              <Text className="text-xs text-gray-800 flex-1">每月{vehicle.rent_payment_day}号</Text>
-                            </View>
-                          )}
-                          {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null && (
-                            <View className="flex items-start">
-                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">月租金：</Text>
-                              <Text className="text-xs font-bold text-amber-700 flex-1">¥{vehicle.monthly_rent.toLocaleString()}</Text>
-                            </View>
-                          )}
+                        
+                        {/* 租赁方 */}
+                        <View className="flex items-start">
+                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租赁方：</Text>
+                          <Text className="text-xs text-gray-800 flex-1">{vehicle.lessor_name || '未设置'}</Text>
+                        </View>
+                        
+                        {/* 承租方 */}
+                        <View className="flex items-start">
+                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">承租方：</Text>
+                          <Text className="text-xs text-gray-800 flex-1">{vehicle.lessee_name || '未设置'}</Text>
+                        </View>
+                        
+                        {/* 租期 */}
+                        <View className="flex items-start">
+                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租期：</Text>
+                          <Text className="text-xs text-gray-800 flex-1">
+                            {vehicle.lease_start_date ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN') : '未设置'}
+                            {' 至 '}
+                            {vehicle.lease_end_date ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN') : '未设置'}
+                          </Text>
+                        </View>
+                        
+                        {/* 交租时间 */}
+                        <View className="flex items-start">
+                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">交租时间：</Text>
+                          <Text className="text-xs text-gray-800 flex-1">
+                            {vehicle.rent_payment_day ? `每月${vehicle.rent_payment_day}号` : '未设置'}
+                          </Text>
+                        </View>
+                        
+                        {/* 月租金 */}
+                        <View className="flex items-start">
+                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">月租金：</Text>
+                          <Text className="text-xs font-bold text-amber-700 flex-1">
+                            {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null 
+                              ? `¥${vehicle.monthly_rent.toLocaleString()}` 
+                              : '未设置'}
+                          </Text>
                         </View>
                       </View>
-                    )}
+                    </View>
 
                     {/* 提车/还车时间 */}
                     {(vehicle.pickup_time || vehicle.return_time) && (
