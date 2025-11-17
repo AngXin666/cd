@@ -149,10 +149,6 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/vehicle-management/index'})
   }
 
-  const handleVehicleLeaseManagement = () => {
-    navigateTo({url: '/pages/super-admin/vehicle-lease-management/index'})
-  }
-
   const handleVehicleReview = () => {
     navigateTo({url: '/pages/super-admin/vehicle-review/index'})
   }
@@ -434,14 +430,6 @@ const SuperAdminHome: React.FC = () => {
                 className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-car-multiple text-3xl text-orange-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">车辆管理</Text>
-              </View>
-
-              {/* 车辆租赁 */}
-              <View
-                onClick={handleVehicleLeaseManagement}
-                className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
-                <View className="i-mdi-file-document-edit text-3xl text-teal-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">车辆租赁</Text>
               </View>
 
               {/* 车辆审核 */}

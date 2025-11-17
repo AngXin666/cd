@@ -2,7 +2,7 @@
  * 车辆租赁管理数据库操作
  */
 
-import {supabase} from '@/db/supabase'
+import {supabase} from '@/client/supabase'
 import type {VehicleBase, VehicleLeaseInfo} from './types'
 
 /**

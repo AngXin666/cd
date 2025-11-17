@@ -461,6 +461,16 @@ export interface Vehicle {
   purchase_date: string | null
   status: string
   notes: string | null
+  // 租赁管理字段
+  ownership_type: OwnershipType | null // 车辆归属类型：company(公司车) / personal(个人车)
+  lessor_name: string | null // 租赁方名称（出租车辆的公司或个人）
+  lessor_contact: string | null // 租赁方联系方式
+  lessee_name: string | null // 承租方名称（租用车辆的公司或个人）
+  lessee_contact: string | null // 承租方联系方式
+  monthly_rent: number | null // 月租金（元）
+  lease_start_date: string | null // 租赁开始日期
+  lease_end_date: string | null // 租赁结束日期
+  rent_payment_day: number | null // 每月租金缴纳日（1-31）
   // OCR识别相关字段 - 主页
   vin: string | null // 车辆识别代号
   owner_name: string | null // 所有人
@@ -524,6 +534,16 @@ export interface VehicleInput {
   purchase_date?: string | null
   status?: string
   notes?: string | null
+  // 租赁管理字段
+  ownership_type?: OwnershipType | null
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
   // 主页字段
   vin?: string | null
   owner_name?: string | null
@@ -584,6 +604,16 @@ export interface VehicleUpdate {
   purchase_date?: string | null
   status?: string
   notes?: string | null
+  // 租赁管理字段
+  ownership_type?: OwnershipType | null
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
   // 主页字段
   vin?: string | null
   owner_name?: string | null

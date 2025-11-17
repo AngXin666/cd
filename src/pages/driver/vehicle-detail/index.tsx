@@ -4,19 +4,33 @@
  * - 使用标签页展示提车照片、还车照片、行驶证照片
  * - 显示提车时间和还车时间
  * - 展示车辆基本信息
+ * - 编辑车辆租赁信息
  */
 
-import {Image, ScrollView, Text, View} from '@tarojs/components'
+import {Image, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {deleteVehicle, getVehicleById} from '@/db/api'
-import type {Vehicle} from '@/db/types'
+import {deleteVehicle, getVehicleById, updateVehicle} from '@/db/api'
+import type {OwnershipType, Vehicle} from '@/db/types'
 import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
 
 type TabType = 'pickup' | 'return' | 'registration' | 'damage'
+
+// 租赁信息表单接口
+interface LeaseFormData {
+  ownership_type: OwnershipType | null
+  lessor_name: string
+  lessor_contact: string
+  lessee_name: string
+  lessee_contact: string
+  monthly_rent: string
+  lease_start_date: string
+  lease_end_date: string
+  rent_payment_day: string
+}
 
 const VehicleDetail: React.FC = () => {
   useAuth({guard: true})
@@ -24,6 +38,18 @@ const VehicleDetail: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('pickup')
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+  const [isEditingLease, setIsEditingLease] = useState(false)
+  const [leaseForm, setLeaseForm] = useState<LeaseFormData>({
+    ownership_type: null,
+    lessor_name: '',
+    lessor_contact: '',
+    lessee_name: '',
+    lessee_contact: '',
+    monthly_rent: '',
+    lease_start_date: '',
+    lease_end_date: '',
+    rent_payment_day: ''
+  })
 
   useLoad((options) => {
     const {id} = options
@@ -79,6 +105,94 @@ const VehicleDetail: React.FC = () => {
   const handleImageError = (photoUrl: string, photoType: string, index: number) => {
     logger.error(`${photoType}加载失败`, {photoUrl, index})
     setFailedImages((prev) => new Set(prev).add(photoUrl))
+  }
+
+  // 开始编辑租赁信息
+  const handleStartEditLease = () => {
+    if (!vehicle) return
+    // 初始化表单数据
+    setLeaseForm({
+      ownership_type: vehicle.ownership_type || null,
+      lessor_name: vehicle.lessor_name || '',
+      lessor_contact: vehicle.lessor_contact || '',
+      lessee_name: vehicle.lessee_name || '',
+      lessee_contact: vehicle.lessee_contact || '',
+      monthly_rent: vehicle.monthly_rent?.toString() || '',
+      lease_start_date: vehicle.lease_start_date || '',
+      lease_end_date: vehicle.lease_end_date || '',
+      rent_payment_day: vehicle.rent_payment_day?.toString() || ''
+    })
+    setIsEditingLease(true)
+  }
+
+  // 取消编辑租赁信息
+  const handleCancelEditLease = () => {
+    setIsEditingLease(false)
+  }
+
+  // 保存租赁信息
+  const handleSaveLeaseInfo = async () => {
+    if (!vehicle) return
+
+    try {
+      // 验证必填字段
+      if (!leaseForm.ownership_type) {
+        Taro.showToast({
+          title: '请选择车辆归属类型',
+          icon: 'none'
+        })
+        return
+      }
+
+      // 如果是个人车，验证租金
+      if (leaseForm.ownership_type === 'personal') {
+        if (leaseForm.monthly_rent && Number.isNaN(Number(leaseForm.monthly_rent))) {
+          Taro.showToast({
+            title: '请输入有效的月租金',
+            icon: 'none'
+          })
+          return
+        }
+        if (
+          leaseForm.rent_payment_day &&
+          (Number(leaseForm.rent_payment_day) < 1 || Number(leaseForm.rent_payment_day) > 31)
+        ) {
+          Taro.showToast({
+            title: '租金缴纳日必须在1-31之间',
+            icon: 'none'
+          })
+          return
+        }
+      }
+
+      // 更新车辆信息
+      await updateVehicle(vehicle.id, {
+        ownership_type: leaseForm.ownership_type,
+        lessor_name: leaseForm.lessor_name || null,
+        lessor_contact: leaseForm.lessor_contact || null,
+        lessee_name: leaseForm.lessee_name || null,
+        lessee_contact: leaseForm.lessee_contact || null,
+        monthly_rent: leaseForm.monthly_rent ? Number(leaseForm.monthly_rent) : null,
+        lease_start_date: leaseForm.lease_start_date || null,
+        lease_end_date: leaseForm.lease_end_date || null,
+        rent_payment_day: leaseForm.rent_payment_day ? Number(leaseForm.rent_payment_day) : null
+      })
+
+      Taro.showToast({
+        title: '保存成功',
+        icon: 'success'
+      })
+
+      // 重新加载车辆信息
+      await loadVehicleDetail(vehicle.id)
+      setIsEditingLease(false)
+    } catch (error) {
+      console.error('保存租赁信息失败:', error)
+      Taro.showToast({
+        title: '保存失败',
+        icon: 'none'
+      })
+    }
   }
 
   // 删除车辆（测试功能）
@@ -282,6 +396,237 @@ const VehicleDetail: React.FC = () => {
                 value={vehicle.register_date ? new Date(vehicle.register_date).toLocaleDateString('zh-CN') : '未填写'}
               />
             </View>
+          </View>
+
+          {/* 租赁信息卡片 */}
+          <View className="bg-white rounded-2xl p-5 mb-4 shadow-md">
+            <View className="flex items-center justify-between mb-4">
+              <View className="flex items-center">
+                <View className="i-mdi-file-document-edit text-2xl text-teal-600 mr-2"></View>
+                <Text className="text-lg font-bold text-gray-800">租赁信息</Text>
+              </View>
+              {!isEditingLease && (
+                <View
+                  className="bg-teal-500 rounded-lg px-4 py-2 active:scale-95 transition-all"
+                  onClick={handleStartEditLease}>
+                  <View className="flex items-center">
+                    <View className="i-mdi-pencil text-base text-white mr-1"></View>
+                    <Text className="text-white text-sm font-medium">编辑</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {!isEditingLease ? (
+              // 查看模式
+              <View className="space-y-3">
+                {vehicle.ownership_type ? (
+                  <>
+                    <InfoRow
+                      icon="i-mdi-domain"
+                      label="车辆归属"
+                      value={vehicle.ownership_type === 'company' ? '公司车' : '个人车'}
+                    />
+                    {vehicle.ownership_type === 'personal' && (
+                      <>
+                        {vehicle.lessor_name && (
+                          <InfoRow icon="i-mdi-account-tie" label="租赁方" value={vehicle.lessor_name} />
+                        )}
+                        {vehicle.lessor_contact && (
+                          <InfoRow icon="i-mdi-phone" label="租赁方联系方式" value={vehicle.lessor_contact} />
+                        )}
+                        {vehicle.lessee_name && (
+                          <InfoRow icon="i-mdi-account" label="承租方" value={vehicle.lessee_name} />
+                        )}
+                        {vehicle.lessee_contact && (
+                          <InfoRow icon="i-mdi-phone" label="承租方联系方式" value={vehicle.lessee_contact} />
+                        )}
+                        {vehicle.monthly_rent !== null && vehicle.monthly_rent !== undefined && (
+                          <InfoRow icon="i-mdi-cash" label="月租金" value={`¥${vehicle.monthly_rent}`} />
+                        )}
+                        {vehicle.lease_start_date && (
+                          <InfoRow
+                            icon="i-mdi-calendar-start"
+                            label="租赁开始日期"
+                            value={new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN')}
+                          />
+                        )}
+                        {vehicle.lease_end_date && (
+                          <InfoRow
+                            icon="i-mdi-calendar-end"
+                            label="租赁结束日期"
+                            value={new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN')}
+                          />
+                        )}
+                        {vehicle.rent_payment_day && (
+                          <InfoRow
+                            icon="i-mdi-calendar-clock"
+                            label="每月租金缴纳日"
+                            value={`每月${vehicle.rent_payment_day}日`}
+                          />
+                        )}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <Text className="text-gray-500 text-center py-4">暂无租赁信息</Text>
+                )}
+              </View>
+            ) : (
+              // 编辑模式
+              <View className="space-y-4">
+                {/* 车辆归属类型 */}
+                <View>
+                  <Text className="text-sm text-gray-700 mb-2 block">车辆归属类型 *</Text>
+                  <Picker
+                    mode="selector"
+                    range={['公司车', '个人车']}
+                    value={leaseForm.ownership_type === 'company' ? 0 : 1}
+                    onChange={(e) => {
+                      const value = e.detail.value === 0 ? 'company' : 'personal'
+                      setLeaseForm({...leaseForm, ownership_type: value as OwnershipType})
+                    }}>
+                    <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                      <Text className={leaseForm.ownership_type ? 'text-gray-800' : 'text-gray-400'}>
+                        {leaseForm.ownership_type === 'company'
+                          ? '公司车'
+                          : leaseForm.ownership_type === 'personal'
+                            ? '个人车'
+                            : '请选择'}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400"></View>
+                    </View>
+                  </Picker>
+                </View>
+
+                {/* 个人车的租赁信息 */}
+                {leaseForm.ownership_type === 'personal' && (
+                  <>
+                    {/* 租赁方信息 */}
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">租赁方名称</Text>
+                      <View style={{overflow: 'hidden'}}>
+                        <Input
+                          className="bg-gray-50 rounded-lg px-4 py-3 w-full"
+                          placeholder="请输入租赁方名称"
+                          value={leaseForm.lessor_name}
+                          onInput={(e) => setLeaseForm({...leaseForm, lessor_name: e.detail.value})}
+                        />
+                      </View>
+                    </View>
+
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">租赁方联系方式</Text>
+                      <View style={{overflow: 'hidden'}}>
+                        <Input
+                          className="bg-gray-50 rounded-lg px-4 py-3 w-full"
+                          placeholder="请输入租赁方联系方式"
+                          value={leaseForm.lessor_contact}
+                          onInput={(e) => setLeaseForm({...leaseForm, lessor_contact: e.detail.value})}
+                        />
+                      </View>
+                    </View>
+
+                    {/* 承租方信息 */}
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">承租方名称</Text>
+                      <View style={{overflow: 'hidden'}}>
+                        <Input
+                          className="bg-gray-50 rounded-lg px-4 py-3 w-full"
+                          placeholder="请输入承租方名称"
+                          value={leaseForm.lessee_name}
+                          onInput={(e) => setLeaseForm({...leaseForm, lessee_name: e.detail.value})}
+                        />
+                      </View>
+                    </View>
+
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">承租方联系方式</Text>
+                      <View style={{overflow: 'hidden'}}>
+                        <Input
+                          className="bg-gray-50 rounded-lg px-4 py-3 w-full"
+                          placeholder="请输入承租方联系方式"
+                          value={leaseForm.lessee_contact}
+                          onInput={(e) => setLeaseForm({...leaseForm, lessee_contact: e.detail.value})}
+                        />
+                      </View>
+                    </View>
+
+                    {/* 租金信息 */}
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">月租金（元）</Text>
+                      <View style={{overflow: 'hidden'}}>
+                        <Input
+                          className="bg-gray-50 rounded-lg px-4 py-3 w-full"
+                          type="number"
+                          placeholder="请输入月租金"
+                          value={leaseForm.monthly_rent}
+                          onInput={(e) => setLeaseForm({...leaseForm, monthly_rent: e.detail.value})}
+                        />
+                      </View>
+                    </View>
+
+                    {/* 租期信息 */}
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">租赁开始日期</Text>
+                      <Picker
+                        mode="date"
+                        value={leaseForm.lease_start_date}
+                        onChange={(e) => setLeaseForm({...leaseForm, lease_start_date: e.detail.value})}>
+                        <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                          <Text className={leaseForm.lease_start_date ? 'text-gray-800' : 'text-gray-400'}>
+                            {leaseForm.lease_start_date || '请选择日期'}
+                          </Text>
+                          <View className="i-mdi-calendar text-xl text-gray-400"></View>
+                        </View>
+                      </Picker>
+                    </View>
+
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">租赁结束日期</Text>
+                      <Picker
+                        mode="date"
+                        value={leaseForm.lease_end_date}
+                        onChange={(e) => setLeaseForm({...leaseForm, lease_end_date: e.detail.value})}>
+                        <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                          <Text className={leaseForm.lease_end_date ? 'text-gray-800' : 'text-gray-400'}>
+                            {leaseForm.lease_end_date || '请选择日期'}
+                          </Text>
+                          <View className="i-mdi-calendar text-xl text-gray-400"></View>
+                        </View>
+                      </Picker>
+                    </View>
+
+                    <View>
+                      <Text className="text-sm text-gray-700 mb-2 block">每月租金缴纳日（1-31）</Text>
+                      <View style={{overflow: 'hidden'}}>
+                        <Input
+                          className="bg-gray-50 rounded-lg px-4 py-3 w-full"
+                          type="number"
+                          placeholder="请输入缴纳日（1-31）"
+                          value={leaseForm.rent_payment_day}
+                          onInput={(e) => setLeaseForm({...leaseForm, rent_payment_day: e.detail.value})}
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {/* 操作按钮 */}
+                <View className="flex gap-3 pt-2">
+                  <View
+                    className="flex-1 bg-gray-500 rounded-lg py-3 active:scale-95 transition-all"
+                    onClick={handleCancelEditLease}>
+                    <Text className="text-white text-center font-medium">取消</Text>
+                  </View>
+                  <View
+                    className="flex-1 bg-teal-500 rounded-lg py-3 active:scale-95 transition-all"
+                    onClick={handleSaveLeaseInfo}>
+                    <Text className="text-white text-center font-medium">保存</Text>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* 标签页导航 */}

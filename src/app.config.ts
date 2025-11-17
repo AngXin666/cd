@@ -55,9 +55,7 @@ const pages = [
   'pages/super-admin/user-detail/index',
   'pages/super-admin/staff-management/index',
   'pages/super-admin/permission-config/index',
-  'pages/super-admin/edit-user/index',
-  'pages/super-admin/vehicle-lease-management/index',
-  'pages/super-admin/vehicle-lease-edit/index'
+  'pages/super-admin/edit-user/index'
 ]
 
 export default defineAppConfig({
