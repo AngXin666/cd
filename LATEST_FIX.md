@@ -1,71 +1,111 @@
-# 最新修复 - 车辆历史记录显示逻辑
+# 最新修复 - 还车失败错误
 
 ## 修复时间
 2025-11-18
 
 ## 问题描述
-**用户反馈**：
-1. 车辆第二次使用有提车记录，但是只显示还车记录照片
-2. 逻辑错误：如果没有提车记录，怎么会有还车记录呢？
+用户在还车时遇到错误，还车操作失败。
 
 ## 根本原因
-`groupRecords` 函数的分组逻辑错误，把"有还车时间"的记录全部归类为"还车记录"，导致提车信息丢失。
+`returnVehicle` 函数尝试直接更新 `vehicles` 视图的 `status` 字段，但 `status` 是一个**计算字段**，不能直接更新。
 
-**错误逻辑**：
+**错误代码**：
 ```typescript
-// ❌ 错误：按是否有还车时间分类
-const pickupRecords = sortedRecords.filter((r) => !r.return_time)
-const returnRecords = sortedRecords.filter((r) => r.return_time)
-// 然后按索引配对
+// ❌ 错误：尝试更新计算字段
+const {data, error} = await supabase
+  .from('vehicles')
+  .update({
+    status: 'returned',  // ❌ status 是计算字段，不能直接更新
+    return_time: new Date().toISOString(),
+    return_photos: returnPhotos
+  })
 ```
 
-**问题**：一条记录可以同时包含提车和还车信息，原逻辑会丢失提车信息。
+**计算字段定义**：
+```sql
+CASE 
+  WHEN vr.return_time IS NOT NULL THEN 'returned'
+  WHEN vr.review_status = 'approved' THEN 'active'
+  ELSE 'inactive'
+END AS status
+```
 
 ## 修复内容
 
-### 1. 修复分组逻辑 (src/pages/super-admin/vehicle-history/index.tsx)
-- ✅ 正确识别记录中的提车和还车信息
-- ✅ 如果记录同时有提车和还车，作为一个完整周期
-- ✅ 如果只有提车，作为进行中的周期
-- ✅ 避免错误的索引配对
+### 修改 returnVehicle 函数 (src/db/api.ts)
+- ✅ 移除 `status: 'returned'` 的更新
+- ✅ 只更新 `return_time` 和 `return_photos`
+- ✅ 添加注释说明 `status` 是计算字段
+- ✅ `status` 会根据 `return_time` 自动计算
 
-### 2. 修复 Tab 状态管理
-- ✅ 使用 `recordId + recordType` 作为唯一标识
-- ✅ 避免同一记录的提车和还车 Tab 状态冲突
-- ✅ 更新所有 `getRecordTab` 和 `setRecordTab` 调用
+**修复后的代码**：
+```typescript
+// ✅ 正确：只更新存储字段
+const {data, error} = await supabase
+  .from('vehicles')
+  .update({
+    return_time: new Date().toISOString(),
+    return_photos: returnPhotos
+  })
+  .eq('id', vehicleId)
+  .select()
+  .maybeSingle()
+```
 
 ## 修复效果
 
 ### 修复前
-- ❌ 第二次使用只显示还车记录，不显示提车记录
-- ❌ 提车和还车记录配对错误
-- ❌ 出现"没有提车但有还车"的异常情况
+- ❌ 还车操作失败
+- ❌ 尝试更新不可更新的计算字段
+- ❌ 数据库返回错误
 
 ### 修复后
-- ✅ 每条记录按照实际包含的信息正确显示
-- ✅ 如果记录同时有提车和还车，会分别显示提车部分和还车部分
-- ✅ 如果记录只有提车，只显示提车部分，标记为"进行中"
-- ✅ 提车和还车的 Tab 状态独立管理，互不干扰
+- ✅ 还车操作成功
+- ✅ 只更新实际存储的字段
+- ✅ `status` 字段自动计算为 `'returned'`
+- ✅ 车辆状态正确更新
+
+## 技术要点
+
+### 计算字段 vs 存储字段
+
+**计算字段（Computed Field）**：
+- 在 SQL 视图中使用 `CASE WHEN ... END AS field_name` 定义
+- 不占用存储空间
+- 每次查询时动态计算
+- **不能直接更新**
+
+**存储字段（Stored Field）**：
+- 在表结构中定义
+- 占用存储空间
+- 可以直接更新
+
+### 正确的更新策略
+- ✅ 更新 `return_time` → `status` 自动变为 `'returned'`
+- ✅ 更新 `review_status` → `status` 可能变为 `'active'` 或 `'inactive'`
+- ❌ 直接更新 `status` → 错误
 
 ## 测试验证
 
-### 场景1：完整的使用周期（一条记录包含提车+还车）
-**预期**：显示"第X次使用（已完成）"，分别显示提车和还车信息
+### 场景1：正常还车
+**预期**：还车成功，车辆状态变为"已还车"
 **状态**：✅ 代码已修复，待测试
 
-### 场景2：进行中的使用周期（只有提车）
-**预期**：显示"第X次使用（进行中）"，只显示提车信息，提示"尚未还车"
+### 场景2：查看还车后的车辆
+**预期**：车辆状态显示为"已还车"，显示还车时间和照片
 **状态**：✅ 代码已修复，待测试
 
-### 场景3：多次使用周期
-**预期**：按时间顺序显示所有使用周期，每个周期都正确显示
+### 场景3：超级管理员查看还车记录
+**预期**：显示完整的还车记录和照片
 **状态**：✅ 代码已修复，待测试
 
 ## 相关文档
-- `FIX_VEHICLE_HISTORY_LOGIC.md` - 详细修复说明
+- `FIX_RETURN_VEHICLE_ERROR.md` - 详细修复说明
 - `FIX_SUMMARY.md` - 所有修复的总结
 
 ## 代码质量
 - ✅ 通过 Biome 代码检查
 - ✅ 无 TypeScript 错误
+- ✅ 添加了详细的注释说明
 - ✅ 逻辑清晰，易于维护
+

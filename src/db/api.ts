@@ -4401,10 +4401,11 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
 export async function returnVehicle(vehicleId: string, returnPhotos: string[]): Promise<Vehicle | null> {
   logger.db('更新', 'vehicles', {vehicleId, action: '还车录入'})
   try {
+    // 注意：status 是计算字段，不能直接更新
+    // 当 return_time 不为 NULL 时，status 会自动变为 'returned'
     const {data, error} = await supabase
       .from('vehicles')
       .update({
-        status: 'returned',
         return_time: new Date().toISOString(),
         return_photos: returnPhotos
       })
