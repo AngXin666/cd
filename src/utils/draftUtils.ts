@@ -4,6 +4,9 @@
  */
 
 import Taro from '@tarojs/taro'
+import {createLogger} from './logger'
+
+const logger = createLogger('DraftUtils')
 
 // 草稿数据接口
 export interface VehicleDraft {
@@ -47,6 +50,99 @@ export interface VehicleDraft {
 const DRAFT_KEY_PREFIX = 'vehicle_draft_'
 
 /**
+ * 将临时文件保存为持久化文件
+ * @param tempFilePath 临时文件路径
+ * @returns 持久化文件路径，失败返回原路径
+ */
+async function saveTempFileToPersistent(tempFilePath: string): Promise<string> {
+  // 如果路径为空或已经是持久化路径，直接返回
+  if (!tempFilePath) return tempFilePath
+  if (!tempFilePath.includes('tmp') && !tempFilePath.includes('temp')) {
+    return tempFilePath
+  }
+
+  try {
+    // 使用 saveFile 将临时文件保存为持久化文件
+    const result = await Taro.saveFile({
+      tempFilePath: tempFilePath
+    })
+
+    logger.info('图片已持久化', {
+      tempPath: tempFilePath,
+      savedPath: result.savedFilePath
+    })
+
+    return result.savedFilePath
+  } catch (error) {
+    logger.error('图片持久化失败', {tempFilePath, error})
+    // 失败时返回原路径
+    return tempFilePath
+  }
+}
+
+/**
+ * 批量持久化图片路径
+ * @param paths 图片路径数组
+ * @returns 持久化后的路径数组
+ */
+async function persistImagePaths(paths: (string | undefined)[]): Promise<(string | undefined)[]> {
+  const results: (string | undefined)[] = []
+
+  for (const path of paths) {
+    if (path) {
+      const persistedPath = await saveTempFileToPersistent(path)
+      results.push(persistedPath)
+    } else {
+      results.push(undefined)
+    }
+  }
+
+  return results
+}
+
+/**
+ * 检查文件是否存在且有效
+ * @param filePath 文件路径
+ * @returns 文件是否有效
+ */
+async function isFileValid(filePath: string): Promise<boolean> {
+  if (!filePath) return false
+
+  try {
+    const fs = Taro.getFileSystemManager()
+    const result = await fs.access({path: filePath})
+    return result.errMsg === 'access:ok'
+  } catch (_error) {
+    return false
+  }
+}
+
+/**
+ * 清理无效的图片路径
+ * @param paths 图片路径数组
+ * @returns 有效的图片路径数组
+ */
+async function cleanInvalidPaths(paths: (string | undefined)[]): Promise<(string | undefined)[]> {
+  const results: (string | undefined)[] = []
+
+  for (const path of paths) {
+    if (path) {
+      const isValid = await isFileValid(path)
+      if (isValid) {
+        results.push(path)
+      } else {
+        logger.warn('图片文件无效，已清除', {path})
+        results.push(undefined)
+      }
+    } else {
+      results.push(undefined)
+    }
+  }
+
+  return results
+}
+
+/**
  * 生成草稿存储键
  * @param type 草稿类型（add: 提车录入, return: 还车录入）
  * @param userId 用户ID
@@ -63,9 +159,40 @@ function getDraftKey(type: 'add' | 'return', userId: string): string {
  */
 export async function saveDraft(type: 'add' | 'return', userId: string, draft: VehicleDraft): Promise<void> {
   try {
+    logger.info('开始保存草稿', {type, userId})
+
+    // 持久化所有图片路径
+    const persistedDraft: VehicleDraft = {
+      ...draft
+    }
+
+    // 持久化单张图片
+    if (draft.registration_front_photo) {
+      persistedDraft.registration_front_photo = await saveTempFileToPersistent(draft.registration_front_photo)
+    }
+    if (draft.registration_back_photo) {
+      persistedDraft.registration_back_photo = await saveTempFileToPersistent(draft.registration_back_photo)
+    }
+    if (draft.id_card_front_photo) {
+      persistedDraft.id_card_front_photo = await saveTempFileToPersistent(draft.id_card_front_photo)
+    }
+    if (draft.driver_license_photo) {
+      persistedDraft.driver_license_photo = await saveTempFileToPersistent(draft.driver_license_photo)
+    }
+
+    // 持久化车辆照片数组
+    if (draft.vehicle_photos && draft.vehicle_photos.length > 0) {
+      persistedDraft.vehicle_photos = await persistImagePaths(draft.vehicle_photos)
+    }
+
+    // 持久化车损照片数组
+    if (draft.damage_photos && draft.damage_photos.length > 0) {
+      persistedDraft.damage_photos = await persistImagePaths(draft.damage_photos)
+    }
+
     const key = getDraftKey(type, userId)
     const draftWithTimestamp = {
-      ...draft,
+      ...persistedDraft,
       saved_at: new Date().toISOString()
     }
 
@@ -74,9 +201,9 @@ export async function saveDraft(type: 'add' | 'return', userId: string, draft: V
       data: draftWithTimestamp
     })
 
-    console.log('草稿已保存:', key, draftWithTimestamp)
+    logger.info('草稿已保存', {key, photoCount: getPhotoCount(persistedDraft)})
   } catch (error) {
-    console.error('保存草稿失败:', error)
+    logger.error('保存草稿失败', error)
   }
 }
 
@@ -91,8 +218,65 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
     const result = await Taro.getStorage({key})
 
     if (result.data) {
-      console.log('草稿已恢复:', key, result.data)
-      return result.data as VehicleDraft
+      const draft = result.data as VehicleDraft
+
+      logger.info('草稿已读取', {key, photoCount: getPhotoCount(draft)})
+
+      // 验证并清理无效的图片路径
+      const cleanedDraft: VehicleDraft = {
+        ...draft
+      }
+
+      // 验证单张图片
+      if (draft.registration_front_photo) {
+        const isValid = await isFileValid(draft.registration_front_photo)
+        if (!isValid) {
+          logger.warn('行驶证主页图片无效', {path: draft.registration_front_photo})
+          cleanedDraft.registration_front_photo = undefined
+        }
+      }
+
+      if (draft.registration_back_photo) {
+        const isValid = await isFileValid(draft.registration_back_photo)
+        if (!isValid) {
+          logger.warn('行驶证副页图片无效', {path: draft.registration_back_photo})
+          cleanedDraft.registration_back_photo = undefined
+        }
+      }
+
+      if (draft.id_card_front_photo) {
+        const isValid = await isFileValid(draft.id_card_front_photo)
+        if (!isValid) {
+          logger.warn('身份证正面图片无效', {path: draft.id_card_front_photo})
+          cleanedDraft.id_card_front_photo = undefined
+        }
+      }
+
+      if (draft.driver_license_photo) {
+        const isValid = await isFileValid(draft.driver_license_photo)
+        if (!isValid) {
+          logger.warn('驾驶证图片无效', {path: draft.driver_license_photo})
+          cleanedDraft.driver_license_photo = undefined
+        }
+      }
+
+      // 验证车辆照片数组
+      if (draft.vehicle_photos && draft.vehicle_photos.length > 0) {
+        cleanedDraft.vehicle_photos = await cleanInvalidPaths(draft.vehicle_photos)
+      }
+
+      // 验证车损照片数组
+      if (draft.damage_photos && draft.damage_photos.length > 0) {
+        cleanedDraft.damage_photos = await cleanInvalidPaths(draft.damage_photos)
+      }
+
+      logger.info('草稿已验证', {
+        key,
+        originalPhotoCount: getPhotoCount(draft),
+        cleanedPhotoCount: getPhotoCount(cleanedDraft)
+      })
+
+      return cleanedDraft
     }
 
     return null
@@ -100,6 +284,30 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
     // 没有草稿或读取失败
     return null
   }
+}
+
+/**
+ * 统计草稿中的图片数量
+ * @param draft 草稿数据
+ * @returns 图片总数
+ */
+function getPhotoCount(draft: VehicleDraft): number {
+  let count = 0
+
+  if (draft.registration_front_photo) count++
+  if (draft.registration_back_photo) count++
+  if (draft.id_card_front_photo) count++
+  if (draft.driver_license_photo) count++
+
+  if (draft.vehicle_photos) {
+    count += draft.vehicle_photos.filter((p) => p).length
+  }
+
+  if (draft.damage_photos) {
+    count += draft.damage_photos.filter((p) => p).length
+  }
+
+  return count
 }
 
 /**
@@ -111,9 +319,9 @@ export async function deleteDraft(type: 'add' | 'return', userId: string): Promi
   try {
     const key = getDraftKey(type, userId)
     await Taro.removeStorage({key})
-    console.log('草稿已删除:', key)
+    logger.info('草稿已删除', {key})
   } catch (error) {
-    console.error('删除草稿失败:', error)
+    logger.error('删除草稿失败', error)
   }
 }
 
@@ -148,10 +356,10 @@ export async function cleanExpiredDraft(type: 'add' | 'return', userId: string):
       // 如果草稿超过7天，自动删除
       if (daysDiff > 7) {
         await deleteDraft(type, userId)
-        console.log('已清理过期草稿:', type, userId)
+        logger.info('已清理过期草稿', {type, userId, daysDiff})
       }
     }
   } catch (error) {
-    console.error('清理过期草稿失败:', error)
+    logger.error('清理过期草稿失败', error)
   }
 }
