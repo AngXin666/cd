@@ -706,6 +706,9 @@ export interface VehicleWithDriver extends Vehicle {
 // 新的车辆记录系统类型定义
 // ============================================
 
+// 车辆归属类型
+export type OwnershipType = 'company' | 'personal'
+
 // 车辆基本信息（vehicles_base表）
 export interface VehicleBase {
   id: string
@@ -719,8 +722,24 @@ export interface VehicleBase {
   use_character: string | null // 使用性质
   register_date: string | null // 注册日期
   engine_number: string | null // 发动机号码
+  // 租赁管理字段
+  ownership_type: OwnershipType // 车辆归属类型：company(公司车) / personal(个人车)
+  lessor_name: string | null // 租赁方名称（出租车辆的公司或个人）
+  lessor_contact: string | null // 租赁方联系方式
+  lessee_name: string | null // 承租方名称（租用车辆的公司或个人）
+  lessee_contact: string | null // 承租方联系方式
+  monthly_rent: number // 月租金（元）
+  lease_start_date: string | null // 租赁开始日期
+  lease_end_date: string | null // 租赁结束日期
+  rent_payment_day: number | null // 每月租金缴纳日（1-31）
   created_at: string
   updated_at: string
+}
+
+// 车辆租赁信息（包含计算字段）
+export interface VehicleLeaseInfo extends VehicleBase {
+  next_payment_date: string | null // 下一个租金缴纳日期
+  is_lease_active: boolean // 租赁是否有效（在租期内）
 }
 
 // 车辆录入记录（vehicle_records表）
