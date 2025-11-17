@@ -19,6 +19,25 @@ import {recognizeDriverLicense, recognizeIdCardFront} from '@/utils/ocrUtils'
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 
 /**
+ * 字段名到中文名称的映射
+ */
+const PHOTO_NAME_MAP: Record<string, string> = {
+  driving_license_main: '行驶证主页',
+  driving_license_sub: '行驶证副页',
+  driving_license_sub_back: '行驶证副页背页',
+  left_front: '左前45°',
+  right_front: '右前45°',
+  left_rear: '左后45°',
+  right_rear: '右后45°',
+  dashboard: '仪表盘',
+  rear_door: '后门',
+  cargo_box: '货箱',
+  id_card_front: '身份证正面',
+  driver_license_main: '驾驶证主页',
+  driver_license_sub: '驾驶证副页'
+}
+
+/**
  * 显示OCR识别错误信息
  * @param error 错误对象
  */
@@ -871,14 +890,19 @@ const AddVehicle: React.FC = () => {
       // 上传车辆照片
       for (const [key, path] of Object.entries(photos)) {
         if (path) {
+          const photoName = PHOTO_NAME_MAP[key] || key
+          console.log(`📤 开始上传 ${photoName}...`)
+
           const fileName = generateUniqueFileName(`vehicle_${key}`, 'jpg')
           // 判断是否需要强制横向显示
           // 行驶证照片需要横向显示，其他照片保持原始方向
           const needLandscape = key.includes('driving_license')
           const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
           if (!uploadedPath) {
-            throw new Error(`上传${key}照片失败`)
+            console.error(`❌ ${photoName} 上传失败`)
+            throw new Error(`上传 ${photoName} 失败，请检查网络连接后重试`)
           }
+          console.log(`✅ ${photoName} 上传成功`)
           uploadedPhotos[key] = uploadedPath
         }
       }
@@ -887,12 +911,17 @@ const AddVehicle: React.FC = () => {
       const uploadedDriverPhotos: Record<string, string> = {}
       for (const [key, path] of Object.entries(driverPhotos)) {
         if (path) {
+          const photoName = PHOTO_NAME_MAP[key] || key
+          console.log(`📤 开始上传 ${photoName}...`)
+
           const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
           // 证件照片不需要强制横向显示，保持原始方向
           const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
           if (!uploadedPath) {
-            throw new Error(`上传${key}证件照片失败`)
+            console.error(`❌ ${photoName} 上传失败`)
+            throw new Error(`上传 ${photoName} 失败，请检查网络连接后重试`)
           }
+          console.log(`✅ ${photoName} 上传成功`)
           uploadedDriverPhotos[key] = uploadedPath
         }
       }

@@ -450,31 +450,39 @@ export async function uploadImageToStorage(
               resolve(res.data)
             } else {
               console.error('❌ 文件数据格式错误，期望 ArrayBuffer，实际:', typeof res.data)
-              reject(new Error('文件数据格式错误'))
+              reject(new Error(`文件数据格式错误: 期望 ArrayBuffer，实际 ${typeof res.data}`))
             }
           },
           fail: (err) => {
             console.error('❌ 文件读取失败:', err)
-            reject(err)
+            console.error('❌ 文件路径:', compressedPath)
+            reject(new Error(`文件读取失败: ${err.errMsg || '未知错误'}`))
           }
         })
       })
 
       // 3. 上传 ArrayBuffer 到 Supabase Storage
       console.log('📤 上传文件到 Supabase Storage...')
+      console.log('📦 Bucket:', bucketName)
+      console.log('📄 文件名:', fileName)
+      console.log('📏 文件大小:', fileContent.byteLength, 'bytes')
+
       const {data, error} = await supabase.storage.from(bucketName).upload(fileName, fileContent, {
         contentType: 'image/jpeg',
         upsert: false
       })
 
       if (error) {
-        console.error('❌ 上传图片失败:', error)
+        console.error('❌ Supabase Storage 上传失败')
+        console.error('❌ 错误代码:', error.statusCode)
+        console.error('❌ 错误消息:', error.message)
         console.error('❌ 错误详情:', JSON.stringify(error))
         return null
       }
 
       if (!data || !data.path) {
-        console.error('❌ 上传返回数据异常:', data)
+        console.error('❌ 上传返回数据异常')
+        console.error('❌ 返回数据:', data)
         return null
       }
 

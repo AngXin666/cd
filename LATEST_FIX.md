@@ -1,126 +1,105 @@
-# 最新修复 - 小程序还车失败问题
+# 最新修复 - 添加车辆图片上传错误提示
 
 ## 修复时间
 2025-11-18
 
 ## 问题描述
 **用户反馈**：
-- H5 环境可以正常还车
-- 小程序环境还车失败
+- 小程序司机端添加车辆时，录入照片失败
+- 错误提示："上传 driving_license_main照片失败"
+- 错误消息使用英文字段名，不够用户友好
+- 没有显示具体的失败原因
 
 ## 根本原因
-在 `src/utils/imageUtils.ts` 的 `uploadImageToStorage` 函数中，小程序环境的图片上传逻辑存在严重错误。
-
-**错误代码**：
-```typescript
-// ❌ 错误：小程序环境中的上传方式
-if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-  const compressedPath = await compressImage(imagePath, 0.8)
-  
-  // 错误：直接传递 { tempFilePath } 对象给 Supabase
-  const {data, error} = await supabase.storage.from(bucketName).upload(fileName, {
-    tempFilePath: compressedPath
-  } as any)
-}
-```
-
-**问题分析**：
-- Supabase Storage 的 `upload` 方法期望的是**文件内容**（Blob、File、ArrayBuffer）
-- 小程序环境中，不能直接传递 `{ tempFilePath }` 对象
-- 必须先读取文件内容为 ArrayBuffer，然后上传
+1. **错误消息不友好**：直接使用英文字段名 `driving_license_main`，用户不知道这是什么照片
+2. **缺少详细日志**：文件读取失败时，没有记录文件路径和错误消息
+3. **Supabase 错误信息不完整**：没有记录 bucket、文件名、文件大小等关键信息
 
 ## 修复内容
 
-### 修改小程序环境的上传逻辑 (src/utils/imageUtils.ts)
+### 1. 添加字段名到中文名称的映射 (src/pages/driver/add-vehicle/index.tsx)
 ```typescript
-// ✅ 正确：小程序环境中的上传方式
-if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-  console.log('📱 小程序环境：使用小程序专用上传流程')
-
-  // 1. 压缩图片
-  const compressedPath = await compressImage(imagePath, 0.8)
-
-  // 2. 读取文件内容为 ArrayBuffer
-  const fileContent = await new Promise<ArrayBuffer>((resolve, reject) => {
-    const fs = Taro.getFileSystemManager()
-    fs.readFile({
-      filePath: compressedPath,
-      encoding: 'binary', // 使用 binary 编码直接读取为 ArrayBuffer
-      success: (res) => {
-        if (res.data instanceof ArrayBuffer) {
-          resolve(res.data)
-        } else {
-          reject(new Error('文件数据格式错误'))
-        }
-      },
-      fail: (err) => reject(err)
-    })
-  })
-
-  // 3. 上传 ArrayBuffer 到 Supabase Storage
-  const {data, error} = await supabase.storage.from(bucketName).upload(fileName, fileContent, {
-    contentType: 'image/jpeg',
-    upsert: false
-  })
-
-  // 4. 获取公开URL
-  const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
-  return urlData.publicUrl
+const PHOTO_NAME_MAP: Record<string, string> = {
+  driving_license_main: '行驶证主页',
+  driving_license_sub: '行驶证副页',
+  driving_license_sub_back: '行驶证副页背页',
+  left_front: '左前45°',
+  right_front: '右前45°',
+  left_rear: '左后45°',
+  right_rear: '右后45°',
+  dashboard: '仪表盘',
+  rear_door: '后门',
+  cargo_box: '货箱',
+  id_card_front: '身份证正面',
+  driver_license_main: '驾驶证主页',
+  driver_license_sub: '驾驶证副页'
 }
 ```
 
-### 修复要点
-1. ✅ 使用 `FileSystemManager.readFile()` 读取文件内容
-2. ✅ 指定 `encoding: 'binary'` 获取 ArrayBuffer
-3. ✅ 上传 ArrayBuffer 到 Supabase Storage
-4. ✅ 添加详细的日志输出，方便调试
+### 2. 改进上传照片的错误消息
+```typescript
+// ✅ 修复后
+const photoName = PHOTO_NAME_MAP[key] || key
+console.log(`📤 开始上传 ${photoName}...`)
+
+const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
+if (!uploadedPath) {
+  console.error(`❌ ${photoName} 上传失败`)
+  throw new Error(`上传 ${photoName} 失败，请检查网络连接后重试`)
+}
+console.log(`✅ ${photoName} 上传成功`)
+```
+
+### 3. 改进文件读取错误处理 (src/utils/imageUtils.ts)
+```typescript
+fail: (err) => {
+  console.error('❌ 文件读取失败:', err)
+  console.error('❌ 文件路径:', compressedPath)
+  reject(new Error(`文件读取失败: ${err.errMsg || '未知错误'}`))
+}
+```
+
+### 4. 改进 Supabase 上传错误日志
+```typescript
+console.log('📤 上传文件到 Supabase Storage...')
+console.log('📦 Bucket:', bucketName)
+console.log('📄 文件名:', fileName)
+console.log('📏 文件大小:', fileContent.byteLength, 'bytes')
+
+if (error) {
+  console.error('❌ Supabase Storage 上传失败')
+  console.error('❌ 错误代码:', error.statusCode)
+  console.error('❌ 错误消息:', error.message)
+  console.error('❌ 错误详情:', JSON.stringify(error))
+  return null
+}
+```
 
 ## 修复效果
 
 ### 修复前
-- ❌ 小程序环境还车失败
-- ❌ 图片上传失败
-- ❌ 错误信息不明确
+**错误消息**：
+```
+上传 driving_license_main照片失败
+```
 
 ### 修复后
-- ✅ 小程序环境还车成功
-- ✅ 图片正确上传到 Supabase Storage
-- ✅ 详细的日志输出，方便调试
-- ✅ H5 环境不受影响，继续正常工作
-
-## 技术要点
-
-### 1. 小程序文件系统 API
-**读取文件的编码选项**：
-- `'utf8'` - 返回字符串（文本文件）
-- `'base64'` - 返回 base64 字符串
-- `'binary'` - 返回 ArrayBuffer（二进制文件）✅ 推荐用于图片
-
-### 2. H5 vs 小程序的差异
-
-| 环境 | 文件表示 | 上传方式 |
-|------|---------|---------|
-| H5 | File 对象 | 直接上传 File 或 Blob |
-| 小程序 | 临时文件路径 | 读取文件内容 → ArrayBuffer → 上传 |
-
-### 3. 跨平台兼容性
-```typescript
-if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-  // 小程序专用逻辑：FileSystemManager + ArrayBuffer
-} else {
-  // H5 专用逻辑：Blob/File
-}
+**错误消息**：
+```
+上传 行驶证主页 失败，请检查网络连接后重试
 ```
 
-## 测试验证
+**改进**：
+- ✅ 使用中文名称
+- ✅ 用户友好
+- ✅ 提示解决方法
 
-### 场景1：小程序环境还车
-**预期**：图片上传成功，还车成功
-**状态**：✅ 代码已修复，待测试
+### 日志输出改进
 
-**预期日志**：
+**修复后的完整日志**：
 ```
-📤 开始上传图片: return_left_front_1234567890_abc123.jpg
+📤 开始上传 行驶证主页...
+📤 开始上传图片: vehicle_driving_license_main_xxx.jpg
 📍 当前环境: 小程序
 📁 原始图片路径: wxfile://tmp_xxx.jpg
 📱 小程序环境：使用小程序专用上传流程
@@ -129,22 +108,38 @@ if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
 ✅ 文件读取成功
 ✅ 文件大小: 245678 bytes
 📤 上传文件到 Supabase Storage...
+📦 Bucket: app-7cdqf07mbu9t_vehicles
+📄 文件名: vehicle_driving_license_main_xxx.jpg
+📏 文件大小: 245678 bytes
 ✅ 图片上传成功: https://xxx.supabase.co/storage/v1/object/public/...
+✅ 行驶证主页 上传成功
 ```
 
-### 场景2：H5 环境还车
-**预期**：图片上传成功，还车成功
+## 测试验证
+
+### 场景1：正常上传
+**预期**：所有照片上传成功，显示详细日志
+**状态**：✅ 代码已修复，待测试
+
+### 场景2：网络错误
+**预期**：显示"上传 行驶证主页 失败，请检查网络连接后重试"
+**状态**：✅ 代码已修复，待测试
+
+### 场景3：文件读取失败
+**预期**：控制台显示详细的文件路径和错误信息
 **状态**：✅ 代码已修复，待测试
 
 ## 相关文档
-- `FIX_MINIPROGRAM_RETURN_VEHICLE.md` - 详细修复说明
-- `FIX_RETURN_VEHICLE_ERROR.md` - 还车失败错误修复
+- `FIX_ADD_VEHICLE_UPLOAD_ERROR.md` - 详细修复说明
+- `FIX_MINIPROGRAM_RETURN_VEHICLE.md` - 小程序还车失败修复
 - `FIX_SUMMARY.md` - 所有修复的总结
 
 ## 代码质量
 - ✅ 通过 Biome 代码检查
 - ✅ 无 TypeScript 错误
 - ✅ 添加了详细的日志输出
+- ✅ 改进了错误消息
 - ✅ 逻辑清晰，易于维护
+
 
 
