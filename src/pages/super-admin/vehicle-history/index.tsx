@@ -124,15 +124,21 @@ const VehicleHistory: React.FC = () => {
   }
 
   // 获取或初始化记录的 activeTab
-  const getRecordTab = (recordId: string) => {
-    return recordTabs[recordId] || 'pickup'
+  const getRecordTab = (recordId: string, recordType: 'pickup' | 'return') => {
+    const key = `${recordId}-${recordType}`
+    return recordTabs[key] || 'pickup'
   }
 
   // 设置记录的 activeTab
-  const setRecordTab = (recordId: string, tab: 'pickup' | 'registration' | 'personal' | 'damage') => {
+  const setRecordTab = (
+    recordId: string,
+    recordType: 'pickup' | 'return',
+    tab: 'pickup' | 'registration' | 'personal' | 'damage'
+  ) => {
+    const key = `${recordId}-${recordType}`
     setRecordTabs((prev) => ({
       ...prev,
-      [recordId]: tab
+      [key]: tab
     }))
   }
 
@@ -152,24 +158,39 @@ const VehicleHistory: React.FC = () => {
       return aTime - bTime
     })
 
-    // 分离提车和还车记录
-    const pickupRecords = sortedRecords.filter((r) => !r.return_time)
-    const returnRecords = sortedRecords.filter((r) => r.return_time)
-
     const groups: RecordGroup[] = []
 
-    // 配对逻辑：按时间顺序配对
-    const maxLength = Math.max(pickupRecords.length, returnRecords.length)
-    for (let i = 0; i < maxLength; i++) {
-      const pickupRecord = pickupRecords[i] || null
-      const returnRecord = returnRecords[i] || null
+    // 遍历所有记录，每条记录可能包含提车、还车或两者
+    for (let i = 0; i < sortedRecords.length; i++) {
+      const record = sortedRecords[i]
 
-      groups.push({
-        cycleNumber: i + 1,
-        pickupRecord,
-        returnRecord,
-        status: returnRecord ? 'completed' : 'in_progress'
-      })
+      // 如果记录同时有提车和还车信息，作为一个完整周期
+      if (record.pickup_time && record.return_time) {
+        groups.push({
+          cycleNumber: groups.length + 1,
+          pickupRecord: record,
+          returnRecord: record,
+          status: 'completed'
+        })
+      }
+      // 如果只有提车信息，作为进行中的周期
+      else if (record.pickup_time && !record.return_time) {
+        groups.push({
+          cycleNumber: groups.length + 1,
+          pickupRecord: record,
+          returnRecord: null,
+          status: 'in_progress'
+        })
+      }
+      // 如果只有还车信息（异常情况，理论上不应该发生）
+      else if (!record.pickup_time && record.return_time) {
+        groups.push({
+          cycleNumber: groups.length + 1,
+          pickupRecord: null,
+          returnRecord: record,
+          status: 'completed'
+        })
+      }
     }
 
     return groups
@@ -307,13 +328,13 @@ const VehicleHistory: React.FC = () => {
         {/* Tab切换 - 每个记录独立管理 */}
         <View className="flex border-b border-gray-200 mb-3">
           <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'pickup' ? 'border-b-2 border-primary' : ''}`}
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id, recordType) === 'pickup' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              setRecordTab(record.id, 'pickup')
+              setRecordTab(record.id, recordType, 'pickup')
             }}>
             <Text
-              className={`text-sm ${getRecordTab(record.id) === 'pickup' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+              className={`text-sm ${getRecordTab(record.id, recordType) === 'pickup' ? 'text-primary font-medium' : 'text-gray-600'}`}>
               {recordType === 'return' ? '还车照片' : '提车照片'}
             </Text>
           </View>
@@ -321,37 +342,37 @@ const VehicleHistory: React.FC = () => {
           {recordType === 'pickup' && (
             <>
               <View
-                className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'registration' ? 'border-b-2 border-primary' : ''}`}
+                className={`flex-1 text-center py-2 ${getRecordTab(record.id, recordType) === 'registration' ? 'border-b-2 border-primary' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setRecordTab(record.id, 'registration')
+                  setRecordTab(record.id, recordType, 'registration')
                 }}>
                 <Text
-                  className={`text-sm ${getRecordTab(record.id) === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+                  className={`text-sm ${getRecordTab(record.id, recordType) === 'registration' ? 'text-primary font-medium' : 'text-gray-600'}`}>
                   行驶证照片
                 </Text>
               </View>
               <View
-                className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'personal' ? 'border-b-2 border-primary' : ''}`}
+                className={`flex-1 text-center py-2 ${getRecordTab(record.id, recordType) === 'personal' ? 'border-b-2 border-primary' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setRecordTab(record.id, 'personal')
+                  setRecordTab(record.id, recordType, 'personal')
                 }}>
                 <Text
-                  className={`text-sm ${getRecordTab(record.id) === 'personal' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+                  className={`text-sm ${getRecordTab(record.id, recordType) === 'personal' ? 'text-primary font-medium' : 'text-gray-600'}`}>
                   个人信息
                 </Text>
               </View>
             </>
           )}
           <View
-            className={`flex-1 text-center py-2 ${getRecordTab(record.id) === 'damage' ? 'border-b-2 border-primary' : ''}`}
+            className={`flex-1 text-center py-2 ${getRecordTab(record.id, recordType) === 'damage' ? 'border-b-2 border-primary' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              setRecordTab(record.id, 'damage')
+              setRecordTab(record.id, recordType, 'damage')
             }}>
             <Text
-              className={`text-sm ${getRecordTab(record.id) === 'damage' ? 'text-primary font-medium' : 'text-gray-600'}`}>
+              className={`text-sm ${getRecordTab(record.id, recordType) === 'damage' ? 'text-primary font-medium' : 'text-gray-600'}`}>
               车损特写
             </Text>
           </View>
@@ -359,13 +380,13 @@ const VehicleHistory: React.FC = () => {
 
         {/* 照片展示区域 - 支持点击放大 */}
         <View onClick={(e) => e.stopPropagation()}>
-          {getRecordTab(record.id) === 'pickup' &&
+          {getRecordTab(record.id, recordType) === 'pickup' &&
             renderPhotoGrid(
               recordType === 'return' ? record.return_photos || [] : record.pickup_photos || [],
               recordType === 'return' ? '还车照片' : '提车照片'
             )}
           {/* 行驶证照片Tab - 只在提车记录中显示 */}
-          {recordType === 'pickup' && getRecordTab(record.id) === 'registration' && (
+          {recordType === 'pickup' && getRecordTab(record.id, recordType) === 'registration' && (
             <View>
               {/* 行驶证主页 */}
               {record.driving_license_main_photo && (
@@ -455,7 +476,7 @@ const VehicleHistory: React.FC = () => {
             </View>
           )}
           {/* 个人信息Tab - 只显示身份证和驾驶证照片，只在提车记录中显示 */}
-          {recordType === 'pickup' && getRecordTab(record.id) === 'personal' && (
+          {recordType === 'pickup' && getRecordTab(record.id, recordType) === 'personal' && (
             <View>
               {/* 身份证正面 */}
               {record.id_card_photo_front && (
@@ -517,7 +538,7 @@ const VehicleHistory: React.FC = () => {
               )}
             </View>
           )}
-          {getRecordTab(record.id) === 'damage' && renderPhotoGrid(record.damage_photos || [], '车损特写')}
+          {getRecordTab(record.id, recordType) === 'damage' && renderPhotoGrid(record.damage_photos || [], '车损特写')}
         </View>
 
         {/* 查看详情按钮 */}

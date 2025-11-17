@@ -197,7 +197,7 @@ const VehicleList: React.FC = () => {
   }
 
   // 获取车辆状态显示文本
-  const getStatusText = (status: string): string => {
+  const _getStatusText = (status: string): string => {
     switch (status) {
       case 'picked_up':
         return '已提车'
@@ -215,7 +215,7 @@ const VehicleList: React.FC = () => {
   }
 
   // 获取车辆状态颜色
-  const getStatusColor = (status: string): string => {
+  const _getStatusColor = (status: string): string => {
     switch (status) {
       case 'picked_up':
         return 'bg-green-500'
@@ -233,7 +233,7 @@ const VehicleList: React.FC = () => {
   }
 
   // 获取审核状态显示文本
-  const getReviewStatusText = (reviewStatus: string): string => {
+  const _getReviewStatusText = (reviewStatus: string): string => {
     switch (reviewStatus) {
       case 'drafting':
         return '录入中'
