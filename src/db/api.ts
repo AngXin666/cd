@@ -4220,24 +4220,84 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
 export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): Promise<Vehicle | null> {
   logger.db('更新', 'vehicles', {vehicleId, updates})
   try {
-    const {data, error} = await supabase
-      .from('vehicles')
-      .update({...updates, updated_at: new Date().toISOString()})
-      .eq('id', vehicleId)
-      .select()
-      .maybeSingle()
-
-    if (error) {
-      logger.error('更新车辆信息失败', error)
+    // 首先获取车辆信息，以便知道vehicle_id（vehicles_base的id）
+    const vehicle = await getVehicleById(vehicleId)
+    if (!vehicle) {
+      logger.error('车辆不存在', {vehicleId})
       return null
+    }
+
+    // 分离租赁字段和其他字段
+    const leaseFields = [
+      'ownership_type',
+      'lessor_name',
+      'lessor_contact',
+      'lessee_name',
+      'lessee_contact',
+      'monthly_rent',
+      'lease_start_date',
+      'lease_end_date',
+      'rent_payment_day'
+    ]
+
+    const leaseUpdates: Record<string, any> = {}
+    const recordUpdates: Record<string, any> = {}
+
+    // 将更新字段分类
+    for (const [key, value] of Object.entries(updates)) {
+      if (leaseFields.includes(key)) {
+        leaseUpdates[key] = value
+      } else {
+        recordUpdates[key] = value
+      }
+    }
+
+    // 更新vehicles_base表（租赁字段）
+    if (Object.keys(leaseUpdates).length > 0) {
+      // 需要先获取vehicle_id（vehicles_base的id）
+      const {data: recordData, error: recordError} = await supabase
+        .from('vehicle_records')
+        .select('vehicle_id')
+        .eq('id', vehicleId)
+        .maybeSingle()
+
+      if (recordError || !recordData) {
+        logger.error('获取vehicle_id失败', recordError)
+        return null
+      }
+
+      const {error: baseError} = await supabase
+        .from('vehicles_base')
+        .update({...leaseUpdates, updated_at: new Date().toISOString()})
+        .eq('id', recordData.vehicle_id)
+
+      if (baseError) {
+        logger.error('更新vehicles_base失败', baseError)
+        return null
+      }
+    }
+
+    // 更新vehicle_records表（其他字段）
+    if (Object.keys(recordUpdates).length > 0) {
+      const {error: recordError} = await supabase
+        .from('vehicle_records')
+        .update({...recordUpdates, updated_at: new Date().toISOString()})
+        .eq('id', vehicleId)
+
+      if (recordError) {
+        logger.error('更新vehicle_records失败', recordError)
+        return null
+      }
     }
 
     // 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('成功更新车辆信息', {vehicleId, plate: data?.plate_number})
-    return data
+    // 重新获取更新后的车辆信息
+    const updatedVehicle = await getVehicleById(vehicleId)
+    logger.info('成功更新车辆信息', {vehicleId, plate: updatedVehicle?.plate_number})
+    return updatedVehicle
   } catch (error) {
     logger.error('更新车辆信息异常', error)
     return null
