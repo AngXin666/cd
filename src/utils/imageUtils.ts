@@ -427,18 +427,45 @@ export async function uploadImageToStorage(
     console.log('📍 当前环境:', Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? '小程序' : 'H5')
     console.log('📁 原始图片路径:', imagePath)
 
-    // 小程序环境：简化处理流程
+    // 小程序环境：需要读取文件内容后上传
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-      console.log('📱 小程序环境：使用简化上传流程')
+      console.log('📱 小程序环境：使用小程序专用上传流程')
 
       // 1. 压缩图片
       const compressedPath = await compressImage(imagePath, 0.8)
       console.log('✅ 图片压缩完成，压缩后路径:', compressedPath)
 
-      // 2. 直接上传文件路径（小程序环境使用tempFilePath）
-      const {data, error} = await supabase.storage.from(bucketName).upload(fileName, {
-        tempFilePath: compressedPath
-      } as any)
+      // 2. 读取文件内容为 ArrayBuffer
+      console.log('📖 读取文件内容...')
+      const fileContent = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const fs = Taro.getFileSystemManager()
+        fs.readFile({
+          filePath: compressedPath,
+          encoding: 'binary', // 使用 binary 编码直接读取为 ArrayBuffer
+          success: (res) => {
+            console.log('✅ 文件读取成功')
+            // 小程序环境中，binary 编码会返回 ArrayBuffer
+            if (res.data instanceof ArrayBuffer) {
+              console.log('✅ 文件大小:', res.data.byteLength, 'bytes')
+              resolve(res.data)
+            } else {
+              console.error('❌ 文件数据格式错误，期望 ArrayBuffer，实际:', typeof res.data)
+              reject(new Error('文件数据格式错误'))
+            }
+          },
+          fail: (err) => {
+            console.error('❌ 文件读取失败:', err)
+            reject(err)
+          }
+        })
+      })
+
+      // 3. 上传 ArrayBuffer 到 Supabase Storage
+      console.log('📤 上传文件到 Supabase Storage...')
+      const {data, error} = await supabase.storage.from(bucketName).upload(fileName, fileContent, {
+        contentType: 'image/jpeg',
+        upsert: false
+      })
 
       if (error) {
         console.error('❌ 上传图片失败:', error)
@@ -451,7 +478,7 @@ export async function uploadImageToStorage(
         return null
       }
 
-      // 3. 获取公开URL
+      // 4. 获取公开URL
       const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
       console.log('✅ 图片上传成功:', urlData.publicUrl)
       return urlData.publicUrl
