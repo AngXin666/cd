@@ -7,13 +7,23 @@ import {getCurrentUserRole} from '@/db/api'
 import type {UserRole} from '@/db/types'
 
 const IndexPage: React.FC = () => {
-  const {user, isAuthenticated} = useAuth({guard: true})
+  const {user, isAuthenticated} = useAuth() // 移除 guard: true
   const [role, setRole] = useState<UserRole | null>(null)
   const [loadingStatus, setLoadingStatus] = useState<string>('正在验证身份...')
   const [error, setError] = useState<string | null>(null)
   const hasRedirected = useRef(false) // 防止重复跳转
   const loadAttempts = useRef(0) // 加载尝试次数
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 检查认证状态，未登录则跳转到登录页
+  useEffect(() => {
+    // 等待认证状态确定
+    if (isAuthenticated === false && !hasRedirected.current) {
+      console.log('[IndexPage] 用户未登录，跳转到登录页')
+      hasRedirected.current = true
+      Taro.reLaunch({url: '/pages/login/index'})
+    }
+  }, [isAuthenticated])
 
   // 快速获取用户角色（只查询 role 字段，不获取完整档案）
   const loadRole = useCallback(async () => {
