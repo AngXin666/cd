@@ -10,6 +10,7 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getAllVehiclesWithDrivers} from '@/db/api'
 import type {VehicleWithDriver} from '@/db/types'
+import {supabase} from '@/db/supabase'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 
@@ -22,6 +23,8 @@ const VehicleManagement: React.FC = () => {
   const [filteredVehicles, setFilteredVehicles] = useState<VehicleWithDriver[]>([])
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
+  // 存储每辆车的历史记录数量
+  const [vehicleHistoryCount, setVehicleHistoryCount] = useState<Map<string, number>>(new Map())
 
   // 加载车辆列表（带缓存）
   const loadVehicles = useCallback(async () => {
@@ -54,6 +57,32 @@ const VehicleManagement: React.FC = () => {
       })
       setVehicles(data)
       setFilteredVehicles(data)
+
+      // 查询每辆车的历史记录数量
+      const historyCountMap = new Map<string, number>()
+      for (const vehicle of data) {
+        try {
+          const {count, error} = await supabase
+            .from('vehicles')
+            .select('*', {count: 'exact', head: true})
+            .eq('plate_number', vehicle.plate_number)
+
+          if (!error && count !== null) {
+            historyCountMap.set(vehicle.plate_number, count)
+            logger.info('📊 车辆历史记录数量', {
+              plateNumber: vehicle.plate_number,
+              count: count
+            })
+          }
+        } catch (err) {
+          logger.warn('查询历史记录数量失败', {
+            plateNumber: vehicle.plate_number,
+            error: err
+          })
+        }
+      }
+      setVehicleHistoryCount(historyCountMap)
+
       logger.info('✅ 车辆列表加载成功', {vehicleCount: data.length})
     } catch (error) {
       logger.error('❌ 加载车辆列表失败', error)
@@ -150,11 +179,17 @@ const VehicleManagement: React.FC = () => {
 
   /**
    * 判断车辆是否有历史记录
-   * 通过检查是否有return_time来判断
+   * 如果该车牌号有多条记录（大于1条），说明有历史记录
    */
   const hasHistory = (vehicle: VehicleWithDriver): boolean => {
-    // 如果有return_time，说明这辆车至少被使用过一次，有历史记录
-    return !!vehicle.return_time
+    const count = vehicleHistoryCount.get(vehicle.plate_number) || 0
+    const result = count > 1
+    logger.info('🔍 检查车辆历史记录', {
+      plateNumber: vehicle.plate_number,
+      count: count,
+      hasHistory: result
+    })
+    return result
   }
 
   /**
