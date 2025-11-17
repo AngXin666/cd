@@ -120,7 +120,7 @@ async function isFileValid(filePath: string): Promise<boolean> {
 /**
  * 清理无效的图片路径
  * @param paths 图片路径数组
- * @returns 有效的图片路径数组
+ * @returns 有效的图片路径数组（保持原数组长度和索引位置）
  */
 async function cleanInvalidPaths(paths: (string | undefined)[]): Promise<(string | undefined)[]> {
   const results: (string | undefined)[] = []

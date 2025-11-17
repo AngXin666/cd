@@ -167,6 +167,7 @@ const AddVehicle: React.FC = () => {
                   }))
                 }
 
+                // 恢复行驶证照片（过滤无效路径）
                 if (draft.registration_front_photo || draft.registration_back_photo) {
                   setPhotos((prev) => ({
                     ...prev,
@@ -175,23 +176,32 @@ const AddVehicle: React.FC = () => {
                   }))
                 }
 
+                // 恢复车辆照片（过滤无效路径）
                 if (draft.vehicle_photos && draft.vehicle_photos.length > 0) {
+                  // 过滤掉 undefined 值
+                  const validPhotos = draft.vehicle_photos.filter((p) => p)
                   setPhotos((prev) => ({
                     ...prev,
-                    left_front: draft.vehicle_photos?.[0] || '',
-                    right_front: draft.vehicle_photos?.[1] || '',
-                    left_rear: draft.vehicle_photos?.[2] || '',
-                    right_rear: draft.vehicle_photos?.[3] || '',
-                    dashboard: draft.vehicle_photos?.[4] || '',
-                    rear_door: draft.vehicle_photos?.[5] || '',
-                    cargo_box: draft.vehicle_photos?.[6] || ''
+                    left_front: validPhotos[0] || '',
+                    right_front: validPhotos[1] || '',
+                    left_rear: validPhotos[2] || '',
+                    right_rear: validPhotos[3] || '',
+                    dashboard: validPhotos[4] || '',
+                    rear_door: validPhotos[5] || '',
+                    cargo_box: validPhotos[6] || ''
                   }))
                 }
 
+                // 恢复车损照片（过滤无效路径）
                 if (draft.damage_photos && draft.damage_photos.length > 0) {
-                  setDamagePhotos(draft.damage_photos.map((path) => ({path, size: 0})))
+                  // 过滤掉 undefined 值
+                  const validDamagePhotos = draft.damage_photos.filter((p) => p)
+                  if (validDamagePhotos.length > 0) {
+                    setDamagePhotos(validDamagePhotos.map((path) => ({path, size: 0})))
+                  }
                 }
 
+                // 恢复驾驶员信息
                 if (draft.driver_name) {
                   setDriverLicenseData((prev) => ({
                     ...prev,
@@ -204,6 +214,7 @@ const AddVehicle: React.FC = () => {
                   }))
                 }
 
+                // 恢复驾驶员证件照片（过滤无效路径）
                 if (draft.id_card_front_photo || draft.driver_license_photo) {
                   setDriverPhotos((prev) => ({
                     ...prev,
