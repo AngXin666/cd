@@ -327,7 +327,7 @@ const VehicleDetail: React.FC = () => {
           </View>
 
           {/* 补录照片按钮 - 只在审核不通过且有需要补录的照片时显示 */}
-          {vehicle.review_status === 'rejected' && vehicle.required_photos && vehicle.required_photos.length > 0 && (
+          {vehicle.review_status === 'need_supplement' && vehicle.required_photos && vehicle.required_photos.length > 0 && (
             <View className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4">
               <View className="flex items-center justify-between">
                 <View className="flex-1">
@@ -426,7 +426,9 @@ const VehicleDetail: React.FC = () => {
                       value={vehicle.ownership_type === 'company' ? '公司车' : '个人车'}
                     />
                     {/* 显示所有租赁信息，不限制车辆类型 */}
-                    {vehicle.lessor_name && <InfoRow icon="i-mdi-account-tie" label="租赁方" value={vehicle.lessor_name} />}
+                    {vehicle.lessor_name && (
+                      <InfoRow icon="i-mdi-account-tie" label="租赁方" value={vehicle.lessor_name} />
+                    )}
                     {vehicle.lessor_contact && (
                       <InfoRow icon="i-mdi-phone" label="租赁方联系方式" value={vehicle.lessor_contact} />
                     )}
@@ -452,7 +454,11 @@ const VehicleDetail: React.FC = () => {
                       />
                     )}
                     {vehicle.rent_payment_day && (
-                      <InfoRow icon="i-mdi-calendar-clock" label="每月租金缴纳日" value={`每月${vehicle.rent_payment_day}日`} />
+                      <InfoRow
+                        icon="i-mdi-calendar-clock"
+                        label="每月租金缴纳日"
+                        value={`每月${vehicle.rent_payment_day}日`}
+                      />
                     )}
                   </>
                 ) : (

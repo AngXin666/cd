@@ -272,15 +272,7 @@ const VehicleList: React.FC = () => {
    */
   const getVehicleStatusBadge = (vehicle: Vehicle): {text: string; color: string; icon: string} => {
     // 优先判断审核状态
-    if (vehicle.review_status === 'pending' || vehicle.review_status === 'pending_review') {
-      return {
-        text: '审核中',
-        color: 'bg-orange-500',
-        icon: 'i-mdi-clock-outline'
-      }
-    }
-
-    if (vehicle.review_status === 'rejected' || vehicle.review_status === 'need_supplement') {
+    if (vehicle.review_status === 'need_supplement') {
       return {
         text: '需补录',
         color: 'bg-red-500',
@@ -474,6 +466,52 @@ const VehicleList: React.FC = () => {
                         </View>
                       )}
                     </View>
+
+                    {/* 租赁信息 */}
+                    {(vehicle.lessor_name || vehicle.lessee_name || vehicle.monthly_rent) && (
+                      <View className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
+                        <View className="flex items-center mb-2">
+                          <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
+                          <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
+                        </View>
+                        <View className="space-y-1.5">
+                          {vehicle.lessor_name && (
+                            <View className="flex items-start">
+                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租赁方：</Text>
+                              <Text className="text-xs text-gray-800 flex-1">{vehicle.lessor_name}</Text>
+                            </View>
+                          )}
+                          {vehicle.lessee_name && (
+                            <View className="flex items-start">
+                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">承租方：</Text>
+                              <Text className="text-xs text-gray-800 flex-1">{vehicle.lessee_name}</Text>
+                            </View>
+                          )}
+                          {(vehicle.lease_start_date || vehicle.lease_end_date) && (
+                            <View className="flex items-start">
+                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租期：</Text>
+                              <Text className="text-xs text-gray-800 flex-1">
+                                {vehicle.lease_start_date ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN') : '未设置'}
+                                {' 至 '}
+                                {vehicle.lease_end_date ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN') : '未设置'}
+                              </Text>
+                            </View>
+                          )}
+                          {vehicle.rent_payment_day && (
+                            <View className="flex items-start">
+                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">交租时间：</Text>
+                              <Text className="text-xs text-gray-800 flex-1">每月{vehicle.rent_payment_day}号</Text>
+                            </View>
+                          )}
+                          {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null && (
+                            <View className="flex items-start">
+                              <Text className="text-xs text-gray-600 w-16 flex-shrink-0">月租金：</Text>
+                              <Text className="text-xs font-bold text-amber-700 flex-1">¥{vehicle.monthly_rent.toLocaleString()}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
 
                     {/* 提车/还车时间 */}
                     {(vehicle.pickup_time || vehicle.return_time) && (
