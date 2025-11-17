@@ -161,7 +161,7 @@ const VehicleList: React.FC = () => {
       logger.info('初始化完成，加载车辆', {targetDriverId, userId: user?.id})
       loadVehicles()
     }
-  }, [initialized, loadVehicles])
+  }, [initialized, loadVehicles, targetDriverId, user?.id])
 
   // 添加车辆
   const handleAddVehicle = () => {
@@ -188,12 +188,10 @@ const VehicleList: React.FC = () => {
   const shouldShowAddButton = (): boolean => {
     // 如果没有车辆，显示按钮
     if (vehicles.length === 0) return true
-    
+
     // 如果有任何车辆处于"已提车未还车"状态（active 且未还车），隐藏按钮
-    const hasPickedUpVehicle = vehicles.some(v => 
-      v.status === 'active' && 
-      v.review_status === 'approved' && 
-      !v.return_time
+    const hasPickedUpVehicle = vehicles.some(
+      (v) => v.status === 'active' && v.review_status === 'approved' && !v.return_time
     )
     return !hasPickedUpVehicle
   }
@@ -247,22 +245,6 @@ const VehicleList: React.FC = () => {
         return '审核通过'
       default:
         return reviewStatus
-    }
-  }
-
-  // 获取审核状态颜色
-  const getReviewStatusColor = (reviewStatus: string): string => {
-    switch (reviewStatus) {
-      case 'drafting':
-        return 'bg-gray-500'
-      case 'pending_review':
-        return 'bg-orange-500'
-      case 'need_supplement':
-        return 'bg-red-500'
-      case 'approved':
-        return 'bg-green-500'
-      default:
-        return 'bg-gray-500'
     }
   }
 
@@ -403,11 +385,13 @@ const VehicleList: React.FC = () => {
                   {/* 车辆照片 */}
                   {vehicle.left_front_photo && (
                     <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                      <Image 
-                        src={vehicle.left_front_photo} 
-                        mode="aspectFill" 
+                      <Image
+                        src={vehicle.left_front_photo}
+                        mode="aspectFill"
                         className="w-full h-full"
-                        onError={() => logger.error('车辆照片加载失败', {vehicleId: vehicle.id, photo: vehicle.left_front_photo})}
+                        onError={() =>
+                          logger.error('车辆照片加载失败', {vehicleId: vehicle.id, photo: vehicle.left_front_photo})
+                        }
                       />
                       {/* 状态标签 - 使用综合状态 */}
                       <View className="absolute top-3 right-3">
@@ -433,11 +417,10 @@ const VehicleList: React.FC = () => {
                           <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
                         </View>
                         {/* 综合状态标签 */}
-                        <View className={`rounded-full px-3 py-1 flex items-center ${getVehicleStatusBadge(vehicle).color}`}>
+                        <View
+                          className={`rounded-full px-3 py-1 flex items-center ${getVehicleStatusBadge(vehicle).color}`}>
                           <View className={`${getVehicleStatusBadge(vehicle).icon} text-white text-sm mr-1`}></View>
-                          <Text className="text-white text-xs font-medium">
-                            {getVehicleStatusBadge(vehicle).text}
-                          </Text>
+                          <Text className="text-white text-xs font-medium">{getVehicleStatusBadge(vehicle).text}</Text>
                         </View>
                       </View>
                       <Text className="text-gray-800 text-base font-medium">
@@ -467,63 +450,6 @@ const VehicleList: React.FC = () => {
                       )}
                     </View>
 
-                    {/* 租赁信息 - 始终显示 */}
-                    <View className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
-                      <View className="flex items-center mb-2">
-                        <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
-                        <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
-                      </View>
-                      <View className="space-y-1.5">
-                        {/* 车辆归属类型 */}
-                        <View className="flex items-start">
-                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">车辆类型：</Text>
-                          <Text className="text-xs text-gray-800 flex-1">
-                            {vehicle.ownership_type === 'company' ? '公司车' : vehicle.ownership_type === 'personal' ? '个人车' : '未设置'}
-                          </Text>
-                        </View>
-                        
-                        {/* 租赁方 */}
-                        <View className="flex items-start">
-                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租赁方：</Text>
-                          <Text className="text-xs text-gray-800 flex-1">{vehicle.lessor_name || '未设置'}</Text>
-                        </View>
-                        
-                        {/* 承租方 */}
-                        <View className="flex items-start">
-                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">承租方：</Text>
-                          <Text className="text-xs text-gray-800 flex-1">{vehicle.lessee_name || '未设置'}</Text>
-                        </View>
-                        
-                        {/* 租期 */}
-                        <View className="flex items-start">
-                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租期：</Text>
-                          <Text className="text-xs text-gray-800 flex-1">
-                            {vehicle.lease_start_date ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN') : '未设置'}
-                            {' 至 '}
-                            {vehicle.lease_end_date ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN') : '未设置'}
-                          </Text>
-                        </View>
-                        
-                        {/* 交租时间 */}
-                        <View className="flex items-start">
-                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">交租时间：</Text>
-                          <Text className="text-xs text-gray-800 flex-1">
-                            {vehicle.rent_payment_day ? `每月${vehicle.rent_payment_day}号` : '未设置'}
-                          </Text>
-                        </View>
-                        
-                        {/* 月租金 */}
-                        <View className="flex items-start">
-                          <Text className="text-xs text-gray-600 w-16 flex-shrink-0">月租金：</Text>
-                          <Text className="text-xs font-bold text-amber-700 flex-1">
-                            {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null 
-                              ? `¥${vehicle.monthly_rent.toLocaleString()}` 
-                              : '未设置'}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
                     {/* 提车/还车时间 */}
                     {(vehicle.pickup_time || vehicle.return_time) && (
                       <View className="mb-4 space-y-2">
@@ -531,7 +457,8 @@ const VehicleList: React.FC = () => {
                           <View className="flex items-center">
                             <View className="i-mdi-clock-check-outline text-base text-green-600 mr-2"></View>
                             <Text className="text-xs text-gray-600">
-                              提车时间：{new Date(vehicle.pickup_time).toLocaleString('zh-CN', {
+                              提车时间：
+                              {new Date(vehicle.pickup_time).toLocaleString('zh-CN', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',
@@ -545,7 +472,8 @@ const VehicleList: React.FC = () => {
                           <View className="flex items-center">
                             <View className="i-mdi-clock-check text-base text-gray-600 mr-2"></View>
                             <Text className="text-xs text-gray-600">
-                              还车时间：{new Date(vehicle.return_time).toLocaleString('zh-CN', {
+                              还车时间：
+                              {new Date(vehicle.return_time).toLocaleString('zh-CN', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',
