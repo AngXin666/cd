@@ -427,6 +427,23 @@ export async function uploadImageToStorage(
     console.log('📍 当前环境:', Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? '小程序' : 'H5')
     console.log('📁 原始图片路径:', imagePath)
 
+    // 检查用户认证状态
+    console.log('🔐 检查用户认证状态...')
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
+    if (!session) {
+      console.error('❌ 用户未登录，无法上传图片')
+      console.error('❌ 提示：请先登录后再上传图片')
+      Taro.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      return null
+    }
+    console.log('✅ 用户已登录，用户ID:', session.user.id)
+
     // 小程序环境：需要读取文件内容后上传
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
       console.log('📱 小程序环境：使用小程序专用上传流程')
@@ -461,7 +478,22 @@ export async function uploadImageToStorage(
         })
       })
 
-      // 3. 上传 ArrayBuffer 到 Supabase Storage
+      // 3. 检查文件大小（1MB = 1048576 bytes）
+      const maxSize = 1048576 // 1MB
+      if (fileContent.byteLength > maxSize) {
+        console.error('❌ 文件大小超过限制')
+        console.error('❌ 当前大小:', fileContent.byteLength, 'bytes')
+        console.error('❌ 最大限制:', maxSize, 'bytes')
+        Taro.showToast({
+          title: `图片过大(${(fileContent.byteLength / 1024 / 1024).toFixed(2)}MB)，请重新拍摄`,
+          icon: 'none',
+          duration: 3000
+        })
+        return null
+      }
+      console.log('✅ 文件大小检查通过')
+
+      // 4. 上传 ArrayBuffer 到 Supabase Storage
       console.log('📤 上传文件到 Supabase Storage...')
       console.log('📦 Bucket:', bucketName)
       console.log('📄 文件名:', fileName)
@@ -477,6 +509,31 @@ export async function uploadImageToStorage(
         console.error('❌ 错误代码:', error.statusCode)
         console.error('❌ 错误消息:', error.message)
         console.error('❌ 错误详情:', JSON.stringify(error))
+
+        // 根据错误类型提供更具体的提示
+        if (error.message?.includes('JWT')) {
+          console.error('❌ 认证令牌问题，可能需要重新登录')
+          Taro.showToast({
+            title: '登录已过期，请重新登录',
+            icon: 'none',
+            duration: 2000
+          })
+        } else if (error.message?.includes('Bucket')) {
+          console.error('❌ Bucket 配置问题')
+          Taro.showToast({
+            title: '存储配置错误，请联系管理员',
+            icon: 'none',
+            duration: 2000
+          })
+        } else if (error.message?.includes('size')) {
+          console.error('❌ 文件大小问题')
+          Taro.showToast({
+            title: '图片过大，请重新拍摄',
+            icon: 'none',
+            duration: 2000
+          })
+        }
+
         return null
       }
 
@@ -486,7 +543,7 @@ export async function uploadImageToStorage(
         return null
       }
 
-      // 4. 获取公开URL
+      // 5. 获取公开URL
       const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
       console.log('✅ 图片上传成功:', urlData.publicUrl)
       return urlData.publicUrl
