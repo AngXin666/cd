@@ -302,13 +302,13 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const totalDrivers = driverStats.length
 
   return (
-    <View style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+    <View className="min-h-screen bg-gray-50">
+      <ScrollView scrollY className="box-border h-screen">
         <View className="p-4">
           {/* 标题卡片 */}
-          <View className="bg-white/95 backdrop-blur rounded-3xl p-6 mb-5 shadow-2xl">
+          <View className="bg-white rounded-3xl p-6 mb-5 shadow-lg">
             <View className="flex items-center gap-4 mb-3">
-              <View className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <View className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
                 <View className="i-mdi-account-group text-4xl text-white" />
               </View>
               <View className="flex-1">
@@ -361,21 +361,21 @@ const SuperAdminLeaveApproval: React.FC = () => {
           {/* 司机统计列表 */}
           <View className="space-y-4">
             <View className="flex items-center gap-2 mb-3">
-              <View className="i-mdi-format-list-bulleted text-2xl text-white" />
-              <Text className="text-2xl font-bold text-white block">司机统计</Text>
+              <View className="i-mdi-format-list-bulleted text-2xl text-gray-700" />
+              <Text className="text-2xl font-bold text-gray-800 block">司机统计</Text>
             </View>
 
             {driverStats.length === 0 ? (
-              <View className="bg-white/95 backdrop-blur rounded-3xl p-12 text-center shadow-2xl">
+              <View className="bg-white rounded-3xl p-12 text-center shadow-lg">
                 <View className="i-mdi-account-off text-7xl text-gray-300 mb-4 mx-auto" />
                 <Text className="text-gray-400 text-xl block">当前仓库暂无司机数据</Text>
               </View>
             ) : (
               driverStats.map((stats) => (
-                <View key={stats.driverId} className="bg-white/95 backdrop-blur rounded-3xl p-5 shadow-2xl">
+                <View key={stats.driverId} className="bg-white rounded-3xl p-5 shadow-lg">
                   {/* 司机基本信息 */}
                   <View className="flex items-center gap-4 mb-4">
-                    <View className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <View className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
                       <View className="i-mdi-account text-4xl text-white" />
                     </View>
                     <View className="flex-1">
@@ -448,25 +448,38 @@ const SuperAdminLeaveApproval: React.FC = () => {
                       <Text className="text-sm text-gray-600 block mb-1">请假天数</Text>
                       <Text className="text-2xl font-bold text-orange-600 block">{stats.leaveDays}</Text>
                     </View>
+                    <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 text-center">
+                      <View className="i-mdi-calendar-month text-3xl text-purple-600 mb-2 mx-auto" />
+                      <Text className="text-sm text-gray-600 block mb-1">应出勤</Text>
+                      <Text className="text-2xl font-bold text-purple-600 block">{stats.workDays}天</Text>
+                    </View>
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center">
                       <View className="i-mdi-calendar-check text-3xl text-blue-600 mb-2 mx-auto" />
-                      <Text className="text-sm text-gray-600 block mb-1">打卡天数</Text>
-                      <Text className="text-2xl font-bold text-blue-600 block">
-                        {stats.actualAttendanceDays}/{stats.workDays}
-                      </Text>
+                      <Text className="text-sm text-gray-600 block mb-1">实际出勤</Text>
+                      <Text className="text-2xl font-bold text-blue-600 block">{stats.actualAttendanceDays}天</Text>
                     </View>
-                    <View className={`bg-gradient-to-br rounded-2xl p-4 text-center ${
-                      stats.lateCount === 0 ? 'from-green-50 to-green-100' : 'from-red-50 to-red-100'
-                    }`}>
-                      <View className={`i-mdi-clock-alert text-3xl mb-2 mx-auto ${
-                        stats.lateCount === 0 ? 'text-green-600' : 'text-red-600'
-                      }`} />
-                      <Text className="text-sm text-gray-600 block mb-1">迟到次数</Text>
+                  </View>
+
+                  {/* 迟到次数单独显示 */}
+                  <View className={`bg-gradient-to-br rounded-2xl p-4 mb-4 ${
+                    stats.lateCount === 0 ? 'from-green-50 to-green-100' : 'from-red-50 to-red-100'
+                  }`}>
+                    <View className="flex items-center justify-between">
+                      <View className="flex items-center gap-3">
+                        <View className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          stats.lateCount === 0 ? 'bg-green-200' : 'bg-red-200'
+                        }`}>
+                          <View className={`i-mdi-clock-alert text-2xl ${
+                            stats.lateCount === 0 ? 'text-green-700' : 'text-red-700'
+                          }`} />
+                        </View>
+                        <Text className="text-base text-gray-700 font-medium">迟到次数</Text>
+                      </View>
                       <Text
-                        className={`text-2xl font-bold block ${
+                        className={`text-3xl font-bold ${
                           stats.lateCount === 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
-                        {stats.lateCount}
+                        {stats.lateCount}次
                       </Text>
                     </View>
                   </View>

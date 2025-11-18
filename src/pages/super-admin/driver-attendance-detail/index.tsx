@@ -113,7 +113,7 @@ const DriverAttendanceDetail: React.FC = () => {
   }
 
   return (
-    <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <View className="min-h-screen bg-gray-50">
       <ScrollView scrollY className="h-screen box-border">
         <View className="p-4">
           {/* 司机信息卡片 */}
