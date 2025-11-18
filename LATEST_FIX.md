@@ -1,4 +1,4 @@
-# 最新修复 - 上传图片失败：添加认证检查和详细错误提示
+# 最新修复 - 上传图片失败：改进错误处理机制
 
 ## 修复时间
 2025-11-18
@@ -8,57 +8,60 @@
 - 小程序上传车辆照片失败
 - 提示"上传行驶证主页失败，请检查网络连接后重试"
 - 但网络连接正常
+- 错误消息不够具体，无法定位问题
 
 ## 根本原因
-1. **缺少认证状态检查**：
+1. **错误处理机制不合理**：
+   - `uploadImageToStorage` 函数返回 `null` 时显示 Toast 提示
+   - 但这个提示会被后续的错误处理覆盖
+   - 用户只能看到通用的"请检查网络连接"错误
+
+2. **缺少认证状态检查**：
    - Supabase Storage 要求认证用户才能上传
    - 没有检查用户是否已登录
    - 没有检查认证令牌是否有效
 
-2. **缺少文件大小检查**：
+3. **缺少文件大小检查**：
    - Bucket 限制文件大小为 1MB
    - 没有在上传前检查文件大小
    - 如果文件超过限制，上传会失败
 
-3. **错误消息不够具体**：
+4. **错误消息不够具体**：
    - 所有上传失败都显示"请检查网络连接"
    - 没有区分不同的错误类型
    - 用户无法知道真正的失败原因
 
 ## 修复内容
 
-### 1. 添加用户认证状态检查 (src/utils/imageUtils.ts)
+### 1. 改进错误处理机制 - 使用异常而不是返回 null
+
+**修复前**：
 ```typescript
-// 检查用户认证状态
-console.log('🔐 检查用户认证状态...')
-const {data: {session}} = await supabase.auth.getSession()
 if (!session) {
-  console.error('❌ 用户未登录，无法上传图片')
   Taro.showToast({title: '请先登录', icon: 'none'})
-  return null
+  return null  // ❌ 返回 null，Toast 提示会被后续错误覆盖
 }
-console.log('✅ 用户已登录，用户ID:', session.user.id)
 ```
 
-### 2. 添加文件大小检查
+**修复后**：
 ```typescript
-// 检查文件大小（1MB = 1048576 bytes）
+if (!session) {
+  console.error('❌ 用户未登录，无法上传图片')
+  throw new Error('请先登录')  // ✅ 抛出异常，错误消息不会被覆盖
+}
+```
+
+### 2. 添加文件大小检查并抛出异常
+```typescript
 const maxSize = 1048576 // 1MB
 if (fileContent.byteLength > maxSize) {
   console.error('❌ 文件大小超过限制')
-  console.error('❌ 当前大小:', fileContent.byteLength, 'bytes')
-  console.error('❌ 最大限制:', maxSize, 'bytes')
-  Taro.showToast({
-    title: `图片过大(${(fileContent.byteLength / 1024 / 1024).toFixed(2)}MB)，请重新拍摄`,
-    icon: 'none',
-    duration: 3000
-  })
-  return null
+  const sizeMB = (fileContent.byteLength / 1024 / 1024).toFixed(2)
+  throw new Error(`图片过大(${sizeMB}MB)，请重新拍摄`)  // ✅ 抛出异常
 }
-console.log('✅ 文件大小检查通过')
 ```
 
-### 3. 改进错误消息，根据错误类型提供具体提示
+### 3. 改进 Supabase 错误处理，根据错误类型抛出具体异常
 ```typescript
 if (error) {
   console.error('❌ Supabase Storage 上传失败')
@@ -66,19 +69,40 @@ if (error) {
   console.error('❌ 错误消息:', error.message)
   
   // 根据错误类型提供更具体的提示
-  if (error.message?.includes('JWT')) {
-    console.error('❌ 认证令牌问题，可能需要重新登录')
-    Taro.showToast({title: '登录已过期，请重新登录', icon: 'none'})
-  } else if (error.message?.includes('Bucket')) {
-    console.error('❌ Bucket 配置问题')
-    Taro.showToast({title: '存储配置错误，请联系管理员', icon: 'none'})
-  } else if (error.message?.includes('size')) {
-    console.error('❌ 文件大小问题')
-    Taro.showToast({title: '图片过大，请重新拍摄', icon: 'none'})
+  if (error.message?.includes('JWT') || error.message?.includes('token') || error.message?.includes('auth')) {
+    throw new Error('登录已过期，请重新登录')
+  }
+  if (error.message?.includes('Bucket') || error.message?.includes('not found')) {
+    throw new Error('存储配置错误，请联系管理员')
+  }
+  if (error.message?.includes('size') || error.message?.includes('large') || error.message?.includes('limit')) {
+    throw new Error('图片过大，请重新拍摄')
+  }
+  if (error.message?.includes('permission') || error.message?.includes('policy')) {
+    throw new Error('没有上传权限，请联系管理员')
   }
   
-  return null
+  // 其他错误
+  throw new Error(`上传失败: ${error.message}`)
 }
+```
+
+### 4. 简化调用代码 (src/pages/driver/add-vehicle/index.tsx)
+
+**修复前**：
+```typescript
+const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
+if (!uploadedPath) {
+  console.error(`❌ ${photoName} 上传失败`)
+  throw new Error(`上传 ${photoName} 失败，请检查网络连接后重试`)
+}
+```
+
+**修复后**：
+```typescript
+const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
+// ✅ 不需要检查 null，函数会直接抛出异常
+console.log(`✅ ${photoName} 上传成功`)
 ```
 
 ## 修复效果
@@ -86,93 +110,114 @@ if (error) {
 ### 场景1：用户未登录
 **修复前**：
 ```
-上传 行驶证主页 失败，请检查网络连接后重试
+Toast 1: 请先登录 (被覆盖)
+Toast 2: 上传 行驶证主页 失败，请检查网络连接后重试 (用户看到的)
 ```
 
 **修复后**：
 ```
-控制台日志：
-🔐 检查用户认证状态...
-❌ 用户未登录，无法上传图片
-
-用户提示：
-请先登录
+错误提示: 请先登录 (不会被覆盖)
 ```
 
 ### 场景2：文件过大
 **修复前**：
 ```
-上传 行驶证主页 失败，请检查网络连接后重试
+Toast 1: 图片过大(1.18MB)，请重新拍摄 (被覆盖)
+Toast 2: 上传 行驶证主页 失败，请检查网络连接后重试 (用户看到的)
 ```
 
 **修复后**：
 ```
-控制台日志：
-✅ 用户已登录
-✅ 文件读取成功
-✅ 文件大小: 1234567 bytes
-❌ 文件大小超过限制
-
-用户提示：
-图片过大(1.18MB)，请重新拍摄
+错误提示: 图片过大(1.18MB)，请重新拍摄 (不会被覆盖)
 ```
 
 ### 场景3：登录已过期
 **修复前**：
 ```
-上传 行驶证主页 失败，请检查网络连接后重试
+Toast 1: 登录已过期，请重新登录 (被覆盖)
+Toast 2: 上传 行驶证主页 失败，请检查网络连接后重试 (用户看到的)
 ```
 
 **修复后**：
 ```
-控制台日志：
-✅ 用户已登录
-✅ 文件大小检查通过
-📤 上传文件到 Supabase Storage...
-❌ Supabase Storage 上传失败
-❌ 错误消息: JWT expired
-
-用户提示：
-登录已过期，请重新登录
+错误提示: 登录已过期，请重新登录 (不会被覆盖)
 ```
 
-### 场景4：正常上传
-**修复后的完整日志**：
+### 场景4：权限问题
+**修复后新增**：
 ```
-📤 开始上传图片: vehicle_driving_license_main_xxx.jpg
-📍 当前环境: 小程序
-🔐 检查用户认证状态...
-✅ 用户已登录，用户ID: xxx
-📱 小程序环境：使用小程序专用上传流程
-✅ 图片压缩完成
-📖 读取文件内容...
-✅ 文件读取成功
-✅ 文件大小: 245678 bytes
-✅ 文件大小检查通过
-📤 上传文件到 Supabase Storage...
-📦 Bucket: app-7cdqf07mbu9t_vehicles
-📄 文件名: vehicle_driving_license_main_xxx.jpg
-📏 文件大小: 245678 bytes
-✅ 图片上传成功
+错误提示: 没有上传权限，请联系管理员
+```
+
+### 场景5：其他错误
+**修复后新增**：
+```
+错误提示: 上传失败: [具体的错误消息]
 ```
 
 ## 测试验证
 
-### 场景1：未登录用户尝试上传
-**预期**：显示"请先登录"提示
-**状态**：✅ 代码已修复，待测试
+### 重要提示
+**请在微信开发者工具中打开控制台，查看详细的日志输出，这将帮助我们定位问题。**
 
-### 场景2：登录用户正常上传
-**预期**：照片上传成功，显示详细日志
-**状态**：✅ 代码已修复，待测试
+### 测试步骤
+1. **打开微信开发者工具**
+2. **点击"调试器"标签**
+3. **尝试上传照片**
+4. **查看控制台输出**
 
-### 场景3：文件过大
-**预期**：显示"图片过大(X.XXMB)，请重新拍摄"
-**状态**：✅ 代码已修复，待测试
+### 需要查看的关键日志
 
-### 场景4：登录过期
-**预期**：显示"登录已过期，请重新登录"
-**状态**：✅ 代码已修复，待测试
+#### 1. 认证状态检查
+```
+🔐 检查用户认证状态...
+✅ 用户已登录，用户ID: xxx
+```
+或
+```
+🔐 检查用户认证状态...
+❌ 用户未登录，无法上传图片
+```
+
+#### 2. 文件读取
+```
+📖 读取文件内容...
+✅ 文件读取成功
+✅ 文件大小: xxx bytes
+```
+
+#### 3. 文件大小检查
+```
+✅ 文件大小检查通过
+```
+或
+```
+❌ 文件大小超过限制
+❌ 当前大小: xxx bytes
+❌ 最大限制: 1048576 bytes
+```
+
+#### 4. Supabase 上传
+```
+📤 上传文件到 Supabase Storage...
+📦 Bucket: app-7cdqf07mbu9t_vehicles
+📄 文件名: xxx
+📏 文件大小: xxx bytes
+```
+
+#### 5. 错误信息（如果有）
+```
+❌ Supabase Storage 上传失败
+❌ 错误代码: xxx
+❌ 错误消息: xxx
+```
+
+### 如何反馈问题
+如果上传仍然失败，请提供以下信息：
+1. **完整的控制台日志**（从"📤 开始上传图片"到错误提示）
+2. **错误提示的截图**
+3. **用户是否已登录**
+4. **图片文件大小**（可以在控制台日志中看到）
 
 ## 常见错误及解决方法
 

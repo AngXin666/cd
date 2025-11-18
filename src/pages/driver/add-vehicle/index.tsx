@@ -898,10 +898,6 @@ const AddVehicle: React.FC = () => {
           // 行驶证照片需要横向显示，其他照片保持原始方向
           const needLandscape = key.includes('driving_license')
           const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
-          if (!uploadedPath) {
-            console.error(`❌ ${photoName} 上传失败`)
-            throw new Error(`上传 ${photoName} 失败，请检查网络连接后重试`)
-          }
           console.log(`✅ ${photoName} 上传成功`)
           uploadedPhotos[key] = uploadedPath
         }
@@ -917,10 +913,6 @@ const AddVehicle: React.FC = () => {
           const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
           // 证件照片不需要强制横向显示，保持原始方向
           const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
-          if (!uploadedPath) {
-            console.error(`❌ ${photoName} 上传失败`)
-            throw new Error(`上传 ${photoName} 失败，请检查网络连接后重试`)
-          }
           console.log(`✅ ${photoName} 上传成功`)
           uploadedDriverPhotos[key] = uploadedPath
         }

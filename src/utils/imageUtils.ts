@@ -435,12 +435,7 @@ export async function uploadImageToStorage(
     if (!session) {
       console.error('❌ 用户未登录，无法上传图片')
       console.error('❌ 提示：请先登录后再上传图片')
-      Taro.showToast({
-        title: '请先登录',
-        icon: 'none',
-        duration: 2000
-      })
-      return null
+      throw new Error('请先登录')
     }
     console.log('✅ 用户已登录，用户ID:', session.user.id)
 
@@ -484,12 +479,8 @@ export async function uploadImageToStorage(
         console.error('❌ 文件大小超过限制')
         console.error('❌ 当前大小:', fileContent.byteLength, 'bytes')
         console.error('❌ 最大限制:', maxSize, 'bytes')
-        Taro.showToast({
-          title: `图片过大(${(fileContent.byteLength / 1024 / 1024).toFixed(2)}MB)，请重新拍摄`,
-          icon: 'none',
-          duration: 3000
-        })
-        return null
+        const sizeMB = (fileContent.byteLength / 1024 / 1024).toFixed(2)
+        throw new Error(`图片过大(${sizeMB}MB)，请重新拍摄`)
       }
       console.log('✅ 文件大小检查通过')
 
@@ -511,36 +502,31 @@ export async function uploadImageToStorage(
         console.error('❌ 错误详情:', JSON.stringify(error))
 
         // 根据错误类型提供更具体的提示
-        if (error.message?.includes('JWT')) {
+        if (error.message?.includes('JWT') || error.message?.includes('token') || error.message?.includes('auth')) {
           console.error('❌ 认证令牌问题，可能需要重新登录')
-          Taro.showToast({
-            title: '登录已过期，请重新登录',
-            icon: 'none',
-            duration: 2000
-          })
-        } else if (error.message?.includes('Bucket')) {
+          throw new Error('登录已过期，请重新登录')
+        }
+        if (error.message?.includes('Bucket') || error.message?.includes('not found')) {
           console.error('❌ Bucket 配置问题')
-          Taro.showToast({
-            title: '存储配置错误，请联系管理员',
-            icon: 'none',
-            duration: 2000
-          })
-        } else if (error.message?.includes('size')) {
+          throw new Error('存储配置错误，请联系管理员')
+        }
+        if (error.message?.includes('size') || error.message?.includes('large') || error.message?.includes('limit')) {
           console.error('❌ 文件大小问题')
-          Taro.showToast({
-            title: '图片过大，请重新拍摄',
-            icon: 'none',
-            duration: 2000
-          })
+          throw new Error('图片过大，请重新拍摄')
+        }
+        if (error.message?.includes('permission') || error.message?.includes('policy')) {
+          console.error('❌ 权限问题')
+          throw new Error('没有上传权限，请联系管理员')
         }
 
-        return null
+        // 其他错误
+        throw new Error(`上传失败: ${error.message}`)
       }
 
       if (!data || !data.path) {
         console.error('❌ 上传返回数据异常')
         console.error('❌ 返回数据:', data)
-        return null
+        throw new Error('上传失败，返回数据异常')
       }
 
       // 5. 获取公开URL
