@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '请假离职审批',
+  navigationBarTitleText: '考勤管理',
   enablePullDownRefresh: true,
   backgroundTextStyle: 'dark'
 })
