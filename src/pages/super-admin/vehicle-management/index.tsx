@@ -164,6 +164,13 @@ const VehicleManagement: React.FC = () => {
     })
   }
 
+  // 编辑租赁信息
+  const handleEditRental = (vehicleId: string) => {
+    Taro.navigateTo({
+      url: `/pages/super-admin/vehicle-rental-edit/index?vehicleId=${vehicleId}`
+    })
+  }
+
   /**
    * 判断车辆是否需要显示审核按钮
    * 仅当车辆状态为"待审核"或"需补录"时显示
@@ -444,9 +451,18 @@ const VehicleManagement: React.FC = () => {
 
                       {/* 租赁信息 - 始终显示 */}
                       <View className="mb-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
-                        <View className="flex items-center mb-2">
-                          <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
-                          <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
+                        <View className="flex items-center justify-between mb-2">
+                          <View className="flex items-center">
+                            <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
+                            <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
+                          </View>
+                          {/* 编辑按钮 */}
+                          <View
+                            className="flex items-center bg-amber-600 rounded-full px-2 py-1 active:scale-95 transition-all"
+                            onClick={() => handleEditRental(vehicle.id)}>
+                            <View className="i-mdi-pencil text-xs text-white mr-0.5"></View>
+                            <Text className="text-xs text-white font-medium">编辑</Text>
+                          </View>
                         </View>
                         <View className="space-y-1.5">
                           {/* 车辆归属类型 */}

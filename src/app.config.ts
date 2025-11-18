@@ -41,6 +41,7 @@ const pages = [
   'pages/super-admin/warehouse-detail/index',
   'pages/super-admin/driver-warehouse-assignment/index',
   'pages/super-admin/vehicle-management/index',
+  'pages/super-admin/vehicle-rental-edit/index',
   'pages/super-admin/vehicle-history/index',
   'pages/super-admin/vehicle-review/index',
   'pages/super-admin/vehicle-review-detail/index',
