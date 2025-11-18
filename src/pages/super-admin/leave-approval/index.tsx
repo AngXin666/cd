@@ -3,8 +3,8 @@ import Taro, {showLoading, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
-import {getAllAttendanceRecords, getAllLeaveApplications, getAllProfiles, getAllWarehouses} from '@/db/api'
-import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
+import {getAllAttendanceRecords, getAllAttendanceRules, getAllLeaveApplications, getAllProfiles, getAllWarehouses} from '@/db/api'
+import type {AttendanceRecord, AttendanceRule, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -31,6 +31,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [attendanceRules, setAttendanceRules] = useState<AttendanceRule[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
 
@@ -54,6 +55,10 @@ const SuperAdminLeaveApproval: React.FC = () => {
       // 获取所有仓库信息
       const allWarehouses = await getAllWarehouses()
       setWarehouses(allWarehouses)
+
+      // 获取所有考勤规则
+      const rules = await getAllAttendanceRules()
+      setAttendanceRules(rules)
 
       // 获取所有用户信息
       const allProfiles = await getAllProfiles()
@@ -130,26 +135,36 @@ const SuperAdminLeaveApproval: React.FC = () => {
     setCurrentWarehouseIndex(index)
   }, [])
 
-  // 计算工作日天数
-  const calculateWorkDays = useCallback((yearMonth: string, endDate?: string): number => {
+  // 计算工作日天数（可以指定起始日期）
+  const calculateWorkDays = useCallback((yearMonth: string, startDate?: string): number => {
     const [year, month] = yearMonth.split('-').map(Number)
     const now = new Date()
     const currentYear = now.getFullYear()
     const currentMonth = now.getMonth() + 1
     const currentDay = now.getDate()
 
+    // 确定起始日期
+    let firstDay = 1
+    if (startDate) {
+      const startDateObj = new Date(startDate)
+      const startYear = startDateObj.getFullYear()
+      const startMonth = startDateObj.getMonth() + 1
+      // 只有当起始日期在当前月份时才使用
+      if (startYear === year && startMonth === month) {
+        firstDay = startDateObj.getDate()
+      }
+    }
+
+    // 确定结束日期
     let lastDay: number
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      lastDay = endDateObj.getDate()
-    } else if (year === currentYear && month === currentMonth) {
+    if (year === currentYear && month === currentMonth) {
       lastDay = currentDay
     } else {
       lastDay = new Date(year, month, 0).getDate()
     }
 
     let workDays = 0
-    for (let day = 1; day <= lastDay; day++) {
+    for (let day = firstDay; day <= lastDay; day++) {
       const date = new Date(year, month - 1, day)
       const dayOfWeek = date.getDay()
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
@@ -160,14 +175,18 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return workDays
   }, [])
 
-  // 计算在职天数
+  // 计算在职天数（包含入职当天）
   const calculateWorkingDays = useCallback((joinDate: string | null): number => {
     if (!joinDate) return 0
     const join = new Date(joinDate)
     const now = new Date()
+    // 设置时间为0点，确保计算整天
+    join.setHours(0, 0, 0, 0)
+    now.setHours(0, 0, 0, 0)
     const diffTime = now.getTime() - join.getTime()
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
+    // 加1是因为入职当天也算一天
+    return diffDays + 1
   }, [])
 
   // 计算请假天数
@@ -201,20 +220,34 @@ const SuperAdminLeaveApproval: React.FC = () => {
     [leaveApplications]
   )
 
-  // 计算迟到次数（上班时间晚于 9:00 算迟到）
-  const calculateLateCount = useCallback((records: AttendanceRecord[]): number => {
-    let lateCount = 0
-    records.forEach((record) => {
-      const clockInTime = new Date(record.clock_in_time)
-      const hours = clockInTime.getHours()
-      const minutes = clockInTime.getMinutes()
-      // 9:00 之后算迟到
-      if (hours > 9 || (hours === 9 && minutes > 0)) {
-        lateCount++
-      }
-    })
-    return lateCount
-  }, [])
+  // 计算迟到次数（根据仓库考勤规则判断）
+  const calculateLateCount = useCallback(
+    (records: AttendanceRecord[]): number => {
+      let lateCount = 0
+      records.forEach((record) => {
+        // 获取该打卡记录对应的仓库考勤规则
+        const rule = attendanceRules.find((r) => r.warehouse_id === record.warehouse_id && r.is_active)
+        
+        // 如果没有找到规则，使用默认的9:00
+        const workStartTime = rule?.work_start_time || '09:00:00'
+        
+        // 解析上班时间
+        const [startHour, startMinute] = workStartTime.split(':').map(Number)
+        
+        // 解析打卡时间
+        const clockInTime = new Date(record.clock_in_time)
+        const clockHour = clockInTime.getHours()
+        const clockMinute = clockInTime.getMinutes()
+        
+        // 判断是否迟到
+        if (clockHour > startHour || (clockHour === startHour && clockMinute > startMinute)) {
+          lateCount++
+        }
+      })
+      return lateCount
+    },
+    [attendanceRules]
+  )
 
   // 计算司机统计数据
   const calculateDriverStats = useMemo((): DriverStats[] => {
@@ -239,7 +272,24 @@ const SuperAdminLeaveApproval: React.FC = () => {
       const actualAttendanceDays = uniqueDates.size
 
       // 计算应出勤天数（工作日）
-      const workDays = calculateWorkDays(filterMonth)
+      // 如果司机是本月入职的，从入职日期开始计算
+      let workDays: number
+      if (driver.join_date) {
+        const joinDate = new Date(driver.join_date)
+        const [filterYear, filterMonthNum] = filterMonth.split('-').map(Number)
+        const joinYear = joinDate.getFullYear()
+        const joinMonth = joinDate.getMonth() + 1
+        
+        // 如果入职月份是当前筛选月份，从入职日期开始计算
+        if (joinYear === filterYear && joinMonth === filterMonthNum) {
+          workDays = calculateWorkDays(filterMonth, driver.join_date)
+        } else {
+          // 否则计算整月的工作日
+          workDays = calculateWorkDays(filterMonth)
+        }
+      } else {
+        workDays = calculateWorkDays(filterMonth)
+      }
 
       // 计算请假天数
       const leaveDays = calculateLeaveDays(driver.id, filterMonth)
@@ -387,7 +437,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
                             className={`px-3 py-1 rounded-full shadow-sm ${
                               stats.driverType === 'with_vehicle' 
                                 ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
-                                : 'bg-gradient-to-r from-gray-400 to-gray-500'
+                                : 'bg-gradient-to-r from-cyan-500 to-cyan-600'
                             }`}>
                             <Text className="text-sm font-bold text-white">
                               {stats.driverType === 'with_vehicle' ? '带车司机' : '纯司机'}
