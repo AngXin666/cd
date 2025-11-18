@@ -166,8 +166,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
       // 获取该司机的所有打卡记录
       const driverRecords = attendanceRecords.filter((r) => r.user_id === driver.id)
 
-      // 获取该司机关联的所有仓库
-      const warehouseIds = Array.from(new Set(driverRecords.map((r) => r.warehouse_id)))
+      // 获取该司机关联的所有仓库（包括打卡记录中的仓库）
+      const warehouseIdsFromRecords = driverRecords
+        .map((r) => r.warehouse_id)
+        .filter((id): id is string => id !== null)
+      const warehouseIds = Array.from(new Set(warehouseIdsFromRecords))
       const warehouseNames = warehouseIds.map((id) => getWarehouseName(id))
 
       // 计算实际打卡天数（去重）
@@ -204,7 +207,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
     })
 
     return Array.from(driverMap.values()).sort((a, b) => b.attendanceRate - a.attendanceRate)
-  }, [profiles, attendanceRecords, filterMonth, calculateWorkDays, calculateWorkingDays])
+  }, [profiles, attendanceRecords, filterMonth, calculateWorkDays, calculateWorkingDays, getWarehouseName])
 
   // 根据当前仓库筛选司机统计
   const getFilteredDriverStats = () => {
@@ -212,7 +215,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
     if (currentWarehouseId === 'all') {
       return calculateDriverStats
     }
-    return calculateDriverStats.filter((stats) => stats.warehouseIds.includes(currentWarehouseId))
+    // 显示在当前仓库有打卡记录的司机，以及没有任何打卡记录的司机
+    return calculateDriverStats.filter((stats) => {
+      // 如果司机有打卡记录，只显示在当前仓库打过卡的司机
+      if (stats.warehouseIds.length > 0) {
+        return stats.warehouseIds.includes(currentWarehouseId)
+      }
+      // 如果司机没有任何打卡记录，在所有仓库都显示
+      return true
+    })
   }
 
   const driverStats = getFilteredDriverStats()
@@ -297,10 +308,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
                   )}
 
                   {/* 仓库信息 */}
-                  {stats.warehouseNames.length > 0 && (
+                  {stats.warehouseNames.length > 0 ? (
                     <View className="flex items-center gap-2 mb-3">
                       <View className="i-mdi-warehouse text-base text-gray-600" />
                       <Text className="text-sm text-gray-600">仓库：{stats.warehouseNames.join('、')}</Text>
+                    </View>
+                  ) : (
+                    <View className="flex items-center gap-2 mb-3">
+                      <View className="i-mdi-alert-circle text-base text-orange-600" />
+                      <Text className="text-sm text-orange-600">暂无打卡记录</Text>
                     </View>
                   )}
 
