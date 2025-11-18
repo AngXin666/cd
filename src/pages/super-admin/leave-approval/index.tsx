@@ -302,21 +302,38 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const totalDrivers = driverStats.length
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题卡片 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">考勤管理</Text>
-            <Text className="text-blue-100 text-sm block">
-              {currentUserProfile?.role === 'super_admin' ? '超级管理员' : '管理员'}工作台
-            </Text>
-          </View>
-
-          {/* 统计卡片 */}
-          <View className="bg-white rounded-lg p-4 shadow mb-4">
-            <Text className="text-sm text-gray-600 block mb-2">司机总数</Text>
-            <Text className="text-3xl font-bold text-blue-900 block">{totalDrivers}</Text>
+          <View className="bg-white/95 backdrop-blur rounded-3xl p-6 mb-5 shadow-2xl">
+            <View className="flex items-center gap-4 mb-3">
+              <View className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <View className="i-mdi-account-group text-4xl text-white" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-800 text-3xl font-bold block mb-1">考勤管理</Text>
+                <Text className="text-gray-500 text-base block">
+                  {currentUserProfile?.role === 'super_admin' ? '超级管理员' : '管理员'}工作台
+                </Text>
+              </View>
+            </View>
+            
+            {/* 统计数据 */}
+            <View className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
+              <View className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center">
+                <View className="i-mdi-account-multiple text-3xl text-blue-600 mb-2 mx-auto" />
+                <Text className="text-sm text-gray-600 block mb-1">司机总数</Text>
+                <Text className="text-3xl font-bold text-blue-600 block">{totalDrivers}</Text>
+              </View>
+              <View className="flex-1 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 text-center">
+                <View className="i-mdi-check-circle text-3xl text-green-600 mb-2 mx-auto" />
+                <Text className="text-sm text-gray-600 block mb-1">本月出勤</Text>
+                <Text className="text-3xl font-bold text-green-600 block">
+                  {driverStats.filter(s => s.actualAttendanceDays > 0).length}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* 仓库切换区域 */}
@@ -342,92 +359,111 @@ const SuperAdminLeaveApproval: React.FC = () => {
           )}
 
           {/* 司机统计列表 */}
-          <View className="space-y-3">
-            <Text className="text-lg font-bold text-gray-800 block mb-2">司机统计</Text>
+          <View className="space-y-4">
+            <View className="flex items-center gap-2 mb-3">
+              <View className="i-mdi-format-list-bulleted text-2xl text-white" />
+              <Text className="text-2xl font-bold text-white block">司机统计</Text>
+            </View>
 
             {driverStats.length === 0 ? (
-              <View className="bg-white rounded-lg p-8 text-center shadow">
-                <View className="i-mdi-account-off text-5xl text-gray-300 mb-3 mx-auto" />
-                <Text className="text-gray-400 text-sm block">当前仓库暂无司机数据</Text>
+              <View className="bg-white/95 backdrop-blur rounded-3xl p-12 text-center shadow-2xl">
+                <View className="i-mdi-account-off text-7xl text-gray-300 mb-4 mx-auto" />
+                <Text className="text-gray-400 text-xl block">当前仓库暂无司机数据</Text>
               </View>
             ) : (
               driverStats.map((stats) => (
-                <View key={stats.driverId} className="bg-white rounded-lg p-4 shadow">
+                <View key={stats.driverId} className="bg-white/95 backdrop-blur rounded-3xl p-5 shadow-2xl">
                   {/* 司机基本信息 */}
-                  <View className="flex items-center justify-between mb-3">
-                    <View className="flex items-center gap-2">
-                      <View className="i-mdi-account-circle text-2xl text-blue-600" />
-                      <View className="flex items-center gap-2 flex-wrap">
-                        <Text className="text-base font-bold text-gray-800">{stats.driverName}</Text>
+                  <View className="flex items-center gap-4 mb-4">
+                    <View className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                      <View className="i-mdi-account text-4xl text-white" />
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex items-center gap-2 flex-wrap mb-2">
+                        <Text className="text-2xl font-bold text-gray-800">{stats.driverName}</Text>
                         {/* 司机类型标签 */}
                         {stats.driverType && (
                           <View
-                            className={`px-2 py-0.5 rounded ${
-                              stats.driverType === 'with_vehicle' ? 'bg-blue-100' : 'bg-gray-100'
+                            className={`px-3 py-1 rounded-full shadow-sm ${
+                              stats.driverType === 'with_vehicle' 
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+                                : 'bg-gradient-to-r from-gray-400 to-gray-500'
                             }`}>
-                            <Text
-                              className={`text-xs font-bold ${
-                                stats.driverType === 'with_vehicle' ? 'text-blue-700' : 'text-gray-700'
-                              }`}>
+                            <Text className="text-sm font-bold text-white">
                               {stats.driverType === 'with_vehicle' ? '带车司机' : '纯司机'}
                             </Text>
                           </View>
                         )}
                         {/* 新司机标签 */}
                         {stats.workingDays < 30 && (
-                          <View className="px-2 py-0.5 rounded bg-orange-100">
-                            <Text className="text-xs font-bold text-orange-700">新司机</Text>
+                          <View className="px-3 py-1 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 shadow-sm">
+                            <Text className="text-sm font-bold text-white">新司机</Text>
                           </View>
                         )}
                       </View>
                     </View>
                   </View>
 
-                  {/* 联系方式 */}
-                  {stats.driverPhone && (
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-phone text-base text-gray-600" />
-                      <Text className="text-sm text-gray-600">{stats.driverPhone}</Text>
-                    </View>
-                  )}
+                  {/* 联系方式和车牌信息 */}
+                  <View className="space-y-3 mb-4">
+                    {stats.driverPhone && (
+                      <View className="flex items-center gap-3">
+                        <View className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                          <View className="i-mdi-phone text-xl text-green-600" />
+                        </View>
+                        <Text className="text-base text-gray-700">{stats.driverPhone}</Text>
+                      </View>
+                    )}
 
-                  {/* 车牌号 */}
-                  {stats.licensePlate && (
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-car text-base text-gray-600" />
-                      <Text className="text-sm text-gray-600">车牌：{stats.licensePlate}</Text>
-                    </View>
-                  )}
+                    {stats.licensePlate && (
+                      <View className="flex items-center gap-3">
+                        <View className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                          <View className="i-mdi-car text-xl text-blue-600" />
+                        </View>
+                        <Text className="text-base text-gray-700">{stats.licensePlate}</Text>
+                      </View>
+                    )}
 
-                  {/* 仓库信息 */}
-                  {stats.warehouseNames.length > 0 ? (
-                    <View className="flex items-center gap-2 mb-3">
-                      <View className="i-mdi-warehouse text-base text-gray-600" />
-                      <Text className="text-sm text-gray-600">仓库：{stats.warehouseNames.join('、')}</Text>
-                    </View>
-                  ) : (
-                    <View className="flex items-center gap-2 mb-3">
-                      <View className="i-mdi-alert-circle text-base text-orange-600" />
-                      <Text className="text-sm text-orange-600">暂无打卡记录</Text>
-                    </View>
-                  )}
+                    {stats.warehouseNames.length > 0 ? (
+                      <View className="flex items-center gap-3">
+                        <View className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                          <View className="i-mdi-warehouse text-xl text-purple-600" />
+                        </View>
+                        <Text className="text-base text-gray-700">{stats.warehouseNames.join('、')}</Text>
+                      </View>
+                    ) : (
+                      <View className="flex items-center gap-3">
+                        <View className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                          <View className="i-mdi-alert-circle text-xl text-orange-600" />
+                        </View>
+                        <Text className="text-base text-orange-600">暂无打卡记录</Text>
+                      </View>
+                    )}
+                  </View>
 
                   {/* 统计数据 */}
-                  <View className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100">
-                    <View className="text-center">
-                      <Text className="text-xs text-gray-500 block mb-1">请假天数</Text>
-                      <Text className="text-lg font-bold text-orange-600 block">{stats.leaveDays}</Text>
+                  <View className="grid grid-cols-3 gap-3 mb-4">
+                    <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 text-center">
+                      <View className="i-mdi-calendar-remove text-3xl text-orange-600 mb-2 mx-auto" />
+                      <Text className="text-sm text-gray-600 block mb-1">请假天数</Text>
+                      <Text className="text-2xl font-bold text-orange-600 block">{stats.leaveDays}</Text>
                     </View>
-                    <View className="text-center">
-                      <Text className="text-xs text-gray-500 block mb-1">打卡天数</Text>
-                      <Text className="text-lg font-bold text-blue-600 block">
+                    <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center">
+                      <View className="i-mdi-calendar-check text-3xl text-blue-600 mb-2 mx-auto" />
+                      <Text className="text-sm text-gray-600 block mb-1">打卡天数</Text>
+                      <Text className="text-2xl font-bold text-blue-600 block">
                         {stats.actualAttendanceDays}/{stats.workDays}
                       </Text>
                     </View>
-                    <View className="text-center">
-                      <Text className="text-xs text-gray-500 block mb-1">迟到次数</Text>
+                    <View className={`bg-gradient-to-br rounded-2xl p-4 text-center ${
+                      stats.lateCount === 0 ? 'from-green-50 to-green-100' : 'from-red-50 to-red-100'
+                    }`}>
+                      <View className={`i-mdi-clock-alert text-3xl mb-2 mx-auto ${
+                        stats.lateCount === 0 ? 'text-green-600' : 'text-red-600'
+                      }`} />
+                      <Text className="text-sm text-gray-600 block mb-1">迟到次数</Text>
                       <Text
-                        className={`text-lg font-bold block ${
+                        className={`text-2xl font-bold block ${
                           stats.lateCount === 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
                         {stats.lateCount}
@@ -437,23 +473,29 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
                   {/* 入职日期和在职天数 */}
                   {stats.joinDate && (
-                    <View className="mt-2 pt-2 border-t border-gray-100">
-                      <Text className="text-xs text-gray-500">
-                        入职日期：{formatDate(stats.joinDate)} (在职 {stats.workingDays} 天)
-                      </Text>
+                    <View className="bg-gray-50 rounded-2xl p-3 mb-4">
+                      <View className="flex items-center gap-2">
+                        <View className="i-mdi-calendar-account text-lg text-gray-600" />
+                        <Text className="text-base text-gray-700">
+                          入职日期：{formatDate(stats.joinDate)} (在职 {stats.workingDays} 天)
+                        </Text>
+                      </View>
                     </View>
                   )}
 
                   {/* 详细记录按钮 */}
                   <View
-                    className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center cursor-pointer"
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl py-4 cursor-pointer shadow-lg active:scale-95 transition-all"
                     onClick={() => {
                       Taro.navigateTo({
                         url: `/pages/super-admin/driver-attendance-detail/index?driverId=${stats.driverId}&driverName=${encodeURIComponent(stats.driverName)}`
                       })
                     }}>
-                    <Text className="text-sm text-blue-600 font-bold">查看详细记录</Text>
-                    <View className="i-mdi-chevron-right text-xl text-blue-600 ml-1" />
+                    <View className="flex items-center justify-center gap-2">
+                      <View className="i-mdi-file-document-outline text-2xl text-white" />
+                      <Text className="text-lg font-bold text-white">查看详细记录</Text>
+                      <View className="i-mdi-chevron-right text-2xl text-white" />
+                    </View>
                   </View>
                 </View>
               ))
