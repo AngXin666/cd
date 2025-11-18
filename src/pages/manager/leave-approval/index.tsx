@@ -24,6 +24,8 @@ interface DriverStats {
   warehouseIds: string[] // 改为数组，支持多个仓库
   warehouseNames: string[] // 改为数组，支持多个仓库名称
   totalLeaveDays: number
+  leaveDays: number // 已批准的请假天数
+  pendingLeaveCount: number // 待审核请假数量
   leaveCount: number
   resignationCount: number
   attendanceCount: number
@@ -153,6 +155,14 @@ const ManagerLeaveApproval: React.FC = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
     return diffDays
   }
+
+  // 计算待审核请假数量
+  const calculatePendingLeaveCount = useCallback(
+    (userId: string): number => {
+      return leaveApplications.filter((leave) => leave.user_id === userId && leave.status === 'pending').length
+    },
+    [leaveApplications]
+  )
 
   // 格式化日期
   const formatDate = (dateStr: string) => {
@@ -328,14 +338,19 @@ const ManagerLeaveApproval: React.FC = () => {
 
     // 首先，为所有司机创建初始统计数据
     for (const driver of drivers) {
+      // 计算待审核请假数量
+      const pendingLeaveCount = calculatePendingLeaveCount(driver.id)
+
       statsMap.set(driver.id, {
         driverId: driver.id,
         driverName: getUserName(driver.id),
         driverPhone: driver.phone,
-        licensePlate: driver.license_plate,
+        licensePlate: driver.vehicle_plate,
         warehouseIds: [],
         warehouseNames: [],
         totalLeaveDays: 0,
+        leaveDays: 0, // 已批准的请假天数
+        pendingLeaveCount, // 待审核请假数量
         leaveCount: 0,
         resignationCount: 0,
         attendanceCount: 0,
@@ -359,7 +374,9 @@ const ManagerLeaveApproval: React.FC = () => {
 
       // 只统计已通过的请假天数
       if (app.status === 'approved') {
-        stats.totalLeaveDays += calculateLeaveDays(app.start_date, app.end_date)
+        const days = calculateLeaveDays(app.start_date, app.end_date)
+        stats.totalLeaveDays += days
+        stats.leaveDays += days // 更新已批准的请假天数
       }
 
       // 统计待审批数量
@@ -453,6 +470,7 @@ const ManagerLeaveApproval: React.FC = () => {
     sortBy,
     calculateLeaveDays,
     calculateMonthTotalDays,
+    calculatePendingLeaveCount,
     calculateWorkDays,
     getCurrentWarehouseId,
     getUserName,
@@ -1148,8 +1166,13 @@ const ManagerLeaveApproval: React.FC = () => {
                     {/* 其他统计数据 */}
                     <View className="grid grid-cols-3 gap-3">
                       <View className="text-center bg-orange-50 rounded-lg py-2">
-                        <Text className="text-xl font-bold text-orange-600 block">{stats.totalLeaveDays}</Text>
-                        <Text className="text-xs text-gray-600">请假天数</Text>
+                        <View className="i-mdi-calendar-remove text-xl text-orange-600 mb-1 mx-auto" />
+                        <Text className="text-xs text-gray-600 block mb-1">
+                          {stats.pendingLeaveCount > 0 ? '请假审核' : '请假天数'}
+                        </Text>
+                        <Text className="text-lg font-bold text-orange-600 block">
+                          {stats.pendingLeaveCount > 0 ? `${stats.pendingLeaveCount}条` : stats.leaveDays}
+                        </Text>
                       </View>
                       <View className="text-center bg-blue-50 rounded-lg py-2">
                         <Text className="text-xl font-bold text-blue-600 block">{stats.actualAttendanceDays}</Text>
