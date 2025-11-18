@@ -16,10 +16,9 @@ import {createLogger} from '@/utils/logger'
 const logger = createLogger('VehicleRentalEdit')
 
 const VehicleRentalEdit: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  useAuth({guard: true})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [vehicleId, setVehicleId] = useState('')
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
 
   // 表单数据
@@ -46,13 +45,13 @@ const VehicleRentalEdit: React.FC = () => {
   }))
 
   // 加载车辆信息
-  const loadVehicle = useCallback(async () => {
-    if (!vehicleId) return
+  const loadVehicle = useCallback(async (id: string) => {
+    if (!id) return
 
-    logger.info('开始加载车辆信息', {vehicleId})
+    logger.info('开始加载车辆信息', {vehicleId: id})
     setLoading(true)
     try {
-      const data = await getVehicleById(vehicleId)
+      const data = await getVehicleById(id)
       if (!data) {
         Taro.showToast({
           title: '车辆不存在',
@@ -86,21 +85,24 @@ const VehicleRentalEdit: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [vehicleId])
+  }, [])
 
   // 页面显示时加载数据
   useDidShow(() => {
     const instance = Taro.getCurrentInstance()
     const id = instance.router?.params?.vehicleId
+    logger.info('页面显示，获取参数', {vehicleId: id})
     if (id) {
-      setVehicleId(id)
-    }
-  })
-
-  // 当 vehicleId 变化时加载车辆信息
-  useDidShow(() => {
-    if (vehicleId) {
-      loadVehicle()
+      loadVehicle(id)
+    } else {
+      logger.error('未获取到车辆ID')
+      Taro.showToast({
+        title: '参数错误',
+        icon: 'none'
+      })
+      setTimeout(() => {
+        Taro.navigateBack()
+      }, 1500)
     }
   })
 
