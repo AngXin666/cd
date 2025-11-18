@@ -3,33 +3,36 @@ import Taro, {showLoading, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
-import {getAllAttendanceRecords, getAllProfiles, getAllWarehouses} from '@/db/api'
-import type {AttendanceRecord, Profile, Warehouse} from '@/db/types'
+import {getAllAttendanceRecords, getAllLeaveApplications, getAllProfiles, getAllWarehouses} from '@/db/api'
+import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
 // 司机统计数据类型
 interface DriverStats {
   driverId: string
   driverName: string
   driverPhone: string | null
+  driverType: 'pure' | 'with_vehicle' | null
   licensePlate: string | null
   warehouseIds: string[]
   warehouseNames: string[]
   attendanceCount: number
   workDays: number
   actualAttendanceDays: number
-  attendanceRate: number
-  isFullAttendance: boolean
+  leaveDays: number
   joinDate: string | null
   workingDays: number
+  attendanceRecords: AttendanceRecord[]
 }
 
 const SuperAdminLeaveApproval: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
+  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
+  const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null)
 
   // 初始化当前月份
   const initCurrentMonth = useCallback(() => {
@@ -65,6 +68,10 @@ const SuperAdminLeaveApproval: React.FC = () => {
       const [year, month] = currentMonth.split('-').map(Number)
       const records = await getAllAttendanceRecords(year, month)
       setAttendanceRecords(records)
+
+      // 加载请假记录
+      const leaves = await getAllLeaveApplications()
+      setLeaveApplications(leaves)
     } finally {
       Taro.hideLoading()
     }
@@ -89,6 +96,14 @@ const SuperAdminLeaveApproval: React.FC = () => {
   // 格式化日期
   const formatDate = (dateStr: string) => {
     return dateStr.split('T')[0]
+  }
+
+  // 格式化时间
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}`
   }
 
   // 获取所有仓库列表（显示所有仓库，包括没有数据的）
@@ -155,6 +170,37 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return diffDays
   }, [])
 
+  // 计算请假天数
+  const calculateLeaveDays = useCallback(
+    (userId: string, yearMonth: string): number => {
+      const [year, month] = yearMonth.split('-').map(Number)
+      const monthStart = new Date(year, month - 1, 1)
+      const monthEnd = new Date(year, month, 0)
+
+      // 获取该司机在当月的已批准请假记录
+      const approvedLeaves = leaveApplications.filter(
+        (leave) =>
+          leave.user_id === userId &&
+          leave.status === 'approved' &&
+          new Date(leave.start_date) <= monthEnd &&
+          new Date(leave.end_date) >= monthStart
+      )
+
+      // 计算请假天数
+      let totalLeaveDays = 0
+      approvedLeaves.forEach((leave) => {
+        const startDate = new Date(Math.max(new Date(leave.start_date).getTime(), monthStart.getTime()))
+        const endDate = new Date(Math.min(new Date(leave.end_date).getTime(), monthEnd.getTime()))
+        const diffTime = endDate.getTime() - startDate.getTime()
+        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+        totalLeaveDays += days
+      })
+
+      return totalLeaveDays
+    },
+    [leaveApplications]
+  )
+
   // 计算司机统计数据
   const calculateDriverStats = useMemo((): DriverStats[] => {
     const driverMap = new Map<string, DriverStats>()
@@ -180,11 +226,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
       // 计算应出勤天数（工作日）
       const workDays = calculateWorkDays(filterMonth)
 
-      // 计算出勤率
-      const attendanceRate = workDays > 0 ? Math.round((actualAttendanceDays / workDays) * 100) : 0
-
-      // 判断是否满勤
-      const isFullAttendance = actualAttendanceDays >= workDays
+      // 计算请假天数
+      const leaveDays = calculateLeaveDays(driver.id, filterMonth)
 
       // 计算在职天数
       const workingDays = calculateWorkingDays(driver.join_date)
@@ -193,21 +236,30 @@ const SuperAdminLeaveApproval: React.FC = () => {
         driverId: driver.id,
         driverName: driver.name || driver.phone || '未知',
         driverPhone: driver.phone,
+        driverType: driver.driver_type,
         licensePlate: driver.license_plate,
         warehouseIds,
         warehouseNames,
         attendanceCount: driverRecords.length,
         workDays,
         actualAttendanceDays,
-        attendanceRate,
-        isFullAttendance,
+        leaveDays,
         joinDate: driver.join_date,
-        workingDays
+        workingDays,
+        attendanceRecords: driverRecords
       })
     })
 
-    return Array.from(driverMap.values()).sort((a, b) => b.attendanceRate - a.attendanceRate)
-  }, [profiles, attendanceRecords, filterMonth, calculateWorkDays, calculateWorkingDays, getWarehouseName])
+    return Array.from(driverMap.values()).sort((a, b) => b.actualAttendanceDays - a.actualAttendanceDays)
+  }, [
+    profiles,
+    attendanceRecords,
+    filterMonth,
+    calculateWorkDays,
+    calculateWorkingDays,
+    calculateLeaveDays,
+    getWarehouseName
+  ])
 
   // 根据当前仓库筛选司机统计
   const getFilteredDriverStats = () => {
@@ -285,19 +337,33 @@ const SuperAdminLeaveApproval: React.FC = () => {
                   <View className="flex items-center justify-between mb-3">
                     <View className="flex items-center gap-2">
                       <View className="i-mdi-account-circle text-2xl text-blue-600" />
-                      <View>
-                        <Text className="text-base font-bold text-gray-800 block">{stats.driverName}</Text>
-                        {stats.driverPhone && (
-                          <Text className="text-xs text-gray-500 block">{stats.driverPhone}</Text>
+                      <View className="flex items-center gap-2">
+                        <Text className="text-base font-bold text-gray-800">{stats.driverName}</Text>
+                        {/* 司机类型标签 */}
+                        {stats.driverType && (
+                          <View
+                            className={`px-2 py-0.5 rounded ${
+                              stats.driverType === 'with_vehicle' ? 'bg-blue-100' : 'bg-gray-100'
+                            }`}>
+                            <Text
+                              className={`text-xs font-bold ${
+                                stats.driverType === 'with_vehicle' ? 'text-blue-700' : 'text-gray-700'
+                              }`}>
+                              {stats.driverType === 'with_vehicle' ? '带车司机' : '纯司机'}
+                            </Text>
+                          </View>
                         )}
                       </View>
                     </View>
-                    {stats.isFullAttendance && (
-                      <View className="bg-green-100 px-2 py-1 rounded">
-                        <Text className="text-xs text-green-700 font-bold">满勤</Text>
-                      </View>
-                    )}
                   </View>
+
+                  {/* 联系方式 */}
+                  {stats.driverPhone && (
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-phone text-base text-gray-600" />
+                      <Text className="text-sm text-gray-600">{stats.driverPhone}</Text>
+                    </View>
+                  )}
 
                   {/* 车牌号 */}
                   {stats.licensePlate && (
@@ -323,17 +389,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
                   {/* 统计数据 */}
                   <View className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100">
                     <View className="text-center">
-                      <Text className="text-xs text-gray-500 block mb-1">出勤率</Text>
-                      <Text
-                        className={`text-lg font-bold block ${
-                          stats.attendanceRate >= 90
-                            ? 'text-green-600'
-                            : stats.attendanceRate >= 70
-                              ? 'text-orange-600'
-                              : 'text-red-600'
-                        }`}>
-                        {stats.attendanceRate}%
-                      </Text>
+                      <Text className="text-xs text-gray-500 block mb-1">请假天数</Text>
+                      <Text className="text-lg font-bold text-orange-600 block">{stats.leaveDays}</Text>
                     </View>
                     <View className="text-center">
                       <Text className="text-xs text-gray-500 block mb-1">打卡天数</Text>
@@ -342,20 +399,96 @@ const SuperAdminLeaveApproval: React.FC = () => {
                       </Text>
                     </View>
                     <View className="text-center">
-                      <Text className="text-xs text-gray-500 block mb-1">在职天数</Text>
-                      <Text className="text-lg font-bold text-gray-700 block">{stats.workingDays}</Text>
+                      <Text className="text-xs text-gray-500 block mb-1">打卡次数</Text>
+                      <Text className="text-lg font-bold text-gray-700 block">{stats.attendanceCount}</Text>
                     </View>
                   </View>
 
-                  {/* 入职日期 */}
+                  {/* 入职日期和在职天数 */}
                   {stats.joinDate && (
                     <View className="mt-2 pt-2 border-t border-gray-100">
                       <Text className="text-xs text-gray-500">
-                        入职日期：{formatDate(stats.joinDate)}
-                        {stats.workingDays < 30 && (
-                          <Text className="text-orange-600 ml-2">(新司机)</Text>
-                        )}
+                        入职日期：{formatDate(stats.joinDate)} (在职 {stats.workingDays} 天)
+                        {stats.workingDays < 30 && <Text className="text-orange-600 ml-2">(新司机)</Text>}
                       </Text>
+                    </View>
+                  )}
+
+                  {/* 详细记录按钮 */}
+                  <View
+                    className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center cursor-pointer"
+                    onClick={() => {
+                      if (expandedDriverId === stats.driverId) {
+                        setExpandedDriverId(null)
+                      } else {
+                        setExpandedDriverId(stats.driverId)
+                      }
+                    }}>
+                    <Text className="text-sm text-blue-600 font-bold">
+                      {expandedDriverId === stats.driverId ? '收起详细记录' : '查看详细记录'}
+                    </Text>
+                    <View
+                      className={`i-mdi-chevron-${expandedDriverId === stats.driverId ? 'up' : 'down'} text-xl text-blue-600 ml-1`}
+                    />
+                  </View>
+
+                  {/* 详细记录列表 */}
+                  {expandedDriverId === stats.driverId && (
+                    <View className="mt-3 pt-3 border-t border-gray-100">
+                      <Text className="text-sm font-bold text-gray-700 mb-2 block">打卡记录明细</Text>
+                      {stats.attendanceRecords.length === 0 ? (
+                        <View className="text-center py-4">
+                          <Text className="text-xs text-gray-400">暂无打卡记录</Text>
+                        </View>
+                      ) : (
+                        <View className="space-y-2">
+                          {stats.attendanceRecords
+                            .sort(
+                              (a, b) =>
+                                new Date(b.clock_in_time).getTime() - new Date(a.clock_in_time).getTime()
+                            )
+                            .map((record) => (
+                              <View
+                                key={record.id}
+                                className="bg-gray-50 rounded p-2 flex items-center justify-between">
+                                <View className="flex-1">
+                                  <View className="flex items-center gap-2 mb-1">
+                                    <View className="i-mdi-calendar text-sm text-gray-600" />
+                                    <Text className="text-xs text-gray-700">
+                                      {formatDate(record.clock_in_time)}
+                                    </Text>
+                                  </View>
+                                  <View className="flex items-center gap-2">
+                                    <View className="i-mdi-clock-outline text-sm text-gray-600" />
+                                    <Text className="text-xs text-gray-600">
+                                      上班：{formatTime(record.clock_in_time)}
+                                      {record.clock_out_time && ` | 下班：${formatTime(record.clock_out_time)}`}
+                                    </Text>
+                                  </View>
+                                  {record.warehouse_id && (
+                                    <View className="flex items-center gap-2 mt-1">
+                                      <View className="i-mdi-warehouse text-sm text-gray-600" />
+                                      <Text className="text-xs text-gray-600">
+                                        {getWarehouseName(record.warehouse_id)}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <View
+                                  className={`px-2 py-1 rounded ${
+                                    record.clock_out_time ? 'bg-green-100' : 'bg-yellow-100'
+                                  }`}>
+                                  <Text
+                                    className={`text-xs font-bold ${
+                                      record.clock_out_time ? 'text-green-700' : 'text-yellow-700'
+                                    }`}>
+                                    {record.clock_out_time ? '已下班' : '未下班'}
+                                  </Text>
+                                </View>
+                              </View>
+                            ))}
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>
