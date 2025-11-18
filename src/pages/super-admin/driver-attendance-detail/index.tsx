@@ -1,9 +1,9 @@
-import {ScrollView, Text, View} from '@tarojs/components'
-import Taro, {showLoading, useDidShow} from '@tarojs/taro'
+import {Button, ScrollView, Text, View} from '@tarojs/components'
+import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getAllAttendanceRecords, getAllLeaveApplications, getAllProfiles, getAllWarehouses} from '@/db/api'
+import {getAllAttendanceRecords, getAllLeaveApplications, getAllProfiles, getAllWarehouses, reviewLeaveApplication} from '@/db/api'
 import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
 const DriverAttendanceDetail: React.FC = () => {
@@ -111,6 +111,62 @@ const DriverAttendanceDetail: React.FC = () => {
     }
     return statusMap[status] || {text: status, bgColor: 'bg-gray-100', textColor: 'text-gray-700'}
   }
+
+  // 审批请假申请
+  const handleReviewLeave = useCallback(
+    async (leaveId: string, status: 'approved' | 'rejected') => {
+      if (!user) return
+
+      const actionText = status === 'approved' ? '批准' : '拒绝'
+
+      try {
+        const result = await showModal({
+          title: `确认${actionText}`,
+          content: `确定要${actionText}这条请假申请吗？`,
+          confirmText: '确定',
+          cancelText: '取消'
+        })
+
+        if (!result.confirm) return
+
+        showLoading({title: '处理中...'})
+
+        const success = await reviewLeaveApplication(leaveId, {
+          status,
+          reviewer_id: user.id,
+          review_comment: null,
+          reviewed_at: new Date().toISOString()
+        })
+
+        Taro.hideLoading()
+
+        if (success) {
+          await showToast({
+            title: `${actionText}成功`,
+            icon: 'success',
+            duration: 2000
+          })
+          // 重新加载数据
+          await loadData()
+        } else {
+          await showToast({
+            title: `${actionText}失败`,
+            icon: 'error',
+            duration: 2000
+          })
+        }
+      } catch (error) {
+        Taro.hideLoading()
+        console.error('审批请假申请失败:', error)
+        await showToast({
+          title: '操作失败',
+          icon: 'error',
+          duration: 2000
+        })
+      }
+    },
+    [user, loadData]
+  )
 
   return (
     <View className="min-h-screen bg-gray-50">
@@ -398,6 +454,24 @@ const DriverAttendanceDetail: React.FC = () => {
                                     {formatDate(leave.reviewed_at)} {formatTime(leave.reviewed_at)}
                                   </Text>
                                 </View>
+                              </View>
+                            )}
+
+                            {/* 审批按钮 - 仅待审批状态显示 */}
+                            {leave.status === 'pending' && (
+                              <View className="flex items-center gap-3 pt-4 border-t border-gray-100 mt-3">
+                                <Button
+                                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl py-3 break-keep text-base"
+                                  size="default"
+                                  onClick={() => handleReviewLeave(leave.id, 'approved')}>
+                                  批准
+                                </Button>
+                                <Button
+                                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl py-3 break-keep text-base"
+                                  size="default"
+                                  onClick={() => handleReviewLeave(leave.id, 'rejected')}>
+                                  拒绝
+                                </Button>
                               </View>
                             )}
                           </View>

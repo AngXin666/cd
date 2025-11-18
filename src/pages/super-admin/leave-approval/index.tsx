@@ -19,6 +19,7 @@ interface DriverStats {
   workDays: number
   actualAttendanceDays: number
   leaveDays: number
+  pendingLeaveCount: number // 待审核请假数量
   lateCount: number
   joinDate: string | null
   workingDays: number
@@ -220,6 +221,16 @@ const SuperAdminLeaveApproval: React.FC = () => {
     [leaveApplications]
   )
 
+  // 计算待审核请假数量
+  const calculatePendingLeaveCount = useCallback(
+    (userId: string): number => {
+      return leaveApplications.filter(
+        (leave) => leave.user_id === userId && leave.status === 'pending'
+      ).length
+    },
+    [leaveApplications]
+  )
+
   // 计算迟到次数（根据仓库考勤规则判断）
   const calculateLateCount = useCallback(
     (records: AttendanceRecord[]): number => {
@@ -294,6 +305,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
       // 计算请假天数
       const leaveDays = calculateLeaveDays(driver.id, filterMonth)
 
+      // 计算待审核请假数量
+      const pendingLeaveCount = calculatePendingLeaveCount(driver.id)
+
       // 计算迟到次数
       const lateCount = calculateLateCount(driverRecords)
 
@@ -312,6 +326,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
         workDays,
         actualAttendanceDays,
         leaveDays,
+        pendingLeaveCount,
         lateCount,
         joinDate: driver.join_date,
         workingDays,
@@ -327,6 +342,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
     calculateWorkDays,
     calculateWorkingDays,
     calculateLeaveDays,
+    calculatePendingLeaveCount,
     calculateLateCount,
     getWarehouseName
   ])
@@ -376,11 +392,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
                 <Text className="text-xs text-gray-600 block mb-1">司机总数</Text>
                 <Text className="text-xl font-bold text-blue-600 block">{totalDrivers}</Text>
               </View>
-              <View className="flex-1 bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 text-center">
-                <View className="i-mdi-check-circle text-xl text-green-600 mb-1 mx-auto" />
-                <Text className="text-xs text-gray-600 block mb-1">本月出勤</Text>
-                <Text className="text-xl font-bold text-green-600 block">
-                  {driverStats.filter(s => s.actualAttendanceDays > 0).length}
+              <View className="flex-1 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 text-center">
+                <View className="i-mdi-clock-alert text-xl text-orange-600 mb-1 mx-auto" />
+                <Text className="text-xs text-gray-600 block mb-1">待审核</Text>
+                <Text className="text-xl font-bold text-orange-600 block">
+                  {leaveApplications.filter(l => l.status === 'pending').length}
                 </Text>
               </View>
             </View>
@@ -495,8 +511,12 @@ const SuperAdminLeaveApproval: React.FC = () => {
                   <View className="grid grid-cols-3 gap-2 mb-3">
                     <View className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 text-center">
                       <View className="i-mdi-calendar-remove text-xl text-orange-600 mb-1 mx-auto" />
-                      <Text className="text-xs text-gray-600 block mb-1">请假天数</Text>
-                      <Text className="text-lg font-bold text-orange-600 block">{stats.leaveDays}</Text>
+                      <Text className="text-xs text-gray-600 block mb-1">
+                        {stats.pendingLeaveCount > 0 ? '请假审核' : '请假天数'}
+                      </Text>
+                      <Text className="text-lg font-bold text-orange-600 block">
+                        {stats.pendingLeaveCount > 0 ? `${stats.pendingLeaveCount}条` : stats.leaveDays}
+                      </Text>
                     </View>
                     <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 text-center">
                       <View className="i-mdi-calendar-month text-xl text-purple-600 mb-1 mx-auto" />
