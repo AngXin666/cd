@@ -21,6 +21,7 @@ interface DriverStats {
   driverName: string
   driverPhone: string | null
   licensePlate: string | null
+  driverType: 'pure' | 'with_vehicle' // 司机类型：纯司机或带车司机
   warehouseIds: string[]
   warehouseNames: string[]
   leaveDays: number // 已批准的请假天数
@@ -28,7 +29,7 @@ interface DriverStats {
   leaveCount: number
   attendanceCount: number
   lateCount: number // 迟到次数
-  workDays: number
+  workDays: number // 应出勤天数
   actualAttendanceDays: number
   joinDate: string | null
   workingDays: number
@@ -310,11 +311,15 @@ const ManagerLeaveApproval: React.FC = () => {
       // 计算待审核请假数量
       const pendingLeaveCount = calculatePendingLeaveCount(driver.id)
 
+      // 判断司机类型：有车牌号的是带车司机，否则是纯司机
+      const driverType: 'pure' | 'with_vehicle' = driver.vehicle_plate ? 'with_vehicle' : 'pure'
+
       statsMap.set(driver.id, {
         driverId: driver.id,
         driverName: getUserName(driver.id),
         driverPhone: driver.phone,
         licensePlate: driver.vehicle_plate,
+        driverType,
         warehouseIds: [],
         warehouseNames: [],
         leaveDays: 0,
@@ -719,6 +724,16 @@ const ManagerLeaveApproval: React.FC = () => {
                         <View className="flex-1">
                           <View className="flex items-center gap-2 mb-1">
                             <Text className="text-base font-bold text-gray-800">{stats.driverName}</Text>
+                            {/* 司机类型标签 */}
+                            {stats.driverType === 'with_vehicle' ? (
+                              <View className="bg-gradient-to-r from-purple-400 to-purple-500 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">带车司机</Text>
+                              </View>
+                            ) : (
+                              <View className="bg-gradient-to-r from-blue-400 to-blue-500 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">纯司机</Text>
+                              </View>
+                            )}
                             {/* 新司机标签 */}
                             {stats.workingDays <= 7 && (
                               <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
@@ -765,14 +780,12 @@ const ManagerLeaveApproval: React.FC = () => {
                     <View className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
                       <View className="flex-1">
                         <View className="flex items-center justify-between mb-2">
-                          <Text className="text-sm text-gray-600">实际出勤</Text>
-                          <Text className="text-sm font-bold text-blue-600">
-                            {stats.actualAttendanceDays} / {stats.workDays} 天
-                          </Text>
+                          <Text className="text-sm text-gray-600">应出勤天数</Text>
+                          <Text className="text-sm font-bold text-blue-600">{stats.workDays} 天</Text>
                         </View>
                         <View className="flex items-center justify-between">
-                          <Text className="text-sm text-gray-600">打卡次数</Text>
-                          <Text className="text-sm font-bold text-green-600">{stats.attendanceCount} 次</Text>
+                          <Text className="text-sm text-gray-600">实际出勤天数</Text>
+                          <Text className="text-sm font-bold text-green-600">{stats.actualAttendanceDays} 天</Text>
                         </View>
                       </View>
                     </View>
