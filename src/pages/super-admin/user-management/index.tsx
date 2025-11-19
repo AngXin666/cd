@@ -53,6 +53,8 @@ const UserManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [warehouseAssignExpanded, setWarehouseAssignExpanded] = useState<string | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
+  // 存储每个司机已分配的仓库信息（用于仓库分配功能）
+  const [_driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, Warehouse[]>>(new Map())
 
   // 添加用户相关状态
   const [showAddUser, setShowAddUser] = useState(false)
