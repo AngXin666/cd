@@ -53,8 +53,6 @@ const UserManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [warehouseAssignExpanded, setWarehouseAssignExpanded] = useState<string | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
-  // 存储每个司机已分配的仓库信息
-  const [driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, Warehouse[]>>(new Map())
 
   // 添加用户相关状态
   const [showAddUser, setShowAddUser] = useState(false)
@@ -198,7 +196,7 @@ const UserManagement: React.FC = () => {
 
   // 搜索关键词变化
   const handleSearchChange = useCallback(
-    (e: any) => {
+    (e: {detail: {value: string}}) => {
       const keyword = e.detail.value
       setSearchKeyword(keyword)
       filterUsers(users, keyword, roleFilter)
@@ -586,13 +584,6 @@ const UserManagement: React.FC = () => {
     })
   }, [])
 
-  // 拨打电话
-  const handleCall = useCallback((phone: string) => {
-    Taro.makePhoneCall({
-      phoneNumber: phone
-    })
-  }, [])
-
   // 页面显示时加载数据
   useDidShow(() => {
     loadUsers()
@@ -637,12 +628,6 @@ const UserManagement: React.FC = () => {
   const getDriverType = (targetUser: UserWithRealName) => {
     if (targetUser.role !== 'driver') return null
     return targetUser.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
-  }
-
-  // 获取司机类型颜色
-  const getDriverTypeColor = (targetUser: UserWithRealName) => {
-    if (targetUser.role !== 'driver') return ''
-    return targetUser.driver_type === 'with_vehicle' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
   }
 
   return (
@@ -871,110 +856,177 @@ const UserManagement: React.FC = () => {
               const isWarehouseExpanded = warehouseAssignExpanded === u.id
 
               return (
-                <View key={u.id} className="bg-white rounded-xl mb-3 shadow-sm overflow-hidden">
-                  {/* 用户基本信息 */}
-                  <View className="p-4">
-                    <View className="flex items-center justify-between mb-2">
-                      <View className="flex items-center flex-1">
-                        <Text className="text-lg font-bold text-gray-800 mr-2">
-                          {u.real_name || u.name || '未设置姓名'}
-                        </Text>
-                        <View className={`px-2 py-0.5 rounded-full ${getRoleColor(u.role)}`}>
-                          <Text className="text-xs font-medium">{getRoleText(u.role)}</Text>
+                <View key={u.id} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden mb-3">
+                  {/* 用户头部信息 */}
+                  <View className="p-4 flex items-center justify-between">
+                    <View className="flex items-center flex-1">
+                      <View className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-full p-3 mr-3 shadow-md">
+                        <View className="i-mdi-account text-white text-2xl" />
+                      </View>
+                      <View className="flex-1">
+                        <View className="flex items-center gap-2 mb-1">
+                          <Text className="text-gray-900 text-lg font-bold">
+                            {u.real_name || u.name || '未设置姓名'}
+                          </Text>
+                          {u.real_name && (
+                            <View className="bg-green-100 px-2 py-0.5 rounded-full">
+                              <Text className="text-green-700 text-xs font-medium">已实名</Text>
+                            </View>
+                          )}
+                          <View className={`px-2 py-0.5 rounded-full ${getRoleColor(u.role)}`}>
+                            <Text className="text-xs font-medium">{getRoleText(u.role)}</Text>
+                          </View>
+                          {detail && getDriverType(u) && (
+                            <View
+                              className={`px-2 py-0.5 rounded-full ${
+                                getDriverType(u) === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
+                              }`}>
+                              <Text
+                                className={`text-xs font-medium ${
+                                  getDriverType(u) === '带车司机' ? 'text-orange-700' : 'text-blue-700'
+                                }`}>
+                                {getDriverType(u)}
+                              </Text>
+                            </View>
+                          )}
                         </View>
-                        {getDriverType(u) && (
-                          <View className={`ml-2 px-2 py-0.5 rounded-full ${getDriverTypeColor(u)}`}>
-                            <Text className="text-xs font-medium">{getDriverType(u)}</Text>
+                        <Text className="text-gray-500 text-sm">{u.phone || '未设置手机号'}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* 用户详细信息 */}
+                  {u.role === 'driver' && detail && (
+                    <View className="px-4 pb-3 border-t border-gray-100">
+                      <View className="grid grid-cols-2 gap-2 mt-3">
+                        {/* 年龄 */}
+                        {detail.age !== null && (
+                          <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                            <View className="i-mdi-cake-variant text-blue-600 text-lg mr-2" />
+                            <View className="flex-1">
+                              <Text className="text-gray-500 text-xs block">年龄</Text>
+                              <Text className="text-gray-900 text-sm font-medium">{detail.age}岁</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* 驾龄 */}
+                        {detail.drivingYears !== null && (
+                          <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                            <View className="i-mdi-steering text-green-600 text-lg mr-2" />
+                            <View className="flex-1">
+                              <Text className="text-gray-500 text-xs block">驾龄</Text>
+                              <Text className="text-gray-900 text-sm font-medium">{detail.drivingYears}年</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* 驾驶证类型 */}
+                        {detail.license?.license_class && (
+                          <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                            <View className="i-mdi-card-account-details text-purple-600 text-lg mr-2" />
+                            <View className="flex-1">
+                              <Text className="text-gray-500 text-xs block">准驾车型</Text>
+                              <Text className="text-gray-900 text-sm font-medium">{detail.license.license_class}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* 车辆数量 */}
+                        <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                          <View className="i-mdi-car text-orange-600 text-lg mr-2" />
+                          <View className="flex-1">
+                            <Text className="text-gray-500 text-xs block">车辆</Text>
+                            <Text className="text-gray-900 text-sm font-medium">
+                              {detail.vehicles.length > 0 ? `${detail.vehicles.length}辆` : '无车辆'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* 入职时间 */}
+                        {detail.joinDate && (
+                          <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                            <View className="i-mdi-calendar-check text-teal-600 text-lg mr-2" />
+                            <View className="flex-1">
+                              <Text className="text-gray-500 text-xs block">入职时间</Text>
+                              <Text className="text-gray-900 text-sm font-medium">{detail.joinDate}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* 在职天数 */}
+                        {detail.workDays !== null && (
+                          <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                            <View className="i-mdi-clock-outline text-indigo-600 text-lg mr-2" />
+                            <View className="flex-1">
+                              <Text className="text-gray-500 text-xs block">在职天数</Text>
+                              <Text className="text-gray-900 text-sm font-medium">{detail.workDays}天</Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* 车牌号（如果有车辆） */}
+                      {detail.vehicles.length > 0 && (
+                        <View className="mt-2 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg p-2 border border-orange-200">
+                          <View className="flex items-center">
+                            <View className="i-mdi-card-text text-orange-600 text-base mr-2" />
+                            <Text className="text-gray-600 text-xs mr-2">车牌号：</Text>
+                            <Text className="text-gray-900 text-sm font-bold">
+                              {detail.vehicles.map((v) => v.plate_number).join('、')}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 身份证号码 */}
+                      {detail.license?.id_card_number && (
+                        <View className="mt-2 bg-indigo-50 rounded-lg p-2 border border-indigo-200">
+                          <View className="flex items-start">
+                            <View className="i-mdi-card-account-details text-indigo-600 text-base mr-2 mt-0.5" />
+                            <View className="flex-1">
+                              <Text className="text-gray-600 text-xs block mb-0.5">身份证号码</Text>
+                              <Text className="text-gray-900 text-xs font-mono tracking-wide">
+                                {detail.license.id_card_number}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 住址 */}
+                      {detail.license?.id_card_address && (
+                        <View className="mt-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
+                          <View className="flex items-start">
+                            <View className="i-mdi-home-map-marker text-blue-600 text-base mr-2 mt-0.5" />
+                            <View className="flex-1">
+                              <Text className="text-gray-600 text-xs block mb-0.5">住址</Text>
+                              <Text className="text-gray-900 text-xs leading-relaxed">
+                                {detail.license.id_card_address}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* 管理员详细信息 */}
+                  {u.role !== 'driver' && (
+                    <View className="px-4 pb-3 border-t border-gray-100">
+                      <View className="mt-3 space-y-2">
+                        {u.login_account && (
+                          <View className="flex items-center bg-gray-50 rounded-lg p-2">
+                            <View className="i-mdi-account text-blue-600 text-lg mr-2" />
+                            <View className="flex-1">
+                              <Text className="text-gray-500 text-xs block">登录账号</Text>
+                              <Text className="text-gray-900 text-sm font-medium">{u.login_account}</Text>
+                            </View>
                           </View>
                         )}
                       </View>
                     </View>
-
-                    {/* 基本信息 */}
-                    <View className="space-y-1">
-                      {/* 司机显示：电话、年龄、驾龄、在职天数、入职时间 */}
-                      {u.role === 'driver' && (
-                        <>
-                          {/* 电话号码 */}
-                          {u.phone && (
-                            <View className="flex items-center" onClick={() => handleCall(u.phone!)}>
-                              <View className="i-mdi-phone text-blue-500 text-base mr-2" />
-                              <Text className="text-sm text-blue-600 underline">{u.phone}</Text>
-                            </View>
-                          )}
-                          {/* 年龄 */}
-                          {detail?.age !== null && detail?.age !== undefined && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-account-clock text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">年龄：{detail.age}岁</Text>
-                            </View>
-                          )}
-                          {/* 驾龄 */}
-                          {detail?.drivingYears !== null && detail?.drivingYears !== undefined && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-steering text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">驾龄：{detail.drivingYears}年</Text>
-                            </View>
-                          )}
-                          {/* 在职天数 */}
-                          {detail?.workDays !== null && detail?.workDays !== undefined && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-calendar-clock text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">在职天数：{detail.workDays}天</Text>
-                            </View>
-                          )}
-                          {/* 入职时间 */}
-                          {detail?.joinDate && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-calendar-check text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">入职时间：{detail.joinDate}</Text>
-                            </View>
-                          )}
-                          {/* 车牌号码 */}
-                          {detail?.vehicles && detail.vehicles.length > 0 && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-car text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">
-                                车牌：{detail.vehicles.map((v) => v.plate_number).join('、')}
-                              </Text>
-                            </View>
-                          )}
-                          {/* 已分配仓库 */}
-                          {(() => {
-                            const assignedWarehouses = driverWarehouseMap.get(u.id) || []
-                            if (assignedWarehouses.length > 0) {
-                              return (
-                                <View className="flex items-center">
-                                  <View className="i-mdi-warehouse text-gray-400 text-base mr-2" />
-                                  <Text className="text-sm text-gray-600">
-                                    仓库：{assignedWarehouses.map((w) => w.name).join('、')}
-                                  </Text>
-                                </View>
-                              )
-                            }
-                            return null
-                          })()}
-                        </>
-                      )}
-                      {/* 管理员显示：电话和登录账号 */}
-                      {u.role !== 'driver' && (
-                        <>
-                          {u.phone && (
-                            <View className="flex items-center" onClick={() => handleCall(u.phone!)}>
-                              <View className="i-mdi-phone text-blue-500 text-base mr-2" />
-                              <Text className="text-sm text-blue-600 underline">{u.phone}</Text>
-                            </View>
-                          )}
-                          {u.login_account && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-account text-gray-400 text-base mr-2" />
-                              <Text className="text-sm text-gray-600">{u.login_account}</Text>
-                            </View>
-                          )}
-                        </>
-                      )}
-                    </View>
-                  </View>
+                  )}
 
                   {/* 操作按钮 */}
                   <View className="grid grid-cols-2 gap-2 p-3 bg-gray-50 border-t border-gray-100">
@@ -986,7 +1038,7 @@ const UserManagement: React.FC = () => {
                           handleViewUserProfile(u.id)
                         }}
                         className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-2.5 active:bg-blue-100 transition-all">
-                        <View className="i-mdi-account-circle text-blue-600 text-lg mr-1.5" />
+                        <View className="i-mdi-account-card text-blue-600 text-base mr-1.5" />
                         <Text className="text-blue-700 text-sm font-medium">个人信息</Text>
                       </View>
                     )}
@@ -999,7 +1051,7 @@ const UserManagement: React.FC = () => {
                           handleViewUserVehicles(u.id)
                         }}
                         className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg py-2.5 active:bg-green-100 transition-all">
-                        <View className="i-mdi-car text-green-600 text-lg mr-1.5" />
+                        <View className="i-mdi-car text-green-600 text-base mr-1.5" />
                         <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
                       </View>
                     )}
