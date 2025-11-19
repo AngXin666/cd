@@ -9,6 +9,7 @@ import {
   getAllProfiles,
   getAllResignationApplications,
   getAllWarehouses,
+  getManagerWarehouses,
   reviewLeaveApplication,
   reviewResignationApplication
 } from '@/db/api'
@@ -34,13 +35,14 @@ interface DriverStats {
   workingDays: number
 }
 
-const SuperAdminLeaveApproval: React.FC = () => {
+const ManagerLeaveApproval: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [resignationApplications, setResignationApplications] = useState<ResignationApplication[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [managerWarehouses, setManagerWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<'pending' | 'stats'>('stats')
 
@@ -77,13 +79,19 @@ const SuperAdminLeaveApproval: React.FC = () => {
       const allResignationApps = await getAllResignationApplications()
       setResignationApplications(allResignationApps)
 
+      // 获取管理员管辖的仓库
+      const managedWarehouses = await getManagerWarehouses(user.id)
+      setManagerWarehouses(managedWarehouses)
+
       // 始终加载打卡记录（进入页面时加载全部数据）
       const currentMonth = filterMonth || initCurrentMonth()
       const [year, month] = currentMonth.split('-').map(Number)
       const records = await getAllAttendanceRecords(year, month)
 
-      // 超级管理员可以看到所有记录，不需要过滤
-      setAttendanceRecords(records)
+      // 过滤管理员管辖的仓库的记录
+      const managedWarehouseIds = managedWarehouses.map((w) => w.id)
+      const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
+      setAttendanceRecords(filteredRecords)
     } finally {
       Taro.hideLoading()
     }
@@ -137,10 +145,13 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
-  // 获取可见的仓库列表（超级管理员可以看到所有有数据的仓库）
+  // 获取可见的仓库列表（只显示管理员管辖的且有数据的仓库）
   const getVisibleWarehouses = () => {
+    const managedWarehouseIds = managerWarehouses.map((w) => w.id)
+    const managedWarehouses = warehouses.filter((w) => managedWarehouseIds.includes(w.id))
+
     // 过滤出有数据的仓库，并按数据量排序
-    const warehousesWithData = warehouses
+    const warehousesWithData = managedWarehouses
       .map((warehouse) => {
         // 统计该仓库的数据量
         const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
@@ -179,10 +190,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
     setCurrentWarehouseIndex(index)
   }, [])
 
-  // 获取可见的申请数据（超级管理员可以看到所有数据）
+  // 获取可见的申请数据（只显示管辖仓库的数据）
   const getVisibleApplications = () => {
-    let visibleLeave = leaveApplications
-    let visibleResignation = resignationApplications
+    const managedWarehouseIds = managerWarehouses.map((w) => w.id)
+    let visibleLeave = leaveApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
+    let visibleResignation = resignationApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
 
     // 按当前仓库筛选
     const currentWarehouseId = getCurrentWarehouseId()
@@ -337,8 +349,12 @@ const SuperAdminLeaveApproval: React.FC = () => {
       }
     }
 
-    // 处理打卡记录（超级管理员可以看到所有记录）
+    // 处理打卡记录
     let allAttendanceForStats = attendanceRecords
+    const managerWarehouseIds = managerWarehouses.map((w) => w.id)
+    allAttendanceForStats = attendanceRecords.filter((record) =>
+      record.warehouse_id ? managerWarehouseIds.includes(record.warehouse_id) : false
+    )
 
     // 按月份筛选打卡记录
     if (filterMonth) {
@@ -388,6 +404,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   }, [
     attendanceRecords,
     profiles,
+    managerWarehouses,
     filterMonth,
     calculateLeaveDays,
     calculateMonthTotalDays,
@@ -809,4 +826,4 @@ const SuperAdminLeaveApproval: React.FC = () => {
   )
 }
 
-export default SuperAdminLeaveApproval
+export default ManagerLeaveApproval
