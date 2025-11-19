@@ -533,13 +533,6 @@ const UserManagement: React.FC = () => {
     [loadUsers]
   )
 
-  // 编辑用户信息
-  const handleEditUser = useCallback((targetUser: UserWithRealName) => {
-    navigateTo({
-      url: `/pages/super-admin/edit-user/index?userId=${targetUser.id}`
-    })
-  }, [])
-
   // 重置密码
   const handleResetPassword = useCallback(async (targetUser: UserWithRealName) => {
     const {confirm} = await Taro.showModal({
@@ -1010,6 +1003,34 @@ const UserManagement: React.FC = () => {
                           </View>
                         </View>
                       )}
+
+                      {/* 账号管理操作 */}
+                      <View className="mt-3 pt-3 border-t border-gray-200">
+                        <Text className="text-gray-700 text-sm font-medium mb-2 block">账号管理</Text>
+                        <View className="grid grid-cols-2 gap-2">
+                          {/* 重置密码按钮 */}
+                          <View
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleResetPassword(u)
+                            }}
+                            className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-2.5 active:bg-amber-100 transition-all">
+                            <View className="i-mdi-lock-reset text-amber-600 text-base mr-1.5" />
+                            <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
+                          </View>
+
+                          {/* 提升为管理员按钮 */}
+                          <View
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleChangeRole(u)
+                            }}
+                            className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
+                            <View className="i-mdi-account-convert text-sky-600 text-base mr-1.5" />
+                            <Text className="text-sky-700 text-sm font-medium">提升为管理员</Text>
+                          </View>
+                        </View>
+                      </View>
                     </View>
                   )}
 
@@ -1027,6 +1048,46 @@ const UserManagement: React.FC = () => {
                           </View>
                         )}
                       </View>
+
+                      {/* 账号管理操作 */}
+                      {u.role !== 'super_admin' && (
+                        <View className="mt-3 pt-3 border-t border-gray-200">
+                          <Text className="text-gray-700 text-sm font-medium mb-2 block">账号管理</Text>
+                          <View className="grid grid-cols-2 gap-2">
+                            {/* 重置密码按钮 */}
+                            <View
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleResetPassword(u)
+                              }}
+                              className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-2.5 active:bg-amber-100 transition-all">
+                              <View className="i-mdi-lock-reset text-amber-600 text-base mr-1.5" />
+                              <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
+                            </View>
+
+                            {/* 降级为司机按钮 */}
+                            <View
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleChangeRole(u)
+                              }}
+                              className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
+                              <View className="i-mdi-account-convert text-sky-600 text-base mr-1.5" />
+                              <Text className="text-sky-700 text-sm font-medium">降级为司机</Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 超级管理员提示 */}
+                      {u.role === 'super_admin' && (
+                        <View className="mt-3 pt-3 border-t border-gray-200">
+                          <View className="flex items-center justify-center bg-gray-100 rounded-lg py-3">
+                            <View className="i-mdi-shield-crown text-gray-500 text-lg mr-2" />
+                            <Text className="text-gray-600 text-sm font-medium">最高权限，无法修改</Text>
+                          </View>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1086,45 +1147,6 @@ const UserManagement: React.FC = () => {
                       </View>
                     )}
 
-                    {/* 编辑按钮（仅管理员可见） */}
-                    {u.role !== 'driver' && (
-                      <View
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleEditUser(u)
-                        }}
-                        className="flex items-center justify-center bg-emerald-50 border border-emerald-200 rounded-lg py-2.5 active:bg-emerald-100 transition-all">
-                        <View className="i-mdi-pencil text-emerald-600 text-lg mr-1.5" />
-                        <Text className="text-emerald-700 text-sm font-medium">编辑</Text>
-                      </View>
-                    )}
-
-                    {/* 重置密码按钮 */}
-                    <View
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleResetPassword(u)
-                      }}
-                      className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-2.5 active:bg-amber-100 transition-all">
-                      <View className="i-mdi-lock-reset text-amber-600 text-lg mr-1.5" />
-                      <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
-                    </View>
-
-                    {/* 修改角色按钮（非超级管理员） */}
-                    {u.role !== 'super_admin' && (
-                      <View
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleChangeRole(u)
-                        }}
-                        className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
-                        <View className="i-mdi-account-convert text-sky-600 text-lg mr-1.5" />
-                        <Text className="text-sky-700 text-sm font-medium">
-                          {u.role === 'manager' ? '降级为司机' : '提升为管理员'}
-                        </Text>
-                      </View>
-                    )}
-
                     {/* 配置权限按钮（仅管理员） */}
                     {u.role === 'manager' && (
                       <View
@@ -1135,14 +1157,6 @@ const UserManagement: React.FC = () => {
                         className="flex items-center justify-center bg-rose-50 border border-rose-200 rounded-lg py-2.5 active:bg-rose-100 transition-all">
                         <View className="i-mdi-shield-account text-rose-600 text-lg mr-1.5" />
                         <Text className="text-rose-700 text-sm font-medium">权限</Text>
-                      </View>
-                    )}
-
-                    {/* 超级管理员提示 */}
-                    {u.role === 'super_admin' && (
-                      <View className="col-span-2 flex items-center justify-center bg-gray-100 rounded-lg py-2.5">
-                        <View className="i-mdi-shield-crown text-gray-500 text-lg mr-1.5" />
-                        <Text className="text-gray-600 text-sm font-medium">最高权限，无法修改</Text>
                       </View>
                     )}
                   </View>
