@@ -146,6 +146,11 @@ const ManagerHome: React.FC = () => {
     navigateTo({url: '/pages/manager/leave-approval/index'})
   }
 
+  const handleAttendanceManagement = () => {
+    // 跳转到考勤管理页面（请假审批）
+    navigateTo({url: '/pages/manager/leave-approval/index'})
+  }
+
   const handleWarehouseCategories = () => {
     // 获取当前选中的仓库
     const currentWarehouse = warehouses[currentWarehouseIndex]
@@ -284,16 +289,20 @@ const ManagerHome: React.FC = () => {
             {dashboardStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
                 <View className="grid grid-cols-2 gap-3">
-                  {/* 今日出勤 */}
-                  <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                  {/* 今日出勤 - 可点击跳转到考勤管理 */}
+                  <View
+                    className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handleAttendanceManagement}>
                     <View className="i-mdi-account-check text-2xl text-blue-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">今日出勤</Text>
                     <Text className="text-2xl font-bold text-blue-900 block">{dashboardStats.todayAttendance}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">人</Text>
                   </View>
 
-                  {/* 当日总件数 */}
-                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                  {/* 当日总件数 - 可点击跳转到件数报表 */}
+                  <View
+                    className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handlePieceWorkReport}>
                     <View className="i-mdi-package-variant text-2xl text-green-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">当日总件数</Text>
                     <Text className="text-2xl font-bold text-green-600 block">{dashboardStats.todayPieceCount}</Text>
@@ -310,8 +319,10 @@ const ManagerHome: React.FC = () => {
                     <Text className="text-xs text-gray-400 block mt-1">条</Text>
                   </View>
 
-                  {/* 本月完成件数 */}
-                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                  {/* 本月完成件数 - 可点击跳转到件数报表 */}
+                  <View
+                    className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handlePieceWorkReport}>
                     <View className="i-mdi-chart-line text-2xl text-purple-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">本月完成件数</Text>
                     <Text className="text-2xl font-bold text-purple-900 block">{dashboardStats.monthlyPieceCount}</Text>
