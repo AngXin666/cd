@@ -774,13 +774,25 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
                     {/* 其他统计数据 */}
                     <View className="grid grid-cols-3 gap-3">
-                      <View className="text-center bg-orange-50 rounded-lg py-3">
+                      <View
+                        className={`text-center bg-orange-50 rounded-lg py-3 ${stats.pendingLeaveCount > 0 ? 'relative' : ''}`}
+                        onClick={(e) => {
+                          if (stats.pendingLeaveCount > 0) {
+                            e.stopPropagation()
+                            navigateToDriverDetail(stats.driverId)
+                          }
+                        }}>
                         <Text className="text-xs text-gray-600 block mb-2">
                           {stats.pendingLeaveCount > 0 ? '请假审核' : '请假天数'}
                         </Text>
                         <Text className="text-2xl font-bold text-orange-600 block">
                           {stats.pendingLeaveCount > 0 ? stats.pendingLeaveCount : stats.leaveDays}
                         </Text>
+                        {stats.pendingLeaveCount > 0 && (
+                          <View className="absolute top-1 right-1">
+                            <View className="i-mdi-chevron-right text-sm text-orange-400" />
+                          </View>
+                        )}
                       </View>
                       <View className="text-center bg-blue-50 rounded-lg py-3">
                         <Text className="text-xs text-gray-600 block mb-2">出勤天数</Text>
