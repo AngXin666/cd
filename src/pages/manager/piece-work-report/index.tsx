@@ -962,7 +962,12 @@ const ManagerPieceWorkReport: React.FC = () => {
                       <Text className="text-xs text-gray-500 mt-1">
                         应工作{(() => {
                           const today = new Date()
-                          const weekStart = new Date(getMondayDateString())
+                          // 计算本周一的日期
+                          const dayOfWeek = today.getDay()
+                          const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // 周日为0，需要特殊处理
+                          const weekStart = new Date(today)
+                          weekStart.setDate(today.getDate() - diff)
+                          weekStart.setHours(0, 0, 0, 0)
 
                           // 计算实际工作的起始日期（本周一或入职日，取较晚的）
                           let startDate = weekStart
