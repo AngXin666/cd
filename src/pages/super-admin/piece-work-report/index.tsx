@@ -1,4 +1,4 @@
-import {Input, Picker, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
+import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -15,8 +15,7 @@ import {
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
-import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
-import {matchWithPinyin} from '@/utils/pinyin'
+import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
 // 完成率状态判断和样式配置
 interface CompletionRateStatus {
@@ -102,16 +101,12 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
 
-  // 筛选状态
+  // 筛选状态 - 简化版本，移除所有筛选UI
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0) // 当前仓库索引（用于Swiper切换）
-  const [selectedDriverId, setSelectedDriverId] = useState<string>('') // 使用ID而不是索引
-  const [driverSearchKeyword, setDriverSearchKeyword] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [quickFilter, setQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
-  const [showFilters, setShowFilters] = useState(false) // 是否显示筛选区域
 
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
@@ -187,19 +182,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     }
   }, [user?.id])
 
-  // 过滤司机列表（根据搜索关键词，支持拼音首字母）
-  const filteredDrivers = drivers.filter((driver) => {
-    if (!driverSearchKeyword.trim()) return true
-
-    const keyword = driverSearchKeyword.trim()
-    const name = driver.name || ''
-    const phone = driver.phone || ''
-
-    // 支持姓名、手机号和拼音首字母匹配
-    return matchWithPinyin(name, keyword) || phone.toLowerCase().includes(keyword.toLowerCase())
-  })
-
-  // 加载计件记录（带缓存）
+  // 加载计件记录（带缓存）- 移除司机筛选功能
   const loadRecords = useCallback(async () => {
     if (warehouses.length === 0) return
 
@@ -232,11 +215,6 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         setVersionedCache(cacheKey, data, 3 * 60 * 1000)
       }
 
-      // 司机筛选
-      if (selectedDriverId) {
-        data = data.filter((r) => r.user_id === selectedDriverId)
-      }
-
       // 排序
       data.sort((a, b) => {
         const dateA = new Date(a.work_date).getTime()
@@ -253,7 +231,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         duration: 2000
       })
     }
-  }, [warehouses, currentWarehouseIndex, selectedDriverId, startDate, endDate, sortOrder])
+  }, [warehouses, currentWarehouseIndex, startDate, endDate, sortOrder])
 
   useEffect(() => {
     loadData()
@@ -273,46 +251,6 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     await Promise.all([loadData(), loadRecords()])
     Taro.stopPullDownRefresh()
   })
-
-  // 快捷筛选：前一天
-  const handleYesterdayFilter = () => {
-    const dateStr = getYesterdayDateString()
-    setStartDate(dateStr)
-    setEndDate(dateStr)
-    setQuickFilter('yesterday')
-  }
-
-  // 快捷筛选：本周
-  const handleWeekFilter = () => {
-    const startDateStr = getMondayDateString()
-    const endDateStr = getLocalDateString()
-
-    setStartDate(startDateStr)
-    setEndDate(endDateStr)
-    setQuickFilter('week')
-  }
-
-  // 快捷筛选：本月
-  const handleMonthFilter = () => {
-    const firstDay = getFirstDayOfMonthString()
-    const today = getLocalDateString()
-
-    setStartDate(firstDay)
-    setEndDate(today)
-    setQuickFilter('month')
-  }
-
-  // 处理开始日期变化
-  const handleStartDateChange = (e) => {
-    setStartDate(e.detail.value)
-    setQuickFilter('custom')
-  }
-
-  // 处理结束日期变化
-  const handleEndDateChange = (e) => {
-    setEndDate(e.detail.value)
-    setQuickFilter('custom')
-  }
 
   // 添加记录
   const handleAddRecord = () => {
@@ -737,9 +675,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   // 计算当日件数（只统计今天的数据）
   const todayQuantity = useMemo(() => {
     const today = getLocalDateString()
-    return records
-      .filter((r) => r.work_date === today)
-      .reduce((sum, r) => sum + (r.quantity || 0), 0)
+    return records.filter((r) => r.work_date === today).reduce((sum, r) => sum + (r.quantity || 0), 0)
   }, [records])
 
   // 计算当日达标率（修正算法：考虑出勤司机数）
@@ -938,111 +874,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             </View>
           </View>
 
-          {/* 筛选区域 */}
-          <View className="bg-white rounded-lg mb-4 shadow">
-            {/* 筛选标题栏 - 可点击展开/收起 */}
-            <View
-              className="flex items-center justify-between p-4 cursor-pointer"
-              onClick={() => setShowFilters(!showFilters)}>
-              <View className="flex items-center">
-                <View className="i-mdi-filter text-xl text-blue-900 mr-2" />
-                <Text className="text-base font-bold text-gray-800">筛选条件</Text>
-              </View>
-              <View className={`i-mdi-chevron-${showFilters ? 'up' : 'down'} text-xl text-gray-400`} />
-            </View>
-
-            {/* 筛选内容 - 可折叠 */}
-            {showFilters && (
-              <View className="px-4 pb-4">
-                {/* 司机筛选 */}
-                <View className="mb-3">
-                  <Text className="text-sm text-gray-700 block mb-2">司机（支持拼音首字母搜索）</Text>
-                  <Input
-                    className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
-                    placeholder="搜索司机姓名、拼音首字母或手机号"
-                    value={driverSearchKeyword}
-                    onInput={(e) => {
-                      setDriverSearchKeyword(e.detail.value)
-                      // 搜索关键词变化时，重置选中的司机
-                      setSelectedDriverId('')
-                    }}
-                  />
-                  <Picker
-                    mode="selector"
-                    range={['所有司机', ...filteredDrivers.map((d) => d.name || d.phone || '未知')]}
-                    value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
-                    onChange={(e) => {
-                      const index = Number(e.detail.value)
-                      if (index === 0) {
-                        setSelectedDriverId('')
-                      } else {
-                        const driver = filteredDrivers[index - 1]
-                        if (driver) {
-                          setSelectedDriverId(driver.id)
-                        }
-                      }
-                    }}>
-                    <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                      <Text className="text-sm text-gray-800">
-                        {selectedDriverId
-                          ? drivers.find((d) => d.id === selectedDriverId)?.name ||
-                            drivers.find((d) => d.id === selectedDriverId)?.phone ||
-                            '未知'
-                          : '所有司机'}
-                      </Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-
-                {/* 快捷日期筛选 */}
-                <View className="mb-3">
-                  <Text className="text-sm text-gray-700 block mb-2">快捷筛选</Text>
-                  <View className="flex gap-2">
-                    <View
-                      onClick={handleYesterdayFilter}
-                      className={`flex-1 text-center py-2 rounded-lg ${
-                        quickFilter === 'yesterday' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                      <Text className="text-xs">前一天</Text>
-                    </View>
-                    <View
-                      onClick={handleWeekFilter}
-                      className={`flex-1 text-center py-2 rounded-lg ${
-                        quickFilter === 'week' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                      <Text className="text-xs">本周</Text>
-                    </View>
-                    <View
-                      onClick={handleMonthFilter}
-                      className={`flex-1 text-center py-2 rounded-lg ${
-                        quickFilter === 'month' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                      <Text className="text-xs">本月</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* 自定义日期范围 */}
-                <View>
-                  <Text className="text-sm text-gray-700 block mb-2">日期范围</Text>
-                  <View className="flex gap-2 items-center">
-                    <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
-                      <View className="flex-1 bg-gray-50 rounded-lg p-3">
-                        <Text className="text-sm text-gray-800">{startDate || '开始日期'}</Text>
-                      </View>
-                    </Picker>
-                    <Text className="text-gray-500">至</Text>
-                    <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
-                      <View className="flex-1 bg-gray-50 rounded-lg p-3">
-                        <Text className="text-sm text-gray-800">{endDate || '结束日期'}</Text>
-                      </View>
-                    </Picker>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
+          {/* 筛选区域 - 已移除，直接显示所有数据 */}
 
           {/* 排序按钮 */}
           <View className="flex gap-2 mb-4">
