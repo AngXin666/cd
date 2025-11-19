@@ -492,6 +492,24 @@ const ManagerLeaveApproval: React.FC = () => {
     })
   }
 
+  // 按顺序处理待审核申请（跳转到第一个有待审核申请的司机）
+  const handlePendingApplications = () => {
+    // 获取所有有待审核申请的司机，按待审核数量降序排序
+    const driversWithPending = driverStats
+      .filter((stats) => stats.pendingLeaveCount > 0)
+      .sort((a, b) => b.pendingLeaveCount - a.pendingLeaveCount)
+
+    if (driversWithPending.length > 0) {
+      // 跳转到第一个有待审核申请的司机
+      navigateToDriverDetail(driversWithPending[0].driverId)
+    } else {
+      showToast({
+        title: '暂无待审核申请',
+        icon: 'none'
+      })
+    }
+  }
+
   const driverStats = calculateDriverStats
   const {visibleLeave, visibleResignation} = getVisibleApplications()
 
@@ -517,9 +535,20 @@ const ManagerLeaveApproval: React.FC = () => {
               <Text className="text-sm text-gray-600 block mb-2">司机总数</Text>
               <Text className="text-3xl font-bold text-blue-900 block">{totalDrivers}</Text>
             </View>
-            <View className="bg-white rounded-lg p-4 shadow">
+            <View
+              className="bg-white rounded-lg p-4 shadow relative"
+              onClick={() => {
+                if (totalPending > 0) {
+                  handlePendingApplications()
+                }
+              }}>
               <Text className="text-sm text-gray-600 block mb-2">待审批</Text>
               <Text className="text-3xl font-bold text-red-600 block">{totalPending}</Text>
+              {totalPending > 0 && (
+                <View className="absolute top-2 right-2">
+                  <View className="i-mdi-chevron-right text-lg text-red-400" />
+                </View>
+              )}
             </View>
           </View>
 
