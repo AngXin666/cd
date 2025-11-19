@@ -26,8 +26,8 @@ interface DriverStats {
   leaveDays: number // 已批准的请假天数
   pendingLeaveCount: number // 待审核请假数量
   leaveCount: number
-  resignationCount: number
   attendanceCount: number
+  lateCount: number // 迟到次数
   workDays: number
   actualAttendanceDays: number
   joinDate: string | null
@@ -320,8 +320,8 @@ const ManagerLeaveApproval: React.FC = () => {
         leaveDays: 0,
         pendingLeaveCount,
         leaveCount: 0,
-        resignationCount: 0,
         attendanceCount: 0,
+        lateCount: 0,
         workDays: getDriverWorkDays(driver),
         actualAttendanceDays: 0,
         joinDate: driver.join_date,
@@ -344,15 +344,6 @@ const ManagerLeaveApproval: React.FC = () => {
       }
     }
 
-    // 处理离职申请
-    for (const app of visibleResignation) {
-      const stats = statsMap.get(app.user_id)
-      if (!stats) continue
-
-      addWarehouseToStats(stats, app.warehouse_id)
-      stats.resignationCount++
-    }
-
     // 处理打卡记录
     let allAttendanceForStats = attendanceRecords
     const managerWarehouseIds = managerWarehouses.map((w) => w.id)
@@ -369,7 +360,7 @@ const ManagerLeaveApproval: React.FC = () => {
       })
     }
 
-    // 统计每个司机的打卡天数
+    // 统计每个司机的打卡天数和迟到次数
     const attendanceDaysMap = new Map<string, Set<string>>()
     for (const record of allAttendanceForStats) {
       const stats = statsMap.get(record.user_id)
@@ -377,6 +368,11 @@ const ManagerLeaveApproval: React.FC = () => {
 
       addWarehouseToStats(stats, record.warehouse_id || '')
       stats.attendanceCount++
+
+      // 统计迟到次数
+      if (record.status === 'late') {
+        stats.lateCount++
+      }
 
       if (!attendanceDaysMap.has(record.user_id)) {
         attendanceDaysMap.set(record.user_id, new Set())
@@ -783,22 +779,21 @@ const ManagerLeaveApproval: React.FC = () => {
 
                     {/* 其他统计数据 */}
                     <View className="grid grid-cols-3 gap-3">
-                      <View className="text-center bg-orange-50 rounded-lg py-2">
-                        <View className="i-mdi-calendar-remove text-xl text-orange-600 mb-1 mx-auto" />
-                        <Text className="text-xs text-gray-600 block mb-1">
+                      <View className="text-center bg-orange-50 rounded-lg py-3">
+                        <Text className="text-xs text-gray-600 block mb-2">
                           {stats.pendingLeaveCount > 0 ? '请假审核' : '请假天数'}
                         </Text>
-                        <Text className="text-lg font-bold text-orange-600 block">
-                          {stats.pendingLeaveCount > 0 ? `${stats.pendingLeaveCount}条` : stats.leaveDays}
+                        <Text className="text-2xl font-bold text-orange-600 block">
+                          {stats.pendingLeaveCount > 0 ? stats.pendingLeaveCount : stats.leaveDays}
                         </Text>
                       </View>
-                      <View className="text-center bg-blue-50 rounded-lg py-2">
-                        <Text className="text-xl font-bold text-blue-600 block">{stats.actualAttendanceDays}</Text>
-                        <Text className="text-xs text-gray-600">出勤天数</Text>
+                      <View className="text-center bg-blue-50 rounded-lg py-3">
+                        <Text className="text-xs text-gray-600 block mb-2">出勤天数</Text>
+                        <Text className="text-2xl font-bold text-blue-600 block">{stats.actualAttendanceDays}</Text>
                       </View>
-                      <View className="text-center bg-purple-50 rounded-lg py-2">
-                        <Text className="text-xl font-bold text-purple-600 block">{stats.resignationCount}</Text>
-                        <Text className="text-xs text-gray-600">离职申请</Text>
+                      <View className="text-center bg-red-50 rounded-lg py-3">
+                        <Text className="text-xs text-gray-600 block mb-2">迟到次数</Text>
+                        <Text className="text-2xl font-bold text-red-600 block">{stats.lateCount}</Text>
                       </View>
                     </View>
 
