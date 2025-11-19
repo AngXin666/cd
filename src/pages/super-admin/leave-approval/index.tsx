@@ -137,9 +137,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
-  // 获取可见的仓库列表（超级管理员可以看到所有有数据的仓库）
+  // 获取可见的仓库列表（超级管理员可以看到所有仓库，包括没有数据的）
   const getVisibleWarehouses = () => {
-    // 过滤出有数据的仓库，并按数据量排序
+    // 显示所有仓库，并按数据量排序（有数据的排在前面）
     const warehousesWithData = warehouses
       .map((warehouse) => {
         // 统计该仓库的数据量
@@ -153,8 +153,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           totalDataCount
         }
       })
-      .filter((item) => item.totalDataCount > 0) // 只保留有数据的仓库
-      .sort((a, b) => b.totalDataCount - a.totalDataCount) // 按数据量降序排序
+      .sort((a, b) => b.totalDataCount - a.totalDataCount) // 按数据量降序排序，有数据的排在前面
       .map((item) => item.warehouse)
 
     return warehousesWithData
