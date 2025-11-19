@@ -313,144 +313,213 @@ const WarehouseManagement: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #f8fafc, #e2e8f0)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh'}}>
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
-        <View className="p-6">
-          {/* 页面标题 */}
-          <View className="mb-6">
-            <Text className="text-gray-800 text-2xl font-bold block mb-2">仓库管理</Text>
-            <Text className="text-gray-600 text-sm block">管理仓库信息和考勤规则</Text>
+        <View className="p-5">
+          {/* 页面标题区域 - 简约大气 */}
+          <View className="mb-6 pt-2">
+            <View className="flex items-center justify-between mb-6">
+              <View>
+                <Text className="text-white text-3xl font-bold block mb-1">仓库管理</Text>
+                <Text className="text-white/80 text-sm block">Warehouse Management</Text>
+              </View>
+              <View className="i-mdi-warehouse text-white/30 text-5xl" />
+            </View>
+
+            {/* 统计卡片 */}
+            <View className="bg-white/95 backdrop-blur rounded-2xl p-4 shadow-lg">
+              <View className="flex items-center justify-around">
+                <View className="text-center flex-1">
+                  <Text className="text-gray-500 text-xs block mb-1">总仓库数</Text>
+                  <Text className="text-gray-900 text-2xl font-bold block">{warehouses.length}</Text>
+                </View>
+                <View className="w-px h-10 bg-gray-200" />
+                <View className="text-center flex-1">
+                  <Text className="text-gray-500 text-xs block mb-1">启用中</Text>
+                  <Text className="text-green-600 text-2xl font-bold block">
+                    {warehouses.filter((w) => w.is_active).length}
+                  </Text>
+                </View>
+                <View className="w-px h-10 bg-gray-200" />
+                <View className="text-center flex-1">
+                  <Text className="text-gray-500 text-xs block mb-1">已禁用</Text>
+                  <Text className="text-gray-400 text-2xl font-bold block">
+                    {warehouses.filter((w) => !w.is_active).length}
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
 
-          {/* 添加仓库按钮 */}
-          <Button
-            size="default"
-            className="w-full bg-blue-600 text-white text-base font-bold mb-6 break-keep"
-            onClick={handleShowAddWarehouse}>
+          {/* 添加仓库按钮 - 简约设计 */}
+          <View
+            onClick={handleShowAddWarehouse}
+            className="bg-white/95 backdrop-blur rounded-2xl p-4 mb-5 shadow-lg active:scale-98 transition-all">
             <View className="flex items-center justify-center">
-              <View className="i-mdi-plus text-xl mr-2" />
-              <Text>添加仓库</Text>
+              <View className="i-mdi-plus-circle text-purple-600 text-2xl mr-3" />
+              <Text className="text-gray-800 text-base font-bold">添加新仓库</Text>
             </View>
-          </Button>
+          </View>
 
-          {/* 仓库列表 */}
+          {/* 仓库列表 - 卡片式设计 */}
           {warehouses.length === 0 ? (
-            <View className="bg-white rounded-lg p-8 text-center">
-              <View className="i-mdi-warehouse text-gray-300 text-6xl mb-4" />
-              <Text className="text-gray-400 text-base block">暂无仓库</Text>
+            <View className="bg-white/95 backdrop-blur rounded-2xl p-12 text-center shadow-lg">
+              <View className="i-mdi-warehouse-off text-gray-300 text-7xl mb-4" />
+              <Text className="text-gray-400 text-base block mb-1">暂无仓库</Text>
+              <Text className="text-gray-300 text-xs block">点击上方按钮添加第一个仓库</Text>
             </View>
           ) : (
             <View className="space-y-4">
               {warehouses.map((warehouse) => (
-                <View
-                  key={warehouse.id}
-                  className={`rounded-lg p-4 shadow ${warehouse.is_active ? 'bg-white' : 'bg-gray-100 opacity-75'}`}>
-                  {/* 仓库信息 */}
-                  <View className="flex items-center justify-between mb-3">
-                    <View className="flex items-center flex-1">
-                      <View
-                        className={`i-mdi-warehouse text-2xl mr-3 ${warehouse.is_active ? 'text-blue-600' : 'text-gray-400'}`}
-                      />
-                      <View className="flex-1">
-                        <View className="flex items-center gap-2">
-                          <Text
-                            className={`text-lg font-bold block ${warehouse.is_active ? 'text-gray-800' : 'text-gray-500'}`}>
-                            {warehouse.name}
-                          </Text>
-                          {!warehouse.is_active && (
-                            <View className="bg-red-100 px-2 py-0.5 rounded">
-                              <Text className="text-red-600 text-xs">已禁用</Text>
-                            </View>
-                          )}
+                <View key={warehouse.id} className="bg-white/95 backdrop-blur rounded-2xl shadow-lg overflow-hidden">
+                  {/* 仓库头部 */}
+                  <View
+                    className={`p-4 ${warehouse.is_active ? 'bg-gradient-to-r from-purple-50 to-blue-50' : 'bg-gray-50'}`}>
+                    <View className="flex items-center justify-between">
+                      <View className="flex items-center flex-1">
+                        <View
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 ${
+                            warehouse.is_active ? 'bg-purple-100' : 'bg-gray-200'
+                          }`}>
+                          <View
+                            className={`i-mdi-warehouse text-2xl ${warehouse.is_active ? 'text-purple-600' : 'text-gray-400'}`}
+                          />
                         </View>
-                        <Text className="text-gray-500 text-xs block">{warehouse.is_active ? '启用中' : '已禁用'}</Text>
+                        <View className="flex-1">
+                          <View className="flex items-center gap-2 mb-1">
+                            <Text
+                              className={`text-xl font-bold block ${warehouse.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
+                              {warehouse.name}
+                            </Text>
+                            {!warehouse.is_active && (
+                              <View className="bg-red-500 px-2 py-0.5 rounded-full">
+                                <Text className="text-white text-xs">已禁用</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View className="flex items-center gap-2">
+                            <View
+                              className={`w-2 h-2 rounded-full ${warehouse.is_active ? 'bg-green-500' : 'bg-gray-400'}`}
+                            />
+                            <Text className="text-gray-500 text-xs">{warehouse.is_active ? '运营中' : '已停用'}</Text>
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                    <View className="flex gap-2">
-                      <Button
-                        size="mini"
-                        className="bg-purple-50 text-purple-600 text-xs break-keep"
-                        onClick={() => handleViewWarehouseDetail(warehouse)}>
-                        详情
-                      </Button>
-                      <Button
-                        size="mini"
-                        className="bg-blue-50 text-blue-600 text-xs break-keep"
-                        onClick={() => handleShowEditWarehouse(warehouse)}>
-                        编辑
-                      </Button>
-                      <Button
-                        size="mini"
-                        className="bg-red-50 text-red-600 text-xs break-keep"
-                        onClick={() => handleDeleteWarehouse(warehouse)}>
-                        删除
-                      </Button>
                     </View>
                   </View>
 
-                  {/* 考勤规则 */}
-                  <View className="bg-gray-50 rounded-lg p-3">
-                    <View className="mb-2">
+                  {/* 考勤规则信息 */}
+                  <View className="p-4 border-t border-gray-100">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-clock-outline text-purple-600 text-lg mr-2" />
                       <Text className="text-gray-700 text-sm font-bold">考勤规则</Text>
                     </View>
                     {warehouse.rule ? (
-                      <View>
-                        <Text className="text-gray-600 text-xs block mb-1">
-                          上班时间：{warehouse.rule.work_start_time}
-                        </Text>
-                        <Text className="text-gray-600 text-xs block mb-1">
-                          下班时间：{warehouse.rule.work_end_time}
-                        </Text>
-                        <Text className="text-gray-600 text-xs block mb-1">
-                          迟到阈值：{warehouse.rule.late_threshold}分钟
-                        </Text>
-                        <Text className="text-gray-600 text-xs block mb-1">
-                          早退阈值：{warehouse.rule.early_threshold}分钟
-                        </Text>
-                        <Text className="text-gray-600 text-xs block">
-                          {warehouse.rule.require_clock_out ? '需要打下班卡' : '无需打下班卡'}
-                        </Text>
+                      <View className="grid grid-cols-2 gap-3">
+                        <View className="bg-gray-50 rounded-lg p-2.5">
+                          <Text className="text-gray-400 text-xs block mb-1">上班时间</Text>
+                          <Text className="text-gray-900 text-sm font-bold block">
+                            {warehouse.rule.work_start_time}
+                          </Text>
+                        </View>
+                        <View className="bg-gray-50 rounded-lg p-2.5">
+                          <Text className="text-gray-400 text-xs block mb-1">下班时间</Text>
+                          <Text className="text-gray-900 text-sm font-bold block">{warehouse.rule.work_end_time}</Text>
+                        </View>
+                        <View className="bg-gray-50 rounded-lg p-2.5">
+                          <Text className="text-gray-400 text-xs block mb-1">迟到阈值</Text>
+                          <Text className="text-orange-600 text-sm font-bold block">
+                            {warehouse.rule.late_threshold}分钟
+                          </Text>
+                        </View>
+                        <View className="bg-gray-50 rounded-lg p-2.5">
+                          <Text className="text-gray-400 text-xs block mb-1">早退阈值</Text>
+                          <Text className="text-orange-600 text-sm font-bold block">
+                            {warehouse.rule.early_threshold}分钟
+                          </Text>
+                        </View>
                       </View>
                     ) : (
-                      <Text className="text-gray-400 text-xs">未设置考勤规则</Text>
+                      <View className="bg-gray-50 rounded-lg p-3 text-center">
+                        <Text className="text-gray-400 text-xs">未设置考勤规则</Text>
+                      </View>
                     )}
+                  </View>
+
+                  {/* 操作按钮 */}
+                  <View className="p-4 bg-gray-50 border-t border-gray-100">
+                    <View className="grid grid-cols-3 gap-2">
+                      <View
+                        onClick={() => handleViewWarehouseDetail(warehouse)}
+                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all shadow-sm">
+                        <View className="i-mdi-information-outline text-blue-600 text-lg mr-1.5" />
+                        <Text className="text-blue-600 text-sm font-medium">详情</Text>
+                      </View>
+                      <View
+                        onClick={() => handleShowEditWarehouse(warehouse)}
+                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all shadow-sm">
+                        <View className="i-mdi-pencil-outline text-purple-600 text-lg mr-1.5" />
+                        <Text className="text-purple-600 text-sm font-medium">编辑</Text>
+                      </View>
+                      <View
+                        onClick={() => handleDeleteWarehouse(warehouse)}
+                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all shadow-sm">
+                        <View className="i-mdi-delete-outline text-red-600 text-lg mr-1.5" />
+                        <Text className="text-red-600 text-sm font-medium">删除</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               ))}
             </View>
           )}
+
+          {/* 底部安全距离 */}
+          <View className="h-6" />
         </View>
       </ScrollView>
 
-      {/* 添加仓库对话框 */}
+      {/* 添加仓库对话框 - 优化设计 */}
       {showAddWarehouse && (
-        <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md">
-            <Text className="text-gray-800 text-lg font-bold block mb-4">添加仓库</Text>
-
-            <View className="mb-4">
-              <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                placeholder="请输入仓库名称"
-                value={newWarehouseName}
-                onInput={(e) => setNewWarehouseName(e.detail.value)}
-              />
+        <View className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5">
+          <View className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            {/* 标题 */}
+            <View className="flex items-center mb-6">
+              <View className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mr-3">
+                <View className="i-mdi-warehouse-plus text-purple-600 text-2xl" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-900 text-xl font-bold block">添加仓库</Text>
+                <Text className="text-gray-400 text-xs block">Create New Warehouse</Text>
+              </View>
             </View>
 
+            {/* 表单 */}
+            <View className="mb-6">
+              <Text className="text-gray-700 text-sm font-medium block mb-2">仓库名称</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="bg-gray-50 rounded-xl px-4 py-3 text-gray-800 border-2 border-transparent focus:border-purple-500 transition-all"
+                  placeholder="请输入仓库名称"
+                  value={newWarehouseName}
+                  onInput={(e) => setNewWarehouseName(e.detail.value)}
+                />
+              </View>
+            </View>
+
+            {/* 按钮 */}
             <View className="flex gap-3">
-              <Button
-                size="default"
-                className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
-                onClick={() => setShowAddWarehouse(false)}>
-                取消
-              </Button>
-              <Button
-                size="default"
-                className="flex-1 bg-blue-600 text-white text-base break-keep"
-                onClick={handleAddWarehouse}>
-                确定
-              </Button>
+              <View
+                onClick={() => setShowAddWarehouse(false)}
+                className="flex-1 bg-gray-100 rounded-xl py-3.5 flex items-center justify-center active:bg-gray-200 transition-all">
+                <Text className="text-gray-700 text-base font-medium">取消</Text>
+              </View>
+              <View
+                onClick={handleAddWarehouse}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl py-3.5 flex items-center justify-center active:opacity-80 transition-all shadow-lg">
+                <View className="i-mdi-check text-white text-lg mr-1.5" />
+                <Text className="text-white text-base font-medium">确定</Text>
+              </View>
             </View>
           </View>
         </View>
