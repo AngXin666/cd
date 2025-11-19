@@ -379,6 +379,113 @@ const DriverProfileView: React.FC = () => {
               />
             </View>
           )}
+
+          {/* 账号管理操作 */}
+          <View className="mt-5 pt-5 border-t border-gray-100">
+            <Text className="text-gray-700 text-base font-medium mb-4 block">账号管理</Text>
+            <View className="grid grid-cols-2 gap-3">
+              {/* 重置密码按钮 */}
+              <View
+                onClick={async () => {
+                  const {confirm} = await Taro.showModal({
+                    title: '重置密码',
+                    content: `确认将用户"${profile?.real_name || profile?.name || profile?.phone}"的密码重置为 123456 吗？`
+                  })
+
+                  if (!confirm) return
+
+                  try {
+                    Taro.showLoading({title: '处理中...'})
+                    logger.action('重置密码', {driverId, operatorId: user?.id})
+
+                    const {error} = await supabase.rpc('reset_user_password', {
+                      target_user_id: driverId,
+                      new_password: '123456'
+                    })
+
+                    Taro.hideLoading()
+
+                    if (error) {
+                      logger.error('重置密码失败', {error, driverId})
+                      Taro.showToast({
+                        title: '重置密码失败',
+                        icon: 'none'
+                      })
+                      return
+                    }
+
+                    logger.success('重置密码成功', {driverId})
+                    Taro.showToast({
+                      title: '密码已重置为 123456',
+                      icon: 'success'
+                    })
+                  } catch (err) {
+                    Taro.hideLoading()
+                    logger.error('重置密码异常', {error: err, driverId})
+                    Taro.showToast({
+                      title: '操作失败',
+                      icon: 'none'
+                    })
+                  }
+                }}
+                className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-3 active:bg-amber-100 transition-all">
+                <View className="i-mdi-lock-reset text-amber-600 text-xl mr-2" />
+                <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
+              </View>
+
+              {/* 提升为管理员按钮 */}
+              <View
+                onClick={async () => {
+                  const {confirm} = await Taro.showModal({
+                    title: '提升为管理员',
+                    content: `确认将司机"${profile?.real_name || profile?.name || profile?.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
+                  })
+
+                  if (!confirm) return
+
+                  try {
+                    Taro.showLoading({title: '处理中...'})
+                    logger.action('提升为管理员', {driverId, operatorId: user?.id})
+
+                    const {error} = await supabase.from('profiles').update({role: 'manager'}).eq('id', driverId)
+
+                    Taro.hideLoading()
+
+                    if (error) {
+                      logger.error('提升为管理员失败', {error, driverId})
+                      Taro.showToast({
+                        title: '操作失败',
+                        icon: 'none'
+                      })
+                      return
+                    }
+
+                    logger.success('提升为管理员成功', {driverId})
+                    Taro.showToast({
+                      title: '已提升为管理员',
+                      icon: 'success',
+                      duration: 2000
+                    })
+
+                    // 延迟返回上一页
+                    setTimeout(() => {
+                      Taro.navigateBack()
+                    }, 2000)
+                  } catch (err) {
+                    Taro.hideLoading()
+                    logger.error('提升为管理员异常', {error: err, driverId})
+                    Taro.showToast({
+                      title: '操作失败',
+                      icon: 'none'
+                    })
+                  }
+                }}
+                className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-3 active:bg-sky-100 transition-all">
+                <View className="i-mdi-account-convert text-sky-600 text-xl mr-2" />
+                <Text className="text-sky-700 text-sm font-medium">提升为管理员</Text>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
     </ScrollView>

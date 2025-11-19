@@ -18,9 +18,7 @@ import {
   getDriverLicense,
   getWarehouseAssignmentsByDriver,
   insertWarehouseAssignment,
-  resetUserPassword,
-  updateProfile,
-  updateUserRole
+  updateProfile
 } from '@/db/api'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
@@ -479,99 +477,6 @@ const UserManagement: React.FC = () => {
     })
   }, [])
 
-  // 修改用户角色
-  const handleChangeRole = useCallback(
-    async (targetUser: UserWithRealName) => {
-      // 不能修改超级管理员角色
-      if (targetUser.role === 'super_admin') {
-        showToast({
-          title: '不可修改最高权限角色',
-          icon: 'none'
-        })
-        return
-      }
-
-      // 确定目标角色和提示信息
-      let targetRole: UserRole
-      let confirmMessage: string
-
-      if (targetUser.role === 'manager') {
-        targetRole = 'driver'
-        confirmMessage = `确认将管理员"${targetUser.real_name || targetUser.name || targetUser.phone}"降级为司机吗？\n\n降级后将失去管理员权限。`
-      } else {
-        targetRole = 'manager'
-        confirmMessage = `确认将司机"${targetUser.real_name || targetUser.name || targetUser.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
-      }
-
-      // 显示确认对话框
-      const {confirm} = await Taro.showModal({
-        title: '修改角色',
-        content: confirmMessage
-      })
-
-      if (!confirm) return
-
-      // 执行角色修改
-      showLoading({title: '修改中...'})
-      try {
-        const success = await updateUserRole(targetUser.id, targetRole)
-        if (success) {
-          showToast({title: '修改成功', icon: 'success'})
-          // 数据更新，增加版本号并清除相关缓存
-          onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-          await loadUsers(true)
-        } else {
-          showToast({title: '修改失败', icon: 'error'})
-        }
-      } catch (error) {
-        console.error('修改角色失败:', error)
-        showToast({title: '修改失败', icon: 'error'})
-      } finally {
-        Taro.hideLoading()
-      }
-    },
-    [loadUsers]
-  )
-
-  // 重置密码
-  const handleResetPassword = useCallback(async (targetUser: UserWithRealName) => {
-    const {confirm} = await Taro.showModal({
-      title: '重置密码',
-      content: `确认将用户"${targetUser.real_name || targetUser.name || targetUser.phone}"的密码重置为 123456 吗？`
-    })
-
-    if (!confirm) {
-      return
-    }
-
-    showLoading({title: '重置中...'})
-    try {
-      const result = await resetUserPassword(targetUser.id)
-
-      if (result.success) {
-        showToast({title: '密码已重置为 123456', icon: 'success', duration: 3000})
-      } else {
-        const errorMessage = result.error || '重置失败，原因未知'
-        Taro.showModal({
-          title: '重置失败',
-          content: errorMessage,
-          showCancel: false,
-          confirmText: '知道了'
-        })
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '未知错误'
-      Taro.showModal({
-        title: '重置失败',
-        content: `发生异常: ${errorMessage}`,
-        showCancel: false,
-        confirmText: '知道了'
-      })
-    } finally {
-      Taro.hideLoading()
-    }
-  }, [])
-
   // 配置权限
   const handleConfigPermission = useCallback((targetUser: UserWithRealName) => {
     navigateTo({
@@ -1003,34 +908,6 @@ const UserManagement: React.FC = () => {
                           </View>
                         </View>
                       )}
-
-                      {/* 账号管理操作 */}
-                      <View className="mt-3 pt-3 border-t border-gray-200">
-                        <Text className="text-gray-700 text-sm font-medium mb-2 block">账号管理</Text>
-                        <View className="grid grid-cols-2 gap-2">
-                          {/* 重置密码按钮 */}
-                          <View
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleResetPassword(u)
-                            }}
-                            className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-2.5 active:bg-amber-100 transition-all">
-                            <View className="i-mdi-lock-reset text-amber-600 text-base mr-1.5" />
-                            <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
-                          </View>
-
-                          {/* 提升为管理员按钮 */}
-                          <View
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleChangeRole(u)
-                            }}
-                            className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
-                            <View className="i-mdi-account-convert text-sky-600 text-base mr-1.5" />
-                            <Text className="text-sky-700 text-sm font-medium">提升为管理员</Text>
-                          </View>
-                        </View>
-                      </View>
                     </View>
                   )}
 
@@ -1048,46 +925,6 @@ const UserManagement: React.FC = () => {
                           </View>
                         )}
                       </View>
-
-                      {/* 账号管理操作 */}
-                      {u.role !== 'super_admin' && (
-                        <View className="mt-3 pt-3 border-t border-gray-200">
-                          <Text className="text-gray-700 text-sm font-medium mb-2 block">账号管理</Text>
-                          <View className="grid grid-cols-2 gap-2">
-                            {/* 重置密码按钮 */}
-                            <View
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleResetPassword(u)
-                              }}
-                              className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-2.5 active:bg-amber-100 transition-all">
-                              <View className="i-mdi-lock-reset text-amber-600 text-base mr-1.5" />
-                              <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
-                            </View>
-
-                            {/* 降级为司机按钮 */}
-                            <View
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleChangeRole(u)
-                              }}
-                              className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-2.5 active:bg-sky-100 transition-all">
-                              <View className="i-mdi-account-convert text-sky-600 text-base mr-1.5" />
-                              <Text className="text-sky-700 text-sm font-medium">降级为司机</Text>
-                            </View>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* 超级管理员提示 */}
-                      {u.role === 'super_admin' && (
-                        <View className="mt-3 pt-3 border-t border-gray-200">
-                          <View className="flex items-center justify-center bg-gray-100 rounded-lg py-3">
-                            <View className="i-mdi-shield-crown text-gray-500 text-lg mr-2" />
-                            <Text className="text-gray-600 text-sm font-medium">最高权限，无法修改</Text>
-                          </View>
-                        </View>
-                      )}
                     </View>
                   )}
 
