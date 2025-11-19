@@ -313,21 +313,21 @@ const WarehouseManagement: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh'}}>
+    <View style={{background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', minHeight: '100vh'}}>
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
         <View className="p-5">
           {/* 页面标题区域 - 简约大气 */}
           <View className="mb-6 pt-2">
             <View className="flex items-center justify-between mb-6">
               <View>
-                <Text className="text-white text-3xl font-bold block mb-1">仓库管理</Text>
-                <Text className="text-white/80 text-sm block">Warehouse Management</Text>
+                <Text className="text-gray-900 text-3xl font-bold block mb-1">仓库管理</Text>
+                <Text className="text-gray-500 text-sm block">Warehouse Management</Text>
               </View>
-              <View className="i-mdi-warehouse text-white/30 text-5xl" />
+              <View className="i-mdi-warehouse text-gray-300 text-5xl" />
             </View>
 
             {/* 统计卡片 */}
-            <View className="bg-white/95 backdrop-blur rounded-2xl p-4 shadow-lg">
+            <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <View className="flex items-center justify-around">
                 <View className="text-center flex-1">
                   <Text className="text-gray-500 text-xs block mb-1">总仓库数</Text>
@@ -354,16 +354,16 @@ const WarehouseManagement: React.FC = () => {
           {/* 添加仓库按钮 - 简约设计 */}
           <View
             onClick={handleShowAddWarehouse}
-            className="bg-white/95 backdrop-blur rounded-2xl p-4 mb-5 shadow-lg active:scale-98 transition-all">
+            className="bg-white rounded-2xl p-4 mb-5 shadow-sm border border-gray-100 active:bg-gray-50 transition-all">
             <View className="flex items-center justify-center">
-              <View className="i-mdi-plus-circle text-purple-600 text-2xl mr-3" />
+              <View className="i-mdi-plus-circle text-blue-600 text-2xl mr-3" />
               <Text className="text-gray-800 text-base font-bold">添加新仓库</Text>
             </View>
           </View>
 
           {/* 仓库列表 - 卡片式设计 */}
           {warehouses.length === 0 ? (
-            <View className="bg-white/95 backdrop-blur rounded-2xl p-12 text-center shadow-lg">
+            <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
               <View className="i-mdi-warehouse-off text-gray-300 text-7xl mb-4" />
               <Text className="text-gray-400 text-base block mb-1">暂无仓库</Text>
               <Text className="text-gray-300 text-xs block">点击上方按钮添加第一个仓库</Text>
@@ -371,18 +371,19 @@ const WarehouseManagement: React.FC = () => {
           ) : (
             <View className="space-y-4">
               {warehouses.map((warehouse) => (
-                <View key={warehouse.id} className="bg-white/95 backdrop-blur rounded-2xl shadow-lg overflow-hidden">
+                <View
+                  key={warehouse.id}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   {/* 仓库头部 */}
-                  <View
-                    className={`p-4 ${warehouse.is_active ? 'bg-gradient-to-r from-purple-50 to-blue-50' : 'bg-gray-50'}`}>
+                  <View className={`p-4 ${warehouse.is_active ? 'bg-blue-50/50' : 'bg-gray-50'}`}>
                     <View className="flex items-center justify-between">
                       <View className="flex items-center flex-1">
                         <View
                           className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 ${
-                            warehouse.is_active ? 'bg-purple-100' : 'bg-gray-200'
+                            warehouse.is_active ? 'bg-blue-100' : 'bg-gray-200'
                           }`}>
                           <View
-                            className={`i-mdi-warehouse text-2xl ${warehouse.is_active ? 'text-purple-600' : 'text-gray-400'}`}
+                            className={`i-mdi-warehouse text-2xl ${warehouse.is_active ? 'text-blue-600' : 'text-gray-400'}`}
                           />
                         </View>
                         <View className="flex-1">
@@ -411,28 +412,28 @@ const WarehouseManagement: React.FC = () => {
                   {/* 考勤规则信息 */}
                   <View className="p-4 border-t border-gray-100">
                     <View className="flex items-center mb-3">
-                      <View className="i-mdi-clock-outline text-purple-600 text-lg mr-2" />
+                      <View className="i-mdi-clock-outline text-blue-600 text-lg mr-2" />
                       <Text className="text-gray-700 text-sm font-bold">考勤规则</Text>
                     </View>
                     {warehouse.rule ? (
                       <View className="grid grid-cols-2 gap-3">
-                        <View className="bg-gray-50 rounded-lg p-2.5">
+                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                           <Text className="text-gray-400 text-xs block mb-1">上班时间</Text>
                           <Text className="text-gray-900 text-sm font-bold block">
                             {warehouse.rule.work_start_time}
                           </Text>
                         </View>
-                        <View className="bg-gray-50 rounded-lg p-2.5">
+                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                           <Text className="text-gray-400 text-xs block mb-1">下班时间</Text>
                           <Text className="text-gray-900 text-sm font-bold block">{warehouse.rule.work_end_time}</Text>
                         </View>
-                        <View className="bg-gray-50 rounded-lg p-2.5">
+                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                           <Text className="text-gray-400 text-xs block mb-1">迟到阈值</Text>
                           <Text className="text-orange-600 text-sm font-bold block">
                             {warehouse.rule.late_threshold}分钟
                           </Text>
                         </View>
-                        <View className="bg-gray-50 rounded-lg p-2.5">
+                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                           <Text className="text-gray-400 text-xs block mb-1">早退阈值</Text>
                           <Text className="text-orange-600 text-sm font-bold block">
                             {warehouse.rule.early_threshold}分钟
@@ -440,7 +441,7 @@ const WarehouseManagement: React.FC = () => {
                         </View>
                       </View>
                     ) : (
-                      <View className="bg-gray-50 rounded-lg p-3 text-center">
+                      <View className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
                         <Text className="text-gray-400 text-xs">未设置考勤规则</Text>
                       </View>
                     )}
@@ -451,19 +452,19 @@ const WarehouseManagement: React.FC = () => {
                     <View className="grid grid-cols-3 gap-2">
                       <View
                         onClick={() => handleViewWarehouseDetail(warehouse)}
-                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all shadow-sm">
+                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
                         <View className="i-mdi-information-outline text-blue-600 text-lg mr-1.5" />
                         <Text className="text-blue-600 text-sm font-medium">详情</Text>
                       </View>
                       <View
                         onClick={() => handleShowEditWarehouse(warehouse)}
-                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all shadow-sm">
-                        <View className="i-mdi-pencil-outline text-purple-600 text-lg mr-1.5" />
-                        <Text className="text-purple-600 text-sm font-medium">编辑</Text>
+                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
+                        <View className="i-mdi-pencil-outline text-green-600 text-lg mr-1.5" />
+                        <Text className="text-green-600 text-sm font-medium">编辑</Text>
                       </View>
                       <View
                         onClick={() => handleDeleteWarehouse(warehouse)}
-                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all shadow-sm">
+                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
                         <View className="i-mdi-delete-outline text-red-600 text-lg mr-1.5" />
                         <Text className="text-red-600 text-sm font-medium">删除</Text>
                       </View>
@@ -485,8 +486,8 @@ const WarehouseManagement: React.FC = () => {
           <View className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
             {/* 标题 */}
             <View className="flex items-center mb-6">
-              <View className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mr-3">
-                <View className="i-mdi-warehouse-plus text-purple-600 text-2xl" />
+              <View className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mr-3">
+                <View className="i-mdi-warehouse-plus text-blue-600 text-2xl" />
               </View>
               <View className="flex-1">
                 <Text className="text-gray-900 text-xl font-bold block">添加仓库</Text>
@@ -499,7 +500,7 @@ const WarehouseManagement: React.FC = () => {
               <Text className="text-gray-700 text-sm font-medium block mb-2">仓库名称</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
-                  className="bg-gray-50 rounded-xl px-4 py-3 text-gray-800 border-2 border-transparent focus:border-purple-500 transition-all"
+                  className="bg-gray-50 rounded-xl px-4 py-3 text-gray-800 border-2 border-gray-200 focus:border-blue-500 transition-all"
                   placeholder="请输入仓库名称"
                   value={newWarehouseName}
                   onInput={(e) => setNewWarehouseName(e.detail.value)}
@@ -516,7 +517,7 @@ const WarehouseManagement: React.FC = () => {
               </View>
               <View
                 onClick={handleAddWarehouse}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl py-3.5 flex items-center justify-center active:opacity-80 transition-all shadow-lg">
+                className="flex-1 bg-blue-600 rounded-xl py-3.5 flex items-center justify-center active:bg-blue-700 transition-all shadow-sm">
                 <View className="i-mdi-check text-white text-lg mr-1.5" />
                 <Text className="text-white text-base font-medium">确定</Text>
               </View>
