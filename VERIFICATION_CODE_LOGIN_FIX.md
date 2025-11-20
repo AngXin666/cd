@@ -175,13 +175,31 @@ VALUES (gen_random_uuid(), '13800000004', 'manager', 'pure');
 ## 迁移文件
 
 创建了新的迁移文件：
-- `supabase/migrations/48_fix_driver_type_constraint_on_registration.sql`
+- `supabase/migrations/48_fix_driver_type_constraint_on_registration.sql` - 添加 driver_type 字段处理
+- `supabase/migrations/49_fix_driver_type_enum_value_in_trigger.sql` - 修复枚举值错误
 
 包含：
 - 详细的问题描述
 - 原因分析
 - 解决方案说明
 - 更新后的 `handle_new_user()` 函数
+
+## 司机类型说明
+
+### driver_type 枚举值
+```sql
+CREATE TYPE driver_type_enum AS ENUM ('pure', 'with_vehicle');
+```
+
+- **'pure'**：纯司机（开公司的车）
+  - 没有自己的车辆
+  - 使用公司分配的车辆
+  - 新注册用户的默认类型
+
+- **'with_vehicle'**：带车司机（开自己的车）
+  - 有自己的车辆
+  - 使用自己的车辆工作
+  - 需要管理员手动设置
 
 ## 相关文件
 
@@ -196,9 +214,11 @@ VALUES (gen_random_uuid(), '13800000004', 'manager', 'pure');
 ## 注意事项
 
 ### 1. 数据一致性
-- 所有新注册的司机都会自动设置 `driver_type = 'company'`
+- 所有新注册的司机都会自动设置 `driver_type = 'pure'`（纯司机）
 - 超级管理员可以在用户管理页面修改司机类型
-- 修改司机类型时，必须选择有效的类型（company/individual）
+- 修改司机类型时，可以选择：
+  - `'pure'`：纯司机（开公司的车）
+  - `'with_vehicle'`：带车司机（开自己的车）
 
 ### 2. 角色转换
 如果需要将司机转换为其他角色：
@@ -217,7 +237,7 @@ WHERE id = 'user-uuid';
 UPDATE profiles
 SET 
     role = 'driver',
-    driver_type = 'company'  -- 必须设置 driver_type
+    driver_type = 'pure'  -- 必须设置 driver_type，默认为纯司机
 WHERE id = 'user-uuid';
 ```
 
@@ -236,13 +256,18 @@ WHERE id = 'user-uuid';
 触发器创建司机账号时没有设置 `driver_type` 字段
 
 ### 解决
-修改触发器，自动为司机设置默认类型 `'company'`
+修改触发器，自动为司机设置默认类型 `'pure'`
 
 ### 结果
 - ✅ 验证码登录正常工作
 - ✅ 新用户注册成功
 - ✅ 数据符合约束条件
 - ✅ 业务逻辑正确
+- ✅ 使用正确的枚举值
 
 ## 修复日期
 2025-11-05
+
+## 更新记录
+- 2025-11-05 14:00 - 初始版本，修复约束错误
+- 2025-11-05 14:30 - 修复枚举值错误，将 'company' 改为 'pure'

@@ -84,7 +84,7 @@ LIMIT 1;
 
 应该显示：
 - `role = 'driver'`
-- `driver_type = 'company'`
+- `driver_type = 'pure'`
 
 ### 测试 3：多个用户连续注册
 
@@ -98,7 +98,7 @@ LIMIT 1;
 - ✅ 所有用户都注册成功
 - ✅ 没有出现约束错误
 - ✅ 所有用户都是司机角色
-- ✅ 所有用户的 `driver_type = 'company'`
+- ✅ 所有用户的 `driver_type = 'pure'`
 
 **数据验证**：
 ```sql
@@ -210,11 +210,11 @@ DELETE FROM auth.users;
 
 ### 3. 测试普通用户
 - 手机号：`13800138001`
-- 预期：driver, driver_type=company
+- 预期：driver, driver_type=pure
 
 ### 4. 测试批量注册
 - 手机号：`13800138002` ~ `13800138005`
-- 预期：全部成功，都是 driver
+- 预期：全部成功，都是 driver, driver_type=pure
 
 ### 5. 测试重复登录
 - 使用已注册手机号
@@ -236,9 +236,9 @@ ORDER BY created_at;
 | phone | role | driver_type | 说明 |
 |-------|------|-------------|------|
 | 15766121960 | super_admin | NULL | 首位用户 |
-| 13800138001 | driver | company | 普通用户 |
-| 13800138002 | driver | company | 普通用户 |
-| 13800138003 | driver | company | 普通用户 |
+| 13800138001 | driver | pure | 普通用户（纯司机） |
+| 13800138002 | driver | pure | 普通用户（纯司机） |
+| 13800138003 | driver | pure | 普通用户（纯司机） |
 
 ## 成功标准
 
@@ -272,7 +272,7 @@ ORDER BY created_at;
 3. 手动更新现有记录：
 ```sql
 UPDATE profiles
-SET driver_type = 'company'
+SET driver_type = 'pure'
 WHERE role = 'driver' AND driver_type IS NULL;
 ```
 
