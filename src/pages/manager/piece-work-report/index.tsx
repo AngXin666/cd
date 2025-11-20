@@ -570,6 +570,10 @@ const ManagerPieceWorkReport: React.FC = () => {
               (r) => r.user_id === summary.driverId && r.work_date === todayStr
             ).length
 
+            console.log(
+              `[计件报表] 司机 ${summary.driverName} (${summary.driverId}) 今天 (${todayStr}) 的计件次数: ${todayRecordsCount}`
+            )
+
             if (todayRecordsCount > 0) {
               todayStatus = todayRecordsCount // 存储具体的计件次数
             }
