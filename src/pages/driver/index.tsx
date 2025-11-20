@@ -317,22 +317,22 @@ const DriverHome: React.FC = () => {
 
             <View className="bg-white rounded-xl p-4 shadow-md">
               <View className="grid grid-cols-3 gap-3">
-                {/* 当日件数 */}
+                {/* 今天件数 */}
                 <View
                   className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 active:scale-95 transition-all"
                   onClick={() => handleStatsClick('today')}>
                   <View className="i-mdi-package-variant text-2xl text-blue-600 mb-2" />
-                  <Text className="text-xs text-gray-600 block mb-1">当日件数</Text>
+                  <Text className="text-xs text-gray-600 block mb-1">今天件数</Text>
                   <Text className="text-2xl font-bold text-blue-900 block">{stats.todayPieceCount}</Text>
                   <Text className="text-xs text-gray-400 block mt-1">件</Text>
                 </View>
 
-                {/* 当日收入 */}
+                {/* 今天收入 */}
                 <View
                   className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
                   onClick={() => handleStatsClick('today')}>
                   <View className="i-mdi-cash-multiple text-2xl text-green-600 mb-2" />
-                  <Text className="text-xs text-gray-600 block mb-1">当日收入</Text>
+                  <Text className="text-xs text-gray-600 block mb-1">今天收入</Text>
                   <Text className="text-2xl font-bold text-green-600 block">{stats.todayIncome.toFixed(0)}</Text>
                   <Text className="text-xs text-gray-400 block mt-1">元</Text>
                 </View>
@@ -542,7 +542,7 @@ const DriverHome: React.FC = () => {
         visible={showClockInReminder}
         onClose={handleClockInCancel}
         onConfirm={handleClockInConfirm}
-        message="您今日尚未打卡，是否立即去打卡？"
+        message="您今天尚未打卡，是否立即去打卡？"
       />
     </View>
   )

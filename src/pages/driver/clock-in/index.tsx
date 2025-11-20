@@ -40,7 +40,7 @@ const ClockIn: React.FC = () => {
     setWarehouses(data.filter((w) => w.is_active))
   }, [user?.id])
 
-  // 加载今日打卡记录
+  // 加载今天打卡记录
   const loadTodayRecord = useCallback(async () => {
     if (!user?.id) return
     const record = await getTodayAttendance(user.id)
@@ -148,7 +148,7 @@ const ClockIn: React.FC = () => {
     // 检查是否已经打过卡
     if (todayRecord?.clock_in_time) {
       showToast({
-        title: '您今日已完成考勤打卡，无需重复操作',
+        title: '您今天已完成考勤打卡，无需重复操作',
         icon: 'none',
         duration: 2500
       })
@@ -185,7 +185,7 @@ const ClockIn: React.FC = () => {
         Taro.hideLoading()
         setTodayRecord(existingRecord)
         showToast({
-          title: '您今日已完成考勤打卡，无需重复操作',
+          title: '您今天已完成考勤打卡，无需重复操作',
           icon: 'none',
           duration: 2500
         })
@@ -245,7 +245,7 @@ const ClockIn: React.FC = () => {
         // 重复打卡，刷新数据
         await loadTodayRecord()
         showToast({
-          title: '您今日已完成考勤打卡，无需重复操作',
+          title: '您今天已完成考勤打卡，无需重复操作',
           icon: 'none',
           duration: 2500
         })
@@ -278,7 +278,7 @@ const ClockIn: React.FC = () => {
     // 检查是否已经打过下班卡
     if (todayRecord.clock_out_time) {
       showToast({
-        title: '您今日已完成下班打卡，无需重复操作',
+        title: '您今天已完成下班打卡，无需重复操作',
         icon: 'none',
         duration: 2500
       })
@@ -409,7 +409,7 @@ const ClockIn: React.FC = () => {
     // 如果在请假中，禁用打卡按钮
     if (isOnLeave) {
       return {
-        text: '今日休假，无需打卡',
+        text: '今天休假，无需打卡',
         icon: 'i-mdi-beach',
         disabled: true,
         bgColor: 'bg-gradient-to-br from-orange-400 to-orange-500',
@@ -436,7 +436,7 @@ const ClockIn: React.FC = () => {
       }
     }
     return {
-      text: '今日已完成',
+      text: '今天已完成',
       icon: 'i-mdi-check-all',
       disabled: true,
       bgColor: 'bg-gradient-to-br from-green-500 to-green-600',
@@ -458,12 +458,12 @@ const ClockIn: React.FC = () => {
             </View>
           </View>
 
-          {/* 今日打卡状态提示卡片 - 显著位置 */}
+          {/* 今天打卡状态提示卡片 - 显著位置 */}
           {todayRecord?.clock_in_time && (
             <View className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 mb-4 shadow-lg">
               <View className="flex items-center justify-center mb-3">
                 <View className="i-mdi-check-circle text-white text-3xl mr-2" />
-                <Text className="text-white text-xl font-bold">今日已打卡</Text>
+                <Text className="text-white text-xl font-bold">今天已打卡</Text>
               </View>
               <View className="bg-white/20 rounded-xl p-4">
                 <View className="flex items-center justify-between mb-2">
@@ -580,12 +580,12 @@ const ClockIn: React.FC = () => {
             </Button>
           </View>
 
-          {/* 今日打卡记录 */}
+          {/* 今天打卡记录 */}
           {todayRecord && (
             <View className="bg-white rounded-2xl p-5 shadow-md">
               <View className="flex items-center mb-4">
                 <View className="i-mdi-clipboard-text text-blue-600 text-2xl mr-2" />
-                <Text className="text-gray-800 text-lg font-bold">今日打卡记录</Text>
+                <Text className="text-gray-800 text-lg font-bold">今天打卡记录</Text>
               </View>
 
               {/* 上班打卡 */}

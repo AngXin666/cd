@@ -3,7 +3,13 @@ import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getAllAttendanceRecords, getAllLeaveApplications, getAllProfiles, getAllWarehouses, reviewLeaveApplication} from '@/db/api'
+import {
+  getAllAttendanceRecords,
+  getAllLeaveApplications,
+  getAllProfiles,
+  getAllWarehouses,
+  reviewLeaveApplication
+} from '@/db/api'
 import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
 const DriverAttendanceDetail: React.FC = () => {
@@ -12,7 +18,7 @@ const DriverAttendanceDetail: React.FC = () => {
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([])
   const [driverProfile, setDriverProfile] = useState<Profile | null>(null)
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [driverId, setDriverId] = useState<string>('')
+  const [_driverId, setDriverId] = useState<string>('')
   const [driverName, setDriverName] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
 
@@ -216,9 +222,7 @@ const DriverAttendanceDetail: React.FC = () => {
             <View className="flex">
               <View
                 className={`flex-1 py-4 text-center cursor-pointer transition-all ${
-                  activeTab === 'attendance'
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600'
-                    : 'bg-white'
+                  activeTab === 'attendance' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-white'
                 }`}
                 onClick={() => setActiveTab('attendance')}>
                 <View className="flex items-center justify-center gap-2">
@@ -227,19 +231,14 @@ const DriverAttendanceDetail: React.FC = () => {
                       activeTab === 'attendance' ? 'text-white' : 'text-gray-400'
                     }`}
                   />
-                  <Text
-                    className={`text-lg font-bold ${
-                      activeTab === 'attendance' ? 'text-white' : 'text-gray-500'
-                    }`}>
+                  <Text className={`text-lg font-bold ${activeTab === 'attendance' ? 'text-white' : 'text-gray-500'}`}>
                     打卡记录
                   </Text>
                 </View>
               </View>
               <View
                 className={`flex-1 py-4 text-center cursor-pointer transition-all ${
-                  activeTab === 'leave'
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600'
-                    : 'bg-white'
+                  activeTab === 'leave' ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'bg-white'
                 }`}
                 onClick={() => setActiveTab('leave')}>
                 <View className="flex items-center justify-center gap-2">
@@ -248,10 +247,7 @@ const DriverAttendanceDetail: React.FC = () => {
                       activeTab === 'leave' ? 'text-white' : 'text-gray-400'
                     }`}
                   />
-                  <Text
-                    className={`text-lg font-bold ${
-                      activeTab === 'leave' ? 'text-white' : 'text-gray-500'
-                    }`}>
+                  <Text className={`text-lg font-bold ${activeTab === 'leave' ? 'text-white' : 'text-gray-500'}`}>
                     请假记录
                   </Text>
                 </View>
@@ -278,9 +274,7 @@ const DriverAttendanceDetail: React.FC = () => {
                             <View className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                               <View className="i-mdi-calendar text-2xl text-blue-600" />
                             </View>
-                            <Text className="text-xl font-bold text-gray-800">
-                              {formatDate(record.clock_in_time)}
-                            </Text>
+                            <Text className="text-xl font-bold text-gray-800">{formatDate(record.clock_in_time)}</Text>
                           </View>
                           <View
                             className={`px-4 py-2 rounded-full ${
@@ -383,14 +377,10 @@ const DriverAttendanceDetail: React.FC = () => {
                               <View className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
                                 <View className="i-mdi-calendar-clock text-2xl text-orange-600" />
                               </View>
-                              <Text className="text-xl font-bold text-gray-800">
-                                {getLeaveTypeText(leave.type)}
-                              </Text>
+                              <Text className="text-xl font-bold text-gray-800">{getLeaveTypeText(leave.type)}</Text>
                             </View>
                             <View className={`px-4 py-2 rounded-full ${statusInfo.bgColor}`}>
-                              <Text className={`text-sm font-bold ${statusInfo.textColor}`}>
-                                {statusInfo.text}
-                              </Text>
+                              <Text className={`text-sm font-bold ${statusInfo.textColor}`}>{statusInfo.text}</Text>
                             </View>
                           </View>
 
@@ -401,9 +391,7 @@ const DriverAttendanceDetail: React.FC = () => {
                               </View>
                               <View className="flex-1">
                                 <Text className="text-sm text-gray-500 block mb-1">开始日期</Text>
-                                <Text className="text-lg font-bold text-gray-800">
-                                  {formatDate(leave.start_date)}
-                                </Text>
+                                <Text className="text-lg font-bold text-gray-800">{formatDate(leave.start_date)}</Text>
                               </View>
                             </View>
 
@@ -413,9 +401,7 @@ const DriverAttendanceDetail: React.FC = () => {
                               </View>
                               <View className="flex-1">
                                 <Text className="text-sm text-gray-500 block mb-1">结束日期</Text>
-                                <Text className="text-lg font-bold text-gray-800">
-                                  {formatDate(leave.end_date)}
-                                </Text>
+                                <Text className="text-lg font-bold text-gray-800">{formatDate(leave.end_date)}</Text>
                               </View>
                             </View>
 

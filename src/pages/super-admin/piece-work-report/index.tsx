@@ -76,10 +76,10 @@ interface DriverSummary {
   totalQuantity: number
   totalAmount: number
   completionRate: number // 总达标率（基于在职天数）
-  dailyCompletionRate: number // 当天达标率
+  dailyCompletionRate: number // 今天达标率
   weeklyCompletionRate: number // 本周达标率
   monthlyCompletionRate: number // 本月达标率
-  dailyQuantity: number // 当日件数
+  dailyQuantity: number // 今天件数
   weeklyQuantity: number // 本周件数
   monthlyQuantity: number // 本月件数
   warehouses: Set<string>
@@ -111,7 +111,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
     totalDrivers: 0, // 司机总数（当前分配至指定仓库的所有司机）
-    todayDrivers: 0 // 当日出勤司机个数
+    todayDrivers: 0 // 今天出勤司机个数
   })
 
   // 处理仓库切换
@@ -194,7 +194,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         return
       }
 
-      // 确保日期范围至少包含今天（用于计算当日件数）
+      // 确保日期范围至少包含今天（用于计算今天件数）
       const today = new Date().toISOString().split('T')[0]
       const actualStartDate = startDate <= today ? startDate : today
       const actualEndDate = endDate >= today ? endDate : today
@@ -466,7 +466,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             }
           }
 
-          // 计算当天达标率
+          // 计算今天达标率
           let dailyCompletionRate = 0
           if (dailyTarget > 0) {
             dailyCompletionRate = (dailyQuantity / dailyTarget) * 100
@@ -641,7 +641,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         const todayAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, today, today)
         const todayDriversSet = new Set(todayAttendance.map((a) => a.user_id))
         const todayDriversCount = todayDriversSet.size
-        console.log('仪表盘数据计算：当日出勤司机数', todayDriversCount)
+        console.log('仪表盘数据计算：今天出勤司机数', todayDriversCount)
 
         setDashboardData({
           totalDrivers,
@@ -672,15 +672,15 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   }, 0)
   const _uniqueDrivers = new Set(records.map((r) => r.user_id)).size
 
-  // 计算当日件数（只统计今天的数据）
+  // 计算今天件数（只统计今天的数据）
   const todayQuantity = useMemo(() => {
     const today = getLocalDateString()
     return records.filter((r) => r.work_date === today).reduce((sum, r) => sum + (r.quantity || 0), 0)
   }, [records])
 
-  // 计算当日达标率（修正算法：考虑出勤司机数）
+  // 计算今天达标率（修正算法：考虑出勤司机数）
   const completionRate = useMemo(() => {
-    console.log('当日达标率计算：开始', {
+    console.log('今天达标率计算：开始', {
       todayQuantity,
       totalQuantity,
       dailyTarget,
@@ -689,33 +689,33 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
     // 1. 检查每日指标是否有效
     if (dailyTarget === 0) {
-      console.log('当日达标率计算：每日指标为0，返回0')
+      console.log('今天达标率计算：每日指标为0，返回0')
       return 0
     }
 
-    // 2. 获取当日出勤司机数
+    // 2. 获取今天出勤司机数
     const todayDriversCount = dashboardData.todayDrivers
 
     // 3. 检查出勤司机数是否有效
     if (todayDriversCount === 0) {
-      console.log('当日达标率计算：当日出勤司机数为0，返回0')
+      console.log('今天达标率计算：今天出勤司机数为0，返回0')
       return 0
     }
 
-    // 4. 计算当日总目标 = 每日指标 × 出勤司机数
+    // 4. 计算今天总目标 = 每日指标 × 出勤司机数
     const todayTotalTarget = dailyTarget * todayDriversCount
 
-    // 5. 计算达标率 = 当日完成件数 / 当日总目标（使用todayQuantity而不是totalQuantity）
+    // 5. 计算达标率 = 今天完成件数 / 今天总目标（使用todayQuantity而不是totalQuantity）
     const rate = (todayQuantity / todayTotalTarget) * 100
 
-    console.log('当日达标率计算：完成', {
+    console.log('今天达标率计算：完成', {
       todayQuantity,
       todayTotalTarget,
-      rate: rate.toFixed(1) + '%'
+      rate: `${rate.toFixed(1)}%`
     })
 
     return rate
-  }, [todayQuantity, dailyTarget, dashboardData.todayDrivers])
+  }, [todayQuantity, dailyTarget, dashboardData.todayDrivers, totalQuantity])
 
   // 计算月度平均达标率
   const monthlyCompletionRate = useMemo(() => {
@@ -759,11 +759,11 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
             {/* 四个指标卡片 */}
             <View className="grid grid-cols-2 gap-4">
-              {/* 当日达标率 */}
+              {/* 今天达标率 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-calendar-today text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">当日达标率</Text>
+                  <Text className="text-white text-opacity-90 text-sm">今天达标率</Text>
                 </View>
                 <Text className="text-white text-3xl font-bold">
                   {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
@@ -799,11 +799,11 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库分配</Text>
               </View>
 
-              {/* 当日出勤司机 */}
+              {/* 今天出勤司机 */}
               <View className="bg-white bg-opacity-20 rounded-lg p-4">
                 <View className="flex items-center gap-2 mb-2">
                   <View className="i-mdi-account-check text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">当日出勤率</Text>
+                  <Text className="text-white text-opacity-90 text-sm">今天出勤率</Text>
                 </View>
                 <Text className="text-white text-3xl font-bold">
                   {dashboardData.totalDrivers > 0
@@ -982,13 +982,13 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
                   {/* 三个环形图达标率 */}
                   <View className="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
-                    {/* 当天达标率环形图 */}
+                    {/* 今天达标率环形图 */}
                     <View className="flex flex-col items-center">
                       <CircularProgress
                         percentage={summary.dailyCompletionRate || 0}
                         size={70}
                         strokeWidth={6}
-                        label="当天达标率"
+                        label="今天达标率"
                       />
                       <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}件</Text>
                     </View>
@@ -1107,7 +1107,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                   <View className="grid grid-cols-3 gap-3">
                     <View className="text-center bg-blue-50 rounded-lg py-2">
                       <Text className="text-xl font-bold text-blue-600 block">{summary.dailyQuantity}</Text>
-                      <Text className="text-xs text-gray-600">当日件数</Text>
+                      <Text className="text-xs text-gray-600">今天件数</Text>
                     </View>
                     <View className="text-center bg-green-50 rounded-lg py-2">
                       <Text className="text-xl font-bold text-green-600 block">{summary.weeklyQuantity}</Text>

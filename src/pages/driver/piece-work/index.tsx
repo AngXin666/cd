@@ -51,10 +51,10 @@ const DriverPieceWork: React.FC = () => {
     const todayStr = `${year}-${month}-${day}`
 
     if (rangeParam === 'today') {
-      // 设置为当天
+      // 设置为今天
       setStartDate(todayStr)
       setEndDate(todayStr)
-      setActiveQuickFilter('yesterday') // 使用yesterday作为"当天"的标识
+      setActiveQuickFilter('yesterday') // 使用yesterday作为"今天"的标识
     } else if (rangeParam === 'month') {
       // 设置为本月
       const firstDay = `${year}-${month}-01`
@@ -556,7 +556,7 @@ const DriverPieceWork: React.FC = () => {
               {rangeParam && (
                 <View className="ml-2 bg-white bg-opacity-20 rounded-full px-3 py-1">
                   <Text className="text-white text-xs font-medium">
-                    {rangeParam === 'today' ? '📅 当天数据' : '📊 本月数据'}
+                    {rangeParam === 'today' ? '📅 今天数据' : '📊 本月数据'}
                   </Text>
                 </View>
               )}

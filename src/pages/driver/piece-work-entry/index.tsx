@@ -441,7 +441,7 @@ const PieceWorkEntry: React.FC = () => {
         // 未打卡，显示打卡提醒弹窗
         Taro.showModal({
           title: '打卡提醒',
-          content: '您今日尚未打卡，是否立即去打卡？',
+          content: '您今天尚未打卡，是否立即去打卡？',
           confirmText: '立即打卡',
           cancelText: '稍后再说',
           success: (res) => {

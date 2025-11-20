@@ -250,18 +250,18 @@ const SuperAdminHome: React.FC = () => {
             {dashboardStats ? (
               <View className="bg-white rounded-xl p-4 shadow-md">
                 <View className="grid grid-cols-2 gap-3">
-                  {/* 今日出勤 */}
+                  {/* 今天出勤 */}
                   <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
                     <View className="i-mdi-account-check text-2xl text-blue-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">今日出勤</Text>
+                    <Text className="text-xs text-gray-600 block mb-1">今天出勤</Text>
                     <Text className="text-2xl font-bold text-blue-900 block">{dashboardStats.todayAttendance}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">人</Text>
                   </View>
 
-                  {/* 当日总件数 */}
+                  {/* 今天总件数 */}
                   <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                     <View className="i-mdi-package-variant text-2xl text-green-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">当日总件数</Text>
+                    <Text className="text-xs text-gray-600 block mb-1">今天总件数</Text>
                     <Text className="text-2xl font-bold text-green-600 block">{dashboardStats.todayPieceCount}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">件</Text>
                   </View>
