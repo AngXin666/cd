@@ -565,7 +565,10 @@ const ManagerPieceWorkReport: React.FC = () => {
           // 2. 计算今天的计件次数
           if (todayStatus === 'not_recorded') {
             const todayStr = getLocalDateString()
-            const todayRecordsCount = driverRecords.filter((r) => r.work_date === todayStr).length
+            // 从 records 中过滤出当前司机今天的记录
+            const todayRecordsCount = records.filter(
+              (r) => r.user_id === summary.driverId && r.work_date === todayStr
+            ).length
 
             if (todayRecordsCount > 0) {
               todayStatus = todayRecordsCount // 存储具体的计件次数
@@ -624,7 +627,8 @@ const ManagerPieceWorkReport: React.FC = () => {
     getTodayRange,
     getWeekRange,
     currentWarehouseIndex,
-    warehouses[currentWarehouseIndex]
+    warehouses[currentWarehouseIndex],
+    records.filter
   ])
 
   // 计算仪表盘数据
