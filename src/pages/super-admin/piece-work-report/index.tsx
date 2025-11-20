@@ -11,6 +11,7 @@ import {
   getDriverAttendanceStats,
   getDriverProfiles,
   getDriversByWarehouse,
+  getLeaveApplicationsByWarehouse,
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
@@ -112,7 +113,9 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
     totalDrivers: 0, // 司机总数（当前分配至指定仓库的所有司机）
-    todayDrivers: 0 // 今天出勤司机个数
+    todayDrivers: 0, // 今天出勤司机个数
+    todayLeaveDrivers: 0, // 今天请假司机个数
+    expectedDrivers: 0 // 应出勤司机个数 = 总司机数 - 请假司机数
   })
 
   // 处理仓库切换
@@ -655,7 +658,9 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         console.log('仪表盘数据计算：没有仓库数据')
         setDashboardData({
           totalDrivers: 0,
-          todayDrivers: 0
+          todayDrivers: 0,
+          todayLeaveDrivers: 0,
+          expectedDrivers: 0
         })
         return
       }
@@ -681,11 +686,43 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         const todayDriversCount = todayDriversSet.size
         console.log('仪表盘数据计算：今天出勤司机数', todayDriversCount)
 
+        // 获取今天请假的司机
+        const leaveApplications = await getLeaveApplicationsByWarehouse(warehouse.id)
+        const todayLeaveDriversSet = new Set<string>()
+
+        // 筛选出今天在请假期间的申请（状态为已批准）
+        leaveApplications.forEach((app) => {
+          if (app.status === 'approved') {
+            const startDate = new Date(app.start_date)
+            const endDate = new Date(app.end_date)
+            const todayDate = new Date(today)
+
+            // 检查今天是否在请假日期范围内
+            if (todayDate >= startDate && todayDate <= endDate) {
+              todayLeaveDriversSet.add(app.user_id)
+            }
+          }
+        })
+
+        const todayLeaveDriversCount = todayLeaveDriversSet.size
+        console.log('仪表盘数据计算：今天请假司机数', todayLeaveDriversCount)
+
+        // 计算应出勤司机数 = 总司机数 - 请假司机数
+        const expectedDriversCount = totalDrivers - todayLeaveDriversCount
+        console.log('仪表盘数据计算：应出勤司机数', expectedDriversCount)
+
         setDashboardData({
           totalDrivers,
-          todayDrivers: todayDriversCount
+          todayDrivers: todayDriversCount,
+          todayLeaveDrivers: todayLeaveDriversCount,
+          expectedDrivers: expectedDriversCount
         })
-        console.log('仪表盘数据计算：完成', {totalDrivers, todayDrivers: todayDriversCount})
+        console.log('仪表盘数据计算：完成', {
+          totalDrivers,
+          todayDrivers: todayDriversCount,
+          todayLeaveDrivers: todayLeaveDriversCount,
+          expectedDrivers: expectedDriversCount
+        })
       } catch (error) {
         console.error('计算仪表盘数据失败:', error)
       }
@@ -730,13 +767,15 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     return driverIds.size
   }, [records])
 
-  // 计算今天达标率（使用出勤司机数）
+  // 计算今天达标率（使用应出勤司机数）
   const completionRate = useMemo(() => {
     console.log('今天达标率计算：开始', {
       todayQuantity,
       totalQuantity,
       dailyTarget,
-      todayDrivers: dashboardData.todayDrivers
+      totalDrivers: dashboardData.totalDrivers,
+      todayLeaveDrivers: dashboardData.todayLeaveDrivers,
+      expectedDrivers: dashboardData.expectedDrivers
     })
 
     // 1. 检查每日指标是否有效
@@ -745,30 +784,37 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       return 0
     }
 
-    // 2. 获取今天出勤司机数
-    const todayDriversCount = dashboardData.todayDrivers
+    // 2. 获取应出勤司机数（总司机数 - 请假司机数）
+    const expectedDriversCount = dashboardData.expectedDrivers
 
-    // 3. 检查出勤司机数是否有效
-    if (todayDriversCount === 0) {
-      console.log('今天达标率计算：今天出勤司机数为0，返回0')
+    // 3. 检查应出勤司机数是否有效
+    if (expectedDriversCount === 0) {
+      console.log('今天达标率计算：应出勤司机数为0，返回0')
       return 0
     }
 
-    // 4. 计算今天总目标 = 每日指标 × 出勤司机数
-    const todayTotalTarget = dailyTarget * todayDriversCount
+    // 4. 计算今天总目标 = 每日指标 × 应出勤司机数
+    const todayTotalTarget = dailyTarget * expectedDriversCount
 
     // 5. 计算达标率 = 今天完成件数 / 今天总目标
     const rate = (todayQuantity / todayTotalTarget) * 100
 
     console.log('今天达标率计算：完成', {
       todayQuantity,
-      todayDriversCount,
+      expectedDriversCount,
       todayTotalTarget,
       rate: `${rate.toFixed(1)}%`
     })
 
     return rate
-  }, [todayQuantity, dailyTarget, dashboardData.todayDrivers, totalQuantity])
+  }, [
+    todayQuantity,
+    dailyTarget,
+    dashboardData.expectedDrivers,
+    dashboardData.totalDrivers,
+    dashboardData.todayLeaveDrivers,
+    totalQuantity
+  ])
 
   // 计算月度平均达标率
   const monthlyCompletionRate = useMemo(() => {
@@ -837,7 +883,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                       <Text className="text-white text-2xl font-bold mb-1.5">{completionRate.toFixed(1)}%</Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          完成 {todayQuantity} / {(dailyTarget * dashboardData.todayDrivers).toFixed(0)} 件
+                          完成 {todayQuantity} / {(dailyTarget * dashboardData.expectedDrivers).toFixed(0)} 件
                         </Text>
                       </View>
                     </View>
