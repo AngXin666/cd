@@ -730,6 +730,24 @@ const ManagerPieceWorkReport: React.FC = () => {
   }, 0)
   const _uniqueDrivers = new Set(records.map((r) => r.user_id)).size
 
+  // 计算本月总件数
+  const monthlyTotalQuantity = useMemo(() => {
+    return driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)
+  }, [driverSummaries])
+
+  // 计算本月天数（从本月1号到今天）
+  const daysInCurrentMonth = useMemo(() => {
+    const today = new Date()
+    const currentDay = today.getDate() // 今天是几号
+    return currentDay
+  }, [])
+
+  // 计算日均件数（本月总件数 / 本月天数）
+  const dailyAverageQuantity = useMemo(() => {
+    if (daysInCurrentMonth === 0) return 0
+    return Math.round(monthlyTotalQuantity / daysInCurrentMonth)
+  }, [monthlyTotalQuantity, daysInCurrentMonth])
+
   // 计算今天件数（只统计今天的数据）
   const todayQuantity = useMemo(() => {
     const today = getLocalDateString()
@@ -737,7 +755,7 @@ const ManagerPieceWorkReport: React.FC = () => {
   }, [records])
 
   // 计算今天有计件记录的司机数
-  const todayDriversWithRecords = useMemo(() => {
+  const _todayDriversWithRecords = useMemo(() => {
     const today = getLocalDateString()
     console.log('计算今天有计件记录的司机数：', {
       today,
@@ -971,12 +989,10 @@ const ManagerPieceWorkReport: React.FC = () => {
                         <View className="i-mdi-chart-line text-lime-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">
-                        {todayDriversWithRecords > 0 ? Math.round(todayQuantity / todayDriversWithRecords) : 0}
-                      </Text>
+                      <Text className="text-white text-2xl font-bold mb-1.5">{dailyAverageQuantity}</Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {todayDriversWithRecords} 位司机完成
+                          本月 {daysInCurrentMonth} 天平均
                         </Text>
                       </View>
                     </View>
