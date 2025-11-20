@@ -757,14 +757,14 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <View className="i-mdi-view-dashboard text-white text-2xl" />
                 <Text className="text-white text-lg font-bold">数据仪表盘</Text>
               </View>
-              <View className="bg-white bg-opacity-20 rounded-full px-3 py-1">
+              <View className="bg-white bg-opacity-20 rounded-full px-3 py-1.5">
                 <Text className="text-white text-xs">左右滑动查看</Text>
               </View>
             </View>
 
             {/* 滑动切换容器 */}
             <Swiper
-              className="h-56"
+              className="h-72"
               autoplay
               interval={10000}
               circular
@@ -776,15 +776,15 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <View className="h-full">
                   <View className="grid grid-cols-2 gap-3">
                     {/* 今天达标率 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-target text-yellow-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">今天达标率</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">
                         {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
                       </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
                           {dashboardData.todayDrivers > 0
                             ? `完成 ${todayQuantity} / ${(dailyTarget * dashboardData.todayDrivers).toFixed(0)} 件`
@@ -794,15 +794,15 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     </View>
 
                     {/* 月度达标率 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-calendar-month text-green-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">月度达标率</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">
                         {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
                       </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
                           {driverSummaries.length > 0 ? `当月 ${driverSummaries.length} 位司机` : '暂无数据'}
                         </Text>
@@ -810,17 +810,17 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     </View>
 
                     {/* 今天出勤率 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-account-check text-blue-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">今天出勤率</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">
                         {dashboardData.totalDrivers > 0
                           ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
                           : '--'}
                       </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
                           {dashboardData.totalDrivers > 0
                             ? `出勤 ${dashboardData.todayDrivers} / ${dashboardData.totalDrivers} 人`
@@ -830,13 +830,13 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     </View>
 
                     {/* 司机总数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-account-group text-purple-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">司机总数</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">{dashboardData.totalDrivers}</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">{dashboardData.totalDrivers}</Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">当前仓库分配</Text>
                       </View>
                     </View>
@@ -849,13 +849,13 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                 <View className="h-full">
                   <View className="grid grid-cols-2 gap-3">
                     {/* 今天总件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-package-variant text-orange-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">今天总件数</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">{todayQuantity}</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">{todayQuantity}</Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
                           {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers} 位司机完成` : '暂无数据'}
                         </Text>
@@ -863,43 +863,43 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     </View>
 
                     {/* 本周总件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-calendar-week text-cyan-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">本周总件数</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">
                         {driverSummaries.reduce((sum, driver) => sum + (driver.weeklyQuantity || 0), 0)}
                       </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">本周累计完成</Text>
                       </View>
                     </View>
 
                     {/* 本月总件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-calendar-range text-pink-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">本月总件数</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">
                         {driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)}
                       </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">本月累计完成</Text>
                       </View>
                     </View>
 
                     {/* 平均每日件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
                       <View className="flex items-center gap-1.5 mb-2">
                         <View className="i-mdi-chart-line text-lime-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1">
+                      <Text className="text-white text-2xl font-bold mb-1.5">
                         {dashboardData.todayDrivers > 0 ? Math.round(todayQuantity / dashboardData.todayDrivers) : '--'}
                       </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
                           {dashboardData.todayDrivers > 0 ? '人均今天完成' : '暂无数据'}
                         </Text>
@@ -1043,7 +1043,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                     <View className="flex items-center flex-1">
                       <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                       <View className="flex-1">
-                        <View className="flex items-center gap-2 mb-1">
+                        <View className="flex items-center gap-2 mb-1.5">
                           <Text className="text-base font-bold text-gray-800">
                             {summary.driverName || summary.driverPhone || '未知司机'}
                           </Text>
@@ -1185,7 +1185,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
                   {/* 入职信息 */}
                   <View className="bg-blue-50 rounded-lg px-3 py-2 mb-4">
-                    <View className="flex items-center justify-between mb-1">
+                    <View className="flex items-center justify-between mb-1.5">
                       <Text className="text-xs text-gray-600">入职日期</Text>
                       <Text className="text-sm font-bold text-blue-700">{summary.joinDate || '未设置'}</Text>
                     </View>
