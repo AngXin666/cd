@@ -122,7 +122,7 @@ $$;
 **预期结果**：
 - 创建成功
 - `role = 'driver'`
-- `driver_type = 'company'`
+- `driver_type = 'pure'`（纯司机，开公司的车）
 - 符合约束条件
 
 ### 测试场景 3：多个用户连续注册
@@ -132,7 +132,7 @@ $$;
 **预期结果**：
 - 所有用户创建成功
 - 都是司机角色
-- 都有 `driver_type = 'company'`
+- 都有 `driver_type = 'pure'`
 - 没有约束错误
 
 ## 验证 SQL
@@ -153,7 +153,11 @@ ORDER BY created_at;
 ```sql
 -- 应该成功：司机有 driver_type
 INSERT INTO profiles (id, phone, role, driver_type)
-VALUES (gen_random_uuid(), '13800000001', 'driver', 'company');
+VALUES (gen_random_uuid(), '13800000001', 'driver', 'pure');
+
+-- 应该成功：带车司机
+INSERT INTO profiles (id, phone, role, driver_type)
+VALUES (gen_random_uuid(), '13800000006', 'driver', 'with_vehicle');
 
 -- 应该成功：非司机没有 driver_type
 INSERT INTO profiles (id, phone, role, driver_type)
@@ -165,7 +169,7 @@ VALUES (gen_random_uuid(), '13800000003', 'driver', NULL);
 
 -- 应该失败：非司机有 driver_type
 INSERT INTO profiles (id, phone, role, driver_type)
-VALUES (gen_random_uuid(), '13800000004', 'manager', 'company');
+VALUES (gen_random_uuid(), '13800000004', 'manager', 'pure');
 ```
 
 ## 迁移文件
