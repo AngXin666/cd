@@ -750,73 +750,136 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
-          {/* 仪表盘卡片 */}
+          {/* 仪表盘卡片 - 可滑动切换 */}
           <View className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
             <View className="flex items-center justify-between mb-4">
               <Text className="text-white text-lg font-bold">数据仪表盘</Text>
               <View className="i-mdi-chart-box text-white text-2xl" />
             </View>
 
-            {/* 四个指标卡片 */}
-            <View className="grid grid-cols-2 gap-4">
-              {/* 今天达标率 */}
-              <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                <View className="flex items-center gap-2 mb-2">
-                  <View className="i-mdi-calendar-today text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">今天达标率</Text>
-                </View>
-                <Text className="text-white text-3xl font-bold">
-                  {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
-                </Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">
-                  {dashboardData.todayDrivers > 0
-                    ? `${todayQuantity}件 / 目标${(dailyTarget * dashboardData.todayDrivers).toFixed(0)}件`
-                    : '暂无数据'}
-                </Text>
-              </View>
+            {/* 滑动切换容器 */}
+            <Swiper
+              className="h-48"
+              autoplay
+              interval={10000}
+              circular
+              indicatorDots
+              indicatorColor="rgba(255, 255, 255, 0.3)"
+              indicatorActiveColor="rgba(255, 255, 255, 0.9)">
+              {/* 第一页：达标率和出勤率 */}
+              <SwiperItem>
+                <View className="grid grid-cols-2 gap-4 h-full">
+                  {/* 今天达标率 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-calendar-today text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">今天达标率</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">
+                      {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
+                    </Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">
+                      {dashboardData.todayDrivers > 0
+                        ? `${todayQuantity}件 / 目标${(dailyTarget * dashboardData.todayDrivers).toFixed(0)}件`
+                        : '暂无数据'}
+                    </Text>
+                  </View>
 
-              {/* 月度达标率 */}
-              <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                <View className="flex items-center gap-2 mb-2">
-                  <View className="i-mdi-calendar-month text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">月度达标率</Text>
-                </View>
-                <Text className="text-white text-3xl font-bold">
-                  {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
-                </Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">
-                  {driverSummaries.length > 0 ? `当月${driverSummaries.length}位司机` : '暂无数据'}
-                </Text>
-              </View>
+                  {/* 月度达标率 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-calendar-month text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">月度达标率</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">
+                      {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
+                    </Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">
+                      {driverSummaries.length > 0 ? `当月${driverSummaries.length}位司机` : '暂无数据'}
+                    </Text>
+                  </View>
 
-              {/* 司机总数 */}
-              <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                <View className="flex items-center gap-2 mb-2">
-                  <View className="i-mdi-account-group text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
-                </View>
-                <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库分配</Text>
-              </View>
+                  {/* 司机总数 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-account-group text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库分配</Text>
+                  </View>
 
-              {/* 今天出勤司机 */}
-              <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                <View className="flex items-center gap-2 mb-2">
-                  <View className="i-mdi-account-check text-white text-xl" />
-                  <Text className="text-white text-opacity-90 text-sm">今天出勤率</Text>
+                  {/* 今天出勤司机 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-account-check text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">今天出勤率</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">
+                      {dashboardData.totalDrivers > 0
+                        ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
+                        : '--'}
+                    </Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">
+                      {dashboardData.totalDrivers > 0
+                        ? `出勤 ${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
+                        : '暂无数据'}
+                    </Text>
+                  </View>
                 </View>
-                <Text className="text-white text-3xl font-bold">
-                  {dashboardData.totalDrivers > 0
-                    ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
-                    : '--'}
-                </Text>
-                <Text className="text-white text-opacity-70 text-xs mt-1">
-                  {dashboardData.totalDrivers > 0
-                    ? `出勤 ${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
-                    : '暂无数据'}
-                </Text>
-              </View>
-            </View>
+              </SwiperItem>
+
+              {/* 第二页：件数统计 */}
+              <SwiperItem>
+                <View className="grid grid-cols-2 gap-4 h-full">
+                  {/* 今天总件数 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-package-variant text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">今天总件数</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">{todayQuantity}</Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">
+                      {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers}位司机` : '暂无数据'}
+                    </Text>
+                  </View>
+
+                  {/* 本周总件数 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-calendar-week text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">本周总件数</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">
+                      {driverSummaries.reduce((sum, driver) => sum + (driver.weeklyQuantity || 0), 0)}
+                    </Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">本周累计</Text>
+                  </View>
+
+                  {/* 本月总件数 */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-calendar-range text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">本月总件数</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">
+                      {driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)}
+                    </Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">本月累计</Text>
+                  </View>
+
+                  {/* 司机总数（重复显示以保持布局一致） */}
+                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
+                    <View className="flex items-center gap-2 mb-2">
+                      <View className="i-mdi-account-multiple text-white text-xl" />
+                      <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
+                    </View>
+                    <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
+                    <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库</Text>
+                  </View>
+                </View>
+              </SwiperItem>
+            </Swiper>
           </View>
 
           {/* 仓库切换 */}
