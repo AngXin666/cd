@@ -1052,7 +1052,7 @@ const ManagerPieceWorkReport: React.FC = () => {
           {/* 排序按钮 */}
           <View className="flex gap-2 mb-4">
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'today' ? 'bg-blue-600' : 'bg-white'}`}
+              className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'today' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => {
                 if (sortBy === 'today') {
                   setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
@@ -1066,15 +1066,13 @@ const ManagerPieceWorkReport: React.FC = () => {
                   className={`i-mdi-calendar-today text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
                 />
                 <Text className={`text-xs font-bold ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}>今天</Text>
-                {sortBy === 'today' && (
-                  <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
-                  />
-                )}
+                <View
+                  className={`i-mdi-arrow-${sortBy === 'today' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
+                />
               </View>
             </View>
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'week' ? 'bg-blue-600' : 'bg-white'}`}
+              className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'week' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => {
                 if (sortBy === 'week') {
                   setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
@@ -1088,15 +1086,13 @@ const ManagerPieceWorkReport: React.FC = () => {
                   className={`i-mdi-calendar-week text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
                 />
                 <Text className={`text-xs font-bold ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}>本周</Text>
-                {sortBy === 'week' && (
-                  <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
-                  />
-                )}
+                <View
+                  className={`i-mdi-arrow-${sortBy === 'week' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
+                />
               </View>
             </View>
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'month' ? 'bg-blue-600' : 'bg-white'}`}
+              className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'month' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => {
                 if (sortBy === 'month') {
                   setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
@@ -1110,11 +1106,9 @@ const ManagerPieceWorkReport: React.FC = () => {
                   className={`i-mdi-calendar-month text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
                 />
                 <Text className={`text-xs font-bold ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}>本月</Text>
-                {sortBy === 'month' && (
-                  <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
-                  />
-                )}
+                <View
+                  className={`i-mdi-arrow-${sortBy === 'month' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
+                />
               </View>
             </View>
           </View>
