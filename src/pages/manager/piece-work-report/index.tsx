@@ -1065,7 +1065,9 @@ const ManagerPieceWorkReport: React.FC = () => {
                 <View
                   className={`i-mdi-calendar-today text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs font-bold ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}>今天</Text>
+                <Text className={`text-xs font-bold ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}>
+                  今天 ({sortBy === 'today' && sortOrder === 'asc' ? '升序' : '降序'})
+                </Text>
                 <View
                   className={`i-mdi-arrow-${sortBy === 'today' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
                 />
@@ -1085,7 +1087,9 @@ const ManagerPieceWorkReport: React.FC = () => {
                 <View
                   className={`i-mdi-calendar-week text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs font-bold ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}>本周</Text>
+                <Text className={`text-xs font-bold ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}>
+                  本周 ({sortBy === 'week' && sortOrder === 'asc' ? '升序' : '降序'})
+                </Text>
                 <View
                   className={`i-mdi-arrow-${sortBy === 'week' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
                 />
@@ -1105,7 +1109,9 @@ const ManagerPieceWorkReport: React.FC = () => {
                 <View
                   className={`i-mdi-calendar-month text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs font-bold ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}>本月</Text>
+                <Text className={`text-xs font-bold ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}>
+                  本月 ({sortBy === 'month' && sortOrder === 'asc' ? '升序' : '降序'})
+                </Text>
                 <View
                   className={`i-mdi-arrow-${sortBy === 'month' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
                 />
