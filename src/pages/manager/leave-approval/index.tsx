@@ -33,6 +33,7 @@ interface DriverStats {
   actualAttendanceDays: number
   joinDate: string | null
   workingDays: number
+  todayStatus: 'working' | 'late' | 'on_leave' | 'not_checked_in' // 今日状态
 }
 
 const ManagerLeaveApproval: React.FC = () => {
@@ -330,7 +331,8 @@ const ManagerLeaveApproval: React.FC = () => {
         workDays: getDriverWorkDays(driver),
         actualAttendanceDays: 0,
         joinDate: driver.join_date,
-        workingDays: calculateWorkingDays(driver.join_date)
+        workingDays: calculateWorkingDays(driver.join_date),
+        todayStatus: 'not_checked_in' // 默认未打卡
       })
     }
 
@@ -390,6 +392,37 @@ const ManagerLeaveApproval: React.FC = () => {
     for (const [driverId, stats] of statsMap.entries()) {
       const attendanceDays = attendanceDaysMap.get(driverId)?.size || 0
       stats.actualAttendanceDays = attendanceDays
+    }
+
+    // 计算今日状态
+    const today = new Date().toISOString().split('T')[0]
+    for (const [driverId, stats] of statsMap.entries()) {
+      // 1. 检查是否在休假中
+      const onLeaveToday = visibleLeave.some((app) => {
+        if (app.user_id !== driverId || app.status !== 'approved') return false
+        const startDate = new Date(app.start_date).toISOString().split('T')[0]
+        const endDate = new Date(app.end_date).toISOString().split('T')[0]
+        return today >= startDate && today <= endDate
+      })
+
+      if (onLeaveToday) {
+        stats.todayStatus = 'on_leave'
+        continue
+      }
+
+      // 2. 检查今天是否有打卡记录
+      const todayAttendance = allAttendanceForStats.find((record) => {
+        const recordDate = new Date(record.clock_in_time).toISOString().split('T')[0]
+        return record.user_id === driverId && recordDate === today
+      })
+
+      if (todayAttendance) {
+        // 有打卡记录，判断是否迟到
+        stats.todayStatus = todayAttendance.status === 'late' ? 'late' : 'working'
+      } else {
+        // 没有打卡记录
+        stats.todayStatus = 'not_checked_in'
+      }
     }
 
     // 按仓库筛选
@@ -767,6 +800,31 @@ const ManagerLeaveApproval: React.FC = () => {
                             {stats.workingDays <= 7 && (
                               <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
                                 <Text className="text-xs text-white font-bold">新司机</Text>
+                              </View>
+                            )}
+                            {/* 今日状态标签 */}
+                            {stats.todayStatus === 'working' && (
+                              <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <View className="i-mdi-check-circle text-xs text-white" />
+                                <Text className="text-xs text-white font-bold">上班中</Text>
+                              </View>
+                            )}
+                            {stats.todayStatus === 'late' && (
+                              <View className="bg-gradient-to-r from-orange-500 to-orange-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <View className="i-mdi-clock-alert text-xs text-white" />
+                                <Text className="text-xs text-white font-bold">迟到</Text>
+                              </View>
+                            )}
+                            {stats.todayStatus === 'on_leave' && (
+                              <View className="bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <View className="i-mdi-beach text-xs text-white" />
+                                <Text className="text-xs text-white font-bold">休假</Text>
+                              </View>
+                            )}
+                            {stats.todayStatus === 'not_checked_in' && (
+                              <View className="bg-gradient-to-r from-gray-500 to-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <View className="i-mdi-alert-circle text-xs text-white" />
+                                <Text className="text-xs text-white font-bold">未打卡</Text>
                               </View>
                             )}
                           </View>
