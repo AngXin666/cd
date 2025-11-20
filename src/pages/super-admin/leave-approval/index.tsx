@@ -766,25 +766,27 @@ const SuperAdminLeaveApproval: React.FC = () => {
                       <View className="flex items-center flex-1">
                         <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                         <View className="flex-1">
-                          <View className="flex items-center gap-2 mb-1">
-                            <Text className="text-base font-bold text-gray-800">{stats.driverName}</Text>
-                            {/* 司机类型标签 */}
-                            {stats.driverType === 'with_vehicle' ? (
-                              <View className="bg-gradient-to-r from-purple-400 to-purple-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">带车司机</Text>
-                              </View>
-                            ) : (
-                              <View className="bg-gradient-to-r from-blue-400 to-blue-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">纯司机</Text>
-                              </View>
-                            )}
-                            {/* 新司机标签 */}
-                            {stats.workingDays <= 7 && (
-                              <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">新司机</Text>
-                              </View>
-                            )}
-                            {/* 今日状态标签 */}
+                          <View className="flex items-center justify-between gap-2 mb-1">
+                            <View className="flex items-center gap-2">
+                              <Text className="text-base font-bold text-gray-800">{stats.driverName}</Text>
+                              {/* 司机类型标签 */}
+                              {stats.driverType === 'with_vehicle' ? (
+                                <View className="bg-gradient-to-r from-purple-400 to-purple-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-xs text-white font-bold">带车司机</Text>
+                                </View>
+                              ) : (
+                                <View className="bg-gradient-to-r from-blue-400 to-blue-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-xs text-white font-bold">纯司机</Text>
+                                </View>
+                              )}
+                              {/* 新司机标签 */}
+                              {stats.workingDays <= 7 && (
+                                <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-xs text-white font-bold">新司机</Text>
+                                </View>
+                              )}
+                            </View>
+                            {/* 今日状态标签 - 放在最右边 */}
                             {stats.todayStatus === 'working' && (
                               <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full flex items-center gap-1">
                                 <View className="i-mdi-check-circle text-xs text-white" />
