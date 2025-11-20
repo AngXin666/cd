@@ -15,7 +15,7 @@ import {
   getPieceWorkRecordsByWarehouse
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
-import {getVersionedCache, setVersionedCache} from '@/utils/cache'
+import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
 // 完成率状态判断和样式配置
@@ -249,6 +249,17 @@ const ManagerPieceWorkReport: React.FC = () => {
   }, [loadRecords])
 
   useDidShow(() => {
+    // 清除缓存，强制重新加载最新数据
+    if (user?.id) {
+      clearVersionedCache(`manager_piece_work_base_data_${user.id}`)
+      // 清除所有计件记录缓存
+      warehouses.forEach((warehouse) => {
+        const today = new Date().toISOString().split('T')[0]
+        const actualStartDate = startDate <= today ? startDate : today
+        const actualEndDate = endDate >= today ? endDate : today
+        clearVersionedCache(`manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`)
+      })
+    }
     loadData()
     loadRecords() // 添加：页面显示时重新加载记录
   })

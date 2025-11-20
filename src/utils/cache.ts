@@ -484,6 +484,14 @@ export function getVersionedCache<T>(key: string): T | null {
 }
 
 /**
+ * 清除带版本号的缓存
+ * @param key 缓存键名
+ */
+export function clearVersionedCache(key: string): void {
+  clearCache(key)
+}
+
+/**
  * 清除所有缓存并重置版本号
  */
 export function clearAllCacheAndResetVersion() {
