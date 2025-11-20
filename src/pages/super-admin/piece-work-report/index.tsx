@@ -237,6 +237,45 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     }
   }, [warehouses, currentWarehouseIndex, startDate, endDate, sortOrder])
 
+  // 预加载其他仓库的数据（在空闲时后台加载）
+  const preloadOtherWarehouses = useCallback(async () => {
+    if (!startDate || !endDate || warehouses.length <= 1) return
+
+    // 使用 setTimeout 模拟 requestIdleCallback（小程序环境不支持 requestIdleCallback）
+    setTimeout(async () => {
+      try {
+        console.log('🔄 [超级管理端] 开始预加载其他仓库数据...')
+        const today = new Date().toISOString().split('T')[0]
+        const actualStartDate = startDate <= today ? startDate : today
+        const actualEndDate = endDate >= today ? endDate : today
+
+        // 预加载除当前仓库外的所有仓库数据
+        const preloadPromises = warehouses
+          .filter((_, index) => index !== currentWarehouseIndex)
+          .map(async (warehouse) => {
+            const cacheKey = `super_admin_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
+            const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
+
+            // 如果缓存中没有数据，则预加载
+            if (!cached) {
+              console.log(`📥 [超级管理端] 预加载仓库 ${warehouse.name} 的数据`)
+              const data = await getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
+              setVersionedCache(cacheKey, data, 3 * 60 * 1000)
+              console.log(`✅ [超级管理端] 仓库 ${warehouse.name} 数据预加载完成`)
+            } else {
+              console.log(`⏭️ [超级管理端] 仓库 ${warehouse.name} 数据已在缓存中`)
+            }
+          })
+
+        await Promise.all(preloadPromises)
+        console.log('✅ [超级管理端] 所有仓库数据预加载完成')
+      } catch (error) {
+        console.error('[超级管理端] 预加载数据失败:', error)
+        // 预加载失败不影响正常使用，静默处理
+      }
+    }, 1000) // 延迟1秒后开始预加载，确保不影响当前页面加载
+  }, [startDate, endDate, warehouses, currentWarehouseIndex])
+
   useEffect(() => {
     loadData()
   }, [loadData])
@@ -244,6 +283,13 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   useEffect(() => {
     loadRecords()
   }, [loadRecords])
+
+  // 在当前仓库数据加载完成后，预加载其他仓库数据
+  useEffect(() => {
+    if (records.length > 0 && warehouses.length > 1) {
+      preloadOtherWarehouses()
+    }
+  }, [records.length, warehouses.length, preloadOtherWarehouses])
 
   useDidShow(() => {
     // 清除缓存，强制重新加载最新数据
