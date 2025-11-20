@@ -322,7 +322,14 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   // 计算每日指标数（根据选中的仓库）
   const dailyTarget = useMemo(() => {
     const warehouse = warehouses[currentWarehouseIndex]
-    return warehouse?.daily_target || 0
+    const target = warehouse?.daily_target || 0
+    console.log('📊 每日指标计算：', {
+      currentWarehouseIndex,
+      warehouseName: warehouse?.name,
+      daily_target: warehouse?.daily_target,
+      finalTarget: target
+    })
+    return target
   }, [warehouses, currentWarehouseIndex])
 
   // 计算司机汇总数据（不含考勤）
