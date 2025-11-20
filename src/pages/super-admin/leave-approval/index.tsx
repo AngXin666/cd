@@ -788,26 +788,22 @@ const SuperAdminLeaveApproval: React.FC = () => {
                             </View>
                             {/* 今日状态标签 - 放在最右边 */}
                             {stats.todayStatus === 'working' && (
-                              <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <View className="i-mdi-check-circle text-xs text-white" />
+                              <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full">
                                 <Text className="text-xs text-white font-bold">上班中</Text>
                               </View>
                             )}
                             {stats.todayStatus === 'late' && (
-                              <View className="bg-gradient-to-r from-orange-500 to-orange-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <View className="i-mdi-clock-alert text-xs text-white" />
+                              <View className="bg-gradient-to-r from-orange-500 to-orange-600 px-2 py-0.5 rounded-full">
                                 <Text className="text-xs text-white font-bold">迟到</Text>
                               </View>
                             )}
                             {stats.todayStatus === 'on_leave' && (
-                              <View className="bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <View className="i-mdi-beach text-xs text-white" />
+                              <View className="bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 rounded-full">
                                 <Text className="text-xs text-white font-bold">休假</Text>
                               </View>
                             )}
                             {stats.todayStatus === 'not_checked_in' && (
-                              <View className="bg-gradient-to-r from-gray-500 to-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <View className="i-mdi-alert-circle text-xs text-white" />
+                              <View className="bg-gradient-to-r from-red-500 to-red-600 px-2 py-0.5 rounded-full">
                                 <Text className="text-xs text-white font-bold">未打卡</Text>
                               </View>
                             )}
