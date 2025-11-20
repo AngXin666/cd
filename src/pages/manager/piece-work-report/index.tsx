@@ -7,8 +7,8 @@ import CircularProgress from '@/components/CircularProgress'
 import {
   getActiveCategories,
   getAttendanceRecordsByWarehouse,
+  getBatchDriverAttendanceStats,
   getCurrentUserProfile,
-  getDriverAttendanceStats,
   getDriverProfiles,
   getDriversByWarehouse,
   getLeaveApplicationsByWarehouse,
@@ -439,14 +439,31 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 加载考勤数据并合并
   useEffect(() => {
     const loadAttendanceData = async () => {
-      // 获取日期范围
-      const todayRange = getTodayRange()
-      const weekRange = getWeekRange()
-      const monthRange = getMonthRange()
+      if (driverSummariesBase.length === 0) {
+        setDriverSummaries([])
+        return
+      }
 
-      const summariesWithAttendance = await Promise.all(
-        driverSummariesBase.map(async (summary) => {
-          const attendanceStats = await getDriverAttendanceStats(summary.driverId, startDate, endDate)
+      try {
+        // 获取日期范围
+        const todayRange = getTodayRange()
+        const weekRange = getWeekRange()
+        const monthRange = getMonthRange()
+
+        // 批量获取所有司机的考勤数据（一次查询）
+        const driverIds = driverSummariesBase.map((s) => s.driverId)
+        const attendanceStatsMap = await getBatchDriverAttendanceStats(driverIds, startDate, endDate)
+
+        // 批量获取本周考勤数据（用于计算本周请假天数）
+        const weeklyAttendanceStatsMap = await getBatchDriverAttendanceStats(driverIds, weekRange.start, weekRange.end)
+
+        // 处理每个司机的数据
+        const summariesWithAttendance = driverSummariesBase.map((summary) => {
+          const attendanceStats = attendanceStatsMap.get(summary.driverId) || {
+            attendanceDays: 0,
+            lateDays: 0,
+            leaveDays: 0
+          }
 
           // 计算当天、本周、本月的件数
           const dailyQuantity = calculateQuantityInRange(summary.driverId, todayRange.start, todayRange.end)
@@ -473,7 +490,7 @@ const ManagerPieceWorkReport: React.FC = () => {
           let weeklyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
-            const weekStart = getWeekRange().start
+            const weekStart = weekRange.start
             const weekStartDate = new Date(weekStart)
 
             // 计算实际工作的起始日期（本周一或入职日，取较晚的）
@@ -489,12 +506,12 @@ const ManagerPieceWorkReport: React.FC = () => {
             const diffTime = today.getTime() - startDate.getTime()
             const daysInWeek = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 
-            // 获取本周的请假天数
-            const weeklyAttendanceStats = await getDriverAttendanceStats(
-              summary.driverId,
-              weekRange.start,
-              weekRange.end
-            )
+            // 获取本周的请假天数（从批量查询结果中获取）
+            const weeklyAttendanceStats = weeklyAttendanceStatsMap.get(summary.driverId) || {
+              attendanceDays: 0,
+              lateDays: 0,
+              leaveDays: 0
+            }
             const weeklyLeaveDays = weeklyAttendanceStats.leaveDays || 0
 
             // 获取当前仓库的允许请假天数（按比例计算本周允许的请假天数）
@@ -517,7 +534,7 @@ const ManagerPieceWorkReport: React.FC = () => {
           let monthlyCompletionRate = 0
           if (dailyTarget > 0) {
             const today = new Date()
-            const monthStart = getMonthRange().start
+            const monthStart = monthRange.start
             const monthStartDate = new Date(monthStart)
 
             // 计算实际工作的起始日期（本月1号或入职日，取较晚的）
@@ -556,9 +573,6 @@ const ManagerPieceWorkReport: React.FC = () => {
           // 1. 优先检查是否在休假中
           if (attendanceStats.leaveDays > 0) {
             // 检查今天是否在请假期间
-            const _todayStr = getLocalDateString()
-            // 这里简化判断：如果本月有请假天数，认为可能在休假中
-            // 更精确的判断需要查询具体的请假记录
             todayStatus = 'on_leave'
           }
 
@@ -570,16 +584,10 @@ const ManagerPieceWorkReport: React.FC = () => {
               (r) => r.user_id === summary.driverId && r.work_date === todayStr
             ).length
 
-            console.log(
-              `[计件报表] 司机 ${summary.driverName} (${summary.driverId}) 今天 (${todayStr}) 的计件次数: ${todayRecordsCount}`
-            )
-
             if (todayRecordsCount > 0) {
               todayStatus = todayRecordsCount // 存储具体的计件次数
             }
           }
-
-          // 3. 默认为未记录（已经是默认值）
 
           return {
             ...summary,
@@ -596,29 +604,28 @@ const ManagerPieceWorkReport: React.FC = () => {
             todayStatus
           }
         })
-      )
 
-      // 根据排序依据和排序顺序排序
-      summariesWithAttendance.sort((a, b) => {
-        let compareValue = 0
-        if (sortBy === 'today') {
-          compareValue = b.dailyQuantity - a.dailyQuantity
-        } else if (sortBy === 'week') {
-          compareValue = b.weeklyQuantity - a.weeklyQuantity
-        } else if (sortBy === 'month') {
-          compareValue = b.monthlyQuantity - a.monthlyQuantity
-        }
-        return sortOrder === 'desc' ? compareValue : -compareValue
-      })
+        // 根据排序依据和排序顺序排序
+        summariesWithAttendance.sort((a, b) => {
+          let compareValue = 0
+          if (sortBy === 'today') {
+            compareValue = b.dailyQuantity - a.dailyQuantity
+          } else if (sortBy === 'week') {
+            compareValue = b.weeklyQuantity - a.weeklyQuantity
+          } else if (sortBy === 'month') {
+            compareValue = b.monthlyQuantity - a.monthlyQuantity
+          }
+          return sortOrder === 'desc' ? compareValue : -compareValue
+        })
 
-      setDriverSummaries(summariesWithAttendance)
+        setDriverSummaries(summariesWithAttendance)
+      } catch (error) {
+        console.error('加载考勤数据失败:', error)
+        setDriverSummaries([])
+      }
     }
 
-    if (driverSummariesBase.length > 0) {
-      loadAttendanceData()
-    } else {
-      setDriverSummaries([])
-    }
+    loadAttendanceData()
   }, [
     driverSummariesBase,
     startDate,
@@ -626,13 +633,13 @@ const ManagerPieceWorkReport: React.FC = () => {
     sortOrder,
     sortBy,
     dailyTarget,
+    currentWarehouseIndex,
+    warehouses,
+    records,
     calculateQuantityInRange,
     getMonthRange,
     getTodayRange,
-    getWeekRange,
-    currentWarehouseIndex,
-    warehouses[currentWarehouseIndex],
-    records.filter
+    getWeekRange
   ])
 
   // 计算仪表盘数据

@@ -2283,6 +2283,113 @@ export async function getDriverAttendanceStats(
   }
 }
 
+/**
+ * 批量获取多个司机的考勤统计数据（优化性能）
+ * @param userIds 司机ID数组
+ * @param startDate 开始日期
+ * @param endDate 结束日期
+ * @returns 司机ID到考勤统计的映射
+ */
+export async function getBatchDriverAttendanceStats(
+  userIds: string[],
+  startDate: string,
+  endDate: string
+): Promise<
+  Map<
+    string,
+    {
+      attendanceDays: number
+      lateDays: number
+      leaveDays: number
+    }
+  >
+> {
+  const resultMap = new Map<
+    string,
+    {
+      attendanceDays: number
+      lateDays: number
+      leaveDays: number
+    }
+  >()
+
+  // 初始化所有司机的统计数据
+  userIds.forEach((userId) => {
+    resultMap.set(userId, {attendanceDays: 0, lateDays: 0, leaveDays: 0})
+  })
+
+  if (userIds.length === 0) {
+    return resultMap
+  }
+
+  try {
+    // 批量获取所有司机的考勤记录
+    const {data: attendanceData, error: attendanceError} = await supabase
+      .from('attendance_records')
+      .select('*')
+      .in('user_id', userIds)
+      .gte('work_date', startDate)
+      .lte('work_date', endDate)
+
+    if (attendanceError) {
+      console.error('批量获取考勤记录失败:', attendanceError)
+      return resultMap
+    }
+
+    // 统计每个司机的出勤天数和迟到天数
+    attendanceData?.forEach((record) => {
+      const stats = resultMap.get(record.user_id)
+      if (stats) {
+        stats.attendanceDays += 1
+        if (record.status === 'late') {
+          stats.lateDays += 1
+        }
+      }
+    })
+
+    // 批量获取所有司机的已批准请假记录
+    const {data: leaveData, error: leaveError} = await supabase
+      .from('leave_applications')
+      .select('user_id, start_date, end_date')
+      .in('user_id', userIds)
+      .eq('status', 'approved')
+      .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
+
+    if (leaveError) {
+      console.error('批量获取请假记录失败:', leaveError)
+      return resultMap
+    }
+
+    // 计算每个司机的请假天数
+    leaveData?.forEach((record) => {
+      const stats = resultMap.get(record.user_id)
+      if (stats) {
+        const leaveStart = new Date(record.start_date)
+        const leaveEnd = new Date(record.end_date)
+        const rangeStart = new Date(startDate)
+        const rangeEnd = new Date(endDate)
+
+        // 计算请假记录与查询范围的交集
+        const overlapStart = new Date(Math.max(leaveStart.getTime(), rangeStart.getTime()))
+        const overlapEnd = new Date(Math.min(leaveEnd.getTime(), rangeEnd.getTime()))
+
+        // 如果有交集，计算天数
+        if (overlapStart <= overlapEnd) {
+          const days = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          if (days > 0) {
+            stats.leaveDays += days
+          }
+        }
+      }
+    })
+
+    return resultMap
+  } catch (error) {
+    console.error('批量获取考勤统计失败:', error)
+    return resultMap
+  }
+}
+
 // ==================== 个人中心相关API ====================
 
 /**
