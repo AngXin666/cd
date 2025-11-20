@@ -108,7 +108,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [sortBy, setSortBy] = useState<'completion' | 'quantity' | 'leave'>('completion') // 排序依据
+  const [sortBy, setSortBy] = useState<'today' | 'week' | 'month'>('today') // 排序依据：今天、本周、本月
 
   // 仪表盘数据
   const [dashboardData, setDashboardData] = useState({
@@ -625,12 +625,12 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       // 根据排序依据和排序顺序排序
       summariesWithAttendance.sort((a, b) => {
         let compareValue = 0
-        if (sortBy === 'completion') {
-          compareValue = b.completionRate - a.completionRate
-        } else if (sortBy === 'quantity') {
-          compareValue = b.totalQuantity - a.totalQuantity
-        } else if (sortBy === 'leave') {
-          compareValue = b.leaveDays - a.leaveDays
+        if (sortBy === 'today') {
+          compareValue = b.dailyQuantity - a.dailyQuantity
+        } else if (sortBy === 'week') {
+          compareValue = b.weeklyQuantity - a.weeklyQuantity
+        } else if (sortBy === 'month') {
+          compareValue = b.monthlyQuantity - a.monthlyQuantity
         }
         return sortOrder === 'desc' ? compareValue : -compareValue
       })
@@ -1092,49 +1092,67 @@ const SuperAdminPieceWorkReport: React.FC = () => {
           {/* 排序按钮 */}
           <View className="flex gap-2 mb-4">
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'completion' ? 'bg-blue-600' : 'bg-white'}`}
+              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'today' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => {
-                if (sortBy === 'completion') {
+                if (sortBy === 'today') {
                   setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
                 } else {
-                  setSortBy('completion')
+                  setSortBy('today')
                   setSortOrder('desc')
                 }
               }}>
               <View className="flex items-center justify-center gap-1">
                 <View
-                  className={`i-mdi-chart-line text-base ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
+                  className={`i-mdi-calendar-today text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs font-bold ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}>
-                  按达标率排序
-                </Text>
-                {sortBy === 'completion' && (
+                <Text className={`text-xs font-bold ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}>今天</Text>
+                {sortBy === 'today' && (
                   <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'completion' ? 'text-white' : 'text-gray-600'}`}
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
                   />
                 )}
               </View>
             </View>
             <View
-              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'quantity' ? 'bg-blue-600' : 'bg-white'}`}
+              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'week' ? 'bg-blue-600' : 'bg-white'}`}
               onClick={() => {
-                if (sortBy === 'quantity') {
+                if (sortBy === 'week') {
                   setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
                 } else {
-                  setSortBy('quantity')
+                  setSortBy('week')
                   setSortOrder('desc')
                 }
               }}>
               <View className="flex items-center justify-center gap-1">
                 <View
-                  className={`i-mdi-package-variant text-base ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
+                  className={`i-mdi-calendar-week text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
                 />
-                <Text className={`text-xs font-bold ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}>
-                  按件数排序
-                </Text>
-                {sortBy === 'quantity' && (
+                <Text className={`text-xs font-bold ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}>本周</Text>
+                {sortBy === 'week' && (
                   <View
-                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'quantity' ? 'text-white' : 'text-gray-600'}`}
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                )}
+              </View>
+            </View>
+            <View
+              className={`flex-1 text-center py-2 rounded-lg ${sortBy === 'month' ? 'bg-blue-600' : 'bg-white'}`}
+              onClick={() => {
+                if (sortBy === 'month') {
+                  setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                } else {
+                  setSortBy('month')
+                  setSortOrder('desc')
+                }
+              }}>
+              <View className="flex items-center justify-center gap-1">
+                <View
+                  className={`i-mdi-calendar-month text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
+                />
+                <Text className={`text-xs font-bold ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}>本月</Text>
+                {sortBy === 'month' && (
+                  <View
+                    className={`i-mdi-arrow-${sortOrder === 'desc' ? 'down' : 'up'} text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
                   />
                 )}
               </View>
