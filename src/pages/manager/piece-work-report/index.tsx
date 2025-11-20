@@ -657,6 +657,13 @@ const ManagerPieceWorkReport: React.FC = () => {
     return records.filter((r) => r.work_date === today).reduce((sum, r) => sum + (r.quantity || 0), 0)
   }, [records])
 
+  // 计算今天有计件记录的司机数
+  const todayDriversWithRecords = useMemo(() => {
+    const today = getLocalDateString()
+    const driverIds = new Set(records.filter((r) => r.work_date === today).map((r) => r.user_id))
+    return driverIds.size
+  }, [records])
+
   // 计算今天达标率（修正算法：考虑出勤司机数）
   const completionRate = useMemo(() => {
     console.log('今天达标率计算：开始', {
@@ -869,10 +876,12 @@ const ManagerPieceWorkReport: React.FC = () => {
                         <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
                       </View>
                       <Text className="text-white text-2xl font-bold mb-1.5">
-                        {dashboardData.todayDrivers > 0 ? Math.round(todayQuantity / dashboardData.todayDrivers) : 0}
+                        {todayDriversWithRecords > 0 ? Math.round(todayQuantity / todayDriversWithRecords) : 0}
                       </Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">人均今天完成</Text>
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">
+                          {todayDriversWithRecords} 位司机完成
+                        </Text>
                       </View>
                     </View>
                   </View>
