@@ -92,7 +92,7 @@ interface DriverSummary {
   leaveDays: number // 请假天数
   joinDate: string | null // 入职日期
   daysEmployed: number // 在职天数
-  todayStatus: 'recorded' | 'on_leave' | 'not_recorded' // 今日状态：已计次数/休假/未记录
+  todayStatus: 'on_leave' | 'not_recorded' | number // 今日状态：休假/未记录/已记N次（数字表示计件次数）
 }
 
 const ManagerPieceWorkReport: React.FC = () => {
@@ -551,7 +551,7 @@ const ManagerPieceWorkReport: React.FC = () => {
           }
 
           // 判断今日状态
-          let todayStatus: 'recorded' | 'on_leave' | 'not_recorded' = 'not_recorded'
+          let todayStatus: 'on_leave' | 'not_recorded' | number = 'not_recorded'
 
           // 1. 优先检查是否在休假中
           if (attendanceStats.leaveDays > 0) {
@@ -562,9 +562,14 @@ const ManagerPieceWorkReport: React.FC = () => {
             todayStatus = 'on_leave'
           }
 
-          // 2. 检查今天是否有计件记录
-          if (todayStatus === 'not_recorded' && dailyQuantity > 0) {
-            todayStatus = 'recorded'
+          // 2. 计算今天的计件次数
+          if (todayStatus === 'not_recorded') {
+            const todayStr = getLocalDateString()
+            const todayRecordsCount = driverRecords.filter((r) => r.work_date === todayStr).length
+
+            if (todayRecordsCount > 0) {
+              todayStatus = todayRecordsCount // 存储具体的计件次数
+            }
           }
 
           // 3. 默认为未记录（已经是默认值）
@@ -1117,9 +1122,9 @@ const ManagerPieceWorkReport: React.FC = () => {
                             )}
                           </View>
                           {/* 右侧：今日状态标签 */}
-                          {summary.todayStatus === 'recorded' && (
+                          {typeof summary.todayStatus === 'number' && (
                             <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full">
-                              <Text className="text-xs text-white font-bold">已计次数</Text>
+                              <Text className="text-xs text-white font-bold">已记{summary.todayStatus}次</Text>
                             </View>
                           )}
                           {summary.todayStatus === 'on_leave' && (
