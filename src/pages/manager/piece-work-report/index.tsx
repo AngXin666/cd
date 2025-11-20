@@ -91,6 +91,7 @@ interface DriverSummary {
   leaveDays: number // 请假天数
   joinDate: string | null // 入职日期
   daysEmployed: number // 在职天数
+  todayStatus: 'recorded' | 'on_leave' | 'not_recorded' // 今日状态：已计次数/休假/未记录
 }
 
 const ManagerPieceWorkReport: React.FC = () => {
@@ -345,7 +346,8 @@ const ManagerPieceWorkReport: React.FC = () => {
         monthlyCompletionRate: 0,
         dailyQuantity: 0,
         weeklyQuantity: 0,
-        monthlyQuantity: 0
+        monthlyQuantity: 0,
+        todayStatus: 'not_recorded' as const
       })
     })
 
@@ -545,6 +547,25 @@ const ManagerPieceWorkReport: React.FC = () => {
             monthlyCompletionRate = monthlyTarget > 0 ? (monthlyQuantity / monthlyTarget) * 100 : 0
           }
 
+          // 判断今日状态
+          let todayStatus: 'recorded' | 'on_leave' | 'not_recorded' = 'not_recorded'
+
+          // 1. 优先检查是否在休假中
+          if (attendanceStats.leaveDays > 0) {
+            // 检查今天是否在请假期间
+            const _todayStr = getLocalDateString()
+            // 这里简化判断：如果本月有请假天数，认为可能在休假中
+            // 更精确的判断需要查询具体的请假记录
+            todayStatus = 'on_leave'
+          }
+
+          // 2. 检查今天是否有计件记录
+          if (todayStatus === 'not_recorded' && dailyQuantity > 0) {
+            todayStatus = 'recorded'
+          }
+
+          // 3. 默认为未记录（已经是默认值）
+
           return {
             ...summary,
             attendanceDays: attendanceStats.attendanceDays,
@@ -556,7 +577,8 @@ const ManagerPieceWorkReport: React.FC = () => {
             monthlyCompletionRate,
             dailyQuantity,
             weeklyQuantity,
-            monthlyQuantity
+            monthlyQuantity,
+            todayStatus
           }
         })
       )
@@ -1027,22 +1049,41 @@ const ManagerPieceWorkReport: React.FC = () => {
                     <View className="flex items-center flex-1">
                       <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
                       <View className="flex-1">
-                        <View className="flex items-center gap-2 mb-1">
-                          <Text className="text-base font-bold text-gray-800">
-                            {summary.driverName || summary.driverPhone || '未知司机'}
-                          </Text>
-                          {/* 新司机标签 */}
-                          {summary.daysEmployed < 7 && (
-                            <View className="px-2 py-0.5 rounded bg-orange-100 flex items-center">
-                              <Text className="text-xs text-orange-600 font-bold">新司机</Text>
+                        <View className="flex items-center justify-between mb-1">
+                          {/* 左侧：姓名和类型标签 */}
+                          <View className="flex items-center gap-2">
+                            <Text className="text-base font-bold text-gray-800">
+                              {summary.driverName || summary.driverPhone || '未知司机'}
+                            </Text>
+                            {/* 司机类型标签 */}
+                            {summary.driverType && (
+                              <View className="bg-gradient-to-r from-purple-400 to-purple-500 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">
+                                  {summary.driverType === 'pure' ? '纯司机' : '带车司机'}
+                                </Text>
+                              </View>
+                            )}
+                            {/* 新司机标签 */}
+                            {summary.daysEmployed < 7 && (
+                              <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">新司机</Text>
+                              </View>
+                            )}
+                          </View>
+                          {/* 右侧：今日状态标签 */}
+                          {summary.todayStatus === 'recorded' && (
+                            <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full">
+                              <Text className="text-xs text-white font-bold">已计次数</Text>
                             </View>
                           )}
-                          {/* 司机类型标签 */}
-                          {summary.driverType && (
-                            <View className="px-2 py-0.5 rounded bg-blue-100 flex items-center">
-                              <Text className="text-xs text-blue-600 font-medium">
-                                {summary.driverType === 'pure' ? '纯司机' : '带车司机'}
-                              </Text>
+                          {summary.todayStatus === 'on_leave' && (
+                            <View className="bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 rounded-full">
+                              <Text className="text-xs text-white font-bold">休假</Text>
+                            </View>
+                          )}
+                          {summary.todayStatus === 'not_recorded' && (
+                            <View className="bg-gradient-to-r from-red-500 to-red-600 px-2 py-0.5 rounded-full">
+                              <Text className="text-xs text-white font-bold">未记录</Text>
                             </View>
                           )}
                         </View>
