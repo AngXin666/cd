@@ -660,17 +660,24 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 计算今天有计件记录的司机数
   const todayDriversWithRecords = useMemo(() => {
     const today = getLocalDateString()
+    console.log('计算今天有计件记录的司机数：', {
+      today,
+      totalRecords: records.length,
+      todayRecords: records.filter((r) => r.work_date === today).length
+    })
     const driverIds = new Set(records.filter((r) => r.work_date === today).map((r) => r.user_id))
+    console.log('今天有计件记录的司机ID：', Array.from(driverIds))
+    console.log('今天有计件记录的司机数：', driverIds.size)
     return driverIds.size
   }, [records])
 
-  // 计算今天达标率（修正算法：使用有计件记录的司机数）
+  // 计算今天达标率（使用出勤司机数）
   const completionRate = useMemo(() => {
     console.log('今天达标率计算：开始', {
       todayQuantity,
       totalQuantity,
       dailyTarget,
-      todayDriversWithRecords
+      todayDrivers: dashboardData.todayDrivers
     })
 
     // 1. 检查每日指标是否有效
@@ -679,16 +686,16 @@ const ManagerPieceWorkReport: React.FC = () => {
       return 0
     }
 
-    // 2. 获取今天有计件记录的司机数
-    const todayDriversCount = todayDriversWithRecords
+    // 2. 获取今天出勤司机数
+    const todayDriversCount = dashboardData.todayDrivers
 
-    // 3. 检查司机数是否有效
+    // 3. 检查出勤司机数是否有效
     if (todayDriversCount === 0) {
-      console.log('今天达标率计算：今天有计件记录的司机数为0，返回0')
+      console.log('今天达标率计算：今天出勤司机数为0，返回0')
       return 0
     }
 
-    // 4. 计算今天总目标 = 每日指标 × 有计件记录的司机数
+    // 4. 计算今天总目标 = 每日指标 × 出勤司机数
     const todayTotalTarget = dailyTarget * todayDriversCount
 
     // 5. 计算达标率 = 今天完成件数 / 今天总目标
@@ -702,7 +709,7 @@ const ManagerPieceWorkReport: React.FC = () => {
     })
 
     return rate
-  }, [todayQuantity, dailyTarget, todayDriversWithRecords, totalQuantity])
+  }, [todayQuantity, dailyTarget, dashboardData.todayDrivers, totalQuantity])
 
   // 计算月度平均达标率
   const monthlyCompletionRate = useMemo(() => {
@@ -771,7 +778,7 @@ const ManagerPieceWorkReport: React.FC = () => {
                       <Text className="text-white text-2xl font-bold mb-1.5">{completionRate.toFixed(1)}%</Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          完成 {todayQuantity} / {(dailyTarget * todayDriversWithRecords).toFixed(0)} 件
+                          完成 {todayQuantity} / {(dailyTarget * dashboardData.todayDrivers).toFixed(0)} 件
                         </Text>
                       </View>
                     </View>
