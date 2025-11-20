@@ -719,131 +719,160 @@ const ManagerPieceWorkReport: React.FC = () => {
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 仪表盘卡片 - 可滑动切换 */}
-          <View className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
-            <View className="flex items-center justify-between mb-4">
-              <Text className="text-white text-lg font-bold">数据仪表盘</Text>
-              <View className="i-mdi-chart-box text-white text-2xl" />
+          <View className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-5 mb-4 shadow-xl">
+            <View className="flex items-center justify-between mb-3">
+              <View className="flex items-center gap-2">
+                <View className="i-mdi-view-dashboard text-white text-2xl" />
+                <Text className="text-white text-lg font-bold">数据仪表盘</Text>
+              </View>
+              <View className="bg-white bg-opacity-20 rounded-full px-3 py-1">
+                <Text className="text-white text-xs">左右滑动查看</Text>
+              </View>
             </View>
 
             {/* 滑动切换容器 */}
             <Swiper
-              className="h-48"
+              className="h-56"
               autoplay
               interval={10000}
               circular
               indicatorDots
               indicatorColor="rgba(255, 255, 255, 0.3)"
-              indicatorActiveColor="rgba(255, 255, 255, 0.9)">
+              indicatorActiveColor="rgba(255, 255, 255, 1)">
               {/* 第一页：达标率和出勤率 */}
               <SwiperItem>
-                <View className="grid grid-cols-2 gap-4 h-full">
-                  {/* 今天达标率 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-calendar-today text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">今天达标率</Text>
+                <View className="h-full">
+                  <View className="grid grid-cols-2 gap-3">
+                    {/* 今天达标率 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-target text-yellow-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">今天达标率</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">
+                        {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
+                      </Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">
+                          {dashboardData.todayDrivers > 0
+                            ? `完成 ${todayQuantity} / ${(dailyTarget * dashboardData.todayDrivers).toFixed(0)} 件`
+                            : '暂无数据'}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">
-                      {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
-                    </Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">
-                      {dashboardData.todayDrivers > 0
-                        ? `${todayQuantity}件 / 目标${(dailyTarget * dashboardData.todayDrivers).toFixed(0)}件`
-                        : '暂无数据'}
-                    </Text>
-                  </View>
 
-                  {/* 月度达标率 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-calendar-month text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">月度达标率</Text>
+                    {/* 月度达标率 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-calendar-month text-green-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">月度达标率</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">
+                        {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
+                      </Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">
+                          {driverSummaries.length > 0 ? `当月 ${driverSummaries.length} 位司机` : '暂无数据'}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">
-                      {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
-                    </Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">
-                      {driverSummaries.length > 0 ? `当月${driverSummaries.length}位司机` : '暂无数据'}
-                    </Text>
-                  </View>
 
-                  {/* 司机总数 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-account-group text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
+                    {/* 今天出勤率 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-account-check text-blue-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">今天出勤率</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">
+                        {dashboardData.totalDrivers > 0
+                          ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
+                          : '--'}
+                      </Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">
+                          {dashboardData.totalDrivers > 0
+                            ? `出勤 ${dashboardData.todayDrivers} / ${dashboardData.totalDrivers} 人`
+                            : '暂无数据'}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库分配</Text>
-                  </View>
 
-                  {/* 今天出勤司机 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-account-check text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">今天出勤率</Text>
+                    {/* 司机总数 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-account-group text-purple-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">司机总数</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">{dashboardData.totalDrivers}</Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">当前仓库分配</Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">
-                      {dashboardData.totalDrivers > 0
-                        ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
-                        : '--'}
-                    </Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">
-                      {dashboardData.totalDrivers > 0
-                        ? `出勤 ${dashboardData.todayDrivers}/${dashboardData.totalDrivers}`
-                        : '暂无数据'}
-                    </Text>
                   </View>
                 </View>
               </SwiperItem>
 
               {/* 第二页：件数统计 */}
               <SwiperItem>
-                <View className="grid grid-cols-2 gap-4 h-full">
-                  {/* 今天总件数 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-package-variant text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">今天总件数</Text>
+                <View className="h-full">
+                  <View className="grid grid-cols-2 gap-3">
+                    {/* 今天总件数 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-package-variant text-orange-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">今天总件数</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">{todayQuantity}</Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">
+                          {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers} 位司机完成` : '暂无数据'}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">{todayQuantity}</Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">
-                      {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers}位司机` : '暂无数据'}
-                    </Text>
-                  </View>
 
-                  {/* 本周总件数 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-calendar-week text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">本周总件数</Text>
+                    {/* 本周总件数 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-calendar-week text-cyan-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">本周总件数</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">
+                        {driverSummaries.reduce((sum, driver) => sum + (driver.weeklyQuantity || 0), 0)}
+                      </Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">本周累计完成</Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">
-                      {driverSummaries.reduce((sum, driver) => sum + (driver.weeklyQuantity || 0), 0)}
-                    </Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">本周累计</Text>
-                  </View>
 
-                  {/* 本月总件数 */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-calendar-range text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">本月总件数</Text>
+                    {/* 本月总件数 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-calendar-range text-pink-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">本月总件数</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">
+                        {driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)}
+                      </Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">本月累计完成</Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">
-                      {driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)}
-                    </Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">本月累计</Text>
-                  </View>
 
-                  {/* 司机总数（重复显示以保持布局一致） */}
-                  <View className="bg-white bg-opacity-20 rounded-lg p-4">
-                    <View className="flex items-center gap-2 mb-2">
-                      <View className="i-mdi-account-multiple text-white text-xl" />
-                      <Text className="text-white text-opacity-90 text-sm">司机总数</Text>
+                    {/* 平均每日件数 */}
+                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-3 border border-white border-opacity-20">
+                      <View className="flex items-center gap-1.5 mb-2">
+                        <View className="i-mdi-chart-line text-lime-300 text-lg" />
+                        <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-1">
+                        {dashboardData.todayDrivers > 0 ? Math.round(todayQuantity / dashboardData.todayDrivers) : '--'}
+                      </Text>
+                      <View className="bg-white bg-opacity-10 rounded px-2 py-1">
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">
+                          {dashboardData.todayDrivers > 0 ? '人均今天完成' : '暂无数据'}
+                        </Text>
+                      </View>
                     </View>
-                    <Text className="text-white text-3xl font-bold">{dashboardData.totalDrivers}</Text>
-                    <Text className="text-white text-opacity-70 text-xs mt-1">当前仓库</Text>
                   </View>
                 </View>
               </SwiperItem>
