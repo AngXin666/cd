@@ -10,22 +10,18 @@
 
 1. **上班中** (`working`)
    - 颜色：绿色渐变 (green-500 to green-600)
-   - 图标：✓ (i-mdi-check-circle)
    - 条件：今天已打卡且未迟到
 
 2. **迟到** (`late`)
    - 颜色：橙色渐变 (orange-500 to orange-600)
-   - 图标：⏰ (i-mdi-clock-alert)
    - 条件：今天已打卡但状态为迟到
 
 3. **休假** (`on_leave`)
    - 颜色：蓝色渐变 (blue-500 to blue-600)
-   - 图标：🏖️ (i-mdi-beach)
    - 条件：今天在已批准的请假期间内
 
 4. **未打卡** (`not_checked_in`)
-   - 颜色：灰色渐变 (gray-500 to gray-600)
-   - 图标：⚠️ (i-mdi-alert-circle)
+   - 颜色：红色渐变 (red-500 to red-600)
    - 条件：今天没有打卡记录且不在休假中
 
 ## 状态判断逻辑
