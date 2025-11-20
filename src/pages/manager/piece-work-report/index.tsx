@@ -749,14 +749,10 @@ const ManagerPieceWorkReport: React.FC = () => {
                         <View className="i-mdi-target text-yellow-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">今天达标率</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">
-                        {dashboardData.todayDrivers > 0 ? `${completionRate.toFixed(1)}%` : '--'}
-                      </Text>
+                      <Text className="text-white text-2xl font-bold mb-1.5">{completionRate.toFixed(1)}%</Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {dashboardData.todayDrivers > 0
-                            ? `完成 ${todayQuantity} / ${(dailyTarget * dashboardData.todayDrivers).toFixed(0)} 件`
-                            : '暂无数据'}
+                          完成 {todayQuantity} / {(dailyTarget * dashboardData.todayDrivers).toFixed(0)} 件
                         </Text>
                       </View>
                     </View>
@@ -767,12 +763,10 @@ const ManagerPieceWorkReport: React.FC = () => {
                         <View className="i-mdi-calendar-month text-green-300 text-lg" />
                         <Text className="text-white text-opacity-95 text-xs font-medium">月度达标率</Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">
-                        {driverSummaries.length > 0 ? `${monthlyCompletionRate.toFixed(1)}%` : '--'}
-                      </Text>
+                      <Text className="text-white text-2xl font-bold mb-1.5">{monthlyCompletionRate.toFixed(1)}%</Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {driverSummaries.length > 0 ? `当月 ${driverSummaries.length} 位司机` : '暂无数据'}
+                          当月 {driverSummaries.length} 位司机
                         </Text>
                       </View>
                     </View>
@@ -785,14 +779,13 @@ const ManagerPieceWorkReport: React.FC = () => {
                       </View>
                       <Text className="text-white text-2xl font-bold mb-1.5">
                         {dashboardData.totalDrivers > 0
-                          ? `${Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)}%`
-                          : '--'}
+                          ? Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
+                          : 0}
+                        %
                       </Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {dashboardData.totalDrivers > 0
-                            ? `出勤 ${dashboardData.todayDrivers} / ${dashboardData.totalDrivers} 人`
-                            : '暂无数据'}
+                          出勤 {dashboardData.todayDrivers} / {dashboardData.totalDrivers} 人
                         </Text>
                       </View>
                     </View>
@@ -825,7 +818,7 @@ const ManagerPieceWorkReport: React.FC = () => {
                       <Text className="text-white text-2xl font-bold mb-1.5">{todayQuantity}</Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
                         <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {dashboardData.todayDrivers > 0 ? `${dashboardData.todayDrivers} 位司机完成` : '暂无数据'}
+                          {dashboardData.todayDrivers} 位司机完成
                         </Text>
                       </View>
                     </View>
@@ -865,12 +858,10 @@ const ManagerPieceWorkReport: React.FC = () => {
                         <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
                       </View>
                       <Text className="text-white text-2xl font-bold mb-1.5">
-                        {dashboardData.todayDrivers > 0 ? Math.round(todayQuantity / dashboardData.todayDrivers) : '--'}
+                        {dashboardData.todayDrivers > 0 ? Math.round(todayQuantity / dashboardData.todayDrivers) : 0}
                       </Text>
                       <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {dashboardData.todayDrivers > 0 ? '人均今天完成' : '暂无数据'}
-                        </Text>
+                        <Text className="text-white text-opacity-80 text-xs leading-tight">人均今天完成</Text>
                       </View>
                     </View>
                   </View>
