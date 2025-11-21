@@ -12,7 +12,13 @@ import {
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
-import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
+import {
+  getFirstDayOfMonthString,
+  getLocalDateString,
+  getMondayDateString,
+  getTomorrowDateString,
+  getYesterdayDateString
+} from '@/utils/date'
 
 const DriverPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -23,7 +29,9 @@ const DriverPieceWork: React.FC = () => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 排序顺序：asc=升序，desc=降序
-  const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'custom'>('month') // 当前选中的快捷筛选
+  const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'nextday' | 'custom'>(
+    'month'
+  ) // 当前选中的快捷筛选
 
   // 获取URL参数
   const instance = getCurrentInstance()
@@ -211,6 +219,14 @@ const DriverPieceWork: React.FC = () => {
     setStartDate(firstDay)
     setEndDate(endDateStr)
     setActiveQuickFilter('month')
+  }
+
+  // 快捷筛选：后一天
+  const handleNextDayFilter = () => {
+    const dateStr = getTomorrowDateString()
+    setStartDate(dateStr)
+    setEndDate(dateStr)
+    setActiveQuickFilter('nextday')
   }
 
   // 手动修改日期时，将快捷筛选设置为自定义
@@ -565,55 +581,72 @@ const DriverPieceWork: React.FC = () => {
 
           {/* 快捷筛选按钮（移到外面） */}
           <View className="mb-4">
-            <View className="grid grid-cols-3 gap-2">
+            <View className="grid grid-cols-4 gap-2">
               {/* 前一天 */}
               <View
-                className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'yesterday'
                     ? 'bg-gradient-to-r from-blue-600 to-blue-500 shadow-md'
                     : 'bg-gradient-to-r from-blue-50 to-blue-100'
                 }`}
                 onClick={handleYesterdayFilter}>
                 <View
-                  className={`text-lg mr-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
+                  className={`text-xl mb-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
                 />
                 <Text
-                  className={`text-sm font-medium ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
+                  className={`text-xs font-medium ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
                   前一天
                 </Text>
               </View>
 
               {/* 本周 */}
               <View
-                className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'week'
                     ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-md'
                     : 'bg-gradient-to-r from-green-50 to-green-100'
                 }`}
                 onClick={handleWeekFilter}>
                 <View
-                  className={`text-lg mr-1 i-mdi-calendar-week ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-600'}`}
+                  className={`text-xl mb-1 i-mdi-calendar-week ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-600'}`}
                 />
                 <Text
-                  className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
+                  className={`text-xs font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
                   本周
                 </Text>
               </View>
 
               {/* 本月 */}
               <View
-                className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'month'
                     ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
                     : 'bg-gradient-to-r from-orange-50 to-orange-100'
                 }`}
                 onClick={handleMonthFilter}>
                 <View
-                  className={`text-lg mr-1 i-mdi-calendar-month ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}
+                  className={`text-xl mb-1 i-mdi-calendar-month ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}
                 />
                 <Text
-                  className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-700'}`}>
+                  className={`text-xs font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-700'}`}>
                   本月
+                </Text>
+              </View>
+
+              {/* 后一天 */}
+              <View
+                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                  activeQuickFilter === 'nextday'
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-500 shadow-md'
+                    : 'bg-gradient-to-r from-purple-50 to-purple-100'
+                }`}
+                onClick={handleNextDayFilter}>
+                <View
+                  className={`text-xl mb-1 i-mdi-calendar-plus ${activeQuickFilter === 'nextday' ? 'text-white' : 'text-purple-600'}`}
+                />
+                <Text
+                  className={`text-xs font-medium ${activeQuickFilter === 'nextday' ? 'text-white' : 'text-purple-700'}`}>
+                  后一天
                 </Text>
               </View>
             </View>
