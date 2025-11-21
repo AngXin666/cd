@@ -140,6 +140,10 @@ const ManagerHome: React.FC = () => {
     navigateTo({url: '/pages/manager/piece-work-report/index?range=month'})
   }
 
+  const handleTodayPieceWorkReport = () => {
+    navigateTo({url: '/pages/manager/piece-work-report/index?range=today'})
+  }
+
   const handleLeaveApproval = () => {
     navigateTo({url: '/pages/manager/leave-approval/index'})
   }
@@ -300,7 +304,7 @@ const ManagerHome: React.FC = () => {
                   {/* 今天总件数 - 可点击跳转到件数报表 */}
                   <View
                     className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
-                    onClick={handlePieceWorkReport}>
+                    onClick={handleTodayPieceWorkReport}>
                     <View className="i-mdi-package-variant text-2xl text-green-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">今天总件数</Text>
                     <Text className="text-2xl font-bold text-green-600 block">{dashboardStats.todayPieceCount}</Text>

@@ -154,6 +154,10 @@ const SuperAdminHome: React.FC = () => {
     navigateTo({url: '/pages/super-admin/piece-work-report/index?range=month'})
   }
 
+  const handleTodayPieceWorkReport = () => {
+    navigateTo({url: '/pages/super-admin/piece-work-report/index?range=today'})
+  }
+
   const handleLeaveApproval = () => {
     navigateTo({url: '/pages/super-admin/leave-approval/index'})
   }
@@ -255,8 +259,10 @@ const SuperAdminHome: React.FC = () => {
                     <Text className="text-xs text-gray-400 block mt-1">人</Text>
                   </View>
 
-                  {/* 今天总件数 */}
-                  <View className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                  {/* 今天总件数 - 可点击跳转到件数报表 */}
+                  <View
+                    className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handleTodayPieceWorkReport}>
                     <View className="i-mdi-package-variant text-2xl text-green-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">今天总件数</Text>
                     <Text className="text-2xl font-bold text-green-600 block">{dashboardStats.todayPieceCount}</Text>

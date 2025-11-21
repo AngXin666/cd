@@ -4,7 +4,7 @@
 2025-11-05
 
 ## 功能名称
-仪表盘快捷跳转 - 本月完成件数一键查看
+仪表盘快捷跳转 - 统计卡片一键查看详细数据
 
 ## 更新内容
 
@@ -13,18 +13,20 @@
 
 **修改内容**：
 - 修改 `handlePieceWorkReport` 函数，添加 URL 参数 `range=month`
-- "本月完成件数"卡片已有点击事件，现在点击后会自动跳转到本月数据
+- 新增 `handleTodayPieceWorkReport` 函数，添加 URL 参数 `range=today`
+- "本月完成件数"卡片点击后跳转到本月数据
+- "今天总件数"卡片点击后跳转到今天数据
 
 **代码变更**：
 ```typescript
-// 修改前
-const handlePieceWorkReport = () => {
-  navigateTo({url: '/pages/manager/piece-work-report/index'})
-}
-
-// 修改后
+// 本月完成件数跳转
 const handlePieceWorkReport = () => {
   navigateTo({url: '/pages/manager/piece-work-report/index?range=month'})
+}
+
+// 今天总件数跳转
+const handleTodayPieceWorkReport = () => {
+  navigateTo({url: '/pages/manager/piece-work-report/index?range=today'})
 }
 ```
 
@@ -33,25 +35,34 @@ const handlePieceWorkReport = () => {
 
 **修改内容**：
 - 修改 `handlePieceWorkReport` 函数，添加 URL 参数 `range=month`
+- 新增 `handleTodayPieceWorkReport` 函数，添加 URL 参数 `range=today`
 - 为"本月完成件数"卡片添加点击事件和交互样式
+- 为"今天总件数"卡片添加点击事件和交互样式
 - 添加 `active:scale-95` 和 `transition-all` 类，提供点击反馈
 
 **代码变更**：
 ```typescript
-// 修改前
-const handlePieceWorkReport = () => {
-  navigateTo({url: '/pages/super-admin/piece-work-report/index'})
-}
-
-// 修改后
+// 本月完成件数跳转
 const handlePieceWorkReport = () => {
   navigateTo({url: '/pages/super-admin/piece-work-report/index?range=month'})
 }
 
-// 卡片添加点击事件
+// 今天总件数跳转
+const handleTodayPieceWorkReport = () => {
+  navigateTo({url: '/pages/super-admin/piece-work-report/index?range=today'})
+}
+
+// 本月完成件数卡片
 <View
   className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 active:scale-95 transition-all"
   onClick={handlePieceWorkReport}>
+  {/* 卡片内容 */}
+</View>
+
+// 今天总件数卡片
+<View
+  className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 active:scale-95 transition-all"
+  onClick={handleTodayPieceWorkReport}>
   {/* 卡片内容 */}
 </View>
 ```
@@ -97,6 +108,8 @@ useEffect(() => {
 ## 用户体验提升
 
 ### 操作流程优化
+
+#### 场景1：查看本月数据
 **优化前**：
 1. 在仪表盘查看"本月完成件数"
 2. 点击"件数报表"菜单
@@ -107,10 +120,20 @@ useEffect(() => {
 1. 在仪表盘点击"本月完成件数"卡片
 2. 自动跳转并显示本月数据
 
+#### 场景2：查看今天数据
+**优化前**：
+1. 在仪表盘查看"今天总件数"
+2. 点击"件数报表"菜单
+3. 页面默认显示今天数据（无需手动切换）
+
+**优化后**：
+1. 在仪表盘点击"今天总件数"卡片
+2. 自动跳转并显示今天数据
+
 ### 操作步骤减少
-- 从 4 步减少到 1 步
-- 节省约 70% 的操作时间
-- 提升用户体验和工作效率
+- 查看本月数据：从 4 步减少到 1 步，节省约 75% 的操作时间
+- 查看今天数据：从 2 步减少到 1 步，节省约 50% 的操作时间
+- 整体提升用户体验和工作效率
 
 ## 技术特点
 
@@ -131,26 +154,40 @@ useEffect(() => {
 
 ## 测试建议
 
-### 测试场景 1：普通管理端
+### 测试场景 1：普通管理端 - 本月完成件数
 1. 登录普通管理员账号
 2. 在主页查看"本月完成件数"
 3. 点击该卡片
 4. 验证是否跳转到件数报表页面
 5. 验证"本月"排序按钮是否自动选中（蓝色背景）
 
-### 测试场景 2：超级管理端
+### 测试场景 2：普通管理端 - 今天总件数
+1. 登录普通管理员账号
+2. 在主页查看"今天总件数"
+3. 点击该卡片
+4. 验证是否跳转到件数报表页面
+5. 验证"今天"排序按钮是否自动选中（蓝色背景）
+
+### 测试场景 3：超级管理端 - 本月完成件数
 1. 登录超级管理员账号
 2. 在主页查看"本月完成件数"
 3. 点击该卡片
 4. 验证是否跳转到件数报表页面
 5. 验证"本月"排序按钮是否自动选中（蓝色背景）
 
-### 测试场景 3：点击反馈
-1. 点击"本月完成件数"卡片
+### 测试场景 4：超级管理端 - 今天总件数
+1. 登录超级管理员账号
+2. 在主页查看"今天总件数"
+3. 点击该卡片
+4. 验证是否跳转到件数报表页面
+5. 验证"今天"排序按钮是否自动选中（蓝色背景）
+
+### 测试场景 5：点击反馈
+1. 点击任意统计卡片
 2. 验证是否有缩放动画效果
 3. 验证跳转是否流畅
 
-### 测试场景 4：兼容性
+### 测试场景 6：兼容性
 1. 直接访问件数报表页面（不带参数）
 2. 验证是否默认显示"今天"排序
 3. 验证页面功能是否正常
@@ -160,6 +197,8 @@ useEffect(() => {
 - [版本历史](README.md#版本历史)
 
 ## 后续优化建议
-1. 可以为其他统计卡片添加类似的快捷跳转
-2. 可以添加更多参数，如指定仓库、指定司机等
-3. 可以考虑添加面包屑导航，显示跳转来源
+1. ✅ 已实现：本月完成件数快捷跳转
+2. ✅ 已实现：今天总件数快捷跳转
+3. 可扩展：为"本周完成件数"添加快捷跳转（如果有该卡片）
+4. 可扩展：添加更多参数，如指定仓库、指定司机等
+5. 可扩展：考虑添加面包屑导航，显示跳转来源

@@ -1,10 +1,14 @@
 # 仪表盘快捷跳转功能说明
 
 ## 功能概述
-在双管理端（普通管理端和超级管理端）的仪表盘中，点击"本月完成件数"卡片可以快速跳转到件数报表页面，并自动筛选显示本月数据。
+在双管理端（普通管理端和超级管理端）的仪表盘中，点击统计卡片可以快速跳转到件数报表页面，并自动筛选显示对应时间范围的数据。
+
+支持的快捷跳转：
+- **本月完成件数** → 自动显示本月数据
+- **今天总件数** → 自动显示今天数据
 
 ## 使用场景
-当管理员在仪表盘看到"本月完成件数"统计数据时，如果想查看详细的本月件数报表，只需点击该卡片即可一键直达，无需手动切换筛选条件。
+当管理员在仪表盘看到统计数据时，如果想查看详细的件数报表，只需点击对应的卡片即可一键直达，无需手动切换筛选条件。
 
 ## 功能详情
 
@@ -13,29 +17,32 @@
 
 **触发方式**：
 - 点击仪表盘中的"本月完成件数"卡片（紫色渐变背景）
+- 点击仪表盘中的"今天总件数"卡片（绿色渐变背景）
 
 **跳转行为**：
-- 跳转到：`/pages/manager/piece-work-report/index`
-- 携带参数：`range=month`
-- 自动效果：件数报表页面自动选中"本月"排序按钮
+- 本月完成件数：跳转到 `/pages/manager/piece-work-report/index?range=month`，自动选中"本月"排序
+- 今天总件数：跳转到 `/pages/manager/piece-work-report/index?range=today`，自动选中"今天"排序
 
 ### 2. 超级管理端
 **位置**：`src/pages/super-admin/index.tsx`
 
 **触发方式**：
 - 点击仪表盘中的"本月完成件数"卡片（紫色渐变背景）
+- 点击仪表盘中的"今天总件数"卡片（绿色渐变背景）
 
 **跳转行为**：
-- 跳转到：`/pages/super-admin/piece-work-report/index`
-- 携带参数：`range=month`
-- 自动效果：件数报表页面自动选中"本月"排序按钮
+- 本月完成件数：跳转到 `/pages/super-admin/piece-work-report/index?range=month`，自动选中"本月"排序
+- 今天总件数：跳转到 `/pages/super-admin/piece-work-report/index?range=today`，自动选中"今天"排序
 
 ## 技术实现
 
 ### URL参数传递
 ```typescript
-// 跳转时携带参数
+// 跳转到本月数据
 navigateTo({url: '/pages/manager/piece-work-report/index?range=month'})
+
+// 跳转到今天数据
+navigateTo({url: '/pages/manager/piece-work-report/index?range=today'})
 ```
 
 ### 参数接收与处理
@@ -68,9 +75,10 @@ useEffect(() => {
 
 ## 扩展性
 该功能设计具有良好的扩展性，可以轻松添加更多快捷跳转：
-- 可以为"本周完成件数"添加 `range=week` 参数
-- 可以为"今日完成件数"添加 `range=today` 参数
-- 可以为其他统计卡片添加自定义参数
+- ✅ 已实现："本月完成件数"卡片 → 自动显示本月数据
+- ✅ 已实现："今天总件数"卡片 → 自动显示今天数据
+- 可扩展："本周完成件数"卡片 → 添加 `range=week` 参数
+- 可扩展：其他统计卡片 → 添加自定义参数
 
 ## 相关文件
 - `/src/pages/manager/index.tsx` - 普通管理端主页
