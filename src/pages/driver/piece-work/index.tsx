@@ -563,114 +563,115 @@ const DriverPieceWork: React.FC = () => {
             </View>
           </View>
 
-          {/* 筛选条件 */}
-          <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
-            <View className="flex items-center mb-4">
-              <View className="i-mdi-filter text-xl text-blue-900 mr-2" />
-              <Text className="text-lg font-bold text-gray-800">筛选条件</Text>
-            </View>
-
-            {/* 仓库选择 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-600 block mb-2">仓库</Text>
-              <Picker
-                mode="selector"
-                range={warehouseOptions}
-                value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                  <Text className="text-gray-800">{warehouseOptions[selectedWarehouseIndex]}</Text>
-                </View>
-              </Picker>
-            </View>
-
-            {/* 日期范围 */}
-            <View className="grid grid-cols-2 gap-3 mb-4">
-              <View>
-                <Text className="text-sm text-gray-600 block mb-2">开始日期</Text>
-                <Picker mode="date" value={startDate} onChange={(e) => handleStartDateChange(e.detail.value)}>
-                  <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                    <Text className="text-sm text-gray-800">{startDate}</Text>
-                  </View>
-                </Picker>
-              </View>
-              <View>
-                <Text className="text-sm text-gray-600 block mb-2">结束日期</Text>
-                <Picker mode="date" value={endDate} onChange={(e) => handleEndDateChange(e.detail.value)}>
-                  <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                    <Text className="text-sm text-gray-800">{endDate}</Text>
-                  </View>
-                </Picker>
-              </View>
-            </View>
-
-            {/* 快捷筛选按钮 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-600 block mb-2">快捷筛选</Text>
-              <View className="grid grid-cols-3 gap-2">
-                {/* 前一天 */}
-                <View
-                  className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
-                    activeQuickFilter === 'yesterday'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 shadow-md'
-                      : 'bg-gradient-to-r from-blue-50 to-blue-100'
-                  }`}
-                  onClick={handleYesterdayFilter}>
-                  <View
-                    className={`text-lg mr-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
-                  />
-                  <Text
-                    className={`text-sm font-medium ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
-                    前一天
-                  </Text>
-                </View>
-
-                {/* 本周 */}
-                <View
-                  className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
-                    activeQuickFilter === 'week'
-                      ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-md'
-                      : 'bg-gradient-to-r from-green-50 to-green-100'
-                  }`}
-                  onClick={handleWeekFilter}>
-                  <View
-                    className={`text-lg mr-1 i-mdi-calendar-week ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-600'}`}
-                  />
-                  <Text
-                    className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
-                    本周
-                  </Text>
-                </View>
-
-                {/* 本月 */}
-                <View
-                  className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
-                    activeQuickFilter === 'month'
-                      ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
-                      : 'bg-gradient-to-r from-orange-50 to-orange-100'
-                  }`}
-                  onClick={handleMonthFilter}>
-                  <View
-                    className={`text-lg mr-1 i-mdi-calendar-month ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}
-                  />
-                  <Text
-                    className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-700'}`}>
-                    本月
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 排序按钮 */}
-            <View
-              className="flex items-center justify-center p-3 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg active:scale-98 transition-all"
-              onClick={toggleSortOrder}>
+          {/* 快捷筛选按钮（移到外面） */}
+          <View className="mb-4">
+            <View className="grid grid-cols-3 gap-2">
+              {/* 前一天 */}
               <View
-                className={`text-xl mr-2 ${sortOrder === 'desc' ? 'i-mdi-sort-calendar-descending' : 'i-mdi-sort-calendar-ascending'} text-purple-600`}
-              />
-              <Text className="text-sm font-medium text-purple-700">
-                {sortOrder === 'desc' ? '按日期降序（最新在前）' : '按日期升序（最早在前）'}
-              </Text>
+                className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                  activeQuickFilter === 'yesterday'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 shadow-md'
+                    : 'bg-gradient-to-r from-blue-50 to-blue-100'
+                }`}
+                onClick={handleYesterdayFilter}>
+                <View
+                  className={`text-lg mr-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
+                />
+                <Text
+                  className={`text-sm font-medium ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
+                  前一天
+                </Text>
+              </View>
+
+              {/* 本周 */}
+              <View
+                className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                  activeQuickFilter === 'week'
+                    ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-md'
+                    : 'bg-gradient-to-r from-green-50 to-green-100'
+                }`}
+                onClick={handleWeekFilter}>
+                <View
+                  className={`text-lg mr-1 i-mdi-calendar-week ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-600'}`}
+                />
+                <Text
+                  className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
+                  本周
+                </Text>
+              </View>
+
+              {/* 本月 */}
+              <View
+                className={`flex items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                  activeQuickFilter === 'month'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
+                    : 'bg-gradient-to-r from-orange-50 to-orange-100'
+                }`}
+                onClick={handleMonthFilter}>
+                <View
+                  className={`text-lg mr-1 i-mdi-calendar-month ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}
+                />
+                <Text
+                  className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-700'}`}>
+                  本月
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 筛选条件（隐藏，保留功能但不显示） */}
+          <View style={{display: 'none'}}>
+            <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
+              <View className="flex items-center mb-4">
+                <View className="i-mdi-filter text-xl text-blue-900 mr-2" />
+                <Text className="text-lg font-bold text-gray-800">筛选条件</Text>
+              </View>
+
+              {/* 仓库选择 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-600 block mb-2">仓库</Text>
+                <Picker
+                  mode="selector"
+                  range={warehouseOptions}
+                  value={selectedWarehouseIndex}
+                  onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                  <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                    <Text className="text-gray-800">{warehouseOptions[selectedWarehouseIndex]}</Text>
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 日期范围 */}
+              <View className="grid grid-cols-2 gap-3 mb-4">
+                <View>
+                  <Text className="text-sm text-gray-600 block mb-2">开始日期</Text>
+                  <Picker mode="date" value={startDate} onChange={(e) => handleStartDateChange(e.detail.value)}>
+                    <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                      <Text className="text-sm text-gray-800">{startDate}</Text>
+                    </View>
+                  </Picker>
+                </View>
+                <View>
+                  <Text className="text-sm text-gray-600 block mb-2">结束日期</Text>
+                  <Picker mode="date" value={endDate} onChange={(e) => handleEndDateChange(e.detail.value)}>
+                    <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                      <Text className="text-sm text-gray-800">{endDate}</Text>
+                    </View>
+                  </Picker>
+                </View>
+              </View>
+
+              {/* 排序按钮 */}
+              <View
+                className="flex items-center justify-center p-3 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg active:scale-98 transition-all"
+                onClick={toggleSortOrder}>
+                <View
+                  className={`text-xl mr-2 ${sortOrder === 'desc' ? 'i-mdi-sort-calendar-descending' : 'i-mdi-sort-calendar-ascending'} text-purple-600`}
+                />
+                <Text className="text-sm font-medium text-purple-700">
+                  {sortOrder === 'desc' ? '按日期降序（最新在前）' : '按日期升序（最早在前）'}
+                </Text>
+              </View>
             </View>
           </View>
 
