@@ -99,16 +99,19 @@ const DriverManagement: React.FC = () => {
         withRealName: driverList.filter((d) => d.real_name).length
       })
 
-      // 加载所有司机的详细信息
+      // 批量并行加载所有司机的详细信息（优化性能）
+      logger.info('开始批量加载司机详细信息')
+      const detailsPromises = driverList.map((driver) => getDriverDetailInfo(driver.id))
+      const detailsResults = await Promise.all(detailsPromises)
+
       const detailsMap = new Map<string, DriverDetailInfo>()
-      for (const driver of driverList) {
-        const detail = await getDriverDetailInfo(driver.id)
+      detailsResults.forEach((detail, index) => {
         if (detail) {
-          detailsMap.set(driver.id, detail)
+          detailsMap.set(driverList[index].id, detail)
         }
-      }
+      })
       setDriverDetails(detailsMap)
-      logger.info(`成功加载司机详细信息，共 ${detailsMap.size} 名司机`)
+      logger.info(`成功批量加载司机详细信息，共 ${detailsMap.size} 名司机`)
 
       // 使用带版本号的缓存（5分钟有效期）
       setVersionedCache(CACHE_KEYS.MANAGER_DRIVERS, driverList, 5 * 60 * 1000)

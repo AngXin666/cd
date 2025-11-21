@@ -135,49 +135,52 @@ const UserManagement: React.FC = () => {
         console.log('✅ 成功获取用户数据，数量:', data.length)
         console.log('用户列表:', data)
 
-        // 为每个用户获取真实姓名（从驾驶证信息中）
-        const usersWithRealName = await Promise.all(
-          data.map(async (u) => {
-            if (u.role === 'driver') {
-              const license = await getDriverLicense(u.id)
-              return {
-                ...u,
-                real_name: license?.id_card_name || u.name
-              }
-            }
-            return {...u, real_name: u.name}
-          })
-        )
+        // 批量并行加载：真实姓名、详细信息、仓库分配（优化性能）
+        console.log('🚀 开始批量并行加载用户详细信息')
+        const allWarehouses = await getAllWarehouses()
 
-        console.log('✅ 处理后的用户数据（含真实姓名）:', usersWithRealName)
+        const userDataPromises = data.map(async (u) => {
+          // 并行加载每个用户的所有信息
+          const [license, detail, assignments] = await Promise.all([
+            u.role === 'driver' ? getDriverLicense(u.id) : Promise.resolve(null),
+            u.role === 'driver' ? getDriverDetailInfo(u.id) : Promise.resolve(null),
+            u.role === 'driver' ? getWarehouseAssignmentsByDriver(u.id) : Promise.resolve([])
+          ])
+
+          return {
+            user: {
+              ...u,
+              real_name: license?.id_card_name || u.name
+            },
+            detail,
+            warehouses: allWarehouses.filter((w) => assignments.some((a) => a.warehouse_id === w.id))
+          }
+        })
+
+        const userDataResults = await Promise.all(userDataPromises)
+
+        // 处理结果
+        const usersWithRealName = userDataResults.map((r) => r.user)
+        const driverDetails = new Map<string, DriverDetailInfo>()
+        const driverWarehouses = new Map<string, Warehouse[]>()
+
+        userDataResults.forEach((result) => {
+          if (result.detail) {
+            driverDetails.set(result.user.id, result.detail)
+          }
+          if (result.warehouses.length > 0) {
+            driverWarehouses.set(result.user.id, result.warehouses)
+          }
+        })
+
+        console.log('✅ 批量加载完成 - 用户数据（含真实姓名）:', usersWithRealName)
+        console.log('✅ 批量加载完成 - 司机详细信息，数量:', driverDetails.size)
+        console.log('✅ 批量加载完成 - 司机仓库分配信息')
 
         setUsers(usersWithRealName)
         filterUsers(usersWithRealName, searchKeyword, roleFilter)
-
-        // 为所有司机加载详细信息（用于显示入职时间、在职天数等）
-        const driverDetails = new Map<string, DriverDetailInfo>()
-        const driverWarehouses = new Map<string, Warehouse[]>()
-        const allWarehouses = await getAllWarehouses()
-
-        await Promise.all(
-          usersWithRealName
-            .filter((u) => u.role === 'driver')
-            .map(async (u) => {
-              const detail = await getDriverDetailInfo(u.id)
-              if (detail) {
-                driverDetails.set(u.id, detail)
-              }
-
-              // 加载司机已分配的仓库
-              const assignments = await getWarehouseAssignmentsByDriver(u.id)
-              const assignedWarehouses = allWarehouses.filter((w) => assignments.some((a) => a.warehouse_id === w.id))
-              driverWarehouses.set(u.id, assignedWarehouses)
-            })
-        )
         setUserDetails(driverDetails)
         setDriverWarehouseMap(driverWarehouses)
-        console.log('✅ 已加载司机详细信息，数量:', driverDetails.size)
-        console.log('✅ 已加载司机仓库分配信息')
 
         // 使用带版本号的缓存（5分钟有效期）
         setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
