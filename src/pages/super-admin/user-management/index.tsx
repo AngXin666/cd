@@ -773,10 +773,8 @@ const UserManagement: React.FC = () => {
                               <Text className="text-green-700 text-xs font-medium">已实名</Text>
                             </View>
                           )}
-                          <View className={`px-2 py-0.5 rounded-full ${getRoleColor(u.role)}`}>
-                            <Text className="text-xs font-medium">{getRoleText(u.role)}</Text>
-                          </View>
-                          {detail && getDriverType(u) && (
+                          {/* 角色标签：如果是司机且有详细信息，显示具体司机类型；否则显示角色 */}
+                          {u.role === 'driver' && detail && getDriverType(u) ? (
                             <View
                               className={`px-2 py-0.5 rounded-full ${
                                 getDriverType(u) === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
@@ -787,6 +785,10 @@ const UserManagement: React.FC = () => {
                                 }`}>
                                 {getDriverType(u)}
                               </Text>
+                            </View>
+                          ) : (
+                            <View className={`px-2 py-0.5 rounded-full ${getRoleColor(u.role)}`}>
+                              <Text className="text-xs font-medium">{getRoleText(u.role)}</Text>
                             </View>
                           )}
                         </View>
