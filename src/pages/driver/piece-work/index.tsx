@@ -12,13 +12,7 @@ import {
 } from '@/db/api'
 import type {PieceWorkCategory, PieceWorkRecord, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
-import {
-  getFirstDayOfMonthString,
-  getLocalDateString,
-  getMondayDateString,
-  getTomorrowDateString,
-  getYesterdayDateString
-} from '@/utils/date'
+import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString} from '@/utils/date'
 
 const DriverPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -193,9 +187,31 @@ const DriverPieceWork: React.FC = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
   }
 
-  // 快捷筛选：前一天
+  // 辅助函数：计算指定日期的前一天
+  const getPreviousDay = (dateStr: string): string => {
+    const date = new Date(dateStr)
+    date.setDate(date.getDate() - 1)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // 辅助函数：计算指定日期的后一天
+  const getNextDay = (dateStr: string): string => {
+    const date = new Date(dateStr)
+    date.setDate(date.getDate() + 1)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // 快捷筛选：前一天（基于当前选中的日期）
   const handleYesterdayFilter = () => {
-    const dateStr = getYesterdayDateString()
+    // 如果当前有选中的日期，基于它计算前一天；否则使用昨天
+    const baseDate = startDate || getLocalDateString()
+    const dateStr = getPreviousDay(baseDate)
     setStartDate(dateStr)
     setEndDate(dateStr)
     setActiveQuickFilter('yesterday')
@@ -221,9 +237,11 @@ const DriverPieceWork: React.FC = () => {
     setActiveQuickFilter('month')
   }
 
-  // 快捷筛选：后一天
+  // 快捷筛选：后一天（基于当前选中的日期）
   const handleNextDayFilter = () => {
-    const dateStr = getTomorrowDateString()
+    // 如果当前有选中的日期，基于它计算后一天；否则使用明天
+    const baseDate = endDate || getLocalDateString()
+    const dateStr = getNextDay(baseDate)
     setStartDate(dateStr)
     setEndDate(dateStr)
     setActiveQuickFilter('nextday')
