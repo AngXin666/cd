@@ -124,12 +124,23 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     setCurrentWarehouseIndex(index)
   }, [])
 
-  // 初始化日期范围（默认当月）
+  // 初始化日期范围（默认当月）和接收URL参数
   useEffect(() => {
     const firstDay = getFirstDayOfMonthString()
     const today = getLocalDateString()
     setStartDate(firstDay)
     setEndDate(today)
+
+    // 接收URL参数，设置排序方式
+    const instance = Taro.getCurrentInstance()
+    const range = instance.router?.params?.range
+    if (range === 'month') {
+      setSortBy('month')
+    } else if (range === 'week') {
+      setSortBy('week')
+    } else if (range === 'today') {
+      setSortBy('today')
+    }
   }, [])
 
   // 加载基础数据（带缓存）

@@ -151,7 +151,7 @@ const SuperAdminHome: React.FC = () => {
   }
 
   const handlePieceWorkReport = () => {
-    navigateTo({url: '/pages/super-admin/piece-work-report/index'})
+    navigateTo({url: '/pages/super-admin/piece-work-report/index?range=month'})
   }
 
   const handleLeaveApproval = () => {
@@ -273,8 +273,10 @@ const SuperAdminHome: React.FC = () => {
                     <Text className="text-xs text-gray-400 block mt-1">条</Text>
                   </View>
 
-                  {/* 本月完成件数 */}
-                  <View className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                  {/* 本月完成件数 - 可点击跳转到件数报表 */}
+                  <View
+                    className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 active:scale-95 transition-all"
+                    onClick={handlePieceWorkReport}>
                     <View className="i-mdi-chart-line text-2xl text-purple-600 mb-2" />
                     <Text className="text-xs text-gray-600 block mb-1">本月完成件数</Text>
                     <Text className="text-2xl font-bold text-purple-900 block">{dashboardStats.monthlyPieceCount}</Text>

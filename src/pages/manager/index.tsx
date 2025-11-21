@@ -137,7 +137,7 @@ const ManagerHome: React.FC = () => {
   }, [])
 
   const handlePieceWorkReport = () => {
-    navigateTo({url: '/pages/manager/piece-work-report/index'})
+    navigateTo({url: '/pages/manager/piece-work-report/index?range=month'})
   }
 
   const handleLeaveApproval = () => {
