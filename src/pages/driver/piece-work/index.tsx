@@ -207,6 +207,30 @@ const DriverPieceWork: React.FC = () => {
     return `${year}-${month}-${day}`
   }
 
+  // 辅助函数：格式化日期显示（年月日）
+  const formatDateDisplay = (dateStr: string): string => {
+    if (!dateStr) return ''
+    const date = new Date(dateStr)
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    return `${year}年${month}月${day}日`
+  }
+
+  // 计算前一天的日期（用于显示）
+  const getPreviousDayDisplay = (): string => {
+    const baseDate = startDate || getLocalDateString()
+    const dateStr = getPreviousDay(baseDate)
+    return formatDateDisplay(dateStr)
+  }
+
+  // 计算后一天的日期（用于显示）
+  const getNextDayDisplay = (): string => {
+    const baseDate = endDate || getLocalDateString()
+    const dateStr = getNextDay(baseDate)
+    return formatDateDisplay(dateStr)
+  }
+
   // 快捷筛选：前一天（基于当前选中的日期）
   const handleYesterdayFilter = () => {
     // 如果当前有选中的日期，基于它计算前一天；否则使用昨天
@@ -602,7 +626,7 @@ const DriverPieceWork: React.FC = () => {
             <View className="grid grid-cols-4 gap-2">
               {/* 前一天 */}
               <View
-                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'yesterday'
                     ? 'bg-gradient-to-r from-blue-600 to-blue-500 shadow-md'
                     : 'bg-gradient-to-r from-blue-50 to-blue-100'
@@ -612,14 +636,17 @@ const DriverPieceWork: React.FC = () => {
                   className={`text-xl mb-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
                 />
                 <Text
-                  className={`text-xs font-medium ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
+                  className={`text-xs font-medium mb-0.5 ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
                   前一天
+                </Text>
+                <Text className={`text-xs ${activeQuickFilter === 'yesterday' ? 'text-blue-100' : 'text-blue-500'}`}>
+                  {getPreviousDayDisplay()}
                 </Text>
               </View>
 
               {/* 本周 */}
               <View
-                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'week'
                     ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-md'
                     : 'bg-gradient-to-r from-green-50 to-green-100'
@@ -636,7 +663,7 @@ const DriverPieceWork: React.FC = () => {
 
               {/* 本月 */}
               <View
-                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'month'
                     ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
                     : 'bg-gradient-to-r from-orange-50 to-orange-100'
@@ -653,7 +680,7 @@ const DriverPieceWork: React.FC = () => {
 
               {/* 后一天 */}
               <View
-                className={`flex flex-col items-center justify-center p-3 rounded-lg active:scale-95 transition-all ${
+                className={`flex flex-col items-center justify-center p-2 rounded-lg active:scale-95 transition-all ${
                   activeQuickFilter === 'nextday'
                     ? 'bg-gradient-to-r from-purple-600 to-purple-500 shadow-md'
                     : 'bg-gradient-to-r from-purple-50 to-purple-100'
@@ -663,8 +690,11 @@ const DriverPieceWork: React.FC = () => {
                   className={`text-xl mb-1 i-mdi-calendar-plus ${activeQuickFilter === 'nextday' ? 'text-white' : 'text-purple-600'}`}
                 />
                 <Text
-                  className={`text-xs font-medium ${activeQuickFilter === 'nextday' ? 'text-white' : 'text-purple-700'}`}>
+                  className={`text-xs font-medium mb-0.5 ${activeQuickFilter === 'nextday' ? 'text-white' : 'text-purple-700'}`}>
                   后一天
+                </Text>
+                <Text className={`text-xs ${activeQuickFilter === 'nextday' ? 'text-purple-100' : 'text-purple-500'}`}>
+                  {getNextDayDisplay()}
                 </Text>
               </View>
             </View>
