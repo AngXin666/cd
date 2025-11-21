@@ -103,22 +103,19 @@ const SuperAdminHome: React.FC = () => {
     }
   }, [user, profile])
 
-  // 初始加载
+  // 初始加载（批量并行查询优化）
   useEffect(() => {
     if (user) {
-      loadData()
-      loadWarehouses()
+      // 批量并行加载所有初始数据
+      Promise.all([loadData(), loadWarehouses()])
     }
   }, [user, loadData, loadWarehouses])
 
-  // 页面显示时刷新数据
+  // 页面显示时刷新数据（批量并行查询优化）
   useDidShow(() => {
     if (user) {
-      loadData()
-      loadWarehouses()
-      refreshSorting() // 刷新仓库排序
-      refreshDashboard()
-      refreshDriverStats()
+      // 批量并行刷新所有数据
+      Promise.all([loadData(), loadWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
     }
   })
 

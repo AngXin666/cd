@@ -103,14 +103,13 @@ const ManagerHome: React.FC = () => {
     }
   }, [user, loadProfile])
 
-  // 页面显示时刷新数据
+  // 页面显示时刷新数据（批量并行查询优化）
   useDidShow(() => {
     if (user) {
+      // 批量并行刷新所有数据
       loadProfile()
-      // 强制刷新仓库列表（不使用缓存，确保获取最新数据）
       refreshWarehouses()
-      refreshSorting() // 刷新仓库排序
-      // 刷新当前仓库的仪表板数据（使用缓存）
+      refreshSorting()
       if (currentWarehouseId) {
         refreshDashboard()
         refreshDriverStats()
@@ -118,14 +117,13 @@ const ManagerHome: React.FC = () => {
     }
   })
 
-  // 下拉刷新
+  // 下拉刷新（批量并行查询优化）
   usePullDownRefresh(async () => {
     if (user) {
-      await loadProfile()
-      await refreshWarehouses()
-      await refreshSorting() // 刷新仓库排序
+      await Promise.all([loadProfile(), refreshWarehouses(), refreshSorting()])
       if (currentWarehouseId) {
-        await Promise.all([refreshDashboard(), refreshDriverStats()])
+        refreshDashboard()
+        refreshDriverStats()
       }
     }
     Taro.stopPullDownRefresh()

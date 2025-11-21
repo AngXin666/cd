@@ -23,16 +23,16 @@ const DriverHome: React.FC = () => {
   const [attendanceCheck, setAttendanceCheck] = useState<AttendanceCheckResult | null>(null)
   const hasCheckedToday = useRef(false) // 标记今天是否已检测过
 
-  // 加载用户资料
+  // 加载用户资料（批量并行查询优化）
   const loadProfile = useCallback(async () => {
     try {
-      const data = await getCurrentUserProfile()
-      setProfile(data)
-      // 加载司机的驾驶证信息以获取真实姓名
-      if (user?.id) {
-        const license = await getDriverLicense(user.id)
-        setDriverLicense(license)
-      }
+      // 批量并行加载用户资料和驾驶证信息
+      const [profileData, licenseData] = await Promise.all([
+        getCurrentUserProfile(),
+        user?.id ? getDriverLicense(user.id) : Promise.resolve(null)
+      ])
+      setProfile(profileData)
+      setDriverLicense(licenseData)
     } catch (error) {
       console.error('[DriverHome] 加载用户资料失败:', error)
       Taro.showToast({
@@ -142,23 +142,19 @@ const DriverHome: React.FC = () => {
     console.log('仓库列表:', warehouses)
   }, [user, warehousesLoading, warehouses])
 
-  // 初始加载
+  // 初始加载（批量并行查询优化）
   useEffect(() => {
     if (user) {
-      loadProfile()
-      // 首次登录时检测打卡状态
-      checkAttendance()
+      // 批量并行加载所有初始数据
+      Promise.all([loadProfile(), checkAttendance()])
     }
   }, [user, loadProfile, checkAttendance])
 
-  // 页面显示时刷新数据
+  // 页面显示时刷新数据（批量并行查询优化）
   useDidShow(() => {
     if (user) {
-      loadProfile()
-      refreshStats()
-      refreshSorting() // 刷新仓库排序
-      // 每次页面显示时都检测打卡状态（但不会重复弹窗）
-      checkAttendance()
+      // 批量并行刷新所有数据
+      Promise.all([loadProfile(), refreshStats(), refreshSorting(), checkAttendance()])
     }
   })
 
