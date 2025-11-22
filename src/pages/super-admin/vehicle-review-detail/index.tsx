@@ -417,9 +417,7 @@ const VehicleReviewDetail: React.FC = () => {
                   {vehicle.driver_profile.name && (
                     <View className="flex items-start mb-1.5 ml-7">
                       <Text className="text-sm text-gray-600 w-20">姓名：</Text>
-                      <Text className="text-sm text-gray-900 font-medium flex-1">
-                        {vehicle.driver_profile.name}
-                      </Text>
+                      <Text className="text-sm text-gray-900 font-medium flex-1">{vehicle.driver_profile.name}</Text>
                     </View>
                   )}
                   {vehicle.driver_profile.phone && (
@@ -459,9 +457,7 @@ const VehicleReviewDetail: React.FC = () => {
                     {vehicle.driver_license.id_card_number && (
                       <View className="flex items-start mb-1.5 ml-7">
                         <Text className="text-sm text-gray-600 w-20">身份证号：</Text>
-                        <Text className="text-sm text-gray-900 flex-1">
-                          {vehicle.driver_license.id_card_number}
-                        </Text>
+                        <Text className="text-sm text-gray-900 flex-1">{vehicle.driver_license.id_card_number}</Text>
                       </View>
                     )}
                     {vehicle.driver_license.id_card_birth_date && (
@@ -480,17 +476,13 @@ const VehicleReviewDetail: React.FC = () => {
                     {vehicle.driver_license.id_card_address && (
                       <View className="flex items-start mb-1.5 ml-7">
                         <Text className="text-sm text-gray-600 w-20">住址：</Text>
-                        <Text className="text-sm text-gray-900 flex-1">
-                          {vehicle.driver_license.id_card_address}
-                        </Text>
+                        <Text className="text-sm text-gray-900 flex-1">{vehicle.driver_license.id_card_address}</Text>
                       </View>
                     )}
                     {vehicle.driver_license.issue_authority && (
                       <View className="flex items-start ml-7">
                         <Text className="text-sm text-gray-600 w-20">签发机关：</Text>
-                        <Text className="text-sm text-gray-900 flex-1">
-                          {vehicle.driver_license.issue_authority}
-                        </Text>
+                        <Text className="text-sm text-gray-900 flex-1">{vehicle.driver_license.issue_authority}</Text>
                       </View>
                     )}
                   </View>
@@ -509,9 +501,7 @@ const VehicleReviewDetail: React.FC = () => {
                     {vehicle.driver_license.license_number && (
                       <View className="flex items-start mb-1.5 ml-7">
                         <Text className="text-sm text-gray-600 w-24">驾驶证号：</Text>
-                        <Text className="text-sm text-gray-900 flex-1">
-                          {vehicle.driver_license.license_number}
-                        </Text>
+                        <Text className="text-sm text-gray-900 flex-1">{vehicle.driver_license.license_number}</Text>
                       </View>
                     )}
                     {vehicle.driver_license.license_class && (
