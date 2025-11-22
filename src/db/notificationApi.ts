@@ -8,8 +8,19 @@ import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('NotificationAPI')
 
-// 通知类型
-export type NotificationType = 'vehicle_review_pending' | 'vehicle_review_approved' | 'vehicle_review_need_supplement'
+// 通知类型 - 与数据库 notification_type 枚举保持一致
+export type NotificationType =
+  | 'permission_change' // 权限变更
+  | 'driver_info_update' // 司机信息更新
+  | 'driver_created' // 司机创建
+  | 'leave_approved' // 请假批准
+  | 'leave_rejected' // 请假拒绝
+  | 'warehouse_assigned' // 仓库分配
+  | 'system_notice' // 系统通知
+  | 'driver_type_changed' // 司机类型变更
+  | 'vehicle_review_pending' // 车辆待审核
+  | 'vehicle_review_approved' // 车辆审核通过
+  | 'vehicle_review_need_supplement' // 车辆需要补录
 
 // 通知接口
 export interface Notification {
