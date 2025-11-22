@@ -860,18 +860,86 @@ const AddVehicle: React.FC = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 0))
   }
 
+  /**
+   * 车牌号格式验证
+   * 支持新能源车牌（8位）和普通车牌（7位）
+   */
+  const isValidPlateNumber = (plate: string): boolean => {
+    const pattern =
+      /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]$/
+    return pattern.test(plate)
+  }
+
+  /**
+   * 完整的车辆数据验证
+   * 在提交前验证所有必需字段和格式
+   */
+  const validateVehicleData = (): {isValid: boolean; errors: string[]} => {
+    const errors: string[] = []
+
+    // 验证必填字段
+    if (!formData.plate_number) {
+      errors.push('• 车牌号码')
+    } else if (!isValidPlateNumber(formData.plate_number)) {
+      errors.push('• 车牌号码格式不正确')
+    }
+
+    if (!formData.brand) errors.push('• 品牌')
+    if (!formData.model) errors.push('• 型号')
+
+    if (!formData.vin) {
+      errors.push('• 车辆识别代号（VIN）')
+    } else if (formData.vin.length !== 17) {
+      errors.push('• 车辆识别代号（VIN）应为17位')
+    }
+
+    if (!formData.vehicle_type) errors.push('• 车辆类型')
+    if (!formData.owner_name) errors.push('• 所有人')
+
+    // 验证行驶证照片
+    if (!photos.driving_license_main) errors.push('• 行驶证主页照片')
+    if (!photos.driving_license_sub) errors.push('• 行驶证副页照片')
+    if (!photos.driving_license_sub_back) errors.push('• 行驶证副页背页照片')
+
+    // 验证车辆照片
+    if (!photos.left_front) errors.push('• 左前45°照片')
+    if (!photos.right_front) errors.push('• 右前45°照片')
+    if (!photos.left_rear) errors.push('• 左后45°照片')
+    if (!photos.right_rear) errors.push('• 右后45°照片')
+    if (!photos.dashboard) errors.push('• 仪表盘照片')
+    if (!photos.rear_door) errors.push('• 后门照片')
+    if (!photos.cargo_box) errors.push('• 货箱照片')
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    }
+  }
+
   // 提交表单
   const handleSubmit = async (submitForReview: boolean = false) => {
-    // 验证当前步骤的基本要求（照片是否已拍摄）
+    // 1. 验证当前步骤的基本要求（照片是否已拍摄）
     if (!validateStep(currentStep)) {
       return
     }
 
-    // 特别验证驾驶员证件识别结果
+    // 2. 验证驾驶员证件识别结果
     const {missingFields, isComplete} = checkDriverLicenseRecognition()
     if (!isComplete) {
       // 证件识别不完整，显示失败对话框
       await showDriverLicenseRecognitionFailureDialog(missingFields)
+      return
+    }
+
+    // 3. 【新增】验证车辆数据完整性
+    const vehicleValidation = validateVehicleData()
+    if (!vehicleValidation.isValid) {
+      await Taro.showModal({
+        title: '信息不完整',
+        content: `以下信息缺失或格式错误：\n\n${vehicleValidation.errors.join('\n')}\n\n请返回相应步骤补充完整信息。`,
+        showCancel: false,
+        confirmText: '我知道了'
+      })
       return
     }
 
@@ -886,6 +954,7 @@ const AddVehicle: React.FC = () => {
     try {
       // 上传所有照片
       const uploadedPhotos: Record<string, string> = {}
+      const uploadErrors: string[] = []
 
       // 上传车辆照片
       for (const [key, path] of Object.entries(photos)) {
@@ -893,14 +962,24 @@ const AddVehicle: React.FC = () => {
           const photoName = PHOTO_NAME_MAP[key] || key
           console.log(`📤 开始上传 ${photoName}...`)
 
-          const fileName = generateUniqueFileName(`vehicle_${key}`, 'jpg')
-          // 判断是否需要强制横向显示
-          // 行驶证照片需要横向显示，其他照片保持原始方向
-          const needLandscape = key.includes('driving_license')
-          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
-          console.log(`✅ ${photoName} 上传成功`)
-          uploadedPhotos[key] = uploadedPath
+          try {
+            const fileName = generateUniqueFileName(`vehicle_${key}`, 'jpg')
+            // 判断是否需要强制横向显示
+            // 行驶证照片需要横向显示，其他照片保持原始方向
+            const needLandscape = key.includes('driving_license')
+            const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
+            console.log(`✅ ${photoName} 上传成功`)
+            uploadedPhotos[key] = uploadedPath
+          } catch (error) {
+            console.error(`❌ ${photoName} 上传失败:`, error)
+            uploadErrors.push(photoName)
+          }
         }
+      }
+
+      // 检查车辆照片上传是否有失败
+      if (uploadErrors.length > 0) {
+        throw new Error(`以下照片上传失败：${uploadErrors.join('、')}。请检查网络连接后重试。`)
       }
 
       // 上传驾驶员证件照片
@@ -910,22 +989,37 @@ const AddVehicle: React.FC = () => {
           const photoName = PHOTO_NAME_MAP[key] || key
           console.log(`📤 开始上传 ${photoName}...`)
 
-          const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
-          // 证件照片不需要强制横向显示，保持原始方向
-          const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
-          console.log(`✅ ${photoName} 上传成功`)
-          uploadedDriverPhotos[key] = uploadedPath
+          try {
+            const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
+            // 证件照片不需要强制横向显示，保持原始方向
+            const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
+            console.log(`✅ ${photoName} 上传成功`)
+            uploadedDriverPhotos[key] = uploadedPath
+          } catch (error) {
+            console.error(`❌ ${photoName} 上传失败:`, error)
+            uploadErrors.push(photoName)
+          }
         }
+      }
+
+      // 检查证件照片上传是否有失败
+      if (uploadErrors.length > 0) {
+        throw new Error(`以下照片上传失败：${uploadErrors.join('、')}。请检查网络连接后重试。`)
       }
 
       // 上传车损特写照片
       const uploadedDamagePhotos: string[] = []
       for (let i = 0; i < damagePhotos.length; i++) {
         const photo = damagePhotos[i]
-        const fileName = generateUniqueFileName(`pickup_damage_${i}`, 'jpg')
-        const uploadedPath = await uploadImageToStorage(photo.path, BUCKET_NAME, fileName, false)
-        if (uploadedPath) {
-          uploadedDamagePhotos.push(uploadedPath)
+        try {
+          const fileName = generateUniqueFileName(`pickup_damage_${i}`, 'jpg')
+          const uploadedPath = await uploadImageToStorage(photo.path, BUCKET_NAME, fileName, false)
+          if (uploadedPath) {
+            uploadedDamagePhotos.push(uploadedPath)
+          }
+        } catch (error) {
+          console.error(`❌ 车损照片 ${i + 1} 上传失败:`, error)
+          // 车损照片上传失败不影响整体流程，只记录日志
         }
       }
 
@@ -946,15 +1040,15 @@ const AddVehicle: React.FC = () => {
         engine_number: formData.engine_number || null,
         register_date: formData.register_date || null,
         issue_date: formData.issue_date || null,
-        // 副页字段 - 只在有值时传入
+        // 副页字段 - 确保数值类型正确
         archive_number: formData.archive_number || null,
-        total_mass: formData.total_mass || null,
-        approved_passengers: formData.approved_passengers || null,
-        curb_weight: formData.curb_weight || null,
-        approved_load: formData.approved_load || null,
-        overall_dimension_length: formData.overall_dimension_length || null,
-        overall_dimension_width: formData.overall_dimension_width || null,
-        overall_dimension_height: formData.overall_dimension_height || null,
+        total_mass: formData.total_mass ? Number(formData.total_mass) : null,
+        approved_passengers: formData.approved_passengers ? Number(formData.approved_passengers) : null,
+        curb_weight: formData.curb_weight ? Number(formData.curb_weight) : null,
+        approved_load: formData.approved_load ? Number(formData.approved_load) : null,
+        overall_dimension_length: formData.overall_dimension_length ? Number(formData.overall_dimension_length) : null,
+        overall_dimension_width: formData.overall_dimension_width ? Number(formData.overall_dimension_width) : null,
+        overall_dimension_height: formData.overall_dimension_height ? Number(formData.overall_dimension_height) : null,
         inspection_valid_until: formData.inspection_valid_until || null,
         // 副页背页字段
         inspection_date: formData.inspection_date || null,
@@ -1049,12 +1143,46 @@ const AddVehicle: React.FC = () => {
       console.error('提交失败详情:', error)
       Taro.hideLoading()
 
-      // 显示更详细的错误信息
-      const errorMessage = error instanceof Error ? error.message : '提交失败，请重试'
-      Taro.showToast({
-        title: errorMessage,
-        icon: 'none',
-        duration: 3000
+      // 解析错误信息，提供更明确的提示
+      let errorMessage = '提交失败，请重试'
+      let errorTitle = '提交失败'
+
+      if (error instanceof Error) {
+        const msg = error.message.toLowerCase()
+
+        // 照片上传失败
+        if (msg.includes('上传失败')) {
+          errorTitle = '照片上传失败'
+          errorMessage = error.message
+        }
+        // 数据验证失败
+        else if (msg.includes('violates') || msg.includes('constraint')) {
+          errorTitle = '数据验证失败'
+          errorMessage = '输入的信息不符合要求，请检查后重试'
+        }
+        // 权限不足
+        else if (msg.includes('permission') || msg.includes('policy')) {
+          errorTitle = '权限不足'
+          errorMessage = '您没有权限执行此操作，请联系管理员'
+        }
+        // 网络错误
+        else if (msg.includes('network') || msg.includes('timeout')) {
+          errorTitle = '网络错误'
+          errorMessage = '网络连接失败，请检查网络后重试'
+        }
+        // 其他错误
+        else {
+          errorMessage = error.message
+        }
+      }
+
+      // 使用 Modal 显示详细错误信息
+      Taro.showModal({
+        title: errorTitle,
+        content: errorMessage,
+        showCancel: false,
+        confirmText: '我知道了',
+        confirmColor: '#ef4444'
       })
     } finally {
       setSubmitting(false)
