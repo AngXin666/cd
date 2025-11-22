@@ -77,71 +77,77 @@ const VehicleList: React.FC = () => {
   ]) // 只在组件挂载时执行一次
 
   // 加载车辆列表（带缓存）
-  const loadVehicles = useCallback(async () => {
-    // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
-    const driverId = targetDriverId || user?.id
+  // forceRefresh: 是否强制刷新（跳过缓存）
+  const loadVehicles = useCallback(
+    async (forceRefresh = false) => {
+      // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
+      const driverId = targetDriverId || user?.id
 
-    logger.info('loadVehicles被调用', {
-      targetDriverId,
-      userId: user?.id,
-      finalDriverId: driverId,
-      isManagerView
-    })
+      logger.info('loadVehicles被调用', {
+        targetDriverId,
+        userId: user?.id,
+        finalDriverId: driverId,
+        isManagerView,
+        forceRefresh
+      })
 
-    if (!driverId) {
-      logger.warn('无法加载车辆：缺少司机ID', {targetDriverId, userId: user?.id})
-      return
-    }
-
-    logger.info('开始加载车辆列表', {driverId, isManagerView})
-    setLoading(true)
-    try {
-      // 生成缓存键
-      const cacheKey = `driver_vehicles_${driverId}`
-      const cached = getVersionedCache<Vehicle[]>(cacheKey)
-
-      let data: Vehicle[]
-
-      if (cached) {
-        logger.info('✅ 使用缓存的车辆列表', {driverId, vehicleCount: cached.length})
-        data = cached
-      } else {
-        logger.info('🔄 从数据库加载车辆列表', {driverId})
-        // 调试：检查认证状态
-        const authStatus = await debugAuthStatus()
-        logger.info('认证状态检查', authStatus)
-
-        // 如果认证用户ID与查询的司机ID不匹配，记录警告
-        if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
-          logger.warn('认证用户ID与查询司机ID不匹配', {
-            authUserId: authStatus.userId,
-            queryDriverId: driverId
-          })
-        }
-
-        data = await getDriverVehicles(driverId)
-        // 保存到缓存（3分钟有效期）
-        setVersionedCache(cacheKey, data, 3 * 60 * 1000)
+      if (!driverId) {
+        logger.warn('无法加载车辆：缺少司机ID', {targetDriverId, userId: user?.id})
+        return
       }
 
-      setVehicles(data)
-      logger.info('车辆列表加载成功', {
-        driverId,
-        vehicleCount: data.length,
-        vehicles: data.map((v) => ({id: v.id, plate: v.plate_number}))
-      })
-    } catch (error) {
-      logger.error('加载车辆列表失败', error)
-      Taro.showToast({
-        title: '加载失败',
-        icon: 'none'
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [user, targetDriverId, isManagerView])
+      logger.info('开始加载车辆列表', {driverId, isManagerView, forceRefresh})
+      setLoading(true)
+      try {
+        // 生成缓存键
+        const cacheKey = `driver_vehicles_${driverId}`
+        const cached = !forceRefresh ? getVersionedCache<Vehicle[]>(cacheKey) : null
+
+        let data: Vehicle[]
+
+        if (cached) {
+          logger.info('✅ 使用缓存的车辆列表', {driverId, vehicleCount: cached.length})
+          data = cached
+        } else {
+          logger.info('🔄 从数据库加载车辆列表', {driverId, forceRefresh})
+          // 调试：检查认证状态
+          const authStatus = await debugAuthStatus()
+          logger.info('认证状态检查', authStatus)
+
+          // 如果认证用户ID与查询的司机ID不匹配，记录警告
+          if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
+            logger.warn('认证用户ID与查询司机ID不匹配', {
+              authUserId: authStatus.userId,
+              queryDriverId: driverId
+            })
+          }
+
+          data = await getDriverVehicles(driverId)
+          // 保存到缓存（30秒有效期，缩短缓存时间以便更快看到审核结果）
+          setVersionedCache(cacheKey, data, 30 * 1000)
+        }
+
+        setVehicles(data)
+        logger.info('车辆列表加载成功', {
+          driverId,
+          vehicleCount: data.length,
+          vehicles: data.map((v) => ({id: v.id, plate: v.plate_number, review_status: v.review_status}))
+        })
+      } catch (error) {
+        logger.error('加载车辆列表失败', error)
+        Taro.showToast({
+          title: '加载失败',
+          icon: 'none'
+        })
+      } finally {
+        setLoading(false)
+      }
+    },
+    [user, targetDriverId, isManagerView]
+  )
 
   // 页面显示时加载数据（只在初始化完成后）
+  // 强制刷新以确保看到最新的审核状态
   useDidShow(() => {
     logger.info('useDidShow被调用', {
       initialized,
@@ -149,9 +155,9 @@ const VehicleList: React.FC = () => {
       userId: user?.id,
       isManagerView
     })
-    // 只在初始化完成后才加载数据
+    // 只在初始化完成后才加载数据，并强制刷新以获取最新状态
     if (initialized) {
-      loadVehicles()
+      loadVehicles(true) // 强制刷新，跳过缓存
     }
   })
 
@@ -304,9 +310,20 @@ const VehicleList: React.FC = () => {
                   {isManagerView ? `查看 ${targetDriver?.name || '司机'} 的车辆信息` : '管理您的车辆信息'}
                 </Text>
               </View>
-              <View className="bg-white/20 backdrop-blur rounded-full px-4 py-2">
-                <Text className="text-white text-lg font-bold">{vehicles.length}</Text>
-                <Text className="text-blue-100 text-xs">辆</Text>
+              <View className="flex items-center">
+                {/* 刷新按钮 */}
+                <Button
+                  className="bg-white/20 backdrop-blur rounded-full p-2 mr-3"
+                  size="mini"
+                  onClick={() => loadVehicles(true)}
+                  disabled={loading}>
+                  <View className={`i-mdi-refresh text-white text-xl ${loading ? 'animate-spin' : ''}`}></View>
+                </Button>
+                {/* 车辆数量 */}
+                <View className="bg-white/20 backdrop-blur rounded-full px-4 py-2">
+                  <Text className="text-white text-lg font-bold">{vehicles.length}</Text>
+                  <Text className="text-blue-100 text-xs">辆</Text>
+                </View>
               </View>
             </View>
           </View>
