@@ -130,28 +130,29 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
+      // 账号名到手机号的映射
+      const accountMapping: Record<string, string> = {
+        admin: '13800000001',
+        admin1: '13800000002',
+        admin2: '13800000003'
+      }
+
       // 判断输入的是手机号还是账号名
       const isPhoneNumber = validatePhone(account)
-
-      let error
-
-      if (isPhoneNumber) {
-        // 如果是手机号格式，自动添加邮箱后缀并使用邮箱登录
-        const email = `${account}@fleet.com`
-        const result = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        error = result.error
-      } else {
-        // 如果是账号名，转换为邮箱格式
-        const email = account.includes('@') ? account : `${account}@fleet.com`
-        const result = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        error = result.error
+      
+      // 如果是账号名，转换为对应的手机号
+      let actualAccount = account
+      if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
+        actualAccount = accountMapping[account.toLowerCase()]
       }
+
+      // 转换为 email 格式
+      const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
+      
+      const {error} = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
