@@ -11,7 +11,7 @@ import {
   useDriverDashboard,
   useDriverWarehouses,
   useNotifications,
-  useRealtimeNotifications,
+  usePollingNotifications,
   useWarehousesSorted
 } from '@/hooks'
 import type {AttendanceCheckResult} from '@/utils/attendance-check'
@@ -201,8 +201,8 @@ const DriverHome: React.FC = () => {
     }
   })
 
-  // 启用实时通知
-  useRealtimeNotifications({
+  // 启用轮询通知（代替 Realtime）
+  usePollingNotifications({
     userId: user?.id || '',
     userRole: 'driver',
     onLeaveApplicationChange: () => {
@@ -215,7 +215,8 @@ const DriverHome: React.FC = () => {
       refreshStats()
       checkAttendance()
     },
-    onNewNotification: addNotification
+    onNewNotification: addNotification,
+    pollingInterval: 10000 // 10 秒轮询一次
   })
 
   // 下拉刷新
