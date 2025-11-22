@@ -96,6 +96,23 @@ Column 'type' of relation 'leave_applications' does not exist
 
 ---
 
+### 5. 请假类型枚举值修复 ✅
+**问题**: 创建请假申请时出现枚举值错误
+```
+invalid input value for enum leave_type: "personal_leave"
+```
+
+**原因**: 数据库枚举值（`'sick'`, `'personal'`, `'annual'`）与代码中的枚举值（`'sick_leave'`, `'personal_leave'`, `'annual_leave'`）不匹配
+
+**解决方案**: 
+- 将类型定义中的枚举值改为与数据库一致
+- 更新所有页面中的枚举值使用
+- 更新选项列表和显示逻辑
+
+**详细文档**: `LEAVE_TYPE_ENUM_FIX.md`
+
+---
+
 ## 修改的文件
 
 ### 登录功能
@@ -123,6 +140,13 @@ Column 'type' of relation 'leave_applications' does not exist
 - `src/pages/super-admin/driver-attendance-detail/index.tsx`
 - `src/pages/super-admin/driver-leave-detail/index.tsx`
 - `src/utils/attendance-check.ts`
+
+### 请假类型枚举值修复
+- `src/db/types.ts`
+- `src/pages/driver/leave/apply/index.tsx`
+- `src/pages/driver/leave/index.tsx`
+- `src/pages/manager/driver-leave-detail/index.tsx`
+- `src/pages/super-admin/driver-leave-detail/index.tsx`
 
 ---
 
@@ -168,7 +192,8 @@ Column 'type' of relation 'leave_applications' does not exist
 - ✅ 所有 `is_draft` 相关错误已修复
 - ✅ 所有 `clock_in_time` 相关错误已修复
 - ✅ 所有 `work_date` 相关错误已修复
-- ✅ 所有 `type` / `leave_type` 相关错误已修复
+- ✅ 所有 `type` / `leave_type` 字段名相关错误已修复
+- ✅ 所有枚举值（`sick_leave` → `sick` 等）相关错误已修复
 - ⚠️ 仍有一些其他错误（与本次修复无关）
 
 ---
@@ -220,6 +245,7 @@ Column 'type' of relation 'leave_applications' does not exist
 - `CLOCK_IN_FIX.md` - 打卡功能详细修复说明
 - `LEAVE_APPLICATION_FIX.md` - 请假/离职申请功能详细修复说明（第一次）
 - `LEAVE_TYPE_FIELD_FIX.md` - 请假申请字段名详细修复说明（第二次）
+- `LEAVE_TYPE_ENUM_FIX.md` - 请假类型枚举值详细修复说明（第三次）
 
 ---
 

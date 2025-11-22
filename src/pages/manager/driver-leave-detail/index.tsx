@@ -121,11 +121,11 @@ const DriverLeaveDetail: React.FC = () => {
   // 获取请假类型文本
   const getLeaveTypeText = (type: string) => {
     switch (type) {
-      case 'sick_leave':
+      case 'sick':
         return '病假'
-      case 'personal_leave':
+      case 'personal':
         return '事假'
-      case 'annual_leave':
+      case 'annual':
         return '年假'
       case 'other':
         return '其他'

@@ -22,7 +22,7 @@ type LeaveMode = 'quick' | 'makeup'
 const ApplyLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [mode, setMode] = useState<LeaveMode>('quick')
-  const [leaveType, setLeaveType] = useState<LeaveType>('personal_leave')
+  const [leaveType, setLeaveType] = useState<LeaveType>('personal')
   const [quickDays, setQuickDays] = useState(1)
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
@@ -39,9 +39,9 @@ const ApplyLeave: React.FC = () => {
   const [monthlyLimit, setMonthlyLimit] = useState(0)
 
   const leaveTypes = [
-    {label: '事假', value: 'personal_leave'},
-    {label: '病假', value: 'sick_leave'},
-    {label: '年假', value: 'annual_leave'},
+    {label: '事假', value: 'personal'},
+    {label: '病假', value: 'sick'},
+    {label: '年假', value: 'annual'},
     {label: '其他', value: 'other'}
   ]
 

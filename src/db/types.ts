@@ -280,8 +280,8 @@ export interface PieceWorkStats {
   }[]
 }
 
-// 请假类型
-export type LeaveType = 'sick_leave' | 'personal_leave' | 'annual_leave' | 'other'
+// 请假类型（与数据库枚举值匹配）
+export type LeaveType = 'sick' | 'personal' | 'annual' | 'other'
 
 // 申请状态类型
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected'
