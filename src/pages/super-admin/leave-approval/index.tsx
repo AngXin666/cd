@@ -701,7 +701,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
                       <View className="space-y-2 mb-3">
                         <View className="flex items-center">
                           <View className="i-mdi-calendar text-lg text-gray-500 mr-2" />
-                          <Text className="text-sm text-gray-700">离职日期：{formatDate(app.expected_date)}</Text>
+                          <Text className="text-sm text-gray-700">离职日期：{formatDate(app.resignation_date)}</Text>
                         </View>
                         {app.reason && (
                           <View className="flex items-start">

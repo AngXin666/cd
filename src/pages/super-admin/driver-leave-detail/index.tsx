@@ -715,7 +715,7 @@ const DriverLeaveDetail: React.FC = () => {
                         <View className="i-mdi-calendar-check text-lg text-gray-600 mr-2 mt-0.5" />
                         <View className="flex-1">
                           <Text className="text-xs text-gray-500 block mb-1">预计离职日期</Text>
-                          <Text className="text-sm text-gray-800 font-medium">{formatDate(app.expected_date)}</Text>
+                          <Text className="text-sm text-gray-800 font-medium">{formatDate(app.resignation_date)}</Text>
                         </View>
                       </View>
 

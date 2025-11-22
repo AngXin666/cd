@@ -317,7 +317,7 @@ export interface ResignationApplication {
   id: string
   user_id: string
   warehouse_id: string
-  expected_date: string
+  resignation_date: string
   reason: string
   status: ApplicationStatus
   reviewed_by: string | null
@@ -330,7 +330,7 @@ export interface ResignationApplication {
 export interface ResignationApplicationInput {
   user_id: string
   warehouse_id: string
-  expected_date: string
+  resignation_date: string
   reason: string
 }
 

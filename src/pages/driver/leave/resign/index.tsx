@@ -43,7 +43,7 @@ const ApplyResignation: React.FC = () => {
       return
     }
 
-    setExpectedDate(data.expected_date || '')
+    setExpectedDate(data.resignation_date || '')
     setReason(data.reason || '')
     setWarehouseId(data.warehouse_id)
   }
@@ -126,14 +126,14 @@ const ApplyResignation: React.FC = () => {
     let success = false
     if (isEditMode && draftId) {
       success = await updateDraftResignationApplication(draftId, {
-        expected_date: expectedDate,
+        resignation_date: expectedDate,
         reason: reason.trim()
       })
     } else {
       const result = await saveDraftResignationApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
-        expected_date: expectedDate,
+        resignation_date: expectedDate,
         reason: reason.trim()
       })
       success = result !== null
@@ -186,7 +186,7 @@ const ApplyResignation: React.FC = () => {
     let success = false
     if (isEditMode && draftId) {
       await updateDraftResignationApplication(draftId, {
-        expected_date: expectedDate,
+        resignation_date: expectedDate,
         reason: reason.trim()
       })
       // 由于数据库不支持草稿，直接标记为成功
@@ -195,7 +195,7 @@ const ApplyResignation: React.FC = () => {
       const result = await createResignationApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
-        expected_date: expectedDate,
+        resignation_date: expectedDate,
         reason: reason.trim()
       })
       success = result !== null

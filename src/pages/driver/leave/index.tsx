@@ -410,7 +410,7 @@ const DriverLeave: React.FC = () => {
                     <View className="space-y-2">
                       <View>
                         <Text className="text-sm text-gray-600">预计离职日期：</Text>
-                        <Text className="text-sm text-gray-800">{_formatDate(app.expected_date)}</Text>
+                        <Text className="text-sm text-gray-800">{_formatDate(app.resignation_date)}</Text>
                       </View>
                       <View>
                         <Text className="text-sm text-gray-600">离职原因：</Text>
@@ -534,10 +534,10 @@ const DriverLeave: React.FC = () => {
                             </View>
                           </View>
                           <View className="space-y-2 mb-3">
-                            {draft.expected_date ? (
+                            {draft.resignation_date ? (
                               <View>
                                 <Text className="text-sm text-gray-600">预计离职日期：</Text>
-                                <Text className="text-sm text-gray-800">{_formatDate(draft.expected_date)}</Text>
+                                <Text className="text-sm text-gray-800">{_formatDate(draft.resignation_date)}</Text>
                               </View>
                             ) : (
                               <Text className="text-sm text-gray-500">预计离职日期：未填写</Text>

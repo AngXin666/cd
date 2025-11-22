@@ -1719,7 +1719,7 @@ export async function createResignationApplication(
     .insert({
       user_id: input.user_id,
       warehouse_id: input.warehouse_id,
-      expected_date: input.expected_date,
+      resignation_date: input.resignation_date,
       reason: input.reason,
       status: 'pending'
     })
@@ -1752,7 +1752,7 @@ export async function updateDraftResignationApplication(
   input: Partial<ResignationApplicationInput>
 ): Promise<boolean> {
   const updateData: Record<string, unknown> = {}
-  if (input.expected_date !== undefined) updateData.expected_date = input.expected_date
+  if (input.resignation_date !== undefined) updateData.resignation_date = input.resignation_date
   if (input.reason !== undefined) updateData.reason = input.reason
 
   const {error} = await supabase.from('resignation_applications').update(updateData).eq('id', draftId)

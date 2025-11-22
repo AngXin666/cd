@@ -141,6 +141,35 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 
 ---
 
+## 第七次修复：离职日期字段名不匹配 (2025-11-05)
+
+### 问题
+创建离职申请失败，错误信息：
+```
+创建离职申请失败: {code: 'PGRST204', details: null, hint: null, message: "Column 'expected_date' of relation 'resignation_applications' does not exist"}
+```
+
+### 原因
+- 数据库字段名：`resignation_date`
+- 代码字段名：`expected_date`
+
+### 修复内容
+1. **类型定义** (src/db/types.ts)
+   - `ResignationApplication` 接口：`expected_date` → `resignation_date`
+   - `ResignationApplicationInput` 接口：`expected_date` → `resignation_date`
+
+2. **API 函数** (src/db/api.ts)
+   - `createResignationApplication`: 字段映射改为 `resignation_date`
+   - `updateDraftResignationApplication`: 字段映射改为 `resignation_date`
+
+3. **前端页面**
+   - 所有使用 `.expected_date` 的地方改为 `.resignation_date`
+   - 所有对象字面量中的 `expected_date:` 改为 `resignation_date:`
+
+**详细文档**: `RESIGNATION_DATE_FIX.md`
+
+---
+
 ## 修改的文件
 
 ### 登录功能
@@ -231,6 +260,7 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 - ✅ 所有 `type` / `leave_type` 字段名相关错误已修复
 - ✅ 所有枚举值（`sick_leave` → `sick` 等）相关错误已修复
 - ✅ 所有审批字段（`reviewer_id` → `reviewed_by`, `review_comment` → `review_notes`）相关错误已修复
+- ✅ 所有离职日期字段（`expected_date` → `resignation_date`）相关错误已修复
 - ⚠️ 仍有一些其他错误（与本次修复无关）
 
 ### 审批功能测试 ⏳
@@ -290,7 +320,7 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 | 请假申请 | `reviewed_by` | `reviewed_by` | ✅ 已统一 |
 | 请假申请 | `review_notes` | `review_notes` | ✅ 已统一 |
 | 请假申请 | `reviewed_at` | `reviewed_at` | ✅ 已统一 |
-| 离职申请 | `expected_date` | `expected_date` | ✅ 已统一 |
+| 离职申请 | `resignation_date` | `resignation_date` | ✅ 已统一 |
 | 离职申请 | `reason` | `reason` | ✅ 已统一 |
 | 离职申请 | `reviewed_by` | `reviewed_by` | ✅ 已统一 |
 | 离职申请 | `review_notes` | `review_notes` | ✅ 已统一 |
