@@ -290,10 +290,14 @@ const ReturnVehicle: React.FC = () => {
       // 4. 调用还车API
       const result = await returnVehicle(vehicle.id, returnPhotoUrls)
 
-      // 5. 如果有车损照片，更新车辆的damage_photos字段
+      // 5. 如果有车损照片，追加到车辆的damage_photos字段（保留提车时的车损照片）
       if (uploadedDamagePhotos.length > 0 && result) {
+        // 获取现有的车损照片
+        const existingDamagePhotos = vehicle.damage_photos || []
+        // 合并提车和还车的车损照片
+        const allDamagePhotos = [...existingDamagePhotos, ...uploadedDamagePhotos]
         await updateVehicle(vehicle.id, {
-          damage_photos: uploadedDamagePhotos
+          damage_photos: allDamagePhotos
         })
       }
 

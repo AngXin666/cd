@@ -124,6 +124,18 @@ const VehicleHistory: React.FC = () => {
     return Array.isArray(vehicle.damage_photos) ? vehicle.damage_photos : []
   }
 
+  // 获取提车时的车损照片（文件名包含 pickup_damage）
+  const getPickupDamagePhotos = (): string[] => {
+    const allDamagePhotos = getDamagePhotos()
+    return allDamagePhotos.filter((url) => url.includes('pickup_damage'))
+  }
+
+  // 获取还车时的车损照片（文件名包含 return_damage）
+  const getReturnDamagePhotos = (): string[] => {
+    const allDamagePhotos = getDamagePhotos()
+    return allDamagePhotos.filter((url) => url.includes('return_damage'))
+  }
+
   // 渲染照片网格
   const renderPhotoGrid = (photos: string[], title: string) => {
     if (photos.length === 0) return null
@@ -258,14 +270,23 @@ const VehicleHistory: React.FC = () => {
                     </View>
                   )}
 
-                  {/* 提示：没有照片 */}
-                  {getPickupPhotos().length === 0 && getRegistrationPhotos().length === 0 && (
+                  {/* 提车时的车损照片 */}
+                  {getPickupDamagePhotos().length > 0 && (
                     <View className="bg-card rounded-lg p-4 shadow-sm">
-                      <View className="flex items-center justify-center py-10">
-                        <Text className="text-muted-foreground">暂无提车照片</Text>
-                      </View>
+                      {renderPhotoGrid(getPickupDamagePhotos(), '车损特写（提车时）')}
                     </View>
                   )}
+
+                  {/* 提示：没有照片 */}
+                  {getPickupPhotos().length === 0 &&
+                    getRegistrationPhotos().length === 0 &&
+                    getPickupDamagePhotos().length === 0 && (
+                      <View className="bg-card rounded-lg p-4 shadow-sm">
+                        <View className="flex items-center justify-center py-10">
+                          <Text className="text-muted-foreground">暂无提车照片</Text>
+                        </View>
+                      </View>
+                    )}
                 </View>
               )}
 
@@ -294,15 +315,15 @@ const VehicleHistory: React.FC = () => {
                         </View>
                       )}
 
-                      {/* 车损照片 */}
-                      {getDamagePhotos().length > 0 && (
+                      {/* 还车时的车损照片 */}
+                      {getReturnDamagePhotos().length > 0 && (
                         <View className="bg-card rounded-lg p-4 shadow-sm">
-                          {renderPhotoGrid(getDamagePhotos(), '车损特写')}
+                          {renderPhotoGrid(getReturnDamagePhotos(), '车损特写（还车时）')}
                         </View>
                       )}
 
                       {/* 提示：没有照片 */}
-                      {getReturnPhotos().length === 0 && getDamagePhotos().length === 0 && (
+                      {getReturnPhotos().length === 0 && getReturnDamagePhotos().length === 0 && (
                         <View className="bg-card rounded-lg p-4 shadow-sm">
                           <View className="flex items-center justify-center py-10">
                             <Text className="text-muted-foreground">暂无还车照片</Text>
