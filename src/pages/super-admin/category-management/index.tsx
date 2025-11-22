@@ -5,13 +5,11 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   batchUpsertCategoryPrices,
-  createCategory,
   deleteCategory,
   deleteUnusedCategories,
   getAllCategories,
   getAllWarehouses,
   getCategoryPricesByWarehouse,
-  setWarehouseCategories,
   updateCategory
 } from '@/db/api'
 import type {CategoryPrice, PieceWorkCategory, Warehouse} from '@/db/types'
@@ -21,14 +19,15 @@ import {confirmDelete} from '@/utils/confirm'
 interface CategoryPriceEdit {
   categoryId: string
   categoryName: string
-  driverPrice: string
-  driverWithVehiclePrice: string
+  unitPrice: string
+  upstairsPrice: string
+  sortingUnitPrice: string
   isNew?: boolean // 标记是否为新添加的品类
 }
 
 const CategoryManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [categories, setCategories] = useState<PieceWorkCategory[]>([])
+  const [_categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [_categoryPrices, setCategoryPrices] = useState<CategoryPrice[]>([])
@@ -60,19 +59,17 @@ const CategoryManagement: React.FC = () => {
     const data = await getCategoryPricesByWarehouse(selectedWarehouse.id)
     setCategoryPrices(data)
 
-    // 初始化编辑状态 - 只显示当前仓库已配置的品类
-    const edits: CategoryPriceEdit[] = data.map((price) => {
-      const category = categories.find((c) => c.id === price.category_id)
-      return {
-        categoryId: price.category_id,
-        categoryName: category?.name || '',
-        driverPrice: price.driver_price.toString(),
-        driverWithVehiclePrice: price.driver_with_vehicle_price.toString(),
-        isNew: false
-      }
-    })
+    // 初始化编辑状态 - 显示当前仓库已配置的品类
+    const edits: CategoryPriceEdit[] = data.map((price) => ({
+      categoryId: price.id,
+      categoryName: price.category_name,
+      unitPrice: price.unit_price.toString(),
+      upstairsPrice: price.upstairs_price.toString(),
+      sortingUnitPrice: price.sorting_unit_price.toString(),
+      isNew: false
+    }))
     setPriceEdits(edits)
-  }, [selectedWarehouse, categories])
+  }, [selectedWarehouse])
 
   useEffect(() => {
     loadWarehouses()
@@ -109,8 +106,9 @@ const CategoryManagement: React.FC = () => {
     const newEdit: CategoryPriceEdit = {
       categoryId: `new_${Date.now()}`, // 临时ID
       categoryName: newCategoryName.trim(),
-      driverPrice: '0',
-      driverWithVehiclePrice: '0',
+      unitPrice: '0',
+      upstairsPrice: '0',
+      sortingUnitPrice: '0',
       isNew: true
     }
     setPriceEdits([...priceEdits, newEdit])
@@ -188,7 +186,12 @@ const CategoryManagement: React.FC = () => {
     } else {
       // 如果是已存在的品类，更新数据库
       const success = await updateCategory(edit.categoryId, {
-        name: editingCategoryName.trim()
+        warehouse_id: selectedWarehouse.id,
+        category_name: editingCategoryName.trim(),
+        unit_price: Number.parseFloat(edit.unitPrice),
+        upstairs_price: Number.parseFloat(edit.upstairsPrice),
+        sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
+        is_active: true
       })
 
       if (success) {
@@ -237,65 +240,48 @@ const CategoryManagement: React.FC = () => {
         return
       }
 
-      const driverPrice = Number.parseFloat(edit.driverPrice)
-      const driverWithVehiclePrice = Number.parseFloat(edit.driverWithVehiclePrice)
+      const unitPrice = Number.parseFloat(edit.unitPrice)
+      const upstairsPrice = Number.parseFloat(edit.upstairsPrice)
+      const sortingUnitPrice = Number.parseFloat(edit.sortingUnitPrice)
 
-      if (Number.isNaN(driverPrice) || driverPrice < 0) {
+      if (Number.isNaN(unitPrice) || unitPrice < 0) {
         Taro.showToast({
-          title: `${edit.categoryName}的纯司机价格无效`,
+          title: `${edit.categoryName}的单价无效`,
           icon: 'none'
         })
         return
       }
 
-      if (Number.isNaN(driverWithVehiclePrice) || driverWithVehiclePrice < 0) {
+      if (Number.isNaN(upstairsPrice) || upstairsPrice < 0) {
         Taro.showToast({
-          title: `${edit.categoryName}的带车司机价格无效`,
+          title: `${edit.categoryName}的上楼价格无效`,
+          icon: 'none'
+        })
+        return
+      }
+
+      if (Number.isNaN(sortingUnitPrice) || sortingUnitPrice < 0) {
+        Taro.showToast({
+          title: `${edit.categoryName}的分拣单价无效`,
           icon: 'none'
         })
         return
       }
     }
 
-    // 处理新品类：先创建品类
-    const categoryIds: string[] = []
-    for (const edit of priceEdits) {
-      if (edit.isNew) {
-        const newCategory = await createCategory({
-          name: edit.categoryName.trim(),
-          is_active: true
-        })
-        if (newCategory) {
-          categoryIds.push(newCategory.id)
-          // 更新编辑状态中的ID
-          edit.categoryId = newCategory.id
-          edit.isNew = false
-        } else {
-          Taro.showToast({
-            title: `创建品类"${edit.categoryName}"失败`,
-            icon: 'error'
-          })
-          return
-        }
-      } else {
-        categoryIds.push(edit.categoryId)
-      }
-    }
-
-    // 保存价格配置
+    // 直接保存所有品类价格配置（新品类和已有品类都通过 upsert 处理）
     const priceInputs = priceEdits.map((edit) => ({
       warehouse_id: selectedWarehouse.id,
-      category_id: edit.categoryId,
-      driver_price: Number.parseFloat(edit.driverPrice),
-      driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice)
+      category_name: edit.categoryName.trim(),
+      unit_price: Number.parseFloat(edit.unitPrice),
+      upstairs_price: Number.parseFloat(edit.upstairsPrice),
+      sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
+      is_active: true
     }))
 
     const success = await batchUpsertCategoryPrices(priceInputs)
 
     if (success) {
-      // 保存品类配置到 warehouse_categories 表
-      await setWarehouseCategories(selectedWarehouse.id, categoryIds)
-
       Taro.showToast({
         title: '保存成功',
         icon: 'success'
@@ -456,11 +442,14 @@ const CategoryManagement: React.FC = () => {
                     <View className="flex-1">
                       <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
                     </View>
-                    <View className="w-20 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
+                    <View className="w-16 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">单价</Text>
                     </View>
-                    <View className="w-20 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">带车司机</Text>
+                    <View className="w-16 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">上楼</Text>
+                    </View>
+                    <View className="w-16 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">分拣</Text>
                     </View>
                     <View className="w-16 text-center">
                       <Text className="text-gray-600 text-xs font-bold">操作</Text>
@@ -497,28 +486,41 @@ const CategoryManagement: React.FC = () => {
                         )}
                       </View>
 
-                      {/* 纯司机价格 */}
-                      <View className="w-20 px-1">
+                      {/* 单价 */}
+                      <View className="w-16 px-1">
                         <View style={{overflow: 'hidden'}}>
                           <Input
                             type="digit"
                             className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
                             placeholder="0"
-                            value={edit.driverPrice}
-                            onInput={(e) => updatePriceEdit(index, 'driverPrice', e.detail.value)}
+                            value={edit.unitPrice}
+                            onInput={(e) => updatePriceEdit(index, 'unitPrice', e.detail.value)}
                           />
                         </View>
                       </View>
 
-                      {/* 带车司机价格 */}
-                      <View className="w-20 px-1">
+                      {/* 上楼价格 */}
+                      <View className="w-16 px-1">
                         <View style={{overflow: 'hidden'}}>
                           <Input
                             type="digit"
                             className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
                             placeholder="0"
-                            value={edit.driverWithVehiclePrice}
-                            onInput={(e) => updatePriceEdit(index, 'driverWithVehiclePrice', e.detail.value)}
+                            value={edit.upstairsPrice}
+                            onInput={(e) => updatePriceEdit(index, 'upstairsPrice', e.detail.value)}
+                          />
+                        </View>
+                      </View>
+
+                      {/* 分拣单价 */}
+                      <View className="w-16 px-1">
+                        <View style={{overflow: 'hidden'}}>
+                          <Input
+                            type="digit"
+                            className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
+                            placeholder="0"
+                            value={edit.sortingUnitPrice}
+                            onInput={(e) => updatePriceEdit(index, 'sortingUnitPrice', e.detail.value)}
                           />
                         </View>
                       </View>

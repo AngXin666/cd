@@ -224,10 +224,9 @@ const PieceWorkEntry: React.FC = () => {
         prev.map((item) => {
           if (priceConfig) {
             // 根据司机类型选择对应的价格
+            // unit_price 对应纯司机价格，upstairs_price 对应带车司机价格
             const price =
-              driverProfile.driver_type === 'with_vehicle'
-                ? priceConfig.driverWithVehiclePrice
-                : priceConfig.driverPrice
+              driverProfile.driver_type === 'with_vehicle' ? priceConfig.upstairsPrice : priceConfig.unitPrice
 
             return {
               ...item,
@@ -266,8 +265,8 @@ const PieceWorkEntry: React.FC = () => {
       const priceConfig = await getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
       if (priceConfig) {
         // 根据司机类型选择对应的价格
-        const price =
-          driverProfile.driver_type === 'with_vehicle' ? priceConfig.driverWithVehiclePrice : priceConfig.driverPrice
+        // unit_price 对应纯司机价格，upstairs_price 对应带车司机价格
+        const price = driverProfile.driver_type === 'with_vehicle' ? priceConfig.upstairsPrice : priceConfig.unitPrice
 
         unitPrice = price.toString()
         unitPriceLocked = true
@@ -632,7 +631,7 @@ const PieceWorkEntry: React.FC = () => {
     const category = categories[selectedCategoryIndex]
 
     saveLastWarehouse(warehouse.id, warehouse.name)
-    saveLastCategory(category.id, category.name)
+    saveLastCategory(category.id, category.category_name)
     saveLastWorkDate(workDate)
     savePieceWorkFormDefaults({
       warehouseId: warehouse.id,
@@ -708,18 +707,20 @@ const PieceWorkEntry: React.FC = () => {
               {categories.length === 1 ? (
                 // 只有一个品类时，显示为只读
                 <View className="border border-gray-300 rounded-lg p-3 bg-gray-100">
-                  <Text className="text-gray-800">{categories[0]?.name || '暂无品类'}</Text>
+                  <Text className="text-gray-800">{categories[0]?.category_name || '暂无品类'}</Text>
                   <Text className="text-xs text-gray-500 mt-1">（该仓库仅此一个品类）</Text>
                 </View>
               ) : categories.length > 1 ? (
                 // 多个品类时，显示选择器
                 <Picker
                   mode="selector"
-                  range={categories.map((c) => c.name)}
+                  range={categories.map((c) => c.category_name)}
                   value={selectedCategoryIndex}
                   onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
                   <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                    <Text className="text-gray-800">{categories[selectedCategoryIndex]?.name || '请选择品类'}</Text>
+                    <Text className="text-gray-800">
+                      {categories[selectedCategoryIndex]?.category_name || '请选择品类'}
+                    </Text>
                   </View>
                 </Picker>
               ) : (

@@ -6,7 +6,6 @@ import {useCallback, useEffect, useState} from 'react'
 import {
   addManagerWarehouse,
   createAttendanceRule,
-  createCategory,
   getAllCategories,
   getAllUsers,
   getAllWarehouses,
@@ -38,6 +37,7 @@ const WarehouseEdit: React.FC = () => {
   const [allCategories, setAllCategories] = useState<PieceWorkCategory[]>([])
   const [categoryDriverPrices, setCategoryDriverPrices] = useState<Map<string, string>>(new Map())
   const [categoryVehiclePrices, setCategoryVehiclePrices] = useState<Map<string, string>>(new Map())
+  const [categorySortingPrices, setCategorySortingPrices] = useState<Map<string, string>>(new Map())
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
 
   // 管理员
@@ -63,6 +63,7 @@ const WarehouseEdit: React.FC = () => {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryDriverPrice, setNewCategoryDriverPrice] = useState('')
   const [newCategoryVehiclePrice, setNewCategoryVehiclePrice] = useState('')
+  const [newCategorySortingPrice, setNewCategorySortingPrice] = useState('')
 
   // 导入其他仓库品类
   const [showImportDialog, setShowImportDialog] = useState(false)
@@ -110,20 +111,24 @@ const WarehouseEdit: React.FC = () => {
       console.log('仓库品类价格:', prices)
       const driverPriceMap = new Map<string, string>()
       const vehiclePriceMap = new Map<string, string>()
+      const sortingPriceMap = new Map<string, string>()
       const selectedSet = new Set<string>()
 
       for (const price of prices) {
-        driverPriceMap.set(price.category_id, String(price.driver_price))
-        vehiclePriceMap.set(price.category_id, String(price.driver_with_vehicle_price))
-        selectedSet.add(price.category_id)
+        driverPriceMap.set(price.category_name, String(price.unit_price))
+        vehiclePriceMap.set(price.category_name, String(price.upstairs_price))
+        sortingPriceMap.set(price.category_name, String(price.sorting_unit_price))
+        selectedSet.add(price.category_name)
       }
 
       console.log('已选择的品类:', Array.from(selectedSet))
-      console.log('纯司机价格:', Array.from(driverPriceMap.entries()))
-      console.log('带车司机价格:', Array.from(vehiclePriceMap.entries()))
+      console.log('单价:', Array.from(driverPriceMap.entries()))
+      console.log('上楼价格:', Array.from(vehiclePriceMap.entries()))
+      console.log('分拣单价:', Array.from(sortingPriceMap.entries()))
 
       setCategoryDriverPrices(driverPriceMap)
       setCategoryVehiclePrices(vehiclePriceMap)
+      setCategorySortingPrices(sortingPriceMap)
       setSelectedCategories(selectedSet)
     } catch (error) {
       console.error('加载品类信息失败:', error)
@@ -251,35 +256,48 @@ const WarehouseEdit: React.FC = () => {
       // 删除价格
       const newDriverPrices = new Map(categoryDriverPrices)
       const newVehiclePrices = new Map(categoryVehiclePrices)
+      const newSortingPrices = new Map(categorySortingPrices)
       newDriverPrices.delete(categoryId)
       newVehiclePrices.delete(categoryId)
+      newSortingPrices.delete(categoryId)
       setCategoryDriverPrices(newDriverPrices)
       setCategoryVehiclePrices(newVehiclePrices)
+      setCategorySortingPrices(newSortingPrices)
     } else {
       newSelected.add(categoryId)
       // 设置默认价格
       const newDriverPrices = new Map(categoryDriverPrices)
       const newVehiclePrices = new Map(categoryVehiclePrices)
+      const newSortingPrices = new Map(categorySortingPrices)
       newDriverPrices.set(categoryId, '0')
       newVehiclePrices.set(categoryId, '0')
+      newSortingPrices.set(categoryId, '0')
       setCategoryDriverPrices(newDriverPrices)
       setCategoryVehiclePrices(newVehiclePrices)
+      setCategorySortingPrices(newSortingPrices)
     }
     setSelectedCategories(newSelected)
   }
 
-  // 更新纯司机价格
+  // 更新单价
   const updateDriverPrice = (categoryId: string, price: string) => {
     const newPrices = new Map(categoryDriverPrices)
     newPrices.set(categoryId, price)
     setCategoryDriverPrices(newPrices)
   }
 
-  // 更新带车司机价格
+  // 更新上楼价格
   const updateVehiclePrice = (categoryId: string, price: string) => {
     const newPrices = new Map(categoryVehiclePrices)
     newPrices.set(categoryId, price)
     setCategoryVehiclePrices(newPrices)
+  }
+
+  // 更新分拣单价
+  const updateSortingPrice = (categoryId: string, price: string) => {
+    const newPrices = new Map(categorySortingPrices)
+    newPrices.set(categoryId, price)
+    setCategorySortingPrices(newPrices)
   }
 
   // 切换管理员选择
@@ -335,16 +353,19 @@ const WarehouseEdit: React.FC = () => {
       const prices = await getCategoryPricesByWarehouse(sourceWarehouseId)
       const driverPriceMap = new Map<string, string>()
       const vehiclePriceMap = new Map<string, string>()
+      const sortingPriceMap = new Map<string, string>()
       const selectedSet = new Set<string>()
 
       for (const price of prices) {
-        driverPriceMap.set(price.category_id, String(price.driver_price))
-        vehiclePriceMap.set(price.category_id, String(price.driver_with_vehicle_price))
-        selectedSet.add(price.category_id)
+        driverPriceMap.set(price.category_name, String(price.unit_price))
+        vehiclePriceMap.set(price.category_name, String(price.upstairs_price))
+        sortingPriceMap.set(price.category_name, String(price.sorting_unit_price))
+        selectedSet.add(price.category_name)
       }
 
       setCategoryDriverPrices(driverPriceMap)
       setCategoryVehiclePrices(vehiclePriceMap)
+      setCategorySortingPrices(sortingPriceMap)
       setSelectedCategories(selectedSet)
 
       // 复制考勤规则
@@ -372,6 +393,7 @@ const WarehouseEdit: React.FC = () => {
     setNewCategoryName('')
     setNewCategoryDriverPrice('')
     setNewCategoryVehiclePrice('')
+    setNewCategorySortingPrice('')
     setShowNewCategoryDialog(true)
   }
 
@@ -385,30 +407,38 @@ const WarehouseEdit: React.FC = () => {
 
     showLoading({title: '创建中...'})
     try {
-      const newCategory = await createCategory({
-        name: newCategoryName.trim()
-      })
+      // 直接创建品类价格记录
+      const priceInput = {
+        warehouse_id: warehouseId,
+        category_name: newCategoryName.trim(),
+        unit_price: Number(newCategoryDriverPrice || 0),
+        upstairs_price: Number(newCategoryVehiclePrice || 0),
+        sorting_unit_price: Number(newCategorySortingPrice || 0),
+        is_active: true
+      }
 
-      if (newCategory) {
+      const success = await upsertCategoryPrice(priceInput)
+
+      if (success) {
         // 刷新品类列表
         await loadCategoriesAndPrices(warehouseId)
 
         // 自动选中新品类并设置价格
         const newSelected = new Set(selectedCategories)
-        newSelected.add(newCategory.id)
+        newSelected.add(newCategoryName.trim())
         setSelectedCategories(newSelected)
 
-        if (newCategoryDriverPrice) {
-          const newDriverPrices = new Map(categoryDriverPrices)
-          newDriverPrices.set(newCategory.id, newCategoryDriverPrice)
-          setCategoryDriverPrices(newDriverPrices)
-        }
+        const newDriverPrices = new Map(categoryDriverPrices)
+        newDriverPrices.set(newCategoryName.trim(), newCategoryDriverPrice || '0')
+        setCategoryDriverPrices(newDriverPrices)
 
-        if (newCategoryVehiclePrice) {
-          const newVehiclePrices = new Map(categoryVehiclePrices)
-          newVehiclePrices.set(newCategory.id, newCategoryVehiclePrice)
-          setCategoryVehiclePrices(newVehiclePrices)
-        }
+        const newVehiclePrices = new Map(categoryVehiclePrices)
+        newVehiclePrices.set(newCategoryName.trim(), newCategoryVehiclePrice || '0')
+        setCategoryVehiclePrices(newVehiclePrices)
+
+        const newSortingPrices = new Map(categorySortingPrices)
+        newSortingPrices.set(newCategoryName.trim(), newCategorySortingPrice || '0')
+        setCategorySortingPrices(newSortingPrices)
 
         showToast({title: '品类创建成功', icon: 'success'})
         setShowNewCategoryDialog(false)
@@ -480,9 +510,9 @@ const WarehouseEdit: React.FC = () => {
       const newSelected = new Set(selectedCategories)
 
       for (const price of prices) {
-        newDriverPrices.set(price.category_id, String(price.driver_price))
-        newVehiclePrices.set(price.category_id, String(price.driver_with_vehicle_price))
-        newSelected.add(price.category_id)
+        newDriverPrices.set(price.category_name, String(price.unit_price))
+        newVehiclePrices.set(price.category_name, String(price.upstairs_price))
+        newSelected.add(price.category_name)
       }
 
       setCategoryDriverPrices(newDriverPrices)
@@ -558,17 +588,19 @@ const WarehouseEdit: React.FC = () => {
       }
 
       // 2. 更新品类价格
-      for (const categoryId of selectedCategories) {
+      for (const categoryName of selectedCategories) {
         const priceInput = {
           warehouse_id: warehouseId,
-          category_id: categoryId,
-          driver_price: Number(categoryDriverPrices.get(categoryId) || 0),
-          driver_with_vehicle_price: Number(categoryVehiclePrices.get(categoryId) || 0)
+          category_name: categoryName,
+          unit_price: Number(categoryDriverPrices.get(categoryName) || 0),
+          upstairs_price: Number(categoryVehiclePrices.get(categoryName) || 0),
+          sorting_unit_price: Number(categorySortingPrices.get(categoryName) || 0),
+          is_active: true
         }
 
         const priceSuccess = await upsertCategoryPrice(priceInput)
         if (!priceSuccess) {
-          console.warn(`更新品类 ${categoryId} 价格失败`)
+          console.warn(`更新品类 ${categoryName} 价格失败`)
         }
       }
 
@@ -859,9 +891,10 @@ const WarehouseEdit: React.FC = () => {
             ) : (
               <View>
                 {allCategories.map((category) => {
-                  const isSelected = selectedCategories.has(category.id)
-                  const driverPrice = categoryDriverPrices.get(category.id) || '0'
-                  const vehiclePrice = categoryVehiclePrices.get(category.id) || '0'
+                  const isSelected = selectedCategories.has(category.category_name)
+                  const driverPrice = categoryDriverPrices.get(category.category_name) || '0'
+                  const vehiclePrice = categoryVehiclePrices.get(category.category_name) || '0'
+                  const sortingPrice = categorySortingPrices.get(category.category_name) || '0'
 
                   return (
                     <View
@@ -875,11 +908,11 @@ const WarehouseEdit: React.FC = () => {
                             className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-2 ${
                               isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
                             }`}
-                            onClick={() => toggleCategory(category.id)}>
+                            onClick={() => toggleCategory(category.category_name)}>
                             {isSelected && <View className="i-mdi-check text-white text-sm" />}
                           </View>
                           <Text className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
-                            {category.name}
+                            {category.category_name}
                           </Text>
                         </View>
                         <Text className={`text-xs ${category.is_active ? 'text-green-600' : 'text-gray-400'}`}>
@@ -890,26 +923,38 @@ const WarehouseEdit: React.FC = () => {
                       {isSelected && (
                         <View className="ml-7 space-y-2">
                           <View>
-                            <Text className="text-gray-600 text-xs mb-1">纯司机单价（元/件）</Text>
+                            <Text className="text-gray-600 text-xs mb-1">单价（元/件）</Text>
                             <View style={{overflow: 'hidden'}}>
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入纯司机单价"
+                                placeholder="请输入单价"
                                 value={driverPrice}
-                                onInput={(e) => updateDriverPrice(category.id, e.detail.value)}
+                                onInput={(e) => updateDriverPrice(category.category_name, e.detail.value)}
                               />
                             </View>
                           </View>
                           <View className="mt-2">
-                            <Text className="text-gray-600 text-xs mb-1">带车司机单价（元/件）</Text>
+                            <Text className="text-gray-600 text-xs mb-1">上楼价格（元/件）</Text>
                             <View style={{overflow: 'hidden'}}>
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入带车司机单价"
+                                placeholder="请输入上楼价格"
                                 value={vehiclePrice}
-                                onInput={(e) => updateVehiclePrice(category.id, e.detail.value)}
+                                onInput={(e) => updateVehiclePrice(category.category_name, e.detail.value)}
+                              />
+                            </View>
+                          </View>
+                          <View className="mt-2">
+                            <Text className="text-gray-600 text-xs mb-1">分拣单价（元/件）</Text>
+                            <View style={{overflow: 'hidden'}}>
+                              <Input
+                                className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
+                                type="digit"
+                                placeholder="请输入分拣单价"
+                                value={sortingPrice}
+                                onInput={(e) => updateSortingPrice(category.category_name, e.detail.value)}
                               />
                             </View>
                           </View>
@@ -1031,7 +1076,7 @@ const WarehouseEdit: React.FC = () => {
               </View>
 
               <View className="mb-4">
-                <Text className="text-gray-700 text-sm mb-2">纯司机单价（可选）</Text>
+                <Text className="text-gray-700 text-sm mb-2">单价（可选）</Text>
                 <View style={{overflow: 'hidden'}}>
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
@@ -1044,15 +1089,28 @@ const WarehouseEdit: React.FC = () => {
                 <Text className="text-gray-500 text-xs mt-1">创建后会自动选中该品类并设置价格</Text>
               </View>
 
-              <View className="mb-6">
-                <Text className="text-gray-700 text-sm mb-2">带车司机单价（可选）</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 text-sm mb-2">上楼价格（可选）</Text>
                 <View style={{overflow: 'hidden'}}>
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入单价"
+                    placeholder="请输入上楼价格"
                     value={newCategoryVehiclePrice}
                     onInput={(e) => setNewCategoryVehiclePrice(e.detail.value)}
+                  />
+                </View>
+              </View>
+
+              <View className="mb-6">
+                <Text className="text-gray-700 text-sm mb-2">分拣单价（可选）</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
+                    type="digit"
+                    placeholder="请输入分拣单价"
+                    value={newCategorySortingPrice}
+                    onInput={(e) => setNewCategorySortingPrice(e.detail.value)}
                   />
                 </View>
               </View>
