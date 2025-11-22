@@ -47,6 +47,12 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
     return null
   }
 
+  // 如果当前通知不存在（索引越界等情况），不显示通知栏
+  if (!currentNotification) {
+    console.warn('⚠️ NotificationBar: currentNotification 为 undefined')
+    return null
+  }
+
   // 获取通知图标
   const getNotificationIcon = (type: string) => {
     switch (type) {

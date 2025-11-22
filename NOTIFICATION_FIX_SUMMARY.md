@@ -1,213 +1,170 @@
-# 实时通知功能修复总结
+# 通知系统修复总结
 
 ## 问题描述
+用户报告实时通知订阅失败，控制台显示 `CHANNEL_ERROR` 错误，以及 `NotificationBar` 组件出现 `Cannot read properties of undefined (reading 'type')` 错误。
 
-用户反馈：
-1. 司机申请请假后，管理端顶部没有出现动态通知栏
-2. 管理员审批请假后，司机端也没有出现动态通知栏
+## 根本原因分析
 
-## 根本原因
+### 1. Realtime 连接失败
+- **原因**：代理服务器 `backend.appmiaoda.com` 不支持 WebSocket 连接
+- **表现**：Supabase Realtime 无法建立连接，导致实时通知功能失效
+- **影响**：管理员和司机无法实时接收通知
 
-**Supabase Realtime 未启用**
+### 2. NotificationBar 组件崩溃
+- **原因**：`currentNotification` 可能为 `undefined`，但代码直接访问 `currentNotification.type`
+- **表现**：页面崩溃，显示 `Cannot read properties of undefined (reading 'type')` 错误
+- **影响**：整个页面无法正常显示
 
-虽然代码逻辑正确，但数据库表没有启用 Realtime 功能，导致无法接收实时数据变更通知。
+## 解决方案
 
-## 修复内容
+### 1. 实现轮询通知系统（降级方案）
 
-### 1. 启用数据库 Realtime（关键修复）
+创建了 `usePollingNotifications` Hook，使用轮询代替 WebSocket 实时通知：
 
-创建迁移文件 `00033_012_enable_realtime.sql`，为以下表启用 Realtime：
+**核心特性：**
+- ✅ 每 10 秒检查一次数据库变更
+- ✅ 支持请假申请、离职申请和打卡记录的通知
+- ✅ 防抖机制避免重复通知
+- ✅ 详细的调试日志
+- ✅ Toast 提示 + 震动反馈
+- ✅ 动态通知栏显示
 
-```sql
--- 为请假申请表启用 Realtime
-ALTER TABLE leave_applications REPLICA IDENTITY FULL;
-ALTER PUBLICATION supabase_realtime ADD TABLE leave_applications;
+**实现文件：**
+- `src/hooks/usePollingNotifications.ts` - 轮询通知 Hook
+- `src/hooks/index.ts` - 导出新的 Hook
 
--- 为离职申请表启用 Realtime
-ALTER TABLE resignation_applications REPLICA IDENTITY FULL;
-ALTER PUBLICATION supabase_realtime ADD TABLE resignation_applications;
+**修改的页面：**
+- `src/pages/manager/index.tsx` - 管理员页面
+- `src/pages/super-admin/index.tsx` - 超级管理员页面
+- `src/pages/driver/index.tsx` - 司机页面
 
--- 为打卡记录表启用 Realtime
-ALTER TABLE attendance REPLICA IDENTITY FULL;
-ALTER PUBLICATION supabase_realtime ADD TABLE attendance;
+**轮询逻辑：**
+```typescript
+// 管理员和超级管理员
+- 检查新的请假申请（status === 'pending'）
+- 检查新的离职申请（status === 'pending'）
+- 检查新的打卡记录
+
+// 司机
+- 检查请假申请状态变化（approved/rejected）
+- 检查离职申请状态变化（approved/rejected）
 ```
 
-### 2. 修复 localStorage 兼容性问题
+### 2. 修复 NotificationBar 组件
 
-将所有 `localStorage` 调用替换为 Taro 的 `getStorageSync` 和 `setStorageSync`，确保在小程序环境中正常工作。
+在 `src/components/NotificationBar/index.tsx` 中添加了空值检查：
 
-**修改的文件：**
-- `src/pages/manager/index.tsx`
-- `src/pages/super-admin/index.tsx`
-- `src/pages/driver/index.tsx`
-
-### 3. 使用语义化颜色 Token
-
-修复 `NotificationBar` 组件，将硬编码的颜色类（如 `bg-blue-50`）替换为语义化的设计系统 token（如 `bg-primary/10`）。
-
-**修改的文件：**
-- `src/components/NotificationBar/index.tsx`
-
-### 4. 增强调试日志
-
-在关键位置添加详细的调试日志，方便排查问题：
-
-**useRealtimeNotifications Hook：**
-- 订阅初始化日志
-- 订阅状态日志
-- 数据变更接收日志
-- 通知显示流程日志
-
-**useNotifications Hook：**
-- 通知添加日志
-- 通知列表更新日志
-
-**NotificationBar 组件：**
-- 渲染状态日志
-
-**页面组件：**
-- 欢迎通知加载日志
-
-## 测试步骤
-
-### 1. 查看订阅状态
-
-打开浏览器控制台，应该看到：
-```
-🔌 开始设置实时通知订阅: {userId: "xxx", userRole: "manager"}
-📡 创建新的订阅通道: notifications_xxx
-👔 设置管理员/超级管理员监听
-📡 实时通知订阅状态: SUBSCRIBED
-✅ 实时通知订阅成功！
+```typescript
+// 如果当前通知不存在（索引越界等情况），不显示通知栏
+if (!currentNotification) {
+  console.warn('⚠️ NotificationBar: currentNotification 为 undefined')
+  return null
+}
 ```
 
-### 2. 测试管理员接收通知
-
-1. 打开管理员端页面
-2. 切换到司机端，提交请假申请
-3. 返回管理员端，应该看到：
-   - 控制台日志：`📨 收到新的请假申请`
-   - Toast 提示："收到新的请假申请"
-   - 手机震动反馈
-   - 顶部通知栏显示新通知
-
-### 3. 测试司机接收通知
-
-1. 打开司机端页面
-2. 切换到管理员端，审批请假申请
-3. 返回司机端，应该看到：
-   - 控制台日志：`📝 请假申请状态变化`
-   - Toast 提示："您的请假申请已通过"
-   - 手机震动反馈
-   - 顶部通知栏显示新通知
-
-## 调试指南
-
-如果通知仍然不工作，请按以下步骤排查：
-
-### 1. 检查订阅状态
-
-查看控制台是否有：
-- `✅ 实时通知订阅成功！` - 订阅正常
-- `❌ 实时通知订阅失败！` - 订阅失败
-
-如果订阅失败，检查：
-- Supabase URL 和 Key 是否正确
-- 网络连接是否正常
-- Supabase 项目是否正常运行
-
-### 2. 检查数据变更
-
-在控制台查看是否有数据变更日志：
-- `📨 收到新的请假申请`
-- `📝 请假申请状态变化`
-
-如果没有这些日志，说明：
-- Realtime 未正确启用
-- 数据变更未触发
-- 订阅过滤条件不匹配
-
-### 3. 检查通知显示
-
-查看是否有通知显示日志：
-- `🔔 尝试显示通知`
-- `✅ 通过防抖检查，显示通知`
-- `📢 调用 onNewNotification 回调`
-
-如果有这些日志但没有看到通知栏，检查：
-- `NotificationBar` 组件是否正确渲染
-- `useNotifications` Hook 是否正常工作
-- 通知数据是否正确存储
-
-### 4. 检查欢迎通知
-
-如果首次加载时没有看到欢迎通知，检查：
-- 控制台是否有 `🎯 检查欢迎通知标记`
-- 是否有 `✨ 开始添加欢迎通知`
-- 是否有 `📢 添加新通知`
-
-如果已经看过欢迎通知，可以清除缓存：
-```javascript
-// 浏览器环境
-localStorage.removeItem('manager_welcome_shown')
-localStorage.removeItem('super_admin_welcome_shown')
-localStorage.removeItem('driver_welcome_shown')
-
-// 小程序环境
-Taro.removeStorageSync('manager_welcome_shown')
-Taro.removeStorageSync('super_admin_welcome_shown')
-Taro.removeStorageSync('driver_welcome_shown')
-```
-
-## 相关文件
-
-### 新增文件
-- `supabase/migrations/00033_012_enable_realtime.sql` - Realtime 启用迁移
-- `scripts/clear-notification-cache.js` - 缓存清除脚本
-- `NOTIFICATION_FIX_SUMMARY.md` - 修复总结文档
-
-### 修改文件
-- `src/hooks/useRealtimeNotifications.ts` - 增强调试日志
-- `src/hooks/useNotifications.ts` - 增强调试日志
-- `src/components/NotificationBar/index.tsx` - 修复颜色、增强日志
-- `src/pages/manager/index.tsx` - 修复 localStorage、增强日志
-- `src/pages/super-admin/index.tsx` - 修复 localStorage、增强日志
-- `src/pages/driver/index.tsx` - 修复 localStorage、增强日志
-- `NOTIFICATION_SYSTEM.md` - 更新文档，添加测试说明
+**修复效果：**
+- ✅ 防止访问 undefined 对象的属性
+- ✅ 避免页面崩溃
+- ✅ 提供调试信息
 
 ## 技术细节
 
-### Supabase Realtime 工作原理
-
-1. **REPLICA IDENTITY FULL**：确保 Postgres 在复制日志中包含完整的行数据
-2. **Publication**：将表添加到 `supabase_realtime` publication，使其变更可被订阅
-3. **Channel**：创建订阅通道，监听特定表的变更事件
-4. **Filter**：可以使用过滤器只接收特定条件的变更（如 `driver_id=eq.xxx`）
+### 轮询间隔选择
+- **当前设置**：10 秒
+- **理由**：平衡响应速度和服务器负载
+- **可调整**：根据实际需求调整 `POLLING_INTERVAL` 常量
 
 ### 防抖机制
+使用 `lastCheckTime` 记录上次检查时间，只处理新增或更新的记录：
 
-为避免短时间内重复通知，实现了防抖机制：
-- 每个通知类型有独立的防抖计时器
-- 默认最小间隔 3 秒
-- 在间隔时间内的重复通知会被忽略
-
-### 通知流程
-
-```
-数据库变更 → Supabase Realtime → Channel 回调 → showNotification
-                                                        ↓
-                                    Toast + 震动 + onNewNotification
-                                                        ↓
-                                                  useNotifications
-                                                        ↓
-                                                  NotificationBar
+```typescript
+const newApplications = applications.filter(
+  (app) => new Date(app.created_at).getTime() > lastCheckTime.current && 
+           app.status === 'pending'
+)
 ```
 
-## 后续优化建议
+### 调试日志
+添加了详细的日志，方便排查问题：
+- 🔄 轮询启动和检查
+- 📨 发现新通知
+- 📝 状态变化
+- ❌ 错误信息
 
-1. **通知历史记录**：添加查看历史通知的功能
-2. **通知设置**：允许用户自定义通知开关、声音等
-3. **通知分类**：支持按类型筛选通知
-4. **通知标记**：支持批量标记已读
-5. **通知跳转**：优化通知点击后的页面跳转逻辑
-6. **离线通知**：支持离线时的通知缓存和同步
+## 测试建议
+
+### 1. 管理员接收通知测试
+1. 使用司机账号提交请假申请
+2. 切换到管理员账号
+3. 等待 10 秒（轮询间隔）
+4. 检查是否收到通知（Toast + 震动 + 通知栏）
+
+### 2. 司机接收审批结果测试
+1. 使用管理员账号审批请假申请
+2. 切换到司机账号
+3. 等待 10 秒
+4. 检查是否收到审批结果通知
+
+### 3. 控制台日志检查
+打开浏览器控制台，查看以下日志：
+- `🔄 [轮询] 启动轮询通知系统`
+- `🔄 [轮询] 开始检查数据更新...`
+- `📨 [轮询] 发现新的请假申请: X 条`
+
+## 性能优化建议
+
+### 1. 合并查询
+当前每个检查函数都单独查询数据库，可以考虑合并查询：
+```typescript
+// 一次性获取所有需要的数据
+const [leaves, resignations, attendance] = await Promise.all([
+  getAllLeaveApplications(),
+  getAllResignationApplications(),
+  getAllAttendanceRecords()
+])
+```
+
+### 2. 增量查询
+使用时间戳过滤，只查询最近更新的记录：
+```typescript
+const applications = await getLeaveApplicationsSince(lastCheckTime.current)
+```
+
+### 3. 智能轮询
+根据用户活跃度动态调整轮询间隔：
+- 用户活跃时：5 秒
+- 用户不活跃时：30 秒
+- 页面不可见时：暂停轮询
+
+## 未来改进方向
+
+### 1. 切换回 Realtime（如果可能）
+如果代理服务器支持 WebSocket，可以切换回 Realtime：
+- 更低的延迟
+- 更少的服务器负载
+- 更好的用户体验
+
+### 2. 混合方案
+结合 Realtime 和轮询：
+- 优先使用 Realtime
+- Realtime 失败时自动降级到轮询
+- 定期尝试重新连接 Realtime
+
+### 3. 服务端推送
+使用服务端推送技术（如 Server-Sent Events）：
+- 单向通信，更简单
+- 不需要 WebSocket 支持
+- 更好的兼容性
+
+## 相关文档
+- [REALTIME_CONNECTION_ISSUE.md](./REALTIME_CONNECTION_ISSUE.md) - Realtime 连接问题详细说明
+
+## 修复状态
+- ✅ Realtime 连接问题已通过轮询方案解决
+- ✅ NotificationBar 组件崩溃已修复
+- ✅ 所有页面已更新使用轮询通知
+- ✅ 代码 lint 检查通过（通知相关部分）
+- ✅ 添加了详细的调试日志
+
+## 总结
+通过实现轮询通知系统和修复 NotificationBar 组件，成功解决了通知系统的两个关键问题。虽然轮询不如 Realtime 实时，但在当前环境下是一个可靠的降级方案，能够确保通知功能正常工作。
