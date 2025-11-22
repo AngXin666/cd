@@ -526,7 +526,7 @@ const VehicleList: React.FC = () => {
                       ) : (
                         <>
                           <Button
-                            className={`${vehicle.status === 'active' && !vehicle.return_time && !isManagerView && vehicle.review_status === 'approved' ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
+                            className={`${(vehicle.status === 'active' || vehicle.status === 'picked_up') && !vehicle.return_time && !isManagerView && vehicle.review_status === 'approved' ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
                             size="default"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -538,10 +538,31 @@ const VehicleList: React.FC = () => {
                             </View>
                           </Button>
                           {/* 还车按钮 - 仅在已提车未还车、审核通过且非管理员视图时显示 */}
-                          {(vehicle.status === 'active' || vehicle.status === 'picked_up') &&
-                            !vehicle.return_time &&
-                            !isManagerView &&
-                            vehicle.review_status === 'approved' && (
+                          {(() => {
+                            const showReturnButton =
+                              (vehicle.status === 'active' || vehicle.status === 'picked_up') &&
+                              !vehicle.return_time &&
+                              !isManagerView &&
+                              vehicle.review_status === 'approved'
+
+                            // 调试日志
+                            logger.info('还车按钮显示条件检查', {
+                              vehicleId: vehicle.id,
+                              plateNumber: vehicle.plate_number,
+                              status: vehicle.status,
+                              reviewStatus: vehicle.review_status,
+                              returnTime: vehicle.return_time,
+                              isManagerView,
+                              showReturnButton,
+                              conditions: {
+                                statusCheck: vehicle.status === 'active' || vehicle.status === 'picked_up',
+                                noReturnTime: !vehicle.return_time,
+                                notManagerView: !isManagerView,
+                                approved: vehicle.review_status === 'approved'
+                              }
+                            })
+
+                            return showReturnButton ? (
                               <Button
                                 className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
                                 size="default"
@@ -554,7 +575,8 @@ const VehicleList: React.FC = () => {
                                   <Text className="font-medium">还车</Text>
                                 </View>
                               </Button>
-                            )}
+                            ) : null
+                          })()}
                         </>
                       )}
                     </View>
