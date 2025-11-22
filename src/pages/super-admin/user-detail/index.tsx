@@ -3,7 +3,7 @@
  * 显示用户的完整个人信息
  */
 
-import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
+import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -223,7 +223,7 @@ const UserDetail: React.FC = () => {
   }
 
   // 获取角色颜色
-  const getRoleColor = (role: string) => {
+  const _getRoleColor = (role: string) => {
     switch (role) {
       case 'driver':
         return {bg: 'bg-blue-100', text: 'text-blue-700', icon: 'i-mdi-steering'}
@@ -288,322 +288,387 @@ const UserDetail: React.FC = () => {
   }
 
   // 渲染图片组件（带错误处理）
-  const renderImage = (path: string | null | undefined, label: string, className: string = 'w-full h-40') => {
+  const _renderImage = (path: string | null | undefined, label: string, className: string = 'w-full h-40') => {
     return <ImageWithFallback path={path} label={label} className={className} onPreview={handlePreviewImage} />
+  }
+
+  // 计算年龄
+  const calculateAge = (birthDate: string | null | undefined): number | null => {
+    if (!birthDate) return null
+    const birth = new Date(birthDate)
+    const today = new Date()
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    return age
+  }
+
+  // 计算驾龄
+  const calculateDrivingYears = (firstIssueDate: string | null | undefined): number | null => {
+    if (!firstIssueDate) return null
+    const issueDate = new Date(firstIssueDate)
+    const today = new Date()
+    let years = today.getFullYear() - issueDate.getFullYear()
+    const monthDiff = today.getMonth() - issueDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < issueDate.getDate())) {
+      years--
+    }
+    return years
   }
 
   if (loading) {
     return (
-      <View className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-blue-50 to-blue-100">
-        <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
-        <Text className="text-gray-600 font-medium">加载中...</Text>
+      <View className="flex items-center justify-center min-h-screen bg-gray-50">
+        <View className="i-mdi-loading animate-spin text-5xl text-blue-500" />
+        <Text className="text-gray-600 mt-4 text-base">加载中...</Text>
       </View>
     )
   }
 
   if (!userInfo) {
     return (
-      <View className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-blue-50 to-blue-100">
-        <View className="bg-blue-50 rounded-full p-6 mb-4">
-          <View className="i-mdi-account-off text-6xl text-blue-300"></View>
-        </View>
-        <Text className="text-gray-800 text-lg font-medium">用户不存在</Text>
-      </View>
-    )
-  }
-
-  const _roleColor = getRoleColor(userInfo.role)
-
-  return (
-    <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        <View className="p-4">
-          {/* 司机实名认证信息 */}
-          {userInfo.role === 'driver' && (
-            <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
-              <View className="flex items-center mb-4">
-                <View className="i-mdi-card-account-details text-2xl text-orange-600 mr-2"></View>
-                <Text className="text-lg font-bold text-gray-800">实名认证信息</Text>
-              </View>
-
-              {driverLicense ? (
-                <>
-                  {/* 身份证信息 */}
-                  <View className="mb-6">
-                    <View className="flex items-center mb-3">
-                      <View className="i-mdi-card-account-details-outline text-xl text-blue-600 mr-2"></View>
-                      <Text className="text-base font-bold text-gray-800">身份证信息</Text>
-                    </View>
-
-                    {/* 姓名 */}
-                    {driverLicense.id_card_name && (
-                      <View className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-green-600 mb-1 block">真实姓名</Text>
-                            <Text className="text-base text-green-900 font-bold block">
-                              {driverLicense.id_card_name}
-                            </Text>
-                          </View>
-                          <View className="bg-green-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-account text-xl text-green-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 电话号码 */}
-                    {userInfo.phone && (
-                      <View className="bg-gradient-to-r from-sky-50 to-sky-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-sky-600 mb-1 block">电话号码</Text>
-                            <Text className="text-base text-sky-900 font-bold block tracking-wider">
-                              {userInfo.phone}
-                            </Text>
-                          </View>
-                          <View className="bg-sky-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-phone text-xl text-sky-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 出生日期 */}
-                    {driverLicense.id_card_birth_date && (
-                      <View className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-purple-600 mb-1 block">出生日期</Text>
-                            <Text className="text-base text-purple-900 font-medium block">
-                              {new Date(driverLicense.id_card_birth_date).toLocaleDateString('zh-CN')}
-                            </Text>
-                          </View>
-                          <View className="bg-purple-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-cake-variant text-xl text-purple-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 身份证号码 */}
-                    {driverLicense.id_card_number && (
-                      <View className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-blue-600 mb-1 block">身份证号码</Text>
-                            <Text className="text-base text-blue-900 font-bold block tracking-wider">
-                              {driverLicense.id_card_number}
-                            </Text>
-                          </View>
-                          <View className="bg-blue-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-identifier text-xl text-blue-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 身份证地址 */}
-                    {driverLicense.id_card_address && (
-                      <View className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center">
-                          <View className="bg-amber-200 rounded-full w-10 h-10 flex items-center justify-center mr-3 shrink-0">
-                            <View className="i-mdi-home-map-marker text-xl text-amber-700"></View>
-                          </View>
-                          <View className="flex-1">
-                            <Text className="text-xs text-amber-600 mb-1 block">身份证地址</Text>
-                            <Text className="text-sm text-amber-900 font-medium block leading-relaxed">
-                              {driverLicense.id_card_address}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 签发机关 */}
-                    {driverLicense.issue_authority && (
-                      <View className="bg-gradient-to-r from-rose-50 to-rose-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center">
-                          <View className="bg-rose-200 rounded-full w-10 h-10 flex items-center justify-center mr-3 shrink-0">
-                            <View className="i-mdi-shield-account text-xl text-rose-700"></View>
-                          </View>
-                          <View className="flex-1">
-                            <Text className="text-xs text-rose-600 mb-1 block">签发机关</Text>
-                            <Text className="text-sm text-rose-900 font-medium block leading-relaxed">
-                              {driverLicense.issue_authority}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 身份证照片 */}
-                    {(driverLicense.id_card_photo_front || driverLicense.id_card_photo_back) && (
-                      <View className="mt-4">
-                        <Text className="text-sm text-gray-600 mb-3 block">身份证照片</Text>
-                        <View className="flex gap-3">
-                          {/* 身份证正面 */}
-                          {driverLicense.id_card_photo_front && (
-                            <View className="flex-1">
-                              {renderImage(driverLicense.id_card_photo_front, '身份证正面')}
-                            </View>
-                          )}
-
-                          {/* 身份证反面 */}
-                          {driverLicense.id_card_photo_back && (
-                            <View className="flex-1">
-                              {renderImage(driverLicense.id_card_photo_back, '身份证反面')}
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 如果没有任何身份证信息 */}
-                    {!driverLicense.id_card_number &&
-                      !driverLicense.id_card_name &&
-                      !driverLicense.id_card_birth_date &&
-                      !driverLicense.id_card_address &&
-                      !driverLicense.issue_authority &&
-                      !driverLicense.id_card_photo_front &&
-                      !driverLicense.id_card_photo_back && (
-                        <View className="bg-gray-50 rounded-xl p-6 text-center">
-                          <View className="i-mdi-alert-circle-outline text-4xl text-gray-400 mb-2"></View>
-                          <Text className="text-gray-500 text-sm">暂无身份证信息</Text>
-                        </View>
-                      )}
-                  </View>
-
-                  {/* 驾驶证信息 */}
-                  <View className="border-t border-gray-200 pt-6">
-                    <View className="flex items-center mb-3">
-                      <View className="i-mdi-card-account-details text-xl text-orange-600 mr-2"></View>
-                      <Text className="text-base font-bold text-gray-800">驾驶证信息</Text>
-                    </View>
-
-                    {/* 驾驶证号码 */}
-                    {driverLicense.license_number && (
-                      <View className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-orange-600 mb-1 block">驾驶证号码</Text>
-                            <Text className="text-base text-orange-900 font-bold block tracking-wider">
-                              {driverLicense.license_number}
-                            </Text>
-                          </View>
-                          <View className="bg-orange-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-card-text text-xl text-orange-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 准驾车型 */}
-                    {driverLicense.license_class && (
-                      <View className="bg-gradient-to-r from-cyan-50 to-cyan-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-cyan-600 mb-1 block">准驾车型</Text>
-                            <Text className="text-base text-cyan-900 font-bold block">
-                              {driverLicense.license_class}
-                            </Text>
-                          </View>
-                          <View className="bg-cyan-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-car-side text-xl text-cyan-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 初次领证日期 */}
-                    {driverLicense.first_issue_date && (
-                      <View className="bg-gradient-to-r from-teal-50 to-teal-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-teal-600 mb-1 block">初次领证日期</Text>
-                            <Text className="text-base text-teal-900 font-medium block">
-                              {new Date(driverLicense.first_issue_date).toLocaleDateString('zh-CN')}
-                            </Text>
-                          </View>
-                          <View className="bg-teal-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-calendar-check text-xl text-teal-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 有效期限 */}
-                    {driverLicense.valid_from && driverLicense.valid_to && (
-                      <View className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center">
-                          <View className="bg-indigo-200 rounded-full w-10 h-10 flex items-center justify-center mr-3 shrink-0">
-                            <View className="i-mdi-calendar-range text-xl text-indigo-700"></View>
-                          </View>
-                          <View className="flex-1">
-                            <Text className="text-xs text-indigo-600 mb-1 block">有效期限</Text>
-                            <Text className="text-sm text-indigo-900 font-medium block">
-                              {new Date(driverLicense.valid_from).toLocaleDateString('zh-CN')} 至{' '}
-                              {new Date(driverLicense.valid_to).toLocaleDateString('zh-CN')}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 驾驶证照片 */}
-                    {driverLicense.driving_license_photo && (
-                      <View className="mt-4">
-                        <Text className="text-sm text-gray-600 mb-3 block">驾驶证照片</Text>
-                        {renderImage(driverLicense.driving_license_photo, '驾驶证照片')}
-                      </View>
-                    )}
-
-                    {/* 如果没有任何驾驶证信息 */}
-                    {!driverLicense.license_number &&
-                      !driverLicense.license_class &&
-                      !driverLicense.valid_from &&
-                      !driverLicense.valid_to &&
-                      !driverLicense.first_issue_date &&
-                      !driverLicense.driving_license_photo && (
-                        <View className="bg-gray-50 rounded-xl p-6 text-center">
-                          <View className="i-mdi-alert-circle-outline text-4xl text-gray-400 mb-2"></View>
-                          <Text className="text-gray-500 text-sm">暂无驾驶证信息</Text>
-                        </View>
-                      )}
-                  </View>
-                </>
-              ) : (
-                /* 如果完全没有驾驶证记录 */
-                <View className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl p-6 border-2 border-yellow-200">
-                  <View className="flex items-center justify-center mb-3">
-                    <View className="bg-yellow-200 rounded-full w-16 h-16 flex items-center justify-center">
-                      <View className="i-mdi-alert text-3xl text-yellow-700"></View>
-                    </View>
-                  </View>
-                  <Text className="text-center text-yellow-800 font-medium mb-2 block">该司机尚未录入实名信息</Text>
-                  <Text className="text-center text-yellow-600 text-sm block">
-                    请提醒司机在个人中心完成身份证和驾驶证的实名认证
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* 返回按钮 */}
-          <View className="pb-6">
-            <Button
-              className="w-full bg-white text-gray-700 py-4 rounded-xl break-keep text-base font-medium border border-gray-200"
-              size="default"
-              onClick={() => Taro.navigateBack()}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-arrow-left text-lg text-gray-700 mr-2"></View>
-                <Text className="text-gray-700">返回</Text>
-              </View>
-            </Button>
+      <ScrollView scrollY className="min-h-screen bg-gray-50">
+        <View className="p-6">
+          <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+            <View className="i-mdi-alert-circle text-7xl text-gray-300 mx-auto mb-4" />
+            <Text className="text-gray-800 text-xl font-bold block mb-2">用户不存在</Text>
+            <Text className="text-gray-500 text-base block">无法找到该用户信息</Text>
           </View>
         </View>
       </ScrollView>
-    </View>
+    )
+  }
+
+  // 计算年龄和驾龄
+  const age = calculateAge(driverLicense?.id_card_birth_date)
+  const drivingYears = calculateDrivingYears(driverLicense?.first_issue_date)
+
+  return (
+    <ScrollView scrollY className="min-h-screen bg-gray-50">
+      <View className="p-4 pb-8">
+        {/* 司机头部信息卡片 */}
+        {userInfo.role === 'driver' && driverLicense && (
+          <View className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 mb-4 shadow-lg">
+            <View className="flex items-center">
+              <View className="bg-white bg-opacity-20 rounded-full p-4 mr-4">
+                <View className="i-mdi-account text-white text-4xl" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-white text-2xl font-bold block mb-1">
+                  {driverLicense.id_card_name || '未识别'}
+                </Text>
+                <Text className="text-blue-100 text-sm block">{userInfo.phone || '未设置手机号'}</Text>
+              </View>
+            </View>
+            {age !== null && (
+              <View className="mt-4 pt-4 border-t border-white border-opacity-20 flex items-center justify-between">
+                <View className="flex items-center">
+                  <View className="i-mdi-cake-variant text-white text-xl mr-2" />
+                  <Text className="text-white text-sm">{age} 岁</Text>
+                </View>
+                {drivingYears !== null && (
+                  <View className="flex items-center">
+                    <View className="i-mdi-steering text-white text-xl mr-2" />
+                    <Text className="text-white text-sm">驾龄 {drivingYears} 年</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* 身份证信息卡片 */}
+        {userInfo.role === 'driver' && driverLicense && (
+          <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
+            <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
+              <View className="bg-blue-50 rounded-full p-2.5 mr-3">
+                <View className="i-mdi-card-account-details text-blue-600 text-2xl" />
+              </View>
+              <Text className="text-gray-800 text-lg font-bold">身份证信息</Text>
+            </View>
+
+            <View className="space-y-4">
+              {/* 姓名 */}
+              {driverLicense.id_card_name && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <Text className="text-gray-500 text-xs mb-1.5 block">真实姓名</Text>
+                  <Text className="text-gray-900 text-base font-medium">{driverLicense.id_card_name}</Text>
+                </View>
+              )}
+
+              {/* 电话号码 */}
+              {userInfo.phone && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <Text className="text-gray-500 text-xs mb-1.5 block">电话号码</Text>
+                  <Text className="text-gray-900 text-base font-mono tracking-wide">{userInfo.phone}</Text>
+                </View>
+              )}
+
+              {/* 出生日期 */}
+              {driverLicense.id_card_birth_date && (
+                <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar text-blue-500 text-xl mr-3" />
+                    <View>
+                      <Text className="text-gray-500 text-xs block mb-0.5">出生日期</Text>
+                      <Text className="text-gray-900 text-sm font-medium">{driverLicense.id_card_birth_date}</Text>
+                    </View>
+                  </View>
+                  {age !== null && (
+                    <View className="bg-blue-100 px-3 py-1.5 rounded-full">
+                      <Text className="text-blue-700 text-xs font-medium">{age} 岁</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* 身份证号 */}
+              {driverLicense.id_card_number && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <Text className="text-gray-500 text-xs mb-1.5 block">身份证号码</Text>
+                  <Text className="text-gray-900 text-base font-mono tracking-wide">
+                    {driverLicense.id_card_number}
+                  </Text>
+                </View>
+              )}
+
+              {/* 地址 */}
+              {driverLicense.id_card_address && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-start">
+                    <View className="i-mdi-map-marker text-blue-500 text-xl mr-3 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-gray-500 text-xs block mb-1.5">户籍地址</Text>
+                      <Text className="text-gray-900 text-sm leading-relaxed">{driverLicense.id_card_address}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* 签发机关 */}
+              {driverLicense.issue_authority && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-start">
+                    <View className="i-mdi-office-building text-blue-500 text-xl mr-3 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-gray-500 text-xs block mb-1.5">签发机关</Text>
+                      <Text className="text-gray-900 text-sm leading-relaxed">{driverLicense.issue_authority}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* 身份证照片 */}
+            {(driverLicense.id_card_photo_front || driverLicense.id_card_photo_back) && (
+              <View className="mt-5 pt-5 border-t border-gray-100">
+                <Text className="text-gray-700 text-base font-medium mb-4 block">证件照片</Text>
+                <View className="grid grid-cols-2 gap-3">
+                  {/* 身份证正面 */}
+                  {driverLicense.id_card_photo_front && (
+                    <View>
+                      <View className="bg-blue-50 px-2 py-1 rounded-t-lg">
+                        <Text className="text-blue-700 text-xs font-medium text-center">正面</Text>
+                      </View>
+                      <Image
+                        src={getImageUrl(driverLicense.id_card_photo_front)}
+                        mode="aspectFit"
+                        className="w-full h-40 bg-gray-100 rounded-b-lg border border-gray-200"
+                        onClick={() => {
+                          Taro.previewImage({
+                            urls: [getImageUrl(driverLicense.id_card_photo_front!)],
+                            current: getImageUrl(driverLicense.id_card_photo_front!)
+                          })
+                        }}
+                      />
+                    </View>
+                  )}
+                  {/* 身份证背面 */}
+                  {driverLicense.id_card_photo_back && (
+                    <View>
+                      <View className="bg-green-50 px-2 py-1 rounded-t-lg">
+                        <Text className="text-green-700 text-xs font-medium text-center">背面</Text>
+                      </View>
+                      <Image
+                        src={getImageUrl(driverLicense.id_card_photo_back)}
+                        mode="aspectFit"
+                        className="w-full h-40 bg-gray-100 rounded-b-lg border border-gray-200"
+                        onClick={() => {
+                          Taro.previewImage({
+                            urls: [getImageUrl(driverLicense.id_card_photo_back!)],
+                            current: getImageUrl(driverLicense.id_card_photo_back!)
+                          })
+                        }}
+                      />
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* 驾驶证信息卡片 */}
+        {userInfo.role === 'driver' && driverLicense && (
+          <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+            <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
+              <View className="bg-green-50 rounded-full p-2.5 mr-3">
+                <View className="i-mdi-card-account-details-outline text-green-600 text-2xl" />
+              </View>
+              <Text className="text-gray-800 text-lg font-bold">驾驶证信息</Text>
+            </View>
+
+            <View className="space-y-4">
+              {/* 驾驶证号 */}
+              {driverLicense.license_number && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <Text className="text-gray-500 text-xs mb-1.5 block">驾驶证号</Text>
+                  <Text className="text-gray-900 text-base font-mono tracking-wide">
+                    {driverLicense.license_number}
+                  </Text>
+                </View>
+              )}
+
+              {/* 准驾车型 */}
+              {driverLicense.license_class && (
+                <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-car text-green-500 text-xl mr-3" />
+                    <View>
+                      <Text className="text-gray-500 text-xs block mb-0.5">准驾车型</Text>
+                      <Text className="text-gray-900 text-sm font-medium">{driverLicense.license_class}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* 初次领证日期 */}
+              {driverLicense.first_issue_date && (
+                <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar-check text-green-500 text-xl mr-3" />
+                    <View>
+                      <Text className="text-gray-500 text-xs block mb-0.5">初次领证日期</Text>
+                      <Text className="text-gray-900 text-sm font-medium">{driverLicense.first_issue_date}</Text>
+                    </View>
+                  </View>
+                  {drivingYears !== null && (
+                    <View className="bg-green-100 px-3 py-1.5 rounded-full">
+                      <Text className="text-green-700 text-xs font-medium">驾龄 {drivingYears} 年</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* 有效期 */}
+              {driverLicense.valid_from && driverLicense.valid_to && (
+                <View className="bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-start mb-3">
+                    <View className="i-mdi-clock-outline text-orange-500 text-xl mr-3 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-gray-500 text-xs block mb-2">证件有效期</Text>
+                      <View className="space-y-2">
+                        <View className="flex items-center">
+                          <Text className="text-gray-600 text-xs mr-2">起：</Text>
+                          <Text className="text-gray-900 text-sm">{driverLicense.valid_from}</Text>
+                        </View>
+                        <View className="flex items-center">
+                          <Text className="text-gray-600 text-xs mr-2">至：</Text>
+                          <Text className="text-gray-900 text-sm">{driverLicense.valid_to}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* 驾驶证照片 */}
+            {driverLicense.driving_license_photo && (
+              <View className="mt-5 pt-5 border-t border-gray-100">
+                <Text className="text-gray-700 text-base font-medium mb-4 block">驾驶证照片</Text>
+                <View className="bg-purple-50 px-2 py-1 rounded-t-lg">
+                  <Text className="text-purple-700 text-xs font-medium text-center">驾驶证</Text>
+                </View>
+                <Image
+                  src={getImageUrl(driverLicense.driving_license_photo)}
+                  mode="aspectFit"
+                  className="w-full h-48 bg-gray-100 rounded-b-lg border border-gray-200"
+                  onClick={() => {
+                    Taro.previewImage({
+                      urls: [getImageUrl(driverLicense.driving_license_photo!)],
+                      current: getImageUrl(driverLicense.driving_license_photo!)
+                    })
+                  }}
+                />
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* 如果司机没有实名认证信息 */}
+        {userInfo.role === 'driver' && !driverLicense && (
+          <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100 mb-4">
+            <View className="i-mdi-alert-circle text-7xl text-gray-300 mx-auto mb-4" />
+            <Text className="text-gray-800 text-xl font-bold block mb-2">暂无实名认证信息</Text>
+            <Text className="text-gray-500 text-base block">该司机尚未录入实名认证信息</Text>
+          </View>
+        )}
+
+        {/* 用户车辆信息 */}
+        {userInfo.role === 'driver' && _vehicles.length > 0 && (
+          <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+            <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
+              <View className="bg-purple-50 rounded-full p-2.5 mr-3">
+                <View className="i-mdi-car-multiple text-purple-600 text-2xl" />
+              </View>
+              <Text className="text-gray-800 text-lg font-bold">车辆信息</Text>
+            </View>
+
+            <View className="space-y-3">
+              {_vehicles.map((vehicle, index) => (
+                <View key={vehicle.id} className="bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center justify-between mb-2">
+                    <Text className="text-gray-900 text-base font-bold">{vehicle.plate_number}</Text>
+                    <View className="bg-purple-100 px-3 py-1 rounded-full">
+                      <Text className="text-purple-700 text-xs font-medium">车辆 {index + 1}</Text>
+                    </View>
+                  </View>
+                  {vehicle.model && <Text className="text-gray-600 text-sm">车型：{vehicle.model}</Text>}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 用户仓库信息 */}
+        {userInfo.role === 'manager' && _warehouses.length > 0 && (
+          <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+            <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
+              <View className="bg-orange-50 rounded-full p-2.5 mr-3">
+                <View className="i-mdi-warehouse text-orange-600 text-2xl" />
+              </View>
+              <Text className="text-gray-800 text-lg font-bold">管理仓库</Text>
+            </View>
+
+            <View className="space-y-3">
+              {_warehouses.map((warehouse, index) => (
+                <View key={warehouse.id} className="bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center justify-between">
+                    <Text className="text-gray-900 text-base font-bold">{warehouse.name}</Text>
+                    <View className="bg-orange-100 px-3 py-1 rounded-full">
+                      <Text className="text-orange-700 text-xs font-medium">仓库 {index + 1}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   )
 }
 
