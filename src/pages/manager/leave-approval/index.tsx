@@ -459,7 +459,7 @@ const ManagerLeaveApproval: React.FC = () => {
 
       const success = await reviewLeaveApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
-        reviewer_id: user.id,
+        reviewed_by: user.id,
         reviewed_at: new Date().toISOString()
       })
 
@@ -493,7 +493,7 @@ const ManagerLeaveApproval: React.FC = () => {
 
       const success = await reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
-        reviewer_id: user.id,
+        reviewed_by: user.id,
         reviewed_at: new Date().toISOString()
       })
 

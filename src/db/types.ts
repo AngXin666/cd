@@ -337,8 +337,8 @@ export interface ResignationApplicationInput {
 // 审批申请的输入接口
 export interface ApplicationReviewInput {
   status: 'approved' | 'rejected'
-  reviewer_id: string
-  review_comment?: string
+  reviewed_by: string
+  review_notes?: string
   reviewed_at: string
 }
 

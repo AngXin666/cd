@@ -139,8 +139,8 @@ const DriverAttendanceDetail: React.FC = () => {
 
         const success = await reviewLeaveApplication(leaveId, {
           status,
-          reviewer_id: user.id,
-          review_comment: null,
+          reviewed_by: user.id,
+          review_notes: undefined,
           reviewed_at: new Date().toISOString()
         })
 

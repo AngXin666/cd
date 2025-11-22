@@ -246,8 +246,8 @@ const DriverLeaveDetail: React.FC = () => {
 
     const success = await reviewLeaveApplication(applicationId, {
       status: 'approved',
-      reviewer_id: user.id,
-      review_comment: '已通过',
+      reviewed_by: user.id,
+      review_notes: '已通过',
       reviewed_at: new Date().toISOString()
     })
 
@@ -272,8 +272,8 @@ const DriverLeaveDetail: React.FC = () => {
 
     const success = await reviewLeaveApplication(applicationId, {
       status: 'rejected',
-      reviewer_id: user.id,
-      review_comment: '已驳回',
+      reviewed_by: user.id,
+      review_notes: '已驳回',
       reviewed_at: new Date().toISOString()
     })
 
@@ -298,8 +298,8 @@ const DriverLeaveDetail: React.FC = () => {
 
     const success = await reviewResignationApplication(applicationId, {
       status: 'approved',
-      reviewer_id: user.id,
-      review_comment: '已通过',
+      reviewed_by: user.id,
+      review_notes: '已通过',
       reviewed_at: new Date().toISOString()
     })
 
@@ -324,8 +324,8 @@ const DriverLeaveDetail: React.FC = () => {
 
     const success = await reviewResignationApplication(applicationId, {
       status: 'rejected',
-      reviewer_id: user.id,
-      review_comment: '已驳回',
+      reviewed_by: user.id,
+      review_notes: '已驳回',
       reviewed_at: new Date().toISOString()
     })
 

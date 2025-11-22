@@ -1692,8 +1692,8 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     .from('leave_applications')
     .update({
       status: review.status,
-      reviewed_by: review.reviewer_id,
-      review_notes: review.review_comment || null,
+      reviewed_by: review.reviewed_by,
+      review_notes: review.review_notes || null,
       reviewed_at: review.reviewed_at
     })
     .eq('id', applicationId)
@@ -1859,8 +1859,8 @@ export async function reviewResignationApplication(
     .from('resignation_applications')
     .update({
       status: review.status,
-      reviewed_by: review.reviewer_id,
-      review_notes: review.review_comment || null,
+      reviewed_by: review.reviewed_by,
+      review_notes: review.review_notes || null,
       reviewed_at: review.reviewed_at
     })
     .eq('id', applicationId)

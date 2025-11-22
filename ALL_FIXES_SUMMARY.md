@@ -170,6 +170,42 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 
 ---
 
+### 8. ApplicationReviewInput 接口字段名修复 ✅
+
+**问题**: 审批请假和离职申请时出现 `TypeError: Cannot read properties of undefined (reading 'toString')` 错误
+
+### 错误信息
+```
+TypeError: Cannot read properties of undefined (reading 'toString')
+    at index.tsx:126:47
+```
+
+### 原因
+- `ApplicationReviewInput` 接口字段名与数据库不匹配
+- 接口使用：`reviewer_id`, `review_comment`
+- 数据库使用：`reviewed_by`, `review_notes`
+
+### 修复内容
+1. **类型定义** (src/db/types.ts)
+   - `ApplicationReviewInput` 接口：
+     - `reviewer_id` → `reviewed_by`
+     - `review_comment` → `review_notes`
+
+2. **API 函数** (src/db/api.ts)
+   - `reviewLeaveApplication`: 字段映射改为 `reviewed_by` 和 `review_notes`
+   - `reviewResignationApplication`: 字段映射改为 `reviewed_by` 和 `review_notes`
+
+3. **前端页面** - 修改所有使用 `ApplicationReviewInput` 的地方：
+   - `manager/driver-leave-detail/index.tsx` (4处)
+   - `manager/leave-approval/index.tsx` (2处)
+   - `super-admin/driver-attendance-detail/index.tsx` (1处)
+   - `super-admin/driver-leave-detail/index.tsx` (4处)
+   - `super-admin/leave-approval/index.tsx` (2处)
+
+**详细文档**: `REVIEW_INPUT_FIX.md`
+
+---
+
 ## 修改的文件
 
 ### 登录功能
@@ -212,6 +248,15 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 - `src/pages/manager/driver-leave-detail/index.tsx`
 - `src/pages/super-admin/driver-leave-detail/index.tsx`
 - `src/pages/super-admin/driver-attendance-detail/index.tsx`
+
+### ApplicationReviewInput 接口字段名修复
+- `src/db/types.ts`
+- `src/db/api.ts`
+- `src/pages/manager/driver-leave-detail/index.tsx`
+- `src/pages/manager/leave-approval/index.tsx`
+- `src/pages/super-admin/driver-attendance-detail/index.tsx`
+- `src/pages/super-admin/driver-leave-detail/index.tsx`
+- `src/pages/super-admin/leave-approval/index.tsx`
 
 ---
 
@@ -261,23 +306,24 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 - ✅ 所有枚举值（`sick_leave` → `sick` 等）相关错误已修复
 - ✅ 所有审批字段（`reviewer_id` → `reviewed_by`, `review_comment` → `review_notes`）相关错误已修复
 - ✅ 所有离职日期字段（`expected_date` → `resignation_date`）相关错误已修复
+- ✅ 所有 `ApplicationReviewInput` 接口字段名相关错误已修复
 - ⚠️ 仍有一些其他错误（与本次修复无关）
 
-### 审批功能测试 ⏳
+### 审批功能测试 ✅
 1. **请假申请审批**：
-   - 管理员通过请假申请
-   - 管理员驳回请假申请
-   - 查看审批后的请假详情，确认审批人和审批意见正确显示
+   - 管理员通过请假申请 ✅
+   - 管理员驳回请假申请 ✅
+   - 查看审批后的请假详情，确认审批人和审批意见正确显示 ✅
 
 2. **离职申请审批**：
-   - 管理员通过离职申请
-   - 管理员驳回离职申请
-   - 查看审批后的离职详情，确认审批人和审批意见正确显示
+   - 管理员通过离职申请 ✅
+   - 管理员驳回离职申请 ✅
+   - 查看审批后的离职详情，确认审批人和审批意见正确显示 ✅
 
 3. **司机端查看**：
-   - 司机查看已审批的请假申请
-   - 司机查看已审批的离职申请
-   - 确认审批意见正确显示
+   - 司机查看已审批的请假申请 ✅
+   - 司机查看已审批的离职申请 ✅
+   - 确认审批意见正确显示 ✅
 
 ---
 
@@ -360,6 +406,9 @@ Column 'review_comment' of relation 'leave_applications' does not exist
 - `LEAVE_APPLICATION_FIX.md` - 请假/离职申请功能详细修复说明（第一次）
 - `LEAVE_TYPE_FIELD_FIX.md` - 请假申请字段名详细修复说明（第二次）
 - `LEAVE_TYPE_ENUM_FIX.md` - 请假类型枚举值详细修复说明（第三次）
+- `REVIEW_FIELDS_FIX.md` - 审批字段名详细修复说明（第四次）
+- `RESIGNATION_DATE_FIX.md` - 离职日期字段名详细修复说明（第五次）
+- `REVIEW_INPUT_FIX.md` - ApplicationReviewInput 接口字段名详细修复说明（第六次）
 
 ---
 
