@@ -300,15 +300,47 @@ const VehicleHistory: React.FC = () => {
           </View>
         </View>
 
-        {/* 司机信息 */}
-        <View className="mb-3">
+        {/* 司机信息 - 显示实名信息 */}
+        <View className="mb-3 bg-blue-50 rounded-lg p-3">
           <View className="flex items-center mb-2">
-            <View className="i-mdi-account text-primary text-base mr-2"></View>
-            <Text className="text-sm font-medium text-gray-800">
-              操作司机：{record.driver_name || record.driver_name_profile || '未知'}
+            <View className="i-mdi-account-circle text-primary text-lg mr-2"></View>
+            <Text className="text-sm font-bold text-gray-800">司机信息</Text>
+          </View>
+          {/* 实名姓名（优先显示身份证姓名） */}
+          <View className="flex items-start mb-1.5 ml-7">
+            <Text className="text-xs text-gray-600 w-16">姓名：</Text>
+            <Text className="text-xs text-gray-800 font-medium flex-1">
+              {record.id_card_name || record.driver_name || record.driver_name_profile || '未知'}
             </Text>
           </View>
-          {record.driver_phone && <Text className="text-xs text-gray-500 ml-6">联系电话：{record.driver_phone}</Text>}
+          {/* 联系电话 */}
+          {record.driver_phone && (
+            <View className="flex items-start mb-1.5 ml-7">
+              <Text className="text-xs text-gray-600 w-16">电话：</Text>
+              <Text className="text-xs text-gray-800 flex-1">{record.driver_phone}</Text>
+            </View>
+          )}
+          {/* 身份证号 */}
+          {record.id_card_number && (
+            <View className="flex items-start mb-1.5 ml-7">
+              <Text className="text-xs text-gray-600 w-16">身份证：</Text>
+              <Text className="text-xs text-gray-800 flex-1">{record.id_card_number}</Text>
+            </View>
+          )}
+          {/* 驾驶证号 */}
+          {record.license_number && (
+            <View className="flex items-start mb-1.5 ml-7">
+              <Text className="text-xs text-gray-600 w-16">驾驶证：</Text>
+              <Text className="text-xs text-gray-800 flex-1">{record.license_number}</Text>
+            </View>
+          )}
+          {/* 准驾车型 */}
+          {record.license_class && (
+            <View className="flex items-start ml-7">
+              <Text className="text-xs text-gray-600 w-16">准驾车型：</Text>
+              <Text className="text-xs text-gray-800 flex-1">{record.license_class}</Text>
+            </View>
+          )}
         </View>
 
         {/* 审核信息（如果有） */}
@@ -475,67 +507,142 @@ const VehicleHistory: React.FC = () => {
                 )}
             </View>
           )}
-          {/* 个人信息Tab - 只显示身份证和驾驶证照片，只在提车记录中显示 */}
+          {/* 个人信息Tab - 显示司机实名信息和证件照片，只在提车记录中显示 */}
           {recordType === 'pickup' && getRecordTab(record.id, recordType) === 'personal' && (
             <View>
-              {/* 身份证正面 */}
-              {record.id_card_photo_front && (
-                <View
-                  className="mb-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const photos = [
-                      record.id_card_photo_front,
-                      record.id_card_photo_back,
-                      record.driving_license_photo
-                    ].filter(Boolean)
-                    handlePreviewImage(record.id_card_photo_front, photos)
-                  }}>
-                  <Text className="text-xs text-gray-500 mb-1 block">身份证正面</Text>
-                  <Image src={record.id_card_photo_front} mode="widthFix" className="w-full rounded-lg" />
+              {/* 司机实名信息卡片 */}
+              {(record.id_card_name ||
+                record.id_card_number ||
+                record.id_card_address ||
+                record.id_card_birth_date) && (
+                <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-4 border border-blue-100">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-account-card-details text-blue-600 text-xl mr-2"></View>
+                    <Text className="text-sm font-bold text-blue-800">实名信息</Text>
+                  </View>
+                  {/* 姓名 */}
+                  {record.id_card_name && (
+                    <View className="flex items-start mb-2">
+                      <Text className="text-xs text-gray-600 w-20">姓名：</Text>
+                      <Text className="text-sm text-gray-900 font-medium flex-1">{record.id_card_name}</Text>
+                    </View>
+                  )}
+                  {/* 身份证号 */}
+                  {record.id_card_number && (
+                    <View className="flex items-start mb-2">
+                      <Text className="text-xs text-gray-600 w-20">身份证号：</Text>
+                      <Text className="text-sm text-gray-900 flex-1">{record.id_card_number}</Text>
+                    </View>
+                  )}
+                  {/* 出生日期 */}
+                  {record.id_card_birth_date && (
+                    <View className="flex items-start mb-2">
+                      <Text className="text-xs text-gray-600 w-20">出生日期：</Text>
+                      <Text className="text-sm text-gray-900 flex-1">{record.id_card_birth_date}</Text>
+                    </View>
+                  )}
+                  {/* 地址 */}
+                  {record.id_card_address && (
+                    <View className="flex items-start">
+                      <Text className="text-xs text-gray-600 w-20">地址：</Text>
+                      <Text className="text-sm text-gray-900 flex-1">{record.id_card_address}</Text>
+                    </View>
+                  )}
                 </View>
               )}
-              {/* 身份证背面 */}
-              {record.id_card_photo_back && (
-                <View
-                  className="mb-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const photos = [
-                      record.id_card_photo_front,
-                      record.id_card_photo_back,
-                      record.driving_license_photo
-                    ].filter(Boolean)
-                    handlePreviewImage(record.id_card_photo_back, photos)
-                  }}>
-                  <Text className="text-xs text-gray-500 mb-1 block">身份证背面</Text>
-                  <Image src={record.id_card_photo_back} mode="widthFix" className="w-full rounded-lg" />
+
+              {/* 驾驶证信息卡片 */}
+              {(record.license_number || record.license_class) && (
+                <View className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 mb-4 border border-green-100">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-card-account-details text-green-600 text-xl mr-2"></View>
+                    <Text className="text-sm font-bold text-green-800">驾驶证信息</Text>
+                  </View>
+                  {/* 驾驶证号 */}
+                  {record.license_number && (
+                    <View className="flex items-start mb-2">
+                      <Text className="text-xs text-gray-600 w-20">驾驶证号：</Text>
+                      <Text className="text-sm text-gray-900 flex-1">{record.license_number}</Text>
+                    </View>
+                  )}
+                  {/* 准驾车型 */}
+                  {record.license_class && (
+                    <View className="flex items-start">
+                      <Text className="text-xs text-gray-600 w-20">准驾车型：</Text>
+                      <Text className="text-sm text-gray-900 font-medium flex-1">{record.license_class}</Text>
+                    </View>
+                  )}
                 </View>
               )}
-              {/* 驾驶证照片 */}
-              {record.driving_license_photo && (
-                <View
-                  className="mb-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const photos = [
-                      record.id_card_photo_front,
-                      record.id_card_photo_back,
-                      record.driving_license_photo
-                    ].filter(Boolean)
-                    handlePreviewImage(record.driving_license_photo, photos)
-                  }}>
-                  <Text className="text-xs text-gray-500 mb-1 block">驾驶证照片</Text>
-                  <Image src={record.driving_license_photo} mode="widthFix" className="w-full rounded-lg" />
-                </View>
-              )}
+
+              {/* 证件照片 */}
+              <View className="bg-gray-50 rounded-xl p-3 mb-2">
+                <Text className="text-xs font-medium text-gray-700 mb-3">证件照片</Text>
+                {/* 身份证正面 */}
+                {record.id_card_photo_front && (
+                  <View
+                    className="mb-3"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const photos = [
+                        record.id_card_photo_front,
+                        record.id_card_photo_back,
+                        record.driving_license_photo
+                      ].filter(Boolean)
+                      handlePreviewImage(record.id_card_photo_front, photos)
+                    }}>
+                    <Text className="text-xs text-gray-500 mb-1 block">身份证正面</Text>
+                    <Image src={record.id_card_photo_front} mode="widthFix" className="w-full rounded-lg" />
+                  </View>
+                )}
+                {/* 身份证背面 */}
+                {record.id_card_photo_back && (
+                  <View
+                    className="mb-3"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const photos = [
+                        record.id_card_photo_front,
+                        record.id_card_photo_back,
+                        record.driving_license_photo
+                      ].filter(Boolean)
+                      handlePreviewImage(record.id_card_photo_back, photos)
+                    }}>
+                    <Text className="text-xs text-gray-500 mb-1 block">身份证背面</Text>
+                    <Image src={record.id_card_photo_back} mode="widthFix" className="w-full rounded-lg" />
+                  </View>
+                )}
+                {/* 驾驶证照片 */}
+                {record.driving_license_photo && (
+                  <View
+                    className="mb-2"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const photos = [
+                        record.id_card_photo_front,
+                        record.id_card_photo_back,
+                        record.driving_license_photo
+                      ].filter(Boolean)
+                      handlePreviewImage(record.driving_license_photo, photos)
+                    }}>
+                    <Text className="text-xs text-gray-500 mb-1 block">驾驶证照片</Text>
+                    <Image src={record.driving_license_photo} mode="widthFix" className="w-full rounded-lg" />
+                  </View>
+                )}
+              </View>
+
               {/* 空状态提示 */}
-              {!record.id_card_photo_front && !record.id_card_photo_back && !record.driving_license_photo && (
-                <View className="flex flex-col items-center justify-center py-10">
-                  <View className="i-mdi-card-account-details-outline text-4xl text-gray-300 mb-2"></View>
-                  <Text className="text-sm text-gray-400">暂无个人信息照片</Text>
-                </View>
-              )}
+              {!record.id_card_name &&
+                !record.id_card_number &&
+                !record.license_number &&
+                !record.id_card_photo_front &&
+                !record.id_card_photo_back &&
+                !record.driving_license_photo && (
+                  <View className="flex flex-col items-center justify-center py-10">
+                    <View className="i-mdi-card-account-details-outline text-4xl text-gray-300 mb-2"></View>
+                    <Text className="text-sm text-gray-400">暂无个人信息</Text>
+                  </View>
+                )}
             </View>
           )}
           {getRecordTab(record.id, recordType) === 'damage' && renderPhotoGrid(record.damage_photos || [], '车损特写')}

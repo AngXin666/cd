@@ -325,26 +325,34 @@ export async function getVehicleRecordsByVehicleId(vehicleId: string): Promise<V
       return []
     }
 
-    // 获取所有司机的证件照片（从driver_licenses表）
+    // 获取所有司机的证件信息（从driver_licenses表）
     const driverIds = records.map((r) => r.driver_id).filter(Boolean)
     const {data: driverLicenses} = await supabase
       .from('driver_licenses')
-      .select('driver_id, id_card_photo_front, id_card_photo_back, driving_license_photo')
+      .select(
+        'driver_id, id_card_name, id_card_number, id_card_address, id_card_birth_date, id_card_photo_front, id_card_photo_back, license_number, license_class, driving_license_photo'
+      )
       .in('driver_id', driverIds)
 
-    // 创建司机ID到证件照片的映射
+    // 创建司机ID到证件信息的映射
     const driverLicenseMap = new Map(
       (driverLicenses || []).map((dl) => [
         dl.driver_id,
         {
+          id_card_name: dl.id_card_name,
+          id_card_number: dl.id_card_number,
+          id_card_address: dl.id_card_address,
+          id_card_birth_date: dl.id_card_birth_date,
           id_card_photo_front: dl.id_card_photo_front,
           id_card_photo_back: dl.id_card_photo_back,
+          license_number: dl.license_number,
+          license_class: dl.license_class,
           driving_license_photo: dl.driving_license_photo
         }
       ])
     )
 
-    // 转换数据格式，并填充证件照片
+    // 转换数据格式，并填充证件信息
     const result: VehicleRecordWithDetails[] = records.map((record) => {
       const driverLicense = driverLicenseMap.get(record.driver_id)
       return {
@@ -352,10 +360,17 @@ export async function getVehicleRecordsByVehicleId(vehicleId: string): Promise<V
         driver_name_profile: record.profiles?.name || null,
         driver_phone: record.profiles?.phone || null,
         driver_email: record.profiles?.email || null,
+        // 添加身份证实名信息
+        id_card_name: driverLicense?.id_card_name || null,
+        id_card_number: driverLicense?.id_card_number || null,
+        id_card_address: driverLicense?.id_card_address || null,
+        id_card_birth_date: driverLicense?.id_card_birth_date || null,
         // 如果vehicle_records表中没有身份证照片，从driver_licenses表中获取
         id_card_photo_front: record.id_card_photo_front || driverLicense?.id_card_photo_front || null,
         id_card_photo_back: record.id_card_photo_back || driverLicense?.id_card_photo_back || null,
-        // 添加驾驶证照片（从driver_licenses表）
+        // 添加驾驶证信息
+        license_number: driverLicense?.license_number || null,
+        license_class: driverLicense?.license_class || null,
         driving_license_photo: driverLicense?.driving_license_photo || null
       } as any
     })
