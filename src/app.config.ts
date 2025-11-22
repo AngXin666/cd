@@ -10,6 +10,7 @@ const pages = [
   'pages/profile/change-password/index',
   'pages/profile/help/index',
   'pages/profile/feedback/index',
+  'pages/common/notifications/index',
   'pages/admin-dashboard/index',
   'pages/driver/clock-in/index',
   'pages/driver/attendance/index',
