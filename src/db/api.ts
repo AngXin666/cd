@@ -1131,7 +1131,7 @@ export async function calculatePieceWorkStats(
 
   // 获取所有品类信息
   const {data: categories} = await supabase.from('category_prices').select('*')
-  const categoryMap = new Map(categories?.map((c) => [c.id, c.name]) || [])
+  const categoryMap = new Map(categories?.map((c) => [c.id, c.category_name]) || [])
 
   const stats: PieceWorkStats = {
     total_orders: records.length,
@@ -1184,7 +1184,7 @@ export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
     .from('category_prices')
     .select('*')
     .eq('is_active', true)
-    .order('name', {ascending: true})
+    .order('category_name', {ascending: true})
 
   if (error) {
     console.error('获取启用品类失败:', error)

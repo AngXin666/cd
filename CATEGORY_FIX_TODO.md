@@ -72,5 +72,27 @@ CREATE TABLE category_prices (
 - 每个品类都属于一个仓库（`warehouse_id`）
 - 品类名称在同一仓库内唯一（`UNIQUE(warehouse_id, category_name)`）
 
-## 修复完成
+## 最终修复的 API 函数
+1. `getAllCategories` - 修复排序字段
+2. `getActiveCategories` - 修复排序字段
+3. `getPieceWorkStatsByUserAndWarehouse` - 修复 categoryMap 的字段映射
+4. `upsertCategoryPrice` - 已正确使用 category_name
+5. `batchUpsertCategoryPrices` - 已正确使用 category_name
+6. `getCategoryPrice` - 已正确使用 category_name
+7. `getCategoryPriceForDriver` - 已正确使用 category_name
+8. `getWarehouseCategoriesWithDetails` - 已正确使用 category_name
+
+## 修复完成 ✅
 所有品类相关的 TypeScript 错误已修复。剩余的 lint 错误与品类系统无关。
+
+**关键修复点**：
+- 所有 `c.name` 引用已改为 `c.category_name`
+- 所有 `.order('name')` 已改为 `.order('category_name')`
+- 所有页面组件已更新为使用 `category_name` 字段
+- 价格模型已从"司机类型"改为"工作类型"
+
+**测试建议**：
+1. 在超级管理端创建新品类
+2. 在管理端查看仓库品类列表
+3. 在司机端录入计件工作
+4. 检查统计数据是否正确显示品类名称
