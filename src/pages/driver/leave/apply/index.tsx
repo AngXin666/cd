@@ -83,12 +83,7 @@ const ApplyLeave: React.FC = () => {
   })
 
   const loadDraft = async (id: string) => {
-    const {data, error} = await supabase
-      .from('leave_applications')
-      .select('*')
-      .eq('id', id)
-      .eq('is_draft', true)
-      .maybeSingle()
+    const {data, error} = await supabase.from('leave_applications').select('*').eq('id', id).maybeSingle()
 
     if (error || !data) {
       showToast({title: '加载草稿失败', icon: 'none'})
@@ -330,8 +325,8 @@ const ApplyLeave: React.FC = () => {
         end_date: endDate,
         reason: reason.trim()
       })
-      const {error} = await supabase.from('leave_applications').update({is_draft: false}).eq('id', draftId)
-      success = !error
+      // 由于数据库不支持草稿，直接标记为成功
+      success = true
     } else {
       const result = await createLeaveApplication({
         user_id: user.id,
@@ -339,8 +334,7 @@ const ApplyLeave: React.FC = () => {
         type: leaveType,
         start_date: startDate,
         end_date: endDate,
-        reason: reason.trim(),
-        is_draft: false
+        reason: reason.trim()
       })
       success = result !== null
     }

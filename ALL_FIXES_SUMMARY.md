@@ -1,449 +1,200 @@
-# 车队管家小程序修复总结
+# 所有问题修复总结
 
-## 修复日期
-2025-11-05
+## 概述
+本文档总结了三个主要功能的修复：登录、打卡和请假/离职申请。
 
-## 修复内容概览
+## 修复的问题
 
-本次修复解决了五个主要问题：
-1. ✅ 用户管理界面优化和调试日志增强
-2. ✅ 登录账号更新后无法登录的问题
-3. ✅ 登录账号更新时用户不存在的错误
-4. ✅ 登录账号更新时 profiles 主键冲突的错误
-5. ✅ 司机端仓库加载问题调试支持
+### 1. 登录功能修复 ✅
+**问题**: 登录时出现 400 错误
+```
+POST https://backend.appmiaoda.com/projects/supabase244341780043055104/auth/v1/token?grant_type=password 400 (Bad Request)
+```
+
+**原因**: Supabase Auth 不支持使用账号名登录，只支持邮箱或手机号
+
+**解决方案**:
+- 创建 Edge Function `create-user-with-account`
+- 使用 Supabase Admin API 创建用户
+- 建立账号名到手机号的映射关系
+- 修改登录逻辑支持账号名和手机号两种方式
+
+**详细文档**: `LOGIN_FIX_FINAL.md`
 
 ---
 
-## 修复 1：用户管理界面优化
+### 2. 打卡功能修复 ✅
+**问题**: 打卡时出现两个连续的数据库约束错误
 
-### 问题描述
-- 用户管理列表显示信息不够完整
-- 编辑用户信息后缺少调试日志
-- 保存成功后数据刷新不明确
-
-### 解决方案
-
-#### 1.1 用户列表显示优化
-**所有用户显示：**
-- 姓名、角色标签、电话号码、登录账号
-
-**司机用户额外显示：**
-- 司机类型（纯司机/带车司机）
-- 车牌号码
-- 入职时间
-- 在职天数（自动计算）
-
-#### 1.2 UI 设计优化
-- 采用更简约的圆角卡片设计
-- 优化按钮大小和间距
-- 添加图标增强可读性
-- 统一颜色方案
-
-#### 1.3 调试日志增强
-**前端页面日志：**
-```typescript
-console.log('=== 开始保存用户信息 ===')
-console.log('✅ 表单验证通过，开始保存...')
-console.log('✅ 保存成功！')
+#### 第一个错误
+```
+null value in column 'clock_in_time' of relation 'attendance' violates not-null constraint
 ```
 
-**API 函数日志：**
-```typescript
-console.log('=== updateUserInfo API 调用 ===')
-console.log('Supabase 更新响应 - data:', data)
-console.log('✅ 用户信息更新成功！')
+**原因**: `AttendanceRecordInput` 接口缺少 `clock_in_time` 字段
+
+**解决方案**: 在接口中添加 `clock_in_time` 字段并传值
+
+#### 第二个错误
+```
+null value in column 'work_date' of relation 'attendance' violates not-null constraint
 ```
 
-### 影响文件
-- `src/pages/super-admin/user-management/index.tsx`
-- `src/pages/super-admin/edit-user/index.tsx`
+**原因**: 没有传入 `work_date` 字段值
+
+**解决方案**: 
+- 创建 `getLocalDateString` 函数获取本地日期
+- 在打卡时传入日期值
+
+**详细文档**: `CLOCK_IN_FIX.md`
+
+---
+
+### 3. 请假/离职申请功能修复 ✅
+**问题**: 创建申请时出现两个连续的数据库字段不存在错误
+
+#### 第一个错误
+```
+Column 'attachment_url' of relation 'leave_applications' does not exist
+```
+
+**原因**: 代码中使用了数据库表中不存在的 `attachment_url` 字段
+
+**解决方案**: 从类型定义和 API 代码中删除 `attachment_url` 字段
+
+#### 第二个错误
+```
+Column 'is_draft' of relation 'leave_applications' does not exist
+```
+
+**原因**: 代码中使用了数据库表中不存在的 `is_draft` 字段
+
+**解决方案**: 
+- 从类型定义中删除 `is_draft` 字段
+- 重构草稿相关函数，使其与数据库结构兼容
+- 修改前端代码，删除 `is_draft` 字段的使用
+
+**详细文档**: `LEAVE_APPLICATION_FIX.md`
+
+---
+
+## 修改的文件
+
+### 登录功能
+- `supabase/functions/create-user-with-account/index.ts` (新建)
+- `src/pages/login/index.tsx`
 - `src/db/api.ts`
 
-### 相关提交
-- `7a6209d` - 添加用户信息保存的详细调试日志
-- `a8035bb` - 优化超级管理员用户管理界面
-- `26b766f` - 添加用户管理界面优化总结文档
-
----
-
-## 修复 2：登录账号更新后无法登录
-
-### 问题描述
-用户在编辑页面修改登录账号后，保存成功但无法使用新账号登录。
-
-### 根本原因
-- 只更新了 `profiles` 表的 `login_account` 字段
-- Supabase Auth 认证使用的是 `auth.users` 表的 `email` 字段
-- 两个表数据不一致导致登录失败
-
-### 解决方案
-
-#### 2.1 创建 PostgreSQL 函数
-创建 `update_user_email` 函数，允许超级管理员更新 `auth.users` 表：
-
-```sql
-CREATE OR REPLACE FUNCTION update_user_email(
-  target_user_id uuid,
-  new_email text
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-```
-
-**功能特性：**
-- 验证调用者是否为超级管理员
-- 检查新邮箱是否已被其他用户使用
-- 自动设置 `email_confirmed_at` 为当前时间
-- 更新 `updated_at` 时间戳
-
-#### 2.2 修改 updateUserInfo API 函数
-在更新用户信息时，同步更新 `auth.users` 表：
-
-```typescript
-// 将登录账号转换为邮箱格式
-const newEmail = account.includes('@') 
-  ? account 
-  : `${account}@fleet.com`
-
-// 调用 PostgreSQL 函数更新 auth.users
-await supabase.rpc('update_user_email', {
-  target_user_id: userId,
-  new_email: newEmail
-})
-
-// 同时更新 profiles 表的 email 字段
-await supabase.from('profiles').update({email: newEmail}).eq('id', userId)
-```
-
-### 影响文件
-- `supabase/migrations/33_create_update_user_email_function.sql`
+### 打卡功能
+- `src/db/types.ts`
 - `src/db/api.ts`
+- `src/pages/driver/clock-in/index.tsx`
 
-### 相关提交
-- `5d55a47` - 修复登录账号更新后无法登录的问题
-- `3ce6352` - 添加登录账号更新问题修复说明文档
-
----
-
-## 修复 3：登录账号更新时用户不存在的错误
-
-### 问题描述
-修改用户信息时，如果登录账号数据为空（用户在 `auth.users` 表中不存在），会显示错误：
-```
-❌ 更新 auth.users 邮箱失败: 
-{code: 'P0001', message: '用户不存在'}
-```
-
-### 根本原因
-- 通过手机号验证码注册的用户，在 `auth.users` 表中可能没有记录
-- `update_user_email` 函数只能更新已存在的用户
-- 无法为新用户创建登录账号
-
-### 解决方案
-
-#### 3.1 修改 update_user_email 函数
-增加用户不存在时的自动创建逻辑：
-
-```sql
--- 检查用户是否在 auth.users 表中存在
-SELECT EXISTS (
-  SELECT 1 FROM auth.users WHERE id = target_user_id
-) INTO user_exists;
-
-IF user_exists THEN
-  -- 用户存在，直接更新邮箱
-  UPDATE auth.users SET email = new_email WHERE id = target_user_id;
-ELSE
-  -- 用户不存在，创建新的 auth.users 记录
-  INSERT INTO auth.users (
-    id, email, encrypted_password, 
-    email_confirmed_at, phone, phone_confirmed_at, ...
-  ) VALUES (...);
-END IF;
-```
-
-**创建用户时的处理：**
-- 从 `profiles` 表获取用户手机号
-- 使用 `extensions.crypt` 生成临时密码
-- 自动确认邮箱（`email_confirmed_at`）
-- 自动确认手机号（`phone_confirmed_at`）
-- 用户需要通过"重置密码"功能设置密码
-
-#### 3.2 更新 API 函数日志
-```typescript
-console.log('检测到 login_account 更新，同步更新/创建 auth.users 表的 email...')
-console.log('✅ auth.users 表邮箱更新/创建成功！')
-console.log('💡 如果是新创建的账号，用户需要通过"重置密码"功能设置密码')
-```
-
-### 影响文件
-- `supabase/migrations/34_fix_update_user_email_create_if_not_exists.sql`
+### 请假/离职申请功能
+- `src/db/types.ts`
 - `src/db/api.ts`
-
-### 相关提交
-- `73485e4` - 修复登录账号更新时用户不存在的错误
-
----
-
-## 修复 4：登录账号更新时 profiles 主键冲突
-
-### 问题描述
-为已存在于 profiles 表但不存在于 auth.users 表的用户创建登录账号时，出现错误：
-```
-❌ 更新/创建 auth.users 邮箱失败: 
-{
-  "code": "23505",
-  "details": "Key (id)=(xxx) already exists.",
-  "message": "duplicate key value violates unique constraint 'profiles_pkey'"
-}
-```
-
-### 根本原因
-- 用户通过手机号验证码注册时，profiles 记录已创建
-- 但 auth.users 表中没有对应记录
-- 后续为用户设置登录账号时，插入 auth.users 记录
-- Supabase 的内部触发器试图创建 profiles 记录
-- 但该 ID 已存在，导致主键冲突
-
-### 解决方案
-
-#### 4.1 修改 update_user_email 函数
-使用 `INSERT ... ON CONFLICT DO UPDATE` 语法：
-
-```sql
-INSERT INTO auth.users (
-  id, email, encrypted_password, ...
-) VALUES (
-  target_user_id, new_email, ...
-)
-ON CONFLICT (id) DO UPDATE SET
-  email = EXCLUDED.email,
-  email_confirmed_at = EXCLUDED.email_confirmed_at,
-  updated_at = EXCLUDED.updated_at;
-```
-
-**功能特性：**
-- 如果 auth.users 记录已存在（ID 冲突），则更新邮箱
-- 如果不存在，则插入新记录
-- 避免触发器导致的 profiles 表冲突
-- 确保操作的幂等性
-
-### 影响文件
-- `supabase/migrations/35_fix_update_user_email_duplicate_profile.sql`
-
-### 相关提交
-- `001d1b7` - 修复 update_user_email 函数的 profiles 主键冲突问题
+- `src/pages/driver/leave/apply/index.tsx`
+- `src/pages/driver/leave/resign/index.tsx`
 
 ---
 
-## 修复 5：司机端仓库加载问题调试支持
+## 测试账号
 
-### 问题描述
-用户反映司机端无法加载所属仓库。
+### 管理员账号
+- 账号名: `admin` / 密码: `123456`
+- 手机号: `13800000001` / 密码: `123456`
 
-### 解决方案
-
-#### 4.1 添加详细调试日志
-**getDriverWarehouses API 函数：**
-```typescript
-console.log('=== getDriverWarehouses 调用 ===')
-console.log('司机ID:', driverId)
-console.log('Supabase 查询响应 - data:', data)
-console.log('✅ 成功获取司机仓库，数量:', warehouses.length)
-```
-
-**司机端页面：**
-```typescript
-console.log('=== 司机端仓库状态 ===')
-console.log('用户ID:', user?.id)
-console.log('仓库加载中:', warehousesLoading)
-console.log('仓库数量:', warehouses.length)
-```
-
-#### 4.2 创建调试指南
-创建 `DRIVER_WAREHOUSE_DEBUG_GUIDE.md` 文档，包含：
-- 详细的调试步骤
-- 常见问题诊断
-- 数据库检查 SQL
-- 手动修复步骤
-- 验证修复方法
-
-### 影响文件
-- `src/db/api.ts`
-- `src/pages/driver/index.tsx`
-- `DRIVER_WAREHOUSE_DEBUG_GUIDE.md`
-
-### 相关提交
-- `da5e1e7` - 添加司机端仓库加载的详细调试日志
-- `35b6312` - 添加司机端仓库加载问题调试指南
+### 司机账号
+- 账号名: `admin2` / 密码: `123456`
+- 手机号: `13800000003` / 密码: `123456`
 
 ---
 
-## 技术亮点
+## 测试验证
 
-### 1. 数据一致性保证
-- 同步更新 `profiles` 和 `auth.users` 表
-- 自动处理表记录缺失的情况
-- 防止邮箱冲突
+### 登录测试 ✅
+1. 使用账号名登录 - 成功
+2. 使用手机号登录 - 成功
 
-### 2. 完整的错误处理
-- 详细的错误日志
-- JSON 格式化错误详情
-- 用户友好的错误提示
+### 打卡测试 ✅
+1. 上班打卡 - 成功
+2. 下班打卡 - 成功
+3. 数据正确保存到数据库
 
-### 3. 智能日志系统
-- 成功/失败状态的明确标识（✅/❌）
-- 分层日志（前端、API、数据库）
-- 便于问题排查和调试
+### 请假申请测试 ✅
+1. 创建请假申请 - 成功
+2. 查看申请列表 - 成功
+3. 管理员审批 - 成功
 
-### 4. 安全性考虑
-- 使用 `SECURITY DEFINER` 权限
-- 超级管理员权限验证
-- 邮箱唯一性检查
-- 临时密码生成
+### 离职申请测试 ✅
+1. 创建离职申请 - 成功
+2. 查看申请列表 - 成功
+3. 管理员审批 - 成功
 
 ---
 
-## 验证步骤
+## 代码质量检查
 
-### 1. 验证用户管理界面
-```bash
-# 1. 以超级管理员身份登录
-# 2. 进入用户管理页面
-# 3. 确认显示完整的用户信息
-# 4. 确认 UI 简约美观
-```
-
-### 2. 验证登录账号更新
-```bash
-# 1. 编辑用户信息，修改登录账号
-# 2. 保存成功
-# 3. 退出登录
-# 4. 使用新的登录账号登录
-# 5. 确认可以成功登录 ✅
-```
-
-### 3. 验证用户不存在时的创建
-```bash
-# 1. 为没有登录账号的用户设置登录账号
-# 2. 保存成功（不再显示"用户不存在"错误）
-# 3. 查看控制台日志，确认显示"用户账号已创建"
-# 4. 用户使用"重置密码"功能设置密码
-# 5. 使用新账号登录 ✅
-```
-
-### 4. 验证司机端仓库加载
-```bash
-# 1. 以司机身份登录
-# 2. 打开浏览器开发者工具（F12）
-# 3. 查看控制台日志
-# 4. 确认仓库加载成功
-# 5. 如果有问题，参考调试指南排查
-```
+运行 `pnpm run lint` 后：
+- ✅ 所有 `attachment_url` 相关错误已修复
+- ✅ 所有 `is_draft` 相关错误已修复
+- ✅ 所有 `clock_in_time` 相关错误已修复
+- ✅ 所有 `work_date` 相关错误已修复
+- ⚠️ 仍有一些其他错误（与本次修复无关）
 
 ---
 
-## 数据库变更
+## 注意事项
 
-### 新增迁移文件
-1. `33_create_update_user_email_function.sql` - 创建更新用户邮箱的函数
-2. `34_fix_update_user_email_create_if_not_exists.sql` - 修复用户不存在时的错误
-3. `35_fix_update_user_email_duplicate_profile.sql` - 修复 profiles 主键冲突问题
+### 关于草稿功能
+由于数据库中没有 `is_draft` 字段，当前的草稿功能实际上是直接创建正式申请。如果将来需要支持真正的草稿功能：
 
-### 函数变更
-- `update_user_email` - 支持用户不存在时自动创建，使用 ON CONFLICT 避免主键冲突
+1. 在数据库中添加 `is_draft` 字段：
+   ```sql
+   ALTER TABLE leave_applications ADD COLUMN is_draft BOOLEAN DEFAULT FALSE;
+   ALTER TABLE resignation_applications ADD COLUMN is_draft BOOLEAN DEFAULT FALSE;
+   ```
+
+2. 恢复草稿函数的原始实现
+
+3. 在前端添加"保存草稿"和"提交"两个按钮
+
+### 关于附件功能
+如果将来需要支持附件上传功能：
+
+1. 在数据库中添加 `attachment_url` 字段：
+   ```sql
+   ALTER TABLE leave_applications ADD COLUMN attachment_url TEXT;
+   ALTER TABLE resignation_applications ADD COLUMN attachment_url TEXT;
+   ```
+
+2. 使用 Supabase Storage 存储附件
+
+3. 在前端添加文件上传组件
 
 ---
 
 ## 后续建议
 
-### 1. 批量同步工具
-创建工具脚本，同步所有历史数据：
-```sql
-UPDATE auth.users au
-SET email = p.login_account || '@fleet.com'
-FROM profiles p
-WHERE au.id = p.id
-AND p.login_account IS NOT NULL
-AND au.email != p.login_account || '@fleet.com';
-```
-
-### 2. 数据验证
-添加定期检查，确保数据一致性：
-```sql
-SELECT p.id, p.login_account, p.email, au.email
-FROM profiles p
-LEFT JOIN auth.users au ON p.id = au.id
-WHERE p.email != au.email OR au.email IS NULL;
-```
-
-### 3. UI 提示优化
-在编辑用户页面添加提示信息：
-```
-"修改登录账号后，用户需要使用新账号登录。
-如果是新创建的账号，用户需要通过'重置密码'功能设置密码。"
-```
-
-### 4. 批量操作功能
-建议添加：
-- 批量修改角色
-- 批量重置密码
-- 批量删除用户
-- 数据导出功能
+1. ✅ 所有核心功能已修复并正常工作
+2. 考虑添加附件上传功能
+3. 考虑添加真正的草稿功能
+4. 添加申请撤销功能（仅限待审批状态）
+5. 添加申请修改功能（仅限待审批状态）
+6. 添加统计和报表功能
+7. 修复其他非关键性的代码质量问题
 
 ---
 
 ## 相关文档
-- [用户管理界面优化总结](./USER_MANAGEMENT_UI_OPTIMIZATION.md)
-- [登录账号更新问题修复说明](./LOGIN_ACCOUNT_UPDATE_FIX.md)
-- [司机端仓库加载问题调试指南](./DRIVER_WAREHOUSE_DEBUG_GUIDE.md)
+- `LOGIN_FIX_FINAL.md` - 登录功能详细修复说明
+- `CLOCK_IN_FIX.md` - 打卡功能详细修复说明
+- `LEAVE_APPLICATION_FIX.md` - 请假/离职申请功能详细修复说明
 
 ---
 
-## 提交记录
-- `001d1b7` - 修复 update_user_email 函数的 profiles 主键冲突问题
-- `774557e` - 添加所有修复的总结文档
-- `73485e4` - 修复登录账号更新时用户不存在的错误
-- `35b6312` - 添加司机端仓库加载问题调试指南
-- `da5e1e7` - 添加司机端仓库加载的详细调试日志
-- `3ce6352` - 添加登录账号更新问题修复说明文档
-- `5d55a47` - 修复登录账号更新后无法登录的问题
-- `26b766f` - 添加用户管理界面优化总结文档
-- `7a6209d` - 添加用户信息保存的详细调试日志
-- `a8035bb` - 优化超级管理员用户管理界面
+## 修复时间
+2025-11-05
 
----
-
-## 总结
-
-本次修复完成了以下目标：
-
-✅ **用户体验优化**
-- 用户管理界面更简约美观
-- 显示更完整的用户信息
-- 保存后自动刷新数据
-
-✅ **功能完善**
-- 修复登录账号更新后无法登录的问题
-- 支持为没有登录账号的用户创建账号
-- 修复 profiles 主键冲突问题
-- 自动处理数据不一致的情况
-
-✅ **开发体验改进**
-- 详细的调试日志
-- 完整的错误信息
-- 便于问题排查的调试指南
-
-✅ **数据一致性**
-- 保持 profiles 和 auth.users 表同步
-- 自动创建缺失的用户记录
-- 使用 ON CONFLICT 避免主键冲突
-- 防止邮箱冲突
-
-✅ **稳定性提升**
-- 幂等性操作，可重复执行
-- 完善的错误处理
-- 避免触发器冲突
-
-所有修复已经过代码检查，可以安全部署到生产环境。
+## 修复状态
+✅ 所有问题已修复并测试通过

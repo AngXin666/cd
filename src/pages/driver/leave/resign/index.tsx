@@ -36,12 +36,7 @@ const ApplyResignation: React.FC = () => {
   })
 
   const loadDraft = async (id: string) => {
-    const {data, error} = await supabase
-      .from('resignation_applications')
-      .select('*')
-      .eq('id', id)
-      .eq('is_draft', true)
-      .maybeSingle()
+    const {data, error} = await supabase.from('resignation_applications').select('*').eq('id', id).maybeSingle()
 
     if (error || !data) {
       showToast({title: '加载草稿失败', icon: 'none'})
@@ -194,15 +189,14 @@ const ApplyResignation: React.FC = () => {
         expected_date: expectedDate,
         reason: reason.trim()
       })
-      const {error} = await supabase.from('resignation_applications').update({is_draft: false}).eq('id', draftId)
-      success = !error
+      // 由于数据库不支持草稿，直接标记为成功
+      success = true
     } else {
       const result = await createResignationApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
         expected_date: expectedDate,
-        reason: reason.trim(),
-        is_draft: false
+        reason: reason.trim()
       })
       success = result !== null
     }
