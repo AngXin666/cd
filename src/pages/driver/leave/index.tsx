@@ -15,6 +15,7 @@ import {
   getResignationApplicationsByUser
 } from '@/db/api'
 import type {LeaveApplication, Profile, ResignationApplication} from '@/db/types'
+import {useRealtimeNotifications} from '@/hooks'
 
 const DriverLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -108,6 +109,14 @@ const DriverLeave: React.FC = () => {
   useDidShow(() => {
     loadData()
     loadStats()
+  })
+
+  // 启用实时通知
+  useRealtimeNotifications({
+    userId: user?.id || '',
+    userRole: 'driver',
+    onLeaveApplicationChange: loadData,
+    onResignationApplicationChange: loadData
   })
 
   // 下拉刷新

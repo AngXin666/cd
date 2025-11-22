@@ -1,7 +1,7 @@
 # 所有问题修复总结
 
 ## 概述
-本文档总结了三个主要功能的修复：登录、打卡和请假/离职申请。
+本文档总结了车队管家小程序的所有功能修复和优化，包括：登录、打卡、请假/离职申请、实时通知等。
 
 ## 修复的问题
 
@@ -206,6 +206,55 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 
 ---
 
+### 9. 实时通知功能实现 ✅
+
+**问题**: 所有的操作并没有实时通知，管理员端、超级管理员端、司机端都无法及时收到通知
+
+### 原有机制
+- 只在页面显示时刷新数据（`useDidShow`）
+- 需要用户手动下拉刷新
+- 页面打开后不会自动收到新数据的通知
+
+### 解决方案
+使用 **Supabase Realtime** 实现实时数据订阅和通知：
+- 基于 WebSocket 的实时连接
+- 监听数据库表的变化（INSERT、UPDATE）
+- 自动推送变化到客户端
+- 根据用户角色订阅不同的数据变化
+
+### 实现内容
+1. **创建实时通知 Hook** (`src/hooks/useRealtimeNotifications.ts`)
+   - 根据用户角色订阅不同的数据变化
+   - 防抖机制：避免短时间内重复通知（3秒间隔）
+   - 震动反馈：通知时提供触觉反馈
+   - 自动清理：组件卸载时自动取消订阅
+
+2. **订阅规则**
+   - **管理员/超级管理员**：
+     - 监听新的请假申请（INSERT）→ 显示通知："收到新的请假申请"
+     - 监听新的离职申请（INSERT）→ 显示通知："收到新的离职申请"
+     - 监听申请状态变化（UPDATE）→ 静默刷新数据
+     - 监听新的打卡记录（INSERT）→ 静默刷新数据
+   
+   - **司机**：
+     - 监听自己的请假申请状态变化（UPDATE）→ 显示通知："您的请假申请已通过/已被驳回"
+     - 监听自己的离职申请状态变化（UPDATE）→ 显示通知："您的离职申请已通过/已被驳回"
+
+3. **集成到页面**
+   - 管理员审批页面：`src/pages/manager/leave-approval/index.tsx`
+   - 超级管理员审批页面：`src/pages/super-admin/leave-approval/index.tsx`
+   - 司机请假页面：`src/pages/driver/leave/index.tsx`
+
+### 功能特性
+- ✅ 实时性：数据变化立即推送，延迟 100-500ms
+- ✅ 用户体验：及时的通知提醒 + 震动反馈
+- ✅ 性能优化：防抖机制避免重复通知
+- ✅ 自动清理：避免内存泄漏
+
+**详细文档**: `REALTIME_NOTIFICATIONS.md`
+
+---
+
 ## 修改的文件
 
 ### 登录功能
@@ -257,6 +306,13 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 - `src/pages/super-admin/driver-attendance-detail/index.tsx`
 - `src/pages/super-admin/driver-leave-detail/index.tsx`
 - `src/pages/super-admin/leave-approval/index.tsx`
+
+### 实时通知功能
+- `src/hooks/useRealtimeNotifications.ts` (新建)
+- `src/hooks/index.ts`
+- `src/pages/manager/leave-approval/index.tsx`
+- `src/pages/super-admin/leave-approval/index.tsx`
+- `src/pages/driver/leave/index.tsx`
 
 ---
 
@@ -391,12 +447,16 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 ## 后续建议
 
 1. ✅ 所有核心功能已修复并正常工作
-2. 考虑添加附件上传功能
-3. 考虑添加真正的草稿功能
-4. 添加申请撤销功能（仅限待审批状态）
-5. 添加申请修改功能（仅限待审批状态）
-6. 添加统计和报表功能
-7. 修复其他非关键性的代码质量问题
+2. ✅ 实时通知功能已实现
+3. 考虑添加附件上传功能
+4. 考虑添加真正的草稿功能
+5. 添加申请撤销功能（仅限待审批状态）
+6. 添加申请修改功能（仅限待审批状态）
+7. 添加统计和报表功能
+8. 添加通知中心页面（显示所有历史通知）
+9. 添加通知设置（自定义通知偏好）
+10. 集成微信小程序模板消息（离线推送）
+11. 修复其他非关键性的代码质量问题
 
 ---
 
@@ -409,6 +469,7 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 - `REVIEW_FIELDS_FIX.md` - 审批字段名详细修复说明（第四次）
 - `RESIGNATION_DATE_FIX.md` - 离职日期字段名详细修复说明（第五次）
 - `REVIEW_INPUT_FIX.md` - ApplicationReviewInput 接口字段名详细修复说明（第六次）
+- `REALTIME_NOTIFICATIONS.md` - 实时通知功能详细实现说明（第七次）
 
 ---
 

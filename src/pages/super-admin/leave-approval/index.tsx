@@ -13,6 +13,7 @@ import {
   reviewResignationApplication
 } from '@/db/api'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
+import {useRealtimeNotifications} from '@/hooks'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -96,6 +97,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+  })
+
+  // 启用实时通知
+  useRealtimeNotifications({
+    userId: user?.id || '',
+    userRole: 'super_admin',
+    onLeaveApplicationChange: loadData,
+    onResignationApplicationChange: loadData,
+    onAttendanceChange: loadData
   })
 
   // 下拉刷新
