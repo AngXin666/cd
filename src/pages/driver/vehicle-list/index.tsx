@@ -344,7 +344,6 @@ const VehicleList: React.FC = () => {
             </View>
           )}
 
-
           {/* 添加车辆按钮 - 只在司机自己的视图且满足条件时显示 */}
           {!isManagerView && shouldShowAddButton() && (
             <View className="mb-4">
