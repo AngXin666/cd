@@ -723,6 +723,12 @@ export interface VehicleWithDriver extends Vehicle {
   driver_name?: string | null
   driver_phone?: string | null
   driver_email?: string | null
+  driver?: {
+    id: string
+    name: string | null
+    phone: string | null
+    email: string | null
+  } | null
 }
 
 // ============================================

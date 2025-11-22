@@ -4466,6 +4466,48 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
   }
 }
 
+/**
+ * 根据车牌号获取车辆信息（用于历史记录页面）
+ * @param plateNumber 车牌号
+ * @returns 车辆信息，包含司机信息
+ */
+export async function getVehicleByPlateNumber(plateNumber: string): Promise<VehicleWithDriver | null> {
+  logger.db('查询', 'vehicles', {plateNumber})
+  try {
+    const {data, error} = await supabase
+      .from('vehicles')
+      .select(
+        `
+        *,
+        driver:driver_id (
+          id,
+          name,
+          phone,
+          email
+        )
+      `
+      )
+      .eq('plate_number', plateNumber)
+      .maybeSingle()
+
+    if (error) {
+      logger.error('根据车牌号获取车辆信息失败', {error, plateNumber})
+      return null
+    }
+
+    if (!data) {
+      logger.warn('车辆不存在', {plateNumber})
+      return null
+    }
+
+    logger.info('成功获取车辆信息', {plateNumber, vehicleId: data.id})
+    return data as VehicleWithDriver
+  } catch (error) {
+    logger.error('根据车牌号获取车辆信息异常', {error, plateNumber})
+    return null
+  }
+}
+
 // ==================== 驾驶员证件管理 API ====================
 
 /**
