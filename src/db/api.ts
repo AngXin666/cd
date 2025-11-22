@@ -4436,13 +4436,14 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
 export async function returnVehicle(vehicleId: string, returnPhotos: string[]): Promise<Vehicle | null> {
   logger.db('更新', 'vehicles', {vehicleId, action: '还车录入'})
   try {
-    // 注意：status 是计算字段，不能直接更新
-    // 当 return_time 不为 NULL 时，status 会自动变为 'returned'
+    // 还车时需要更新：return_time、return_photos 和 status
+    // status 设置为 'inactive' 表示车辆已停用
     const {data, error} = await supabase
       .from('vehicles')
       .update({
         return_time: new Date().toISOString(),
-        return_photos: returnPhotos
+        return_photos: returnPhotos,
+        status: 'inactive' // 还车后将状态设置为已停用
       })
       .eq('id', vehicleId)
       .select()
@@ -4457,7 +4458,7 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('成功完成还车录入', {vehicleId})
+    logger.info('成功完成还车录入', {vehicleId, status: 'inactive'})
     return data
   } catch (error) {
     logger.error('还车录入异常', error)
