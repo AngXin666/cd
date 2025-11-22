@@ -181,14 +181,22 @@ const VehicleManagement: React.FC = () => {
 
   /**
    * 判断车辆是否有历史记录
-   * 如果该车牌号有多条记录（大于1条），说明有历史记录
+   * 1. 如果该车牌号有多条记录（大于1条），说明有历史记录
+   * 2. 如果车辆状态为 inactive 或 returned（已停用/已还车），也显示历史记录按钮
    */
   const hasHistory = (vehicle: VehicleWithDriver): boolean => {
     const count = vehicleHistoryCount.get(vehicle.plate_number) || 0
-    const result = count > 1
+    // 如果车辆已停用或已还车，显示历史记录按钮
+    const isInactive = vehicle.status === 'inactive' || vehicle.status === 'returned'
+    // 如果有多条记录，也显示历史记录按钮
+    const hasMultipleRecords = count > 1
+    const result = isInactive || hasMultipleRecords
     logger.info('🔍 检查车辆历史记录', {
       plateNumber: vehicle.plate_number,
+      status: vehicle.status,
       count: count,
+      isInactive: isInactive,
+      hasMultipleRecords: hasMultipleRecords,
       hasHistory: result
     })
     return result
