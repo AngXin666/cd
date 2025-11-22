@@ -347,6 +347,53 @@ const VehicleList: React.FC = () => {
             </View>
           )}
 
+          {/* 调试信息面板 - 开发环境显示 */}
+          {process.env.NODE_ENV === 'development' && vehicles.length > 0 && (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+              <View className="flex items-start">
+                <View className="i-mdi-bug text-yellow-600 text-xl mr-2 mt-0.5" />
+                <View className="flex-1">
+                  <Text className="text-yellow-800 text-sm block mb-2 font-medium">调试信息</Text>
+                  <Text className="text-yellow-700 text-xs block mb-1">
+                    当前用户ID: {user?.id?.substring(0, 8)}...
+                  </Text>
+                  <Text className="text-yellow-700 text-xs block mb-1">
+                    查看模式: {isManagerView ? '管理员查看' : '司机自己查看'}
+                  </Text>
+                  <Text className="text-yellow-700 text-xs block mb-1">
+                    车辆数量: {vehicles.length}
+                  </Text>
+                  {vehicles[0] && (
+                    <>
+                      <Text className="text-yellow-700 text-xs block mb-1">
+                        第一辆车状态: {vehicles[0].status}
+                      </Text>
+                      <Text className="text-yellow-700 text-xs block mb-1">
+                        第一辆车审核状态: {vehicles[0].review_status}
+                      </Text>
+                      <Text className="text-yellow-700 text-xs block mb-1">
+                        第一辆车还车时间: {vehicles[0].return_time || '未还车'}
+                      </Text>
+                      <Text className="text-yellow-700 text-xs block mb-1">
+                        应显示还车按钮: {
+                          (vehicles[0].status === 'active' || vehicles[0].status === 'picked_up') &&
+                          !vehicles[0].return_time &&
+                          !isManagerView &&
+                          vehicles[0].review_status === 'approved'
+                            ? '是 ✅'
+                            : '否 ❌'
+                        }
+                      </Text>
+                    </>
+                  )}
+                  <Text className="text-yellow-700 text-xs block mt-2">
+                    💡 请查看浏览器控制台获取详细日志
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* 添加车辆按钮 - 只在司机自己的视图且满足条件时显示 */}
           {!isManagerView && shouldShowAddButton() && (
             <View className="mb-4">
