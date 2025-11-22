@@ -729,6 +729,11 @@ export interface VehicleWithDriver extends Vehicle {
     phone: string | null
     email: string | null
   } | null
+  driver_license?: {
+    id_card_photo_front: string | null
+    id_card_photo_back: string | null
+    driving_license_photo: string | null
+  } | null
 }
 
 // ============================================

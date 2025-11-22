@@ -4469,7 +4469,7 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
 /**
  * 根据车牌号获取车辆信息（用于历史记录页面）
  * @param plateNumber 车牌号
- * @returns 车辆信息，包含司机信息
+ * @returns 车辆信息，包含司机信息和证件照片
  */
 export async function getVehicleByPlateNumber(plateNumber: string): Promise<VehicleWithDriver | null> {
   logger.db('查询', 'vehicles', {plateNumber})
@@ -4498,6 +4498,20 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
     if (!data) {
       logger.warn('车辆不存在', {plateNumber})
       return null
+    }
+
+    // 如果有司机信息，查询司机的证件照片
+    if (data.driver_id) {
+      const {data: licenseData} = await supabase
+        .from('driver_licenses')
+        .select('id_card_photo_front, id_card_photo_back, driving_license_photo')
+        .eq('driver_id', data.driver_id)
+        .maybeSingle()
+
+      if (licenseData) {
+        // 将证件照片添加到返回数据中
+        ;(data as any).driver_license = licenseData
+      }
     }
 
     logger.info('成功获取车辆信息', {plateNumber, vehicleId: data.id})
