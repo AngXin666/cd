@@ -36,7 +36,13 @@ const VehicleHistory: React.FC = () => {
       const data = await getVehicleByPlateNumber(plateNumber)
       if (data) {
         setVehicle(data)
-        logger.info('车辆信息加载成功', {vehicleId: data.id, driverId: data.driver_id})
+        logger.info('车辆信息加载成功', {
+          vehicleId: data.id,
+          driverId: data.driver_id,
+          hasDriver: !!data.driver,
+          hasDriverLicense: !!(data as any).driver_license,
+          driverLicenseData: (data as any).driver_license
+        })
       } else {
         Taro.showToast({title: '未找到车辆信息', icon: 'none'})
       }
@@ -215,7 +221,7 @@ const VehicleHistory: React.FC = () => {
               {/* Tab 切换 */}
               <View className="flex bg-card rounded-lg p-1 mb-4 shadow-sm">
                 <View
-                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'pickup' ? 'bg-primary shadow-md' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'pickup' ? 'bg-green-600 shadow-md' : 'bg-transparent'}`}
                   onClick={() => setActiveTab('pickup')}>
                   <Text
                     className={`text-center text-base font-bold ${activeTab === 'pickup' ? 'text-white' : 'text-muted-foreground'}`}>
@@ -223,7 +229,7 @@ const VehicleHistory: React.FC = () => {
                   </Text>
                 </View>
                 <View
-                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'return' ? 'bg-primary shadow-md' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'return' ? 'bg-blue-600 shadow-md' : 'bg-transparent'}`}
                   onClick={() => setActiveTab('return')}>
                   <Text
                     className={`text-center text-base font-bold ${activeTab === 'return' ? 'text-white' : 'text-muted-foreground'}`}>
@@ -231,7 +237,7 @@ const VehicleHistory: React.FC = () => {
                   </Text>
                 </View>
                 <View
-                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'driver' ? 'bg-primary shadow-md' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'driver' ? 'bg-orange-600 shadow-md' : 'bg-transparent'}`}
                   onClick={() => setActiveTab('driver')}>
                   <Text
                     className={`text-center text-base font-bold ${activeTab === 'driver' ? 'text-white' : 'text-muted-foreground'}`}>

@@ -4500,12 +4500,39 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
       return null
     }
 
+    let driverId = data.driver_id
+
+    // 如果车辆当前没有司机（已还车），从最近的 vehicle_records 中获取司机信息
+    if (!driverId && data.return_time) {
+      const {data: recordData} = await supabase
+        .from('vehicle_records')
+        .select('driver_id')
+        .eq('vehicle_id', data.id)
+        .order('pickup_time', {ascending: false})
+        .limit(1)
+        .maybeSingle()
+
+      if (recordData?.driver_id) {
+        driverId = recordData.driver_id
+        // 查询司机信息
+        const {data: driverData} = await supabase
+          .from('profiles')
+          .select('id, name, phone, email')
+          .eq('id', driverId)
+          .maybeSingle()
+
+        if (driverData) {
+          ;(data as any).driver = driverData
+        }
+      }
+    }
+
     // 如果有司机信息，查询司机的证件照片
-    if (data.driver_id) {
+    if (driverId) {
       const {data: licenseData} = await supabase
         .from('driver_licenses')
         .select('id_card_photo_front, id_card_photo_back, driving_license_photo')
-        .eq('driver_id', data.driver_id)
+        .eq('driver_id', driverId)
         .maybeSingle()
 
       if (licenseData) {
