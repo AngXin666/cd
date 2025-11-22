@@ -295,7 +295,6 @@ export interface LeaveApplication {
   start_date: string
   end_date: string
   reason: string
-  attachment_url: string | null
   status: ApplicationStatus
   reviewer_id: string | null
   review_comment: string | null
@@ -312,7 +311,6 @@ export interface LeaveApplicationInput {
   start_date: string
   end_date: string
   reason: string
-  attachment_url?: string
   is_draft?: boolean
 }
 

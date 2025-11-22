@@ -1560,7 +1560,6 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       start_date: input.start_date,
       end_date: input.end_date,
       reason: input.reason,
-      attachment_url: input.attachment_url || null,
       status: 'pending',
       is_draft: input.is_draft || false
     })
@@ -1588,7 +1587,6 @@ export async function saveDraftLeaveApplication(input: LeaveApplicationInput): P
       start_date: input.start_date || '',
       end_date: input.end_date || '',
       reason: input.reason || '',
-      attachment_url: input.attachment_url || null,
       status: 'pending',
       is_draft: true
     })
@@ -1615,7 +1613,6 @@ export async function updateDraftLeaveApplication(
   if (input.start_date !== undefined) updateData.start_date = input.start_date
   if (input.end_date !== undefined) updateData.end_date = input.end_date
   if (input.reason !== undefined) updateData.reason = input.reason
-  if (input.attachment_url !== undefined) updateData.attachment_url = input.attachment_url
 
   const {error} = await supabase.from('leave_applications').update(updateData).eq('id', draftId).eq('is_draft', true)
 
