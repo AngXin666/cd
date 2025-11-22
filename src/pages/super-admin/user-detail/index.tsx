@@ -318,125 +318,6 @@ const UserDetail: React.FC = () => {
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4">
-          {/* 用户头像和基本信息卡片 */}
-          <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
-            <View className="flex flex-col items-center mb-6">
-              {/* 头像 */}
-              {userInfo.avatar_url ? (
-                <Image src={userInfo.avatar_url} mode="aspectFill" className="w-24 h-24 rounded-full mb-4" />
-              ) : (
-                <View className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center mb-4">
-                  <View className="i-mdi-account text-5xl text-white"></View>
-                </View>
-              )}
-
-              {/* 姓名 */}
-              <Text className="text-2xl font-bold text-gray-800 mb-2">{userInfo.name || '未设置姓名'}</Text>
-
-              {/* 角色标签 */}
-              <View className={`${roleColor.bg} rounded-full px-4 py-1.5 flex items-center`}>
-                <View className={`${roleColor.icon} text-base ${roleColor.text} mr-1`}></View>
-                <Text className={`text-sm font-medium ${roleColor.text}`}>{getRoleText(userInfo.role)}</Text>
-              </View>
-            </View>
-
-            {/* 联系方式 */}
-            <View className="space-y-3">
-              {/* 手机号 */}
-              {userInfo.phone && (
-                <View className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4">
-                  <View className="flex items-center flex-1">
-                    <View className="bg-blue-200 rounded-full w-10 h-10 flex items-center justify-center mr-3">
-                      <View className="i-mdi-phone text-xl text-blue-700"></View>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-xs text-blue-600 mb-1 block">手机号码</Text>
-                      <Text className="text-sm text-blue-900 font-medium block">{userInfo.phone}</Text>
-                    </View>
-                  </View>
-                  <View
-                    className="bg-blue-600 rounded-full w-10 h-10 flex items-center justify-center active:scale-95 transition-all"
-                    onClick={() => handleCall(userInfo.phone!)}>
-                    <View className="i-mdi-phone-outgoing text-xl text-white"></View>
-                  </View>
-                </View>
-              )}
-
-              {/* 邮箱 */}
-              {userInfo.email && (
-                <View className="flex items-center bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
-                  <View className="bg-purple-200 rounded-full w-10 h-10 flex items-center justify-center mr-3">
-                    <View className="i-mdi-email text-xl text-purple-700"></View>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-xs text-purple-600 mb-1 block">电子邮箱</Text>
-                    <Text className="text-sm text-purple-900 font-medium block">{userInfo.email}</Text>
-                  </View>
-                </View>
-              )}
-
-              {/* 登录账号 */}
-              {userInfo.login_account && (
-                <View className="flex items-center bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4">
-                  <View className="bg-green-200 rounded-full w-10 h-10 flex items-center justify-center mr-3">
-                    <View className="i-mdi-account-key text-xl text-green-700"></View>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-xs text-green-600 mb-1 block">登录账号</Text>
-                    <Text className="text-sm text-green-900 font-medium block">{userInfo.login_account}</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* 详细信息卡片 */}
-          <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
-            <View className="flex items-center mb-4">
-              <View className="i-mdi-information text-2xl text-blue-600 mr-2"></View>
-              <Text className="text-lg font-bold text-gray-800">详细信息</Text>
-            </View>
-
-            <View className="space-y-3">
-              {/* 入职日期 */}
-              {userInfo.join_date && (
-                <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <Text className="text-sm text-gray-600">入职日期</Text>
-                  <Text className="text-sm text-gray-800 font-medium">{userInfo.join_date}</Text>
-                </View>
-              )}
-
-              {/* 在职天数 */}
-              {userInfo.join_date && (
-                <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <Text className="text-sm text-gray-600">在职天数</Text>
-                  <View className="flex items-center">
-                    <View className="i-mdi-calendar-clock text-base text-blue-600 mr-1"></View>
-                    <Text className="text-sm text-blue-600 font-bold">{calculateWorkDays(userInfo.join_date)}</Text>
-                    <Text className="text-xs text-gray-500 ml-1">天</Text>
-                  </View>
-                </View>
-              )}
-
-              {/* 注册时间 */}
-              <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                <Text className="text-sm text-gray-600">注册时间</Text>
-                <Text className="text-sm text-gray-800 font-medium">
-                  {new Date(userInfo.created_at).toLocaleString('zh-CN')}
-                </Text>
-              </View>
-
-              {/* 更新时间 */}
-              <View className="flex items-center justify-between py-3">
-                <Text className="text-sm text-gray-600">更新时间</Text>
-                <Text className="text-sm text-gray-800 font-medium">
-                  {new Date(userInfo.updated_at).toLocaleString('zh-CN')}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 司机证件信息卡片（仅司机显示） */}
           {/* 司机实名认证信息 */}
           {userInfo.role === 'driver' && (
             <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
@@ -454,23 +335,6 @@ const UserDetail: React.FC = () => {
                       <Text className="text-base font-bold text-gray-800">身份证信息</Text>
                     </View>
 
-                    {/* 身份证号码 */}
-                    {driverLicense.id_card_number && (
-                      <View className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-xs text-blue-600 mb-1 block">身份证号码</Text>
-                            <Text className="text-base text-blue-900 font-bold block tracking-wider">
-                              {driverLicense.id_card_number}
-                            </Text>
-                          </View>
-                          <View className="bg-blue-200 rounded-full w-10 h-10 flex items-center justify-center">
-                            <View className="i-mdi-identifier text-xl text-blue-700"></View>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
                     {/* 姓名 */}
                     {driverLicense.id_card_name && (
                       <View className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4 mb-3">
@@ -483,6 +347,23 @@ const UserDetail: React.FC = () => {
                           </View>
                           <View className="bg-green-200 rounded-full w-10 h-10 flex items-center justify-center">
                             <View className="i-mdi-account text-xl text-green-700"></View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 电话号码 */}
+                    {userInfo.phone && (
+                      <View className="bg-gradient-to-r from-sky-50 to-sky-100 rounded-xl p-4 mb-3">
+                        <View className="flex items-center justify-between">
+                          <View className="flex-1">
+                            <Text className="text-xs text-sky-600 mb-1 block">电话号码</Text>
+                            <Text className="text-base text-sky-900 font-bold block tracking-wider">
+                              {userInfo.phone}
+                            </Text>
+                          </View>
+                          <View className="bg-sky-200 rounded-full w-10 h-10 flex items-center justify-center">
+                            <View className="i-mdi-phone text-xl text-sky-700"></View>
                           </View>
                         </View>
                       </View>
@@ -505,7 +386,24 @@ const UserDetail: React.FC = () => {
                       </View>
                     )}
 
-                    {/* 住址 */}
+                    {/* 身份证号码 */}
+                    {driverLicense.id_card_number && (
+                      <View className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-3">
+                        <View className="flex items-center justify-between">
+                          <View className="flex-1">
+                            <Text className="text-xs text-blue-600 mb-1 block">身份证号码</Text>
+                            <Text className="text-base text-blue-900 font-bold block tracking-wider">
+                              {driverLicense.id_card_number}
+                            </Text>
+                          </View>
+                          <View className="bg-blue-200 rounded-full w-10 h-10 flex items-center justify-center">
+                            <View className="i-mdi-identifier text-xl text-blue-700"></View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 身份证地址 */}
                     {driverLicense.id_card_address && (
                       <View className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-4 mb-3">
                         <View className="flex items-center">
@@ -617,24 +515,6 @@ const UserDetail: React.FC = () => {
                       </View>
                     )}
 
-                    {/* 有效期 */}
-                    {driverLicense.valid_from && driverLicense.valid_to && (
-                      <View className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl p-4 mb-3">
-                        <View className="flex items-center">
-                          <View className="bg-indigo-200 rounded-full w-10 h-10 flex items-center justify-center mr-3 shrink-0">
-                            <View className="i-mdi-calendar-range text-xl text-indigo-700"></View>
-                          </View>
-                          <View className="flex-1">
-                            <Text className="text-xs text-indigo-600 mb-1 block">有效期限</Text>
-                            <Text className="text-sm text-indigo-900 font-medium block">
-                              {new Date(driverLicense.valid_from).toLocaleDateString('zh-CN')} 至{' '}
-                              {new Date(driverLicense.valid_to).toLocaleDateString('zh-CN')}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
                     {/* 初次领证日期 */}
                     {driverLicense.first_issue_date && (
                       <View className="bg-gradient-to-r from-teal-50 to-teal-100 rounded-xl p-4 mb-3">
@@ -647,6 +527,24 @@ const UserDetail: React.FC = () => {
                           </View>
                           <View className="bg-teal-200 rounded-full w-10 h-10 flex items-center justify-center">
                             <View className="i-mdi-calendar-check text-xl text-teal-700"></View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 有效期限 */}
+                    {driverLicense.valid_from && driverLicense.valid_to && (
+                      <View className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl p-4 mb-3">
+                        <View className="flex items-center">
+                          <View className="bg-indigo-200 rounded-full w-10 h-10 flex items-center justify-center mr-3 shrink-0">
+                            <View className="i-mdi-calendar-range text-xl text-indigo-700"></View>
+                          </View>
+                          <View className="flex-1">
+                            <Text className="text-xs text-indigo-600 mb-1 block">有效期限</Text>
+                            <Text className="text-sm text-indigo-900 font-medium block">
+                              {new Date(driverLicense.valid_from).toLocaleDateString('zh-CN')} 至{' '}
+                              {new Date(driverLicense.valid_to).toLocaleDateString('zh-CN')}
+                            </Text>
                           </View>
                         </View>
                       </View>
@@ -691,123 +589,8 @@ const UserDetail: React.FC = () => {
             </View>
           )}
 
-          {/* 车辆信息卡片（仅司机显示） */}
-          {userInfo.role === 'driver' && (
-            <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
-              <View className="flex items-center justify-between mb-4">
-                <View className="flex items-center">
-                  <View className="i-mdi-car text-2xl text-blue-600 mr-2"></View>
-                  <Text className="text-lg font-bold text-gray-800">车辆信息</Text>
-                </View>
-                <View className="bg-blue-100 rounded-full px-3 py-1">
-                  <Text className="text-xs text-blue-700 font-medium">{vehicles.length} 辆</Text>
-                </View>
-              </View>
-
-              {vehicles.length === 0 ? (
-                <View className="flex flex-col items-center justify-center py-8">
-                  <View className="bg-gray-50 rounded-full p-4 mb-3">
-                    <View className="i-mdi-car-off text-4xl text-gray-300"></View>
-                  </View>
-                  <Text className="text-gray-500 text-sm">暂无车辆信息</Text>
-                </View>
-              ) : (
-                <View className="space-y-3">
-                  {vehicles.map((vehicle) => (
-                    <View
-                      key={vehicle.id}
-                      className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 active:scale-98 transition-all"
-                      onClick={() => handleViewVehicle(vehicle.id)}>
-                      <View className="flex items-center justify-between">
-                        <View className="flex-1">
-                          <View className="flex items-center mb-2">
-                            <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1 mr-2">
-                              <Text className="text-white text-base font-bold">{vehicle.plate_number}</Text>
-                            </View>
-                            {vehicle.status === 'active' && (
-                              <View className="bg-green-100 rounded-full px-2 py-0.5">
-                                <Text className="text-xs text-green-600 font-medium">使用中</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text className="text-sm text-blue-900 font-medium block">
-                            {vehicle.brand} {vehicle.model}
-                          </Text>
-                          {vehicle.color && <Text className="text-xs text-blue-700 block mt-1">{vehicle.color}</Text>}
-                        </View>
-                        <View className="i-mdi-chevron-right text-2xl text-blue-400"></View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* 仓库信息卡片（仅司机显示） */}
-          {userInfo.role === 'driver' && (
-            <View className="bg-white rounded-2xl p-6 mb-4 shadow-lg">
-              <View className="flex items-center justify-between mb-4">
-                <View className="flex items-center">
-                  <View className="i-mdi-warehouse text-2xl text-purple-600 mr-2"></View>
-                  <Text className="text-lg font-bold text-gray-800">分配仓库</Text>
-                </View>
-                <View className="bg-purple-100 rounded-full px-3 py-1">
-                  <Text className="text-xs text-purple-700 font-medium">{warehouses.length} 个</Text>
-                </View>
-              </View>
-
-              {warehouses.length === 0 ? (
-                <View className="flex flex-col items-center justify-center py-8">
-                  <View className="bg-gray-50 rounded-full p-4 mb-3">
-                    <View className="i-mdi-warehouse-off text-4xl text-gray-300"></View>
-                  </View>
-                  <Text className="text-gray-500 text-sm">暂未分配仓库</Text>
-                </View>
-              ) : (
-                <View className="space-y-3">
-                  {warehouses.map((warehouse) => (
-                    <View key={warehouse.id} className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
-                      <View className="flex items-center justify-between">
-                        <View className="flex-1">
-                          <View className="flex items-center mb-2">
-                            <View className="i-mdi-warehouse text-lg text-purple-600 mr-2"></View>
-                            <Text className="text-base text-purple-900 font-bold">{warehouse.name}</Text>
-                          </View>
-                          <View className="flex items-center mt-2">
-                            <View
-                              className={`rounded-full px-2 py-0.5 ${
-                                warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'
-                              }`}>
-                              <Text
-                                className={`text-xs font-medium ${
-                                  warehouse.is_active ? 'text-green-600' : 'text-gray-600'
-                                }`}>
-                                {warehouse.is_active ? '使用中' : '已停用'}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* 操作按钮 */}
-          <View className="space-y-3 pb-6">
-            <Button
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl break-keep text-base font-medium"
-              size="default"
-              onClick={handleEdit}>
-              <View className="flex items-center justify-center">
-                <View className="i-mdi-pencil text-lg text-white mr-2"></View>
-                <Text className="text-white">编辑用户信息</Text>
-              </View>
-            </Button>
-
+          {/* 返回按钮 */}
+          <View className="pb-6">
             <Button
               className="w-full bg-white text-gray-700 py-4 rounded-xl break-keep text-base font-medium border border-gray-200"
               size="default"
