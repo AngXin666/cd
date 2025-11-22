@@ -125,6 +125,35 @@ const ManagerHome: React.FC = () => {
         refreshDashboard()
         refreshDriverStats()
       }
+
+      // 添加欢迎通知（仅在首次加载时）
+      const hasShownWelcome = localStorage.getItem('manager_welcome_shown')
+      if (!hasShownWelcome) {
+        // 添加多条通知以展示滚动效果
+        addNotification({
+          type: 'system',
+          title: '欢迎使用车队管家',
+          content: '您可以在这里管理司机、审批请假和查看统计数据'
+        })
+
+        setTimeout(() => {
+          addNotification({
+            type: 'system',
+            title: '功能提示',
+            content: '点击通知可以跳转到相应页面查看详情'
+          })
+        }, 100)
+
+        setTimeout(() => {
+          addNotification({
+            type: 'system',
+            title: '实时通知已启用',
+            content: '当有新的请假申请或打卡记录时，您会收到实时通知'
+          })
+        }, 200)
+
+        localStorage.setItem('manager_welcome_shown', 'true')
+      }
     }
   })
 

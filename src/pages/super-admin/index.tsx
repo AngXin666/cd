@@ -126,6 +126,35 @@ const SuperAdminHome: React.FC = () => {
     if (user) {
       // 批量并行刷新所有数据
       Promise.all([loadData(), loadWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
+
+      // 添加欢迎通知（仅在首次加载时）
+      const hasShownWelcome = localStorage.getItem('super_admin_welcome_shown')
+      if (!hasShownWelcome) {
+        // 添加多条通知以展示滚动效果
+        addNotification({
+          type: 'system',
+          title: '欢迎使用超级管理员控制台',
+          content: '您拥有最高权限，可以管理所有仓库、用户和系统设置'
+        })
+
+        setTimeout(() => {
+          addNotification({
+            type: 'system',
+            title: '功能提示',
+            content: '点击通知可以跳转到相应页面查看详情'
+          })
+        }, 100)
+
+        setTimeout(() => {
+          addNotification({
+            type: 'system',
+            title: '实时通知已启用',
+            content: '当有新的请假申请、离职申请或打卡记录时，您会收到实时通知'
+          })
+        }, 200)
+
+        localStorage.setItem('super_admin_welcome_shown', 'true')
+      }
     }
   })
 

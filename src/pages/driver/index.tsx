@@ -165,6 +165,35 @@ const DriverHome: React.FC = () => {
     if (user) {
       // 批量并行刷新所有数据
       Promise.all([loadProfile(), refreshStats(), refreshSorting(), checkAttendance()])
+
+      // 添加欢迎通知（仅在首次加载时）
+      const hasShownWelcome = localStorage.getItem('driver_welcome_shown')
+      if (!hasShownWelcome) {
+        // 添加多条通知以展示滚动效果
+        addNotification({
+          type: 'system',
+          title: '欢迎使用司机工作台',
+          content: '您可以在这里打卡、提交计件、申请请假等'
+        })
+
+        setTimeout(() => {
+          addNotification({
+            type: 'system',
+            title: '功能提示',
+            content: '点击通知可以跳转到相应页面查看详情'
+          })
+        }, 100)
+
+        setTimeout(() => {
+          addNotification({
+            type: 'system',
+            title: '实时通知已启用',
+            content: '当您的请假申请或离职申请有审批结果时，您会收到实时通知'
+          })
+        }, 200)
+
+        localStorage.setItem('driver_welcome_shown', 'true')
+      }
     }
   })
 
