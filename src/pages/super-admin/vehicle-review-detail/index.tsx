@@ -11,8 +11,15 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
-import {approveVehicle, getVehicleById, lockPhoto, markPhotoForDeletion, requireSupplement, unlockPhoto} from '@/db/api'
-import type {LockedPhotos, Vehicle} from '@/db/types'
+import {
+  approveVehicle,
+  getVehicleWithDriverDetails,
+  lockPhoto,
+  markPhotoForDeletion,
+  requireSupplement,
+  unlockPhoto
+} from '@/db/api'
+import type {LockedPhotos, VehicleWithDriverDetails} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('VehicleReviewDetail')
@@ -31,9 +38,35 @@ const PHOTO_FIELDS: PhotoFieldConfig[] = [
   {field: 'damage_photos', label: '车损特写', icon: 'i-mdi-image-multiple'}
 ]
 
+// 计算年龄
+const calculateAge = (birthDate: string | null): number | null => {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age
+}
+
+// 计算驾龄
+const calculateDrivingYears = (firstIssueDate: string | null): number | null => {
+  if (!firstIssueDate) return null
+  const issueDate = new Date(firstIssueDate)
+  const today = new Date()
+  let years = today.getFullYear() - issueDate.getFullYear()
+  const monthDiff = today.getMonth() - issueDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < issueDate.getDate())) {
+    years--
+  }
+  return years
+}
+
 const VehicleReviewDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [vehicle, setVehicle] = useState<VehicleWithDriverDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [reviewNotes, setReviewNotes] = useState('')
   const [lockedPhotos, setLockedPhotos] = useState<LockedPhotos>({})
@@ -47,7 +80,7 @@ const VehicleReviewDetail: React.FC = () => {
     logger.info('加载车辆信息', {vehicleId})
 
     try {
-      const data = await getVehicleById(vehicleId)
+      const data = await getVehicleWithDriverDetails(vehicleId)
       if (!data) {
         throw new Error('车辆不存在')
       }
@@ -365,6 +398,236 @@ const VehicleReviewDetail: React.FC = () => {
             </Text>
             {vehicle.color && <Text className="text-sm text-gray-600">颜色：{vehicle.color}</Text>}
           </View>
+
+          {/* 司机信息 */}
+          {(vehicle.driver_profile || vehicle.driver_license) && (
+            <View className="bg-white rounded-2xl p-4 mb-4 shadow-lg">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-account-circle text-2xl text-blue-600 mr-2"></View>
+                <Text className="text-xl font-bold text-gray-800">司机信息</Text>
+              </View>
+
+              {/* 基本信息 */}
+              {vehicle.driver_profile && (
+                <View className="mb-4">
+                  <View className="flex items-center mb-2">
+                    <View className="i-mdi-account text-blue-600 text-lg mr-2"></View>
+                    <Text className="text-base font-bold text-gray-700">基本信息</Text>
+                  </View>
+                  {vehicle.driver_profile.name && (
+                    <View className="flex items-start mb-1.5 ml-7">
+                      <Text className="text-sm text-gray-600 w-20">姓名：</Text>
+                      <Text className="text-sm text-gray-900 font-medium flex-1">
+                        {vehicle.driver_profile.name}
+                      </Text>
+                    </View>
+                  )}
+                  {vehicle.driver_profile.phone && (
+                    <View className="flex items-start mb-1.5 ml-7">
+                      <Text className="text-sm text-gray-600 w-20">电话：</Text>
+                      <Text className="text-sm text-gray-900 flex-1">{vehicle.driver_profile.phone}</Text>
+                    </View>
+                  )}
+                  {vehicle.driver_profile.email && (
+                    <View className="flex items-start ml-7">
+                      <Text className="text-sm text-gray-600 w-20">邮箱：</Text>
+                      <Text className="text-sm text-gray-900 flex-1">{vehicle.driver_profile.email}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* 身份证信息 */}
+              {vehicle.driver_license &&
+                (vehicle.driver_license.id_card_name ||
+                  vehicle.driver_license.id_card_number ||
+                  vehicle.driver_license.id_card_address ||
+                  vehicle.driver_license.id_card_birth_date) && (
+                  <View className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+                    <View className="flex items-center mb-2">
+                      <View className="i-mdi-card-account-details text-blue-600 text-lg mr-2"></View>
+                      <Text className="text-base font-bold text-blue-800">身份证信息</Text>
+                    </View>
+                    {vehicle.driver_license.id_card_name && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-20">姓名：</Text>
+                        <Text className="text-sm text-gray-900 font-medium flex-1">
+                          {vehicle.driver_license.id_card_name}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.id_card_number && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-20">身份证号：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.id_card_number}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.id_card_birth_date && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-20">出生日期：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.id_card_birth_date}
+                          {calculateAge(vehicle.driver_license.id_card_birth_date) !== null && (
+                            <Text className="text-blue-600 font-medium ml-2">
+                              ({calculateAge(vehicle.driver_license.id_card_birth_date)}岁)
+                            </Text>
+                          )}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.id_card_address && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-20">住址：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.id_card_address}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.issue_authority && (
+                      <View className="flex items-start ml-7">
+                        <Text className="text-sm text-gray-600 w-20">签发机关：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.issue_authority}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+              {/* 驾驶证信息 */}
+              {vehicle.driver_license &&
+                (vehicle.driver_license.license_number ||
+                  vehicle.driver_license.license_class ||
+                  vehicle.driver_license.first_issue_date) && (
+                  <View className="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-100">
+                    <View className="flex items-center mb-2">
+                      <View className="i-mdi-card-account-details text-green-600 text-lg mr-2"></View>
+                      <Text className="text-base font-bold text-green-800">驾驶证信息</Text>
+                    </View>
+                    {vehicle.driver_license.license_number && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-24">驾驶证号：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.license_number}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.license_class && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-24">准驾车型：</Text>
+                        <Text className="text-sm text-gray-900 font-medium flex-1">
+                          {vehicle.driver_license.license_class}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.first_issue_date && (
+                      <View className="flex items-start mb-1.5 ml-7">
+                        <Text className="text-sm text-gray-600 w-24">初次领证日期：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.first_issue_date}
+                          {calculateDrivingYears(vehicle.driver_license.first_issue_date) !== null && (
+                            <Text className="text-green-600 font-medium ml-2">
+                              (驾龄{calculateDrivingYears(vehicle.driver_license.first_issue_date)}年)
+                            </Text>
+                          )}
+                        </Text>
+                      </View>
+                    )}
+                    {vehicle.driver_license.valid_from && vehicle.driver_license.valid_to && (
+                      <View className="flex items-start ml-7">
+                        <Text className="text-sm text-gray-600 w-24">有效期：</Text>
+                        <Text className="text-sm text-gray-900 flex-1">
+                          {vehicle.driver_license.valid_from} 至 {vehicle.driver_license.valid_to}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+              {/* 证件照片 */}
+              {vehicle.driver_license &&
+                (vehicle.driver_license.id_card_photo_front ||
+                  vehicle.driver_license.id_card_photo_back ||
+                  vehicle.driver_license.driving_license_photo) && (
+                  <View className="bg-gray-50 rounded-xl p-3">
+                    <View className="flex items-center mb-2">
+                      <View className="i-mdi-image-multiple text-gray-600 text-lg mr-2"></View>
+                      <Text className="text-base font-bold text-gray-700">证件照片</Text>
+                    </View>
+                    <View className="grid grid-cols-2 gap-3">
+                      {/* 身份证正面 */}
+                      {vehicle.driver_license.id_card_photo_front && (
+                        <View
+                          onClick={() => {
+                            const photos = [
+                              vehicle.driver_license?.id_card_photo_front,
+                              vehicle.driver_license?.id_card_photo_back,
+                              vehicle.driver_license?.driving_license_photo
+                            ].filter(Boolean) as string[]
+                            previewImage(
+                              getImageUrl(vehicle.driver_license?.id_card_photo_front || ''),
+                              photos.map((p) => getImageUrl(p))
+                            )
+                          }}>
+                          <Text className="text-xs text-gray-500 mb-1 block">身份证正面</Text>
+                          <Image
+                            src={getImageUrl(vehicle.driver_license.id_card_photo_front)}
+                            mode="aspectFill"
+                            className="w-full h-32 rounded-lg"
+                          />
+                        </View>
+                      )}
+                      {/* 身份证背面 */}
+                      {vehicle.driver_license.id_card_photo_back && (
+                        <View
+                          onClick={() => {
+                            const photos = [
+                              vehicle.driver_license?.id_card_photo_front,
+                              vehicle.driver_license?.id_card_photo_back,
+                              vehicle.driver_license?.driving_license_photo
+                            ].filter(Boolean) as string[]
+                            previewImage(
+                              getImageUrl(vehicle.driver_license?.id_card_photo_back || ''),
+                              photos.map((p) => getImageUrl(p))
+                            )
+                          }}>
+                          <Text className="text-xs text-gray-500 mb-1 block">身份证背面</Text>
+                          <Image
+                            src={getImageUrl(vehicle.driver_license.id_card_photo_back)}
+                            mode="aspectFill"
+                            className="w-full h-32 rounded-lg"
+                          />
+                        </View>
+                      )}
+                      {/* 驾驶证照片 */}
+                      {vehicle.driver_license.driving_license_photo && (
+                        <View
+                          onClick={() => {
+                            const photos = [
+                              vehicle.driver_license?.id_card_photo_front,
+                              vehicle.driver_license?.id_card_photo_back,
+                              vehicle.driver_license?.driving_license_photo
+                            ].filter(Boolean) as string[]
+                            previewImage(
+                              getImageUrl(vehicle.driver_license?.driving_license_photo || ''),
+                              photos.map((p) => getImageUrl(p))
+                            )
+                          }}>
+                          <Text className="text-xs text-gray-500 mb-1 block">驾驶证照片</Text>
+                          <Image
+                            src={getImageUrl(vehicle.driver_license.driving_license_photo)}
+                            mode="aspectFill"
+                            className="w-full h-32 rounded-lg"
+                          />
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+            </View>
+          )}
 
           {/* 图片审核区域 */}
           {PHOTO_FIELDS.map((config) => {

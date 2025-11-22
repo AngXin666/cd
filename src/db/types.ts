@@ -854,6 +854,32 @@ export interface VehicleBaseWithRecords extends VehicleBase {
   total_records: number // 总记录数
 }
 
+// 车辆信息（包含司机详细信息）
+export interface VehicleWithDriverDetails extends Vehicle {
+  driver_profile?: {
+    name: string | null
+    phone: string | null
+    email: string | null
+  } | null
+  driver_license?: {
+    // 身份证信息
+    id_card_name: string | null
+    id_card_number: string | null
+    id_card_address: string | null
+    id_card_birth_date: string | null
+    id_card_photo_front: string | null
+    id_card_photo_back: string | null
+    // 驾驶证信息
+    license_number: string | null
+    license_class: string | null
+    first_issue_date: string | null
+    valid_from: string | null
+    valid_to: string | null
+    issue_authority: string | null
+    driving_license_photo: string | null
+  } | null
+}
+
 // 车辆录入记录输入类型
 export interface VehicleRecordInput {
   vehicle_id?: string // 如果已存在车辆，传入vehicle_id

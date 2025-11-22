@@ -39,6 +39,7 @@ import type {
   VehicleInput,
   VehicleUpdate,
   VehicleWithDriver,
+  VehicleWithDriverDetails,
   Warehouse,
   WarehouseInput,
   WarehouseUpdate,
@@ -4192,6 +4193,80 @@ export async function getVehicleById(vehicleId: string): Promise<Vehicle | null>
     return data
   } catch (error) {
     logger.error('获取车辆信息异常', error)
+    return null
+  }
+}
+
+/**
+ * 根据车辆ID获取车辆信息（包含司机详细信息）
+ */
+export async function getVehicleWithDriverDetails(vehicleId: string): Promise<VehicleWithDriverDetails | null> {
+  logger.db('查询', 'vehicles with driver details', {vehicleId})
+  try {
+    // 1. 获取车辆基本信息
+    const vehicle = await getVehicleById(vehicleId)
+    if (!vehicle) {
+      logger.warn('车辆不存在', {vehicleId})
+      return null
+    }
+
+    // 2. 获取司机基本信息（从profiles表）
+    const {data: profile, error: profileError} = await supabase
+      .from('profiles')
+      .select('name, phone, email')
+      .eq('id', vehicle.user_id)
+      .maybeSingle()
+
+    if (profileError) {
+      logger.error('获取司机基本信息失败', {error: profileError})
+    }
+
+    // 3. 获取司机证件信息（从driver_licenses表）
+    const {data: driverLicense, error: licenseError} = await supabase
+      .from('driver_licenses')
+      .select(
+        'id_card_name, id_card_number, id_card_address, id_card_birth_date, id_card_photo_front, id_card_photo_back, license_number, license_class, first_issue_date, valid_from, valid_to, issue_authority, driving_license_photo'
+      )
+      .eq('driver_id', vehicle.user_id)
+      .maybeSingle()
+
+    if (licenseError) {
+      logger.error('获取司机证件信息失败', {error: licenseError})
+    }
+
+    // 4. 组合数据
+    const result: VehicleWithDriverDetails = {
+      ...vehicle,
+      driver_profile: profile
+        ? {
+            name: profile.name || null,
+            phone: profile.phone || null,
+            email: profile.email || null
+          }
+        : null,
+      driver_license: driverLicense
+        ? {
+            id_card_name: driverLicense.id_card_name || null,
+            id_card_number: driverLicense.id_card_number || null,
+            id_card_address: driverLicense.id_card_address || null,
+            id_card_birth_date: driverLicense.id_card_birth_date || null,
+            id_card_photo_front: driverLicense.id_card_photo_front || null,
+            id_card_photo_back: driverLicense.id_card_photo_back || null,
+            license_number: driverLicense.license_number || null,
+            license_class: driverLicense.license_class || null,
+            first_issue_date: driverLicense.first_issue_date || null,
+            valid_from: driverLicense.valid_from || null,
+            valid_to: driverLicense.valid_to || null,
+            issue_authority: driverLicense.issue_authority || null,
+            driving_license_photo: driverLicense.driving_license_photo || null
+          }
+        : null
+    }
+
+    logger.info('成功获取车辆和司机详细信息', {vehicleId, hasProfile: !!profile, hasLicense: !!driverLicense})
+    return result
+  } catch (error) {
+    logger.error('获取车辆和司机详细信息异常', error)
     return null
   }
 }
