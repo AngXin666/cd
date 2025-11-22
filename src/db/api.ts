@@ -1196,7 +1196,7 @@ export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
 
 // 获取所有品类（包括禁用的）
 export async function getAllCategories(): Promise<PieceWorkCategory[]> {
-  const {data, error} = await supabase.from('category_prices').select('*').order('name', {ascending: true})
+  const {data, error} = await supabase.from('category_prices').select('*').order('category_name', {ascending: true})
 
   if (error) {
     console.error('获取所有品类失败:', error)
@@ -1317,13 +1317,13 @@ export async function getCategoryPricesByWarehouse(warehouseId: string): Promise
   return Array.isArray(data) ? data : []
 }
 
-// 获取指定仓库和品类的价格配置
-export async function getCategoryPrice(warehouseId: string, categoryId: string): Promise<CategoryPrice | null> {
+// 获取指定仓库和品类的价格配置（通过品类名称）
+export async function getCategoryPrice(warehouseId: string, categoryName: string): Promise<CategoryPrice | null> {
   const {data, error} = await supabase
     .from('category_prices')
     .select('*')
     .eq('warehouse_id', warehouseId)
-    .eq('category_id', categoryId)
+    .eq('category_name', categoryName)
     .maybeSingle()
 
   if (error) {
@@ -1339,12 +1339,14 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
   const {error} = await supabase.from('category_prices').upsert(
     {
       warehouse_id: input.warehouse_id,
-      category_id: input.category_id,
-      driver_price: input.driver_price,
-      driver_with_vehicle_price: input.driver_with_vehicle_price
+      category_name: input.category_name,
+      unit_price: input.unit_price,
+      upstairs_price: input.upstairs_price,
+      sorting_unit_price: input.sorting_unit_price,
+      is_active: input.is_active ?? true
     },
     {
-      onConflict: 'warehouse_id,category_id'
+      onConflict: 'warehouse_id,category_name'
     }
   )
 
@@ -1361,12 +1363,14 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
   const {error} = await supabase.from('category_prices').upsert(
     inputs.map((input) => ({
       warehouse_id: input.warehouse_id,
-      category_id: input.category_id,
-      driver_price: input.driver_price,
-      driver_with_vehicle_price: input.driver_with_vehicle_price
+      category_name: input.category_name,
+      unit_price: input.unit_price,
+      upstairs_price: input.upstairs_price,
+      sorting_unit_price: input.sorting_unit_price,
+      is_active: input.is_active ?? true
     })),
     {
-      onConflict: 'warehouse_id,category_id'
+      onConflict: 'warehouse_id,category_name'
     }
   )
 
@@ -1399,12 +1403,12 @@ export async function deleteCategoryPrice(id: string): Promise<boolean> {
 export async function getCategoryPriceForDriver(
   warehouseId: string,
   categoryId: string
-): Promise<{driverPrice: number; driverWithVehiclePrice: number} | null> {
+): Promise<{unitPrice: number; upstairsPrice: number; sortingUnitPrice: number} | null> {
   const {data, error} = await supabase
     .from('category_prices')
-    .select('driver_price, driver_with_vehicle_price')
+    .select('unit_price, upstairs_price, sorting_unit_price')
     .eq('warehouse_id', warehouseId)
-    .eq('category_id', categoryId)
+    .eq('id', categoryId)
     .maybeSingle()
 
   if (error) {
@@ -1417,8 +1421,9 @@ export async function getCategoryPriceForDriver(
   }
 
   return {
-    driverPrice: data.driver_price,
-    driverWithVehiclePrice: data.driver_with_vehicle_price
+    unitPrice: data.unit_price,
+    upstairsPrice: data.upstairs_price,
+    sortingUnitPrice: data.sorting_unit_price
   }
 }
 
@@ -3020,17 +3025,8 @@ export async function getWarehouseCategoriesWithDetails(warehouseId: string): Pr
     return []
   }
 
-  // 转换为 PieceWorkCategory 格式
-  return data.map((item) => ({
-    id: item.id,
-    name: item.category_name,
-    unit_price: item.unit_price,
-    upstairs_price: item.upstairs_price || 0,
-    sorting_unit_price: item.sorting_unit_price || 0,
-    is_active: item.is_active,
-    created_at: item.created_at,
-    updated_at: item.updated_at
-  }))
+  // 数据已经是 PieceWorkCategory 格式，直接返回
+  return data
 }
 
 /**

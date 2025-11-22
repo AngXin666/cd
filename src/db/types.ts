@@ -177,44 +177,42 @@ export interface DriverWarehouseInput {
   warehouse_id: string
 }
 
-// 计件品类接口
+// 计件品类接口（对应 category_prices 表）
 export interface PieceWorkCategory {
   id: string
-  name: string
-  is_active: boolean
+  warehouse_id: string
+  category_name: string // 品类名称
+  unit_price: number // 单价
+  upstairs_price: number // 上楼价
+  sorting_unit_price: number // 分拣单价
+  is_active: boolean // 是否启用
   created_at: string
   updated_at: string
 }
 
 // 创建计件品类的输入接口
 export interface PieceWorkCategoryInput {
-  name: string
+  warehouse_id: string
+  category_name: string
+  unit_price: number
+  upstairs_price: number
+  sorting_unit_price: number
   is_active?: boolean
 }
 
-// 品类价格配置接口
-export interface CategoryPrice {
-  id: string
-  warehouse_id: string
-  category_id: string
-  driver_price: number // 纯司机单价
-  driver_with_vehicle_price: number // 带车司机单价
-  created_at: string
-  updated_at: string
-}
+// 品类价格配置接口（与 PieceWorkCategory 相同，保持向后兼容）
+export type CategoryPrice = PieceWorkCategory
 
-// 创建/更新品类价格的输入接口
-export interface CategoryPriceInput {
-  warehouse_id: string
-  category_id: string
-  driver_price: number
-  driver_with_vehicle_price: number
-}
+// 创建/更新品类价格的输入接口（与 PieceWorkCategoryInput 相同，保持向后兼容）
+export type CategoryPriceInput = PieceWorkCategoryInput
 
 // 品类价格更新接口
 export interface CategoryPriceUpdate {
-  driver_price?: number
-  driver_with_vehicle_price?: number
+  category_name?: string
+  unit_price?: number
+  upstairs_price?: number
+  sorting_unit_price?: number
+  is_active?: boolean
 }
 
 // 管理员仓库关联接口
