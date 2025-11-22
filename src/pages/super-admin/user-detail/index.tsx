@@ -122,12 +122,12 @@ const UserDetail: React.FC = () => {
 
   const [loading, setLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<Profile | null>(null)
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [_vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [_warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null) // 司机证件信息
 
   // 计算在职天数
-  const calculateWorkDays = (joinDate: string | null) => {
+  const _calculateWorkDays = (joinDate: string | null) => {
     if (!joinDate) return 0
     const join = new Date(joinDate)
     const now = new Date()
@@ -209,7 +209,7 @@ const UserDetail: React.FC = () => {
   }, [loadUserInfo])
 
   // 获取角色显示文本
-  const getRoleText = (role: string) => {
+  const _getRoleText = (role: string) => {
     switch (role) {
       case 'driver':
         return '司机'
@@ -237,21 +237,21 @@ const UserDetail: React.FC = () => {
   }
 
   // 编辑用户
-  const handleEdit = () => {
+  const _handleEdit = () => {
     Taro.navigateTo({
       url: `/pages/super-admin/edit-user/index?userId=${userId}`
     })
   }
 
   // 查看车辆详情
-  const handleViewVehicle = (vehicleId: string) => {
+  const _handleViewVehicle = (vehicleId: string) => {
     Taro.navigateTo({
       url: `/pages/driver/vehicle-detail/index?id=${vehicleId}`
     })
   }
 
   // 拨打电话
-  const handleCall = (phone: string) => {
+  const _handleCall = (phone: string) => {
     Taro.makePhoneCall({
       phoneNumber: phone
     })
@@ -312,7 +312,7 @@ const UserDetail: React.FC = () => {
     )
   }
 
-  const roleColor = getRoleColor(userInfo.role)
+  const _roleColor = getRoleColor(userInfo.role)
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
