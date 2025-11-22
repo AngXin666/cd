@@ -419,14 +419,14 @@ const DriverAttendanceDetail: React.FC = () => {
                               </View>
                             )}
 
-                            {leave.review_comment && (
+                            {leave.review_notes && (
                               <View className="flex items-start gap-3 pt-3 border-t border-gray-100">
                                 <View className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mt-1">
                                   <View className="i-mdi-comment-text text-xl text-purple-600" />
                                 </View>
                                 <View className="flex-1">
                                   <Text className="text-sm text-gray-500 block mb-1">审批意见</Text>
-                                  <Text className="text-base text-gray-700">{leave.review_comment}</Text>
+                                  <Text className="text-base text-gray-700">{leave.review_notes}</Text>
                                 </View>
                               </View>
                             )}

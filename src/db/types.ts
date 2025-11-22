@@ -296,8 +296,8 @@ export interface LeaveApplication {
   end_date: string
   reason: string
   status: ApplicationStatus
-  reviewer_id: string | null
-  review_comment: string | null
+  reviewed_by: string | null
+  review_notes: string | null
   reviewed_at: string | null
   created_at: string
 }
@@ -320,8 +320,8 @@ export interface ResignationApplication {
   expected_date: string
   reason: string
   status: ApplicationStatus
-  reviewer_id: string | null
-  review_comment: string | null
+  reviewed_by: string | null
+  review_notes: string | null
   reviewed_at: string | null
   created_at: string
 }

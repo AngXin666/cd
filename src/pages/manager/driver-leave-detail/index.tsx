@@ -497,17 +497,17 @@ const DriverLeaveDetail: React.FC = () => {
                     </View>
 
                     {/* 审批历史区 */}
-                    {(app.reviewer_id || app.review_comment || app.reviewed_at) && (
+                    {(app.reviewed_by || app.review_notes || app.reviewed_at) && (
                       <View className="bg-gray-50 rounded-lg p-3 mb-3">
                         <View className="flex items-center mb-2">
                           <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
                           <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
                         </View>
                         <View className="space-y-2">
-                          {app.reviewer_id && (
+                          {app.reviewed_by && (
                             <View className="flex items-center">
                               <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewer_id)}</Text>
+                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewed_by)}</Text>
                             </View>
                           )}
                           {app.reviewed_at && (
@@ -516,11 +516,11 @@ const DriverLeaveDetail: React.FC = () => {
                               <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
                             </View>
                           )}
-                          {app.review_comment && (
+                          {app.review_notes && (
                             <View>
                               <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
                               <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
-                                {app.review_comment}
+                                {app.review_notes}
                               </Text>
                             </View>
                           )}
@@ -737,17 +737,17 @@ const DriverLeaveDetail: React.FC = () => {
                     </View>
 
                     {/* 审批历史区 */}
-                    {(app.reviewer_id || app.review_comment || app.reviewed_at) && (
+                    {(app.reviewed_by || app.review_notes || app.reviewed_at) && (
                       <View className="bg-gray-50 rounded-lg p-3 mb-3">
                         <View className="flex items-center mb-2">
                           <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
                           <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
                         </View>
                         <View className="space-y-2">
-                          {app.reviewer_id && (
+                          {app.reviewed_by && (
                             <View className="flex items-center">
                               <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewer_id)}</Text>
+                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewed_by)}</Text>
                             </View>
                           )}
                           {app.reviewed_at && (
@@ -756,11 +756,11 @@ const DriverLeaveDetail: React.FC = () => {
                               <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
                             </View>
                           )}
-                          {app.review_comment && (
+                          {app.review_notes && (
                             <View>
                               <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
                               <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
-                                {app.review_comment}
+                                {app.review_notes}
                               </Text>
                             </View>
                           )}

@@ -113,6 +113,34 @@ invalid input value for enum leave_type: "personal_leave"
 
 ---
 
+## 第六次修复：审批字段名不匹配 (2025-11-05)
+
+### 问题
+审批请假申请失败，错误信息：
+```
+Column 'review_comment' of relation 'leave_applications' does not exist
+```
+
+### 原因
+数据库使用 `reviewed_by` 和 `review_notes`，代码使用 `reviewer_id` 和 `review_comment`
+
+### 解决方案
+1. 修改类型定义：
+   - `LeaveApplication` 接口：`reviewer_id` → `reviewed_by`, `review_comment` → `review_notes`
+   - `ResignationApplication` 接口：`reviewer_id` → `reviewed_by`, `review_comment` → `review_notes`
+
+2. 修改 API 函数：
+   - `reviewLeaveApplication`: 更新字段映射
+   - `reviewResignationApplication`: 更新字段映射
+
+3. 修改前端页面：
+   - 所有使用 `.reviewer_id` 的地方改为 `.reviewed_by`
+   - 所有使用 `.review_comment` 的地方改为 `.review_notes`
+
+**详细文档**: `REVIEW_FIELDS_FIX.md`
+
+---
+
 ## 修改的文件
 
 ### 登录功能
@@ -147,6 +175,14 @@ invalid input value for enum leave_type: "personal_leave"
 - `src/pages/driver/leave/index.tsx`
 - `src/pages/manager/driver-leave-detail/index.tsx`
 - `src/pages/super-admin/driver-leave-detail/index.tsx`
+
+### 审批字段修复
+- `src/db/types.ts`
+- `src/db/api.ts`
+- `src/pages/driver/leave/index.tsx`
+- `src/pages/manager/driver-leave-detail/index.tsx`
+- `src/pages/super-admin/driver-leave-detail/index.tsx`
+- `src/pages/super-admin/driver-attendance-detail/index.tsx`
 
 ---
 
@@ -194,7 +230,24 @@ invalid input value for enum leave_type: "personal_leave"
 - ✅ 所有 `work_date` 相关错误已修复
 - ✅ 所有 `type` / `leave_type` 字段名相关错误已修复
 - ✅ 所有枚举值（`sick_leave` → `sick` 等）相关错误已修复
+- ✅ 所有审批字段（`reviewer_id` → `reviewed_by`, `review_comment` → `review_notes`）相关错误已修复
 - ⚠️ 仍有一些其他错误（与本次修复无关）
+
+### 审批功能测试 ⏳
+1. **请假申请审批**：
+   - 管理员通过请假申请
+   - 管理员驳回请假申请
+   - 查看审批后的请假详情，确认审批人和审批意见正确显示
+
+2. **离职申请审批**：
+   - 管理员通过离职申请
+   - 管理员驳回离职申请
+   - 查看审批后的离职详情，确认审批人和审批意见正确显示
+
+3. **司机端查看**：
+   - 司机查看已审批的请假申请
+   - 司机查看已审批的离职申请
+   - 确认审批意见正确显示
 
 ---
 
@@ -225,6 +278,37 @@ invalid input value for enum leave_type: "personal_leave"
 2. 使用 Supabase Storage 存储附件
 
 3. 在前端添加文件上传组件
+
+### 字段名对照表
+
+| 功能模块 | 数据库字段名 | 代码字段名 | 状态 |
+|---------|------------|-----------|------|
+| 请假申请 | `leave_type` | `leave_type` | ✅ 已统一 |
+| 请假申请 | `start_date` | `start_date` | ✅ 已统一 |
+| 请假申请 | `end_date` | `end_date` | ✅ 已统一 |
+| 请假申请 | `reason` | `reason` | ✅ 已统一 |
+| 请假申请 | `reviewed_by` | `reviewed_by` | ✅ 已统一 |
+| 请假申请 | `review_notes` | `review_notes` | ✅ 已统一 |
+| 请假申请 | `reviewed_at` | `reviewed_at` | ✅ 已统一 |
+| 离职申请 | `expected_date` | `expected_date` | ✅ 已统一 |
+| 离职申请 | `reason` | `reason` | ✅ 已统一 |
+| 离职申请 | `reviewed_by` | `reviewed_by` | ✅ 已统一 |
+| 离职申请 | `review_notes` | `review_notes` | ✅ 已统一 |
+| 离职申请 | `reviewed_at` | `reviewed_at` | ✅ 已统一 |
+| 打卡记录 | `clock_in_time` | `clock_in_time` | ✅ 已统一 |
+| 打卡记录 | `work_date` | `work_date` | ✅ 已统一 |
+
+### 枚举值对照表
+
+| 枚举类型 | 数据库值 | 代码值 | 显示名称 | 状态 |
+|---------|---------|-------|---------|------|
+| leave_type | `sick` | `sick` | 病假 | ✅ 已统一 |
+| leave_type | `personal` | `personal` | 事假 | ✅ 已统一 |
+| leave_type | `annual` | `annual` | 年假 | ✅ 已统一 |
+| leave_type | `other` | `other` | 其他 | ✅ 已统一 |
+| application_status | `pending` | `pending` | 待审批 | ✅ 已统一 |
+| application_status | `approved` | `approved` | 已通过 | ✅ 已统一 |
+| application_status | `rejected` | `rejected` | 已驳回 | ✅ 已统一 |
 
 ---
 

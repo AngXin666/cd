@@ -371,10 +371,10 @@ const DriverLeave: React.FC = () => {
                         <Text className="text-sm text-gray-600">请假事由：</Text>
                         <Text className="text-sm text-gray-800">{app.reason}</Text>
                       </View>
-                      {app.review_comment && (
+                      {app.review_notes && (
                         <View>
                           <Text className="text-sm text-gray-600">审批意见：</Text>
-                          <Text className="text-sm text-gray-800">{app.review_comment}</Text>
+                          <Text className="text-sm text-gray-800">{app.review_notes}</Text>
                         </View>
                       )}
                       <View>
@@ -416,10 +416,10 @@ const DriverLeave: React.FC = () => {
                         <Text className="text-sm text-gray-600">离职原因：</Text>
                         <Text className="text-sm text-gray-800">{app.reason}</Text>
                       </View>
-                      {app.review_comment && (
+                      {app.review_notes && (
                         <View>
                           <Text className="text-sm text-gray-600">审批意见：</Text>
-                          <Text className="text-sm text-gray-800">{app.review_comment}</Text>
+                          <Text className="text-sm text-gray-800">{app.review_notes}</Text>
                         </View>
                       )}
                       <View>
