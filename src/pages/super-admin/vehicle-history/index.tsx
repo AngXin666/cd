@@ -21,7 +21,7 @@ const VehicleHistory: React.FC = () => {
 
   const [vehicle, setVehicle] = useState<VehicleWithDriver | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'pickup' | 'return'>('pickup')
+  const [activeTab, setActiveTab] = useState<'pickup' | 'return' | 'driver'>('pickup')
 
   const loadVehicleInfo = useCallback(async () => {
     if (!plateNumber) {
@@ -203,19 +203,27 @@ const VehicleHistory: React.FC = () => {
               {/* Tab 切换 */}
               <View className="flex bg-card rounded-lg p-1 mb-4 shadow-sm">
                 <View
-                  className={`flex-1 py-2 rounded-md transition-all ${activeTab === 'pickup' ? 'bg-primary' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'pickup' ? 'bg-primary shadow-md' : 'bg-transparent'}`}
                   onClick={() => setActiveTab('pickup')}>
                   <Text
-                    className={`text-center text-sm font-medium ${activeTab === 'pickup' ? 'text-white' : 'text-muted-foreground'}`}>
+                    className={`text-center text-base font-bold ${activeTab === 'pickup' ? 'text-white' : 'text-muted-foreground'}`}>
                     提车信息
                   </Text>
                 </View>
                 <View
-                  className={`flex-1 py-2 rounded-md transition-all ${activeTab === 'return' ? 'bg-primary' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'return' ? 'bg-primary shadow-md' : 'bg-transparent'}`}
                   onClick={() => setActiveTab('return')}>
                   <Text
-                    className={`text-center text-sm font-medium ${activeTab === 'return' ? 'text-white' : 'text-muted-foreground'}`}>
+                    className={`text-center text-base font-bold ${activeTab === 'return' ? 'text-white' : 'text-muted-foreground'}`}>
                     还车信息
+                  </Text>
+                </View>
+                <View
+                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'driver' ? 'bg-primary shadow-md' : 'bg-transparent'}`}
+                  onClick={() => setActiveTab('driver')}>
+                  <Text
+                    className={`text-center text-base font-bold ${activeTab === 'driver' ? 'text-white' : 'text-muted-foreground'}`}>
+                    实名信息
                   </Text>
                 </View>
               </View>
@@ -223,34 +231,16 @@ const VehicleHistory: React.FC = () => {
               {/* 提车信息 */}
               {activeTab === 'pickup' && (
                 <View className="space-y-4">
-                  {/* 提车时间和司机信息 */}
+                  {/* 提车时间 */}
                   <View className="bg-card rounded-lg p-4 shadow-sm">
                     <View className="flex items-center mb-3">
                       <View className="i-mdi-car-arrow-right text-xl text-green-600 mr-2"></View>
                       <Text className="text-lg font-bold text-foreground">提车信息</Text>
                     </View>
 
-                    <View className="space-y-3">
-                      <View>
-                        <Text className="text-muted-foreground text-sm mb-1">提车时间</Text>
-                        <Text className="text-foreground">{formatDateTime(vehicle.pickup_time)}</Text>
-                      </View>
-
-                      {vehicle.driver && (
-                        <View>
-                          <Text className="text-muted-foreground text-sm mb-1">提车司机</Text>
-                          <Text className="text-foreground">{vehicle.driver.name || '-'}</Text>
-                          {vehicle.driver.phone && (
-                            <Text className="text-muted-foreground text-sm">{vehicle.driver.phone}</Text>
-                          )}
-                        </View>
-                      )}
-
-                      {!vehicle.driver && vehicle.driver_id && (
-                        <View>
-                          <Text className="text-muted-foreground text-sm">暂无司机详细信息</Text>
-                        </View>
-                      )}
+                    <View>
+                      <Text className="text-muted-foreground text-sm mb-1">提车时间</Text>
+                      <Text className="text-foreground">{formatDateTime(vehicle.pickup_time)}</Text>
                     </View>
                   </View>
 
@@ -268,31 +258,14 @@ const VehicleHistory: React.FC = () => {
                     </View>
                   )}
 
-                  {/* 身份证照片 */}
-                  {getIdCardPhotos().length > 0 && (
-                    <View className="bg-card rounded-lg p-4 shadow-sm">
-                      {renderPhotoGrid(getIdCardPhotos(), '司机身份证')}
-                    </View>
-                  )}
-
-                  {/* 驾驶证照片 */}
-                  {getDriverLicensePhotos().length > 0 && (
-                    <View className="bg-card rounded-lg p-4 shadow-sm">
-                      {renderPhotoGrid(getDriverLicensePhotos(), '司机驾驶证')}
-                    </View>
-                  )}
-
                   {/* 提示：没有照片 */}
-                  {getPickupPhotos().length === 0 &&
-                    getRegistrationPhotos().length === 0 &&
-                    getIdCardPhotos().length === 0 &&
-                    getDriverLicensePhotos().length === 0 && (
-                      <View className="bg-card rounded-lg p-4 shadow-sm">
-                        <View className="flex items-center justify-center py-10">
-                          <Text className="text-muted-foreground">暂无提车照片</Text>
-                        </View>
+                  {getPickupPhotos().length === 0 && getRegistrationPhotos().length === 0 && (
+                    <View className="bg-card rounded-lg p-4 shadow-sm">
+                      <View className="flex items-center justify-center py-10">
+                        <Text className="text-muted-foreground">暂无提车照片</Text>
                       </View>
-                    )}
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -341,6 +314,67 @@ const VehicleHistory: React.FC = () => {
                     <View className="bg-card rounded-lg p-4 shadow-sm">
                       <View className="flex items-center justify-center py-10">
                         <Text className="text-muted-foreground">暂无还车信息</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* 实名信息 */}
+              {activeTab === 'driver' && (
+                <View className="space-y-4">
+                  {/* 司机信息 */}
+                  <View className="bg-card rounded-lg p-4 shadow-sm">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-account-circle text-xl text-blue-600 mr-2"></View>
+                      <Text className="text-lg font-bold text-foreground">司机信息</Text>
+                    </View>
+
+                    {vehicle.driver ? (
+                      <View className="space-y-2">
+                        <View className="flex items-start">
+                          <Text className="text-muted-foreground w-20 flex-shrink-0">姓名</Text>
+                          <Text className="text-foreground flex-1">{vehicle.driver.name || '-'}</Text>
+                        </View>
+                        {vehicle.driver.phone && (
+                          <View className="flex items-start">
+                            <Text className="text-muted-foreground w-20 flex-shrink-0">电话</Text>
+                            <Text className="text-foreground flex-1">{vehicle.driver.phone}</Text>
+                          </View>
+                        )}
+                        {vehicle.driver.email && (
+                          <View className="flex items-start">
+                            <Text className="text-muted-foreground w-20 flex-shrink-0">邮箱</Text>
+                            <Text className="text-foreground flex-1">{vehicle.driver.email}</Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <View className="flex items-center justify-center py-6">
+                        <Text className="text-muted-foreground">暂无司机信息</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* 身份证照片 */}
+                  {getIdCardPhotos().length > 0 && (
+                    <View className="bg-card rounded-lg p-4 shadow-sm">
+                      {renderPhotoGrid(getIdCardPhotos(), '身份证照片')}
+                    </View>
+                  )}
+
+                  {/* 驾驶证照片 */}
+                  {getDriverLicensePhotos().length > 0 && (
+                    <View className="bg-card rounded-lg p-4 shadow-sm">
+                      {renderPhotoGrid(getDriverLicensePhotos(), '驾驶证照片')}
+                    </View>
+                  )}
+
+                  {/* 提示：没有证件照片 */}
+                  {getIdCardPhotos().length === 0 && getDriverLicensePhotos().length === 0 && (
+                    <View className="bg-card rounded-lg p-4 shadow-sm">
+                      <View className="flex items-center justify-center py-10">
+                        <Text className="text-muted-foreground">暂无证件照片</Text>
                       </View>
                     </View>
                   )}
