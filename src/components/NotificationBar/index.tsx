@@ -19,6 +19,12 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
   // 只显示未读通知
   const unreadNotifications = notifications.filter((n) => !n.read)
 
+  console.log('🔔 NotificationBar 渲染:', {
+    总通知数: notifications.length,
+    未读通知数: unreadNotifications.length,
+    当前索引: currentIndex
+  })
+
   const currentNotification = unreadNotifications[currentIndex]
 
   // 自动切换通知
@@ -63,17 +69,17 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
   const getNotificationColor = (type: string) => {
     switch (type) {
       case 'leave_application':
-        return 'bg-blue-50 border-blue-200'
+        return 'bg-primary/10 border-primary/30'
       case 'resignation_application':
-        return 'bg-orange-50 border-orange-200'
+        return 'bg-secondary/10 border-secondary/30'
       case 'attendance':
-        return 'bg-green-50 border-green-200'
+        return 'bg-accent/10 border-accent/30'
       case 'approval':
-        return 'bg-purple-50 border-purple-200'
+        return 'bg-primary/10 border-primary/30'
       case 'system':
-        return 'bg-gray-50 border-gray-200'
+        return 'bg-muted border-border'
       default:
-        return 'bg-blue-50 border-blue-200'
+        return 'bg-primary/10 border-primary/30'
     }
   }
 
@@ -81,17 +87,17 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
   const getIconColor = (type: string) => {
     switch (type) {
       case 'leave_application':
-        return 'text-blue-500'
+        return 'text-primary'
       case 'resignation_application':
-        return 'text-orange-500'
+        return 'text-secondary'
       case 'attendance':
-        return 'text-green-500'
+        return 'text-accent'
       case 'approval':
-        return 'text-purple-500'
+        return 'text-primary'
       case 'system':
-        return 'text-gray-500'
+        return 'text-muted-foreground'
       default:
-        return 'text-blue-500'
+        return 'text-primary'
     }
   }
 
@@ -132,18 +138,18 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
         {/* 内容 */}
         <View className="flex-1 min-w-0">
           <View className="flex items-center justify-between mb-1">
-            <Text className="text-sm font-medium text-gray-900">{currentNotification.title}</Text>
-            <Text className="text-xs text-gray-500 ml-2 flex-shrink-0">
+            <Text className="text-sm font-medium text-foreground">{currentNotification.title}</Text>
+            <Text className="text-xs text-muted-foreground ml-2 flex-shrink-0">
               {formatTime(currentNotification.timestamp)}
             </Text>
           </View>
-          <Text className="text-xs text-gray-600 line-clamp-1">{currentNotification.content}</Text>
+          <Text className="text-xs text-muted-foreground line-clamp-1">{currentNotification.content}</Text>
         </View>
 
         {/* 未读标记和数量 */}
         <View className="flex items-center ml-3 flex-shrink-0">
           {unreadNotifications.length > 1 && (
-            <View className="bg-red-500 text-white text-xs px-2 py-1 rounded-full min-w-5 text-center">
+            <View className="bg-secondary text-white text-xs px-2 py-1 rounded-full min-w-5 text-center">
               <Text className="text-white text-xs">{unreadNotifications.length}</Text>
             </View>
           )}
@@ -152,9 +158,9 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
 
       {/* 进度条 */}
       {unreadNotifications.length > 1 && (
-        <View className="h-1 bg-gray-200">
+        <View className="h-1 bg-muted">
           <View
-            className={`h-full ${getIconColor(currentNotification.type).replace('text-', 'bg-')} transition-all duration-5000 ease-linear`}
+            className="h-full bg-primary transition-all duration-5000 ease-linear"
             style={{width: `${((currentIndex + 1) / unreadNotifications.length) * 100}%`}}
           />
         </View>

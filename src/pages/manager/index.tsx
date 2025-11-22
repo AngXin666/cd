@@ -127,32 +127,41 @@ const ManagerHome: React.FC = () => {
       }
 
       // 添加欢迎通知（仅在首次加载时）
-      const hasShownWelcome = localStorage.getItem('manager_welcome_shown')
-      if (!hasShownWelcome) {
-        // 添加多条通知以展示滚动效果
-        addNotification({
-          type: 'system',
-          title: '欢迎使用车队管家',
-          content: '您可以在这里管理司机、审批请假和查看统计数据'
-        })
+      try {
+        const hasShownWelcome = Taro.getStorageSync('manager_welcome_shown')
+        console.log('🎯 检查欢迎通知标记:', hasShownWelcome)
 
-        setTimeout(() => {
+        if (!hasShownWelcome) {
+          console.log('✨ 开始添加欢迎通知')
+
+          // 添加多条通知以展示滚动效果
           addNotification({
             type: 'system',
-            title: '功能提示',
-            content: '点击通知可以跳转到相应页面查看详情'
+            title: '欢迎使用车队管家',
+            content: '您可以在这里管理司机、审批请假和查看统计数据'
           })
-        }, 100)
 
-        setTimeout(() => {
-          addNotification({
-            type: 'system',
-            title: '实时通知已启用',
-            content: '当有新的请假申请或打卡记录时，您会收到实时通知'
-          })
-        }, 200)
+          setTimeout(() => {
+            addNotification({
+              type: 'system',
+              title: '功能提示',
+              content: '点击通知可以跳转到相应页面查看详情'
+            })
+          }, 100)
 
-        localStorage.setItem('manager_welcome_shown', 'true')
+          setTimeout(() => {
+            addNotification({
+              type: 'system',
+              title: '实时通知已启用',
+              content: '当有新的请假申请或打卡记录时，您会收到实时通知'
+            })
+          }, 200)
+
+          Taro.setStorageSync('manager_welcome_shown', 'true')
+          console.log('✅ 欢迎通知添加完成')
+        }
+      } catch (err) {
+        console.error('❌ 加载欢迎通知失败:', err)
       }
     }
   })
