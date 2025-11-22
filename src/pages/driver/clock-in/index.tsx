@@ -13,6 +13,14 @@ import {
 import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
 import {canClockIn} from '@/utils/attendance-check'
 
+// 获取本地日期字符串（YYYY-MM-DD格式）
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
@@ -213,6 +221,7 @@ const ClockIn: React.FC = () => {
       const record = await createClockIn({
         user_id: user.id,
         warehouse_id: selectedWarehouse.id,
+        work_date: getLocalDateString(now),
         clock_in_time: now.toISOString(),
         status
       })
