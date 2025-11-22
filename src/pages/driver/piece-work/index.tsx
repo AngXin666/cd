@@ -23,9 +23,7 @@ const DriverPieceWork: React.FC = () => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // 排序顺序：asc=升序，desc=降序
-  const [activeQuickFilter, setActiveQuickFilter] = useState<'yesterday' | 'week' | 'month' | 'nextday' | 'custom'>(
-    'month'
-  ) // 当前选中的快捷筛选
+  const [activeQuickFilter, setActiveQuickFilter] = useState<'today' | 'week' | 'month' | 'nextday' | 'custom'>('month') // 当前选中的快捷筛选
 
   // 获取URL参数
   const instance = getCurrentInstance()
@@ -56,7 +54,7 @@ const DriverPieceWork: React.FC = () => {
       // 设置为今天
       setStartDate(todayStr)
       setEndDate(todayStr)
-      setActiveQuickFilter('yesterday') // 使用yesterday作为"今天"的标识
+      setActiveQuickFilter('today')
     } else if (rangeParam === 'month') {
       // 设置为本月
       const firstDay = `${year}-${month}-01`
@@ -218,7 +216,7 @@ const DriverPieceWork: React.FC = () => {
   }
 
   // 计算前一天的日期（用于显示）
-  const getPreviousDayDisplay = (): string => {
+  const _getPreviousDayDisplay = (): string => {
     const baseDate = startDate || getLocalDateString()
     const dateStr = getPreviousDay(baseDate)
     return formatDateDisplay(dateStr)
@@ -231,14 +229,12 @@ const DriverPieceWork: React.FC = () => {
     return formatDateDisplay(dateStr)
   }
 
-  // 快捷筛选：前一天（基于当前选中的日期）
-  const handleYesterdayFilter = () => {
-    // 如果当前有选中的日期，基于它计算前一天；否则使用昨天
-    const baseDate = startDate || getLocalDateString()
-    const dateStr = getPreviousDay(baseDate)
-    setStartDate(dateStr)
-    setEndDate(dateStr)
-    setActiveQuickFilter('yesterday')
+  // 快捷筛选：今天
+  const handleTodayFilter = () => {
+    const todayStr = getLocalDateString()
+    setStartDate(todayStr)
+    setEndDate(todayStr)
+    setActiveQuickFilter('today')
   }
 
   // 快捷筛选：本周
@@ -624,23 +620,20 @@ const DriverPieceWork: React.FC = () => {
           {/* 快捷筛选按钮（移到外面） */}
           <View className="mb-4">
             <View className="grid grid-cols-4 gap-2">
-              {/* 前一天 */}
+              {/* 今天 */}
               <View
                 className={`flex flex-col items-center justify-center p-2 rounded-lg active:scale-95 transition-all ${
-                  activeQuickFilter === 'yesterday'
+                  activeQuickFilter === 'today'
                     ? 'bg-gradient-to-r from-blue-600 to-blue-500 shadow-md'
                     : 'bg-gradient-to-r from-blue-50 to-blue-100'
                 }`}
-                onClick={handleYesterdayFilter}>
+                onClick={handleTodayFilter}>
                 <View
-                  className={`text-xl mb-1 i-mdi-calendar-minus ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-600'}`}
+                  className={`text-xl mb-1 i-mdi-calendar-today ${activeQuickFilter === 'today' ? 'text-white' : 'text-blue-600'}`}
                 />
                 <Text
-                  className={`text-xs font-medium mb-0.5 ${activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-700'}`}>
-                  前一天
-                </Text>
-                <Text className={`text-xs ${activeQuickFilter === 'yesterday' ? 'text-blue-100' : 'text-blue-500'}`}>
-                  {getPreviousDayDisplay()}
+                  className={`text-xs font-medium ${activeQuickFilter === 'today' ? 'text-white' : 'text-blue-700'}`}>
+                  今天
                 </Text>
               </View>
 
