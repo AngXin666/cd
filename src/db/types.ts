@@ -291,7 +291,7 @@ export interface LeaveApplication {
   id: string
   user_id: string
   warehouse_id: string
-  type: LeaveType
+  leave_type: LeaveType
   start_date: string
   end_date: string
   reason: string
@@ -306,7 +306,7 @@ export interface LeaveApplication {
 export interface LeaveApplicationInput {
   user_id: string
   warehouse_id: string
-  type: LeaveType
+  leave_type: LeaveType
   start_date: string
   end_date: string
   reason: string

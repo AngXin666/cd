@@ -377,7 +377,9 @@ const DriverAttendanceDetail: React.FC = () => {
                               <View className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
                                 <View className="i-mdi-calendar-clock text-2xl text-orange-600" />
                               </View>
-                              <Text className="text-xl font-bold text-gray-800">{getLeaveTypeText(leave.type)}</Text>
+                              <Text className="text-xl font-bold text-gray-800">
+                                {getLeaveTypeText(leave.leave_type)}
+                              </Text>
                             </View>
                             <View className={`px-4 py-2 rounded-full ${statusInfo.bgColor}`}>
                               <Text className={`text-sm font-bold ${statusInfo.textColor}`}>{statusInfo.text}</Text>

@@ -1556,7 +1556,7 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
     .insert({
       user_id: input.user_id,
       warehouse_id: input.warehouse_id,
-      type: input.type,
+      leave_type: input.leave_type,
       start_date: input.start_date,
       end_date: input.end_date,
       reason: input.reason,
@@ -1589,7 +1589,7 @@ export async function updateDraftLeaveApplication(
   input: Partial<LeaveApplicationInput>
 ): Promise<boolean> {
   const updateData: Record<string, unknown> = {}
-  if (input.type !== undefined) updateData.type = input.type
+  if (input.leave_type !== undefined) updateData.leave_type = input.leave_type
   if (input.start_date !== undefined) updateData.start_date = input.start_date
   if (input.end_date !== undefined) updateData.end_date = input.end_date
   if (input.reason !== undefined) updateData.reason = input.reason

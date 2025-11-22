@@ -353,7 +353,7 @@ const DriverLeave: React.FC = () => {
                     <View className="flex items-center justify-between mb-3">
                       <View className="flex items-center">
                         <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
-                        <Text className="text-base font-bold text-gray-800">{_getLeaveTypeText(app.type)}</Text>
+                        <Text className="text-base font-bold text-gray-800">{_getLeaveTypeText(app.leave_type)}</Text>
                       </View>
                       <Text className={`text-sm font-bold ${_getStatusColor(app.status)}`}>
                         {_getStatusText(app.status)}
@@ -453,7 +453,9 @@ const DriverLeave: React.FC = () => {
                           <View className="flex items-center justify-between mb-3">
                             <View className="flex items-center">
                               <View className="i-mdi-file-document-edit text-2xl text-purple-600 mr-2" />
-                              <Text className="text-base font-bold text-gray-800">{_getLeaveTypeText(draft.type)}</Text>
+                              <Text className="text-base font-bold text-gray-800">
+                                {_getLeaveTypeText(draft.leave_type)}
+                              </Text>
                             </View>
                             <View className="bg-purple-600 px-2 py-1 rounded">
                               <Text className="text-xs text-white">草稿</Text>

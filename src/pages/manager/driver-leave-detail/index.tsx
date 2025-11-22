@@ -446,7 +446,7 @@ const DriverLeaveDetail: React.FC = () => {
                     <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
                       <View className="flex items-center">
                         <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
-                        <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(app.type)}</Text>
+                        <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(app.leave_type)}</Text>
                       </View>
                       <View
                         className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>

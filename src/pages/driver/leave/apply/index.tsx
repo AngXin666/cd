@@ -90,7 +90,7 @@ const ApplyLeave: React.FC = () => {
       return
     }
 
-    setLeaveType(data.type as LeaveType)
+    setLeaveType(data.leave_type as LeaveType)
     setStartDate(data.start_date || '')
     setEndDate(data.end_date || '')
     setReason(data.reason || '')
@@ -249,7 +249,7 @@ const ApplyLeave: React.FC = () => {
     let success = false
     if (isEditMode && draftId) {
       success = await updateDraftLeaveApplication(draftId, {
-        type: leaveType,
+        leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
         reason: reason.trim()
@@ -258,7 +258,7 @@ const ApplyLeave: React.FC = () => {
       const result = await saveDraftLeaveApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
-        type: leaveType,
+        leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
         reason: reason.trim()
@@ -320,7 +320,7 @@ const ApplyLeave: React.FC = () => {
     let success = false
     if (isEditMode && draftId) {
       await updateDraftLeaveApplication(draftId, {
-        type: leaveType,
+        leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
         reason: reason.trim()
@@ -331,7 +331,7 @@ const ApplyLeave: React.FC = () => {
       const result = await createLeaveApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
-        type: leaveType,
+        leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
         reason: reason.trim()

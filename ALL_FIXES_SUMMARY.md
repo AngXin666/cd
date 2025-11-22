@@ -78,6 +78,24 @@ Column 'is_draft' of relation 'leave_applications' does not exist
 
 ---
 
+### 4. 请假申请字段名修复 ✅
+**问题**: 创建请假申请时出现字段不存在错误
+```
+Column 'type' of relation 'leave_applications' does not exist
+```
+
+**原因**: 数据库表中的字段名是 `leave_type`，但代码中使用的是 `type`
+
+**解决方案**: 
+- 将类型定义中的 `type` 改为 `leave_type`
+- 更新所有 API 函数中的字段名
+- 更新所有前端页面中的字段引用
+- 更新工具函数中的字段引用
+
+**详细文档**: `LEAVE_TYPE_FIELD_FIX.md`
+
+---
+
 ## 修改的文件
 
 ### 登录功能
@@ -95,6 +113,16 @@ Column 'is_draft' of relation 'leave_applications' does not exist
 - `src/db/api.ts`
 - `src/pages/driver/leave/apply/index.tsx`
 - `src/pages/driver/leave/resign/index.tsx`
+
+### 请假申请字段名修复
+- `src/db/types.ts`
+- `src/db/api.ts`
+- `src/pages/driver/leave/apply/index.tsx`
+- `src/pages/driver/leave/index.tsx`
+- `src/pages/manager/driver-leave-detail/index.tsx`
+- `src/pages/super-admin/driver-attendance-detail/index.tsx`
+- `src/pages/super-admin/driver-leave-detail/index.tsx`
+- `src/utils/attendance-check.ts`
 
 ---
 
@@ -140,6 +168,7 @@ Column 'is_draft' of relation 'leave_applications' does not exist
 - ✅ 所有 `is_draft` 相关错误已修复
 - ✅ 所有 `clock_in_time` 相关错误已修复
 - ✅ 所有 `work_date` 相关错误已修复
+- ✅ 所有 `type` / `leave_type` 相关错误已修复
 - ⚠️ 仍有一些其他错误（与本次修复无关）
 
 ---
@@ -189,7 +218,8 @@ Column 'is_draft' of relation 'leave_applications' does not exist
 ## 相关文档
 - `LOGIN_FIX_FINAL.md` - 登录功能详细修复说明
 - `CLOCK_IN_FIX.md` - 打卡功能详细修复说明
-- `LEAVE_APPLICATION_FIX.md` - 请假/离职申请功能详细修复说明
+- `LEAVE_APPLICATION_FIX.md` - 请假/离职申请功能详细修复说明（第一次）
+- `LEAVE_TYPE_FIELD_FIX.md` - 请假申请字段名详细修复说明（第二次）
 
 ---
 

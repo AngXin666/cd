@@ -40,7 +40,7 @@ export async function checkTodayAttendance(userId: string): Promise<AttendanceCh
         hasClockedIn: false,
         onLeave: true,
         leaveId: leaveRecord.id,
-        leaveType: leaveRecord.type,
+        leaveType: leaveRecord.leave_type,
         message: '今天您休息，无需打卡'
       }
     }
