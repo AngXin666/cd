@@ -67,12 +67,17 @@ async function saveTempFileToPersistent(tempFilePath: string): Promise<string> {
       tempFilePath: tempFilePath
     })
 
-    logger.info('图片已持久化', {
-      tempPath: tempFilePath,
-      savedPath: result.savedFilePath
-    })
+    if ('savedFilePath' in result) {
+      logger.info('图片已持久化', {
+        tempPath: tempFilePath,
+        savedPath: result.savedFilePath
+      })
 
-    return result.savedFilePath
+      return result.savedFilePath
+    } else {
+      logger.error('图片持久化失败', {tempFilePath, result})
+      return tempFilePath
+    }
   } catch (error) {
     logger.error('图片持久化失败', {tempFilePath, error})
     // 失败时返回原路径
@@ -110,8 +115,8 @@ async function isFileValid(filePath: string): Promise<boolean> {
 
   try {
     const fs = Taro.getFileSystemManager()
-    const result = await fs.access({path: filePath})
-    return result.errMsg === 'access:ok'
+    await fs.access({path: filePath})
+    return true
   } catch (_error) {
     return false
   }

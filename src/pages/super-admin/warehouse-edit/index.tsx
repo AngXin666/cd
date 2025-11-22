@@ -562,12 +562,12 @@ const WarehouseEdit: React.FC = () => {
       const category = allCategories.find((c) => c.id === categoryId)
 
       if (!driverPrice || Number.isNaN(Number(driverPrice)) || Number(driverPrice) < 0) {
-        showToast({title: `请为品类"${category?.name}"设置有效的纯司机单价`, icon: 'error'})
+        showToast({title: `请为品类"${category?.category_name}"设置有效的纯司机单价`, icon: 'error'})
         return
       }
 
       if (!vehiclePrice || Number.isNaN(Number(vehiclePrice)) || Number(vehiclePrice) < 0) {
-        showToast({title: `请为品类"${category?.name}"设置有效的带车司机单价`, icon: 'error'})
+        showToast({title: `请为品类"${category?.category_name}"设置有效的带车司机单价`, icon: 'error'})
         return
       }
     }

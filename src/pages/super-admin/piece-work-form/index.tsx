@@ -230,7 +230,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
   // 准备选择器数据
   const driverOptions = drivers.map((d) => d.name || d.phone)
   const warehouseOptions = warehouses.map((w) => w.name)
-  const categoryOptions = categories.map((c) => c.name)
+  const categoryOptions = categories.map((c) => c.category_name)
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>

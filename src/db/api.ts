@@ -2892,23 +2892,31 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
 
   // 如果是超级管理员，返回所有权限
   if (profile.role === 'super_admin') {
+    const now = new Date().toISOString()
     return {
+      id: managerId, // 使用 managerId 作为 id
       manager_id: managerId,
       can_edit_user_info: true,
       can_edit_piece_work: true,
       can_manage_attendance_rules: true,
-      can_manage_categories: true
+      can_manage_categories: true,
+      created_at: now,
+      updated_at: now
     }
   }
 
   // 如果是普通管理员，返回默认权限
   if (profile.role === 'manager') {
+    const now = new Date().toISOString()
     return {
+      id: managerId, // 使用 managerId 作为 id
       manager_id: managerId,
       can_edit_user_info: true,
       can_edit_piece_work: true,
       can_manage_attendance_rules: false,
-      can_manage_categories: false
+      can_manage_categories: false,
+      created_at: now,
+      updated_at: now
     }
   }
 

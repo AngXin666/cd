@@ -468,7 +468,8 @@ export async function uploadImageToStorage(
           fail: (err) => {
             console.error('❌ 文件读取失败:', err)
             console.error('❌ 文件路径:', compressedPath)
-            reject(new Error(`文件读取失败: ${err.errMsg || '未知错误'}`))
+            const errorMsg = (err as any).errMsg || '未知错误'
+            reject(new Error(`文件读取失败: ${errorMsg}`))
           }
         })
       })
@@ -497,7 +498,6 @@ export async function uploadImageToStorage(
 
       if (error) {
         console.error('❌ Supabase Storage 上传失败')
-        console.error('❌ 错误代码:', error.statusCode)
         console.error('❌ 错误消息:', error.message)
         console.error('❌ 错误详情:', JSON.stringify(error))
 

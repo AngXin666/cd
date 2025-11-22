@@ -207,12 +207,6 @@ const DriverAttendanceDetail: React.FC = () => {
                     <Text className="text-base text-gray-600">{driverProfile.phone}</Text>
                   </View>
                 )}
-                {driverProfile?.license_plate && (
-                  <View className="flex items-center gap-2">
-                    <View className="i-mdi-car text-lg text-gray-500" />
-                    <Text className="text-base text-gray-600">{driverProfile.license_plate}</Text>
-                  </View>
-                )}
               </View>
             </View>
           </View>
@@ -333,18 +327,6 @@ const DriverAttendanceDetail: React.FC = () => {
                                 <Text className="text-lg font-bold text-gray-800">
                                   {getWarehouseName(record.warehouse_id)}
                                 </Text>
-                              </View>
-                            </View>
-                          )}
-
-                          {record.location && (
-                            <View className="flex items-center gap-3">
-                              <View className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
-                                <View className="i-mdi-map-marker text-xl text-pink-600" />
-                              </View>
-                              <View className="flex-1">
-                                <Text className="text-sm text-gray-500 block mb-1">打卡位置</Text>
-                                <Text className="text-base text-gray-700">{record.location}</Text>
                               </View>
                             </View>
                           )}

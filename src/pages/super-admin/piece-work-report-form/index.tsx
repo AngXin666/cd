@@ -331,12 +331,12 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
               </Text>
               <Picker
                 mode="selector"
-                range={categories.map((c) => c.name)}
+                range={categories.map((c) => c.category_name)}
                 value={selectedCategoryIndex}
                 onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
                 <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
                   <Text className="text-sm text-gray-800">
-                    {categories[selectedCategoryIndex]?.name || '请选择品类'}
+                    {categories[selectedCategoryIndex]?.category_name || '请选择品类'}
                   </Text>
                   <View className="i-mdi-chevron-down text-xl text-gray-400" />
                 </View>

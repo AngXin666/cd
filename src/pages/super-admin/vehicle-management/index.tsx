@@ -176,12 +176,7 @@ const VehicleManagement: React.FC = () => {
    * 仅当车辆状态为"待审核"或"需补录"时显示
    */
   const shouldShowReviewButton = (vehicle: VehicleWithDriver): boolean => {
-    return (
-      vehicle.review_status === 'pending' ||
-      vehicle.review_status === 'pending_review' ||
-      vehicle.review_status === 'need_supplement' ||
-      vehicle.review_status === 'rejected'
-    )
+    return vehicle.review_status === 'pending_review' || vehicle.review_status === 'need_supplement'
   }
 
   /**
@@ -237,7 +232,7 @@ const VehicleManagement: React.FC = () => {
     vehicle: VehicleWithDriver
   ): {text: string; bg: string; textColor: string; icon: string} => {
     // 优先判断审核状态
-    if (vehicle.review_status === 'pending' || vehicle.review_status === 'pending_review') {
+    if (vehicle.review_status === 'pending_review') {
       return {
         text: '审核中',
         bg: 'bg-orange-100',
@@ -246,7 +241,7 @@ const VehicleManagement: React.FC = () => {
       }
     }
 
-    if (vehicle.review_status === 'rejected' || vehicle.review_status === 'need_supplement') {
+    if (vehicle.review_status === 'need_supplement') {
       return {
         text: '需补录',
         bg: 'bg-red-100',

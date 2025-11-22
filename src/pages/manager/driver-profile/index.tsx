@@ -389,14 +389,14 @@ const DriverProfileView: React.FC = () => {
                 onClick={async () => {
                   const {confirm} = await Taro.showModal({
                     title: '重置密码',
-                    content: `确认将用户"${profile?.real_name || profile?.name || profile?.phone}"的密码重置为 123456 吗？`
+                    content: `确认将用户"${profile?.name || profile?.phone}"的密码重置为 123456 吗？`
                   })
 
                   if (!confirm) return
 
                   try {
                     Taro.showLoading({title: '处理中...'})
-                    logger.action('重置密码', {driverId, operatorId: user?.id})
+                    logger.userAction('重置密码', {driverId, operatorId: user?.id})
 
                     const {error} = await supabase.rpc('reset_user_password', {
                       target_user_id: driverId,
@@ -414,7 +414,7 @@ const DriverProfileView: React.FC = () => {
                       return
                     }
 
-                    logger.success('重置密码成功', {driverId})
+                    logger.info('重置密码成功', {driverId})
                     Taro.showToast({
                       title: '密码已重置为 123456',
                       icon: 'success'
@@ -438,14 +438,14 @@ const DriverProfileView: React.FC = () => {
                 onClick={async () => {
                   const {confirm} = await Taro.showModal({
                     title: '提升为管理员',
-                    content: `确认将司机"${profile?.real_name || profile?.name || profile?.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
+                    content: `确认将司机"${profile?.name || profile?.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
                   })
 
                   if (!confirm) return
 
                   try {
                     Taro.showLoading({title: '处理中...'})
-                    logger.action('提升为管理员', {driverId, operatorId: user?.id})
+                    logger.userAction('提升为管理员', {driverId, operatorId: user?.id})
 
                     const {error} = await supabase.from('profiles').update({role: 'manager'}).eq('id', driverId)
 
@@ -460,7 +460,7 @@ const DriverProfileView: React.FC = () => {
                       return
                     }
 
-                    logger.success('提升为管理员成功', {driverId})
+                    logger.info('提升为管理员成功', {driverId})
                     Taro.showToast({
                       title: '已提升为管理员',
                       icon: 'success',

@@ -175,16 +175,16 @@ const SupplementVehicle: React.FC = () => {
       // 上传所有新照片
       const uploadPromises = supplementItems.map(async (item) => {
         const fileName = generateUniqueFileName('supplement')
-        const uploadResult = await uploadImageToStorage(BUCKET_NAME, fileName, item.newUrl)
+        const uploadResult = await uploadImageToStorage(item.newUrl, BUCKET_NAME, fileName)
 
-        if (!uploadResult.success) {
-          throw new Error(`上传照片失败: ${uploadResult.error}`)
+        if (!uploadResult) {
+          throw new Error(`上传照片失败`)
         }
 
         return {
           field: item.field,
           index: item.index,
-          url: uploadResult.url
+          url: uploadResult
         }
       })
 
@@ -204,7 +204,7 @@ const SupplementVehicle: React.FC = () => {
       await updateVehicle(vehicle.id, {
         ...updatedPhotos,
         required_photos: [],
-        review_status: 'pending' // 重新提交审核
+        review_status: 'pending_review' // 重新提交审核
       })
 
       Taro.hideLoading()

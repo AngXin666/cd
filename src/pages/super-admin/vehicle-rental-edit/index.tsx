@@ -178,14 +178,14 @@ const VehicleRentalEdit: React.FC = () => {
   }
 
   // 车辆归属类型选择器
-  const handleOwnershipTypeChange = (e: {detail: {value: string}}) => {
-    const index = Number(e.detail.value)
+  const handleOwnershipTypeChange = (e: {detail: {value: string | number}}) => {
+    const index = typeof e.detail.value === 'string' ? Number(e.detail.value) : e.detail.value
     setOwnershipType(ownershipTypeOptions[index].value as OwnershipType)
   }
 
   // 租金缴纳日选择器
-  const handlePaymentDayChange = (e: {detail: {value: string}}) => {
-    const index = Number(e.detail.value)
+  const handlePaymentDayChange = (e: {detail: {value: string | number}}) => {
+    const index = typeof e.detail.value === 'string' ? Number(e.detail.value) : e.detail.value
     setRentPaymentDay(paymentDayOptions[index].value)
   }
 

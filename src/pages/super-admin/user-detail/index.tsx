@@ -713,27 +713,19 @@ const UserDetail: React.FC = () => {
                             <View className="i-mdi-warehouse text-lg text-purple-600 mr-2"></View>
                             <Text className="text-base text-purple-900 font-bold">{warehouse.name}</Text>
                           </View>
-                          {warehouse.address && (
-                            <View className="flex items-center">
-                              <View className="i-mdi-map-marker text-sm text-purple-600 mr-1"></View>
-                              <Text className="text-xs text-purple-700 block">{warehouse.address}</Text>
-                            </View>
-                          )}
-                          {warehouse.status && (
-                            <View className="flex items-center mt-2">
-                              <View
-                                className={`rounded-full px-2 py-0.5 ${
-                                  warehouse.status === 'active' ? 'bg-green-100' : 'bg-gray-100'
+                          <View className="flex items-center mt-2">
+                            <View
+                              className={`rounded-full px-2 py-0.5 ${
+                                warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'
+                              }`}>
+                              <Text
+                                className={`text-xs font-medium ${
+                                  warehouse.is_active ? 'text-green-600' : 'text-gray-600'
                                 }`}>
-                                <Text
-                                  className={`text-xs font-medium ${
-                                    warehouse.status === 'active' ? 'text-green-600' : 'text-gray-600'
-                                  }`}>
-                                  {warehouse.status === 'active' ? '使用中' : '已停用'}
-                                </Text>
-                              </View>
+                                {warehouse.is_active ? '使用中' : '已停用'}
+                              </Text>
                             </View>
-                          )}
+                          </View>
                         </View>
                       </View>
                     </View>
