@@ -2,6 +2,7 @@ import type {RealtimeChannel} from '@supabase/supabase-js'
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef} from 'react'
 import {supabase} from '@/client/supabase'
+import type {Notification} from './useNotifications'
 
 interface NotificationOptions {
   userId: string
@@ -9,6 +10,7 @@ interface NotificationOptions {
   onLeaveApplicationChange?: () => void
   onResignationApplicationChange?: () => void
   onAttendanceChange?: () => void
+  onNewNotification?: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
 }
 
 /**
@@ -16,7 +18,14 @@ interface NotificationOptions {
  * 监听数据库变化并显示通知
  */
 export function useRealtimeNotifications(options: NotificationOptions) {
-  const {userId, userRole, onLeaveApplicationChange, onResignationApplicationChange, onAttendanceChange} = options
+  const {
+    userId,
+    userRole,
+    onLeaveApplicationChange,
+    onResignationApplicationChange,
+    onAttendanceChange,
+    onNewNotification
+  } = options
 
   const channelRef = useRef<RealtimeChannel | null>(null)
   const lastNotificationTime = useRef<{[key: string]: number}>({})
@@ -36,8 +45,9 @@ export function useRealtimeNotifications(options: NotificationOptions) {
 
   // 显示通知
   const showNotification = useCallback(
-    (title: string, key: string) => {
+    (title: string, content: string, key: string, type: Notification['type'], data?: any) => {
       if (shouldShowNotification(key)) {
+        // 显示 Toast 通知
         Taro.showToast({
           title,
           icon: 'none',
@@ -46,9 +56,19 @@ export function useRealtimeNotifications(options: NotificationOptions) {
 
         // 震动反馈
         Taro.vibrateShort({type: 'light'})
+
+        // 添加到通知栏
+        if (onNewNotification) {
+          onNewNotification({
+            type,
+            title,
+            content,
+            data
+          })
+        }
       }
     },
-    [shouldShowNotification]
+    [shouldShowNotification, onNewNotification]
   )
 
   // 设置实时订阅
@@ -75,7 +95,10 @@ export function useRealtimeNotifications(options: NotificationOptions) {
         },
         (payload) => {
           console.log('新的请假申请:', payload)
-          showNotification('收到新的请假申请', 'leave_insert')
+          const record = payload.new as any
+          showNotification('收到新的请假申请', `司机提交了新的请假申请`, 'leave_insert', 'leave_application', {
+            applicationId: record.id
+          })
           onLeaveApplicationChange?.()
         }
       )
@@ -102,7 +125,14 @@ export function useRealtimeNotifications(options: NotificationOptions) {
         },
         (payload) => {
           console.log('新的离职申请:', payload)
-          showNotification('收到新的离职申请', 'resignation_insert')
+          const record = payload.new as any
+          showNotification(
+            '收到新的离职申请',
+            `司机提交了新的离职申请`,
+            'resignation_insert',
+            'resignation_application',
+            {applicationId: record.id}
+          )
           onResignationApplicationChange?.()
         }
       )
@@ -148,9 +178,13 @@ export function useRealtimeNotifications(options: NotificationOptions) {
         (payload) => {
           const record = payload.new as any
           if (record.status === 'approved') {
-            showNotification('您的请假申请已通过', 'leave_approved')
+            showNotification('您的请假申请已通过', `您的请假申请已通过审批`, 'leave_approved', 'approval', {
+              applicationId: record.id
+            })
           } else if (record.status === 'rejected') {
-            showNotification('您的请假申请已被驳回', 'leave_rejected')
+            showNotification('您的请假申请已被驳回', `您的请假申请已被驳回`, 'leave_rejected', 'approval', {
+              applicationId: record.id
+            })
           }
           onLeaveApplicationChange?.()
         }
@@ -167,9 +201,13 @@ export function useRealtimeNotifications(options: NotificationOptions) {
         (payload) => {
           const record = payload.new as any
           if (record.status === 'approved') {
-            showNotification('您的离职申请已通过', 'resignation_approved')
+            showNotification('您的离职申请已通过', `您的离职申请已通过审批`, 'resignation_approved', 'approval', {
+              applicationId: record.id
+            })
           } else if (record.status === 'rejected') {
-            showNotification('您的离职申请已被驳回', 'resignation_rejected')
+            showNotification('您的离职申请已被驳回', `您的离职申请已被驳回`, 'resignation_rejected', 'approval', {
+              applicationId: record.id
+            })
           }
           onResignationApplicationChange?.()
         }

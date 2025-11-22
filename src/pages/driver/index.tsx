@@ -4,9 +4,16 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {ClockInReminderModal} from '@/components/attendance'
+import NotificationBar from '@/components/NotificationBar'
 import {getCurrentUserProfile, getDriverLicense} from '@/db/api'
 import type {DriverLicense, Profile} from '@/db/types'
-import {useDriverDashboard, useDriverWarehouses, useWarehousesSorted} from '@/hooks'
+import {
+  useDriverDashboard,
+  useDriverWarehouses,
+  useNotifications,
+  useRealtimeNotifications,
+  useWarehousesSorted
+} from '@/hooks'
 import type {AttendanceCheckResult} from '@/utils/attendance-check'
 import {checkTodayAttendance} from '@/utils/attendance-check'
 
@@ -17,6 +24,9 @@ const DriverHome: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 通知管理
+  const {notifications, addNotification, markAsRead, getRecentNotifications} = useNotifications()
 
   // 打卡检测相关状态
   const [showClockInReminder, setShowClockInReminder] = useState(false)
@@ -156,6 +166,23 @@ const DriverHome: React.FC = () => {
       // 批量并行刷新所有数据
       Promise.all([loadProfile(), refreshStats(), refreshSorting(), checkAttendance()])
     }
+  })
+
+  // 启用实时通知
+  useRealtimeNotifications({
+    userId: user?.id || '',
+    userRole: 'driver',
+    onLeaveApplicationChange: () => {
+      refreshStats()
+    },
+    onResignationApplicationChange: () => {
+      refreshStats()
+    },
+    onAttendanceChange: () => {
+      refreshStats()
+      checkAttendance()
+    },
+    onNewNotification: addNotification
   })
 
   // 下拉刷新
@@ -299,6 +326,18 @@ const DriverHome: React.FC = () => {
               )}
             </View>
           </View>
+
+          {/* 通知栏 */}
+          <NotificationBar
+            notifications={getRecentNotifications(5)}
+            onNotificationClick={(notification) => {
+              markAsRead(notification.id)
+              // 根据通知类型跳转到相应页面
+              if (notification.type === 'approval') {
+                Taro.navigateTo({url: '/pages/driver/leave/index'})
+              }
+            }}
+          />
 
           {/* 数据统计仪表盘 */}
           <View className="mb-4">

@@ -3,9 +3,16 @@ import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@taro
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
+import NotificationBar from '@/components/NotificationBar'
 import {getAllWarehouses, getCurrentUserProfile} from '@/db/api'
 import type {Profile, Warehouse} from '@/db/types'
-import {useDriverStats, useSuperAdminDashboard, useWarehousesSorted} from '@/hooks'
+import {
+  useDriverStats,
+  useNotifications,
+  useRealtimeNotifications,
+  useSuperAdminDashboard,
+  useWarehousesSorted
+} from '@/hooks'
 
 const SuperAdminHome: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
@@ -14,6 +21,9 @@ const SuperAdminHome: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 通知管理
+  const {notifications, addNotification, markAsRead, getRecentNotifications} = useNotifications()
 
   // 使用仓库排序 Hook（按数据量排序）
   const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
@@ -117,6 +127,23 @@ const SuperAdminHome: React.FC = () => {
       // 批量并行刷新所有数据
       Promise.all([loadData(), loadWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
     }
+  })
+
+  // 启用实时通知
+  useRealtimeNotifications({
+    userId: user?.id || '',
+    userRole: 'super_admin',
+    onLeaveApplicationChange: () => {
+      refreshDashboard()
+    },
+    onResignationApplicationChange: () => {
+      refreshDashboard()
+    },
+    onAttendanceChange: () => {
+      refreshDashboard()
+      refreshDriverStats()
+    },
+    onNewNotification: addNotification
   })
 
   // 下拉刷新
@@ -232,6 +259,18 @@ const SuperAdminHome: React.FC = () => {
               欢迎回来，{profile?.name || profile?.phone || '超级管理员'}
             </Text>
           </View>
+
+          {/* 通知栏 */}
+          <NotificationBar
+            notifications={getRecentNotifications(5)}
+            onNotificationClick={(notification) => {
+              markAsRead(notification.id)
+              // 根据通知类型跳转到相应页面
+              if (notification.type === 'leave_application' || notification.type === 'resignation_application') {
+                Taro.navigateTo({url: '/pages/super-admin/leave-approval/index'})
+              }
+            }}
+          />
 
           {/* 数据统计仪表盘 */}
           <View className="mb-4">
