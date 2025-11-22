@@ -77,10 +77,22 @@ const DriverWarehouseAssignment: React.FC = () => {
     setLoading(false)
 
     if (result.success) {
-      showToast({
-        title: '保存成功，司机端将实时同步',
-        icon: 'success',
-        duration: 3000
+      // 显示详细的成功提示
+      const warehouseNames = warehouses
+        .filter((w) => selectedWarehouseIds.includes(w.id))
+        .map((w) => w.name)
+        .join('、')
+
+      const message =
+        selectedWarehouseIds.length > 0
+          ? `已为 ${selectedDriver.name} 分配仓库：${warehouseNames}。\n\n司机需要重新进入页面才能看到更新。`
+          : `已清空 ${selectedDriver.name} 的仓库分配。`
+
+      await Taro.showModal({
+        title: '分配成功',
+        content: message,
+        showCancel: false,
+        confirmText: '知道了'
       })
     } else {
       showToast({
