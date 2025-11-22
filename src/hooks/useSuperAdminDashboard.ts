@@ -201,7 +201,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
           {
             event: '*',
             schema: 'public',
-            table: 'attendance_records',
+            table: 'attendance',
             filter: `warehouse_id=eq.${warehouseId}`
           },
           () => {
@@ -227,7 +227,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
           {
             event: '*',
             schema: 'public',
-            table: 'attendance_records'
+            table: 'attendance'
           },
           () => {
             refreshStable()

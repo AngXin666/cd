@@ -264,7 +264,7 @@ export async function getManagerProfiles(): Promise<Profile[]> {
  * 创建上班打卡记录
  */
 export async function createClockIn(input: AttendanceRecordInput): Promise<AttendanceRecord | null> {
-  const {data, error} = await supabase.from('attendance_records').insert(input).select().maybeSingle()
+  const {data, error} = await supabase.from('attendance').insert(input).select().maybeSingle()
 
   if (error) {
     console.error('创建打卡记录失败:', error)
@@ -290,7 +290,7 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
  * 更新下班打卡记录
  */
 export async function updateClockOut(id: string, update: AttendanceRecordUpdate): Promise<boolean> {
-  const {error} = await supabase.from('attendance_records').update(update).eq('id', id)
+  const {error} = await supabase.from('attendance').update(update).eq('id', id)
 
   if (error) {
     console.error('更新下班打卡失败:', error)
@@ -298,11 +298,7 @@ export async function updateClockOut(id: string, update: AttendanceRecordUpdate)
   }
 
   // 清除考勤缓存（需要先获取记录信息）
-  const {data: record} = await supabase
-    .from('attendance_records')
-    .select('user_id, work_date')
-    .eq('id', id)
-    .maybeSingle()
+  const {data: record} = await supabase.from('attendance').select('user_id, work_date').eq('id', id).maybeSingle()
   if (record) {
     const date = new Date(record.work_date)
     const year = date.getFullYear()
@@ -324,7 +320,7 @@ export async function getTodayAttendance(userId: string): Promise<AttendanceReco
   const today = getLocalDateString()
 
   const {data, error} = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*')
     .eq('user_id', userId)
     .eq('work_date', today)
@@ -362,7 +358,7 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
   const endDate = getLocalDateString(new Date(year, month, 0))
 
   const {data, error} = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*')
     .eq('user_id', userId)
     .gte('work_date', startDate)
@@ -404,7 +400,7 @@ export async function getAllAttendanceRecords(year?: number, month?: number): Pr
 
   console.log(`🔄 [管理员考勤查询] 缓存未命中，从数据库查询...`)
 
-  let query = supabase.from('attendance_records').select('*')
+  let query = supabase.from('attendance').select('*')
 
   if (year && month) {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`
@@ -439,7 +435,7 @@ export async function getAttendanceRecordsByUserAndWarehouse(
   endDate?: string
 ): Promise<AttendanceRecord[]> {
   let query = supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*')
     .eq('user_id', userId)
     .eq('warehouse_id', warehouseId)
@@ -471,7 +467,7 @@ export async function getAttendanceRecordsByWarehouse(
   endDate?: string
 ): Promise<AttendanceRecord[]> {
   let query = supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*')
     .eq('warehouse_id', warehouseId)
     .order('work_date', {ascending: false})
@@ -1134,7 +1130,7 @@ export async function calculatePieceWorkStats(
   const records = await getPieceWorkRecordsByUserAndWarehouse(userId, warehouseId, startDate, endDate)
 
   // 获取所有品类信息
-  const {data: categories} = await supabase.from('piece_work_categories').select('*')
+  const {data: categories} = await supabase.from('category_prices').select('*')
   const categoryMap = new Map(categories?.map((c) => [c.id, c.name]) || [])
 
   const stats: PieceWorkStats = {
@@ -1185,7 +1181,7 @@ export async function calculatePieceWorkStats(
 // 获取所有启用的品类
 export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
   const {data, error} = await supabase
-    .from('piece_work_categories')
+    .from('category_prices')
     .select('*')
     .eq('is_active', true)
     .order('name', {ascending: true})
@@ -1200,7 +1196,7 @@ export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
 
 // 获取所有品类（包括禁用的）
 export async function getAllCategories(): Promise<PieceWorkCategory[]> {
-  const {data, error} = await supabase.from('piece_work_categories').select('*').order('name', {ascending: true})
+  const {data, error} = await supabase.from('category_prices').select('*').order('name', {ascending: true})
 
   if (error) {
     console.error('获取所有品类失败:', error)
@@ -1212,7 +1208,7 @@ export async function getAllCategories(): Promise<PieceWorkCategory[]> {
 
 // 创建品类
 export async function createCategory(category: PieceWorkCategoryInput): Promise<PieceWorkCategory | null> {
-  const {data, error} = await supabase.from('piece_work_categories').insert(category).select().maybeSingle()
+  const {data, error} = await supabase.from('category_prices').insert(category).select().maybeSingle()
 
   if (error) {
     console.error('创建品类失败:', error)
@@ -1225,7 +1221,7 @@ export async function createCategory(category: PieceWorkCategoryInput): Promise<
 // 更新品类
 export async function updateCategory(id: string, updates: Partial<PieceWorkCategoryInput>): Promise<boolean> {
   const {error} = await supabase
-    .from('piece_work_categories')
+    .from('category_prices')
     .update({...updates, updated_at: new Date().toISOString()})
     .eq('id', id)
 
@@ -1239,7 +1235,7 @@ export async function updateCategory(id: string, updates: Partial<PieceWorkCateg
 
 // 删除品类
 export async function deleteCategory(id: string): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_categories').delete().eq('id', id)
+  const {error} = await supabase.from('category_prices').delete().eq('id', id)
 
   if (error) {
     console.error('删除品类失败:', error)
@@ -1254,7 +1250,7 @@ export async function deleteUnusedCategories(): Promise<{success: boolean; delet
   try {
     // 查找所有品类
     const {data: allCategories, error: categoriesError} = await supabase
-      .from('piece_work_categories')
+      .from('category_prices')
       .select('id')
       .order('id', {ascending: true})
 
@@ -1289,7 +1285,7 @@ export async function deleteUnusedCategories(): Promise<{success: boolean; delet
     }
 
     // 删除未使用的品类
-    const {error: deleteError} = await supabase.from('piece_work_categories').delete().in('id', unusedCategoryIds)
+    const {error: deleteError} = await supabase.from('category_prices').delete().in('id', unusedCategoryIds)
 
     if (deleteError) {
       console.error('删除未使用品类失败:', deleteError)
@@ -2225,7 +2221,7 @@ export async function getDriverAttendanceStats(
 }> {
   // 获取考勤记录
   const {data: attendanceData, error: attendanceError} = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*')
     .eq('user_id', userId)
     .gte('work_date', startDate)
@@ -2325,7 +2321,7 @@ export async function getBatchDriverAttendanceStats(
   try {
     // 批量获取所有司机的考勤记录
     const {data: attendanceData, error: attendanceError} = await supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('*')
       .in('user_id', userIds)
       .gte('work_date', startDate)
@@ -2641,7 +2637,7 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
   ] = await Promise.all([
     // 今日出勤人数
     supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('user_id')
       .eq('warehouse_id', warehouseId)
       .eq('work_date', today),
@@ -2669,7 +2665,7 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
       : Promise.resolve({data: null}),
     // 所有司机的今日考勤记录（批量查询）
     driverIds.length > 0
-      ? supabase.from('attendance_records').select('user_id').in('user_id', driverIds).eq('work_date', today)
+      ? supabase.from('attendance').select('user_id').in('user_id', driverIds).eq('work_date', today)
       : Promise.resolve({data: null}),
     // 所有司机的今日计件记录（批量查询）
     driverIds.length > 0
@@ -2746,7 +2742,7 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
       .eq('role', 'driver'),
     // 今日出勤人数（所有仓库）
     supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('user_id')
       .eq('work_date', today),
     // 当日总件数（所有仓库）
@@ -2766,7 +2762,7 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
       .gte('work_date', firstDayOfMonth),
     // 所有司机的今日考勤记录（批量查询）
     supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('user_id')
       .eq('work_date', today),
     // 所有司机的今日计件记录（批量查询）
@@ -2958,38 +2954,50 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
 
 /**
  * 获取管理员权限配置
+ * 注意：在新的数据库设计中，权限通过角色和仓库关联来管理
+ * 这个函数返回默认权限配置
  */
 export async function getManagerPermission(managerId: string): Promise<ManagerPermission | null> {
-  const {data, error} = await supabase.from('manager_permissions').select('*').eq('manager_id', managerId).maybeSingle()
+  // 检查用户是否是管理员
+  const {data: profile, error} = await supabase.from('profiles').select('role').eq('id', managerId).maybeSingle()
 
-  if (error) {
-    console.error('获取管理员权限失败:', error)
+  if (error || !profile) {
+    console.error('获取管理员信息失败:', error)
     return null
   }
 
-  return data
+  // 如果是超级管理员，返回所有权限
+  if (profile.role === 'super_admin') {
+    return {
+      manager_id: managerId,
+      can_edit_user_info: true,
+      can_edit_piece_work: true,
+      can_manage_attendance_rules: true,
+      can_manage_categories: true
+    }
+  }
+
+  // 如果是普通管理员，返回默认权限
+  if (profile.role === 'manager') {
+    return {
+      manager_id: managerId,
+      can_edit_user_info: true,
+      can_edit_piece_work: true,
+      can_manage_attendance_rules: false,
+      can_manage_categories: false
+    }
+  }
+
+  return null
 }
 
 /**
  * 创建或更新管理员权限配置
+ * 注意：在新的数据库设计中，权限通过角色来管理，此函数已废弃
  */
-export async function upsertManagerPermission(input: ManagerPermissionInput): Promise<boolean> {
-  const {error} = await supabase.from('manager_permissions').upsert(
-    {
-      manager_id: input.manager_id,
-      can_edit_user_info: input.can_edit_user_info ?? false,
-      can_edit_piece_work: input.can_edit_piece_work ?? false,
-      can_manage_attendance_rules: input.can_manage_attendance_rules ?? false,
-      can_manage_categories: input.can_manage_categories ?? false
-    },
-    {onConflict: 'manager_id'}
-  )
-
-  if (error) {
-    console.error('更新管理员权限失败:', error)
-    return false
-  }
-
+export async function upsertManagerPermission(_input: ManagerPermissionInput): Promise<boolean> {
+  console.warn('upsertManagerPermission 已废弃，权限现在通过角色来管理')
+  // 保留函数是为了兼容性，但不执行任何操作
   return true
 }
 
@@ -3057,30 +3065,32 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
 }
 
 /**
- * 获取仓库的品类列表
+ * 获取仓库的品类列表（返回品类ID数组）
  */
 export async function getWarehouseCategories(warehouseId: string): Promise<string[]> {
   const {data, error} = await supabase
-    .from('warehouse_categories')
-    .select('category_id')
+    .from('category_prices')
+    .select('id')
     .eq('warehouse_id', warehouseId)
+    .eq('is_active', true)
 
   if (error) {
     console.error('获取仓库品类列表失败:', error)
     return []
   }
 
-  return Array.isArray(data) ? data.map((item) => item.category_id) : []
+  return Array.isArray(data) ? data.map((item) => item.id) : []
 }
 
 /**
- * 获取仓库的品类详细信息（包含品类对象）
+ * 获取仓库的品类详细信息
  */
 export async function getWarehouseCategoriesWithDetails(warehouseId: string): Promise<PieceWorkCategory[]> {
   const {data, error} = await supabase
-    .from('warehouse_categories')
-    .select('category_id, piece_work_categories(*)')
+    .from('category_prices')
+    .select('*')
     .eq('warehouse_id', warehouseId)
+    .eq('is_active', true)
 
   if (error) {
     console.error('获取仓库品类详细信息失败:', error)
@@ -3091,49 +3101,28 @@ export async function getWarehouseCategoriesWithDetails(warehouseId: string): Pr
     return []
   }
 
-  // 过滤出启用的品类
-  const categories: PieceWorkCategory[] = []
-  for (const item of data) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cat = item.piece_work_categories as any
-    if (cat && typeof cat === 'object' && !Array.isArray(cat) && cat.is_active === true) {
-      categories.push(cat as PieceWorkCategory)
-    }
-  }
-
-  return categories
+  // 转换为 PieceWorkCategory 格式
+  return data.map((item) => ({
+    id: item.id,
+    name: item.category_name,
+    unit_price: item.unit_price,
+    upstairs_price: item.upstairs_price || 0,
+    sorting_unit_price: item.sorting_unit_price || 0,
+    is_active: item.is_active,
+    created_at: item.created_at,
+    updated_at: item.updated_at
+  }))
 }
 
 /**
- * 设置仓库的品类（先删除旧的，再插入新的）
+ * 设置仓库的品类（更新 category_prices 表）
+ * 注意：在新的数据库设计中，品类直接关联到仓库，不需要单独的关联表
  */
-export async function setWarehouseCategories(warehouseId: string, categoryIds: string[]): Promise<boolean> {
-  // 1. 删除旧的关联
-  const {error: deleteError} = await supabase.from('warehouse_categories').delete().eq('warehouse_id', warehouseId)
-
-  if (deleteError) {
-    console.error('删除旧的品类关联失败:', deleteError)
-    return false
-  }
-
-  // 2. 如果没有新的品类，直接返回成功
-  if (categoryIds.length === 0) {
-    return true
-  }
-
-  // 3. 插入新的关联
-  const insertData = categoryIds.map((categoryId) => ({
-    warehouse_id: warehouseId,
-    category_id: categoryId
-  }))
-
-  const {error: insertError} = await supabase.from('warehouse_categories').insert(insertData)
-
-  if (insertError) {
-    console.error('插入新的品类关联失败:', insertError)
-    return false
-  }
-
+export async function setWarehouseCategories(_warehouseId: string, _categoryIds: string[]): Promise<boolean> {
+  // 在新的设计中，品类已经直接关联到仓库
+  // 这个函数保留是为了兼容性，但实际上不需要做任何操作
+  // 品类的启用/禁用应该通过更新 category_prices 表的 is_active 字段来实现
+  console.warn('setWarehouseCategories 已废弃，请使用 category_prices 表的 is_active 字段')
   return true
 }
 
@@ -3511,7 +3500,7 @@ export async function getDriverStats(userId: string): Promise<{
 
     // 获取本月考勤天数
     const {data: attendanceData} = await supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('id')
       .eq('user_id', userId)
       .gte('work_date', monthStart)
@@ -4009,7 +3998,7 @@ export async function getWarehouseDataVolume(
 
     // 统计今日考勤数
     let todayAttendanceQuery = supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('id', {count: 'exact', head: true})
       .eq('warehouse_id', warehouseId)
       .eq('work_date', today)
@@ -4022,7 +4011,7 @@ export async function getWarehouseDataVolume(
 
     // 统计本月考勤数
     let monthAttendanceQuery = supabase
-      .from('attendance_records')
+      .from('attendance')
       .select('id', {count: 'exact', head: true})
       .eq('warehouse_id', warehouseId)
       .gte('work_date', firstDayOfMonth)
@@ -4346,84 +4335,25 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
 export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): Promise<Vehicle | null> {
   logger.db('更新', 'vehicles', {vehicleId, updates})
   try {
-    // 首先获取车辆信息，以便知道vehicle_id（vehicles_base的id）
-    const vehicle = await getVehicleById(vehicleId)
-    if (!vehicle) {
-      logger.error('车辆不存在', {vehicleId})
+    // 在新的数据库设计中，所有车辆信息都在 vehicles 表中
+    const {data, error} = await supabase
+      .from('vehicles')
+      .update({...updates, updated_at: new Date().toISOString()})
+      .eq('id', vehicleId)
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      logger.error('更新车辆信息失败', error)
       return null
-    }
-
-    // 分离租赁字段和其他字段
-    const leaseFields = [
-      'ownership_type',
-      'lessor_name',
-      'lessor_contact',
-      'lessee_name',
-      'lessee_contact',
-      'monthly_rent',
-      'lease_start_date',
-      'lease_end_date',
-      'rent_payment_day'
-    ]
-
-    const leaseUpdates: Record<string, any> = {}
-    const recordUpdates: Record<string, any> = {}
-
-    // 将更新字段分类
-    for (const [key, value] of Object.entries(updates)) {
-      if (leaseFields.includes(key)) {
-        leaseUpdates[key] = value
-      } else {
-        recordUpdates[key] = value
-      }
-    }
-
-    // 更新vehicles_base表（租赁字段）
-    if (Object.keys(leaseUpdates).length > 0) {
-      // 需要先获取vehicle_id（vehicles_base的id）
-      const {data: recordData, error: recordError} = await supabase
-        .from('vehicle_records')
-        .select('vehicle_id')
-        .eq('id', vehicleId)
-        .maybeSingle()
-
-      if (recordError || !recordData) {
-        logger.error('获取vehicle_id失败', recordError)
-        return null
-      }
-
-      const {error: baseError} = await supabase
-        .from('vehicles_base')
-        .update({...leaseUpdates, updated_at: new Date().toISOString()})
-        .eq('id', recordData.vehicle_id)
-
-      if (baseError) {
-        logger.error('更新vehicles_base失败', baseError)
-        return null
-      }
-    }
-
-    // 更新vehicle_records表（其他字段）
-    if (Object.keys(recordUpdates).length > 0) {
-      const {error: recordError} = await supabase
-        .from('vehicle_records')
-        .update({...recordUpdates, updated_at: new Date().toISOString()})
-        .eq('id', vehicleId)
-
-      if (recordError) {
-        logger.error('更新vehicle_records失败', recordError)
-        return null
-      }
     }
 
     // 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    // 重新获取更新后的车辆信息
-    const updatedVehicle = await getVehicleById(vehicleId)
-    logger.info('成功更新车辆信息', {vehicleId, plate: updatedVehicle?.plate_number})
-    return updatedVehicle
+    logger.info('成功更新车辆信息', {vehicleId, plate: data?.plate_number})
+    return data
   } catch (error) {
     logger.error('更新车辆信息异常', error)
     return null

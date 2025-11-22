@@ -275,7 +275,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       {
         event: '*',
         schema: 'public',
-        table: 'attendance_records',
+        table: 'attendance',
         filter: `user_id=eq.${userId}`
       },
       (payload) => {

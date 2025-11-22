@@ -97,7 +97,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
 
       // 2. 获取今日已打卡的司机数（在线司机）
       let onlineDriversQuery = supabase
-        .from('attendance_records')
+        .from('attendance')
         .select('user_id', {count: 'exact', head: false})
         .gte('clock_in_time', `${today}T00:00:00`)
         .lte('clock_in_time', `${today}T23:59:59`)
@@ -195,7 +195,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         {
           event: '*',
           schema: 'public',
-          table: 'attendance_records'
+          table: 'attendance'
         },
         (payload) => {
           console.log('[useDriverStats] 考勤记录变化:', payload)

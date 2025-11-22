@@ -189,7 +189,7 @@ export function useDashboardData(options: UseDashboardDataOptions) {
         {
           event: '*',
           schema: 'public',
-          table: 'attendance_records',
+          table: 'attendance',
           filter: `warehouse_id=eq.${warehouseId}`
         },
         () => {
