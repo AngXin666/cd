@@ -139,7 +139,7 @@ const Login: React.FC = () => {
 
       // 判断输入的是手机号还是账号名
       const isPhoneNumber = validatePhone(account)
-      
+
       // 如果是账号名，转换为对应的手机号
       let actualAccount = account
       if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
@@ -148,7 +148,7 @@ const Login: React.FC = () => {
 
       // 转换为 email 格式
       const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
-      
+
       const {error} = await supabase.auth.signInWithPassword({
         email,
         password

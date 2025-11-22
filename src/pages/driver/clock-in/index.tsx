@@ -213,6 +213,7 @@ const ClockIn: React.FC = () => {
       const record = await createClockIn({
         user_id: user.id,
         warehouse_id: selectedWarehouse.id,
+        clock_in_time: now.toISOString(),
         status
       })
 

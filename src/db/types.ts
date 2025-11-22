@@ -80,6 +80,7 @@ export interface AttendanceRecordInput {
   user_id: string
   warehouse_id?: string
   work_date?: string
+  clock_in_time?: string
   status?: AttendanceStatus
   notes?: string
 }
