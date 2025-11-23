@@ -7,6 +7,8 @@ import {
   createDriver,
   deleteWarehouseAssignmentsByDriver,
   getAllDriversWithRealName,
+  getAllSuperAdmins,
+  getCurrentUserProfile,
   getDriverDetailInfo,
   getDriverWarehouseIds,
   getManagerWarehouses,
@@ -14,6 +16,7 @@ import {
   insertWarehouseAssignment,
   updateProfile
 } from '@/db/api'
+import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
@@ -288,6 +291,54 @@ const DriverManagement: React.FC = () => {
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
+
+        // 发送通知
+        try {
+          const notifications: Array<{
+            userId: string
+            type: 'driver_type_changed'
+            title: string
+            message: string
+            relatedId?: string
+          }> = []
+
+          // 1. 通知司机
+          notifications.push({
+            userId: driver.id,
+            type: 'driver_type_changed',
+            title: '司机类型变更通知',
+            message: `您的司机类型已从【${currentTypeText}】变更为【${newTypeText}】`,
+            relatedId: driver.id
+          })
+
+          // 2. 获取当前操作者信息
+          const currentUserProfile = await getCurrentUserProfile()
+
+          if (currentUserProfile) {
+            if (currentUserProfile.role === 'manager') {
+              // 普通管理员操作 → 通知所有超级管理员
+              const superAdmins = await getAllSuperAdmins()
+              for (const admin of superAdmins) {
+                notifications.push({
+                  userId: admin.id,
+                  type: 'driver_type_changed',
+                  title: '司机类型变更操作通知',
+                  message: `管理员 ${currentUserProfile.name} 修改了司机类型：${driver.real_name || driver.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
+                  relatedId: driver.id
+                })
+              }
+            }
+          }
+
+          // 批量发送通知
+          if (notifications.length > 0) {
+            await createNotifications(notifications)
+            console.log(`✅ 已发送 ${notifications.length} 条司机类型变更通知`)
+          }
+        } catch (error) {
+          console.error('❌ 发送司机类型变更通知失败:', error)
+        }
+
         // 数据更新，增加版本号并清除相关缓存
         onDataUpdated([CACHE_KEYS.MANAGER_DRIVERS, CACHE_KEYS.MANAGER_DRIVER_DETAILS])
         await loadDrivers(true)

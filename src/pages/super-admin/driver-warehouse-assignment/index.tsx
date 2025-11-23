@@ -3,16 +3,26 @@ import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tar
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {createDriver, getAllProfiles, getAllWarehouses, getDriverWarehouseIds, setDriverWarehouses} from '@/db/api'
+import {
+  createDriver,
+  getAllProfiles,
+  getAllSuperAdmins,
+  getAllWarehouses,
+  getDriverWarehouseIds,
+  getWarehouseManagers,
+  setDriverWarehouses
+} from '@/db/api'
+import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
 
 const DriverWarehouseAssignment: React.FC = () => {
-  useAuth({guard: true})
+  const {user} = useAuth({guard: true})
   const [drivers, setDrivers] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedDriver, setSelectedDriver] = useState<Profile | null>(null)
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
 
   // 添加司机相关状态
   const [showAddDriver, setShowAddDriver] = useState(false)
@@ -25,7 +35,13 @@ const DriverWarehouseAssignment: React.FC = () => {
     const profiles = await getAllProfiles()
     const driverList = profiles.filter((p) => p.role === 'driver')
     setDrivers(driverList)
-  }, [])
+
+    // 同时获取当前用户的profile信息
+    if (user?.id) {
+      const currentProfile = profiles.find((p) => p.id === user.id)
+      setCurrentUserProfile(currentProfile || null)
+    }
+  }, [user?.id])
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -55,6 +71,156 @@ const DriverWarehouseAssignment: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
+  // 发送仓库分配通知
+  const sendWarehouseAssignmentNotifications = async (
+    driver: Profile,
+    previousWarehouseIds: string[],
+    newWarehouseIds: string[],
+    allWarehouses: Warehouse[],
+    operatorProfile: Profile | null
+  ) => {
+    try {
+      const notifications: Array<{
+        userId: string
+        type: 'warehouse_assigned' | 'warehouse_unassigned'
+        title: string
+        message: string
+        relatedId?: string
+      }> = []
+
+      // 判断是新增还是取消仓库
+      const addedWarehouseIds = newWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
+      const removedWarehouseIds = previousWarehouseIds.filter((id) => !newWarehouseIds.includes(id))
+
+      // 1. 通知司机
+      if (addedWarehouseIds.length > 0) {
+        const addedWarehouseNames = allWarehouses
+          .filter((w) => addedWarehouseIds.includes(w.id))
+          .map((w) => w.name)
+          .join('、')
+
+        notifications.push({
+          userId: driver.id,
+          type: 'warehouse_assigned',
+          title: '仓库分配通知',
+          message: `您已被分配到新的仓库：${addedWarehouseNames}`,
+          relatedId: driver.id
+        })
+      }
+
+      if (removedWarehouseIds.length > 0) {
+        const removedWarehouseNames = allWarehouses
+          .filter((w) => removedWarehouseIds.includes(w.id))
+          .map((w) => w.name)
+          .join('、')
+
+        notifications.push({
+          userId: driver.id,
+          type: 'warehouse_unassigned',
+          title: '仓库取消分配通知',
+          message: `您已被取消以下仓库的分配：${removedWarehouseNames}`,
+          relatedId: driver.id
+        })
+      }
+
+      // 2. 根据操作者角色发送通知
+      if (operatorProfile) {
+        if (operatorProfile.role === 'manager') {
+          // 普通管理员操作 → 通知所有超级管理员
+          const superAdmins = await getAllSuperAdmins()
+          const operationDesc =
+            addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
+              ? '修改了仓库分配'
+              : addedWarehouseIds.length > 0
+                ? '分配了新仓库'
+                : '取消了仓库分配'
+
+          const warehouseDesc =
+            addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
+              ? `新增：${allWarehouses
+                  .filter((w) => addedWarehouseIds.includes(w.id))
+                  .map((w) => w.name)
+                  .join('、')}；取消：${allWarehouses
+                  .filter((w) => removedWarehouseIds.includes(w.id))
+                  .map((w) => w.name)
+                  .join('、')}`
+              : addedWarehouseIds.length > 0
+                ? allWarehouses
+                    .filter((w) => addedWarehouseIds.includes(w.id))
+                    .map((w) => w.name)
+                    .join('、')
+                : allWarehouses
+                    .filter((w) => removedWarehouseIds.includes(w.id))
+                    .map((w) => w.name)
+                    .join('、')
+
+          for (const admin of superAdmins) {
+            notifications.push({
+              userId: admin.id,
+              type: 'warehouse_assigned',
+              title: '仓库分配操作通知',
+              message: `管理员 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
+              relatedId: driver.id
+            })
+          }
+        } else if (operatorProfile.role === 'super_admin') {
+          // 超级管理员操作 → 通知相关仓库的普通管理员
+          const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
+          const managersSet = new Set<string>()
+
+          for (const warehouseId of affectedWarehouseIds) {
+            const managers = await getWarehouseManagers(warehouseId)
+            managers.forEach((m) => managersSet.add(m.id))
+          }
+
+          const operationDesc =
+            addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
+              ? '修改了仓库分配'
+              : addedWarehouseIds.length > 0
+                ? '分配了新仓库'
+                : '取消了仓库分配'
+
+          const warehouseDesc =
+            addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
+              ? `新增：${allWarehouses
+                  .filter((w) => addedWarehouseIds.includes(w.id))
+                  .map((w) => w.name)
+                  .join('、')}；取消：${allWarehouses
+                  .filter((w) => removedWarehouseIds.includes(w.id))
+                  .map((w) => w.name)
+                  .join('、')}`
+              : addedWarehouseIds.length > 0
+                ? allWarehouses
+                    .filter((w) => addedWarehouseIds.includes(w.id))
+                    .map((w) => w.name)
+                    .join('、')
+                : allWarehouses
+                    .filter((w) => removedWarehouseIds.includes(w.id))
+                    .map((w) => w.name)
+                    .join('、')
+
+          for (const managerId of managersSet) {
+            notifications.push({
+              userId: managerId,
+              type: 'warehouse_assigned',
+              title: '仓库分配操作通知',
+              message: `超级管理员 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
+              relatedId: driver.id
+            })
+          }
+        }
+      }
+
+      // 批量发送通知
+      if (notifications.length > 0) {
+        await createNotifications(notifications)
+        console.log(`✅ 已发送 ${notifications.length} 条仓库分配通知`)
+      }
+    } catch (error) {
+      console.error('❌ 发送仓库分配通知失败:', error)
+    }
+  }
+
   // 选择司机
   const handleSelectDriver = async (driver: Profile) => {
     setSelectedDriver(driver)
@@ -70,6 +236,9 @@ const DriverWarehouseAssignment: React.FC = () => {
 
     setLoading(true)
     showLoading({title: '保存中...'})
+
+    // 获取保存之前的仓库ID，用于判断是新增还是取消
+    const previousWarehouseIds = await getDriverWarehouseIds(selectedDriver.id)
 
     const result = await setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
 
@@ -87,6 +256,15 @@ const DriverWarehouseAssignment: React.FC = () => {
         selectedWarehouseIds.length > 0
           ? `已为 ${selectedDriver.name} 分配仓库：${warehouseNames}。\n\n司机需要重新进入页面才能看到更新。`
           : `已清空 ${selectedDriver.name} 的仓库分配。`
+
+      // 发送通知
+      await sendWarehouseAssignmentNotifications(
+        selectedDriver,
+        previousWarehouseIds,
+        selectedWarehouseIds,
+        warehouses,
+        currentUserProfile
+      )
 
       await Taro.showModal({
         title: '分配成功',

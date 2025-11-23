@@ -14,12 +14,16 @@ import {
   deleteWarehouseAssignmentsByDriver,
   getAllUsers,
   getAllWarehouses,
+  getCurrentUserProfile,
   getDriverDetailInfo,
   getDriverLicense,
+  getDriverWarehouseIds,
   getWarehouseAssignmentsByDriver,
+  getWarehouseManagers,
   insertWarehouseAssignment,
   updateProfile
 } from '@/db/api'
+import {createNotifications} from '@/db/notificationApi'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {matchWithPinyin} from '@/utils/pinyin'
@@ -374,6 +378,61 @@ const UserManagement: React.FC = () => {
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
+
+        // 发送通知
+        try {
+          const notifications: Array<{
+            userId: string
+            type: 'driver_type_changed'
+            title: string
+            message: string
+            relatedId?: string
+          }> = []
+
+          // 1. 通知司机
+          notifications.push({
+            userId: targetUser.id,
+            type: 'driver_type_changed',
+            title: '司机类型变更通知',
+            message: `您的司机类型已从【${currentTypeText}】变更为【${newTypeText}】`,
+            relatedId: targetUser.id
+          })
+
+          // 2. 超级管理员操作 → 通知该司机所属仓库的普通管理员
+          const currentUserProfile = await getCurrentUserProfile()
+
+          if (currentUserProfile && currentUserProfile.role === 'super_admin') {
+            // 获取司机所属的仓库
+            const driverWarehouseIds = await getDriverWarehouseIds(targetUser.id)
+            const managersSet = new Set<string>()
+
+            // 获取这些仓库的管理员
+            for (const warehouseId of driverWarehouseIds) {
+              const managers = await getWarehouseManagers(warehouseId)
+              managers.forEach((m) => managersSet.add(m.id))
+            }
+
+            // 通知相关管理员
+            for (const managerId of managersSet) {
+              notifications.push({
+                userId: managerId,
+                type: 'driver_type_changed',
+                title: '司机类型变更操作通知',
+                message: `超级管理员 ${currentUserProfile.name} 修改了司机类型：${targetUser.real_name || targetUser.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
+                relatedId: targetUser.id
+              })
+            }
+          }
+
+          // 批量发送通知
+          if (notifications.length > 0) {
+            await createNotifications(notifications)
+            console.log(`✅ 已发送 ${notifications.length} 条司机类型变更通知`)
+          }
+        } catch (error) {
+          console.error('❌ 发送司机类型变更通知失败:', error)
+        }
+
         // 数据更新，增加版本号并清除相关缓存
         onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
         await loadUsers(true)

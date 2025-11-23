@@ -16,6 +16,7 @@ export type NotificationType =
   | 'leave_approved' // 请假批准
   | 'leave_rejected' // 请假拒绝
   | 'warehouse_assigned' // 仓库分配
+  | 'warehouse_unassigned' // 仓库取消分配
   | 'system_notice' // 系统通知
   | 'driver_type_changed' // 司机类型变更
   | 'vehicle_review_pending' // 车辆待审核
@@ -216,5 +217,87 @@ export function subscribeToNotifications(userId: string, callback: (notification
   return () => {
     logger.info('取消订阅通知更新', {userId})
     channel.unsubscribe()
+  }
+}
+
+/**
+ * 创建通知
+ * @param userId 接收通知的用户ID
+ * @param type 通知类型
+ * @param title 通知标题
+ * @param message 通知内容
+ * @param relatedId 关联的记录ID（可选）
+ * @returns 是否成功
+ */
+export async function createNotification(
+  userId: string,
+  type: NotificationType,
+  title: string,
+  message: string,
+  relatedId?: string
+): Promise<boolean> {
+  try {
+    logger.db('创建通知', 'notifications', {userId, type, title, message, relatedId})
+
+    const {error} = await supabase.from('notifications').insert({
+      user_id: userId,
+      type,
+      title,
+      message,
+      related_id: relatedId || null,
+      is_read: false
+    })
+
+    if (error) {
+      logger.error('创建通知失败', error)
+      return false
+    }
+
+    logger.info('通知创建成功', {userId, type, title})
+    return true
+  } catch (error) {
+    logger.error('创建通知异常', error)
+    return false
+  }
+}
+
+/**
+ * 批量创建通知
+ * @param notifications 通知列表
+ * @returns 是否成功
+ */
+export async function createNotifications(
+  notifications: Array<{
+    userId: string
+    type: NotificationType
+    title: string
+    message: string
+    relatedId?: string
+  }>
+): Promise<boolean> {
+  try {
+    logger.db('批量创建通知', 'notifications', {count: notifications.length})
+
+    const notificationData = notifications.map((n) => ({
+      user_id: n.userId,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      related_id: n.relatedId || null,
+      is_read: false
+    }))
+
+    const {error} = await supabase.from('notifications').insert(notificationData)
+
+    if (error) {
+      logger.error('批量创建通知失败', error)
+      return false
+    }
+
+    logger.info('批量通知创建成功', {count: notifications.length})
+    return true
+  } catch (error) {
+    logger.error('批量创建通知异常', error)
+    return false
   }
 }

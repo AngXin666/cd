@@ -2833,6 +2833,26 @@ export async function getAllManagers(): Promise<Profile[]> {
 }
 
 /**
+ * 获取所有超级管理员列表
+ */
+export async function getAllSuperAdmins(): Promise<Profile[]> {
+  console.log('🔍 getAllSuperAdmins: 开始获取超级管理员列表')
+  const {data, error} = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'super_admin')
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('❌ 获取超级管理员列表失败:', error)
+    return []
+  }
+
+  console.log(`✅ getAllSuperAdmins: 获取到 ${data?.length || 0} 个超级管理员`)
+  return Array.isArray(data) ? data : []
+}
+
+/**
  * 获取所有司机列表
  */
 export async function getAllDrivers(): Promise<Profile[]> {
