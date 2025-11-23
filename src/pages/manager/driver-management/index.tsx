@@ -8,7 +8,7 @@ import {
   deleteWarehouseAssignmentsByDriver,
   getAllDriversWithRealName,
   getAllSuperAdmins,
-  getCurrentUserProfile,
+  getCurrentUserWithRealName,
   getDriverDetailInfo,
   getDriverWarehouseIds,
   getManagerWarehouses,
@@ -312,10 +312,13 @@ const DriverManagement: React.FC = () => {
           })
 
           // 2. 获取当前操作者信息
-          const currentUserProfile = await getCurrentUserProfile()
+          const currentUserProfile = await getCurrentUserWithRealName()
 
           if (currentUserProfile) {
             if (currentUserProfile.role === 'manager') {
+              // 获取操作人的显示名称（优先使用真实姓名）
+              const operatorName = currentUserProfile.real_name || currentUserProfile.name || '管理员'
+
               // 普通管理员操作 → 通知所有超级管理员
               const superAdmins = await getAllSuperAdmins()
               for (const admin of superAdmins) {
@@ -323,7 +326,7 @@ const DriverManagement: React.FC = () => {
                   userId: admin.id,
                   type: 'driver_type_changed',
                   title: '司机类型变更操作通知',
-                  message: `管理员 ${currentUserProfile.name} 修改了司机类型：${driver.real_name || driver.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
+                  message: `管理员 ${operatorName} 修改了司机类型：${driver.real_name || driver.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
                   relatedId: driver.id
                 })
               }

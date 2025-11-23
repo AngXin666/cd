@@ -14,7 +14,7 @@ import {
   deleteWarehouseAssignmentsByDriver,
   getAllUsers,
   getAllWarehouses,
-  getCurrentUserProfile,
+  getCurrentUserWithRealName,
   getDriverDetailInfo,
   getDriverLicense,
   getDriverWarehouseIds,
@@ -399,9 +399,12 @@ const UserManagement: React.FC = () => {
           })
 
           // 2. 超级管理员操作 → 通知该司机所属仓库的普通管理员
-          const currentUserProfile = await getCurrentUserProfile()
+          const currentUserProfile = await getCurrentUserWithRealName()
 
           if (currentUserProfile && currentUserProfile.role === 'super_admin') {
+            // 获取操作人的显示名称（优先使用真实姓名）
+            const operatorName = currentUserProfile.real_name || currentUserProfile.name || '超级管理员'
+
             // 获取司机所属的仓库
             const driverWarehouseIds = await getDriverWarehouseIds(targetUser.id)
             const managersSet = new Set<string>()
@@ -418,7 +421,7 @@ const UserManagement: React.FC = () => {
                 userId: managerId,
                 type: 'driver_type_changed',
                 title: '司机类型变更操作通知',
-                message: `超级管理员 ${currentUserProfile.name} 修改了司机类型：${targetUser.real_name || targetUser.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
+                message: `超级管理员 ${operatorName} 修改了司机类型：${targetUser.real_name || targetUser.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
                 relatedId: targetUser.id
               })
             }
@@ -588,15 +591,20 @@ const UserManagement: React.FC = () => {
         }
 
         // 2. 如果是超级管理员操作 → 通知相关仓库的管理员
-        const currentUserProfile = await getCurrentUserProfile()
+        const currentUserProfile = await getCurrentUserWithRealName()
         console.log('👤 [仓库分配] 当前用户信息:', {
           用户ID: currentUserProfile?.id,
           角色: currentUserProfile?.role,
-          姓名: currentUserProfile?.name
+          姓名: currentUserProfile?.name,
+          真实姓名: currentUserProfile?.real_name
         })
 
         if (currentUserProfile && currentUserProfile.role === 'super_admin') {
           console.log('👑 [仓库分配] 操作者是超级管理员，准备通知相关管理员')
+
+          // 获取操作人的显示名称（优先使用真实姓名）
+          const operatorName = currentUserProfile.real_name || currentUserProfile.name || '超级管理员'
+          console.log('👤 [仓库分配] 操作人显示名称:', operatorName)
 
           // 获取所有受影响的仓库（新增的和移除的）
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
@@ -627,7 +635,7 @@ const UserManagement: React.FC = () => {
               userId: managerId,
               type: 'warehouse_assigned',
               title: '仓库分配操作通知',
-              message: `超级管理员 ${currentUserProfile.name} 修改了司机 ${userName} 的仓库分配，涉及仓库：${warehouseNames}`,
+              message: `超级管理员 ${operatorName} 修改了司机 ${userName} 的仓库分配，涉及仓库：${warehouseNames}`,
               relatedId: userId
             })
           }

@@ -109,6 +109,75 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
 }
 
 /**
+ * 获取当前用户档案（包含真实姓名）
+ * 用于需要显示操作人真实姓名的场景，如通知消息
+ */
+export async function getCurrentUserWithRealName(): Promise<(Profile & {real_name: string | null}) | null> {
+  try {
+    console.log('[getCurrentUserWithRealName] 开始获取当前用户（含真实姓名）')
+    const {
+      data: {user},
+      error: authError
+    } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('[getCurrentUserWithRealName] 获取认证用户失败:', authError)
+      return null
+    }
+
+    if (!user) {
+      console.warn('[getCurrentUserWithRealName] 用户未登录')
+      return null
+    }
+
+    console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
+
+    // 查询用户档案，并 LEFT JOIN driver_licenses 表获取真实姓名
+    const {data, error} = await supabase
+      .from('profiles')
+      .select(
+        `
+        *,
+        driver_licenses (
+          id_card_name
+        )
+      `
+      )
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.error('[getCurrentUserWithRealName] 查询用户档案失败:', error)
+      return null
+    }
+
+    if (!data) {
+      console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
+      return null
+    }
+
+    // 提取真实姓名
+    const realName = (data.driver_licenses as any)?.id_card_name || null
+
+    console.log('[getCurrentUserWithRealName] 成功获取用户档案:', {
+      id: data.id,
+      name: data.name,
+      real_name: realName,
+      role: data.role
+    })
+
+    // 返回包含真实姓名的用户信息
+    return {
+      ...data,
+      real_name: realName
+    }
+  } catch (error) {
+    console.error('[getCurrentUserWithRealName] 未预期的错误:', error)
+    return null
+  }
+}
+
+/**
  * 快速获取当前用户角色（用于登录后的路由跳转）
  * 只查询 role 字段，不获取完整档案，提高性能
  */
