@@ -317,23 +317,35 @@ const DriverWarehouseAssignment: React.FC = () => {
 
   // 保存仓库分配
   const handleSave = async () => {
+    console.log('💾 [保存] 开始保存仓库分配')
+
     if (!selectedDriver) {
       showToast({title: '请先选择司机', icon: 'none'})
       return
     }
+
+    console.log('💾 [保存] 选中的司机', {
+      司机: selectedDriver.name,
+      司机ID: selectedDriver.id,
+      选中的仓库: selectedWarehouseIds
+    })
 
     setLoading(true)
     showLoading({title: '保存中...'})
 
     // 获取保存之前的仓库ID，用于判断是新增还是取消
     const previousWarehouseIds = await getDriverWarehouseIds(selectedDriver.id)
+    console.log('💾 [保存] 之前的仓库', previousWarehouseIds)
 
     const result = await setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
+    console.log('💾 [保存] 保存结果', result)
 
     Taro.hideLoading()
     setLoading(false)
 
     if (result.success) {
+      console.log('✅ [保存] 保存成功，准备发送通知')
+
       // 显示详细的成功提示
       const warehouseNames = warehouses
         .filter((w) => selectedWarehouseIds.includes(w.id))
@@ -345,7 +357,13 @@ const DriverWarehouseAssignment: React.FC = () => {
           ? `已为 ${selectedDriver.name} 分配仓库：${warehouseNames}。\n\n司机需要重新进入页面才能看到更新。`
           : `已清空 ${selectedDriver.name} 的仓库分配。`
 
+      console.log('💾 [保存] 当前用户信息', {
+        currentUserProfile: currentUserProfile?.name,
+        role: currentUserProfile?.role
+      })
+
       // 发送通知
+      console.log('💾 [保存] 调用通知发送函数')
       await sendWarehouseAssignmentNotifications(
         selectedDriver,
         previousWarehouseIds,
@@ -353,6 +371,7 @@ const DriverWarehouseAssignment: React.FC = () => {
         warehouses,
         currentUserProfile
       )
+      console.log('💾 [保存] 通知发送函数执行完毕')
 
       await Taro.showModal({
         title: '分配成功',
