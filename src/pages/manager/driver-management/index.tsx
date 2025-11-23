@@ -403,6 +403,10 @@ const DriverManagement: React.FC = () => {
 
       showLoading({title: '保存中...'})
 
+      // 获取之前的仓库分配（用于对比变更）
+      const previousAssignments = await getWarehouseAssignmentsByDriver(driverId)
+      const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
+
       // 先删除该司机的所有仓库分配
       await deleteWarehouseAssignmentsByDriver(driverId)
 
@@ -418,6 +422,79 @@ const DriverManagement: React.FC = () => {
       showToast({title: '保存成功', icon: 'success'})
       setWarehouseAssignExpanded(null)
       setSelectedWarehouseIds([])
+
+      // 发送通知
+      try {
+        console.log('🔔 [仓库分配-管理员] 开始发送通知')
+        const notifications: Array<{
+          userId: string
+          type: 'warehouse_assigned' | 'warehouse_unassigned'
+          title: string
+          message: string
+          relatedId?: string
+        }> = []
+
+        // 计算仓库变更情况
+        const addedWarehouseIds = selectedWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
+        const removedWarehouseIds = previousWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
+
+        console.log('📊 [仓库分配-管理员] 仓库变更情况:', {
+          之前的仓库: previousWarehouseIds,
+          现在的仓库: selectedWarehouseIds,
+          新增的仓库: addedWarehouseIds,
+          移除的仓库: removedWarehouseIds
+        })
+
+        // 通知司机
+        if (addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0) {
+          const addedWarehouseNames = warehouses
+            .filter((w) => addedWarehouseIds.includes(w.id))
+            .map((w) => w.name)
+            .join('、')
+          const removedWarehouseNames = warehouses
+            .filter((w) => removedWarehouseIds.includes(w.id))
+            .map((w) => w.name)
+            .join('、')
+
+          let message = ''
+          if (addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0) {
+            message = `您的仓库分配已更新：\n新增：${addedWarehouseNames}\n移除：${removedWarehouseNames}`
+          } else if (addedWarehouseIds.length > 0) {
+            message = `您已被分配到新仓库：${addedWarehouseNames}`
+          } else {
+            message = `您已从以下仓库移除：${removedWarehouseNames}`
+          }
+
+          notifications.push({
+            userId: driverId,
+            type: addedWarehouseIds.length > 0 ? 'warehouse_assigned' : 'warehouse_unassigned',
+            title: '仓库分配变更通知',
+            message: message,
+            relatedId: driverId
+          })
+
+          console.log('📝 [仓库分配-管理员] 准备通知司机:', {
+            司机ID: driverId,
+            司机姓名: driverName,
+            通知内容: message
+          })
+        }
+
+        // 批量发送通知
+        if (notifications.length > 0) {
+          console.log('📤 [仓库分配-管理员] 准备发送通知:', notifications)
+          const success = await createNotifications(notifications)
+          if (success) {
+            console.log(`✅ [仓库分配-管理员] 已成功发送 ${notifications.length} 条通知`)
+          } else {
+            console.error('❌ [仓库分配-管理员] 通知发送失败')
+          }
+        } else {
+          console.log('ℹ️ [仓库分配-管理员] 没有需要发送的通知')
+        }
+      } catch (error) {
+        console.error('❌ [仓库分配-管理员] 发送通知失败:', error)
+      }
     },
     [selectedWarehouseIds, drivers, warehouses]
   )

@@ -502,6 +502,10 @@ const UserManagement: React.FC = () => {
 
       showLoading({title: '保存中...'})
 
+      // 获取之前的仓库分配（用于对比变更）
+      const previousAssignments = await getWarehouseAssignmentsByDriver(userId)
+      const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
+
       // 先删除该用户的所有仓库分配
       await deleteWarehouseAssignmentsByDriver(userId)
 
@@ -525,6 +529,125 @@ const UserManagement: React.FC = () => {
         newMap.set(userId, assignedWarehouses)
         return newMap
       })
+
+      // 发送通知
+      try {
+        console.log('🔔 [仓库分配] 开始发送通知')
+        const notifications: Array<{
+          userId: string
+          type: 'warehouse_assigned' | 'warehouse_unassigned'
+          title: string
+          message: string
+          relatedId?: string
+        }> = []
+
+        // 计算仓库变更情况
+        const addedWarehouseIds = selectedWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
+        const removedWarehouseIds = previousWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
+
+        console.log('📊 [仓库分配] 仓库变更情况:', {
+          之前的仓库: previousWarehouseIds,
+          现在的仓库: selectedWarehouseIds,
+          新增的仓库: addedWarehouseIds,
+          移除的仓库: removedWarehouseIds
+        })
+
+        // 1. 通知司机
+        if (addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0) {
+          const addedWarehouseNames = warehouses
+            .filter((w) => addedWarehouseIds.includes(w.id))
+            .map((w) => w.name)
+            .join('、')
+          const removedWarehouseNames = warehouses
+            .filter((w) => removedWarehouseIds.includes(w.id))
+            .map((w) => w.name)
+            .join('、')
+
+          let message = ''
+          if (addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0) {
+            message = `您的仓库分配已更新：\n新增：${addedWarehouseNames}\n移除：${removedWarehouseNames}`
+          } else if (addedWarehouseIds.length > 0) {
+            message = `您已被分配到新仓库：${addedWarehouseNames}`
+          } else {
+            message = `您已从以下仓库移除：${removedWarehouseNames}`
+          }
+
+          notifications.push({
+            userId: userId,
+            type: addedWarehouseIds.length > 0 ? 'warehouse_assigned' : 'warehouse_unassigned',
+            title: '仓库分配变更通知',
+            message: message,
+            relatedId: userId
+          })
+
+          console.log('📝 [仓库分配] 准备通知司机:', {
+            司机ID: userId,
+            司机姓名: userName,
+            通知内容: message
+          })
+        }
+
+        // 2. 如果是超级管理员操作 → 通知相关仓库的管理员
+        const currentUserProfile = await getCurrentUserProfile()
+        console.log('👤 [仓库分配] 当前用户信息:', {
+          用户ID: currentUserProfile?.id,
+          角色: currentUserProfile?.role,
+          姓名: currentUserProfile?.name
+        })
+
+        if (currentUserProfile && currentUserProfile.role === 'super_admin') {
+          console.log('👑 [仓库分配] 操作者是超级管理员，准备通知相关管理员')
+
+          // 获取所有受影响的仓库（新增的和移除的）
+          const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
+          console.log('📦 [仓库分配] 受影响的仓库:', affectedWarehouseIds)
+
+          const managersSet = new Set<string>()
+
+          // 获取这些仓库的管理员
+          for (const warehouseId of affectedWarehouseIds) {
+            const managers = await getWarehouseManagers(warehouseId)
+            console.log(
+              `👥 [仓库分配] 仓库 ${warehouseId} 的管理员:`,
+              managers.map((m) => m.name)
+            )
+            managers.forEach((m) => managersSet.add(m.id))
+          }
+
+          console.log('👥 [仓库分配] 需要通知的管理员总数:', managersSet.size)
+
+          // 通知相关管理员
+          for (const managerId of managersSet) {
+            const warehouseNames = warehouses
+              .filter((w) => affectedWarehouseIds.includes(w.id))
+              .map((w) => w.name)
+              .join('、')
+
+            notifications.push({
+              userId: managerId,
+              type: 'warehouse_assigned',
+              title: '仓库分配操作通知',
+              message: `超级管理员 ${currentUserProfile.name} 修改了司机 ${userName} 的仓库分配，涉及仓库：${warehouseNames}`,
+              relatedId: userId
+            })
+          }
+        }
+
+        // 批量发送通知
+        if (notifications.length > 0) {
+          console.log('📤 [仓库分配] 准备发送通知:', notifications)
+          const success = await createNotifications(notifications)
+          if (success) {
+            console.log(`✅ [仓库分配] 已成功发送 ${notifications.length} 条通知`)
+          } else {
+            console.error('❌ [仓库分配] 通知发送失败')
+          }
+        } else {
+          console.log('ℹ️ [仓库分配] 没有需要发送的通知')
+        }
+      } catch (error) {
+        console.error('❌ [仓库分配] 发送通知失败:', error)
+      }
     },
     [selectedWarehouseIds, users, warehouses]
   )
