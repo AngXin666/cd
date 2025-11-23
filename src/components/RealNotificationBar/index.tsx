@@ -4,7 +4,7 @@
  */
 
 import {Text, View} from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -34,6 +34,11 @@ const RealNotificationBar: React.FC = () => {
   useEffect(() => {
     loadNotifications()
   }, [loadNotifications])
+
+  // 页面显示时重新加载（从通知中心返回时）
+  useDidShow(() => {
+    loadNotifications()
+  })
 
   // 自动切换通知
   useEffect(() => {
