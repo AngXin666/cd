@@ -219,28 +219,28 @@ const VehicleHistory: React.FC = () => {
               </View>
 
               {/* Tab 切换 */}
-              <View className="flex bg-card rounded-lg p-1 mb-4 shadow-sm">
+              <View className="flex gap-2 mb-4">
                 <View
-                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'pickup' ? 'bg-green-600 shadow-md' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'pickup' ? 'bg-green-500' : 'bg-gray-100'}`}
                   onClick={() => setActiveTab('pickup')}>
                   <Text
-                    className={`text-center text-base font-bold ${activeTab === 'pickup' ? 'text-white' : 'text-muted-foreground'}`}>
+                    className={`text-center text-sm font-bold ${activeTab === 'pickup' ? 'text-white' : 'text-gray-600'}`}>
                     提车信息
                   </Text>
                 </View>
                 <View
-                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'return' ? 'bg-blue-600 shadow-md' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'return' ? 'bg-blue-500' : 'bg-gray-100'}`}
                   onClick={() => setActiveTab('return')}>
                   <Text
-                    className={`text-center text-base font-bold ${activeTab === 'return' ? 'text-white' : 'text-muted-foreground'}`}>
+                    className={`text-center text-sm font-bold ${activeTab === 'return' ? 'text-white' : 'text-gray-600'}`}>
                     还车信息
                   </Text>
                 </View>
                 <View
-                  className={`flex-1 py-3 rounded-md transition-all ${activeTab === 'driver' ? 'bg-orange-600 shadow-md' : 'bg-transparent'}`}
+                  className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'driver' ? 'bg-orange-500' : 'bg-gray-100'}`}
                   onClick={() => setActiveTab('driver')}>
                   <Text
-                    className={`text-center text-base font-bold ${activeTab === 'driver' ? 'text-white' : 'text-muted-foreground'}`}>
+                    className={`text-center text-sm font-bold ${activeTab === 'driver' ? 'text-white' : 'text-gray-600'}`}>
                     实名信息
                   </Text>
                 </View>
