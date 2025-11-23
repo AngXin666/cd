@@ -80,6 +80,14 @@ const DriverWarehouseAssignment: React.FC = () => {
     operatorProfile: Profile | null
   ) => {
     try {
+      console.log('🔔 开始发送仓库分配通知', {
+        driver: driver.name,
+        previousWarehouseIds,
+        newWarehouseIds,
+        operatorProfile: operatorProfile?.name,
+        operatorRole: operatorProfile?.role
+      })
+
       const notifications: Array<{
         userId: string
         type: 'warehouse_assigned' | 'warehouse_unassigned'
@@ -91,6 +99,11 @@ const DriverWarehouseAssignment: React.FC = () => {
       // 判断是新增还是取消仓库
       const addedWarehouseIds = newWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
       const removedWarehouseIds = previousWarehouseIds.filter((id) => !newWarehouseIds.includes(id))
+
+      console.log('📊 仓库变更情况', {
+        addedWarehouseIds,
+        removedWarehouseIds
+      })
 
       // 1. 通知司机
       if (addedWarehouseIds.length > 0) {
@@ -213,8 +226,23 @@ const DriverWarehouseAssignment: React.FC = () => {
 
       // 批量发送通知
       if (notifications.length > 0) {
-        await createNotifications(notifications)
-        console.log(`✅ 已发送 ${notifications.length} 条仓库分配通知`)
+        console.log('📤 准备发送通知', {
+          count: notifications.length,
+          notifications: notifications.map((n) => ({
+            userId: n.userId,
+            type: n.type,
+            title: n.title
+          }))
+        })
+
+        const success = await createNotifications(notifications)
+        if (success) {
+          console.log(`✅ 已成功发送 ${notifications.length} 条仓库分配通知`)
+        } else {
+          console.error('❌ 发送通知失败')
+        }
+      } else {
+        console.log('ℹ️ 没有需要发送的通知')
       }
     } catch (error) {
       console.error('❌ 发送仓库分配通知失败:', error)
