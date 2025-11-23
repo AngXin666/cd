@@ -146,6 +146,24 @@ const NotificationsPage: React.FC = () => {
         return 'i-mdi-check-circle text-green-500'
       case 'vehicle_review_need_supplement':
         return 'i-mdi-alert-circle text-red-500'
+      case 'warehouse_assigned':
+        return 'i-mdi-warehouse text-blue-500'
+      case 'warehouse_unassigned':
+        return 'i-mdi-warehouse-off text-gray-500'
+      case 'driver_type_changed':
+        return 'i-mdi-account-switch text-purple-500'
+      case 'permission_change':
+        return 'i-mdi-shield-account text-orange-500'
+      case 'driver_info_update':
+        return 'i-mdi-account-edit text-blue-500'
+      case 'driver_created':
+        return 'i-mdi-account-plus text-green-500'
+      case 'leave_approved':
+        return 'i-mdi-check-circle text-green-500'
+      case 'leave_rejected':
+        return 'i-mdi-close-circle text-red-500'
+      case 'system_notice':
+        return 'i-mdi-information text-blue-500'
       default:
         return 'i-mdi-bell text-primary'
     }

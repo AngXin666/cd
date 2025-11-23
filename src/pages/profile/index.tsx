@@ -105,26 +105,26 @@ const ProfilePage: React.FC = () => {
 
   // 司机端快捷功能
   const driverQuickActions = [
+    {icon: 'i-mdi-bell', text: '通知中心', url: '/pages/common/notifications/index'},
     {icon: 'i-mdi-clock-check', text: '上下班打卡', url: '/pages/driver/clock-in/index'},
     {icon: 'i-mdi-file-document-edit', text: '计件录入', url: '/pages/driver/piece-work-entry/index'},
-    {icon: 'i-mdi-calendar-clock', text: '请假申请', url: '/pages/driver/leave/apply/index'},
-    {icon: 'i-mdi-chart-line', text: '考勤记录', url: '/pages/driver/attendance/index'}
+    {icon: 'i-mdi-calendar-clock', text: '请假申请', url: '/pages/driver/leave/apply/index'}
   ]
 
   // 管理员端快捷功能
   const managerQuickActions = [
+    {icon: 'i-mdi-bell', text: '通知中心', url: '/pages/common/notifications/index'},
     {icon: 'i-mdi-account-group', text: '司机管理', url: '/pages/manager/driver-management/index'},
     {icon: 'i-mdi-chart-box', text: '数据汇总', url: '/pages/manager/data-summary/index'},
-    {icon: 'i-mdi-clipboard-check', text: '请假审批', url: '/pages/manager/leave-approval/index'},
-    {icon: 'i-mdi-file-chart', text: '计件报表', url: '/pages/manager/piece-work-report/index'}
+    {icon: 'i-mdi-clipboard-check', text: '请假审批', url: '/pages/manager/leave-approval/index'}
   ]
 
   // 超级管理员端快捷功能
   const superAdminQuickActions = [
+    {icon: 'i-mdi-bell', text: '通知中心', url: '/pages/common/notifications/index'},
     {icon: 'i-mdi-warehouse', text: '仓库管理', url: '/pages/super-admin/warehouse-management/index'},
     {icon: 'i-mdi-account-multiple', text: '用户管理', url: '/pages/super-admin/user-management/index'},
-    {icon: 'i-mdi-clipboard-check', text: '请假审批', url: '/pages/super-admin/leave-approval/index'},
-    {icon: 'i-mdi-cog', text: '权限配置', url: '/pages/super-admin/permission-config/index'}
+    {icon: 'i-mdi-clipboard-check', text: '请假审批', url: '/pages/super-admin/leave-approval/index'}
   ]
 
   const getQuickActions = () => {
