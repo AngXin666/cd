@@ -10,6 +10,7 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getVehicleByPlateNumber} from '@/db/api'
 import type {VehicleWithDriver} from '@/db/types'
+import {calculateAge, calculateDrivingYears} from '@/utils/date'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('VehicleHistory')
@@ -405,7 +406,19 @@ const VehicleHistory: React.FC = () => {
                         {vehicle.driver_license?.id_card_birth_date && (
                           <View className="flex items-start">
                             <Text className="text-muted-foreground w-24 flex-shrink-0">出生日期</Text>
-                            <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_birth_date}</Text>
+                            <View className="flex-1">
+                              <Text className="text-foreground">{vehicle.driver_license.id_card_birth_date}</Text>
+                              {(() => {
+                                const age = calculateAge(
+                                  vehicle.driver_license?.id_card_birth_date ||
+                                    vehicle.driver_license?.id_card_number ||
+                                    null
+                                )
+                                return age !== null ? (
+                                  <Text className="text-muted-foreground text-sm ml-2">（{age}岁）</Text>
+                                ) : null
+                              })()}
+                            </View>
                           </View>
                         )}
 
@@ -460,7 +473,17 @@ const VehicleHistory: React.FC = () => {
                           {vehicle.driver_license.first_issue_date && (
                             <View className="flex items-start">
                               <Text className="text-muted-foreground w-24 flex-shrink-0">初次领证</Text>
-                              <Text className="text-foreground flex-1">{vehicle.driver_license.first_issue_date}</Text>
+                              <View className="flex-1">
+                                <Text className="text-foreground">{vehicle.driver_license.first_issue_date}</Text>
+                                {(() => {
+                                  const drivingYears = calculateDrivingYears(
+                                    vehicle.driver_license?.first_issue_date || null
+                                  )
+                                  return drivingYears !== null ? (
+                                    <Text className="text-muted-foreground text-sm ml-2">（驾龄{drivingYears}年）</Text>
+                                  ) : null
+                                })()}
+                              </View>
                             </View>
                           )}
 
