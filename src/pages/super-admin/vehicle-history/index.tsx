@@ -356,11 +356,11 @@ const VehicleHistory: React.FC = () => {
               {/* 实名信息 */}
               {activeTab === 'driver' && (
                 <View className="space-y-4">
-                  {/* 司机信息 */}
+                  {/* 司机基本信息 */}
                   <View className="bg-card rounded-lg p-4 shadow-sm">
                     <View className="flex items-center mb-3">
                       <View className="i-mdi-account-circle text-xl text-blue-600 mr-2"></View>
-                      <Text className="text-lg font-bold text-foreground">司机信息</Text>
+                      <Text className="text-lg font-bold text-foreground">司机基本信息</Text>
                     </View>
 
                     {vehicle.driver ? (
@@ -389,6 +389,54 @@ const VehicleHistory: React.FC = () => {
                     )}
                   </View>
 
+                  {/* 身份证实名信息 */}
+                  {vehicle.driver_license &&
+                    (vehicle.driver_license.id_card_name ||
+                      vehicle.driver_license.id_card_number ||
+                      vehicle.driver_license.id_card_birth_date ||
+                      vehicle.driver_license.id_card_address) && (
+                      <View className="bg-card rounded-lg p-4 shadow-sm">
+                        <View className="flex items-center mb-3">
+                          <View className="i-mdi-card-account-details text-xl text-orange-600 mr-2"></View>
+                          <Text className="text-lg font-bold text-foreground">身份证实名信息</Text>
+                        </View>
+
+                        <View className="space-y-2">
+                          {vehicle.driver_license.id_card_name && (
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">姓名</Text>
+                              <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_name}</Text>
+                            </View>
+                          )}
+
+                          {vehicle.driver_license.id_card_number && (
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">身份证号</Text>
+                              <Text className="text-foreground flex-1 text-xs break-all">
+                                {vehicle.driver_license.id_card_number}
+                              </Text>
+                            </View>
+                          )}
+
+                          {vehicle.driver_license.id_card_birth_date && (
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">出生日期</Text>
+                              <Text className="text-foreground flex-1">
+                                {vehicle.driver_license.id_card_birth_date}
+                              </Text>
+                            </View>
+                          )}
+
+                          {vehicle.driver_license.id_card_address && (
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">地址</Text>
+                              <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_address}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
                   {/* 身份证照片 */}
                   {getIdCardPhotos().length > 0 && (
                     <View className="bg-card rounded-lg p-4 shadow-sm">
@@ -403,14 +451,17 @@ const VehicleHistory: React.FC = () => {
                     </View>
                   )}
 
-                  {/* 提示：没有证件照片 */}
-                  {getIdCardPhotos().length === 0 && getDriverLicensePhotos().length === 0 && (
-                    <View className="bg-card rounded-lg p-4 shadow-sm">
-                      <View className="flex items-center justify-center py-10">
-                        <Text className="text-muted-foreground">暂无证件照片</Text>
+                  {/* 提示：没有任何信息 */}
+                  {!vehicle.driver &&
+                    !vehicle.driver_license &&
+                    getIdCardPhotos().length === 0 &&
+                    getDriverLicensePhotos().length === 0 && (
+                      <View className="bg-card rounded-lg p-4 shadow-sm">
+                        <View className="flex items-center justify-center py-10">
+                          <Text className="text-muted-foreground">暂无司机实名信息</Text>
+                        </View>
                       </View>
-                    </View>
-                  )}
+                    )}
                 </View>
               )}
             </View>

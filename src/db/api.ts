@@ -4527,16 +4527,18 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
       }
     }
 
-    // 如果有司机信息，查询司机的证件照片
+    // 如果有司机信息，查询司机的证件照片和实名信息
     if (driverId) {
       const {data: licenseData} = await supabase
         .from('driver_licenses')
-        .select('id_card_photo_front, id_card_photo_back, driving_license_photo')
+        .select(
+          'id_card_photo_front, id_card_photo_back, driving_license_photo, id_card_name, id_card_number, id_card_address, id_card_birth_date'
+        )
         .eq('driver_id', driverId)
         .maybeSingle()
 
       if (licenseData) {
-        // 将证件照片添加到返回数据中
+        // 将证件照片和实名信息添加到返回数据中
         ;(data as any).driver_license = licenseData
       }
     }

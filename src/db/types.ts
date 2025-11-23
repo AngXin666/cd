@@ -733,6 +733,10 @@ export interface VehicleWithDriver extends Vehicle {
     id_card_photo_front: string | null
     id_card_photo_back: string | null
     driving_license_photo: string | null
+    id_card_name: string | null // 身份证姓名
+    id_card_number: string | null // 身份证号码
+    id_card_address: string | null // 身份证地址
+    id_card_birth_date: string | null // 出生日期
   } | null
 }
 
