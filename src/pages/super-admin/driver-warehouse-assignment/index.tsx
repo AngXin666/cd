@@ -80,12 +80,13 @@ const DriverWarehouseAssignment: React.FC = () => {
     operatorProfile: Profile | null
   ) => {
     try {
-      console.log('🔔 开始发送仓库分配通知', {
-        driver: driver.name,
-        previousWarehouseIds,
-        newWarehouseIds,
-        operatorProfile: operatorProfile?.name,
-        operatorRole: operatorProfile?.role
+      console.log('🔔 [通知系统] 开始发送仓库分配通知', {
+        司机: driver.name,
+        司机ID: driver.id,
+        之前的仓库: previousWarehouseIds,
+        新的仓库: newWarehouseIds,
+        操作者: operatorProfile?.name || '未知',
+        操作者角色: operatorProfile?.role || '未知'
       })
 
       const notifications: Array<{
@@ -100,17 +101,29 @@ const DriverWarehouseAssignment: React.FC = () => {
       const addedWarehouseIds = newWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
       const removedWarehouseIds = previousWarehouseIds.filter((id) => !newWarehouseIds.includes(id))
 
-      console.log('📊 仓库变更情况', {
-        addedWarehouseIds,
-        removedWarehouseIds
+      console.log('📊 [通知系统] 仓库变更情况', {
+        新增的仓库: addedWarehouseIds,
+        取消的仓库: removedWarehouseIds,
+        是否有变更: addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0
       })
 
-      // 1. 通知司机
+      // 如果没有任何变更，不发送通知
+      if (addedWarehouseIds.length === 0 && removedWarehouseIds.length === 0) {
+        console.log('ℹ️ [通知系统] 仓库没有变更，不发送通知')
+        return
+      }
+
+      // 1. 通知司机（新增仓库）
       if (addedWarehouseIds.length > 0) {
         const addedWarehouseNames = allWarehouses
           .filter((w) => addedWarehouseIds.includes(w.id))
           .map((w) => w.name)
           .join('、')
+
+        console.log('📝 [通知系统] 准备通知司机（新增仓库）', {
+          司机ID: driver.id,
+          仓库: addedWarehouseNames
+        })
 
         notifications.push({
           userId: driver.id,
@@ -121,11 +134,17 @@ const DriverWarehouseAssignment: React.FC = () => {
         })
       }
 
+      // 2. 通知司机（取消仓库）
       if (removedWarehouseIds.length > 0) {
         const removedWarehouseNames = allWarehouses
           .filter((w) => removedWarehouseIds.includes(w.id))
           .map((w) => w.name)
           .join('、')
+
+        console.log('📝 [通知系统] 准备通知司机（取消仓库）', {
+          司机ID: driver.id,
+          仓库: removedWarehouseNames
+        })
 
         notifications.push({
           userId: driver.id,
@@ -136,10 +155,12 @@ const DriverWarehouseAssignment: React.FC = () => {
         })
       }
 
-      // 2. 根据操作者角色发送通知
+      // 3. 通知相关管理员
       if (operatorProfile) {
         if (operatorProfile.role === 'manager') {
           // 普通管理员操作 → 通知所有超级管理员
+          console.log('👤 [通知系统] 操作者是普通管理员，准备通知所有超级管理员')
+
           const superAdmins = await getAllSuperAdmins()
           const operationDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
@@ -167,6 +188,11 @@ const DriverWarehouseAssignment: React.FC = () => {
                     .map((w) => w.name)
                     .join('、')
 
+          console.log('📝 [通知系统] 准备通知超级管理员', {
+            超级管理员数量: superAdmins.length,
+            操作描述: operationDesc
+          })
+
           for (const admin of superAdmins) {
             notifications.push({
               userId: admin.id,
@@ -178,13 +204,29 @@ const DriverWarehouseAssignment: React.FC = () => {
           }
         } else if (operatorProfile.role === 'super_admin') {
           // 超级管理员操作 → 通知相关仓库的普通管理员
+          console.log('👤 [通知系统] 操作者是超级管理员，准备通知相关仓库的管理员')
+
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
+
+          console.log('📦 [通知系统] 受影响的仓库', {
+            仓库ID列表: affectedWarehouseIds,
+            仓库数量: affectedWarehouseIds.length
+          })
+
           const managersSet = new Set<string>()
 
           for (const warehouseId of affectedWarehouseIds) {
             const managers = await getWarehouseManagers(warehouseId)
+            console.log(`📦 [通知系统] 仓库 ${warehouseId} 的管理员`, {
+              管理员数量: managers.length,
+              管理员: managers.map((m) => m.name)
+            })
             managers.forEach((m) => managersSet.add(m.id))
           }
+
+          console.log('👥 [通知系统] 需要通知的管理员总数', {
+            管理员数量: managersSet.size
+          })
 
           const operationDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
@@ -212,6 +254,11 @@ const DriverWarehouseAssignment: React.FC = () => {
                     .map((w) => w.name)
                     .join('、')
 
+          console.log('📝 [通知系统] 准备通知管理员', {
+            管理员数量: managersSet.size,
+            操作描述: operationDesc
+          })
+
           for (const managerId of managersSet) {
             notifications.push({
               userId: managerId,
@@ -222,30 +269,43 @@ const DriverWarehouseAssignment: React.FC = () => {
             })
           }
         }
+      } else {
+        console.warn('⚠️ [通知系统] 操作者信息为空，无法通知管理员')
       }
 
       // 批量发送通知
       if (notifications.length > 0) {
-        console.log('📤 准备发送通知', {
-          count: notifications.length,
-          notifications: notifications.map((n) => ({
-            userId: n.userId,
-            type: n.type,
-            title: n.title
+        console.log('📤 [通知系统] 准备发送通知', {
+          通知数量: notifications.length,
+          通知列表: notifications.map((n) => ({
+            接收者ID: n.userId,
+            类型: n.type,
+            标题: n.title,
+            消息: n.message
           }))
         })
 
         const success = await createNotifications(notifications)
         if (success) {
-          console.log(`✅ 已成功发送 ${notifications.length} 条仓库分配通知`)
+          console.log(`✅ [通知系统] 已成功发送 ${notifications.length} 条仓库分配通知`)
         } else {
-          console.error('❌ 发送通知失败')
+          console.error('❌ [通知系统] 发送通知失败')
+          showToast({
+            title: '通知发送失败',
+            icon: 'none',
+            duration: 2000
+          })
         }
       } else {
-        console.log('ℹ️ 没有需要发送的通知')
+        console.log('ℹ️ [通知系统] 没有需要发送的通知（可能是操作者信息缺失）')
       }
     } catch (error) {
-      console.error('❌ 发送仓库分配通知失败:', error)
+      console.error('❌ [通知系统] 发送仓库分配通知异常:', error)
+      showToast({
+        title: '通知发送异常',
+        icon: 'none',
+        duration: 2000
+      })
     }
   }
 
