@@ -3,7 +3,7 @@ import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@taro
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
-import NotificationBar from '@/components/NotificationBar'
+import RealNotificationBar from '@/components/RealNotificationBar'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
 import {
@@ -341,16 +341,7 @@ const ManagerHome: React.FC = () => {
           </View>
 
           {/* 通知栏 */}
-          <NotificationBar
-            notifications={getRecentNotifications(5)}
-            onNotificationClick={(notification) => {
-              markAsRead(notification.id)
-              // 根据通知类型跳转到相应页面
-              if (notification.type === 'leave_application' || notification.type === 'resignation_application') {
-                Taro.navigateTo({url: '/pages/manager/leave-approval/index'})
-              }
-            }}
-          />
+          <RealNotificationBar />
 
           {/* 数据统计仪表盘 */}
           <View className="mb-4">

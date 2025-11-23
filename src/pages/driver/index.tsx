@@ -4,7 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {ClockInReminderModal} from '@/components/attendance'
-import NotificationBar from '@/components/NotificationBar'
+import RealNotificationBar from '@/components/RealNotificationBar'
 import {getCurrentUserProfile, getDriverLicense} from '@/db/api'
 import type {DriverLicense, Profile} from '@/db/types'
 import {
@@ -362,16 +362,7 @@ const DriverHome: React.FC = () => {
           </View>
 
           {/* 通知栏 */}
-          <NotificationBar
-            notifications={getRecentNotifications(5)}
-            onNotificationClick={(notification) => {
-              markAsRead(notification.id)
-              // 根据通知类型跳转到相应页面
-              if (notification.type === 'approval') {
-                Taro.navigateTo({url: '/pages/driver/leave/index'})
-              }
-            }}
-          />
+          <RealNotificationBar />
 
           {/* 数据统计仪表盘 */}
           <View className="mb-4">
