@@ -521,6 +521,14 @@ const SuperAdminHome: React.FC = () => {
                 <View className="i-mdi-calendar-check text-3xl text-red-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">考勤管理</Text>
               </View>
+
+              {/* 测试通知 */}
+              <View
+                onClick={() => navigateTo({url: '/pages/super-admin/test-notification/index'})}
+                className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
+                <View className="i-mdi-bell-ring text-3xl text-purple-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">测试通知</Text>
+              </View>
             </View>
           </View>
 
