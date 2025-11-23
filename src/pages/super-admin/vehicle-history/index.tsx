@@ -133,7 +133,13 @@ const VehicleHistory: React.FC = () => {
   // 获取提车时的车损照片（文件名包含 pickup_damage）
   const getPickupDamagePhotos = (): string[] => {
     const allDamagePhotos = getDamagePhotos()
-    return allDamagePhotos.filter((url) => url.includes('pickup_damage'))
+    const pickupPhotos = allDamagePhotos.filter((url) => url.includes('pickup_damage'))
+    logger.info('提车车损照片', {
+      total: allDamagePhotos.length,
+      pickup: pickupPhotos.length,
+      photos: pickupPhotos
+    })
+    return pickupPhotos
   }
 
   // 获取还车时的车损照片（文件名包含 return_damage）
