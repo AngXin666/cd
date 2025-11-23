@@ -402,23 +402,29 @@ const VehicleHistory: React.FC = () => {
                           </View>
                         )}
 
-                        {/* 出生日期 */}
+                        {/* 出生日期与年龄 */}
                         {vehicle.driver_license?.id_card_birth_date && (
-                          <View className="flex items-start">
-                            <Text className="text-muted-foreground w-24 flex-shrink-0">出生日期</Text>
-                            <View className="flex-1">
-                              <Text className="text-foreground">{vehicle.driver_license.id_card_birth_date}</Text>
-                              {(() => {
-                                const age = calculateAge(
-                                  vehicle.driver_license?.id_card_birth_date ||
-                                    vehicle.driver_license?.id_card_number ||
-                                    null
-                                )
-                                return age !== null ? (
-                                  <Text className="text-muted-foreground text-sm ml-2">（{age}岁）</Text>
-                                ) : null
-                              })()}
+                          <View className="space-y-1">
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">出生日期</Text>
+                              <Text className="text-foreground flex-1">
+                                {vehicle.driver_license.id_card_birth_date}
+                              </Text>
                             </View>
+                            {(() => {
+                              const age = calculateAge(
+                                vehicle.driver_license?.id_card_birth_date ||
+                                  vehicle.driver_license?.id_card_number ||
+                                  null
+                              )
+                              return age !== null ? (
+                                <View className="flex items-center pl-24">
+                                  <View className="bg-blue-50 px-2 py-1 rounded">
+                                    <Text className="text-blue-600 text-xs font-medium">年龄 {age} 岁</Text>
+                                  </View>
+                                </View>
+                              ) : null
+                            })()}
                           </View>
                         )}
 
@@ -469,21 +475,27 @@ const VehicleHistory: React.FC = () => {
                             </View>
                           )}
 
-                          {/* 初次领证日期 */}
+                          {/* 初次领证日期与驾龄 */}
                           {vehicle.driver_license.first_issue_date && (
-                            <View className="flex items-start">
-                              <Text className="text-muted-foreground w-24 flex-shrink-0">初次领证</Text>
-                              <View className="flex-1">
-                                <Text className="text-foreground">{vehicle.driver_license.first_issue_date}</Text>
-                                {(() => {
-                                  const drivingYears = calculateDrivingYears(
-                                    vehicle.driver_license?.first_issue_date || null
-                                  )
-                                  return drivingYears !== null ? (
-                                    <Text className="text-muted-foreground text-sm ml-2">（驾龄{drivingYears}年）</Text>
-                                  ) : null
-                                })()}
+                            <View className="space-y-1">
+                              <View className="flex items-start">
+                                <Text className="text-muted-foreground w-24 flex-shrink-0">初次领证</Text>
+                                <Text className="text-foreground flex-1">
+                                  {vehicle.driver_license.first_issue_date}
+                                </Text>
                               </View>
+                              {(() => {
+                                const drivingYears = calculateDrivingYears(
+                                  vehicle.driver_license?.first_issue_date || null
+                                )
+                                return drivingYears !== null ? (
+                                  <View className="flex items-center pl-24">
+                                    <View className="bg-green-50 px-2 py-1 rounded">
+                                      <Text className="text-green-600 text-xs font-medium">驾龄 {drivingYears} 年</Text>
+                                    </View>
+                                  </View>
+                                ) : null
+                              })()}
                             </View>
                           )}
 
