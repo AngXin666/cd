@@ -317,7 +317,19 @@ const DriverManagement: React.FC = () => {
           if (currentUserProfile) {
             if (currentUserProfile.role === 'manager') {
               // 获取操作人的显示名称（优先使用真实姓名）
-              const operatorName = currentUserProfile.real_name || currentUserProfile.name || '管理员'
+              const operatorRealName = currentUserProfile.real_name
+              const operatorUserName = currentUserProfile.name
+
+              // 智能构建操作人显示文本
+              let operatorText = '管理员'
+              if (operatorRealName) {
+                // 如果有真实姓名，显示：管理员【张三】
+                operatorText = `管理员【${operatorRealName}】`
+              } else if (operatorUserName && operatorUserName !== '超级管理员' && operatorUserName !== '管理员') {
+                // 如果有用户名且不是角色名称，显示：管理员【admin】
+                operatorText = `管理员【${operatorUserName}】`
+              }
+              // 否则只显示：管理员
 
               // 普通管理员操作 → 通知所有超级管理员
               const superAdmins = await getAllSuperAdmins()
@@ -326,7 +338,7 @@ const DriverManagement: React.FC = () => {
                   userId: admin.id,
                   type: 'driver_type_changed',
                   title: '司机类型变更操作通知',
-                  message: `管理员 ${operatorName} 修改了司机类型：${driver.real_name || driver.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
+                  message: `${operatorText}修改了司机类型：${driver.real_name || driver.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
                   relatedId: driver.id
                 })
               }
