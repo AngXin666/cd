@@ -4126,7 +4126,7 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       vehicles: latestVehicles
     })
 
-    // 第三步：获取所有相关的司机信息
+    // 第三步：获取所有相关的司机信息和实名信息
     const userIds = latestVehicles.map((v: any) => v.user_id).filter(Boolean)
     const {data: profilesData, error: profilesError} = await supabase
       .from('profiles')
@@ -4138,7 +4138,17 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       // 即使获取司机信息失败，也返回车辆数据（只是没有司机信息）
     }
 
-    // 第四步：创建司机信息映射
+    // 第四步：获取司机的实名信息（身份证姓名）
+    const {data: licensesData, error: licensesError} = await supabase
+      .from('driver_licenses')
+      .select('driver_id, id_card_name')
+      .in('driver_id', userIds)
+
+    if (licensesError) {
+      logger.error('获取司机实名信息失败', {error: licensesError.message})
+    }
+
+    // 第五步：创建司机信息映射
     const profilesMap = new Map()
     if (profilesData) {
       profilesData.forEach((profile: any) => {
@@ -4146,13 +4156,24 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       })
     }
 
-    // 第五步：合并数据
+    // 创建实名信息映射
+    const licensesMap = new Map()
+    if (licensesData) {
+      licensesData.forEach((license: any) => {
+        licensesMap.set(license.driver_id, license)
+      })
+    }
+
+    // 第六步：合并数据，优先使用身份证实名
     const vehicles: VehicleWithDriver[] = latestVehicles.map((item: any) => {
       const profile = profilesMap.get(item.user_id)
+      const license = licensesMap.get(item.user_id)
+      // 优先使用身份证实名，如果没有则使用系统注册姓名
+      const displayName = license?.id_card_name || profile?.name || null
       return {
         ...item,
         driver_id: profile?.id || null,
-        driver_name: profile?.name || null,
+        driver_name: displayName,
         driver_phone: profile?.phone || null,
         driver_email: profile?.email || null
       }
