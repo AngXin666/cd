@@ -356,29 +356,64 @@ const VehicleHistory: React.FC = () => {
               {/* 实名信息 */}
               {activeTab === 'driver' && (
                 <View className="space-y-4">
-                  {/* 司机基本信息 */}
+                  {/* 司机实名信息（合并基本信息和身份证信息） */}
                   <View className="bg-card rounded-lg p-4 shadow-sm">
                     <View className="flex items-center mb-3">
-                      <View className="i-mdi-account-circle text-xl text-blue-600 mr-2"></View>
-                      <Text className="text-lg font-bold text-foreground">司机基本信息</Text>
+                      <View className="i-mdi-account-card text-xl text-blue-600 mr-2"></View>
+                      <Text className="text-lg font-bold text-foreground">司机实名信息</Text>
                     </View>
 
-                    {vehicle.driver ? (
+                    {vehicle.driver || vehicle.driver_license ? (
                       <View className="space-y-2">
-                        <View className="flex items-start">
-                          <Text className="text-muted-foreground w-20 flex-shrink-0">姓名</Text>
-                          <Text className="text-foreground flex-1">{vehicle.driver.name || '-'}</Text>
-                        </View>
-                        {vehicle.driver.phone && (
+                        {/* 姓名 - 优先显示身份证姓名 */}
+                        {(vehicle.driver_license?.id_card_name || vehicle.driver?.name) && (
                           <View className="flex items-start">
-                            <Text className="text-muted-foreground w-20 flex-shrink-0">电话</Text>
+                            <Text className="text-muted-foreground w-24 flex-shrink-0">姓名</Text>
+                            <Text className="text-foreground flex-1">
+                              {vehicle.driver_license?.id_card_name || vehicle.driver?.name || '-'}
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* 电话 */}
+                        {vehicle.driver?.phone && (
+                          <View className="flex items-start">
+                            <Text className="text-muted-foreground w-24 flex-shrink-0">电话</Text>
                             <Text className="text-foreground flex-1">{vehicle.driver.phone}</Text>
                           </View>
                         )}
-                        {vehicle.driver.email && (
+
+                        {/* 邮箱 */}
+                        {vehicle.driver?.email && (
                           <View className="flex items-start">
-                            <Text className="text-muted-foreground w-20 flex-shrink-0">邮箱</Text>
+                            <Text className="text-muted-foreground w-24 flex-shrink-0">邮箱</Text>
                             <Text className="text-foreground flex-1">{vehicle.driver.email}</Text>
+                          </View>
+                        )}
+
+                        {/* 身份证号 */}
+                        {vehicle.driver_license?.id_card_number && (
+                          <View className="flex items-start">
+                            <Text className="text-muted-foreground w-24 flex-shrink-0">身份证号</Text>
+                            <Text className="text-foreground flex-1 text-xs break-all">
+                              {vehicle.driver_license.id_card_number}
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* 出生日期 */}
+                        {vehicle.driver_license?.id_card_birth_date && (
+                          <View className="flex items-start">
+                            <Text className="text-muted-foreground w-24 flex-shrink-0">出生日期</Text>
+                            <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_birth_date}</Text>
+                          </View>
+                        )}
+
+                        {/* 地址 */}
+                        {vehicle.driver_license?.id_card_address && (
+                          <View className="flex items-start">
+                            <Text className="text-muted-foreground w-24 flex-shrink-0">地址</Text>
+                            <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_address}</Text>
                           </View>
                         )}
                       </View>
@@ -389,48 +424,59 @@ const VehicleHistory: React.FC = () => {
                     )}
                   </View>
 
-                  {/* 身份证实名信息 */}
+                  {/* 驾驶证信息 */}
                   {vehicle.driver_license &&
-                    (vehicle.driver_license.id_card_name ||
-                      vehicle.driver_license.id_card_number ||
-                      vehicle.driver_license.id_card_birth_date ||
-                      vehicle.driver_license.id_card_address) && (
+                    (vehicle.driver_license.license_number ||
+                      vehicle.driver_license.license_class ||
+                      vehicle.driver_license.first_issue_date ||
+                      vehicle.driver_license.valid_to ||
+                      vehicle.driver_license.issue_authority) && (
                       <View className="bg-card rounded-lg p-4 shadow-sm">
                         <View className="flex items-center mb-3">
-                          <View className="i-mdi-card-account-details text-xl text-orange-600 mr-2"></View>
-                          <Text className="text-lg font-bold text-foreground">身份证实名信息</Text>
+                          <View className="i-mdi-card-account-details-outline text-xl text-green-600 mr-2"></View>
+                          <Text className="text-lg font-bold text-foreground">驾驶证信息</Text>
                         </View>
 
                         <View className="space-y-2">
-                          {vehicle.driver_license.id_card_name && (
+                          {/* 驾驶证号 */}
+                          {vehicle.driver_license.license_number && (
                             <View className="flex items-start">
-                              <Text className="text-muted-foreground w-24 flex-shrink-0">姓名</Text>
-                              <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_name}</Text>
-                            </View>
-                          )}
-
-                          {vehicle.driver_license.id_card_number && (
-                            <View className="flex items-start">
-                              <Text className="text-muted-foreground w-24 flex-shrink-0">身份证号</Text>
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">驾驶证号</Text>
                               <Text className="text-foreground flex-1 text-xs break-all">
-                                {vehicle.driver_license.id_card_number}
+                                {vehicle.driver_license.license_number}
                               </Text>
                             </View>
                           )}
 
-                          {vehicle.driver_license.id_card_birth_date && (
+                          {/* 准驾车型 */}
+                          {vehicle.driver_license.license_class && (
                             <View className="flex items-start">
-                              <Text className="text-muted-foreground w-24 flex-shrink-0">出生日期</Text>
-                              <Text className="text-foreground flex-1">
-                                {vehicle.driver_license.id_card_birth_date}
-                              </Text>
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">准驾车型</Text>
+                              <Text className="text-foreground flex-1">{vehicle.driver_license.license_class}</Text>
                             </View>
                           )}
 
-                          {vehicle.driver_license.id_card_address && (
+                          {/* 初次领证日期 */}
+                          {vehicle.driver_license.first_issue_date && (
                             <View className="flex items-start">
-                              <Text className="text-muted-foreground w-24 flex-shrink-0">地址</Text>
-                              <Text className="text-foreground flex-1">{vehicle.driver_license.id_card_address}</Text>
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">初次领证</Text>
+                              <Text className="text-foreground flex-1">{vehicle.driver_license.first_issue_date}</Text>
+                            </View>
+                          )}
+
+                          {/* 有效期至 */}
+                          {vehicle.driver_license.valid_to && (
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">有效期至</Text>
+                              <Text className="text-foreground flex-1">{vehicle.driver_license.valid_to}</Text>
+                            </View>
+                          )}
+
+                          {/* 签发机关 */}
+                          {vehicle.driver_license.issue_authority && (
+                            <View className="flex items-start">
+                              <Text className="text-muted-foreground w-24 flex-shrink-0">签发机关</Text>
+                              <Text className="text-foreground flex-1">{vehicle.driver_license.issue_authority}</Text>
                             </View>
                           )}
                         </View>

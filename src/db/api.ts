@@ -4532,7 +4532,21 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
       const {data: licenseData} = await supabase
         .from('driver_licenses')
         .select(
-          'id_card_photo_front, id_card_photo_back, driving_license_photo, id_card_name, id_card_number, id_card_address, id_card_birth_date'
+          `
+          id_card_photo_front,
+          id_card_photo_back,
+          driving_license_photo,
+          id_card_name,
+          id_card_number,
+          id_card_address,
+          id_card_birth_date,
+          license_number,
+          license_class,
+          first_issue_date,
+          valid_from,
+          valid_to,
+          issue_authority
+          `
         )
         .eq('driver_id', driverId)
         .maybeSingle()
