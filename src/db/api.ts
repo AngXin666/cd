@@ -5509,18 +5509,21 @@ export async function createNotificationForAllManagers(notification: {
       type: notification.type,
       title: notification.title,
       message: notification.message,
-      related_id: notification.related_id,
+      related_id: notification.related_id || null,
       is_read: false
     }))
 
-    const {data, error} = await supabase.from('notifications').insert(notifications).select('id')
+    // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
+    const {data, error} = await supabase.rpc('create_notifications_batch', {
+      notifications: JSON.stringify(notifications)
+    })
 
     if (error) {
       logger.error('批量创建通知失败', error)
       return 0
     }
 
-    const count = data?.length || 0
+    const count = data || 0
     logger.info('批量创建通知成功', {count})
     return count
   } catch (error) {
