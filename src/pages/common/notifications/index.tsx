@@ -38,6 +38,7 @@ const NotificationsPage: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const [showOnlyUnread, setShowOnlyUnread] = useState(false) // 是否只显示未读信息
 
   // 加载通知列表
   const loadNotifications = useCallback(async () => {
@@ -308,7 +309,7 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 按日期分组通知
-  const groupedNotifications = useMemo(() => {
+  const _groupedNotifications = useMemo(() => {
     const groups: NotificationGroup[] = []
 
     // 分类通知
@@ -348,6 +349,39 @@ const NotificationsPage: React.FC = () => {
     return notifications.filter((n) => !n.is_read).length
   }, [notifications])
 
+  // 根据筛选条件过滤通知
+  const filteredNotifications = useMemo(() => {
+    if (showOnlyUnread) {
+      return notifications.filter((n) => !n.is_read)
+    }
+    return notifications
+  }, [notifications, showOnlyUnread])
+
+  // 根据筛选后的通知进行分组
+  const groupedFilteredNotifications = useMemo(() => {
+    const groups: NotificationGroup[] = []
+    const groupMap = new Map<string, Notification[]>()
+
+    filteredNotifications.forEach((notification) => {
+      const category = getDateCategory(notification.created_at)
+      if (!groupMap.has(category)) {
+        groupMap.set(category, [])
+      }
+      groupMap.get(category)?.push(notification)
+    })
+
+    // 按照今天、昨天、历史的顺序排列
+    const order = ['今天', '昨天', '历史']
+    order.forEach((title) => {
+      const notifs = groupMap.get(title)
+      if (notifs && notifs.length > 0) {
+        groups.push({title, notifications: notifs})
+      }
+    })
+
+    return groups
+  }, [filteredNotifications, getDateCategory])
+
   return (
     <View className="min-h-screen bg-background">
       {/* 顶部操作栏 */}
@@ -361,6 +395,12 @@ const NotificationsPage: React.FC = () => {
           )}
         </View>
         <View className="flex items-center gap-2">
+          <Button
+            className={`${showOnlyUnread ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-4 py-2 rounded text-sm break-keep`}
+            size="mini"
+            onClick={() => setShowOnlyUnread(!showOnlyUnread)}>
+            未读信息 ({unreadCount})
+          </Button>
           <Button
             className="bg-primary text-primary-foreground px-4 py-2 rounded text-sm break-keep"
             size="mini"
@@ -382,14 +422,14 @@ const NotificationsPage: React.FC = () => {
           <View className="flex items-center justify-center py-20">
             <Text className="text-muted-foreground">加载中...</Text>
           </View>
-        ) : notifications.length === 0 ? (
+        ) : filteredNotifications.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20">
             <View className="i-mdi-bell-off text-6xl text-muted-foreground mb-4"></View>
-            <Text className="text-muted-foreground">暂无通知</Text>
+            <Text className="text-muted-foreground">{showOnlyUnread ? '暂无未读通知' : '暂无通知'}</Text>
           </View>
         ) : (
           <View className="pb-4">
-            {groupedNotifications.map((group) => (
+            {groupedFilteredNotifications.map((group) => (
               <View key={group.title} className="mb-4">
                 {/* 日期分组标题 */}
                 <View className="px-4 py-2 bg-muted/50">
