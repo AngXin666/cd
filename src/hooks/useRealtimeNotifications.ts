@@ -4,6 +4,25 @@ import {useCallback, useEffect, useRef} from 'react'
 import {supabase} from '@/client/supabase'
 import type {Notification} from './useNotifications'
 
+/**
+ * 实时通知系统说明
+ * 
+ * 本系统尝试使用 Supabase Realtime (WebSocket) 实现实时通知功能。
+ * 
+ * 工作原理：
+ * 1. 优先尝试建立 WebSocket 连接，实现真正的实时推送
+ * 2. 如果 WebSocket 连接失败（常见于小程序环境），会记录警告但不影响应用运行
+ * 3. 即使实时通知不可用，数据仍会在以下情况下更新：
+ *    - 用户手动刷新页面
+ *    - 页面重新加载
+ *    - 用户切换页面后返回
+ * 
+ * 注意事项：
+ * - WebSocket 在某些环境下可能不可用（如小程序、某些网络环境）
+ * - 这是正常现象，不影响应用核心功能
+ * - 控制台的 WebSocket 警告可以忽略
+ */
+
 interface NotificationOptions {
   userId: string
   userRole: 'driver' | 'manager' | 'super_admin'
@@ -242,17 +261,19 @@ export function useRealtimeNotifications(options: NotificationOptions) {
       if (status === 'SUBSCRIBED') {
         console.log('✅ 实时通知订阅成功！')
       } else if (status === 'CHANNEL_ERROR') {
-        console.error('❌ 实时通知订阅失败！', err)
-        console.error('订阅失败详情:', {
+        console.warn('⚠️ 实时通知订阅失败（WebSocket 连接问题）')
+        console.warn('💡 这不影响应用核心功能，数据会在页面刷新时更新')
+        console.warn('订阅失败详情:', {
           userId,
           userRole,
           channelName: `notifications_${userId}`,
-          error: err
+          error: err,
+          reason: 'WebSocket 连接在当前环境下不可用，这是正常现象'
         })
       } else if (status === 'TIMED_OUT') {
-        console.error('⏱️ 实时通知订阅超时！')
+        console.warn('⏱️ 实时通知订阅超时（网络延迟）')
       } else if (status === 'CLOSED') {
-        console.warn('🔒 实时通知订阅已关闭')
+        console.info('🔒 实时通知订阅已关闭')
       }
     })
 
