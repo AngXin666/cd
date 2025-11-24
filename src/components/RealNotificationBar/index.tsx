@@ -423,18 +423,6 @@ const RealNotificationBar: React.FC = () => {
           <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
         </View>
       </View>
-
-      {/* 滚动进度指示器 */}
-      <View className="h-1 bg-muted flex gap-1 px-1">
-        {[0, 1, 2].map((index) => (
-          <View
-            key={index}
-            className={`flex-1 h-full rounded-full transition-all duration-300 ${
-              index <= scrollCount ? 'bg-primary' : 'bg-muted-foreground/30'
-            }`}
-          />
-        ))}
-      </View>
     </View>
   )
 }
