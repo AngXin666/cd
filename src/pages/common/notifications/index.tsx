@@ -13,6 +13,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
+import {getCurrentUserRole} from '@/db/api'
 import {
   deleteNotification,
   deleteReadNotifications,
@@ -176,12 +177,22 @@ const NotificationsPage: React.FC = () => {
           })
           break
         case 'leave_application_submitted':
-        case 'resignation_application_submitted':
-          // 跳转到请假审批页面
-          Taro.navigateTo({
-            url: `/pages/manager/leave-approval/index`
-          })
+        case 'resignation_application_submitted': {
+          // 获取用户角色，根据角色跳转到不同的审批页面
+          const userRole = await getCurrentUserRole()
+          if (userRole === 'super_admin') {
+            // 超级管理员跳转到超级管理员的考勤管理页面（待审批标签）
+            Taro.navigateTo({
+              url: `/pages/super-admin/leave-approval/index?tab=pending`
+            })
+          } else {
+            // 普通管理员跳转到普通管理员的考勤管理页面（待审批标签）
+            Taro.navigateTo({
+              url: `/pages/manager/leave-approval/index?tab=pending`
+            })
+          }
           break
+        }
         default:
           break
       }
