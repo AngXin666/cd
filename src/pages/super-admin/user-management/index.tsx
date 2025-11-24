@@ -85,16 +85,16 @@ const UserManagement: React.FC = () => {
 
       // 角色过滤
       if (role !== 'all') {
-        // 特殊处理：在管理员标签页，显示车队长和老板
-        if (activeTab === 'manager') {
+        // 特殊处理：当角色为 manager 时，显示车队长和老板
+        if (role === 'manager') {
           filtered = filtered.filter((u) => u.role === 'manager' || u.role === 'super_admin')
         } else {
           filtered = filtered.filter((u) => u.role === role)
         }
       }
 
-      // 仓库过滤（仅对司机标签页生效，且有多个仓库时）
-      if (activeTab === 'driver' && warehouses.length > 1 && warehouses[warehouseIndex]) {
+      // 仓库过滤（仅对司机角色生效，且有多个仓库时）
+      if (role === 'driver' && warehouses.length > 1 && warehouses[warehouseIndex]) {
         const currentWarehouseId = warehouses[warehouseIndex].id
         filtered = filtered.filter((u) => {
           const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
@@ -120,7 +120,7 @@ const UserManagement: React.FC = () => {
 
       setFilteredUsers(filtered)
     },
-    [activeTab, warehouses, userWarehouseIdsMap]
+    [warehouses, userWarehouseIdsMap]
   )
 
   // 加载仓库列表
