@@ -2,14 +2,15 @@
  * 通知铃铛组件
  *
  * 功能：
- * 1. 显示铃铛图标
- * 2. 有未读消息时显示红色铃铛和未读数量徽章
+ * 1. 显示纯铃铛图标（无下方三横线）
+ * 2. 有未读消息时显示红色铃铛并抖动
  * 3. 无未读消息时显示绿色铃铛
  * 4. 点击跳转到通知中心
  * 5. 实时更新未读数量
+ * 6. 未读数量显示在通知栏中
  */
 
-import {Text, View} from '@tarojs/components'
+import {View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -63,17 +64,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({userId, className = 
       } ${className}`}
       onClick={handleClick}
       style={{transform: unreadCount > 0 ? undefined : 'rotate(15deg)'}}>
-      {/* 铃铛图标 - 有未读显示红色，无未读显示绿色 */}
+      {/* 纯铃铛图标 - 有未读显示红色，无未读显示绿色 */}
       <View
-        className={`i-mdi-bell text-2xl transition-colors ${unreadCount > 0 ? 'text-red-500' : 'text-green-500'}`}
+        className={`i-mdi-bell-outline text-2xl transition-colors ${unreadCount > 0 ? 'text-red-500' : 'text-green-500'}`}
       />
-
-      {/* 未读数量徽章 */}
-      {unreadCount > 0 && (
-        <View className="absolute -top-1 -right-1 bg-red-500 rounded-full min-w-5 h-5 flex items-center justify-center px-1 shadow-md">
-          <Text className="text-white text-xs font-bold">{unreadCount > 99 ? '99+' : unreadCount}</Text>
-        </View>
-      )}
     </View>
   )
 }
