@@ -1,7 +1,6 @@
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef} from 'react'
-import {getAllAttendanceRecords, getAllLeaveApplications, getAllResignationApplications, getDriverName} from '@/db/api'
-import {createNotification} from '@/db/notificationApi'
+import {getAllAttendanceRecords, getAllLeaveApplications, getAllResignationApplications} from '@/db/api'
 import type {Notification} from './useNotifications'
 
 interface PollingNotificationOptions {
@@ -48,15 +47,8 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
   // 显示通知
   const showNotification = useCallback(
-    async (
-      title: string,
-      content: string,
-      key: string,
-      type: Notification['type'],
-      data?: any,
-      targetUserId?: string
-    ) => {
-      console.log('🔔 [轮询] 尝试显示通知:', {title, content, key, type, data, targetUserId})
+    (title: string, content: string, key: string, type: Notification['type'], data?: any) => {
+      console.log('🔔 [轮询] 尝试显示通知:', {title, content, key, type, data})
 
       if (shouldShowNotification(key)) {
         console.log('✅ [轮询] 通过防抖检查，显示通知')
@@ -83,23 +75,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
         } else {
           console.warn('⚠️ [轮询] onNewNotification 回调未定义')
         }
-
-        // 写入数据库通知中心
-        if (targetUserId) {
-          try {
-            console.log('💾 [轮询] 写入数据库通知中心:', {targetUserId, title, content})
-            await createNotification({
-              user_id: targetUserId,
-              type: key, // 使用 key 作为通知类型
-              title,
-              message: content,
-              related_id: data?.applicationId || null
-            })
-            console.log('✅ [轮询] 通知已写入数据库')
-          } catch (error) {
-            console.error('❌ [轮询] 写入数据库通知失败:', error)
-          }
-        }
       } else {
         console.log('⏭️ [轮询] 防抖拦截，跳过通知')
       }
@@ -117,26 +92,19 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
       if (newApplications.length > 0) {
         console.log('📨 [轮询] 发现新的请假申请:', newApplications.length, '条')
-
-        // 获取司机姓名
-        const driverName = await getDriverName(newApplications[0].user_id)
-
-        // 显示 Toast 通知并写入数据库（当前管理员）
-        await showNotification(
+        showNotification(
           '收到新的请假申请',
-          `司机 ${driverName} 提交了请假申请`,
-          'leave_application_submitted',
+          `有 ${newApplications.length} 条新的请假申请`,
+          'leave_insert',
           'leave_application',
-          {applicationId: newApplications[0].id},
-          userId // 为当前管理员写入数据库通知
+          {applicationId: newApplications[0].id}
         )
-
         onLeaveApplicationChange?.()
       }
     } catch (error) {
       console.error('❌ [轮询] 检查请假申请失败:', error)
     }
-  }, [userId, showNotification, onLeaveApplicationChange])
+  }, [showNotification, onLeaveApplicationChange])
 
   // 检查请假申请状态变化（司机）
   const checkLeaveApplicationStatus = useCallback(async () => {
@@ -153,23 +121,13 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
         console.log('📝 [轮询] 发现请假申请状态变化:', recentlyUpdated.length, '条')
         const app = recentlyUpdated[0]
         if (app.status === 'approved') {
-          await showNotification(
-            '您的请假申请已通过',
-            '您的请假申请已通过审批',
-            'leave_approved',
-            'approval',
-            {applicationId: app.id},
-            userId // 为司机写入数据库通知
-          )
+          showNotification('您的请假申请已通过', '您的请假申请已通过审批', 'leave_approved', 'approval', {
+            applicationId: app.id
+          })
         } else if (app.status === 'rejected') {
-          await showNotification(
-            '您的请假申请已被驳回',
-            '您的请假申请已被驳回',
-            'leave_rejected',
-            'approval',
-            {applicationId: app.id},
-            userId // 为司机写入数据库通知
-          )
+          showNotification('您的请假申请已被驳回', '您的请假申请已被驳回', 'leave_rejected', 'approval', {
+            applicationId: app.id
+          })
         }
         onLeaveApplicationChange?.()
       }
@@ -188,26 +146,19 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
       if (newApplications.length > 0) {
         console.log('📨 [轮询] 发现新的离职申请:', newApplications.length, '条')
-
-        // 获取司机姓名
-        const driverName = await getDriverName(newApplications[0].user_id)
-
-        // 显示 Toast 通知并写入数据库（当前管理员）
-        await showNotification(
+        showNotification(
           '收到新的离职申请',
-          `司机 ${driverName} 提交了离职申请`,
-          'resignation_application_submitted',
+          `有 ${newApplications.length} 条新的离职申请`,
+          'resignation_insert',
           'resignation_application',
-          {applicationId: newApplications[0].id},
-          userId // 为当前管理员写入数据库通知
+          {applicationId: newApplications[0].id}
         )
-
         onResignationApplicationChange?.()
       }
     } catch (error) {
       console.error('❌ [轮询] 检查离职申请失败:', error)
     }
-  }, [userId, showNotification, onResignationApplicationChange])
+  }, [showNotification, onResignationApplicationChange])
 
   // 检查离职申请状态变化（司机）
   const checkResignationApplicationStatus = useCallback(async () => {
@@ -224,23 +175,13 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
         console.log('📝 [轮询] 发现离职申请状态变化:', recentlyUpdated.length, '条')
         const app = recentlyUpdated[0]
         if (app.status === 'approved') {
-          await showNotification(
-            '您的离职申请已通过',
-            '您的离职申请已通过审批',
-            'resignation_approved',
-            'approval',
-            {applicationId: app.id},
-            userId // 为司机写入数据库通知
-          )
+          showNotification('您的离职申请已通过', '您的离职申请已通过审批', 'resignation_approved', 'approval', {
+            applicationId: app.id
+          })
         } else if (app.status === 'rejected') {
-          await showNotification(
-            '您的离职申请已被驳回',
-            '您的离职申请已被驳回',
-            'resignation_rejected',
-            'approval',
-            {applicationId: app.id},
-            userId // 为司机写入数据库通知
-          )
+          showNotification('您的离职申请已被驳回', '您的离职申请已被驳回', 'resignation_rejected', 'approval', {
+            applicationId: app.id
+          })
         }
         onResignationApplicationChange?.()
       }

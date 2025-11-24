@@ -88,9 +88,17 @@ const RealNotificationBar: React.FC = () => {
         return 'i-mdi-account-edit'
       case 'driver_created':
         return 'i-mdi-account-plus'
+      case 'leave_application_submitted':
+        return 'i-mdi-file-document-edit'
       case 'leave_approved':
         return 'i-mdi-check-circle'
       case 'leave_rejected':
+        return 'i-mdi-close-circle'
+      case 'resignation_application_submitted':
+        return 'i-mdi-account-remove'
+      case 'resignation_approved':
+        return 'i-mdi-check-circle'
+      case 'resignation_rejected':
         return 'i-mdi-close-circle'
       case 'system_notice':
         return 'i-mdi-information'
@@ -114,9 +122,17 @@ const RealNotificationBar: React.FC = () => {
         return 'bg-gray-50 border-gray-200'
       case 'driver_type_changed':
         return 'bg-purple-50 border-purple-200'
+      case 'leave_application_submitted':
+        return 'bg-orange-50 border-orange-200'
       case 'leave_approved':
         return 'bg-green-50 border-green-200'
       case 'leave_rejected':
+        return 'bg-red-50 border-red-200'
+      case 'resignation_application_submitted':
+        return 'bg-orange-50 border-orange-200'
+      case 'resignation_approved':
+        return 'bg-green-50 border-green-200'
+      case 'resignation_rejected':
         return 'bg-red-50 border-red-200'
       default:
         return 'bg-primary/10 border-primary/30'
@@ -138,9 +154,17 @@ const RealNotificationBar: React.FC = () => {
         return 'text-gray-500'
       case 'driver_type_changed':
         return 'text-purple-500'
+      case 'leave_application_submitted':
+        return 'text-orange-500'
       case 'leave_approved':
         return 'text-green-500'
       case 'leave_rejected':
+        return 'text-red-500'
+      case 'resignation_application_submitted':
+        return 'text-orange-500'
+      case 'resignation_approved':
+        return 'text-green-500'
+      case 'resignation_rejected':
         return 'text-red-500'
       default:
         return 'text-primary'

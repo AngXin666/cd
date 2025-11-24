@@ -167,9 +167,17 @@ const NotificationsPage: React.FC = () => {
         return 'i-mdi-account-edit text-blue-500'
       case 'driver_created':
         return 'i-mdi-account-plus text-green-500'
+      case 'leave_application_submitted':
+        return 'i-mdi-file-document-edit text-orange-500'
       case 'leave_approved':
         return 'i-mdi-check-circle text-green-500'
       case 'leave_rejected':
+        return 'i-mdi-close-circle text-red-500'
+      case 'resignation_application_submitted':
+        return 'i-mdi-account-remove text-orange-500'
+      case 'resignation_approved':
+        return 'i-mdi-check-circle text-green-500'
+      case 'resignation_rejected':
         return 'i-mdi-close-circle text-red-500'
       case 'system_notice':
         return 'i-mdi-information text-blue-500'

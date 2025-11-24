@@ -13,8 +13,12 @@ export type NotificationType =
   | 'permission_change' // 权限变更
   | 'driver_info_update' // 司机信息更新
   | 'driver_created' // 司机创建
-  | 'leave_approved' // 请假批准
-  | 'leave_rejected' // 请假拒绝
+  | 'leave_application_submitted' // 请假申请提交（管理员收到）
+  | 'leave_approved' // 请假批准（司机收到）
+  | 'leave_rejected' // 请假拒绝（司机收到）
+  | 'resignation_application_submitted' // 离职申请提交（管理员收到）
+  | 'resignation_approved' // 离职批准（司机收到）
+  | 'resignation_rejected' // 离职拒绝（司机收到）
   | 'warehouse_assigned' // 仓库分配
   | 'warehouse_unassigned' // 仓库取消分配
   | 'system_notice' // 系统通知
