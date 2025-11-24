@@ -352,6 +352,45 @@ export async function createNotificationForAllManagers(notification: {
 
 - `84f0fb3` - 修复通知系统 RLS 权限问题 - 使用 SECURITY DEFINER 函数
 - `04b6c8e` - 删除重复的迁移文件
+- `a1091cb` - 添加通知系统 RLS 权限问题修复说明文档
+- `f31aa1d` - 修复通知创建函数的参数传递问题
+
+## 后续发现的问题
+
+### 问题：管理端通知中心仍然收不到通知
+
+**现象**：
+- 数据库函数测试正常
+- 但是实际使用时，管理员通知中心没有收到司机的请假申请通知
+
+**排查过程**：
+1. 检查数据库中的通知记录 - ❌ 没有给管理员的通知
+2. 测试数据库函数 - ✅ 函数本身工作正常
+3. 检查前端调用代码 - ✅ 代码逻辑正确
+4. 发现参数传递问题 - ❌ 使用了 `JSON.stringify()`
+
+**根本原因**：
+```typescript
+// ❌ 错误的写法
+const {data, error} = await supabase.rpc('create_notifications_batch', {
+  notifications: JSON.stringify(notifications)  // 传递字符串
+})
+
+// ✅ 正确的写法
+const {data, error} = await supabase.rpc('create_notifications_batch', {
+  notifications: notifications  // 直接传递对象数组
+})
+```
+
+**原因分析**：
+- Supabase 的 `rpc()` 方法会自动处理 JSON 序列化
+- 当传递 `JSON.stringify(notifications)` 时，实际传递的是一个字符串
+- 数据库函数期望接收 `jsonb` 类型，但收到的是字符串
+- 导致函数无法正确解析参数，通知创建失败
+
+**解决方案**：
+- 移除 `JSON.stringify()`，直接传递对象数组
+- Supabase 会自动将 JavaScript 对象转换为 PostgreSQL 的 JSONB 格式
 
 ## 总结
 
