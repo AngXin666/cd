@@ -247,6 +247,38 @@ export async function markAllNotificationsAsRead(userId: string): Promise<boolea
 }
 
 /**
+ * 更新通知
+ * @param notificationId 通知ID
+ * @param updates 更新的字段
+ * @returns 是否成功
+ */
+export async function updateNotification(
+  notificationId: string,
+  updates: {
+    type?: NotificationType
+    title?: string
+    message?: string
+    is_read?: boolean
+  }
+): Promise<boolean> {
+  try {
+    logger.db('更新通知', 'notifications', {notificationId, updates})
+
+    const {error} = await supabase.from('notifications').update(updates).eq('id', notificationId)
+
+    if (error) {
+      logger.error('更新通知失败', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    logger.error('更新通知异常', error)
+    return false
+  }
+}
+
+/**
  * 删除通知
  * @param notificationId 通知ID
  * @returns 是否成功
