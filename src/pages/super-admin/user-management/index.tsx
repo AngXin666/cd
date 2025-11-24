@@ -961,9 +961,7 @@ const UserManagement: React.FC = () => {
                       <View
                         key={warehouse.id}
                         className={`flex items-center bg-white rounded-lg px-3 py-2.5 border-2 transition-all ${
-                          newUserWarehouseIds.includes(warehouse.id)
-                            ? 'border-blue-600 bg-blue-50'
-                            : 'border-gray-300'
+                          newUserWarehouseIds.includes(warehouse.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300'
                         }`}>
                         <Checkbox
                           value={warehouse.id}
