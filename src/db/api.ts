@@ -3248,11 +3248,10 @@ export async function createDriver(
   console.log(`${'='.repeat(80)}\n`)
 
   try {
-    // 步骤1: 检查手机号和邮箱是否已存在
-    console.log('📋 [步骤1] 检查手机号和邮箱是否已存在')
+    // 步骤1: 检查手机号是否已存在
+    console.log('📋 [步骤1] 检查手机号是否已存在')
     console.log('  - 查询条件: phone =', phone)
 
-    // 1.1 检查 profiles 表中的手机号
     const {data: existingProfiles, error: checkError} = await supabase
       .from('profiles')
       .select('*')
@@ -3273,35 +3272,11 @@ export async function createDriver(
       return null
     }
 
-    // 1.2 检查 auth.users 表中的邮箱和手机号
-    const loginEmail = `${phone}@fleet.com`
-    console.log('  - 检查邮箱:', loginEmail)
-
-    const {data: existingAuthUsers, error: authCheckError} = await supabase
-      .from('auth.users')
-      .select('id, email, phone')
-      .or(`email.eq.${loginEmail},phone.eq.${phone}`)
-      .maybeSingle()
-
-    if (authCheckError) {
-      console.error('  ❌ 查询 auth.users 失败:', authCheckError)
-      console.error('  错误详情:', JSON.stringify(authCheckError, null, 2))
-      // 如果查询失败，继续执行，让后续的创建操作来处理
-    }
-
-    if (existingAuthUsers) {
-      console.warn('  ⚠️ 邮箱或手机号已存在于 auth.users 表')
-      console.warn('  已存在的用户ID:', existingAuthUsers.id)
-      console.warn('  已存在的邮箱:', existingAuthUsers.email)
-      console.warn('  已存在的手机号:', existingAuthUsers.phone)
-      console.log('  ❌ 创建失败：邮箱或手机号已被使用\n')
-      return null
-    }
-
-    console.log('  ✅ 手机号和邮箱都可用，继续创建\n')
+    console.log('  ✅ 手机号可用，继续创建\n')
 
     // 步骤2: 先创建 auth.users 表记录
     console.log('📋 [步骤2] 创建 auth.users 表记录')
+    const loginEmail = `${phone}@fleet.com`
     console.log('  - 登录邮箱:', loginEmail)
     console.log('  - 手机号:', phone)
     console.log('  - 默认密码: 123456')
@@ -3431,11 +3406,10 @@ export async function createUser(
   console.log(`${'='.repeat(80)}\n`)
 
   try {
-    // 步骤1: 检查手机号和邮箱是否已存在
-    console.log('📋 [步骤1] 检查手机号和邮箱是否已存在')
+    // 步骤1: 检查手机号是否已存在
+    console.log('📋 [步骤1] 检查手机号是否已存在')
     console.log('  - 查询条件: phone =', phone)
 
-    // 1.1 检查 profiles 表中的手机号
     const {data: existingProfiles, error: checkError} = await supabase
       .from('profiles')
       .select('*')
@@ -3456,35 +3430,11 @@ export async function createUser(
       return null
     }
 
-    // 1.2 检查 auth.users 表中的邮箱和手机号
-    const loginEmail = `${phone}@fleet.com`
-    console.log('  - 检查邮箱:', loginEmail)
-
-    const {data: existingAuthUsers, error: authCheckError} = await supabase
-      .from('auth.users')
-      .select('id, email, phone')
-      .or(`email.eq.${loginEmail},phone.eq.${phone}`)
-      .maybeSingle()
-
-    if (authCheckError) {
-      console.error('  ❌ 查询 auth.users 失败:', authCheckError)
-      console.error('  错误详情:', JSON.stringify(authCheckError, null, 2))
-      // 如果查询失败，继续执行，让后续的创建操作来处理
-    }
-
-    if (existingAuthUsers) {
-      console.warn('  ⚠️ 邮箱或手机号已存在于 auth.users 表')
-      console.warn('  已存在的用户ID:', existingAuthUsers.id)
-      console.warn('  已存在的邮箱:', existingAuthUsers.email)
-      console.warn('  已存在的手机号:', existingAuthUsers.phone)
-      console.log('  ❌ 创建失败：邮箱或手机号已被使用\n')
-      return null
-    }
-
-    console.log('  ✅ 手机号和邮箱都可用，继续创建\n')
+    console.log('  ✅ 手机号可用，继续创建\n')
 
     // 步骤2: 先创建 auth.users 表记录
     console.log('📋 [步骤2] 创建 auth.users 表记录')
+    const loginEmail = `${phone}@fleet.com`
     console.log('  - 登录邮箱:', loginEmail)
     console.log('  - 手机号:', phone)
     console.log('  - 默认密码: 123456')
