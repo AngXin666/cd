@@ -158,8 +158,8 @@ const DriverWarehouseAssignment: React.FC = () => {
       // 3. 通知相关管理员
       if (operatorProfile) {
         if (operatorProfile.role === 'manager') {
-          // 普通管理员操作 → 通知所有超级管理员
-          console.log('👤 [通知系统] 操作者是普通管理员，准备通知所有超级管理员')
+          // 车队长操作 → 通知所有老板
+          console.log('👤 [通知系统] 操作者是车队长，准备通知所有老板')
 
           const superAdmins = await getAllSuperAdmins()
           const operationDesc =
@@ -188,8 +188,8 @@ const DriverWarehouseAssignment: React.FC = () => {
                     .map((w) => w.name)
                     .join('、')
 
-          console.log('📝 [通知系统] 准备通知超级管理员', {
-            超级管理员数量: superAdmins.length,
+          console.log('📝 [通知系统] 准备通知老板', {
+            老板数量: superAdmins.length,
             操作描述: operationDesc
           })
 
@@ -198,13 +198,13 @@ const DriverWarehouseAssignment: React.FC = () => {
               userId: admin.id,
               type: 'warehouse_assigned',
               title: '仓库分配操作通知',
-              message: `管理员 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
+              message: `车队长 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
               relatedId: driver.id
             })
           }
         } else if (operatorProfile.role === 'super_admin') {
-          // 超级管理员操作 → 通知相关仓库的普通管理员
-          console.log('👤 [通知系统] 操作者是超级管理员，准备通知相关仓库的管理员')
+          // 老板操作 → 通知相关仓库的车队长
+          console.log('👤 [通知系统] 操作者是老板，准备通知相关仓库的车队长')
 
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
 
@@ -217,15 +217,15 @@ const DriverWarehouseAssignment: React.FC = () => {
 
           for (const warehouseId of affectedWarehouseIds) {
             const managers = await getWarehouseManagers(warehouseId)
-            console.log(`📦 [通知系统] 仓库 ${warehouseId} 的管理员`, {
-              管理员数量: managers.length,
-              管理员: managers.map((m) => m.name)
+            console.log(`📦 [通知系统] 仓库 ${warehouseId} 的车队长`, {
+              车队长数量: managers.length,
+              车队长: managers.map((m) => m.name)
             })
             managers.forEach((m) => managersSet.add(m.id))
           }
 
-          console.log('👥 [通知系统] 需要通知的管理员总数', {
-            管理员数量: managersSet.size
+          console.log('👥 [通知系统] 需要通知的车队长总数', {
+            车队长数量: managersSet.size
           })
 
           const operationDesc =
@@ -254,8 +254,8 @@ const DriverWarehouseAssignment: React.FC = () => {
                     .map((w) => w.name)
                     .join('、')
 
-          console.log('📝 [通知系统] 准备通知管理员', {
-            管理员数量: managersSet.size,
+          console.log('📝 [通知系统] 准备通知车队长', {
+            车队长数量: managersSet.size,
             操作描述: operationDesc
           })
 
@@ -264,7 +264,7 @@ const DriverWarehouseAssignment: React.FC = () => {
               userId: managerId,
               type: 'warehouse_assigned',
               title: '仓库分配操作通知',
-              message: `超级管理员 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
+              message: `老板 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
               relatedId: driver.id
             })
           }

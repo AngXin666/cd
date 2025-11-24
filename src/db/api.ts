@@ -1746,7 +1746,7 @@ export async function getLeaveApplicationsByWarehouse(warehouseId: string): Prom
 }
 
 /**
- * 获取所有请假申请（超级管理员）
+ * 获取所有请假申请（老板）
  */
 export async function getAllLeaveApplications(): Promise<LeaveApplication[]> {
   const {data, error} = await supabase.from('leave_applications').select('*').order('created_at', {ascending: false})
@@ -1901,7 +1901,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 
     console.log('✅ 已通知司机审批结果')
 
-    // 通知所有超级管理员
+    // 通知所有老板
     const superAdmins = await getAllSuperAdmins()
     const actionText = review.status === 'approved' ? '同意' : '拒绝'
 
@@ -2059,7 +2059,7 @@ export async function getResignationApplicationsByWarehouse(warehouseId: string)
 }
 
 /**
- * 获取所有离职申请（超级管理员）
+ * 获取所有离职申请（老板）
  */
 export async function getAllResignationApplications(): Promise<ResignationApplication[]> {
   const {data, error} = await supabase
@@ -2203,7 +2203,7 @@ export async function reviewResignationApplication(
 
     console.log('✅ 已通知司机审批结果')
 
-    // 通知所有超级管理员
+    // 通知所有老板
     const superAdmins = await getAllSuperAdmins()
     const actionText = review.status === 'approved' ? '同意' : '拒绝'
 
@@ -2995,7 +2995,7 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
 }
 
 /**
- * 获取所有仓库的汇总统计数据（超级管理员使用）
+ * 获取所有仓库的汇总统计数据（老板使用）
  * @returns 汇总统计数据
  */
 export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> {
@@ -3136,7 +3136,7 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
  */
 
 /**
- * 获取所有用户列表（超级管理员）
+ * 获取所有用户列表（老板）
  */
 export async function getAllUsers(): Promise<Profile[]> {
   console.log('🔍 getAllUsers: 开始从数据库获取用户列表')
@@ -3189,7 +3189,7 @@ export async function getAllManagers(): Promise<Profile[]> {
 }
 
 /**
- * 获取所有超级管理员列表
+ * 获取所有老板列表
  */
 export async function getAllSuperAdmins(): Promise<Profile[]> {
   console.log('🔍 getAllSuperAdmins: 开始获取超级管理员列表')
@@ -3229,7 +3229,7 @@ export async function getAllDrivers(): Promise<Profile[]> {
 }
 
 /**
- * 修改用户角色（超级管理员）
+ * 修改用户角色（老板）
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
   // 根据角色设置 driver_type
@@ -3239,7 +3239,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
     // 变更为司机时，设置默认的 driver_type 为 'pure'（纯司机）
     updateData.driver_type = 'pure'
   } else {
-    // 变更为管理员或超级管理员时，清空 driver_type
+    // 变更为车队长或老板时，清空 driver_type
     updateData.driver_type = null
   }
 
@@ -3267,7 +3267,7 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
     return null
   }
 
-  // 如果是超级管理员，返回所有权限
+  // 如果是老板，返回所有权限
   if (profile.role === 'super_admin') {
     const now = new Date().toISOString()
     return {
@@ -3282,7 +3282,7 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
     }
   }
 
-  // 如果是普通管理员，返回默认权限
+  // 如果是车队长，返回默认权限
   if (profile.role === 'manager') {
     const now = new Date().toISOString()
     return {
@@ -3933,7 +3933,7 @@ export async function getManagerStats(userId: string): Promise<{
 }
 
 /**
- * 获取超级管理员端个人页面统计数据
+ * 获取老板端个人页面统计数据
  */
 export async function getSuperAdminStats(): Promise<{
   totalWarehouses: number
@@ -4001,7 +4001,7 @@ export async function getSuperAdminStats(): Promise<{
 }
 
 /**
- * 重置用户密码（超级管理员功能）
+ * 重置用户密码（老板功能）
  * 使用 PostgreSQL 函数直接重置密码，避免 Supabase Auth 的扫描问题
  * 将用户密码重置为 123456
  */
@@ -4050,7 +4050,7 @@ export async function resetUserPassword(userId: string): Promise<{success: boole
 }
 
 /**
- * 更新用户完整信息（超级管理员功能）
+ * 更新用户完整信息（老板功能）
  */
 export async function updateUserInfo(
   userId: string,
@@ -4445,7 +4445,7 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
 
 /**
  * 获取所有车辆信息（包含司机信息）
- * 用于超级管理员查看所有车辆
+ * 用于老板查看所有车辆
  */
 export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
   logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
@@ -5748,7 +5748,7 @@ export async function createNotificationForAllManagers(notification: {
 }
 
 /**
- * 为所有超级管理员创建通知
+ * 为所有老板创建通知
  * @param notification 通知信息（不包含user_id）
  * @returns 成功创建的通知数量
  */
@@ -5759,7 +5759,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
   related_id?: string
 }): Promise<number> {
   try {
-    logger.info('为所有超级管理员创建通知', notification)
+    logger.info('为所有老板创建通知', notification)
 
     // 获取所有超级管理员
     const {data: superAdmins, error: superAdminsError} = await supabase

@@ -1,6 +1,6 @@
 /**
- * 超级管理员 - 编辑车辆租赁信息页面
- * 允许超级管理员编辑车辆的租赁相关信息
+ * 老板 - 编辑车辆租赁信息页面
+ * 允许老板编辑车辆的租赁相关信息
  */
 
 import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
