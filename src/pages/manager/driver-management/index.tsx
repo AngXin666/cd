@@ -59,6 +59,7 @@ const DriverManagement: React.FC = () => {
   const [newDriverPhone, setNewDriverPhone] = useState('')
   const [newDriverName, setNewDriverName] = useState('')
   const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure') // 默认为纯司机
+  const [newDriverWarehouseIds, setNewDriverWarehouseIds] = useState<string[]>([]) // 新司机的仓库分配
   const [addingDriver, setAddingDriver] = useState(false)
 
   // 过滤后的司机列表（支持搜索实名）
@@ -204,6 +205,7 @@ const DriverManagement: React.FC = () => {
       setNewDriverPhone('')
       setNewDriverName('')
       setNewDriverType('pure') // 重置为默认值
+      setNewDriverWarehouseIds([]) // 重置仓库选择
     }
   }
 
@@ -226,40 +228,67 @@ const DriverManagement: React.FC = () => {
       return
     }
 
+    // 验证仓库选择
+    if (newDriverWarehouseIds.length === 0) {
+      showToast({title: '请至少选择一个仓库', icon: 'none'})
+      return
+    }
+
     setAddingDriver(true)
     showLoading({title: '添加中...'})
 
-    // 传递司机类型参数
-    const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim(), newDriverType)
+    try {
+      // 传递司机类型参数
+      const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim(), newDriverType)
 
-    Taro.hideLoading()
-    setAddingDriver(false)
-
-    if (newDriver) {
-      // 显示详细的创建成功信息
-      const loginAccount = `${newDriverPhone.trim()}@fleet.com`
-      const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
-      const defaultPassword = '123456'
-      const plateNumber = newDriver.vehicle_plate || '未设置'
-
-      Taro.showModal({
-        title: '司机创建成功',
-        content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverTypeText}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
-        showCancel: false,
-        confirmText: '知道了',
-        success: () => {
-          // 重置表单
-          setNewDriverPhone('')
-          setNewDriverName('')
-          setNewDriverType('pure')
-          setShowAddDriver(false)
-          // 数据更新，增加版本号并清除相关缓存
-          onDataUpdated([CACHE_KEYS.MANAGER_DRIVERS, CACHE_KEYS.MANAGER_DRIVER_DETAILS])
-          loadDrivers(true)
+      if (newDriver) {
+        // 分配仓库
+        logger.info('开始为新司机分配仓库', {driverId: newDriver.id, warehouseIds: newDriverWarehouseIds})
+        for (const warehouseId of newDriverWarehouseIds) {
+          await insertWarehouseAssignment(newDriver.id, warehouseId)
         }
-      })
-    } else {
-      showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
+        logger.info('仓库分配完成', {driverId: newDriver.id, count: newDriverWarehouseIds.length})
+
+        Taro.hideLoading()
+        setAddingDriver(false)
+
+        // 显示详细的创建成功信息
+        const loginAccount = `${newDriverPhone.trim()}@fleet.com`
+        const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
+        const defaultPassword = '123456'
+        const plateNumber = newDriver.vehicle_plate || '未设置'
+        const warehouseNames = warehouses
+          .filter((w) => newDriverWarehouseIds.includes(w.id))
+          .map((w) => w.name)
+          .join('、')
+
+        Taro.showModal({
+          title: '司机创建成功',
+          content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverTypeText}\n分配仓库：${warehouseNames}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
+          showCancel: false,
+          confirmText: '知道了',
+          success: () => {
+            // 重置表单
+            setNewDriverPhone('')
+            setNewDriverName('')
+            setNewDriverType('pure')
+            setNewDriverWarehouseIds([])
+            setShowAddDriver(false)
+            // 数据更新，增加版本号并清除相关缓存
+            onDataUpdated([CACHE_KEYS.MANAGER_DRIVERS, CACHE_KEYS.MANAGER_DRIVER_DETAILS])
+            loadDrivers(true)
+          }
+        })
+      } else {
+        Taro.hideLoading()
+        setAddingDriver(false)
+        showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
+      }
+    } catch (error) {
+      Taro.hideLoading()
+      setAddingDriver(false)
+      logger.error('添加司机失败', error)
+      showToast({title: '添加失败，请重试', icon: 'error'})
     }
   }
 
@@ -638,6 +667,37 @@ const DriverManagement: React.FC = () => {
                           </Text>
                         </View>
                       </View>
+                    </View>
+                    <View className="mb-3">
+                      <Text className="text-gray-700 text-sm block mb-2">
+                        分配仓库 <Text className="text-red-500">*</Text>
+                      </Text>
+                      {warehouses.length > 0 ? (
+                        <CheckboxGroup
+                          onChange={(e) => setNewDriverWarehouseIds(e.detail.value as string[])}
+                          className="space-y-2">
+                          {warehouses.map((warehouse) => (
+                            <View
+                              key={warehouse.id}
+                              className={`flex items-center bg-white rounded-lg px-3 py-2.5 border-2 transition-all ${
+                                newDriverWarehouseIds.includes(warehouse.id)
+                                  ? 'border-blue-600 bg-blue-50'
+                                  : 'border-gray-300'
+                              }`}>
+                              <Checkbox
+                                value={warehouse.id}
+                                checked={newDriverWarehouseIds.includes(warehouse.id)}
+                                className="mr-2"
+                              />
+                              <Text className="text-sm text-gray-700 flex-1">{warehouse.name}</Text>
+                            </View>
+                          ))}
+                        </CheckboxGroup>
+                      ) : (
+                        <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <Text className="text-yellow-800 text-xs">暂无可分配的仓库</Text>
+                        </View>
+                      )}
                     </View>
                     <View className="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                       <View className="flex items-start">

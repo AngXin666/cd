@@ -4,7 +4,7 @@
  * 参考普通管理端的司机管理实现
  */
 
-import {Input, ScrollView, Text, View} from '@tarojs/components'
+import {Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -64,6 +64,7 @@ const UserManagement: React.FC = () => {
   const [newUserName, setNewUserName] = useState('')
   const [newUserRole, setNewUserRole] = useState<'driver' | 'manager'>('driver')
   const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure')
+  const [newUserWarehouseIds, setNewUserWarehouseIds] = useState<string[]>([]) // 新用户的仓库分配
   const [addingUser, setAddingUser] = useState(false)
 
   // 标签页选项
@@ -272,6 +273,7 @@ const UserManagement: React.FC = () => {
       setNewUserName('')
       setNewUserRole('driver')
       setNewDriverType('pure')
+      setNewUserWarehouseIds([]) // 重置仓库选择
     }
   }
 
@@ -294,54 +296,82 @@ const UserManagement: React.FC = () => {
       return
     }
 
+    // 验证仓库选择（司机和管理员都需要）
+    if (newUserWarehouseIds.length === 0) {
+      const roleText = newUserRole === 'driver' ? '司机' : '管理员'
+      showToast({title: `请为${roleText}至少选择一个仓库`, icon: 'none'})
+      return
+    }
+
     setAddingUser(true)
     showLoading({title: '添加中...'})
 
-    // 调用创建用户函数
-    const newUser = await createUser(
-      newUserPhone.trim(),
-      newUserName.trim(),
-      newUserRole,
-      newUserRole === 'driver' ? newDriverType : undefined
-    )
+    try {
+      // 调用创建用户函数
+      const newUser = await createUser(
+        newUserPhone.trim(),
+        newUserName.trim(),
+        newUserRole,
+        newUserRole === 'driver' ? newDriverType : undefined
+      )
 
-    Taro.hideLoading()
-    setAddingUser(false)
-
-    if (newUser) {
-      // 显示详细的创建成功信息
-      const loginAccount = `${newUserPhone.trim()}@fleet.com`
-      const roleText = newUserRole === 'driver' ? '司机' : '管理员'
-      const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
-      const defaultPassword = '123456'
-
-      let content = `姓名：${newUserName.trim()}\n手机号码：${newUserPhone.trim()}\n用户角色：${roleText}\n`
-
-      if (newUserRole === 'driver') {
-        content += `司机类型：${driverTypeText}\n`
-      }
-
-      content += `登录账号：${loginAccount}\n默认密码：${defaultPassword}`
-
-      Taro.showModal({
-        title: '用户创建成功',
-        content,
-        showCancel: false,
-        confirmText: '知道了',
-        success: () => {
-          // 重置表单
-          setNewUserPhone('')
-          setNewUserName('')
-          setNewUserRole('driver')
-          setNewDriverType('pure')
-          setShowAddUser(false)
-          // 数据更新，增加版本号并清除相关缓存
-          onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-          loadUsers(true)
+      if (newUser) {
+        // 分配仓库
+        console.log('开始为新用户分配仓库', {userId: newUser.id, warehouseIds: newUserWarehouseIds})
+        for (const warehouseId of newUserWarehouseIds) {
+          await insertWarehouseAssignment(newUser.id, warehouseId)
         }
-      })
-    } else {
-      showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
+        console.log('仓库分配完成', {userId: newUser.id, count: newUserWarehouseIds.length})
+
+        Taro.hideLoading()
+        setAddingUser(false)
+
+        // 显示详细的创建成功信息
+        const loginAccount = `${newUserPhone.trim()}@fleet.com`
+        const roleText = newUserRole === 'driver' ? '司机' : '管理员'
+        const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
+        const defaultPassword = '123456'
+        const warehouseNames = warehouses
+          .filter((w) => newUserWarehouseIds.includes(w.id))
+          .map((w) => w.name)
+          .join('、')
+
+        let content = `姓名：${newUserName.trim()}\n手机号码：${newUserPhone.trim()}\n用户角色：${roleText}\n`
+
+        if (newUserRole === 'driver') {
+          content += `司机类型：${driverTypeText}\n`
+        }
+
+        content += `分配仓库：${warehouseNames}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}`
+
+        Taro.showModal({
+          title: '用户创建成功',
+          content,
+          showCancel: false,
+          confirmText: '知道了',
+          success: () => {
+            // 重置表单
+            setNewUserPhone('')
+            setNewUserName('')
+            setNewUserRole('driver')
+            setNewDriverType('pure')
+            setNewUserWarehouseIds([])
+            setShowAddUser(false)
+            // 数据更新，增加版本号并清除相关缓存
+            onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
+            loadUsers(true)
+          }
+        })
+      } else {
+        Taro.hideLoading()
+        setAddingUser(false)
+        showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
+      }
+    } catch (error) {
+      Taro.hideLoading()
+      setAddingUser(false)
+      console.error('添加用户失败', error)
+      showToast({title: '添加失败，请重试', icon: 'error'})
     }
   }
 
@@ -917,6 +947,39 @@ const UserManagement: React.FC = () => {
                   </View>
                 </View>
               )}
+
+              {/* 仓库分配 */}
+              <View className="mb-3">
+                <Text className="text-gray-700 text-sm block mb-2">
+                  分配仓库 <Text className="text-red-500">*</Text>
+                </Text>
+                {warehouses.length > 0 ? (
+                  <CheckboxGroup
+                    onChange={(e) => setNewUserWarehouseIds(e.detail.value as string[])}
+                    className="space-y-2">
+                    {warehouses.map((warehouse) => (
+                      <View
+                        key={warehouse.id}
+                        className={`flex items-center bg-white rounded-lg px-3 py-2.5 border-2 transition-all ${
+                          newUserWarehouseIds.includes(warehouse.id)
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-300'
+                        }`}>
+                        <Checkbox
+                          value={warehouse.id}
+                          checked={newUserWarehouseIds.includes(warehouse.id)}
+                          className="mr-2"
+                        />
+                        <Text className="text-sm text-gray-700 flex-1">{warehouse.name}</Text>
+                      </View>
+                    ))}
+                  </CheckboxGroup>
+                ) : (
+                  <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <Text className="text-yellow-800 text-xs">暂无可分配的仓库</Text>
+                  </View>
+                )}
+              </View>
 
               {/* 密码提示 */}
               <View className="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
