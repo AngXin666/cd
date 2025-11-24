@@ -27,6 +27,7 @@ const ApplyResignation: React.FC = () => {
   const [minDate, setMinDate] = useState('')
   const [noticeDays, setNoticeDays] = useState(30)
   const [validationMessage, setValidationMessage] = useState<string>('')
+  const [warehouses, setWarehouses] = useState<Array<{id: string; name: string}>>([])
 
   useLoad(() => {
     const params = Taro.getCurrentInstance().router?.params
@@ -56,9 +57,9 @@ const ApplyResignation: React.FC = () => {
 
     // 获取司机的仓库（只获取启用的仓库）
     const allWarehouses = await getDriverWarehouses(user.id)
-    const warehouses = allWarehouses.filter((w) => w.is_active)
+    const activeWarehouses = allWarehouses.filter((w) => w.is_active)
 
-    if (warehouses.length === 0) {
+    if (activeWarehouses.length === 0) {
       showToast({
         title: '暂无可用仓库',
         icon: 'none',
@@ -67,8 +68,12 @@ const ApplyResignation: React.FC = () => {
       return
     }
 
-    if (warehouses.length > 0) {
-      const warehouseId = warehouses[0].id
+    // 保存仓库列表
+    setWarehouses(activeWarehouses.map((w) => ({id: w.id, name: w.name})))
+
+    // 如果只有一个仓库，自动选择
+    if (activeWarehouses.length === 1) {
+      const warehouseId = activeWarehouses[0].id
       setWarehouseId(warehouseId)
 
       // 获取仓库设置
@@ -83,11 +88,32 @@ const ApplyResignation: React.FC = () => {
         setMinDate(getLocalDateString(minDate))
       }
     }
+    // 如果有多个仓库，不自动选择，等待用户选择
   }, [user, isEditMode])
 
   useEffect(() => {
     loadWarehouse()
   }, [loadWarehouse])
+
+  // 当仓库变化时，更新仓库设置
+  useEffect(() => {
+    const updateWarehouseSettings = async () => {
+      if (!warehouseId) return
+
+      const settings = await getWarehouseSettings(warehouseId)
+      if (settings) {
+        setNoticeDays(settings.resignation_notice_days)
+
+        // 计算最早可选日期
+        const today = new Date()
+        const minDate = new Date(today)
+        minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
+        setMinDate(getLocalDateString(minDate))
+      }
+    }
+
+    updateWarehouseSettings()
+  }, [warehouseId])
 
   // 验证离职日期
   useEffect(() => {
@@ -112,6 +138,11 @@ const ApplyResignation: React.FC = () => {
     setExpectedDate(e.detail.value)
   }
 
+  const handleWarehouseChange = (e: any) => {
+    const index = e.detail.value
+    setWarehouseId(warehouses[index].id)
+  }
+
   const handleSaveDraft = async () => {
     if (!user) {
       showToast({title: '用户信息错误', icon: 'none'})
@@ -119,7 +150,7 @@ const ApplyResignation: React.FC = () => {
     }
 
     if (!warehouseId) {
-      showToast({title: '请先分配仓库', icon: 'none'})
+      showToast({title: warehouses.length > 1 ? '请选择仓库' : '请先分配仓库', icon: 'none'})
       return
     }
 
@@ -160,7 +191,7 @@ const ApplyResignation: React.FC = () => {
     }
 
     if (!warehouseId) {
-      showToast({title: '请先分配仓库', icon: 'none'})
+      showToast({title: warehouses.length > 1 ? '请选择仓库' : '请先分配仓库', icon: 'none'})
       return
     }
 
@@ -254,6 +285,26 @@ const ApplyResignation: React.FC = () => {
 
           {/* 表单内容 */}
           <View className="bg-white rounded-lg p-4 shadow-sm">
+            {/* 仓库选择（只在有多个仓库时显示） */}
+            {warehouses.length > 1 && (
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">选择仓库 *</Text>
+                <Picker
+                  mode="selector"
+                  range={warehouses.map((w) => w.name)}
+                  value={warehouses.findIndex((w) => w.id === warehouseId)}
+                  onChange={handleWarehouseChange}>
+                  <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                    <Text className="text-sm text-gray-800">
+                      {warehouseId ? warehouses.find((w) => w.id === warehouseId)?.name : '请选择仓库'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                  </View>
+                </Picker>
+                <Text className="text-xs text-red-500 block mt-1">请选择您要离职的仓库</Text>
+              </View>
+            )}
+
             {/* 期望离职日期 */}
             <View className="mb-4">
               <Text className="text-sm text-gray-700 block mb-2">期望离职日期</Text>

@@ -39,6 +39,7 @@ const ApplyLeave: React.FC = () => {
   const [monthlyApprovedDays, setMonthlyApprovedDays] = useState(0)
   const [monthlyPendingDays, setMonthlyPendingDays] = useState(0)
   const [monthlyLimit, setMonthlyLimit] = useState(0)
+  const [warehouses, setWarehouses] = useState<Array<{id: string; name: string}>>([])
 
   const leaveTypes = [
     {label: '事假', value: 'personal'},
@@ -115,9 +116,9 @@ const ApplyLeave: React.FC = () => {
 
     // 获取司机的仓库（只获取启用的仓库）
     const allWarehouses = await getDriverWarehouses(user.id)
-    const warehouses = allWarehouses.filter((w) => w.is_active)
+    const activeWarehouses = allWarehouses.filter((w) => w.is_active)
 
-    if (warehouses.length === 0) {
+    if (activeWarehouses.length === 0) {
       showToast({
         title: '暂无可用仓库',
         icon: 'none',
@@ -126,8 +127,12 @@ const ApplyLeave: React.FC = () => {
       return
     }
 
-    if (warehouses.length > 0) {
-      const warehouseId = warehouses[0].id
+    // 保存仓库列表
+    setWarehouses(activeWarehouses.map((w) => ({id: w.id, name: w.name})))
+
+    // 如果只有一个仓库，自动选择
+    if (activeWarehouses.length === 1) {
+      const warehouseId = activeWarehouses[0].id
       setWarehouseId(warehouseId)
 
       // 获取仓库设置
@@ -137,6 +142,7 @@ const ApplyLeave: React.FC = () => {
         setMonthlyLimit(settings.max_leave_days)
       }
     }
+    // 如果有多个仓库，不自动选择，等待用户选择
 
     // 获取当月已批准和待审批的请假天数
     const now = new Date()
@@ -196,6 +202,21 @@ const ApplyLeave: React.FC = () => {
     validateDays()
   }, [warehouseId, leaveDays])
 
+  // 当仓库变化时，更新仓库设置
+  useEffect(() => {
+    const updateWarehouseSettings = async () => {
+      if (!warehouseId) return
+
+      const settings = await getWarehouseSettings(warehouseId)
+      if (settings) {
+        setMaxLeaveDays(settings.max_leave_days)
+        setMonthlyLimit(settings.max_leave_days)
+      }
+    }
+
+    updateWarehouseSettings()
+  }, [warehouseId])
+
   const handleModeChange = (newMode: LeaveMode) => {
     setMode(newMode)
     setValidationMessage('')
@@ -222,6 +243,11 @@ const ApplyLeave: React.FC = () => {
     setLeaveType(leaveTypes[index].value as LeaveType)
   }
 
+  const handleWarehouseChange = (e: any) => {
+    const index = e.detail.value
+    setWarehouseId(warehouses[index].id)
+  }
+
   const handleQuickDaysChange = (e: any) => {
     const index = e.detail.value
     setQuickDays(index + 1)
@@ -242,7 +268,7 @@ const ApplyLeave: React.FC = () => {
     }
 
     if (!warehouseId) {
-      showToast({title: '请先分配仓库', icon: 'none'})
+      showToast({title: warehouses.length > 1 ? '请选择仓库' : '请先分配仓库', icon: 'none'})
       return
     }
 
@@ -287,7 +313,7 @@ const ApplyLeave: React.FC = () => {
     }
 
     if (!warehouseId) {
-      showToast({title: '请先分配仓库', icon: 'none'})
+      showToast({title: warehouses.length > 1 ? '请选择仓库' : '请先分配仓库', icon: 'none'})
       return
     }
 
@@ -473,6 +499,26 @@ const ApplyLeave: React.FC = () => {
 
           {/* 表单内容 */}
           <View className="bg-white rounded-lg p-4 shadow-sm">
+            {/* 仓库选择（只在有多个仓库时显示） */}
+            {warehouses.length > 1 && (
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">选择仓库 *</Text>
+                <Picker
+                  mode="selector"
+                  range={warehouses.map((w) => w.name)}
+                  value={warehouses.findIndex((w) => w.id === warehouseId)}
+                  onChange={handleWarehouseChange}>
+                  <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                    <Text className="text-sm text-gray-800">
+                      {warehouseId ? warehouses.find((w) => w.id === warehouseId)?.name : '请选择仓库'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                  </View>
+                </Picker>
+                <Text className="text-xs text-red-500 block mt-1">请选择您要请假的仓库</Text>
+              </View>
+            )}
+
             {/* 请假类型 */}
             <View className="mb-4">
               <Text className="text-sm text-gray-700 block mb-2">请假类型</Text>
