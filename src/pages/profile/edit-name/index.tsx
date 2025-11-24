@@ -63,20 +63,38 @@ const EditNamePage: React.FC = () => {
       return
     }
 
+    // 检查是否有实际修改
+    const nameChanged = name.trim() !== (profile.name || '')
+    const phoneChanged = phone.trim() !== (profile.phone || '')
+
+    if (!nameChanged && !phoneChanged) {
+      showToast({
+        title: '没有修改任何信息',
+        icon: 'none'
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
+      // 只更新修改过的字段
+      const updateData: {name?: string; phone?: string} = {}
+      if (nameChanged) {
+        updateData.name = name.trim()
+      }
+      if (phoneChanged) {
+        updateData.phone = phone.trim()
+      }
+
       // 更新用户信息
-      const success = await updateUserProfile(user.id, {
-        name: name.trim(),
-        phone: phone.trim()
-      })
+      const success = await updateUserProfile(user.id, updateData)
 
       if (success) {
         // 如果是普通管理员，通知所有超级管理员
         if (profile.role === 'manager') {
           await createNotificationForAllSuperAdmins({
-            type: 'system',
+            type: 'system_notice',
             title: '管理员信息更新',
             message: `管理员 ${name.trim()} (${phone.trim()}) 更新了实名信息，请审核确认。`
           })
