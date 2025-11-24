@@ -1,29 +1,5 @@
-/*
-# 创建用户认证账号函数
-
-## 说明
-创建一个数据库函数，用于在 auth.users 表中创建新用户记录。
-这个函数会先创建 auth.users 记录，然后返回用户ID，供后续创建 profiles 记录使用。
-
-## 函数详情
-1. create_user_auth_account_first: 创建 auth.users 记录并返回用户ID
-   - 参数: user_email (text), user_phone (text)
-   - 返回: JSON 对象包含 success, user_id, email, default_password
-
-## 安全考虑
-- 函数使用 SECURITY DEFINER 权限，可以访问 auth schema
-- 默认密码为 "123456"
-- 用户创建后会自动确认（confirmed_at 设置为当前时间）
-*/
-
--- ============================================
--- 启用 pgcrypto 扩展（用于密码加密）
--- ============================================
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- ============================================
--- 创建用户认证账号函数
--- ============================================
+-- 修复 auth.users 表中的 NULL 字符串字段问题
+-- 为所有字符串字段设置默认值，避免 NULL 转换错误
 
 CREATE OR REPLACE FUNCTION create_user_auth_account_first(
   user_email text,
@@ -111,3 +87,24 @@ EXCEPTION
     );
 END;
 $$;
+
+-- 更新现有用户的 NULL 字符串字段为空字符串
+UPDATE auth.users
+SET 
+  confirmation_token = COALESCE(confirmation_token, ''),
+  recovery_token = COALESCE(recovery_token, ''),
+  email_change_token_new = COALESCE(email_change_token_new, ''),
+  email_change = COALESCE(email_change, ''),
+  email_change_token_current = COALESCE(email_change_token_current, ''),
+  phone_change = COALESCE(phone_change, ''),
+  phone_change_token = COALESCE(phone_change_token, ''),
+  reauthentication_token = COALESCE(reauthentication_token, '')
+WHERE 
+  confirmation_token IS NULL 
+  OR recovery_token IS NULL 
+  OR email_change_token_new IS NULL 
+  OR email_change IS NULL 
+  OR email_change_token_current IS NULL 
+  OR phone_change IS NULL 
+  OR phone_change_token IS NULL 
+  OR reauthentication_token IS NULL;
