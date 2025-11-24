@@ -16,8 +16,10 @@ export const CACHE_KEYS = {
   // 用户管理缓存
   MANAGER_DRIVERS: 'manager_drivers_cache',
   MANAGER_DRIVER_DETAILS: 'manager_driver_details_cache',
+  MANAGER_DRIVER_WAREHOUSES: 'manager_driver_warehouses_cache',
   SUPER_ADMIN_USERS: 'super_admin_users_cache',
   SUPER_ADMIN_USER_DETAILS: 'super_admin_user_details_cache',
+  SUPER_ADMIN_USER_WAREHOUSES: 'super_admin_user_warehouses_cache',
 
   // 仓库管理缓存
   ALL_WAREHOUSES: 'all_warehouses_cache',
@@ -254,6 +256,7 @@ export function clearManagerDriversCache() {
   try {
     clearCache(CACHE_KEYS.MANAGER_DRIVERS)
     clearCache(CACHE_KEYS.MANAGER_DRIVER_DETAILS)
+    clearCache(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES)
     console.log('[Cache] 已清除管理员端司机缓存')
   } catch (err) {
     console.error('[Cache] 清除管理员端司机缓存失败:', err)
@@ -267,6 +270,7 @@ export function clearSuperAdminUsersCache() {
   try {
     clearCache(CACHE_KEYS.SUPER_ADMIN_USERS)
     clearCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
+    clearCache(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES)
     console.log('[Cache] 已清除超级管理员端用户缓存')
   } catch (err) {
     console.error('[Cache] 清除超级管理员端用户缓存失败:', err)

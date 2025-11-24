@@ -4,7 +4,7 @@
  * 参考普通管理端的司机管理实现
  */
 
-import {Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Checkbox, CheckboxGroup, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -57,6 +57,10 @@ const UserManagement: React.FC = () => {
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   // 存储每个司机已分配的仓库信息（用于仓库分配功能）
   const [_driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, Warehouse[]>>(new Map())
+  // 仓库切换状态
+  const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
+  // 存储每个用户的仓库ID列表（用于过滤）
+  const [userWarehouseIdsMap, setUserWarehouseIdsMap] = useState<Map<string, string[]>>(new Map())
 
   // 添加用户相关状态
   const [showAddUser, setShowAddUser] = useState(false)
@@ -74,32 +78,44 @@ const UserManagement: React.FC = () => {
   ]
 
   // 过滤用户
-  const filterUsers = useCallback((userList: UserWithRealName[], keyword: string, role: 'all' | UserRole) => {
-    let filtered = userList
+  const filterUsers = useCallback(
+    (userList: UserWithRealName[], keyword: string, role: 'all' | UserRole, warehouseIndex: number) => {
+      let filtered = userList
 
-    // 角色过滤
-    if (role !== 'all') {
-      filtered = filtered.filter((u) => u.role === role)
-    }
+      // 角色过滤
+      if (role !== 'all') {
+        filtered = filtered.filter((u) => u.role === role)
+      }
 
-    // 关键词过滤
-    if (keyword.trim()) {
-      filtered = filtered.filter((u) => {
-        const name = u.name || ''
-        const realName = u.real_name || ''
-        const phone = u.phone || ''
-        const email = u.email || ''
-        return (
-          matchWithPinyin(name, keyword) ||
-          matchWithPinyin(realName, keyword) ||
-          phone.toLowerCase().includes(keyword.toLowerCase()) ||
-          email.toLowerCase().includes(keyword.toLowerCase())
-        )
-      })
-    }
+      // 仓库过滤（仅对司机标签页生效，且有多个仓库时）
+      if (activeTab === 'driver' && warehouses.length > 1 && warehouses[warehouseIndex]) {
+        const currentWarehouseId = warehouses[warehouseIndex].id
+        filtered = filtered.filter((u) => {
+          const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
+          return userWarehouseIds.includes(currentWarehouseId)
+        })
+      }
 
-    setFilteredUsers(filtered)
-  }, [])
+      // 关键词过滤
+      if (keyword.trim()) {
+        filtered = filtered.filter((u) => {
+          const name = u.name || ''
+          const realName = u.real_name || ''
+          const phone = u.phone || ''
+          const email = u.email || ''
+          return (
+            matchWithPinyin(name, keyword) ||
+            matchWithPinyin(realName, keyword) ||
+            phone.toLowerCase().includes(keyword.toLowerCase()) ||
+            email.toLowerCase().includes(keyword.toLowerCase())
+          )
+        })
+      }
+
+      setFilteredUsers(filtered)
+    },
+    [activeTab, warehouses, userWarehouseIdsMap]
+  )
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -120,14 +136,17 @@ const UserManagement: React.FC = () => {
       if (!forceRefresh) {
         const cachedUsers = getVersionedCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
         const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
+        const cachedWarehouseIds = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES)
 
-        if (cachedUsers && cachedDetails) {
+        if (cachedUsers && cachedDetails && cachedWarehouseIds) {
           console.log(`✅ 从缓存加载用户列表，共 ${cachedUsers.length} 名用户`)
           setUsers(cachedUsers)
-          filterUsers(cachedUsers, searchKeyword, roleFilter)
+          filterUsers(cachedUsers, searchKeyword, roleFilter, currentWarehouseIndex)
           // 将普通对象转换为 Map
           const detailsMap = new Map(Object.entries(cachedDetails))
           setUserDetails(detailsMap)
+          const warehouseIdsMap = new Map(Object.entries(cachedWarehouseIds))
+          setUserWarehouseIdsMap(warehouseIdsMap)
           return
         }
       }
@@ -168,6 +187,7 @@ const UserManagement: React.FC = () => {
         const usersWithRealName = userDataResults.map((r) => r.user)
         const driverDetails = new Map<string, DriverDetailInfo>()
         const driverWarehouses = new Map<string, Warehouse[]>()
+        const userWarehouseIds = new Map<string, string[]>()
 
         userDataResults.forEach((result) => {
           if (result.detail) {
@@ -175,6 +195,10 @@ const UserManagement: React.FC = () => {
           }
           if (result.warehouses.length > 0) {
             driverWarehouses.set(result.user.id, result.warehouses)
+            userWarehouseIds.set(
+              result.user.id,
+              result.warehouses.map((w) => w.id)
+            )
           }
         })
 
@@ -183,15 +207,18 @@ const UserManagement: React.FC = () => {
         console.log('✅ 批量加载完成 - 司机仓库分配信息')
 
         setUsers(usersWithRealName)
-        filterUsers(usersWithRealName, searchKeyword, roleFilter)
+        filterUsers(usersWithRealName, searchKeyword, roleFilter, currentWarehouseIndex)
         setUserDetails(driverDetails)
         setDriverWarehouseMap(driverWarehouses)
+        setUserWarehouseIdsMap(userWarehouseIds)
 
         // 使用带版本号的缓存（5分钟有效期）
         setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
         // Map 需要转换为普通对象才能缓存
         const detailsObj = Object.fromEntries(driverDetails)
         setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
+        const warehouseIdsObj = Object.fromEntries(userWarehouseIds)
+        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES, warehouseIdsObj, 5 * 60 * 1000)
       } catch (error) {
         console.error('❌ 加载用户列表失败:', error)
         showToast({title: '加载失败', icon: 'error'})
@@ -199,7 +226,7 @@ const UserManagement: React.FC = () => {
         setLoading(false)
       }
     },
-    [searchKeyword, roleFilter, filterUsers, user]
+    [searchKeyword, roleFilter, currentWarehouseIndex, filterUsers, user]
   )
 
   // 搜索关键词变化
@@ -207,9 +234,9 @@ const UserManagement: React.FC = () => {
     (e: {detail: {value: string}}) => {
       const keyword = e.detail.value
       setSearchKeyword(keyword)
-      filterUsers(users, keyword, roleFilter)
+      filterUsers(users, keyword, roleFilter, currentWarehouseIndex)
     },
-    [users, roleFilter, filterUsers]
+    [users, roleFilter, currentWarehouseIndex, filterUsers]
   )
 
   // 标签页切换
@@ -219,12 +246,12 @@ const UserManagement: React.FC = () => {
       // 切换标签时自动设置角色筛选
       const role: UserRole = tab === 'driver' ? 'driver' : 'manager'
       setRoleFilter(role)
-      filterUsers(users, searchKeyword, role)
+      filterUsers(users, searchKeyword, role, currentWarehouseIndex)
       // 收起所有展开的详情
       setExpandedUserId(null)
       setWarehouseAssignExpanded(null)
     },
-    [users, searchKeyword, filterUsers]
+    [users, searchKeyword, currentWarehouseIndex, filterUsers]
   )
 
   // 切换用户详细信息展开状态
@@ -744,6 +771,18 @@ const UserManagement: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
+  // 处理仓库切换
+  const handleWarehouseChange = useCallback(
+    (e: any) => {
+      const index = e.detail.current
+      setCurrentWarehouseIndex(index)
+      console.log('切换仓库', {index, warehouseName: warehouses[index]?.name})
+      // 重新过滤用户列表
+      filterUsers(users, searchKeyword, roleFilter, index)
+    },
+    [warehouses, users, searchKeyword, roleFilter, filterUsers]
+  )
+
   // 获取角色显示文本
   const getRoleText = (role: UserRole) => {
     switch (role) {
@@ -821,6 +860,48 @@ const UserManagement: React.FC = () => {
               />
             </View>
           </View>
+
+          {/* 仓库切换器（仅在司机管理标签页且有多个仓库时显示） */}
+          {activeTab === 'driver' && warehouses.length > 1 && (
+            <View className="mb-4">
+              <View className="flex items-center mb-2">
+                <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
+                <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
+                <Text className="text-xs text-gray-400 ml-2">
+                  ({currentWarehouseIndex + 1}/{warehouses.length})
+                </Text>
+                <Text className="text-xs text-gray-400 ml-auto">{filteredUsers.length} 名司机</Text>
+              </View>
+              <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                <Swiper
+                  className="h-16"
+                  current={currentWarehouseIndex}
+                  onChange={handleWarehouseChange}
+                  indicatorDots
+                  indicatorColor="rgba(0, 0, 0, 0.2)"
+                  indicatorActiveColor="#1E3A8A">
+                  {warehouses.map((warehouse) => {
+                    // 计算该仓库的司机数量
+                    const warehouseDriverCount = users.filter((u) => {
+                      if (u.role !== 'driver') return false
+                      const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
+                      return userWarehouseIds.includes(warehouse.id)
+                    }).length
+
+                    return (
+                      <SwiperItem key={warehouse.id}>
+                        <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                          <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                          <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                          <Text className="text-xs text-gray-500 ml-2">({warehouseDriverCount}人)</Text>
+                        </View>
+                      </SwiperItem>
+                    )
+                  })}
+                </Swiper>
+              </View>
+            </View>
+          )}
 
           {/* 添加用户按钮（仅在司机管理标签页显示） */}
           {activeTab === 'driver' && (

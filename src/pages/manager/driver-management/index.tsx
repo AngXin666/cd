@@ -1,4 +1,4 @@
-import {Button, Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Checkbox, CheckboxGroup, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -44,9 +44,13 @@ const DriverManagement: React.FC = () => {
   const [drivers, setDrivers] = useState<DriverWithRealName[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
+  const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0) // 当前选中的仓库索引
 
   // 司机详细信息
   const [driverDetails, setDriverDetails] = useState<Map<string, DriverDetailInfo>>(new Map())
+
+  // 司机的仓库分配信息（用于过滤）
+  const [driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, string[]>>(new Map())
 
   // 仓库分配展开状态（记录哪个司机的仓库分配面板是展开的）
   const [warehouseAssignExpanded, setWarehouseAssignExpanded] = useState<string | null>(null)
@@ -62,19 +66,32 @@ const DriverManagement: React.FC = () => {
   const [newDriverWarehouseIds, setNewDriverWarehouseIds] = useState<string[]>([]) // 新司机的仓库分配
   const [addingDriver, setAddingDriver] = useState(false)
 
-  // 过滤后的司机列表（支持搜索实名）
+  // 过滤后的司机列表（支持搜索实名和仓库过滤）
   const filteredDrivers = useMemo(() => {
-    if (!searchKeyword.trim()) {
-      return drivers
+    let result = drivers
+
+    // 仓库过滤（当有多个仓库时）
+    if (warehouses.length > 1 && warehouses[currentWarehouseIndex]) {
+      const currentWarehouseId = warehouses[currentWarehouseIndex].id
+      result = result.filter((driver) => {
+        const driverWarehouses = driverWarehouseMap.get(driver.id) || []
+        return driverWarehouses.includes(currentWarehouseId)
+      })
     }
-    const keyword = searchKeyword.trim().toLowerCase()
-    return drivers.filter(
-      (driver) =>
-        driver.name?.toLowerCase().includes(keyword) ||
-        driver.phone?.toLowerCase().includes(keyword) ||
-        driver.real_name?.toLowerCase().includes(keyword)
-    )
-  }, [drivers, searchKeyword])
+
+    // 搜索关键词过滤
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase()
+      result = result.filter(
+        (driver) =>
+          driver.name?.toLowerCase().includes(keyword) ||
+          driver.phone?.toLowerCase().includes(keyword) ||
+          driver.real_name?.toLowerCase().includes(keyword)
+      )
+    }
+
+    return result
+  }, [drivers, searchKeyword, warehouses, currentWarehouseIndex, driverWarehouseMap])
 
   // 加载司机列表
   const loadDrivers = useCallback(async (forceRefresh: boolean = false) => {
@@ -84,13 +101,16 @@ const DriverManagement: React.FC = () => {
     if (!forceRefresh) {
       const cachedDrivers = getVersionedCache<DriverWithRealName[]>(CACHE_KEYS.MANAGER_DRIVERS)
       const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.MANAGER_DRIVER_DETAILS)
+      const cachedWarehouseMap = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES)
 
-      if (cachedDrivers && cachedDetails) {
+      if (cachedDrivers && cachedDetails && cachedWarehouseMap) {
         logger.info(`从缓存加载司机列表，共 ${cachedDrivers.length} 名司机`)
         setDrivers(cachedDrivers)
         // 将普通对象转换为 Map
         const detailsMap = new Map(Object.entries(cachedDetails))
         setDriverDetails(detailsMap)
+        const warehouseMap = new Map(Object.entries(cachedWarehouseMap))
+        setDriverWarehouseMap(warehouseMap)
         return
       }
     }
@@ -103,25 +123,40 @@ const DriverManagement: React.FC = () => {
         withRealName: driverList.filter((d) => d.real_name).length
       })
 
-      // 批量并行加载所有司机的详细信息（优化性能）
-      logger.info('开始批量加载司机详细信息')
+      // 批量并行加载所有司机的详细信息和仓库分配（优化性能）
+      logger.info('开始批量加载司机详细信息和仓库分配')
       const detailsPromises = driverList.map((driver) => getDriverDetailInfo(driver.id))
-      const detailsResults = await Promise.all(detailsPromises)
+      const warehousePromises = driverList.map((driver) => getDriverWarehouseIds(driver.id))
+      const [detailsResults, warehouseResults] = await Promise.all([
+        Promise.all(detailsPromises),
+        Promise.all(warehousePromises)
+      ])
 
       const detailsMap = new Map<string, DriverDetailInfo>()
+      const warehouseMap = new Map<string, string[]>()
+
       detailsResults.forEach((detail, index) => {
         if (detail) {
           detailsMap.set(driverList[index].id, detail)
         }
       })
+
+      warehouseResults.forEach((warehouseIds, index) => {
+        warehouseMap.set(driverList[index].id, warehouseIds)
+      })
+
       setDriverDetails(detailsMap)
+      setDriverWarehouseMap(warehouseMap)
       logger.info(`成功批量加载司机详细信息，共 ${detailsMap.size} 名司机`)
+      logger.info(`成功批量加载仓库分配信息，共 ${warehouseMap.size} 名司机`)
 
       // 使用带版本号的缓存（5分钟有效期）
       setVersionedCache(CACHE_KEYS.MANAGER_DRIVERS, driverList, 5 * 60 * 1000)
       // Map 需要转换为普通对象才能缓存
       const detailsObj = Object.fromEntries(detailsMap)
       setVersionedCache(CACHE_KEYS.MANAGER_DRIVER_DETAILS, detailsObj, 5 * 60 * 1000)
+      const warehouseObj = Object.fromEntries(warehouseMap)
+      setVersionedCache(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES, warehouseObj, 5 * 60 * 1000)
     } catch (error) {
       logger.error('加载司机列表失败', error)
     }
@@ -174,6 +209,16 @@ const DriverManagement: React.FC = () => {
     await Promise.all([loadDrivers(), loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
+
+  // 处理仓库切换
+  const handleWarehouseChange = useCallback(
+    (e: any) => {
+      const index = e.detail.current
+      setCurrentWarehouseIndex(index)
+      logger.info('切换仓库', {index, warehouseName: warehouses[index]?.name})
+    },
+    [warehouses]
+  )
 
   // 选择司机（已废弃，保留用于兼容性）
   const _handleSelectDriver = async (driver: DriverWithRealName) => {
@@ -583,6 +628,47 @@ const DriverManagement: React.FC = () => {
                     <Text className="text-white text-xs font-medium">{showAddDriver ? '取消' : '添加司机'}</Text>
                   </View>
                 </View>
+
+                {/* 仓库切换器（多仓库时显示） */}
+                {warehouses.length > 1 && (
+                  <View className="mb-3">
+                    <View className="flex items-center mb-2">
+                      <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
+                      <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
+                      <Text className="text-xs text-gray-400 ml-2">
+                        ({currentWarehouseIndex + 1}/{warehouses.length})
+                      </Text>
+                      <Text className="text-xs text-gray-400 ml-auto">{filteredDrivers.length} 名司机</Text>
+                    </View>
+                    <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                      <Swiper
+                        className="h-16"
+                        current={currentWarehouseIndex}
+                        onChange={handleWarehouseChange}
+                        indicatorDots
+                        indicatorColor="rgba(0, 0, 0, 0.2)"
+                        indicatorActiveColor="#1E3A8A">
+                        {warehouses.map((warehouse) => {
+                          // 计算该仓库的司机数量
+                          const warehouseDriverCount = drivers.filter((driver) => {
+                            const driverWarehouses = driverWarehouseMap.get(driver.id) || []
+                            return driverWarehouses.includes(warehouse.id)
+                          }).length
+
+                          return (
+                            <SwiperItem key={warehouse.id}>
+                              <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                                <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                                <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                                <Text className="text-xs text-gray-500 ml-2">({warehouseDriverCount}人)</Text>
+                              </View>
+                            </SwiperItem>
+                          )
+                        })}
+                      </Swiper>
+                    </View>
+                  </View>
+                )}
 
                 {/* 搜索框 */}
                 <View className="mb-3">
