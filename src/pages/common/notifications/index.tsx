@@ -1,13 +1,18 @@
 /**
  * 通知列表页面
  * 显示所有通知，支持标记已读、删除等操作
+ * 优化功能：
+ * 1. 已读绿色点，未读红色点
+ * 2. 点击即标记为已读
+ * 3. 未读信息优先排在最前面
+ * 4. 按今天、昨天、历史进行日期分类
  */
 
 import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useState} from 'react'
+import {useCallback, useMemo, useState} from 'react'
 import {
   deleteNotification,
   deleteReadNotifications,
@@ -21,6 +26,12 @@ import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('NotificationsPage')
 
+// 通知分组类型
+interface NotificationGroup {
+  title: string
+  notifications: Notification[]
+}
+
 const NotificationsPage: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -33,7 +44,16 @@ const NotificationsPage: React.FC = () => {
     setLoading(true)
     try {
       const data = await getUserNotifications(user.id)
-      setNotifications(data)
+      // 排序：未读优先，然后按时间倒序
+      const sorted = data.sort((a, b) => {
+        // 未读优先
+        if (a.is_read !== b.is_read) {
+          return a.is_read ? 1 : -1
+        }
+        // 时间倒序
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+      setNotifications(sorted)
     } catch (error) {
       logger.error('加载通知列表失败', error)
       Taro.showToast({title: '加载失败', icon: 'none'})
@@ -71,7 +91,18 @@ const NotificationsPage: React.FC = () => {
   const handleMarkAsRead = async (notificationId: string) => {
     const success = await markNotificationAsRead(notificationId)
     if (success) {
-      setNotifications((prev) => prev.map((n) => (n.id === notificationId ? {...n, is_read: true} : n)))
+      setNotifications((prev) =>
+        prev
+          .map((n) => (n.id === notificationId ? {...n, is_read: true} : n))
+          .sort((a, b) => {
+            // 未读优先
+            if (a.is_read !== b.is_read) {
+              return a.is_read ? 1 : -1
+            }
+            // 时间倒序
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          })
+      )
     }
   }
 
@@ -81,7 +112,11 @@ const NotificationsPage: React.FC = () => {
 
     const success = await markAllNotificationsAsRead(user.id)
     if (success) {
-      setNotifications((prev) => prev.map((n) => ({...n, is_read: true})))
+      setNotifications((prev) =>
+        prev
+          .map((n) => ({...n, is_read: true}))
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      )
       Taro.showToast({title: '已全部标记为已读', icon: 'success'})
     }
   }
@@ -140,6 +175,13 @@ const NotificationsPage: React.FC = () => {
             url: `/pages/super-admin/vehicle-review-detail/index?vehicleId=${notification.related_id}`
           })
           break
+        case 'leave_application_submitted':
+        case 'resignation_application_submitted':
+          // 跳转到请假审批页面
+          Taro.navigateTo({
+            url: `/pages/manager/leave-approval/index`
+          })
+          break
         default:
           break
       }
@@ -186,41 +228,93 @@ const NotificationsPage: React.FC = () => {
     }
   }
 
+  // 判断日期分类
+  const getDateCategory = (dateString: string): 'today' | 'yesterday' | 'history' => {
+    const date = new Date(dateString)
+    const now = new Date()
+
+    // 重置时间到当天0点
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const notificationDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    const diffDays = Math.floor((today.getTime() - notificationDate.getTime()) / 86400000)
+
+    if (diffDays === 0) return 'today'
+    if (diffDays === 1) return 'yesterday'
+    return 'history'
+  }
+
   // 格式化时间
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-
-    // 小于1分钟
-    if (diff < 60000) {
-      return '刚刚'
-    }
-
-    // 小于1小时
-    if (diff < 3600000) {
-      return `${Math.floor(diff / 60000)}分钟前`
-    }
-
-    // 小于1天
-    if (diff < 86400000) {
-      return `${Math.floor(diff / 3600000)}小时前`
-    }
-
-    // 小于7天
-    if (diff < 604800000) {
-      return `${Math.floor(diff / 86400000)}天前`
-    }
-
-    // 显示完整日期
-    return `${date.getMonth() + 1}月${date.getDate()}日`
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}`
   }
+
+  // 格式化历史日期
+  const formatHistoryDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${month}月${day}日 ${hours}:${minutes}`
+  }
+
+  // 按日期分组通知
+  const groupedNotifications = useMemo(() => {
+    const groups: NotificationGroup[] = []
+
+    // 分类通知
+    const todayNotifications = notifications.filter((n) => getDateCategory(n.created_at) === 'today')
+    const yesterdayNotifications = notifications.filter((n) => getDateCategory(n.created_at) === 'yesterday')
+    const historyNotifications = notifications.filter((n) => getDateCategory(n.created_at) === 'history')
+
+    // 添加今天的通知
+    if (todayNotifications.length > 0) {
+      groups.push({
+        title: '今天',
+        notifications: todayNotifications
+      })
+    }
+
+    // 添加昨天的通知
+    if (yesterdayNotifications.length > 0) {
+      groups.push({
+        title: '昨天',
+        notifications: yesterdayNotifications
+      })
+    }
+
+    // 添加历史通知
+    if (historyNotifications.length > 0) {
+      groups.push({
+        title: '更早',
+        notifications: historyNotifications
+      })
+    }
+
+    return groups
+  }, [notifications, getDateCategory])
+
+  // 统计未读数量
+  const unreadCount = useMemo(() => {
+    return notifications.filter((n) => !n.is_read).length
+  }, [notifications])
 
   return (
     <View className="min-h-screen bg-background">
       {/* 顶部操作栏 */}
-      <View className="bg-card p-4 flex items-center justify-between border-b border-border">
-        <Text className="text-lg font-bold text-foreground">通知中心</Text>
+      <View className="bg-card p-4 border-b border-border">
+        <View className="flex items-center justify-between mb-2">
+          <Text className="text-lg font-bold text-foreground">通知中心</Text>
+          {unreadCount > 0 && (
+            <View className="bg-destructive text-destructive-foreground px-2 py-1 rounded-full">
+              <Text className="text-xs text-white">{unreadCount} 条未读</Text>
+            </View>
+          )}
+        </View>
         <View className="flex items-center gap-2">
           <Button
             className="bg-primary text-primary-foreground px-4 py-2 rounded text-sm break-keep"
@@ -249,41 +343,62 @@ const NotificationsPage: React.FC = () => {
             <Text className="text-muted-foreground">暂无通知</Text>
           </View>
         ) : (
-          <View className="p-4 space-y-3">
-            {notifications.map((notification) => (
-              <View
-                key={notification.id}
-                className={`bg-card rounded-lg p-4 border ${notification.is_read ? 'border-border' : 'border-primary'}`}
-                onClick={() => handleNotificationClick(notification)}>
-                <View className="flex items-start gap-3">
-                  {/* 图标 */}
-                  <View className={`${getNotificationIcon(notification.type)} text-2xl mt-1`}></View>
+          <View className="pb-4">
+            {groupedNotifications.map((group) => (
+              <View key={group.title} className="mb-4">
+                {/* 日期分组标题 */}
+                <View className="px-4 py-2 bg-muted/50">
+                  <Text className="text-sm font-bold text-muted-foreground">{group.title}</Text>
+                </View>
 
-                  {/* 内容 */}
-                  <View className="flex-1">
-                    <View className="flex items-center justify-between mb-1">
-                      <Text
-                        className={`font-bold ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
-                        {notification.title}
-                      </Text>
-                      {!notification.is_read && <View className="w-2 h-2 bg-primary rounded-full"></View>}
+                {/* 该分组的通知列表 */}
+                <View className="px-4 pt-3 space-y-3">
+                  {group.notifications.map((notification) => (
+                    <View
+                      key={notification.id}
+                      className={`bg-card rounded-lg p-4 border ${notification.is_read ? 'border-border' : 'border-primary/50 shadow-sm'}`}
+                      onClick={() => handleNotificationClick(notification)}>
+                      <View className="flex items-start gap-3">
+                        {/* 已读/未读状态点 */}
+                        <View
+                          className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${notification.is_read ? 'bg-green-500' : 'bg-red-500'}`}></View>
+
+                        {/* 图标 */}
+                        <View
+                          className={`${getNotificationIcon(notification.type)} text-2xl mt-1 flex-shrink-0`}></View>
+
+                        {/* 内容 */}
+                        <View className="flex-1 min-w-0">
+                          <View className="flex items-start justify-between mb-1">
+                            <Text
+                              className={`font-bold ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
+                              {notification.title}
+                            </Text>
+                          </View>
+                          <Text
+                            className={`text-sm mb-2 ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            {notification.message}
+                          </Text>
+                          <View className="flex items-center justify-between">
+                            <Text className="text-xs text-muted-foreground">
+                              {group.title === '更早'
+                                ? formatHistoryDate(notification.created_at)
+                                : formatTime(notification.created_at)}
+                            </Text>
+                            <Button
+                              className="bg-destructive text-destructive-foreground px-3 py-1 rounded text-xs break-keep"
+                              size="mini"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(notification.id)
+                              }}>
+                              删除
+                            </Button>
+                          </View>
+                        </View>
+                      </View>
                     </View>
-                    <Text className={`text-sm ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
-                      {notification.message}
-                    </Text>
-                    <View className="flex items-center justify-between mt-2">
-                      <Text className="text-xs text-muted-foreground">{formatTime(notification.created_at)}</Text>
-                      <Button
-                        className="bg-destructive text-destructive-foreground px-3 py-1 rounded text-xs break-keep"
-                        size="mini"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(notification.id)
-                        }}>
-                        删除
-                      </Button>
-                    </View>
-                  </View>
+                  ))}
                 </View>
               </View>
             ))}
