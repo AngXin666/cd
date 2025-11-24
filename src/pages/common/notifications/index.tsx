@@ -229,7 +229,7 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 判断日期分类
-  const getDateCategory = (dateString: string): 'today' | 'yesterday' | 'history' => {
+  const getDateCategory = useCallback((dateString: string): 'today' | 'yesterday' | 'history' => {
     const date = new Date(dateString)
     const now = new Date()
 
@@ -242,7 +242,7 @@ const NotificationsPage: React.FC = () => {
     if (diffDays === 0) return 'today'
     if (diffDays === 1) return 'yesterday'
     return 'history'
-  }
+  }, [])
 
   // 格式化时间
   const formatTime = (dateString: string) => {

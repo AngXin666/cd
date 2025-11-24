@@ -2,3 +2,13 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 @import 'miaoda-auth-taro/lib/index.css';
+
+/* 通知栏滚动动画 */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}

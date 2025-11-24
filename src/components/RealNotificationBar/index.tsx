@@ -1,15 +1,19 @@
 /**
  * 真实通知栏组件
  * 连接到数据库的通知系统，显示最新的未读通知
+ * 功能：
+ * 1. 文字从左到右滚动提示
+ * 2. 每条信息自动滚动3次后跳到下一条
+ * 3. 点击查看后标记为已读
  */
 
 import {Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getUserNotifications, type Notification} from '@/db/notificationApi'
+import {getUserNotifications, markNotificationAsRead, type Notification} from '@/db/notificationApi'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('RealNotificationBar')
@@ -18,7 +22,9 @@ const RealNotificationBar: React.FC = () => {
   const {user} = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(false)
+  const [scrollCount, setScrollCount] = useState(0) // 当前通知已滚动次数
+  const scrollTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const switchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // 加载通知
   const loadNotifications = useCallback(async () => {
@@ -106,20 +112,60 @@ const RealNotificationBar: React.FC = () => {
     }
   }, [user, loadNotifications])
 
-  // 自动切换通知
+  // 自动滚动和切换通知
   useEffect(() => {
-    if (notifications.length <= 1) return
+    if (notifications.length === 0) return
 
-    const timer = setInterval(() => {
-      setIsAnimating(true)
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % notifications.length)
-        setIsAnimating(false)
-      }, 300)
-    }, 5000) // 每5秒切换一次
+    // 清理之前的定时器
+    if (scrollTimerRef.current) {
+      clearInterval(scrollTimerRef.current)
+    }
+    if (switchTimerRef.current) {
+      clearTimeout(switchTimerRef.current)
+    }
 
-    return () => clearInterval(timer)
-  }, [notifications.length])
+    // 重置滚动次数
+    setScrollCount(0)
+
+    // 每次滚动动画持续时间（根据文字长度调整）
+    const scrollDuration = 5000 // 5秒完成一次滚动
+
+    // 滚动计数器
+    let count = 0
+
+    // 启动滚动定时器
+    scrollTimerRef.current = setInterval(() => {
+      count++
+      setScrollCount(count)
+      logger.info('通知滚动', {currentIndex, scrollCount: count})
+
+      // 滚动3次后切换到下一条通知
+      if (count >= 3) {
+        // 清理滚动定时器
+        if (scrollTimerRef.current) {
+          clearInterval(scrollTimerRef.current)
+          scrollTimerRef.current = null
+        }
+
+        // 延迟切换到下一条通知
+        switchTimerRef.current = setTimeout(() => {
+          setCurrentIndex((prev) => (prev + 1) % notifications.length)
+          setScrollCount(0)
+          logger.info('切换到下一条通知', {nextIndex: (currentIndex + 1) % notifications.length})
+        }, 500) // 切换延迟500ms
+      }
+    }, scrollDuration)
+
+    // 清理函数
+    return () => {
+      if (scrollTimerRef.current) {
+        clearInterval(scrollTimerRef.current)
+      }
+      if (switchTimerRef.current) {
+        clearTimeout(switchTimerRef.current)
+      }
+    }
+  }, [notifications.length, currentIndex])
 
   // 如果没有未读通知，不显示通知栏
   if (notifications.length === 0) {
@@ -200,6 +246,8 @@ const RealNotificationBar: React.FC = () => {
         return 'bg-green-50 border-green-200'
       case 'resignation_rejected':
         return 'bg-red-50 border-red-200'
+      case 'permission_change':
+        return 'bg-purple-50 border-purple-200'
       default:
         return 'bg-primary/10 border-primary/30'
     }
@@ -232,13 +280,15 @@ const RealNotificationBar: React.FC = () => {
         return 'text-green-500'
       case 'resignation_rejected':
         return 'text-red-500'
+      case 'permission_change':
+        return 'text-purple-500'
       default:
         return 'text-primary'
     }
   }
 
   // 格式化时间
-  const formatTime = (dateString: string) => {
+  const _formatTime = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
@@ -255,14 +305,26 @@ const RealNotificationBar: React.FC = () => {
     return `${Math.floor(diff / 86400000)}天前`
   }
 
-  // 点击通知栏跳转到通知中心
-  const handleClick = () => {
+  // 点击通知栏
+  const handleClick = async () => {
+    // 标记为已读
+    const success = await markNotificationAsRead(currentNotification.id)
+    if (success) {
+      logger.info('通知已标记为已读', {notificationId: currentNotification.id})
+      // 从列表中移除已读通知
+      setNotifications((prev) => prev.filter((n) => n.id !== currentNotification.id))
+      // 重置索引
+      setCurrentIndex(0)
+      setScrollCount(0)
+    }
+
+    // 跳转到通知中心
     Taro.navigateTo({url: '/pages/common/notifications/index'})
   }
 
   return (
     <View
-      className={`mx-4 mb-4 rounded-lg border ${getNotificationColor(currentNotification.type)} overflow-hidden transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}
+      className={`mx-4 mb-4 rounded-lg border ${getNotificationColor(currentNotification.type)} overflow-hidden`}
       onClick={handleClick}>
       <View className="flex items-center p-3">
         {/* 图标 */}
@@ -270,34 +332,37 @@ const RealNotificationBar: React.FC = () => {
           className={`${getNotificationIcon(currentNotification.type)} text-2xl ${getIconColor(currentNotification.type)} mr-3 flex-shrink-0`}
         />
 
-        {/* 内容 */}
-        <View className="flex-1 min-w-0">
-          <View className="flex items-center justify-between mb-1">
-            <Text className="text-sm font-medium text-foreground">{currentNotification.title}</Text>
-            <Text className="text-xs text-muted-foreground ml-2 flex-shrink-0">
-              {formatTime(currentNotification.created_at)}
-            </Text>
+        {/* 滚动内容容器 */}
+        <View className="flex-1 min-w-0 overflow-hidden relative">
+          {/* 滚动文字 */}
+          <View
+            className="whitespace-nowrap"
+            style={{
+              animation: `scroll-left 5s linear ${scrollCount}`,
+              animationIterationCount: 1
+            }}>
+            <Text className="text-sm font-medium text-foreground mr-4">{currentNotification.title}</Text>
+            <Text className="text-xs text-muted-foreground">{currentNotification.message}</Text>
           </View>
-          <Text className="text-xs text-muted-foreground line-clamp-1">{currentNotification.message}</Text>
         </View>
 
         {/* 未读标记和数量 */}
         <View className="flex items-center ml-3 flex-shrink-0">
           {notifications.length > 1 && (
-            <View className="bg-secondary text-white text-xs px-2 py-1 rounded-full min-w-5 text-center">
+            <View className="bg-secondary text-white text-xs px-2 py-1 rounded-full min-w-5 text-center mr-2">
               <Text className="text-white text-xs">{notifications.length}</Text>
             </View>
           )}
-          <View className="i-mdi-chevron-right text-xl text-muted-foreground ml-2" />
+          <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
         </View>
       </View>
 
-      {/* 进度条 */}
+      {/* 滚动进度指示器 */}
       {notifications.length > 1 && (
         <View className="h-1 bg-muted">
           <View
-            className="h-full bg-primary transition-all duration-5000 ease-linear"
-            style={{width: `${((currentIndex + 1) / notifications.length) * 100}%`}}
+            className="h-full bg-primary transition-all duration-300"
+            style={{width: `${((scrollCount % 3) / 3) * 100}%`}}
           />
         </View>
       )}
