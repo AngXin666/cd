@@ -3,8 +3,8 @@
  *
  * 功能：
  * 1. 显示纯铃铛图标（无下方三横线）
- * 2. 铃铛颜色为橙色
- * 3. 有未读消息时铃铛抖动
+ * 2. 有未读消息时显示橙色并抖动
+ * 3. 无未读消息时显示绿色
  * 4. 点击跳转到通知中心
  * 5. 实时更新未读数量
  * 6. 未读数量显示在通知栏中
@@ -64,8 +64,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({userId, className = 
       } ${className}`}
       onClick={handleClick}
       style={{transform: unreadCount > 0 ? undefined : 'rotate(15deg)'}}>
-      {/* 纯铃铛图标 - 橙色 */}
-      <View className={`i-mdi-bell-outline text-2xl text-secondary transition-colors`} />
+      {/* 纯铃铛图标 - 有未读显示橙色，无未读显示绿色 */}
+      <View
+        className={`i-mdi-bell-outline text-2xl transition-colors ${unreadCount > 0 ? 'text-secondary' : 'text-green-500'}`}
+      />
     </View>
   )
 }
