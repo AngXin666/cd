@@ -57,6 +57,7 @@ const DriverManagement: React.FC = () => {
 
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [showSearch, setShowSearch] = useState(false) // 搜索框展开状态
 
   // 添加司机相关状态
   const [showAddDriver, setShowAddDriver] = useState(false)
@@ -251,6 +252,15 @@ const DriverManagement: React.FC = () => {
       setNewDriverName('')
       setNewDriverType('pure') // 重置为默认值
       setNewDriverWarehouseIds([]) // 重置仓库选择
+    }
+  }
+
+  // 切换搜索框显示
+  const toggleSearch = () => {
+    setShowSearch(!showSearch)
+    if (showSearch) {
+      // 收起时清空搜索关键词
+      setSearchKeyword('')
     }
   }
 
@@ -670,22 +680,37 @@ const DriverManagement: React.FC = () => {
                   </View>
                 )}
 
-                {/* 搜索框 */}
+                {/* 搜索按钮 */}
                 <View className="mb-3">
-                  <View className="flex items-center bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
-                    <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
-                    <Input
-                      type="text"
-                      placeholder="搜索司机姓名或手机号"
-                      value={searchKeyword}
-                      onInput={(e) => setSearchKeyword(e.detail.value)}
-                      className="flex-1 text-sm"
-                    />
-                    {searchKeyword && (
-                      <View className="i-mdi-close-circle text-gray-400 text-lg" onClick={() => setSearchKeyword('')} />
-                    )}
+                  <View
+                    onClick={toggleSearch}
+                    className="flex items-center justify-center bg-white rounded-lg py-3 px-4 border border-gray-200 shadow-sm active:scale-98 transition-all">
+                    <View className={`${showSearch ? 'i-mdi-close' : 'i-mdi-magnify'} text-blue-600 text-lg mr-2`} />
+                    <Text className="text-blue-600 text-sm font-medium">{showSearch ? '收起搜索' : '展开搜索'}</Text>
                   </View>
                 </View>
+
+                {/* 搜索框（可展开/收起） */}
+                {showSearch && (
+                  <View className="mb-3">
+                    <View className="flex items-center bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+                      <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
+                      <Input
+                        type="text"
+                        placeholder="搜索司机姓名或手机号"
+                        value={searchKeyword}
+                        onInput={(e) => setSearchKeyword(e.detail.value)}
+                        className="flex-1 text-sm"
+                      />
+                      {searchKeyword && (
+                        <View
+                          className="i-mdi-close-circle text-gray-400 text-lg"
+                          onClick={() => setSearchKeyword('')}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
 
                 {/* 添加司机表单 */}
                 {showAddDriver && (

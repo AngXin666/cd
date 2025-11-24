@@ -41,6 +41,7 @@ const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserWithRealName[]>([])
   const [filteredUsers, setFilteredUsers] = useState<UserWithRealName[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [showSearch, setShowSearch] = useState(false) // 搜索框展开状态
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('driver') // 默认显示司机
   const [loading, setLoading] = useState(false)
 
@@ -301,6 +302,15 @@ const UserManagement: React.FC = () => {
       setNewUserRole('driver')
       setNewDriverType('pure')
       setNewUserWarehouseIds([]) // 重置仓库选择
+    }
+  }
+
+  // 切换搜索框显示
+  const toggleSearch = () => {
+    setShowSearch(!showSearch)
+    if (showSearch) {
+      // 收起时清空搜索关键词
+      setSearchKeyword('')
     }
   }
 
@@ -848,18 +858,32 @@ const UserManagement: React.FC = () => {
             ))}
           </View>
 
-          {/* 搜索框 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
-            <Text className="text-sm text-gray-600 mb-2 block">搜索{activeTab === 'driver' ? '司机' : '管理员'}</Text>
-            <View style={{overflow: 'hidden'}}>
-              <Input
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                placeholder={`输入${activeTab === 'driver' ? '司机' : '管理员'}姓名、手机号或邮箱`}
-                value={searchKeyword}
-                onInput={handleSearchChange}
-              />
+          {/* 搜索按钮 */}
+          <View className="mb-4">
+            <View
+              onClick={toggleSearch}
+              className="flex items-center justify-center bg-white rounded-lg py-3 px-4 shadow-sm border border-gray-200 active:scale-98 transition-all">
+              <View className={`${showSearch ? 'i-mdi-close' : 'i-mdi-magnify'} text-blue-600 text-lg mr-2`} />
+              <Text className="text-blue-600 text-sm font-medium">
+                {showSearch ? '收起搜索' : `搜索${activeTab === 'driver' ? '司机' : '管理员'}`}
+              </Text>
             </View>
           </View>
+
+          {/* 搜索框（可展开/收起） */}
+          {showSearch && (
+            <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+              <Text className="text-sm text-gray-600 mb-2 block">搜索{activeTab === 'driver' ? '司机' : '管理员'}</Text>
+              <View style={{overflow: 'hidden'}}>
+                <Input
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  placeholder={`输入${activeTab === 'driver' ? '司机' : '管理员'}姓名、手机号或邮箱`}
+                  value={searchKeyword}
+                  onInput={handleSearchChange}
+                />
+              </View>
+            </View>
+          )}
 
           {/* 仓库切换器（仅在司机管理标签页且有多个仓库时显示） */}
           {activeTab === 'driver' && warehouses.length > 1 && (
