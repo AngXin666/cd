@@ -20,6 +20,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
 import {getCurrentUserRole} from '@/db/api'
 import {
   deleteNotification,
@@ -67,6 +68,10 @@ const NotificationsPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [filterType, setFilterType] = useState<FilterType>('all') // 筛选类型：全部、未读、已读
   const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all') // 选中的分类
+  // 详情弹窗状态
+  const [detailVisible, setDetailVisible] = useState(false)
+  const [detailApplicationId, setDetailApplicationId] = useState('')
+  const [detailApplicationType, setDetailApplicationType] = useState<'leave' | 'resignation'>('leave')
 
   // 加载通知列表
   const loadNotifications = useCallback(async () => {
@@ -246,14 +251,28 @@ const NotificationsPage: React.FC = () => {
     // 获取通知的处理状态
     const processStatus = getNotificationProcessStatus(notification.type)
 
-    // 如果是已处理的申请，显示提示，不跳转
-    if (processStatus === 'processed') {
-      Taro.showToast({
-        title: '该申请已处理完成',
-        icon: 'none',
-        duration: 2000
-      })
-      return
+    // 如果是已处理的申请，显示详情弹窗
+    if (processStatus === 'processed' && notification.related_id) {
+      // 判断申请类型
+      if (
+        notification.type === 'leave_approved' ||
+        notification.type === 'leave_rejected' ||
+        notification.type === 'leave_application_submitted'
+      ) {
+        setDetailApplicationType('leave')
+        setDetailApplicationId(notification.related_id)
+        setDetailVisible(true)
+        return
+      } else if (
+        notification.type === 'resignation_approved' ||
+        notification.type === 'resignation_rejected' ||
+        notification.type === 'resignation_application_submitted'
+      ) {
+        setDetailApplicationType('resignation')
+        setDetailApplicationId(notification.related_id)
+        setDetailVisible(true)
+        return
+      }
     }
 
     // 如果是待处理的申请，跳转到相应页面
@@ -732,6 +751,14 @@ const NotificationsPage: React.FC = () => {
           </ScrollView>
         </View>
       </View>
+
+      {/* 申请详情弹窗 */}
+      <ApplicationDetailDialog
+        visible={detailVisible}
+        onClose={() => setDetailVisible(false)}
+        applicationId={detailApplicationId}
+        applicationType={detailApplicationType}
+      />
     </View>
   )
 }

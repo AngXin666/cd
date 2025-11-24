@@ -1805,6 +1805,20 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 
     const reviewerName = reviewer.name || '管理员'
 
+    // 获取申请人信息
+    const {data: applicant, error: applicantError} = await supabase
+      .from('profiles')
+      .select('name, phone')
+      .eq('id', application.user_id)
+      .maybeSingle()
+
+    if (applicantError || !applicant) {
+      console.error('获取申请人信息失败:', applicantError)
+      return false
+    }
+
+    const applicantName = applicant.name || '司机'
+
     // 更新审批状态
     const {error: updateError} = await supabase
       .from('leave_applications')
@@ -1896,11 +1910,17 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       const operatorText = admin.id === review.reviewed_by ? '您' : reviewerName
       const verbText = admin.id === review.reviewed_by ? '已' : ''
 
+      // 构建详细的通知消息
+      const detailedMessage =
+        admin.id === review.reviewed_by
+          ? `您${verbText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请时间：${application.start_date} 至 ${application.end_date}${application.reason ? `\n申请事由：${application.reason}` : ''}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
+          : `${operatorText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请人：${applicantName}${applicant.phone ? `（${applicant.phone}）` : ''}\n申请时间：${application.start_date} 至 ${application.end_date}${application.reason ? `\n申请事由：${application.reason}` : ''}\n审批人：${reviewerName}\n审批时间：${new Date(review.reviewed_at).toLocaleString('zh-CN')}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
+
       await createNotification({
         user_id: admin.id,
         type: notificationType,
-        title: `请假申请${verbText}${actionText}`,
-        message: `${operatorText}${verbText}${actionText}了${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+        title: `${leaveTypeLabel}申请${verbText}${actionText}`,
+        message: detailedMessage,
         related_id: applicationId
       })
     }
@@ -2095,6 +2115,20 @@ export async function reviewResignationApplication(
 
     const reviewerName = reviewer.name || '管理员'
 
+    // 获取申请人信息
+    const {data: applicant, error: applicantError} = await supabase
+      .from('profiles')
+      .select('name, phone')
+      .eq('id', application.user_id)
+      .maybeSingle()
+
+    if (applicantError || !applicant) {
+      console.error('获取申请人信息失败:', applicantError)
+      return false
+    }
+
+    const applicantName = applicant.name || '司机'
+
     // 更新审批状态
     const {error: updateError} = await supabase
       .from('resignation_applications')
@@ -2178,11 +2212,17 @@ export async function reviewResignationApplication(
       const operatorText = admin.id === review.reviewed_by ? '您' : reviewerName
       const verbText = admin.id === review.reviewed_by ? '已' : ''
 
+      // 构建详细的通知消息
+      const detailedMessage =
+        admin.id === review.reviewed_by
+          ? `您${verbText}${actionText}了${applicantName}的离职申请\n期望离职日期：${application.resignation_date}${application.reason ? `\n离职原因：${application.reason}` : ''}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
+          : `${operatorText}${actionText}了${applicantName}的离职申请\n申请人：${applicantName}${applicant.phone ? `（${applicant.phone}）` : ''}\n期望离职日期：${application.resignation_date}${application.reason ? `\n离职原因：${application.reason}` : ''}\n审批人：${reviewerName}\n审批时间：${new Date(review.reviewed_at).toLocaleString('zh-CN')}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
+
       await createNotification({
         user_id: admin.id,
         type: notificationType,
         title: `离职申请${verbText}${actionText}`,
-        message: `${operatorText}${verbText}${actionText}了离职申请（期望离职日期：${application.resignation_date}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+        message: detailedMessage,
         related_id: applicationId
       })
     }

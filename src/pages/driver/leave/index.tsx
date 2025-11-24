@@ -3,6 +3,7 @@ import Taro, {navigateTo, showModal, showToast, useDidShow, usePullDownRefresh} 
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
 import {
   deleteDraftLeaveApplication,
   deleteDraftResignationApplication,
@@ -38,6 +39,11 @@ const DriverLeave: React.FC = () => {
     monthlyLimit: 0
   })
   const [_loading, setLoading] = useState(true)
+
+  // 详情弹窗状态
+  const [detailVisible, setDetailVisible] = useState(false)
+  const [detailApplicationId, setDetailApplicationId] = useState('')
+  const [detailApplicationType, setDetailApplicationType] = useState<'leave' | 'resignation'>('leave')
 
   const loadData = useCallback(async () => {
     if (!user) return
@@ -216,6 +222,13 @@ const DriverLeave: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
+  // 查看申请详情
+  const handleViewDetail = (applicationId: string, type: 'leave' | 'resignation') => {
+    setDetailApplicationId(applicationId)
+    setDetailApplicationType(type)
+    setDetailVisible(true)
+  }
+
   const _handleEditDraft = (draftId: string, type: 'leave' | 'resignation') => {
     if (type === 'leave') {
       navigateTo({url: `/pages/driver/leave/apply/index?draftId=${draftId}`})
@@ -386,7 +399,10 @@ const DriverLeave: React.FC = () => {
                 </View>
               ) : (
                 _leaveApplications.map((app) => (
-                  <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                  <View
+                    key={app.id}
+                    className="bg-white rounded-lg p-4 mb-3 shadow cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => handleViewDetail(app.id, 'leave')}>
                     <View className="flex items-center justify-between mb-3">
                       <View className="flex items-center">
                         <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
@@ -434,7 +450,10 @@ const DriverLeave: React.FC = () => {
                 </View>
               ) : (
                 _resignationApplications.map((app) => (
-                  <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                  <View
+                    key={app.id}
+                    className="bg-white rounded-lg p-4 mb-3 shadow cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => handleViewDetail(app.id, 'resignation')}>
                     <View className="flex items-center justify-between mb-3">
                       <View className="flex items-center">
                         <View className="i-mdi-account-remove text-2xl text-orange-600 mr-2" />
@@ -627,6 +646,14 @@ const DriverLeave: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* 申请详情弹窗 */}
+      <ApplicationDetailDialog
+        visible={detailVisible}
+        onClose={() => setDetailVisible(false)}
+        applicationId={detailApplicationId}
+        applicationType={detailApplicationType}
+      />
     </View>
   )
 }
