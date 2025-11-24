@@ -141,8 +141,28 @@ const ApplyLeave: React.FC = () => {
         setMaxLeaveDays(settings.max_leave_days)
         setMonthlyLimit(settings.max_leave_days)
       }
+    } else {
+      // 如果有多个仓库，尝试读取上次选择的仓库
+      try {
+        const lastWarehouseId = Taro.getStorageSync(`leave_application_last_warehouse_${user.id}`)
+        if (lastWarehouseId) {
+          // 检查上次选择的仓库是否在当前可用仓库列表中
+          const isWarehouseAvailable = activeWarehouses.some((w) => w.id === lastWarehouseId)
+          if (isWarehouseAvailable) {
+            setWarehouseId(lastWarehouseId)
+
+            // 获取仓库设置
+            const settings = await getWarehouseSettings(lastWarehouseId)
+            if (settings) {
+              setMaxLeaveDays(settings.max_leave_days)
+              setMonthlyLimit(settings.max_leave_days)
+            }
+          }
+        }
+      } catch (error) {
+        console.log('读取上次选择的仓库失败:', error)
+      }
     }
-    // 如果有多个仓库，不自动选择，等待用户选择
 
     // 获取当月已批准和待审批的请假天数
     const now = new Date()
@@ -245,7 +265,17 @@ const ApplyLeave: React.FC = () => {
 
   const handleWarehouseChange = (e: any) => {
     const index = e.detail.value
-    setWarehouseId(warehouses[index].id)
+    const selectedWarehouseId = warehouses[index].id
+    setWarehouseId(selectedWarehouseId)
+
+    // 保存用户的选择到本地存储
+    if (user) {
+      try {
+        Taro.setStorageSync(`leave_application_last_warehouse_${user.id}`, selectedWarehouseId)
+      } catch (error) {
+        console.log('保存仓库选择失败:', error)
+      }
+    }
   }
 
   const handleQuickDaysChange = (e: any) => {

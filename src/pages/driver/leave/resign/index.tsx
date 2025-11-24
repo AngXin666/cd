@@ -87,8 +87,33 @@ const ApplyResignation: React.FC = () => {
         minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
         setMinDate(getLocalDateString(minDate))
       }
+    } else {
+      // 如果有多个仓库，尝试读取上次选择的仓库
+      try {
+        const lastWarehouseId = Taro.getStorageSync(`resignation_application_last_warehouse_${user.id}`)
+        if (lastWarehouseId) {
+          // 检查上次选择的仓库是否在当前可用仓库列表中
+          const isWarehouseAvailable = activeWarehouses.some((w) => w.id === lastWarehouseId)
+          if (isWarehouseAvailable) {
+            setWarehouseId(lastWarehouseId)
+
+            // 获取仓库设置
+            const settings = await getWarehouseSettings(lastWarehouseId)
+            if (settings) {
+              setNoticeDays(settings.resignation_notice_days)
+
+              // 计算最早可选日期
+              const today = new Date()
+              const minDate = new Date(today)
+              minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
+              setMinDate(getLocalDateString(minDate))
+            }
+          }
+        }
+      } catch (error) {
+        console.log('读取上次选择的仓库失败:', error)
+      }
     }
-    // 如果有多个仓库，不自动选择，等待用户选择
   }, [user, isEditMode])
 
   useEffect(() => {
@@ -140,7 +165,17 @@ const ApplyResignation: React.FC = () => {
 
   const handleWarehouseChange = (e: any) => {
     const index = e.detail.value
-    setWarehouseId(warehouses[index].id)
+    const selectedWarehouseId = warehouses[index].id
+    setWarehouseId(selectedWarehouseId)
+
+    // 保存用户的选择到本地存储
+    if (user) {
+      try {
+        Taro.setStorageSync(`resignation_application_last_warehouse_${user.id}`, selectedWarehouseId)
+      } catch (error) {
+        console.log('保存仓库选择失败:', error)
+      }
+    }
   }
 
   const handleSaveDraft = async () => {
