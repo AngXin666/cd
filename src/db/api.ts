@@ -3443,13 +3443,72 @@ export async function createUser(
 
     console.log('  ✅ 手机号可用，继续创建\n')
 
-    // 步骤2: 创建 profiles 表记录
-    console.log('📋 [步骤2] 创建 profiles 表记录')
+    // 步骤2: 先创建 auth.users 表记录
+    console.log('📋 [步骤2] 创建 auth.users 表记录')
+    const loginEmail = `${phone}@fleet.com`
+    console.log('  - 登录邮箱:', loginEmail)
+    console.log('  - 手机号:', phone)
+    console.log('  - 默认密码: 123456')
+    console.log('  - 使用函数: create_user_auth_account_first')
+
+    let userId: string | null = null
+
+    try {
+      const {data: rpcData, error: authError} = await supabase.rpc('create_user_auth_account_first', {
+        user_email: loginEmail,
+        user_phone: phone
+      })
+
+      console.log('  - RPC 调用完成')
+      console.log('  - 返回数据:', rpcData)
+      console.log('  - 错误信息:', authError)
+
+      if (authError) {
+        console.error('  ❌ 创建 auth.users 记录失败')
+        console.error('  错误代码:', authError.code)
+        console.error('  错误消息:', authError.message)
+        console.error('  错误详情:', JSON.stringify(authError, null, 2))
+        return null
+      }
+
+      if (!rpcData || rpcData.success === false) {
+        console.error('  ❌ 创建 auth.users 记录失败')
+        console.error('  错误:', rpcData?.error)
+        console.error('  详情:', rpcData?.details)
+        return null
+      }
+
+      userId = rpcData.user_id
+      console.log('  ✅ auth.users 记录创建成功')
+      console.log('  - 用户ID:', userId)
+      console.log('  - 邮箱:', rpcData.email)
+      console.log('  - 默认密码:', rpcData.default_password)
+    } catch (authError) {
+      console.error('  ❌ 创建 auth.users 记录异常')
+      console.error('  异常类型:', typeof authError)
+      console.error('  异常内容:', authError)
+      if (authError instanceof Error) {
+        console.error('  异常消息:', authError.message)
+        console.error('  异常堆栈:', authError.stack)
+      }
+      return null
+    }
+
+    if (!userId) {
+      console.error('  ❌ 未能获取用户ID')
+      return null
+    }
+
+    console.log('')
+
+    // 步骤3: 创建 profiles 表记录
+    console.log('📋 [步骤3] 创建 profiles 表记录')
     const insertData: any = {
+      id: userId,
       phone,
       name,
       role: role as UserRole,
-      email: `${phone}@fleet.com`
+      email: loginEmail
     }
 
     // 如果是司机，添加司机类型和入职日期
@@ -3467,6 +3526,8 @@ export async function createUser(
       console.error('  错误代码:', error.code)
       console.error('  错误消息:', error.message)
       console.error('  错误详情:', JSON.stringify(error, null, 2))
+      console.warn('  ⚠️ auth.users 记录已创建，但 profiles 记录创建失败')
+      console.warn('  💡 需要手动清理 auth.users 记录或稍后重试')
       return null
     }
 
@@ -3487,68 +3548,17 @@ export async function createUser(
     }
     console.log('  - 创建时间:', data.created_at)
     console.log('  - 完整数据:', JSON.stringify(data, null, 2))
-    console.log('')
-
-    // 步骤3: 创建 auth.users 表记录
-    console.log('📋 [步骤3] 创建 auth.users 表记录')
-    const loginEmail = `${phone}@fleet.com`
-    console.log('  - 目标用户ID:', data.id)
-    console.log('  - 登录邮箱:', loginEmail)
-    console.log('  - 手机号:', phone)
-    console.log('  - 默认密码: 123456')
-    console.log('  - 使用函数: create_user_auth_account')
-
-    try {
-      const {data: rpcData, error: authError} = await supabase.rpc('create_user_auth_account', {
-        target_user_id: data.id,
-        user_email: loginEmail,
-        user_phone: phone
-      })
-
-      console.log('  - RPC 调用完成')
-      console.log('  - 返回数据:', rpcData)
-      console.log('  - 错误信息:', authError)
-
-      if (authError) {
-        console.error('  ❌ 创建 auth.users 记录失败')
-        console.error('  错误代码:', authError.code)
-        console.error('  错误消息:', authError.message)
-        console.error('  错误详情:', JSON.stringify(authError, null, 2))
-        console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
-        console.warn('  💡 用户可以通过手机号验证码登录')
-        console.warn('  💡 或稍后通过编辑用户信息创建登录账号')
-      } else if (rpcData && rpcData.success === false) {
-        console.error('  ❌ 创建 auth.users 记录失败')
-        console.error('  错误:', rpcData.error)
-        console.error('  详情:', rpcData.details)
-        console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
-      } else {
-        console.log('  ✅ auth.users 记录创建成功')
-        console.log('  - 用户ID:', rpcData.user_id)
-        console.log('  - 邮箱:', rpcData.email)
-        console.log('  - 默认密码:', rpcData.default_password)
-        console.log('  💡 用户可以使用以下方式登录:')
-        console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
-        console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-        console.log('    3. 手机号 + 验证码')
-      }
-    } catch (authError) {
-      console.error('  ❌ 创建 auth.users 记录异常')
-      console.error('  异常类型:', typeof authError)
-      console.error('  异常内容:', authError)
-      if (authError instanceof Error) {
-        console.error('  异常消息:', authError.message)
-        console.error('  异常堆栈:', authError.stack)
-      }
-      console.warn('  ⚠️ profiles 记录已创建，但 auth.users 记录创建失败')
-    }
 
     console.log('')
     console.log('='.repeat(80))
     console.log('✅ [createUser] 函数执行完成')
     console.log('📊 最终结果:')
+    console.log('  - auth.users 表: ✅ 创建成功')
     console.log('  - profiles 表: ✅ 创建成功')
-    console.log('  - auth.users 表: 请查看上方日志')
+    console.log('  💡 用户可以使用以下方式登录:')
+    console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
+    console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
+    console.log('    3. 手机号 + 验证码')
     console.log('  - 返回数据:', JSON.stringify(data, null, 2))
     console.log(`${'='.repeat(80)}\n`)
 
