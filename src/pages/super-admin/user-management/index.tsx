@@ -19,6 +19,7 @@ import {
   getDriverLicense,
   getDriverWarehouseIds,
   getWarehouseAssignmentsByDriver,
+  getWarehouseAssignmentsByManager,
   getWarehouseManagers,
   insertWarehouseAssignment,
   updateProfile
@@ -171,10 +172,18 @@ const UserManagement: React.FC = () => {
 
         const userDataPromises = data.map(async (u) => {
           // 并行加载每个用户的所有信息
-          const [license, detail, assignments] = await Promise.all([
+          let assignments: {warehouse_id: string}[] = []
+
+          // 根据角色加载不同的仓库分配
+          if (u.role === 'driver') {
+            assignments = await getWarehouseAssignmentsByDriver(u.id)
+          } else if (u.role === 'manager' || u.role === 'super_admin') {
+            assignments = await getWarehouseAssignmentsByManager(u.id)
+          }
+
+          const [license, detail] = await Promise.all([
             u.role === 'driver' ? getDriverLicense(u.id) : Promise.resolve(null),
-            u.role === 'driver' ? getDriverDetailInfo(u.id) : Promise.resolve(null),
-            u.role === 'driver' ? getWarehouseAssignmentsByDriver(u.id) : Promise.resolve([])
+            u.role === 'driver' ? getDriverDetailInfo(u.id) : Promise.resolve(null)
           ])
 
           return {

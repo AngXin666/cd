@@ -956,6 +956,26 @@ export async function getWarehouseAssignmentsByDriver(driverId: string): Promise
 }
 
 /**
+ * 获取指定管理员的仓库分配列表
+ */
+export async function getWarehouseAssignmentsByManager(
+  managerId: string
+): Promise<{id: string; manager_id: string; warehouse_id: string; created_at: string}[]> {
+  const {data, error} = await supabase
+    .from('manager_warehouses')
+    .select('*')
+    .eq('manager_id', managerId)
+    .order('created_at', {ascending: false})
+
+  if (error) {
+    console.error('获取管理员仓库分配失败:', error)
+    return []
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
+/**
  * 删除指定司机的所有仓库分配
  */
 export async function deleteWarehouseAssignmentsByDriver(driverId: string): Promise<boolean> {
