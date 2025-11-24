@@ -3,6 +3,7 @@ import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@taro
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
+import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
 import {getCurrentUserProfile} from '@/db/api'
 import type {Profile} from '@/db/types'
@@ -340,9 +341,20 @@ const ManagerHome: React.FC = () => {
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 欢迎卡片 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">管理员工作台</Text>
-            <Text className="text-blue-100 text-sm block">欢迎回来，{profile?.name || profile?.phone || '管理员'}</Text>
+          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg relative">
+            {/* 通知铃铛 - 右上角 */}
+            {user && (
+              <View className="absolute top-4 right-4">
+                <NotificationBell userId={user.id} />
+              </View>
+            )}
+
+            <View className="pr-12">
+              <Text className="text-white text-2xl font-bold block mb-2">管理员工作台</Text>
+              <Text className="text-blue-100 text-sm block">
+                欢迎回来，{profile?.name || profile?.phone || '管理员'}
+              </Text>
+            </View>
           </View>
 
           {/* 通知栏 */}
