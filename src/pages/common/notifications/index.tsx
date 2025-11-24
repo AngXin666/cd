@@ -371,11 +371,17 @@ const NotificationsPage: React.FC = () => {
     })
 
     // 按照今天、昨天、历史的顺序排列
-    const order = ['今天', '昨天', '历史']
-    order.forEach((title) => {
-      const notifs = groupMap.get(title)
+    const order: Array<'today' | 'yesterday' | 'history'> = ['today', 'yesterday', 'history']
+    const titleMap = {
+      today: '今天',
+      yesterday: '昨天',
+      history: '更早'
+    }
+
+    order.forEach((key) => {
+      const notifs = groupMap.get(key)
       if (notifs && notifs.length > 0) {
-        groups.push({title, notifications: notifs})
+        groups.push({title: titleMap[key], notifications: notifs})
       }
     })
 
