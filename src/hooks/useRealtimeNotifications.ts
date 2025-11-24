@@ -237,12 +237,22 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     }
 
     // 订阅通道
-    channel.subscribe((status) => {
+    channel.subscribe((status, err) => {
       console.log('📡 实时通知订阅状态:', status)
       if (status === 'SUBSCRIBED') {
         console.log('✅ 实时通知订阅成功！')
       } else if (status === 'CHANNEL_ERROR') {
-        console.error('❌ 实时通知订阅失败！')
+        console.error('❌ 实时通知订阅失败！', err)
+        console.error('订阅失败详情:', {
+          userId,
+          userRole,
+          channelName: `notifications_${userId}`,
+          error: err
+        })
+      } else if (status === 'TIMED_OUT') {
+        console.error('⏱️ 实时通知订阅超时！')
+      } else if (status === 'CLOSED') {
+        console.warn('🔒 实时通知订阅已关闭')
       }
     })
 
