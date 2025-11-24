@@ -1132,7 +1132,9 @@ const UserManagement: React.FC = () => {
                 </Text>
                 <Text className="text-xs text-gray-600 block mb-1">总用户数: {users.length}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">过滤后用户数: {filteredUsers.length}</Text>
-                <Text className="text-xs text-gray-600 block mb-1">当前角色筛选: {roleFilter}</Text>
+                <Text className="text-xs text-gray-600 block mb-1">
+                  当前角色筛选: {activeTab === 'manager' ? '车队长 + 老板' : getRoleText(roleFilter as UserRole)}
+                </Text>
                 <Text className="text-xs text-gray-600 block mb-1">搜索关键词: {searchKeyword || '无'}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">当前用户ID: {user?.id || '未登录'}</Text>
                 <Text className="text-xs text-gray-600 block">请查看浏览器控制台获取详细日志</Text>
