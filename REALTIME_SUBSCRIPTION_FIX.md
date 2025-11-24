@@ -5,17 +5,32 @@
 **错误信息**：
 ```
 useRealtimeNotifications.ts:246 ❌ 实时通知订阅失败！
+_onConnClose @ @supabase_supabase-js.js
 ```
 
-**影响**：
-- 实时通知功能无法正常工作
-- 用户无法收到实时通知（请假申请、离职申请、考勤打卡等）
+**现象**：
+- 控制台显示 WebSocket 连接关闭错误
+- 实时通知订阅失败
 
 ## 🔍 问题原因
 
-Supabase 客户端配置中**没有启用 Realtime 功能**，导致实时订阅失败。
+### 根本原因
 
-原配置（`src/client/supabase.ts`）：
+WebSocket 连接在当前环境下不可用，主要原因：
+
+1. **Taro 环境限制**
+   - 使用了自定义的 `fetch` 函数（`Taro.request`）
+   - Supabase Realtime 需要原生 WebSocket 支持
+   - Taro 的 WebSocket API 与浏览器原生 WebSocket 不兼容
+
+2. **小程序环境限制**
+   - 小程序对 WebSocket 有特殊要求
+   - 需要配置合法域名
+   - 某些网络环境可能阻止 WebSocket 连接
+
+### 初始配置问题
+
+原配置（`src/client/supabase.ts`）缺少 Realtime 配置：
 ```typescript
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: customFetch },
