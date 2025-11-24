@@ -22,8 +22,10 @@ const RealNotificationBar: React.FC = () => {
   const {user} = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [scrollCount, setScrollCount] = useState(0) // 当前通知已滚动次数
+  const [scrollCount, setScrollCount] = useState(0) // 当前通知已滚动次数（0-2，共3次）
+  const [isScrolling, setIsScrolling] = useState(false) // 是否正在滚动
   const scrollTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const pauseTimerRef = useRef<NodeJS.Timeout | null>(null)
   const switchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // 加载通知
@@ -118,48 +120,69 @@ const RealNotificationBar: React.FC = () => {
 
     // 清理之前的定时器
     if (scrollTimerRef.current) {
-      clearInterval(scrollTimerRef.current)
+      clearTimeout(scrollTimerRef.current)
+      scrollTimerRef.current = null
+    }
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current)
+      pauseTimerRef.current = null
     }
     if (switchTimerRef.current) {
       clearTimeout(switchTimerRef.current)
+      switchTimerRef.current = null
     }
 
-    // 重置滚动次数
+    // 重置滚动次数和状态
     setScrollCount(0)
+    setIsScrolling(false)
 
-    // 每次滚动动画持续时间（根据文字长度调整）
-    const scrollDuration = 5000 // 5秒完成一次滚动
+    // 滚动动画持续时间
+    const scrollDuration = 8000 // 8秒完成一次滚动
+    const pauseDuration = 2000 // 停留2秒
 
-    // 滚动计数器
-    let count = 0
-
-    // 启动滚动定时器
-    scrollTimerRef.current = setInterval(() => {
-      count++
-      setScrollCount(count)
-      logger.info('通知滚动', {currentIndex, scrollCount: count})
-
-      // 滚动3次后切换到下一条通知
+    // 开始滚动循环
+    const startScrollCycle = (count: number) => {
       if (count >= 3) {
-        // 清理滚动定时器
-        if (scrollTimerRef.current) {
-          clearInterval(scrollTimerRef.current)
-          scrollTimerRef.current = null
-        }
-
-        // 延迟切换到下一条通知
+        // 滚动3次后，切换到下一条通知
+        logger.info('滚动3次完成，切换到下一条通知', {currentIndex})
         switchTimerRef.current = setTimeout(() => {
           setCurrentIndex((prev) => (prev + 1) % notifications.length)
           setScrollCount(0)
-          logger.info('切换到下一条通知', {nextIndex: (currentIndex + 1) % notifications.length})
-        }, 500) // 切换延迟500ms
+          setIsScrolling(false)
+        }, 500)
+        return
       }
-    }, scrollDuration)
+
+      // 开始滚动
+      logger.info('开始滚动', {currentIndex, scrollCount: count + 1})
+      setScrollCount(count)
+      setIsScrolling(true)
+
+      // 滚动完成后停留
+      scrollTimerRef.current = setTimeout(() => {
+        logger.info('滚动完成，停留2秒', {currentIndex, scrollCount: count + 1})
+        setIsScrolling(false)
+
+        // 停留2秒后开始下一次滚动
+        pauseTimerRef.current = setTimeout(() => {
+          startScrollCycle(count + 1)
+        }, pauseDuration)
+      }, scrollDuration)
+    }
+
+    // 延迟500ms后开始第一次滚动
+    const initialTimer = setTimeout(() => {
+      startScrollCycle(0)
+    }, 500)
 
     // 清理函数
     return () => {
+      clearTimeout(initialTimer)
       if (scrollTimerRef.current) {
-        clearInterval(scrollTimerRef.current)
+        clearTimeout(scrollTimerRef.current)
+      }
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current)
       }
       if (switchTimerRef.current) {
         clearTimeout(switchTimerRef.current)
@@ -336,10 +359,11 @@ const RealNotificationBar: React.FC = () => {
         <View className="flex-1 min-w-0 overflow-hidden relative">
           {/* 滚动文字 */}
           <View
+            key={`${currentIndex}-${scrollCount}-${isScrolling}`}
             className="whitespace-nowrap"
             style={{
-              animation: `scroll-left 5s linear ${scrollCount}`,
-              animationIterationCount: 1
+              animation: isScrolling ? 'scroll-left 8s linear' : 'none',
+              transform: isScrolling ? 'translateX(0)' : 'translateX(0)'
             }}>
             <Text className="text-sm font-medium text-foreground mr-4">{currentNotification.title}</Text>
             <Text className="text-xs text-muted-foreground">{currentNotification.message}</Text>
@@ -358,14 +382,16 @@ const RealNotificationBar: React.FC = () => {
       </View>
 
       {/* 滚动进度指示器 */}
-      {notifications.length > 1 && (
-        <View className="h-1 bg-muted">
+      <View className="h-1 bg-muted flex gap-1 px-1">
+        {[0, 1, 2].map((index) => (
           <View
-            className="h-full bg-primary transition-all duration-300"
-            style={{width: `${((scrollCount % 3) / 3) * 100}%`}}
+            key={index}
+            className={`flex-1 h-full rounded-full transition-all duration-300 ${
+              index <= scrollCount ? 'bg-primary' : 'bg-muted-foreground/30'
+            }`}
           />
-        </View>
-      )}
+        ))}
+      </View>
     </View>
   )
 }
