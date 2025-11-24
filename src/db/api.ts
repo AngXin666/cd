@@ -4215,6 +4215,7 @@ export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApp
       .lte('start_date', today)
       .gte('end_date', today)
       .order('created_at', {ascending: false})
+      .limit(1)
       .maybeSingle()
 
     if (error) {
