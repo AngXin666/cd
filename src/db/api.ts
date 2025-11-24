@@ -1925,7 +1925,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       })
     }
 
-    console.log(`✅ 已通知 ${superAdmins.length} 位超级管理员`)
+    console.log(`✅ 已通知 ${superAdmins.length} 位老板`)
     return true
   } catch (error) {
     console.error('审批请假申请异常:', error)
@@ -2227,7 +2227,7 @@ export async function reviewResignationApplication(
       })
     }
 
-    console.log(`✅ 已通知 ${superAdmins.length} 位超级管理员`)
+    console.log(`✅ 已通知 ${superAdmins.length} 位老板`)
     return true
   } catch (error) {
     console.error('审批离职申请异常:', error)
@@ -3192,7 +3192,7 @@ export async function getAllManagers(): Promise<Profile[]> {
  * 获取所有老板列表
  */
 export async function getAllSuperAdmins(): Promise<Profile[]> {
-  console.log('🔍 getAllSuperAdmins: 开始获取超级管理员列表')
+  console.log('🔍 getAllSuperAdmins: 开始获取老板列表')
   const {data, error} = await supabase
     .from('profiles')
     .select('*')
@@ -3200,11 +3200,11 @@ export async function getAllSuperAdmins(): Promise<Profile[]> {
     .order('created_at', {ascending: false})
 
   if (error) {
-    console.error('❌ 获取超级管理员列表失败:', error)
+    console.error('❌ 获取老板列表失败:', error)
     return []
   }
 
-  console.log(`✅ getAllSuperAdmins: 获取到 ${data?.length || 0} 个超级管理员`)
+  console.log(`✅ getAllSuperAdmins: 获取到 ${data?.length || 0} 个老板`)
   return Array.isArray(data) ? data : []
 }
 
@@ -3995,7 +3995,7 @@ export async function getSuperAdminStats(): Promise<{
       totalUsers
     }
   } catch (error) {
-    console.error('获取超级管理员统计数据失败:', error)
+    console.error('获取老板统计数据失败:', error)
     return null
   }
 }
@@ -4457,7 +4457,7 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
     const {data: vehiclesData, error: vehiclesError} = await supabase
       .from('vehicles')
       .select('*')
-      // 移除 return_time 限制，超级管理员应该能看到所有车辆
+      // 移除 return_time 限制，老板应该能看到所有车辆
       .order('plate_number', {ascending: true})
       .order('pickup_time', {ascending: false})
 
@@ -5700,7 +5700,7 @@ export async function createNotificationForAllManagers(notification: {
   try {
     logger.info('为所有管理员创建通知', notification)
 
-    // 获取所有管理员和超级管理员
+    // 获取所有车队长和老板
     const {data: managers, error: managersError} = await supabase
       .from('profiles')
       .select('id')
@@ -5761,25 +5761,25 @@ export async function createNotificationForAllSuperAdmins(notification: {
   try {
     logger.info('为所有老板创建通知', notification)
 
-    // 获取所有超级管理员
+    // 获取所有老板
     const {data: superAdmins, error: superAdminsError} = await supabase
       .from('profiles')
       .select('id')
       .eq('role', 'super_admin')
 
     if (superAdminsError) {
-      logger.error('获取超级管理员列表失败', superAdminsError)
+      logger.error('获取老板列表失败', superAdminsError)
       return 0
     }
 
     if (!superAdmins || superAdmins.length === 0) {
-      logger.warn('没有找到超级管理员')
+      logger.warn('没有找到老板')
       return 0
     }
 
-    logger.info('找到超级管理员', {count: superAdmins.length})
+    logger.info('找到老板', {count: superAdmins.length})
 
-    // 为每个超级管理员创建通知
+    // 为每个老板创建通知
     const notifications = superAdmins.map((admin) => ({
       user_id: admin.id,
       type: notification.type,
