@@ -275,6 +275,51 @@ export const driverTypeLabels = {
 ## 提交记录
 
 - `218d7a2` - 优化通知内容显示：显示司机类型和姓名
+- `88e494c` - 修复通知显示真实姓名：从行驶证获取司机真实姓名
+
+## 后续修复
+
+### 问题：只显示司机类型，不显示真实姓名
+
+用户反馈修改后的通知内容只显示了"带车司机"，没有显示真实姓名。
+
+**原因分析**：
+- profiles 表的 `name` 字段值为"司机"（占位符）
+- 司机的真实姓名存储在 `driver_licenses` 表的 `id_card_name` 字段
+- 第一版修复只从 profiles 表获取 name 字段
+
+**最终解决方案**：
+```typescript
+// 使用 JOIN 查询获取行驶证信息
+const {data} = await supabase
+  .from('profiles')
+  .select(`
+    name,
+    driver_type,
+    driver_licenses (
+      id_card_name
+    )
+  `)
+  .eq('id', userId)
+  .maybeSingle()
+
+// 优先使用行驶证上的真实姓名
+let driverName = '未知'
+if (data.driver_licenses && data.driver_licenses.length > 0) {
+  driverName = data.driver_licenses[0].id_card_name || data.name || '未知'
+} else {
+  driverName = data.name || '未知'
+}
+```
+
+**姓名获取优先级**：
+1. 第一优先：`driver_licenses.id_card_name`（行驶证真实姓名）
+2. 第二优先：`profiles.name`（用户设置的姓名）
+3. 第三优先：`"未知"`（兜底值）
+
+**最终效果**：
+- 通知内容：**"带车司机 邱吉兴 提交了事假申请..."**
+- 正确显示司机类型和真实姓名
 
 ## 总结
 
