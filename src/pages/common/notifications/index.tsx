@@ -624,12 +624,12 @@ const NotificationsPage: React.FC = () => {
                         return (
                           <View
                             key={notification.id}
-                            className={`bg-card rounded-xl p-4 border-2 transition-all ${
+                            className={`bg-white rounded-xl p-4 border-2 transition-all ${
                               isPending
-                                ? 'border-warning/50 shadow-md hover:shadow-lg hover:border-warning'
+                                ? 'border-orange-300 shadow-md hover:shadow-lg hover:border-orange-500'
                                 : notification.is_read
-                                  ? 'border-border/50 hover:border-border'
-                                  : 'border-primary/50 shadow-sm hover:shadow-md hover:border-primary'
+                                  ? 'border-gray-200 hover:border-gray-300'
+                                  : 'border-blue-300 shadow-sm hover:shadow-md hover:border-blue-500'
                             } ${isProcessed ? 'opacity-75' : ''}`}
                             onClick={() => handleNotificationClick(notification)}>
                             {/* 通知头部：状态指示器 + 标题 + 状态标签 */}
@@ -638,18 +638,18 @@ const NotificationsPage: React.FC = () => {
                               <View
                                 className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${
                                   isPending
-                                    ? 'bg-warning animate-pulse'
+                                    ? 'bg-orange-500 animate-pulse'
                                     : notification.is_read
-                                      ? 'bg-success'
-                                      : 'bg-destructive animate-pulse'
+                                      ? 'bg-green-500'
+                                      : 'bg-red-500 animate-pulse'
                                 }`}></View>
 
                               {/* 标题和状态标签 */}
                               <View className="flex-1 min-w-0">
-                                <View className="flex items-center gap-2 mb-1">
+                                <View className="flex items-center gap-2 mb-1 flex-wrap">
                                   <Text
                                     className={`text-base font-semibold ${
-                                      notification.is_read ? 'text-muted-foreground' : 'text-foreground'
+                                      notification.is_read ? 'text-gray-500' : 'text-gray-900'
                                     }`}>
                                     {notification.title}
                                   </Text>
@@ -657,23 +657,36 @@ const NotificationsPage: React.FC = () => {
                                   <View
                                     className={`px-2 py-0.5 rounded-full ${
                                       isPending
-                                        ? 'bg-warning/20'
+                                        ? 'bg-orange-100'
                                         : isProcessed
                                           ? statusColor.includes('success')
-                                            ? 'bg-success/20'
+                                            ? 'bg-green-100'
                                             : statusColor.includes('destructive')
-                                              ? 'bg-destructive/20'
-                                              : 'bg-muted'
-                                          : 'bg-muted'
+                                              ? 'bg-red-100'
+                                              : 'bg-gray-100'
+                                          : 'bg-gray-100'
                                     }`}>
-                                    <Text className={`text-xs font-medium ${statusColor}`}>{statusLabel}</Text>
+                                    <Text
+                                      className={`text-xs font-medium ${
+                                        isPending
+                                          ? 'text-orange-600'
+                                          : isProcessed
+                                            ? statusColor.includes('success')
+                                              ? 'text-green-600'
+                                              : statusColor.includes('destructive')
+                                                ? 'text-red-600'
+                                                : 'text-gray-600'
+                                            : 'text-gray-600'
+                                      }`}>
+                                      {statusLabel}
+                                    </Text>
                                   </View>
                                 </View>
                               </View>
 
                               {/* 删除按钮 */}
                               <View
-                                className="i-mdi-delete text-xl text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
+                                className="i-mdi-delete text-xl text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleDelete(notification.id)
@@ -682,15 +695,13 @@ const NotificationsPage: React.FC = () => {
 
                             {/* 通知内容 */}
                             <View className="ml-6">
-                              <Text className="text-sm text-muted-foreground mb-3 leading-relaxed">
-                                {notification.message}
-                              </Text>
+                              <Text className="text-sm text-gray-600 mb-3 leading-relaxed">{notification.message}</Text>
 
                               {/* 通知底部：时间和操作提示 */}
                               <View className="flex items-center justify-between">
                                 <View className="flex items-center gap-2">
-                                  <View className="i-mdi-clock-outline text-sm text-muted-foreground"></View>
-                                  <Text className="text-xs text-muted-foreground">
+                                  <View className="i-mdi-clock-outline text-sm text-gray-400"></View>
+                                  <Text className="text-xs text-gray-500">
                                     {formatNotificationTime(notification.created_at)}
                                   </Text>
                                 </View>
@@ -698,14 +709,14 @@ const NotificationsPage: React.FC = () => {
                                 {/* 操作提示 */}
                                 {isPending && (
                                   <View className="flex items-center gap-1">
-                                    <View className="i-mdi-hand-pointing-right text-sm text-warning"></View>
-                                    <Text className="text-xs text-warning font-medium">点击处理</Text>
+                                    <View className="i-mdi-hand-pointing-right text-sm text-orange-500"></View>
+                                    <Text className="text-xs text-orange-600 font-medium">点击处理</Text>
                                   </View>
                                 )}
                                 {isProcessed && (
                                   <View className="flex items-center gap-1">
-                                    <View className="i-mdi-check-circle text-sm text-success"></View>
-                                    <Text className="text-xs text-muted-foreground">已处理</Text>
+                                    <View className="i-mdi-check-circle text-sm text-green-500"></View>
+                                    <Text className="text-xs text-gray-500">已处理</Text>
                                   </View>
                                 )}
                               </View>
