@@ -5883,3 +5883,97 @@ export async function getDriverName(userId: string): Promise<string> {
     return '未知司机'
   }
 }
+
+// ============================================
+// 数据库结构管理 API
+// ============================================
+
+/**
+ * 数据库表信息
+ */
+export interface DatabaseTable {
+  table_name: string
+  table_schema: string
+  table_type: string
+}
+
+/**
+ * 数据库列信息
+ */
+export interface DatabaseColumn {
+  table_name: string
+  column_name: string
+  data_type: string
+  is_nullable: string
+  column_default: string | null
+  character_maximum_length: number | null
+  numeric_precision: number | null
+  numeric_scale: number | null
+}
+
+/**
+ * 数据库约束信息
+ */
+export interface DatabaseConstraint {
+  constraint_name: string
+  table_name: string
+  constraint_type: string
+  column_name: string
+}
+
+/**
+ * 获取所有表信息
+ */
+export async function getDatabaseTables(): Promise<DatabaseTable[]> {
+  try {
+    const {data, error} = await supabase.rpc('get_database_tables')
+
+    if (error) {
+      console.error('获取数据库表信息失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取数据库表信息异常:', error)
+    return []
+  }
+}
+
+/**
+ * 获取指定表的列信息
+ */
+export async function getTableColumns(tableName: string): Promise<DatabaseColumn[]> {
+  try {
+    const {data, error} = await supabase.rpc('get_table_columns', {table_name_param: tableName})
+
+    if (error) {
+      console.error('获取表列信息失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取表列信息异常:', error)
+    return []
+  }
+}
+
+/**
+ * 获取指定表的约束信息
+ */
+export async function getTableConstraints(tableName: string): Promise<DatabaseConstraint[]> {
+  try {
+    const {data, error} = await supabase.rpc('get_table_constraints', {table_name_param: tableName})
+
+    if (error) {
+      console.error('获取表约束信息失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取表约束信息异常:', error)
+    return []
+  }
+}
