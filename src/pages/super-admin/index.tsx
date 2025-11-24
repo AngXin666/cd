@@ -29,7 +29,7 @@ const SuperAdminHome: React.FC = () => {
   const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
-    hideEmpty: true // 隐藏完全没有数据的仓库
+    hideEmpty: false // 超级管理员显示所有仓库，包括没有数据的仓库
   })
 
   // 使用排序后的仓库列表
