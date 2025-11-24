@@ -8,7 +8,11 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import {supabase} from '@/client/supabase'
 import {getUserNotifications, type Notification} from '@/db/notificationApi'
+import {createLogger} from '@/utils/logger'
+
+const logger = createLogger('RealNotificationBar')
 
 const RealNotificationBar: React.FC = () => {
   const {user} = useAuth()
@@ -25,8 +29,9 @@ const RealNotificationBar: React.FC = () => {
       // 只显示未读通知
       const unreadNotifications = data.filter((n) => !n.is_read)
       setNotifications(unreadNotifications)
+      logger.info('通知加载完成', {count: unreadNotifications.length})
     } catch (error) {
-      console.error('加载通知失败:', error)
+      logger.error('加载通知失败', error)
     }
   }, [user])
 
@@ -39,6 +44,50 @@ const RealNotificationBar: React.FC = () => {
   useDidShow(() => {
     loadNotifications()
   })
+
+  // 实时订阅通知更新
+  useEffect(() => {
+    if (!user) return
+
+    logger.info('开始订阅通知实时更新', {userId: user.id})
+
+    // 订阅通知表的变化
+    const channel = supabase
+      .channel('notification-bar-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}` // 只监听当前用户的通知
+        },
+        (payload) => {
+          logger.info('收到通知实时更新', {event: payload.eventType, payload})
+
+          // 当有新通知插入或通知状态更新时，重新加载通知列表
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            logger.info('重新加载通知列表')
+            loadNotifications()
+          }
+
+          // 当通知被删除时，也重新加载
+          if (payload.eventType === 'DELETE') {
+            logger.info('通知被删除，重新加载列表')
+            loadNotifications()
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('通知订阅状态', {status})
+      })
+
+    // 清理订阅
+    return () => {
+      logger.info('取消订阅通知实时更新')
+      supabase.removeChannel(channel)
+    }
+  }, [user, loadNotifications])
 
   // 自动切换通知
   useEffect(() => {
