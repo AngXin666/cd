@@ -183,8 +183,8 @@ const DriverProfile: React.FC = () => {
   const formatRole = (role: string): string => {
     const roleMap: Record<string, string> = {
       driver: '司机',
-      manager: '管理员',
-      super_admin: '超级管理员'
+      manager: '车队长',
+      super_admin: '老板'
     }
     return roleMap[role] || role
   }

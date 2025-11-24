@@ -14,8 +14,8 @@ const AdminDashboard: React.FC = () => {
 
   const roleOptions = [
     {label: '司机', value: 'driver'},
-    {label: '管理员', value: 'manager'},
-    {label: '超级管理员', value: 'super_admin'}
+    {label: '车队长', value: 'manager'},
+    {label: '老板', value: 'super_admin'}
   ]
 
   const loadUsers = useCallback(async () => {
@@ -70,9 +70,9 @@ const AdminDashboard: React.FC = () => {
       case 'driver':
         return '司机'
       case 'manager':
-        return '管理员'
+        return '车队长'
       case 'super_admin':
-        return '超级管理员'
+        return '老板'
       default:
         return '未知'
     }

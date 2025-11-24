@@ -30,7 +30,7 @@ const SuperAdminHome: React.FC = () => {
   const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
-    hideEmpty: false // 超级管理员显示所有仓库，包括没有数据的仓库
+    hideEmpty: false // 老板显示所有仓库，包括没有数据的仓库
   })
 
   // 使用排序后的仓库列表
@@ -39,7 +39,7 @@ const SuperAdminHome: React.FC = () => {
   // 获取当前选中的仓库ID（直接使用仓库列表，不再有"所有仓库"选项）
   const currentWarehouseId = warehouses[currentWarehouseIndex]?.id
 
-  // 使用超级管理员仪表板数据管理Hook（带缓存和实时更新）
+  // 使用老板仪表板数据管理Hook（带缓存和实时更新）
   const {
     data: dashboardStats,
     loading: dashboardLoading,
@@ -135,7 +135,7 @@ const SuperAdminHome: React.FC = () => {
           // 添加多条通知以展示滚动效果
           addNotification({
             type: 'system',
-            title: '欢迎使用超级管理员控制台',
+            title: '欢迎使用老板控制台',
             content: '您拥有最高权限，可以管理所有仓库、用户和系统设置'
           })
 
@@ -297,10 +297,8 @@ const SuperAdminHome: React.FC = () => {
             )}
 
             <View className="pr-12">
-              <Text className="text-white text-2xl font-bold block mb-2">超级管理员控制台</Text>
-              <Text className="text-blue-100 text-sm block">
-                欢迎回来，{profile?.name || profile?.phone || '超级管理员'}
-              </Text>
+              <Text className="text-white text-2xl font-bold block mb-2">老板控制台</Text>
+              <Text className="text-blue-100 text-sm block">欢迎回来，{profile?.name || profile?.phone || '老板'}</Text>
             </View>
           </View>
 

@@ -91,12 +91,12 @@ const EditNamePage: React.FC = () => {
       const success = await updateUserProfile(user.id, updateData)
 
       if (success) {
-        // 如果是普通管理员，通知所有超级管理员
+        // 如果是车队长，通知所有老板
         if (profile.role === 'manager') {
           await createNotificationForAllSuperAdmins({
             type: 'system_notice',
-            title: '管理员信息更新',
-            message: `管理员 ${name.trim()} (${phone.trim()}) 更新了实名信息，请审核确认。`
+            title: '车队长信息更新',
+            message: `车队长 ${name.trim()} (${phone.trim()}) 更新了实名信息，请审核确认。`
           })
         }
 
@@ -136,7 +136,7 @@ const EditNamePage: React.FC = () => {
               <Text className="text-sm text-blue-900 block mb-1 font-medium">温馨提示</Text>
               <Text className="text-xs text-blue-700 block">请填写真实姓名和手机号，以便系统管理和联系。</Text>
               {profile?.role === 'manager' && (
-                <Text className="text-xs text-blue-700 block mt-1">修改后将通知超级管理员审核。</Text>
+                <Text className="text-xs text-blue-700 block mt-1">修改后将通知老板审核。</Text>
               )}
             </View>
           </View>

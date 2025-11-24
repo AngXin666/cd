@@ -119,9 +119,9 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     const channel = supabase.channel(`notifications_${userId}`)
     console.log('📡 创建新的订阅通道:', `notifications_${userId}`)
 
-    // 管理员和超级管理员：监听新的请假申请
+    // 车队长和老板：监听新的请假申请
     if (userRole === 'manager' || userRole === 'super_admin') {
-      console.log('👔 设置管理员/超级管理员监听')
+      console.log('👔 设置车队长/老板监听')
 
       channel.on(
         'postgres_changes',

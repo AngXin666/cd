@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '超级管理员控制台',
+  navigationBarTitleText: '老板控制台',
   enableShareAppMessage: false,
   enablePullDownRefresh: true,
   backgroundTextStyle: 'dark'

@@ -214,9 +214,9 @@ const UserDetail: React.FC = () => {
       case 'driver':
         return '司机'
       case 'manager':
-        return '管理员'
-      case 'admin':
-        return '超级管理员'
+        return '车队长'
+      case 'super_admin':
+        return '老板'
       default:
         return '未知'
     }

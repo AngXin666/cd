@@ -1,7 +1,7 @@
 /**
- * 超级管理端 - 用户管理页面
- * 功能：管理所有用户（司机、管理员、超级管理员）
- * 参考普通管理端的司机管理实现
+ * 老板端 - 用户管理页面
+ * 功能：管理所有用户（司机、车队长、老板）
+ * 参考车队长端的司机管理实现
  */
 
 import {Checkbox, CheckboxGroup, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
@@ -465,7 +465,7 @@ const UserManagement: React.FC = () => {
             relatedId: targetUser.id
           })
 
-          // 2. 超级管理员操作 → 通知该司机所属仓库的普通管理员
+          // 2. 老板操作 → 通知该司机所属仓库的车队长
           const currentUserProfile = await getCurrentUserWithRealName()
 
           if (currentUserProfile && currentUserProfile.role === 'super_admin') {
@@ -474,15 +474,15 @@ const UserManagement: React.FC = () => {
             const operatorUserName = currentUserProfile.name
 
             // 智能构建操作人显示文本
-            let operatorText = '超级管理员'
+            let operatorText = '老板'
             if (operatorRealName) {
-              // 如果有真实姓名，显示：超级管理员【张三】
-              operatorText = `超级管理员【${operatorRealName}】`
-            } else if (operatorUserName && operatorUserName !== '超级管理员' && operatorUserName !== '管理员') {
-              // 如果有用户名且不是角色名称，显示：超级管理员【admin】
-              operatorText = `超级管理员【${operatorUserName}】`
+              // 如果有真实姓名，显示：老板【张三】
+              operatorText = `老板【${operatorRealName}】`
+            } else if (operatorUserName && operatorUserName !== '老板' && operatorUserName !== '车队长') {
+              // 如果有用户名且不是角色名称，显示：老板【admin】
+              operatorText = `老板【${operatorUserName}】`
             }
-            // 否则只显示：超级管理员
+            // 否则只显示：老板
 
             // 获取司机所属的仓库
             const driverWarehouseIds = await getDriverWarehouseIds(targetUser.id)
@@ -669,7 +669,7 @@ const UserManagement: React.FC = () => {
           })
         }
 
-        // 2. 如果是超级管理员操作 → 通知相关仓库的管理员
+        // 2. 如果是老板操作 → 通知相关仓库的车队长
         const currentUserProfile = await getCurrentUserWithRealName()
         console.log('👤 [仓库分配] 当前用户信息:', {
           用户ID: currentUserProfile?.id,
@@ -679,22 +679,22 @@ const UserManagement: React.FC = () => {
         })
 
         if (currentUserProfile && currentUserProfile.role === 'super_admin') {
-          console.log('👑 [仓库分配] 操作者是超级管理员，准备通知相关管理员')
+          console.log('👑 [仓库分配] 操作者是老板，准备通知相关车队长')
 
           // 获取操作人的显示名称（优先使用真实姓名）
           const operatorRealName = currentUserProfile.real_name
           const operatorUserName = currentUserProfile.name
 
           // 智能构建操作人显示文本
-          let operatorText = '超级管理员'
+          let operatorText = '老板'
           if (operatorRealName) {
-            // 如果有真实姓名，显示：超级管理员【张三】
-            operatorText = `超级管理员【${operatorRealName}】`
-          } else if (operatorUserName && operatorUserName !== '超级管理员' && operatorUserName !== '管理员') {
-            // 如果有用户名且不是角色名称，显示：超级管理员【admin】
-            operatorText = `超级管理员【${operatorUserName}】`
+            // 如果有真实姓名，显示：老板【张三】
+            operatorText = `老板【${operatorRealName}】`
+          } else if (operatorUserName && operatorUserName !== '老板' && operatorUserName !== '车队长') {
+            // 如果有用户名且不是角色名称，显示：老板【admin】
+            operatorText = `老板【${operatorUserName}】`
           }
-          // 否则只显示：超级管理员
+          // 否则只显示：老板
 
           console.log('👤 [仓库分配] 操作人显示文本:', operatorText)
 
@@ -797,9 +797,9 @@ const UserManagement: React.FC = () => {
   const getRoleText = (role: UserRole) => {
     switch (role) {
       case 'super_admin':
-        return '超级管理员'
+        return '老板'
       case 'manager':
-        return '管理员'
+        return '车队长'
       case 'driver':
         return '司机'
       default:

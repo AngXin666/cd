@@ -52,7 +52,7 @@ const StaffManagement: React.FC = () => {
     {label: '带车司机', value: 'with_vehicle'}
   ]
 
-  // 加载所有仓库列表（超级管理员可以看到所有仓库）
+  // 加载所有仓库列表（老板可以看到所有仓库）
   const loadWarehouses = useCallback(async () => {
     try {
       const data = await getAllWarehouses()

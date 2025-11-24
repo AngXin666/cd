@@ -1141,7 +1141,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             </View>
           )}
 
-          {/* 操作按钮 - 仅超级管理员可见 */}
+          {/* 操作按钮 - 仅老板可见 */}
           <View className="mb-4">
             <View
               onClick={handleAddRecord}

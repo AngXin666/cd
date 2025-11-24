@@ -405,17 +405,17 @@ const DriverManagement: React.FC = () => {
               const operatorUserName = currentUserProfile.name
 
               // 智能构建操作人显示文本
-              let operatorText = '管理员'
+              let operatorText = '车队长'
               if (operatorRealName) {
-                // 如果有真实姓名，显示：管理员【张三】
-                operatorText = `管理员【${operatorRealName}】`
-              } else if (operatorUserName && operatorUserName !== '超级管理员' && operatorUserName !== '管理员') {
-                // 如果有用户名且不是角色名称，显示：管理员【admin】
-                operatorText = `管理员【${operatorUserName}】`
+                // 如果有真实姓名，显示：车队长【张三】
+                operatorText = `车队长【${operatorRealName}】`
+              } else if (operatorUserName && operatorUserName !== '老板' && operatorUserName !== '车队长') {
+                // 如果有用户名且不是角色名称，显示：车队长【admin】
+                operatorText = `车队长【${operatorUserName}】`
               }
-              // 否则只显示：管理员
+              // 否则只显示：车队长
 
-              // 普通管理员操作 → 通知所有超级管理员
+              // 车队长操作 → 通知所有老板
               const superAdmins = await getAllSuperAdmins()
               for (const admin of superAdmins) {
                 notifications.push({

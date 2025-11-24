@@ -352,10 +352,10 @@ const Login: React.FC = () => {
               <Text className="text-xs text-blue-100 block">司机账号：admin1 / 123456</Text>
             </View>
             <View className="mb-2">
-              <Text className="text-xs text-blue-100 block">管理员账号：admin2 / 123456</Text>
+              <Text className="text-xs text-blue-100 block">车队长账号：admin2 / 123456</Text>
             </View>
             <View className="mb-3">
-              <Text className="text-xs text-blue-100 block">超级管理员：admin / 123456</Text>
+              <Text className="text-xs text-blue-100 block">老板账号：admin / 123456</Text>
             </View>
             <View className="pt-3 border-t border-white border-opacity-20">
               <Text className="text-xs text-blue-100 block">手机号登录：15766121960 / 123456</Text>

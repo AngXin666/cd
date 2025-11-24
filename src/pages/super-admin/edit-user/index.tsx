@@ -260,7 +260,7 @@ const EditUser: React.FC = () => {
           {/* 页面标题 */}
           <View className="mb-6">
             <Text className="text-white text-2xl font-bold block mb-2">编辑用户信息</Text>
-            <Text className="text-blue-100 text-sm block">超级管理员工作台</Text>
+            <Text className="text-blue-100 text-sm block">老板工作台</Text>
           </View>
 
           {/* 表单卡片 */}

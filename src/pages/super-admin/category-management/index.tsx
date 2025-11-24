@@ -39,7 +39,7 @@ const CategoryManagement: React.FC = () => {
   // 获取当前选中的仓库
   const selectedWarehouse = warehouses[selectedWarehouseIndex]
 
-  // 加载所有启用的仓库列表（超级管理员）
+  // 加载所有启用的仓库列表（老板）
   const loadWarehouses = useCallback(async () => {
     const data = await getAllWarehouses()
     // 只显示启用的仓库，禁用的仓库不应该添加品类

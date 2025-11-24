@@ -23,7 +23,7 @@ interface UseSuperAdminDashboardOptions {
 }
 
 /**
- * 超级管理员仪表板数据管理 Hook
+ * 老板仪表板数据管理 Hook
  * 支持查看所有仓库汇总或单个仓库数据
  */
 export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {

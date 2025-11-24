@@ -45,7 +45,7 @@ const ManagerHome: React.FC = () => {
   } = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
-    hideEmpty: false // 不隐藏空仓库，让管理员能看到所有分配的仓库
+    hideEmpty: false // 不隐藏空仓库，让车队长能看到所有分配的仓库
   })
 
   // 使用排序后的仓库列表
@@ -306,9 +306,9 @@ const ManagerHome: React.FC = () => {
           <View className="p-4">
             {/* 欢迎卡片 */}
             <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg">
-              <Text className="text-white text-2xl font-bold block mb-2">管理员工作台</Text>
+              <Text className="text-white text-2xl font-bold block mb-2">车队长工作台</Text>
               <Text className="text-blue-100 text-sm block">
-                欢迎回来，{profile?.name || profile?.phone || '管理员'}
+                欢迎回来，{profile?.name || profile?.phone || '车队长'}
               </Text>
             </View>
 
@@ -316,7 +316,7 @@ const ManagerHome: React.FC = () => {
             <View className="bg-white rounded-xl p-8 shadow-md text-center">
               <View className="i-mdi-warehouse-off text-6xl text-gray-300 mb-4" />
               <Text className="text-lg font-bold text-gray-700 block mb-2">暂无分配仓库</Text>
-              <Text className="text-sm text-gray-500 block">请联系超级管理员为您分配仓库</Text>
+              <Text className="text-sm text-gray-500 block">请联系老板为您分配仓库</Text>
             </View>
 
             {/* 退出登录按钮 */}
@@ -350,9 +350,9 @@ const ManagerHome: React.FC = () => {
             )}
 
             <View className="pr-12">
-              <Text className="text-white text-2xl font-bold block mb-2">管理员工作台</Text>
+              <Text className="text-white text-2xl font-bold block mb-2">车队长工作台</Text>
               <Text className="text-blue-100 text-sm block">
-                欢迎回来，{profile?.name || profile?.phone || '管理员'}
+                欢迎回来，{profile?.name || profile?.phone || '车队长'}
               </Text>
             </View>
           </View>

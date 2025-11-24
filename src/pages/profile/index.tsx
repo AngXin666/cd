@@ -61,9 +61,9 @@ const ProfilePage: React.FC = () => {
       case 'driver':
         return '司机'
       case 'manager':
-        return '管理员'
+        return '车队长'
       case 'super_admin':
-        return '超级管理员'
+        return '老板'
       default:
         return '未知'
     }
@@ -111,7 +111,7 @@ const ProfilePage: React.FC = () => {
     {icon: 'i-mdi-calendar-clock', text: '请假申请', url: '/pages/driver/leave/apply/index'}
   ]
 
-  // 管理员端快捷功能
+  // 车队长端快捷功能
   const managerQuickActions = [
     {icon: 'i-mdi-bell', text: '通知中心', url: '/pages/common/notifications/index'},
     {icon: 'i-mdi-account-group', text: '司机管理', url: '/pages/manager/driver-management/index'},
@@ -119,7 +119,7 @@ const ProfilePage: React.FC = () => {
     {icon: 'i-mdi-clipboard-check', text: '请假审批', url: '/pages/manager/leave-approval/index'}
   ]
 
-  // 超级管理员端快捷功能
+  // 老板端快捷功能
   const superAdminQuickActions = [
     {icon: 'i-mdi-bell', text: '通知中心', url: '/pages/common/notifications/index'},
     {icon: 'i-mdi-warehouse', text: '仓库管理', url: '/pages/super-admin/warehouse-management/index'},
@@ -196,7 +196,7 @@ const ProfilePage: React.FC = () => {
                 <View className="i-mdi-phone text-lg text-white mr-2 opacity-80" />
                 <Text className="text-sm text-white opacity-90">{maskPhone(profile?.phone)}</Text>
               </View>
-              {/* 管理员和超级管理员显示编辑实名按钮 */}
+              {/* 车队长和老板显示编辑实名按钮 */}
               {(profile?.role === 'manager' || profile?.role === 'super_admin') && (
                 <View
                   className="flex items-center px-3 py-1 rounded-full active:opacity-70"
@@ -261,7 +261,7 @@ const ProfilePage: React.FC = () => {
                   </View>
                 )}
 
-                {/* 管理员端统计 */}
+                {/* 车队长端统计 */}
                 {profile?.role === 'manager' && (
                   <View className="grid grid-cols-2 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
@@ -304,7 +304,7 @@ const ProfilePage: React.FC = () => {
                   </View>
                 )}
 
-                {/* 超级管理员端统计 */}
+                {/* 老板端统计 */}
                 {profile?.role === 'super_admin' && (
                   <View className="grid grid-cols-3 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">

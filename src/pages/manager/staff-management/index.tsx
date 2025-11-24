@@ -591,7 +591,7 @@ const StaffManagement: React.FC = () => {
         <View className="flex items-center justify-center py-12">
           <View className="i-mdi-warehouse-off text-6xl text-gray-300 mb-4" />
           <Text className="text-gray-500 block mb-2">暂无管辖仓库</Text>
-          <Text className="text-gray-400 text-sm">请联系超级管理员分配仓库</Text>
+          <Text className="text-gray-400 text-sm">请联系老板分配仓库</Text>
         </View>
       )
     }

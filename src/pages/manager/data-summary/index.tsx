@@ -59,11 +59,11 @@ const DataSummary: React.FC = () => {
 
     // 根据角色加载仓库
     if (profileData?.role === 'super_admin') {
-      // 超级管理员可以看到所有仓库
+      // 老板可以看到所有仓库
       const allWarehouses = await getAllWarehouses()
       setWarehouses(allWarehouses)
     } else if (profileData?.role === 'manager') {
-      // 普通管理员只能看到管辖的仓库
+      // 车队长只能看到管辖的仓库
       const managerWarehouses = await getManagerWarehouses(user.id)
       setWarehouses(managerWarehouses)
     }

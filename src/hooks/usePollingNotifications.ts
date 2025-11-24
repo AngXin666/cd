@@ -82,7 +82,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
     [shouldShowNotification, onNewNotification]
   )
 
-  // 检查新的请假申请（管理员和超级管理员）
+  // 检查新的请假申请（车队长和老板）
   const checkLeaveApplications = useCallback(async () => {
     try {
       const applications = await getAllLeaveApplications()
@@ -136,7 +136,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
     }
   }, [userId, showNotification, onLeaveApplicationChange])
 
-  // 检查新的离职申请（管理员和超级管理员）
+  // 检查新的离职申请（车队长和老板）
   const checkResignationApplications = useCallback(async () => {
     try {
       const applications = await getAllResignationApplications()
@@ -190,7 +190,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
     }
   }, [userId, showNotification, onResignationApplicationChange])
 
-  // 检查新的打卡记录（管理员和超级管理员）
+  // 检查新的打卡记录（车队长和老板）
   const checkAttendanceRecords = useCallback(async () => {
     try {
       const records = await getAllAttendanceRecords()

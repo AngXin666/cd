@@ -60,14 +60,14 @@ const HelpPage: React.FC = () => {
     },
     {
       question: '如何管理司机信息？',
-      answer: '在管理员工作台可以查看所有司机列表，点击司机可以查看详细信息。如需修改司机角色，请联系超级管理员。'
+      answer: '在车队长工作台可以查看所有司机列表，点击司机可以查看详细信息。如需修改司机角色，请联系老板。'
     }
   ]
 
   const getSuperAdminFAQ = () => [
     {
       question: '如何管理仓库？',
-      answer: '在超级管理员控制台点击"仓库管理"，可以添加、编辑、删除仓库，设置考勤规则。'
+      answer: '在老板控制台点击"仓库管理"，可以添加、编辑、删除仓库，设置考勤规则。'
     },
     {
       question: '如何分配司机到仓库？',
@@ -75,7 +75,7 @@ const HelpPage: React.FC = () => {
     },
     {
       question: '如何管理用户角色？',
-      answer: '点击"用户管理"按钮，可以查看所有用户，修改用户角色（司机/管理员/超级管理员）。'
+      answer: '点击"用户管理"按钮，可以查看所有用户，修改用户角色（司机/车队长/老板）。'
     },
     {
       question: '如何管理计件品类？',
@@ -176,9 +176,9 @@ const HelpPage: React.FC = () => {
                   <View className="flex items-start">
                     <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
                     <View className="flex-1">
-                      <Text className="text-sm font-medium text-gray-800 block mb-1">超级管理员功能</Text>
+                      <Text className="text-sm font-medium text-gray-800 block mb-1">老板功能</Text>
                       <Text className="text-xs text-gray-600 block">
-                        超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和管理员、管理计件品类、查看所有数据统计。
+                        老板拥有系统最高权限，可以管理仓库信息、分配司机和车队长、管理计件品类、查看所有数据统计。
                       </Text>
                     </View>
                   </View>

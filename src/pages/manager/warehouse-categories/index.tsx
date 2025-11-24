@@ -504,7 +504,7 @@ const WarehouseCategories: React.FC = () => {
             <View className="bg-white rounded-lg p-6 mb-4 shadow text-center">
               <View className="i-mdi-alert-circle text-orange-400 text-4xl mb-2 mx-auto" />
               <Text className="text-gray-600 text-sm block">您还没有管理的仓库</Text>
-              <Text className="text-gray-400 text-xs block mt-1">请联系超级管理员分配仓库</Text>
+              <Text className="text-gray-400 text-xs block mt-1">请联系老板分配仓库</Text>
             </View>
           )}
         </View>

@@ -98,7 +98,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       const [year, month] = currentMonth.split('-').map(Number)
       const records = await getAllAttendanceRecords(year, month)
 
-      // 超级管理员可以看到所有记录，不需要过滤
+      // 老板可以看到所有记录，不需要过滤
       setAttendanceRecords(records)
     } finally {
       Taro.hideLoading()
@@ -191,7 +191,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
-  // 获取可见的仓库列表（超级管理员可以看到所有仓库，包括没有数据的）
+  // 获取可见的仓库列表（老板可以看到所有仓库，包括没有数据的）
   const getVisibleWarehouses = () => {
     // 显示所有仓库，并按数据量排序（有数据的排在前面）
     const warehousesWithData = warehouses
@@ -232,7 +232,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
     setCurrentWarehouseIndex(index)
   }, [])
 
-  // 获取可见的申请数据（超级管理员可以看到所有数据）
+  // 获取可见的申请数据（老板可以看到所有数据）
   const getVisibleApplications = () => {
     let visibleLeave = leaveApplications
     let visibleResignation = resignationApplications
@@ -391,7 +391,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       }
     }
 
-    // 处理打卡记录（超级管理员可以看到所有记录）
+    // 处理打卡记录（老板可以看到所有记录）
     let allAttendanceForStats = attendanceRecords
 
     // 按月份筛选打卡记录
@@ -512,15 +512,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
           const currentUserProfile = await getCurrentUserWithRealName()
 
           // 构建审批人显示文本
-          let reviewerText = '超级管理员'
+          let reviewerText = '老板'
           if (currentUserProfile) {
             const reviewerRealName = currentUserProfile.real_name
             const reviewerUserName = currentUserProfile.name
 
             if (reviewerRealName) {
-              reviewerText = `超级管理员【${reviewerRealName}】`
-            } else if (reviewerUserName && reviewerUserName !== '超级管理员' && reviewerUserName !== '管理员') {
-              reviewerText = `超级管理员【${reviewerUserName}】`
+              reviewerText = `老板【${reviewerRealName}】`
+            } else if (reviewerUserName && reviewerUserName !== '老板' && reviewerUserName !== '车队长') {
+              reviewerText = `老板【${reviewerUserName}】`
             }
           }
 
