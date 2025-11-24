@@ -5515,7 +5515,7 @@ export async function createNotificationForAllManagers(notification: {
 
     // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
     const {data, error} = await supabase.rpc('create_notifications_batch', {
-      notifications: JSON.stringify(notifications)
+      notifications: notifications
     })
 
     if (error) {
