@@ -6,6 +6,8 @@ import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {
   createLeaveApplication,
+  createNotificationForAllManagers,
+  getDriverName,
   getDriverWarehouses,
   getMonthlyLeaveCount,
   getMonthlyPendingLeaveCount,
@@ -318,6 +320,8 @@ const ApplyLeave: React.FC = () => {
     setSubmitting(true)
 
     let success = false
+    let applicationId: string | null = null
+
     if (isEditMode && draftId) {
       await updateDraftLeaveApplication(draftId, {
         leave_type: leaveType,
@@ -327,6 +331,7 @@ const ApplyLeave: React.FC = () => {
       })
       // 由于数据库不支持草稿，直接标记为成功
       success = true
+      applicationId = draftId
     } else {
       const result = await createLeaveApplication({
         user_id: user.id,
@@ -337,11 +342,28 @@ const ApplyLeave: React.FC = () => {
         reason: reason.trim()
       })
       success = result !== null
+      applicationId = result
     }
 
     setSubmitting(false)
 
-    if (success) {
+    if (success && applicationId) {
+      // 获取司机姓名
+      const driverName = await getDriverName(user.id)
+
+      // 获取请假类型中文名称
+      const leaveTypeLabel = leaveTypes.find((t) => t.value === leaveType)?.label || '请假'
+
+      // 为所有管理员创建通知
+      const notificationCount = await createNotificationForAllManagers({
+        type: 'leave_application_submitted',
+        title: '新的请假申请',
+        message: `司机 ${driverName} 提交了${leaveTypeLabel}申请，请假时间：${startDate} 至 ${endDate}（${leaveDays}天），事由：${reason.trim()}`,
+        related_id: applicationId
+      })
+
+      console.log('✅ 请假申请提交成功，已通知', notificationCount, '位管理员')
+
       showToast({title: '提交成功', icon: 'success'})
       setTimeout(() => {
         navigateBack()

@@ -6,9 +6,9 @@ import type {Notification} from './useNotifications'
 
 /**
  * 实时通知系统说明
- * 
+ *
  * 本系统尝试使用 Supabase Realtime (WebSocket) 实现实时通知功能。
- * 
+ *
  * 工作原理：
  * 1. 优先尝试建立 WebSocket 连接，实现真正的实时推送
  * 2. 如果 WebSocket 连接失败（常见于小程序环境），会记录警告但不影响应用运行
@@ -16,7 +16,7 @@ import type {Notification} from './useNotifications'
  *    - 用户手动刷新页面
  *    - 页面重新加载
  *    - 用户切换页面后返回
- * 
+ *
  * 注意事项：
  * - WebSocket 在某些环境下可能不可用（如小程序、某些网络环境）
  * - 这是正常现象，不影响应用核心功能

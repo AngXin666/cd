@@ -5,7 +5,9 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {
+  createNotificationForAllManagers,
   createResignationApplication,
+  getDriverName,
   getDriverWarehouses,
   getWarehouseSettings,
   saveDraftResignationApplication,
@@ -184,6 +186,8 @@ const ApplyResignation: React.FC = () => {
     setSubmitting(true)
 
     let success = false
+    let applicationId: string | null = null
+
     if (isEditMode && draftId) {
       await updateDraftResignationApplication(draftId, {
         resignation_date: expectedDate,
@@ -191,6 +195,7 @@ const ApplyResignation: React.FC = () => {
       })
       // 由于数据库不支持草稿，直接标记为成功
       success = true
+      applicationId = draftId
     } else {
       const result = await createResignationApplication({
         user_id: user.id,
@@ -199,11 +204,25 @@ const ApplyResignation: React.FC = () => {
         reason: reason.trim()
       })
       success = result !== null
+      applicationId = result
     }
 
     setSubmitting(false)
 
-    if (success) {
+    if (success && applicationId) {
+      // 获取司机姓名
+      const driverName = await getDriverName(user.id)
+
+      // 为所有管理员创建通知
+      const notificationCount = await createNotificationForAllManagers({
+        type: 'resignation_application_submitted',
+        title: '新的离职申请',
+        message: `司机 ${driverName} 提交了离职申请，期望离职日期：${expectedDate}，离职原因：${reason.trim()}`,
+        related_id: applicationId
+      })
+
+      console.log('✅ 离职申请提交成功，已通知', notificationCount, '位管理员')
+
       showToast({title: '提交成功', icon: 'success'})
       setTimeout(() => {
         navigateBack()

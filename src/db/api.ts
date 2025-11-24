@@ -5355,3 +5355,125 @@ export async function getRequiredPhotos(vehicleId: string): Promise<string[]> {
     return []
   }
 }
+
+// ==================== 通知系统 ====================
+
+/**
+ * 创建通知
+ * @param notification 通知信息
+ * @returns 创建的通知ID，失败返回null
+ */
+export async function createNotification(notification: {
+  user_id: string
+  type: string
+  title: string
+  message: string
+  related_id?: string
+}): Promise<string | null> {
+  try {
+    logger.info('创建通知', notification)
+
+    const {data, error} = await supabase
+      .from('notifications')
+      .insert({
+        user_id: notification.user_id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        related_id: notification.related_id,
+        is_read: false
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      logger.error('创建通知失败', error)
+      return null
+    }
+
+    logger.info('创建通知成功', {notificationId: data?.id})
+    return data?.id || null
+  } catch (error) {
+    logger.error('创建通知异常', error)
+    return null
+  }
+}
+
+/**
+ * 为所有管理员创建通知
+ * @param notification 通知信息（不包含user_id）
+ * @returns 成功创建的通知数量
+ */
+export async function createNotificationForAllManagers(notification: {
+  type: string
+  title: string
+  message: string
+  related_id?: string
+}): Promise<number> {
+  try {
+    logger.info('为所有管理员创建通知', notification)
+
+    // 获取所有管理员和超级管理员
+    const {data: managers, error: managersError} = await supabase
+      .from('profiles')
+      .select('id')
+      .in('role', ['manager', 'super_admin'])
+
+    if (managersError) {
+      logger.error('获取管理员列表失败', managersError)
+      return 0
+    }
+
+    if (!managers || managers.length === 0) {
+      logger.warn('没有找到管理员')
+      return 0
+    }
+
+    logger.info('找到管理员', {count: managers.length})
+
+    // 为每个管理员创建通知
+    const notifications = managers.map((manager) => ({
+      user_id: manager.id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      related_id: notification.related_id,
+      is_read: false
+    }))
+
+    const {data, error} = await supabase.from('notifications').insert(notifications).select('id')
+
+    if (error) {
+      logger.error('批量创建通知失败', error)
+      return 0
+    }
+
+    const count = data?.length || 0
+    logger.info('批量创建通知成功', {count})
+    return count
+  } catch (error) {
+    logger.error('批量创建通知异常', error)
+    return 0
+  }
+}
+
+/**
+ * 获取司机姓名
+ * @param userId 用户ID
+ * @returns 司机姓名，失败返回"未知司机"
+ */
+export async function getDriverName(userId: string): Promise<string> {
+  try {
+    const {data, error} = await supabase.from('profiles').select('name').eq('id', userId).maybeSingle()
+
+    if (error || !data) {
+      logger.error('获取司机姓名失败', {userId, error})
+      return '未知司机'
+    }
+
+    return data.name || '未知司机'
+  } catch (error) {
+    logger.error('获取司机姓名异常', {userId, error})
+    return '未知司机'
+  }
+}
