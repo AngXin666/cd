@@ -47,12 +47,16 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<'pending' | 'stats'>('stats')
+  const [urlWarehouseId, setUrlWarehouseId] = useState<string | null>(null)
 
-  // 从URL参数读取初始标签
+  // 从URL参数读取初始标签和仓库ID
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
     if (params?.tab === 'pending') {
       setActiveTab('pending')
+    }
+    if (params?.warehouseId) {
+      setUrlWarehouseId(params.warehouseId)
     }
   }, [])
 
@@ -104,6 +108,35 @@ const SuperAdminLeaveApproval: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // 根据URL参数切换到对应的仓库
+  useEffect(() => {
+    if (urlWarehouseId && warehouses.length > 0) {
+      // 计算可见仓库列表
+      const warehousesWithData = warehouses
+        .map((warehouse) => {
+          const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
+          const resignationCount = resignationApplications.filter((app) => app.warehouse_id === warehouse.id).length
+          const attendanceCount = attendanceRecords.filter((record) => record.warehouse_id === warehouse.id).length
+          const totalCount = leaveCount + resignationCount + attendanceCount
+          return {warehouse, totalCount}
+        })
+        .filter((item) => item.totalCount > 0)
+        .sort((a, b) => b.totalCount - a.totalCount)
+        .map((item) => item.warehouse)
+
+      // 如果没有数据，显示所有仓库
+      const visibleWarehouses = warehousesWithData.length > 0 ? warehousesWithData : warehouses
+
+      // 查找目标仓库的索引
+      const targetIndex = visibleWarehouses.findIndex((w) => w.id === urlWarehouseId)
+      if (targetIndex !== -1) {
+        setCurrentWarehouseIndex(targetIndex)
+      }
+      // 清除URL参数，避免重复切换
+      setUrlWarehouseId(null)
+    }
+  }, [urlWarehouseId, warehouses, leaveApplications, resignationApplications, attendanceRecords])
 
   useDidShow(() => {
     loadData()

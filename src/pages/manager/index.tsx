@@ -212,12 +212,17 @@ const ManagerHome: React.FC = () => {
   }
 
   const handleLeaveApproval = () => {
-    navigateTo({url: '/pages/manager/leave-approval/index?tab=pending'})
+    // 获取当前选中的仓库ID
+    const currentWarehouse = warehouses[currentWarehouseIndex]
+    const warehouseId = currentWarehouse?.id || ''
+    navigateTo({url: `/pages/manager/leave-approval/index?tab=pending&warehouseId=${warehouseId}`})
   }
 
   const handleAttendanceManagement = () => {
     // 跳转到考勤管理页面（待审批标签）
-    navigateTo({url: '/pages/manager/leave-approval/index?tab=pending'})
+    const currentWarehouse = warehouses[currentWarehouseIndex]
+    const warehouseId = currentWarehouse?.id || ''
+    navigateTo({url: `/pages/manager/leave-approval/index?tab=pending&warehouseId=${warehouseId}`})
   }
 
   const handleWarehouseCategories = () => {
