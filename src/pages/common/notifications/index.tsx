@@ -1,14 +1,20 @@
 /**
- * 通知列表页面
- * 显示所有通知，支持标记已读、删除等操作
+ * 通知列表页面 - 网格布局版本
+ *
+ * 布局结构：
+ * - 顶部横列：信息分类导航（请假/离职、车辆审批、权限变更）
+ * - 左侧竖列：状态筛选区（未读、已读、全部、清空）
+ * - 右侧主内容区：通知列表
+ *
  * 优化功能：
- * 1. 已读绿色点，未读红色点
- * 2. 点击即标记为已读
- * 3. 未读信息优先排在最前面
- * 4. 按今天、昨天、历史进行日期分类
+ * 1. 网格布局，清晰的信息层次
+ * 2. 分类导航和状态筛选独立
+ * 3. 选中状态高亮显示
+ * 4. 清空操作需要二次确认
+ * 5. 显示通知的标题、时间等关键信息
  */
 
-import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -37,6 +43,20 @@ interface NotificationGroup {
 
 // 筛选类型
 type FilterType = 'all' | 'unread' | 'read'
+
+// 分类配置
+const CATEGORY_CONFIG = [
+  {value: 'leave_resignation' as const, label: '请假/离职', icon: 'i-mdi-calendar-clock'},
+  {value: 'vehicle_approval' as const, label: '车辆审批', icon: 'i-mdi-car-clock'},
+  {value: 'permission' as const, label: '权限变更', icon: 'i-mdi-shield-account'}
+]
+
+// 状态筛选配置
+const FILTER_CONFIG = [
+  {value: 'unread' as const, label: '未读', icon: 'i-mdi-email-mark-as-unread'},
+  {value: 'read' as const, label: '已读', icon: 'i-mdi-email-open'},
+  {value: 'all' as const, label: '全部', icon: 'i-mdi-email-multiple'}
+]
 
 const NotificationsPage: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -115,7 +135,7 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 标记所有通知为已读
-  const handleMarkAllAsRead = async () => {
+  const _handleMarkAllAsRead = async () => {
     if (!user) return
 
     const success = await markAllNotificationsAsRead(user.id)
@@ -147,18 +167,55 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 删除所有已读通知
-  const handleDeleteRead = async () => {
+  const _handleDeleteRead = async () => {
     if (!user) return
 
     Taro.showModal({
-      title: '确认删除',
-      content: '确定要删除所有已读通知吗？',
+      title: '确认清空',
+      content: '确认要清空所有已读通知吗？此操作不可恢复。',
+      confirmText: '确认清空',
+      cancelText: '取消',
       success: async (res) => {
         if (res.confirm) {
           const success = await deleteReadNotifications(user.id)
           if (success) {
             setNotifications((prev) => prev.filter((n) => !n.is_read))
-            Taro.showToast({title: '删除成功', icon: 'success'})
+            Taro.showToast({title: '清空成功', icon: 'success'})
+          } else {
+            Taro.showToast({title: '清空失败', icon: 'error'})
+          }
+        }
+      }
+    })
+  }
+
+  // 清空所有通知（需要二次确认）
+  const handleClearAll = async () => {
+    if (!user) return
+
+    const totalCount = notifications.length
+    if (totalCount === 0) {
+      Taro.showToast({title: '暂无通知', icon: 'none'})
+      return
+    }
+
+    Taro.showModal({
+      title: '确认清空',
+      content: `确认要清空所有通知吗？共 ${totalCount} 条通知，此操作不可恢复。`,
+      confirmText: '确认清空',
+      cancelText: '取消',
+      confirmColor: '#f97316',
+      success: async (res) => {
+        if (res.confirm) {
+          // 先标记所有为已读
+          await markAllNotificationsAsRead(user.id)
+          // 再删除所有已读
+          const success = await deleteReadNotifications(user.id)
+          if (success) {
+            setNotifications([])
+            Taro.showToast({title: '清空成功', icon: 'success'})
+          } else {
+            Taro.showToast({title: '清空失败', icon: 'error'})
           }
         }
       }
@@ -240,7 +297,7 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 获取通知图标
-  const getNotificationIcon = (type: string) => {
+  const _getNotificationIcon = (type: string) => {
     switch (type) {
       case 'vehicle_review_pending':
         return 'i-mdi-clock-alert text-orange-500'
@@ -296,7 +353,7 @@ const NotificationsPage: React.FC = () => {
   }, [])
 
   // 格式化时间
-  const formatTime = (dateString: string) => {
+  const _formatTime = (dateString: string) => {
     const date = new Date(dateString)
     const hours = date.getHours().toString().padStart(2, '0')
     const minutes = date.getMinutes().toString().padStart(2, '0')
@@ -304,7 +361,7 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 格式化历史日期
-  const formatHistoryDate = (dateString: string) => {
+  const _formatHistoryDate = (dateString: string) => {
     const date = new Date(dateString)
     const month = date.getMonth() + 1
     const day = date.getDate()
@@ -312,6 +369,18 @@ const NotificationsPage: React.FC = () => {
     const minutes = date.getMinutes().toString().padStart(2, '0')
     return `${month}月${day}日 ${hours}:${minutes}`
   }
+
+  // 格式化通知时间（根据日期分类显示不同格式）
+  const formatNotificationTime = useCallback(
+    (dateString: string) => {
+      const category = getDateCategory(dateString)
+      if (category === 'today' || category === 'yesterday') {
+        return _formatTime(dateString)
+      }
+      return _formatHistoryDate(dateString)
+    },
+    [getDateCategory, _formatHistoryDate, _formatTime]
+  )
 
   // 按日期分组通知
   const _groupedNotifications = useMemo(() => {
@@ -410,154 +479,181 @@ const NotificationsPage: React.FC = () => {
   }, [filteredNotifications, getDateCategory])
 
   return (
-    <View className="min-h-screen bg-background">
-      {/* 顶部操作栏 */}
-      <View className="bg-card p-4 border-b border-border">
-        <View className="flex items-center justify-between mb-3">
-          <Text className="text-lg font-bold text-foreground">通知中心</Text>
-          {unreadCount > 0 && (
-            <View className="bg-destructive text-destructive-foreground px-2 py-1 rounded-full">
-              <Text className="text-xs text-white">{unreadCount} 条未读</Text>
-            </View>
-          )}
-        </View>
-
-        {/* 分类筛选 */}
-        <View className="mb-3">
-          <Text className="text-sm text-muted-foreground mb-2">信息分类</Text>
-          <View className="flex items-center gap-2 flex-wrap">
-            <Button
-              className={`${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
-              size="mini"
-              onClick={() => setSelectedCategory('all')}>
-              全部
-            </Button>
-            <Button
-              className={`${selectedCategory === 'leave_resignation' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
-              size="mini"
-              onClick={() => setSelectedCategory('leave_resignation')}>
-              请假离职信息
-            </Button>
-            <Button
-              className={`${selectedCategory === 'vehicle_approval' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
-              size="mini"
-              onClick={() => setSelectedCategory('vehicle_approval')}>
-              车辆审批信息
-            </Button>
-            <Button
-              className={`${selectedCategory === 'permission' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
-              size="mini"
-              onClick={() => setSelectedCategory('permission')}>
-              权限信息
-            </Button>
+    <View className="min-h-screen bg-background flex flex-col">
+      {/* 顶部标题栏 */}
+      <View className="bg-card px-4 py-3 border-b border-border flex items-center justify-between">
+        <Text className="text-xl font-bold text-foreground">通知中心</Text>
+        {unreadCount > 0 && (
+          <View className="bg-destructive px-3 py-1 rounded-full">
+            <Text className="text-xs text-white font-medium">{unreadCount} 条未读</Text>
           </View>
-        </View>
-
-        {/* 已读/未读筛选和操作按钮 */}
-        <View className="flex items-center gap-2 flex-wrap">
-          <Button
-            className={`${filterType === 'unread' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-2 rounded text-sm break-keep`}
-            size="mini"
-            onClick={() => setFilterType('unread')}>
-            未读信息 ({unreadCount})
-          </Button>
-          <Button
-            className={`${filterType === 'read' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-2 rounded text-sm break-keep`}
-            size="mini"
-            onClick={() => setFilterType('read')}>
-            已读信息 ({readCount})
-          </Button>
-          <Button
-            className="bg-primary text-primary-foreground px-3 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={handleMarkAllAsRead}>
-            全部已读
-          </Button>
-          <Button
-            className="bg-muted text-muted-foreground px-3 py-2 rounded text-sm break-keep"
-            size="mini"
-            onClick={handleDeleteRead}>
-            清空已读
-          </Button>
-        </View>
+        )}
       </View>
 
-      {/* 通知列表 */}
-      <ScrollView scrollY className="h-screen box-border">
-        {loading ? (
-          <View className="flex items-center justify-center py-20">
-            <Text className="text-muted-foreground">加载中...</Text>
-          </View>
-        ) : filteredNotifications.length === 0 ? (
-          <View className="flex flex-col items-center justify-center py-20">
-            <View className="i-mdi-bell-off text-6xl text-muted-foreground mb-4"></View>
-            <Text className="text-muted-foreground">
-              {filterType === 'unread' ? '暂无未读通知' : filterType === 'read' ? '暂无已读通知' : '暂无通知'}
-            </Text>
-          </View>
-        ) : (
-          <View className="pb-4">
-            {groupedFilteredNotifications.map((group) => (
-              <View key={group.title} className="mb-4">
-                {/* 日期分组标题 */}
-                <View className="px-4 py-2 bg-muted/50">
-                  <Text className="text-sm font-bold text-muted-foreground">{group.title}</Text>
-                </View>
+      {/* 顶部横列：信息分类导航 */}
+      <View className="bg-card border-b border-border">
+        <ScrollView scrollX className="box-border">
+          <View className="flex flex-row px-4 py-3 gap-2">
+            {/* 全部分类 */}
+            <View
+              className={`flex items-center justify-center px-6 py-3 rounded-lg cursor-pointer transition-all ${
+                selectedCategory === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+              onClick={() => setSelectedCategory('all')}>
+              <View className="i-mdi-view-grid text-xl mb-1"></View>
+              <Text className={`text-sm font-medium ${selectedCategory === 'all' ? 'text-white' : ''}`}>全部</Text>
+            </View>
 
-                {/* 该分组的通知列表 */}
-                <View className="px-4 pt-3 space-y-3">
-                  {group.notifications.map((notification) => (
-                    <View
-                      key={notification.id}
-                      className={`bg-card rounded-lg p-4 border ${notification.is_read ? 'border-border' : 'border-primary/50 shadow-sm'}`}
-                      onClick={() => handleNotificationClick(notification)}>
-                      <View className="flex items-start gap-3">
-                        {/* 已读/未读状态点 */}
-                        <View
-                          className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${notification.is_read ? 'bg-green-500' : 'bg-red-500'}`}></View>
-
-                        {/* 图标 */}
-                        <View
-                          className={`${getNotificationIcon(notification.type)} text-2xl mt-1 flex-shrink-0`}></View>
-
-                        {/* 内容 */}
-                        <View className="flex-1 min-w-0">
-                          <View className="flex items-start justify-between mb-1">
-                            <Text
-                              className={`font-bold ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
-                              {notification.title}
-                            </Text>
-                          </View>
-                          <Text
-                            className={`text-sm mb-2 ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
-                            {notification.message}
-                          </Text>
-                          <View className="flex items-center justify-between">
-                            <Text className="text-xs text-muted-foreground">
-                              {group.title === '更早'
-                                ? formatHistoryDate(notification.created_at)
-                                : formatTime(notification.created_at)}
-                            </Text>
-                            <Button
-                              className="bg-destructive text-destructive-foreground px-3 py-1 rounded text-xs break-keep"
-                              size="mini"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDelete(notification.id)
-                              }}>
-                              删除
-                            </Button>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
+            {/* 分类按钮 */}
+            {CATEGORY_CONFIG.map((category) => (
+              <View
+                key={category.value}
+                className={`flex items-center justify-center px-6 py-3 rounded-lg cursor-pointer transition-all ${
+                  selectedCategory === category.value
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+                onClick={() => setSelectedCategory(category.value)}>
+                <View className={`${category.icon} text-xl mb-1`}></View>
+                <Text
+                  className={`text-sm font-medium whitespace-nowrap ${selectedCategory === category.value ? 'text-white' : ''}`}>
+                  {category.label}
+                </Text>
               </View>
             ))}
           </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      </View>
+
+      {/* 主体区域：左侧竖列 + 右侧内容区 */}
+      <View className="flex-1 flex flex-row">
+        {/* 左侧竖列：状态筛选区 */}
+        <View className="w-24 bg-card border-r border-border flex flex-col py-2">
+          {/* 状态筛选按钮 */}
+          {FILTER_CONFIG.map((filter) => {
+            const count =
+              filter.value === 'unread' ? unreadCount : filter.value === 'read' ? readCount : notifications.length
+            return (
+              <View
+                key={filter.value}
+                className={`flex flex-col items-center justify-center py-4 px-2 cursor-pointer transition-all ${
+                  filterType === filter.value
+                    ? 'bg-primary/10 border-l-4 border-primary'
+                    : 'hover:bg-muted/50 border-l-4 border-transparent'
+                }`}
+                onClick={() => setFilterType(filter.value)}>
+                <View
+                  className={`${filter.icon} text-2xl mb-1 ${filterType === filter.value ? 'text-primary' : 'text-muted-foreground'}`}></View>
+                <Text
+                  className={`text-xs font-medium ${filterType === filter.value ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {filter.label}
+                </Text>
+                <Text
+                  className={`text-xs mt-1 ${filterType === filter.value ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                  {count}
+                </Text>
+              </View>
+            )
+          })}
+
+          {/* 分隔线 */}
+          <View className="h-px bg-border my-2 mx-2"></View>
+
+          {/* 清空按钮 */}
+          <View
+            className="flex flex-col items-center justify-center py-4 px-2 cursor-pointer hover:bg-destructive/10 transition-all"
+            onClick={handleClearAll}>
+            <View className="i-mdi-delete-sweep text-2xl mb-1 text-destructive"></View>
+            <Text className="text-xs font-medium text-destructive">清空</Text>
+          </View>
+        </View>
+
+        {/* 右侧主内容区：通知列表 */}
+        <View className="flex-1 bg-background">
+          <ScrollView scrollY className="h-screen box-border">
+            {loading ? (
+              <View className="flex items-center justify-center py-20">
+                <View className="i-mdi-loading animate-spin text-4xl text-primary mb-2"></View>
+                <Text className="text-muted-foreground">加载中...</Text>
+              </View>
+            ) : filteredNotifications.length === 0 ? (
+              <View className="flex flex-col items-center justify-center py-20">
+                <View className="i-mdi-bell-off text-6xl text-muted-foreground mb-4"></View>
+                <Text className="text-muted-foreground text-base">
+                  {filterType === 'unread' ? '暂无未读通知' : filterType === 'read' ? '暂无已读通知' : '暂无通知'}
+                </Text>
+              </View>
+            ) : (
+              <View className="pb-4">
+                {groupedFilteredNotifications.map((group) => (
+                  <View key={group.title} className="mb-4">
+                    {/* 日期分组标题 */}
+                    <View className="px-4 py-2 bg-muted/30 sticky top-0">
+                      <Text className="text-sm font-bold text-muted-foreground">{group.title}</Text>
+                    </View>
+
+                    {/* 该分组的通知列表 */}
+                    <View className="px-4 pt-3 space-y-3">
+                      {group.notifications.map((notification) => (
+                        <View
+                          key={notification.id}
+                          className={`bg-card rounded-lg p-4 border transition-all ${
+                            notification.is_read
+                              ? 'border-border hover:border-border/80'
+                              : 'border-primary/50 shadow-sm hover:shadow-md'
+                          }`}
+                          onClick={() => handleNotificationClick(notification)}>
+                          {/* 通知头部：状态指示器 + 标题 */}
+                          <View className="flex items-start gap-3 mb-2">
+                            {/* 状态指示器 */}
+                            <View
+                              className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                notification.is_read ? 'bg-success' : 'bg-destructive'
+                              }`}></View>
+
+                            {/* 标题 */}
+                            <View className="flex-1">
+                              <Text
+                                className={`text-base font-medium ${
+                                  notification.is_read ? 'text-muted-foreground' : 'text-foreground'
+                                }`}>
+                                {notification.title}
+                              </Text>
+                            </View>
+
+                            {/* 删除按钮 */}
+                            <View
+                              className="i-mdi-delete text-lg text-muted-foreground hover:text-destructive cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(notification.id)
+                              }}></View>
+                          </View>
+
+                          {/* 通知内容 */}
+                          <View className="ml-5">
+                            <Text className="text-sm text-muted-foreground mb-2">{notification.message}</Text>
+
+                            {/* 通知底部：时间 */}
+                            <View className="flex items-center gap-2">
+                              <View className="i-mdi-clock-outline text-xs text-muted-foreground"></View>
+                              <Text className="text-xs text-muted-foreground">
+                                {formatNotificationTime(notification.created_at)}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
     </View>
   )
 }
