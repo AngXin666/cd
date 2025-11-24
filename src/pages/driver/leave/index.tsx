@@ -26,6 +26,10 @@ const DriverLeave: React.FC = () => {
   const [_resignationDrafts, setResignationDrafts] = useState<ResignationApplication[]>([])
   const [_activeTab, _setActiveTab] = useState<'leave' | 'resignation' | 'draft'>('leave')
 
+  // 审核中的申请状态
+  const [hasPendingLeave, setHasPendingLeave] = useState(false)
+  const [hasPendingResignation, setHasPendingResignation] = useState(false)
+
   // 统计数据
   const [_stats, setStats] = useState({
     attendanceDays: 0,
@@ -52,6 +56,14 @@ const DriverLeave: React.FC = () => {
 
     const resignationDraftData = await getDraftResignationApplications(user.id)
     setResignationDrafts(resignationDraftData)
+
+    // 检查是否有审核中的请假申请
+    const pendingLeave = leaveData.some((app) => app.status === 'pending')
+    setHasPendingLeave(pendingLeave)
+
+    // 检查是否有审核中的离职申请
+    const pendingResignation = resignationData.some((app) => app.status === 'pending')
+    setHasPendingResignation(pendingResignation)
   }, [user])
 
   // 加载统计数据
@@ -138,12 +150,22 @@ const DriverLeave: React.FC = () => {
       showToast({title: '请先完善个人信息', icon: 'none'})
       return
     }
+    // 检查是否有审核中的请假申请
+    if (hasPendingLeave) {
+      showToast({title: '您有请假申请正在审批中，请等待审批完成', icon: 'none', duration: 2000})
+      return
+    }
     navigateTo({url: '/pages/driver/leave/apply/index'})
   }
 
   const _handleApplyResignation = () => {
     if (!profile) {
       showToast({title: '请先完善个人信息', icon: 'none'})
+      return
+    }
+    // 检查是否有审核中的离职申请
+    if (hasPendingResignation) {
+      showToast({title: '您有离职申请正在审批中，请等待审批完成', icon: 'none', duration: 2000})
       return
     }
     navigateTo({url: '/pages/driver/leave/resign/index'})
@@ -291,32 +313,38 @@ const DriverLeave: React.FC = () => {
               className="text-sm break-keep"
               size="default"
               style={{
-                backgroundColor: '#1E3A8A',
+                backgroundColor: hasPendingLeave ? '#9CA3AF' : '#1E3A8A',
                 color: 'white',
                 borderRadius: '8px',
                 border: 'none',
-                padding: '16px'
+                padding: '16px',
+                opacity: hasPendingLeave ? 0.6 : 1
               }}
-              onClick={_handleApplyLeave}>
+              onClick={_handleApplyLeave}
+              disabled={hasPendingLeave}>
               <View className="flex flex-col items-center">
-                <View className="i-mdi-calendar-clock text-3xl mb-2" />
-                <Text className="text-sm">申请请假</Text>
+                <View className={`${hasPendingLeave ? 'i-mdi-clock-alert' : 'i-mdi-calendar-clock'} text-3xl mb-2`} />
+                <Text className="text-sm">{hasPendingLeave ? '请假审批中' : '申请请假'}</Text>
               </View>
             </Button>
             <Button
               className="text-sm break-keep"
               size="default"
               style={{
-                backgroundColor: '#F97316',
+                backgroundColor: hasPendingResignation ? '#9CA3AF' : '#F97316',
                 color: 'white',
                 borderRadius: '8px',
                 border: 'none',
-                padding: '16px'
+                padding: '16px',
+                opacity: hasPendingResignation ? 0.6 : 1
               }}
-              onClick={_handleApplyResignation}>
+              onClick={_handleApplyResignation}
+              disabled={hasPendingResignation}>
               <View className="flex flex-col items-center">
-                <View className="i-mdi-account-remove text-3xl mb-2" />
-                <Text className="text-sm">申请离职</Text>
+                <View
+                  className={`${hasPendingResignation ? 'i-mdi-clock-alert' : 'i-mdi-account-remove'} text-3xl mb-2`}
+                />
+                <Text className="text-sm">{hasPendingResignation ? '离职审批中' : '申请离职'}</Text>
               </View>
             </Button>
           </View>
