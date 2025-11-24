@@ -342,7 +342,7 @@ const ApplyLeave: React.FC = () => {
         reason: reason.trim()
       })
       success = result !== null
-      applicationId = result
+      applicationId = result?.id || null
     }
 
     setSubmitting(false)

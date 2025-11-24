@@ -1763,22 +1763,62 @@ export async function getAllLeaveApplications(): Promise<LeaveApplication[]> {
  * 审批请假申请
  */
 export async function reviewLeaveApplication(applicationId: string, review: ApplicationReviewInput): Promise<boolean> {
-  const {error} = await supabase
-    .from('leave_applications')
-    .update({
-      status: review.status,
-      reviewed_by: review.reviewed_by,
-      review_notes: review.review_notes || null,
-      reviewed_at: review.reviewed_at
-    })
-    .eq('id', applicationId)
+  try {
+    // 先获取申请信息（包括司机ID和申请详情）
+    const {data: application, error: fetchError} = await supabase
+      .from('leave_applications')
+      .select('user_id, leave_type, start_date, end_date, reason')
+      .eq('id', applicationId)
+      .maybeSingle()
 
-  if (error) {
-    console.error('审批请假申请失败:', error)
+    if (fetchError || !application) {
+      console.error('获取请假申请信息失败:', fetchError)
+      return false
+    }
+
+    // 更新审批状态
+    const {error: updateError} = await supabase
+      .from('leave_applications')
+      .update({
+        status: review.status,
+        reviewed_by: review.reviewed_by,
+        review_notes: review.review_notes || null,
+        reviewed_at: review.reviewed_at
+      })
+      .eq('id', applicationId)
+
+    if (updateError) {
+      console.error('审批请假申请失败:', updateError)
+      return false
+    }
+
+    // 创建通知给司机
+    const notificationType = review.status === 'approved' ? 'leave_approved' : 'leave_rejected'
+    const notificationTitle = review.status === 'approved' ? '请假申请已通过' : '请假申请已驳回'
+    const statusText = review.status === 'approved' ? '已通过' : '已驳回'
+
+    const leaveTypeMap: Record<string, string> = {
+      personal: '事假',
+      sick: '病假',
+      annual: '年假',
+      other: '其他'
+    }
+    const leaveTypeLabel = leaveTypeMap[application.leave_type] || '请假'
+
+    await createNotification({
+      user_id: application.user_id,
+      type: notificationType,
+      title: notificationTitle,
+      message: `您的${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      related_id: applicationId
+    })
+
+    console.log('✅ 请假申请审批成功，已通知司机')
+    return true
+  } catch (error) {
+    console.error('审批请假申请异常:', error)
     return false
   }
-
-  return true
 }
 
 // ==================== 离职申请相关 API ====================
@@ -1930,22 +1970,54 @@ export async function reviewResignationApplication(
   applicationId: string,
   review: ApplicationReviewInput
 ): Promise<boolean> {
-  const {error} = await supabase
-    .from('resignation_applications')
-    .update({
-      status: review.status,
-      reviewed_by: review.reviewed_by,
-      review_notes: review.review_notes || null,
-      reviewed_at: review.reviewed_at
-    })
-    .eq('id', applicationId)
+  try {
+    // 先获取申请信息（包括司机ID和申请详情）
+    const {data: application, error: fetchError} = await supabase
+      .from('resignation_applications')
+      .select('user_id, resignation_date, reason')
+      .eq('id', applicationId)
+      .maybeSingle()
 
-  if (error) {
-    console.error('审批离职申请失败:', error)
+    if (fetchError || !application) {
+      console.error('获取离职申请信息失败:', fetchError)
+      return false
+    }
+
+    // 更新审批状态
+    const {error: updateError} = await supabase
+      .from('resignation_applications')
+      .update({
+        status: review.status,
+        reviewed_by: review.reviewed_by,
+        review_notes: review.review_notes || null,
+        reviewed_at: review.reviewed_at
+      })
+      .eq('id', applicationId)
+
+    if (updateError) {
+      console.error('审批离职申请失败:', updateError)
+      return false
+    }
+
+    // 创建通知给司机
+    const notificationType = review.status === 'approved' ? 'resignation_approved' : 'resignation_rejected'
+    const notificationTitle = review.status === 'approved' ? '离职申请已通过' : '离职申请已驳回'
+    const statusText = review.status === 'approved' ? '已通过' : '已驳回'
+
+    await createNotification({
+      user_id: application.user_id,
+      type: notificationType,
+      title: notificationTitle,
+      message: `您的离职申请（期望离职日期：${application.resignation_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      related_id: applicationId
+    })
+
+    console.log('✅ 离职申请审批成功，已通知司机')
+    return true
+  } catch (error) {
+    console.error('审批离职申请异常:', error)
     return false
   }
-
-  return true
 }
 
 /**
