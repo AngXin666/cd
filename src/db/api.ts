@@ -1805,13 +1805,13 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     }
     const leaveTypeLabel = leaveTypeMap[application.leave_type] || '请假'
 
-    await createNotification({
-      user_id: application.user_id,
-      type: notificationType,
-      title: notificationTitle,
-      message: `您的${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
-      related_id: applicationId
-    })
+    await createNotification(
+      application.user_id,
+      notificationType,
+      notificationTitle,
+      `您的${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      applicationId
+    )
 
     console.log('✅ 请假申请审批成功，已通知司机')
     return true
@@ -2004,13 +2004,13 @@ export async function reviewResignationApplication(
     const notificationTitle = review.status === 'approved' ? '离职申请已通过' : '离职申请已驳回'
     const statusText = review.status === 'approved' ? '已通过' : '已驳回'
 
-    await createNotification({
-      user_id: application.user_id,
-      type: notificationType,
-      title: notificationTitle,
-      message: `您的离职申请（期望离职日期：${application.resignation_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
-      related_id: applicationId
-    })
+    await createNotification(
+      application.user_id,
+      notificationType,
+      notificationTitle,
+      `您的离职申请（期望离职日期：${application.resignation_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      applicationId
+    )
 
     console.log('✅ 离职申请审批成功，已通知司机')
     return true
