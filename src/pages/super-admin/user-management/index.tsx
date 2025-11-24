@@ -93,8 +93,8 @@ const UserManagement: React.FC = () => {
         }
       }
 
-      // 仓库过滤（仅对司机角色生效，且有多个仓库时）
-      if (role === 'driver' && warehouses.length > 1 && warehouses[warehouseIndex]) {
+      // 仓库过滤（对所有角色生效，且有多个仓库时）
+      if (warehouses.length > 1 && warehouses[warehouseIndex]) {
         const currentWarehouseId = warehouses[warehouseIndex].id
         filtered = filtered.filter((u) => {
           const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
@@ -890,8 +890,8 @@ const UserManagement: React.FC = () => {
             </View>
           )}
 
-          {/* 仓库切换器（仅在司机管理标签页且有多个仓库时显示） */}
-          {activeTab === 'driver' && warehouses.length > 1 && (
+          {/* 仓库切换器（有多个仓库时显示） */}
+          {warehouses.length > 1 && (
             <View className="mb-4">
               <View className="flex items-center mb-2">
                 <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
@@ -899,7 +899,9 @@ const UserManagement: React.FC = () => {
                 <Text className="text-xs text-gray-400 ml-2">
                   ({currentWarehouseIndex + 1}/{warehouses.length})
                 </Text>
-                <Text className="text-xs text-gray-400 ml-auto">{filteredUsers.length} 名司机</Text>
+                <Text className="text-xs text-gray-400 ml-auto">
+                  {filteredUsers.length} 名{activeTab === 'driver' ? '司机' : '管理员'}
+                </Text>
               </View>
               <View className="bg-white rounded-xl shadow-md overflow-hidden">
                 <Swiper
@@ -910,9 +912,14 @@ const UserManagement: React.FC = () => {
                   indicatorColor="rgba(0, 0, 0, 0.2)"
                   indicatorActiveColor="#1E3A8A">
                   {warehouses.map((warehouse) => {
-                    // 计算该仓库的司机数量
-                    const warehouseDriverCount = users.filter((u) => {
-                      if (u.role !== 'driver') return false
+                    // 计算该仓库的用户数量（根据当前标签页）
+                    const warehouseUserCount = users.filter((u) => {
+                      // 根据当前标签页过滤角色
+                      if (activeTab === 'driver') {
+                        if (u.role !== 'driver') return false
+                      } else {
+                        if (u.role !== 'manager' && u.role !== 'super_admin') return false
+                      }
                       const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
                       return userWarehouseIds.includes(warehouse.id)
                     }).length
@@ -922,7 +929,7 @@ const UserManagement: React.FC = () => {
                         <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
                           <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
                           <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
-                          <Text className="text-xs text-gray-500 ml-2">({warehouseDriverCount}人)</Text>
+                          <Text className="text-xs text-gray-500 ml-2">({warehouseUserCount}人)</Text>
                         </View>
                       </SwiperItem>
                     )
