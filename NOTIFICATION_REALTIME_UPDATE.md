@@ -191,10 +191,39 @@ logger.info('取消订阅通知实时更新')
 
 ## 常见问题
 
-### Q1: 通知栏没有实时更新？
+### Q1: 通知栏订阅状态显示 CHANNEL_ERROR？
+
+**问题描述**：
+- 浏览器控制台显示：`通知订阅状态 {status: 'CHANNEL_ERROR'}`
+- 通知栏无法实时更新
+
+**根本原因**：
+- notifications 表没有启用 Realtime 功能
+- 需要将表添加到 `supabase_realtime` 发布中
+
+**解决方案**：
+```sql
+-- 启用 notifications 表的 Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+```
+
+**验证方法**：
+```sql
+-- 检查表是否已添加到 Realtime 发布
+SELECT schemaname, tablename
+FROM pg_publication_tables
+WHERE pubname = 'supabase_realtime'
+  AND tablename = 'notifications';
+```
+
+**修复后的状态**：
+- 订阅状态变为 `SUBSCRIBED`
+- 通知栏可以实时更新
+
+### Q2: 通知栏没有实时更新？
 
 **可能原因**：
-1. Supabase Realtime 功能未启用
+1. Supabase Realtime 功能未启用（见 Q1）
 2. 网络连接问题
 3. WebSocket 连接失败
 
@@ -204,7 +233,7 @@ logger.info('取消订阅通知实时更新')
 3. 检查网络连接
 4. 刷新页面重新建立连接
 
-### Q2: 通知栏显示延迟？
+### Q3: 通知栏显示延迟？
 
 **可能原因**：
 1. 网络延迟
@@ -214,7 +243,7 @@ logger.info('取消订阅通知实时更新')
 - 通常在 100-500ms 内
 - 如果超过 1 秒，可能有问题
 
-### Q3: 通知栏显示重复通知？
+### Q4: 通知栏显示重复通知？
 
 **可能原因**：
 1. 订阅重复创建
@@ -223,6 +252,33 @@ logger.info('取消订阅通知实时更新')
 **解决方案**：
 - 检查 useEffect 的依赖项
 - 确保订阅在组件卸载时正确清理
+
+## 修复历史
+
+### 第一次修复：添加实时订阅代码
+
+**提交**：`c30aa76` - 添加通知栏实时更新功能
+
+**修改内容**：
+- 在 RealNotificationBar 组件中添加 Supabase Realtime 订阅
+- 监听 notifications 表的 INSERT、UPDATE、DELETE 事件
+- 添加日志记录
+
+**问题**：
+- 订阅状态显示 `CHANNEL_ERROR`
+- 通知栏无法实时更新
+
+### 第二次修复：启用 Realtime 功能
+
+**提交**：`59bddd1` - 启用 notifications 表的 Realtime 功能
+
+**修改内容**：
+- 使用 `ALTER PUBLICATION` 命令启用 notifications 表的 Realtime
+- 创建迁移文件 `012_enable_notifications_realtime.sql`
+
+**效果**：
+- 订阅状态变为 `SUBSCRIBED`
+- 通知栏可以实时更新
 
 ## 相关文档
 
@@ -233,7 +289,81 @@ logger.info('取消订阅通知实时更新')
 
 ## 提交记录
 
-- `c30aa76` - 添加通知栏实时更新功能
+- `c30aa76` - 添加通知栏实时更新功能（第一次修复）
+- `59bddd1` - 启用 notifications 表的 Realtime 功能（第二次修复）
+
+## 完整实现步骤
+
+### 步骤 1：添加实时订阅代码
+
+修改 `src/components/RealNotificationBar/index.tsx`：
+
+```typescript
+// 实时订阅通知更新
+useEffect(() => {
+  if (!user) return
+
+  logger.info('开始订阅通知实时更新', {userId: user.id})
+
+  // 订阅通知表的变化
+  const channel = supabase
+    .channel('notification-bar-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*', // 监听所有事件
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}` // 只监听当前用户的通知
+      },
+      (payload) => {
+        logger.info('收到通知实时更新', {event: payload.eventType})
+        loadNotifications() // 重新加载通知列表
+      }
+    )
+    .subscribe((status) => {
+      logger.info('通知订阅状态', {status})
+    })
+
+  // 清理订阅
+  return () => {
+    logger.info('取消订阅通知实时更新')
+    supabase.removeChannel(channel)
+  }
+}, [user, loadNotifications])
+```
+
+### 步骤 2：启用 Realtime 功能
+
+创建迁移文件 `supabase/migrations/012_enable_notifications_realtime.sql`：
+
+```sql
+-- 将 notifications 表添加到 Realtime 发布中
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+```
+
+执行迁移：
+
+```bash
+# 使用 supabase_apply_migration 工具执行
+```
+
+### 步骤 3：验证配置
+
+```sql
+-- 验证 notifications 表是否已添加到 Realtime 发布
+SELECT schemaname, tablename
+FROM pg_publication_tables
+WHERE pubname = 'supabase_realtime'
+  AND tablename = 'notifications';
+```
+
+### 步骤 4：测试实时更新
+
+1. 管理员登录管理端首页
+2. 司机提交请假申请
+3. 观察管理员的通知栏是否立即显示新通知
+4. 检查浏览器控制台的日志
 
 ## 总结
 
