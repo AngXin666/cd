@@ -26,7 +26,7 @@ const RealNotificationBar: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [scrollCount, setScrollCount] = useState(0) // 当前通知已滚动次数（0-2，共3次）
   const [isScrolling, setIsScrolling] = useState(false) // 是否正在滚动
-  const [userProfile, setUserProfile] = useState<Profile | null>(null)
+  const [_userProfile, setUserProfile] = useState<Profile | null>(null)
   const scrollTimerRef = useRef<NodeJS.Timeout | null>(null)
   const pauseTimerRef = useRef<NodeJS.Timeout | null>(null)
   const switchTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -383,77 +383,8 @@ const RealNotificationBar: React.FC = () => {
       setScrollCount(0)
     }
 
-    // 根据通知类型进行智能跳转
-    const notificationType = currentNotification.type
-    const relatedId = currentNotification.related_id
-    const userRole = userProfile?.role || 'driver'
-
-    // 确定跳转路径前缀（根据用户角色）
-    const pathPrefix = userRole === 'super_admin' ? '/pages/super-admin' : '/pages/manager'
-
-    // 请假申请相关通知 - 跳转到考勤管理页面
-    if (
-      notificationType === 'leave_application_submitted' ||
-      notificationType === 'leave_approved' ||
-      notificationType === 'leave_rejected'
-    ) {
-      if (relatedId) {
-        try {
-          // 获取请假申请的仓库ID
-          const {data: leaveApp} = await supabase
-            .from('leave_applications')
-            .select('warehouse_id')
-            .eq('id', relatedId)
-            .maybeSingle()
-
-          if (leaveApp?.warehouse_id) {
-            // 跳转到考勤管理页面，并切换到待审核标签和对应仓库
-            Taro.navigateTo({
-              url: `${pathPrefix}/leave-approval/index?tab=pending&warehouseId=${leaveApp.warehouse_id}`
-            })
-            return
-          }
-        } catch (error) {
-          logger.error('获取请假申请仓库ID失败', error)
-        }
-      }
-      // 如果获取失败，跳转到考勤管理页面（不指定仓库）
-      Taro.navigateTo({url: `${pathPrefix}/leave-approval/index?tab=pending`})
-      return
-    }
-
-    // 离职申请相关通知 - 跳转到考勤管理页面
-    if (
-      notificationType === 'resignation_application_submitted' ||
-      notificationType === 'resignation_approved' ||
-      notificationType === 'resignation_rejected'
-    ) {
-      if (relatedId) {
-        try {
-          // 获取离职申请的仓库ID
-          const {data: resignationApp} = await supabase
-            .from('resignation_applications')
-            .select('warehouse_id')
-            .eq('id', relatedId)
-            .maybeSingle()
-
-          if (resignationApp?.warehouse_id) {
-            // 跳转到考勤管理页面，并切换到待审核标签和对应仓库
-            Taro.navigateTo({
-              url: `${pathPrefix}/leave-approval/index?tab=pending&warehouseId=${resignationApp.warehouse_id}`
-            })
-            return
-          }
-        } catch (error) {
-          logger.error('获取离职申请仓库ID失败', error)
-        }
-      }
-      // 如果获取失败，跳转到考勤管理页面（不指定仓库）
-      Taro.navigateTo({url: `${pathPrefix}/leave-approval/index?tab=pending`})
-      return
-    }
-
-    // 其他通知 - 跳转到通知中心
+    // 所有用户点击通知栏都跳转到通知中心
+    // 从通知中心可以再跳转到具体的审批界面
     Taro.navigateTo({url: '/pages/common/notifications/index'})
   }
 

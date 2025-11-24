@@ -13,6 +13,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
+import {supabase} from '@/client/supabase'
 import {getCurrentUserRole} from '@/db/api'
 import {
   deleteNotification,
@@ -177,20 +178,53 @@ const NotificationsPage: React.FC = () => {
           })
           break
         case 'leave_application_submitted':
-        case 'resignation_application_submitted': {
+        case 'leave_approved':
+        case 'leave_rejected':
+        case 'resignation_application_submitted':
+        case 'resignation_approved':
+        case 'resignation_rejected': {
           // 获取用户角色，根据角色跳转到不同的审批页面
           const userRole = await getCurrentUserRole()
-          if (userRole === 'super_admin') {
-            // 超级管理员跳转到超级管理员的考勤管理页面（待审批标签）
-            Taro.navigateTo({
-              url: `/pages/super-admin/leave-approval/index?tab=pending`
-            })
-          } else {
-            // 普通管理员跳转到普通管理员的考勤管理页面（待审批标签）
-            Taro.navigateTo({
-              url: `/pages/manager/leave-approval/index?tab=pending`
-            })
+          const pathPrefix = userRole === 'super_admin' ? '/pages/super-admin' : '/pages/manager'
+
+          // 根据通知类型确定要查询的表
+          const isLeaveNotification =
+            notification.type === 'leave_application_submitted' ||
+            notification.type === 'leave_approved' ||
+            notification.type === 'leave_rejected'
+          const tableName = isLeaveNotification ? 'leave_applications' : 'resignation_applications'
+
+          try {
+            // 获取申请的仓库ID和状态
+            const {data: application} = await supabase
+              .from(tableName)
+              .select('warehouse_id, status')
+              .eq('id', notification.related_id)
+              .maybeSingle()
+
+            if (application?.warehouse_id) {
+              // 根据申请状态确定要跳转的标签
+              let tab = 'pending' // 默认待审核
+              if (application.status === 'approved') {
+                tab = 'approved' // 已批准
+              } else if (application.status === 'rejected') {
+                tab = 'rejected' // 已拒绝
+              }
+
+              // 跳转到考勤管理页面，并切换到对应标签和仓库
+              Taro.navigateTo({
+                url: `${pathPrefix}/leave-approval/index?tab=${tab}&warehouseId=${application.warehouse_id}`
+              })
+              return
+            }
+          } catch (error) {
+            logger.error('获取申请信息失败', error)
           }
+
+          // 如果获取失败，跳转到考勤管理页面（不指定仓库）
+          Taro.navigateTo({
+            url: `${pathPrefix}/leave-approval/index?tab=pending`
+          })
           break
         }
         default:
