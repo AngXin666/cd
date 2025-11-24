@@ -212,12 +212,12 @@ const ManagerHome: React.FC = () => {
   }
 
   const handleLeaveApproval = () => {
-    navigateTo({url: '/pages/manager/leave-approval/index'})
+    navigateTo({url: '/pages/manager/leave-approval/index?tab=pending'})
   }
 
   const handleAttendanceManagement = () => {
-    // 跳转到考勤管理页面（请假审批）
-    navigateTo({url: '/pages/manager/leave-approval/index'})
+    // 跳转到考勤管理页面（待审批标签）
+    navigateTo({url: '/pages/manager/leave-approval/index?tab=pending'})
   }
 
   const handleWarehouseCategories = () => {

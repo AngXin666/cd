@@ -48,6 +48,14 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<'pending' | 'stats'>('stats')
 
+  // 从URL参数读取初始标签
+  useEffect(() => {
+    const params = Taro.getCurrentInstance().router?.params
+    if (params?.tab === 'pending') {
+      setActiveTab('pending')
+    }
+  }, [])
+
   // 初始化当前月份
   const initCurrentMonth = useCallback(() => {
     const now = new Date()

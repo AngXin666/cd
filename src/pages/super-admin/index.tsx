@@ -220,7 +220,7 @@ const SuperAdminHome: React.FC = () => {
   }
 
   const handleLeaveApproval = () => {
-    navigateTo({url: '/pages/super-admin/leave-approval/index'})
+    navigateTo({url: '/pages/super-admin/leave-approval/index?tab=pending'})
   }
 
   const handleProfileClick = () => {
