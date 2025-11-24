@@ -85,7 +85,12 @@ const UserManagement: React.FC = () => {
 
       // 角色过滤
       if (role !== 'all') {
-        filtered = filtered.filter((u) => u.role === role)
+        // 特殊处理：在管理员标签页，显示车队长和老板
+        if (activeTab === 'manager') {
+          filtered = filtered.filter((u) => u.role === 'manager' || u.role === 'super_admin')
+        } else {
+          filtered = filtered.filter((u) => u.role === role)
+        }
       }
 
       // 仓库过滤（仅对司机标签页生效，且有多个仓库时）
