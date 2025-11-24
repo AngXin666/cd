@@ -196,10 +196,14 @@ const ProfilePage: React.FC = () => {
                 <View className="i-mdi-phone text-lg text-white mr-2 opacity-80" />
                 <Text className="text-sm text-white opacity-90">{maskPhone(profile?.phone)}</Text>
               </View>
-              {profile?.email && (
-                <View className="flex items-center">
-                  <View className="i-mdi-email text-lg text-white mr-2 opacity-80" />
-                  <Text className="text-sm text-white opacity-90">{profile.email}</Text>
+              {/* 管理员和超级管理员显示编辑实名按钮 */}
+              {(profile?.role === 'manager' || profile?.role === 'super_admin') && (
+                <View
+                  className="flex items-center px-3 py-1 rounded-full active:opacity-70"
+                  style={{background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)'}}
+                  onClick={() => navigateTo({url: '/pages/profile/edit-name/index'})}>
+                  <View className="i-mdi-pencil text-sm text-white mr-1" />
+                  <Text className="text-sm text-white">编辑实名</Text>
                 </View>
               )}
             </View>

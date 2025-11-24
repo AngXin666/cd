@@ -8,6 +8,7 @@ const pages = [
   'pages/profile/settings/index',
   'pages/profile/change-phone/index',
   'pages/profile/change-password/index',
+  'pages/profile/edit-name/index',
   'pages/profile/help/index',
   'pages/profile/feedback/index',
   'pages/common/notifications/index',

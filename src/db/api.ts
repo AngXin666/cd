@@ -5748,6 +5748,67 @@ export async function createNotificationForAllManagers(notification: {
 }
 
 /**
+ * 为所有超级管理员创建通知
+ * @param notification 通知信息（不包含user_id）
+ * @returns 成功创建的通知数量
+ */
+export async function createNotificationForAllSuperAdmins(notification: {
+  type: string
+  title: string
+  message: string
+  related_id?: string
+}): Promise<number> {
+  try {
+    logger.info('为所有超级管理员创建通知', notification)
+
+    // 获取所有超级管理员
+    const {data: superAdmins, error: superAdminsError} = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'super_admin')
+
+    if (superAdminsError) {
+      logger.error('获取超级管理员列表失败', superAdminsError)
+      return 0
+    }
+
+    if (!superAdmins || superAdmins.length === 0) {
+      logger.warn('没有找到超级管理员')
+      return 0
+    }
+
+    logger.info('找到超级管理员', {count: superAdmins.length})
+
+    // 为每个超级管理员创建通知
+    const notifications = superAdmins.map((admin) => ({
+      user_id: admin.id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      related_id: notification.related_id || null,
+      is_read: false
+    }))
+
+    // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
+    const {data, error} = await supabase.rpc('create_notifications_batch', {
+      notifications: notifications
+    })
+
+    if (error) {
+      logger.error('批量创建通知失败', error)
+      return 0
+    }
+
+    const count = data || 0
+    logger.info('批量创建通知成功', {count})
+    return count
+  } catch (error) {
+    logger.error('批量创建通知异常', error)
+    return 0
+  }
+}
+
+/**
  * 获取司机姓名
  * @param userId 用户ID
  * @returns 司机姓名，失败返回"未知司机"
