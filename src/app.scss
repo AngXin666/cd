@@ -12,3 +12,23 @@
     transform: translateX(-100%);
   }
 }
+
+/* 铃铛抖动动画 */
+@keyframes bell-shake {
+  0%, 100% {
+    transform: rotate(15deg);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: rotate(5deg);
+  }
+  20%, 40%, 60%, 80% {
+    transform: rotate(25deg);
+  }
+}
+
+/* 铃铛抖动动画类 */
+.bell-shake-animation {
+  animation: bell-shake 1s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
