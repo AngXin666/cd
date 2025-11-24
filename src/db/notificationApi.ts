@@ -33,6 +33,9 @@ export type NotificationCategory =
   | 'vehicle_approval' // 车辆审批信息
   | 'permission' // 权限信息
 
+// 通知处理状态
+export type NotificationProcessStatus = 'pending' | 'processed' | 'info_only'
+
 // 通知接口
 export interface Notification {
   id: string
@@ -44,6 +47,97 @@ export interface Notification {
   related_id: string | null
   is_read: boolean
   created_at: string
+}
+
+/**
+ * 判断通知是否为待处理状态
+ * 待处理状态：需要管理员进行操作的申请类通知
+ */
+export function isNotificationPending(type: NotificationType): boolean {
+  const pendingTypes: NotificationType[] = [
+    'leave_application_submitted', // 请假申请提交
+    'resignation_application_submitted', // 离职申请提交
+    'vehicle_review_pending' // 车辆待审核
+  ]
+  return pendingTypes.includes(type)
+}
+
+/**
+ * 判断通知是否为已处理状态
+ * 已处理状态：申请已被审批或拒绝的通知
+ */
+export function isNotificationProcessed(type: NotificationType): boolean {
+  const processedTypes: NotificationType[] = [
+    'leave_approved', // 请假批准
+    'leave_rejected', // 请假拒绝
+    'resignation_approved', // 离职批准
+    'resignation_rejected', // 离职拒绝
+    'vehicle_review_approved', // 车辆审核通过
+    'vehicle_review_need_supplement' // 车辆需要补录
+  ]
+  return processedTypes.includes(type)
+}
+
+/**
+ * 获取通知的处理状态
+ */
+export function getNotificationProcessStatus(type: NotificationType): NotificationProcessStatus {
+  if (isNotificationPending(type)) {
+    return 'pending'
+  }
+  if (isNotificationProcessed(type)) {
+    return 'processed'
+  }
+  return 'info_only'
+}
+
+/**
+ * 获取通知状态标签
+ */
+export function getNotificationStatusLabel(type: NotificationType): string {
+  switch (type) {
+    case 'leave_application_submitted':
+      return '待审批'
+    case 'resignation_application_submitted':
+      return '待审批'
+    case 'vehicle_review_pending':
+      return '待审核'
+    case 'leave_approved':
+      return '已批准'
+    case 'leave_rejected':
+      return '已拒绝'
+    case 'resignation_approved':
+      return '已批准'
+    case 'resignation_rejected':
+      return '已拒绝'
+    case 'vehicle_review_approved':
+      return '已通过'
+    case 'vehicle_review_need_supplement':
+      return '需补录'
+    default:
+      return '通知'
+  }
+}
+
+/**
+ * 获取通知状态颜色
+ */
+export function getNotificationStatusColor(type: NotificationType): string {
+  const status = getNotificationProcessStatus(type)
+  switch (status) {
+    case 'pending':
+      return 'text-warning' // 待处理：警告色（橙色）
+    case 'processed':
+      if (type.includes('approved')) {
+        return 'text-success' // 已批准：成功色（绿色）
+      }
+      if (type.includes('rejected')) {
+        return 'text-destructive' // 已拒绝：错误色（红色）
+      }
+      return 'text-muted-foreground' // 其他已处理：灰色
+    default:
+      return 'text-muted-foreground' // 仅通知：灰色
+  }
 }
 
 /**

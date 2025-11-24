@@ -24,6 +24,9 @@ import {getCurrentUserRole} from '@/db/api'
 import {
   deleteNotification,
   deleteReadNotifications,
+  getNotificationProcessStatus,
+  getNotificationStatusColor,
+  getNotificationStatusLabel,
   getUserNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
@@ -190,31 +193,42 @@ const NotificationsPage: React.FC = () => {
   }
 
   // 清空所有通知（需要二次确认）
+  // 只清除"已读"且"已处理"或"仅通知"类型的通知
+  // 保留所有"未读"或"待处理"的通知
   const handleClearAll = async () => {
     if (!user) return
 
-    const totalCount = notifications.length
-    if (totalCount === 0) {
-      Taro.showToast({title: '暂无通知', icon: 'none'})
+    // 计算可清除的通知数量（已读且非待处理）
+    const clearableNotifications = notifications.filter((n) => {
+      const status = getNotificationProcessStatus(n.type)
+      return n.is_read && status !== 'pending'
+    })
+
+    const clearableCount = clearableNotifications.length
+
+    if (clearableCount === 0) {
+      Taro.showToast({title: '暂无可清空的通知', icon: 'none'})
       return
     }
 
     Taro.showModal({
       title: '确认清空',
-      content: `确认要清空所有通知吗？共 ${totalCount} 条通知，此操作不可恢复。`,
+      content: `确认要清空所有已读且已处理的通知吗？共 ${clearableCount} 条通知，此操作不可恢复。\n\n注意：未读或待处理的通知将被保留。`,
       confirmText: '确认清空',
       cancelText: '取消',
       confirmColor: '#f97316',
       success: async (res) => {
         if (res.confirm) {
-          // 先标记所有为已读
-          await markAllNotificationsAsRead(user.id)
-          // 再删除所有已读
-          const success = await deleteReadNotifications(user.id)
-          if (success) {
-            setNotifications([])
+          try {
+            // 逐个删除可清除的通知
+            const deletePromises = clearableNotifications.map((n) => deleteNotification(n.id))
+            await Promise.all(deletePromises)
+
+            // 更新本地状态
+            setNotifications((prev) => prev.filter((n) => !clearableNotifications.some((cn) => cn.id === n.id)))
             Taro.showToast({title: '清空成功', icon: 'success'})
-          } else {
+          } catch (error) {
+            logger.error('清空通知失败', error)
             Taro.showToast({title: '清空失败', icon: 'error'})
           }
         }
@@ -229,32 +243,36 @@ const NotificationsPage: React.FC = () => {
       await handleMarkAsRead(notification.id)
     }
 
-    // 根据通知类型跳转到相应页面
+    // 获取通知的处理状态
+    const processStatus = getNotificationProcessStatus(notification.type)
+
+    // 如果是已处理的申请，显示提示，不跳转
+    if (processStatus === 'processed') {
+      Taro.showToast({
+        title: '该申请已处理完成',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    // 如果是待处理的申请，跳转到相应页面
     if (notification.related_id) {
       switch (notification.type) {
         case 'vehicle_review_pending':
-        case 'vehicle_review_approved':
-        case 'vehicle_review_need_supplement':
           // 跳转到车辆详情页
           Taro.navigateTo({
             url: `/pages/super-admin/vehicle-review-detail/index?vehicleId=${notification.related_id}`
           })
           break
         case 'leave_application_submitted':
-        case 'leave_approved':
-        case 'leave_rejected':
-        case 'resignation_application_submitted':
-        case 'resignation_approved':
-        case 'resignation_rejected': {
+        case 'resignation_application_submitted': {
           // 获取用户角色，根据角色跳转到不同的审批页面
           const userRole = await getCurrentUserRole()
           const pathPrefix = userRole === 'super_admin' ? '/pages/super-admin' : '/pages/manager'
 
           // 根据通知类型确定要查询的表
-          const isLeaveNotification =
-            notification.type === 'leave_application_submitted' ||
-            notification.type === 'leave_approved' ||
-            notification.type === 'leave_rejected'
+          const isLeaveNotification = notification.type === 'leave_application_submitted'
           const tableName = isLeaveNotification ? 'leave_applications' : 'resignation_applications'
 
           try {
@@ -596,56 +614,105 @@ const NotificationsPage: React.FC = () => {
 
                     {/* 该分组的通知列表 */}
                     <View className="px-4 pt-3 space-y-3">
-                      {group.notifications.map((notification) => (
-                        <View
-                          key={notification.id}
-                          className={`bg-card rounded-lg p-4 border transition-all ${
-                            notification.is_read
-                              ? 'border-border hover:border-border/80'
-                              : 'border-primary/50 shadow-sm hover:shadow-md'
-                          }`}
-                          onClick={() => handleNotificationClick(notification)}>
-                          {/* 通知头部：状态指示器 + 标题 */}
-                          <View className="flex items-start gap-3 mb-2">
-                            {/* 状态指示器 */}
-                            <View
-                              className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                                notification.is_read ? 'bg-success' : 'bg-destructive'
-                              }`}></View>
+                      {group.notifications.map((notification) => {
+                        const processStatus = getNotificationProcessStatus(notification.type)
+                        const statusLabel = getNotificationStatusLabel(notification.type)
+                        const statusColor = getNotificationStatusColor(notification.type)
+                        const isPending = processStatus === 'pending'
+                        const isProcessed = processStatus === 'processed'
 
-                            {/* 标题 */}
-                            <View className="flex-1">
-                              <Text
-                                className={`text-base font-medium ${
-                                  notification.is_read ? 'text-muted-foreground' : 'text-foreground'
-                                }`}>
-                                {notification.title}
-                              </Text>
+                        return (
+                          <View
+                            key={notification.id}
+                            className={`bg-card rounded-xl p-4 border-2 transition-all ${
+                              isPending
+                                ? 'border-warning/50 shadow-md hover:shadow-lg hover:border-warning'
+                                : notification.is_read
+                                  ? 'border-border/50 hover:border-border'
+                                  : 'border-primary/50 shadow-sm hover:shadow-md hover:border-primary'
+                            } ${isProcessed ? 'opacity-75' : ''}`}
+                            onClick={() => handleNotificationClick(notification)}>
+                            {/* 通知头部：状态指示器 + 标题 + 状态标签 */}
+                            <View className="flex items-start gap-3 mb-3">
+                              {/* 状态指示器 */}
+                              <View
+                                className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${
+                                  isPending
+                                    ? 'bg-warning animate-pulse'
+                                    : notification.is_read
+                                      ? 'bg-success'
+                                      : 'bg-destructive animate-pulse'
+                                }`}></View>
+
+                              {/* 标题和状态标签 */}
+                              <View className="flex-1 min-w-0">
+                                <View className="flex items-center gap-2 mb-1">
+                                  <Text
+                                    className={`text-base font-semibold ${
+                                      notification.is_read ? 'text-muted-foreground' : 'text-foreground'
+                                    }`}>
+                                    {notification.title}
+                                  </Text>
+                                  {/* 状态标签 */}
+                                  <View
+                                    className={`px-2 py-0.5 rounded-full ${
+                                      isPending
+                                        ? 'bg-warning/20'
+                                        : isProcessed
+                                          ? statusColor.includes('success')
+                                            ? 'bg-success/20'
+                                            : statusColor.includes('destructive')
+                                              ? 'bg-destructive/20'
+                                              : 'bg-muted'
+                                          : 'bg-muted'
+                                    }`}>
+                                    <Text className={`text-xs font-medium ${statusColor}`}>{statusLabel}</Text>
+                                  </View>
+                                </View>
+                              </View>
+
+                              {/* 删除按钮 */}
+                              <View
+                                className="i-mdi-delete text-xl text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDelete(notification.id)
+                                }}></View>
                             </View>
 
-                            {/* 删除按钮 */}
-                            <View
-                              className="i-mdi-delete text-lg text-muted-foreground hover:text-destructive cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDelete(notification.id)
-                              }}></View>
-                          </View>
-
-                          {/* 通知内容 */}
-                          <View className="ml-5">
-                            <Text className="text-sm text-muted-foreground mb-2">{notification.message}</Text>
-
-                            {/* 通知底部：时间 */}
-                            <View className="flex items-center gap-2">
-                              <View className="i-mdi-clock-outline text-xs text-muted-foreground"></View>
-                              <Text className="text-xs text-muted-foreground">
-                                {formatNotificationTime(notification.created_at)}
+                            {/* 通知内容 */}
+                            <View className="ml-6">
+                              <Text className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                                {notification.message}
                               </Text>
+
+                              {/* 通知底部：时间和操作提示 */}
+                              <View className="flex items-center justify-between">
+                                <View className="flex items-center gap-2">
+                                  <View className="i-mdi-clock-outline text-sm text-muted-foreground"></View>
+                                  <Text className="text-xs text-muted-foreground">
+                                    {formatNotificationTime(notification.created_at)}
+                                  </Text>
+                                </View>
+
+                                {/* 操作提示 */}
+                                {isPending && (
+                                  <View className="flex items-center gap-1">
+                                    <View className="i-mdi-hand-pointing-right text-sm text-warning"></View>
+                                    <Text className="text-xs text-warning font-medium">点击处理</Text>
+                                  </View>
+                                )}
+                                {isProcessed && (
+                                  <View className="flex items-center gap-1">
+                                    <View className="i-mdi-check-circle text-sm text-success"></View>
+                                    <Text className="text-xs text-muted-foreground">已处理</Text>
+                                  </View>
+                                )}
+                              </View>
                             </View>
                           </View>
-                        </View>
-                      ))}
+                        )
+                      })}
                     </View>
                   </View>
                 ))}
