@@ -1,30 +1,4 @@
-/*
-# 创建用户认证账号函数
-
-## 说明
-创建一个数据库函数，用于在 auth.users 表中创建新用户记录。
-这个函数会先创建 auth.users 记录，然后返回用户ID，供后续创建 profiles 记录使用。
-
-## 函数详情
-1. create_user_auth_account_first: 创建 auth.users 记录并返回用户ID
-   - 参数: user_email (text), user_phone (text)
-   - 返回: JSON 对象包含 success, user_id, email, default_password
-
-## 安全考虑
-- 函数使用 SECURITY DEFINER 权限，可以访问 auth schema
-- 默认密码为 "123456"
-- 用户创建后会自动确认（confirmed_at 设置为当前时间）
-*/
-
--- ============================================
--- 启用 pgcrypto 扩展（用于密码加密）
--- ============================================
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- ============================================
--- 创建用户认证账号函数
--- ============================================
-
+-- 修复用户认证函数的 search_path，包含 extensions schema
 CREATE OR REPLACE FUNCTION create_user_auth_account_first(
   user_email text,
   user_phone text
