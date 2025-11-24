@@ -12,7 +12,49 @@ delete colors.blueGray
 module.exports = {
   content: ['./public/index.html', './src/**/*.{html,js,ts,jsx,tsx}'],
   theme: {
-    extend: {colors}
+    extend: {
+      colors: {
+        ...colors,
+        // 语义化颜色定义
+        primary: {
+          DEFAULT: colors.blue[600],
+          foreground: colors.white,
+          glow: colors.blue[400]
+        },
+        secondary: {
+          DEFAULT: colors.orange[500],
+          foreground: colors.white
+        },
+        success: {
+          DEFAULT: colors.green[500],
+          foreground: colors.white
+        },
+        warning: {
+          DEFAULT: colors.orange[500],
+          foreground: colors.white
+        },
+        destructive: {
+          DEFAULT: colors.red[500],
+          foreground: colors.white
+        },
+        muted: {
+          DEFAULT: colors.gray[100],
+          foreground: colors.gray[600]
+        },
+        accent: {
+          DEFAULT: colors.blue[100],
+          foreground: colors.blue[900]
+        },
+        card: {
+          DEFAULT: colors.white,
+          foreground: colors.gray[900]
+        },
+        background: colors.gray[50],
+        foreground: colors.gray[900],
+        border: colors.gray[200],
+        input: colors.gray[100]
+      }
+    }
   },
   plugins: [
     iconsPlugin({
