@@ -5544,7 +5544,20 @@ export async function createNotificationForAllManagers(notification: {
  */
 export async function getDriverDisplayName(userId: string): Promise<string> {
   try {
-    const {data, error} = await supabase.from('profiles').select('name, driver_type').eq('id', userId).maybeSingle()
+    // 获取司机的基本信息和行驶证信息（包含真实姓名）
+    const {data, error} = await supabase
+      .from('profiles')
+      .select(
+        `
+        name,
+        driver_type,
+        driver_licenses (
+          id_card_name
+        )
+      `
+      )
+      .eq('id', userId)
+      .maybeSingle()
 
     if (error || !data) {
       logger.error('获取司机信息失败', {userId, error})
@@ -5558,7 +5571,14 @@ export async function getDriverDisplayName(userId: string): Promise<string> {
     }
 
     const driverType = data.driver_type ? driverTypeMap[data.driver_type] || '司机' : '司机'
-    const driverName = data.name || '未知'
+
+    // 优先使用行驶证上的真实姓名，其次使用 profiles 表的 name，最后使用"未知"
+    let driverName = '未知'
+    if (data.driver_licenses && Array.isArray(data.driver_licenses) && data.driver_licenses.length > 0) {
+      driverName = data.driver_licenses[0].id_card_name || data.name || '未知'
+    } else {
+      driverName = data.name || '未知'
+    }
 
     return `${driverType} ${driverName}`
   } catch (error) {
