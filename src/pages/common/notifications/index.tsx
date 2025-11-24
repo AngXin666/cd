@@ -22,6 +22,7 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
   type Notification,
+  type NotificationCategory,
   subscribeToNotifications
 } from '@/db/notificationApi'
 import {createLogger} from '@/utils/logger'
@@ -34,11 +35,15 @@ interface NotificationGroup {
   notifications: Notification[]
 }
 
+// 筛选类型
+type FilterType = 'all' | 'unread' | 'read'
+
 const NotificationsPage: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
-  const [showOnlyUnread, setShowOnlyUnread] = useState(false) // 是否只显示未读信息
+  const [filterType, setFilterType] = useState<FilterType>('all') // 筛选类型：全部、未读、已读
+  const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all') // 选中的分类
 
   // 加载通知列表
   const loadNotifications = useCallback(async () => {
@@ -349,13 +354,29 @@ const NotificationsPage: React.FC = () => {
     return notifications.filter((n) => !n.is_read).length
   }, [notifications])
 
+  // 统计已读数量
+  const readCount = useMemo(() => {
+    return notifications.filter((n) => n.is_read).length
+  }, [notifications])
+
   // 根据筛选条件过滤通知
   const filteredNotifications = useMemo(() => {
-    if (showOnlyUnread) {
-      return notifications.filter((n) => !n.is_read)
+    let result = notifications
+
+    // 按已读/未读筛选
+    if (filterType === 'unread') {
+      result = result.filter((n) => !n.is_read)
+    } else if (filterType === 'read') {
+      result = result.filter((n) => n.is_read)
     }
-    return notifications
-  }, [notifications, showOnlyUnread])
+
+    // 按分类筛选
+    if (selectedCategory !== 'all') {
+      result = result.filter((n) => n.category === selectedCategory)
+    }
+
+    return result
+  }, [notifications, filterType, selectedCategory])
 
   // 根据筛选后的通知进行分组
   const groupedFilteredNotifications = useMemo(() => {
@@ -392,7 +413,7 @@ const NotificationsPage: React.FC = () => {
     <View className="min-h-screen bg-background">
       {/* 顶部操作栏 */}
       <View className="bg-card p-4 border-b border-border">
-        <View className="flex items-center justify-between mb-2">
+        <View className="flex items-center justify-between mb-3">
           <Text className="text-lg font-bold text-foreground">通知中心</Text>
           {unreadCount > 0 && (
             <View className="bg-destructive text-destructive-foreground px-2 py-1 rounded-full">
@@ -400,21 +421,60 @@ const NotificationsPage: React.FC = () => {
             </View>
           )}
         </View>
-        <View className="flex items-center gap-2">
+
+        {/* 分类筛选 */}
+        <View className="mb-3">
+          <Text className="text-sm text-muted-foreground mb-2">信息分类</Text>
+          <View className="flex items-center gap-2 flex-wrap">
+            <Button
+              className={`${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
+              size="mini"
+              onClick={() => setSelectedCategory('all')}>
+              全部
+            </Button>
+            <Button
+              className={`${selectedCategory === 'leave_resignation' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
+              size="mini"
+              onClick={() => setSelectedCategory('leave_resignation')}>
+              请假离职信息
+            </Button>
+            <Button
+              className={`${selectedCategory === 'vehicle_approval' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
+              size="mini"
+              onClick={() => setSelectedCategory('vehicle_approval')}>
+              车辆审批信息
+            </Button>
+            <Button
+              className={`${selectedCategory === 'permission' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-1 rounded text-xs break-keep`}
+              size="mini"
+              onClick={() => setSelectedCategory('permission')}>
+              权限信息
+            </Button>
+          </View>
+        </View>
+
+        {/* 已读/未读筛选和操作按钮 */}
+        <View className="flex items-center gap-2 flex-wrap">
           <Button
-            className={`${showOnlyUnread ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-4 py-2 rounded text-sm break-keep`}
+            className={`${filterType === 'unread' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-2 rounded text-sm break-keep`}
             size="mini"
-            onClick={() => setShowOnlyUnread(!showOnlyUnread)}>
+            onClick={() => setFilterType('unread')}>
             未读信息 ({unreadCount})
           </Button>
           <Button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded text-sm break-keep"
+            className={`${filterType === 'read' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} px-3 py-2 rounded text-sm break-keep`}
+            size="mini"
+            onClick={() => setFilterType('read')}>
+            已读信息 ({readCount})
+          </Button>
+          <Button
+            className="bg-primary text-primary-foreground px-3 py-2 rounded text-sm break-keep"
             size="mini"
             onClick={handleMarkAllAsRead}>
             全部已读
           </Button>
           <Button
-            className="bg-muted text-muted-foreground px-4 py-2 rounded text-sm break-keep"
+            className="bg-muted text-muted-foreground px-3 py-2 rounded text-sm break-keep"
             size="mini"
             onClick={handleDeleteRead}>
             清空已读
@@ -431,7 +491,9 @@ const NotificationsPage: React.FC = () => {
         ) : filteredNotifications.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20">
             <View className="i-mdi-bell-off text-6xl text-muted-foreground mb-4"></View>
-            <Text className="text-muted-foreground">{showOnlyUnread ? '暂无未读通知' : '暂无通知'}</Text>
+            <Text className="text-muted-foreground">
+              {filterType === 'unread' ? '暂无未读通知' : filterType === 'read' ? '暂无已读通知' : '暂无通知'}
+            </Text>
           </View>
         ) : (
           <View className="pb-4">

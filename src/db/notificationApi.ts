@@ -27,11 +27,18 @@ export type NotificationType =
   | 'vehicle_review_approved' // 车辆审核通过
   | 'vehicle_review_need_supplement' // 车辆需要补录
 
+// 通知分类 - 与数据库 notification_category 枚举保持一致
+export type NotificationCategory =
+  | 'leave_resignation' // 请假离职信息
+  | 'vehicle_approval' // 车辆审批信息
+  | 'permission' // 权限信息
+
 // 通知接口
 export interface Notification {
   id: string
   user_id: string
   type: NotificationType
+  category: NotificationCategory
   title: string
   message: string
   related_id: string | null
@@ -225,6 +232,37 @@ export function subscribeToNotifications(userId: string, callback: (notification
 }
 
 /**
+ * 根据通知类型自动确定分类
+ * @param type 通知类型
+ * @returns 通知分类
+ */
+export function getNotificationCategory(type: NotificationType): NotificationCategory {
+  // 请假离职信息
+  if (
+    type === 'leave_application_submitted' ||
+    type === 'leave_approved' ||
+    type === 'leave_rejected' ||
+    type === 'resignation_application_submitted' ||
+    type === 'resignation_approved' ||
+    type === 'resignation_rejected'
+  ) {
+    return 'leave_resignation'
+  }
+
+  // 车辆审批信息
+  if (
+    type === 'vehicle_review_pending' ||
+    type === 'vehicle_review_approved' ||
+    type === 'vehicle_review_need_supplement'
+  ) {
+    return 'vehicle_approval'
+  }
+
+  // 权限信息（默认分类）
+  return 'permission'
+}
+
+/**
  * 创建通知
  * @param userId 接收通知的用户ID
  * @param type 通知类型
@@ -256,11 +294,15 @@ export async function createNotification(
       return false
     }
 
-    logger.db('创建通知', 'notifications', {userId, type, title, message, relatedId})
+    // 自动确定分类
+    const category = getNotificationCategory(type)
+
+    logger.db('创建通知', 'notifications', {userId, type, category, title, message, relatedId})
 
     const {error} = await supabase.from('notifications').insert({
       user_id: userId,
       type,
+      category,
       title,
       message,
       related_id: relatedId || null,
@@ -272,7 +314,7 @@ export async function createNotification(
       return false
     }
 
-    logger.info('通知创建成功', {userId, type, title})
+    logger.info('通知创建成功', {userId, type, category, title})
     return true
   } catch (error) {
     logger.error('创建通知异常', error)
@@ -300,6 +342,7 @@ export async function createNotifications(
     const notificationData = notifications.map((n) => ({
       user_id: n.userId,
       type: n.type,
+      category: getNotificationCategory(n.type), // 自动确定分类
       title: n.title,
       message: n.message,
       related_id: n.relatedId || null,
