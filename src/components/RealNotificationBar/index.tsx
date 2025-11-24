@@ -35,17 +35,34 @@ const RealNotificationBar: React.FC = () => {
     }
   }, [user])
 
-  // 初始加载
-  useEffect(() => {
-    loadNotifications()
-  }, [loadNotifications])
-
   // 页面显示时重新加载（从通知中心返回时）
   useDidShow(() => {
     loadNotifications()
   })
 
-  // 实时订阅通知更新
+  // 定时轮询通知更新（主要方案）
+  useEffect(() => {
+    if (!user) return
+
+    logger.info('启动通知定时轮询', {userId: user.id})
+
+    // 立即加载一次
+    loadNotifications()
+
+    // 每10秒轮询一次
+    const pollInterval = setInterval(() => {
+      logger.info('定时轮询：检查通知更新')
+      loadNotifications()
+    }, 10000) // 10秒
+
+    // 清理定时器
+    return () => {
+      logger.info('停止通知定时轮询')
+      clearInterval(pollInterval)
+    }
+  }, [user, loadNotifications])
+
+  // 实时订阅通知更新（备用方案）
   useEffect(() => {
     if (!user) return
 
@@ -67,13 +84,13 @@ const RealNotificationBar: React.FC = () => {
 
           // 当有新通知插入或通知状态更新时，重新加载通知列表
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            logger.info('重新加载通知列表')
+            logger.info('Realtime触发：重新加载通知列表')
             loadNotifications()
           }
 
           // 当通知被删除时，也重新加载
           if (payload.eventType === 'DELETE') {
-            logger.info('通知被删除，重新加载列表')
+            logger.info('Realtime触发：通知被删除，重新加载列表')
             loadNotifications()
           }
         }
