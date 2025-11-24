@@ -8,6 +8,7 @@ import {
   getCategoryPriceForDriver,
   getDriverWarehouses,
   getPieceWorkRecordsByUser,
+  getTodayAttendance,
   getUserById,
   getWarehouseCategoriesWithDetails,
   updatePieceWorkRecord
@@ -45,6 +46,7 @@ const PieceWorkEntry: React.FC = () => {
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
   const [isFirstLoad, setIsFirstLoad] = useState(true)
   const [driverProfile, setDriverProfile] = useState<Profile | null>(null) // 司机信息
+  const [clockedWarehouseId, setClockedWarehouseId] = useState<string | null>(null) // 今日打卡的仓库ID
 
   // 公共表单数据
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
@@ -83,6 +85,11 @@ const PieceWorkEntry: React.FC = () => {
     const profile = await getUserById(user.id)
     setDriverProfile(profile)
 
+    // 获取今日打卡记录
+    const todayAttendance = await getTodayAttendance(user.id)
+    const clockedWarehouse = todayAttendance?.warehouse_id || null
+    setClockedWarehouseId(clockedWarehouse)
+
     // 加载司机的仓库（只加载启用的仓库）
     const allWarehouses = await getDriverWarehouses(user.id)
     const activeWarehouses = allWarehouses.filter((w) => w.is_active)
@@ -108,19 +115,27 @@ const PieceWorkEntry: React.FC = () => {
     const recordsData = await getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
     setRecords(recordsData)
 
-    // 只在首次加载时恢复用户偏好设置
+    // 只在首次加载时恢复用户偏好设置或自动选择打卡仓库
     if (isFirstLoad) {
-      const lastWarehouse = getLastWarehouse()
-      const lastDate = getLastWorkDate()
-      const formDefaults = getPieceWorkFormDefaults()
-
       let warehouseIndexToLoad = 0
-      if (lastWarehouse && activeWarehouses.length > 0) {
-        const warehouseIndex = activeWarehouses.findIndex((w) => w.id === lastWarehouse.id)
-        if (warehouseIndex !== -1) {
-          warehouseIndexToLoad = warehouseIndex
+
+      // 优先选择打卡的仓库
+      if (clockedWarehouse && activeWarehouses.length > 0) {
+        const clockedWarehouseIndex = activeWarehouses.findIndex((w) => w.id === clockedWarehouse)
+        if (clockedWarehouseIndex !== -1) {
+          warehouseIndexToLoad = clockedWarehouseIndex
+        }
+      } else {
+        // 如果没有打卡记录，则尝试恢复上次选择的仓库
+        const lastWarehouse = getLastWarehouse()
+        if (lastWarehouse && activeWarehouses.length > 0) {
+          const warehouseIndex = activeWarehouses.findIndex((w) => w.id === lastWarehouse.id)
+          if (warehouseIndex !== -1) {
+            warehouseIndexToLoad = warehouseIndex
+          }
         }
       }
+
       setSelectedWarehouseIndex(warehouseIndexToLoad)
 
       // 加载选中仓库的品类
@@ -143,6 +158,7 @@ const PieceWorkEntry: React.FC = () => {
         }
       }
 
+      const lastDate = getLastWorkDate()
       if (lastDate) {
         const lastDateObj = new Date(lastDate)
         const today = new Date()
@@ -152,6 +168,7 @@ const PieceWorkEntry: React.FC = () => {
         }
       }
 
+      const formDefaults = getPieceWorkFormDefaults()
       if (formDefaults) {
         if (formDefaults.needUpstairs !== undefined) {
           setPieceWorkItems((prev) =>
@@ -173,6 +190,35 @@ const PieceWorkEntry: React.FC = () => {
   useDidShow(() => {
     loadData()
   })
+
+  // 处理仓库选择变化
+  const handleWarehouseChange = async (e: any) => {
+    const newIndex = Number(e.detail.value)
+    const selectedWarehouse = warehouses[newIndex]
+
+    if (!selectedWarehouse) {
+      return
+    }
+
+    // 检查是否选择了未打卡的仓库
+    if (clockedWarehouseId && selectedWarehouse.id !== clockedWarehouseId) {
+      // 显示确认对话框
+      const result = await Taro.showModal({
+        title: '提示',
+        content: '您选择的仓库今日未打卡，是否确定录入计件？',
+        confirmText: '确定',
+        cancelText: '取消'
+      })
+
+      if (!result.confirm) {
+        // 用户取消，不改变仓库选择
+        return
+      }
+    }
+
+    // 更新仓库选择
+    setSelectedWarehouseIndex(newIndex)
+  }
 
   // 当仓库变化时，重新加载该仓库的品类
   useEffect(() => {
@@ -692,7 +738,7 @@ const PieceWorkEntry: React.FC = () => {
                 mode="selector"
                 range={warehouses.map((w) => w.name)}
                 value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                onChange={handleWarehouseChange}>
                 <View className="border border-gray-300 rounded-lg p-3 bg-gray-50">
                   <Text className="text-gray-800">{warehouses[selectedWarehouseIndex]?.name || '请选择仓库'}</Text>
                 </View>
