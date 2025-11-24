@@ -241,6 +241,21 @@ export async function createNotification(
   relatedId?: string
 ): Promise<boolean> {
   try {
+    // 参数验证
+    console.log('🔔 createNotification 调用参数:', {
+      userId,
+      type,
+      title,
+      message,
+      relatedId
+    })
+
+    if (!userId) {
+      console.error('❌ createNotification: userId 参数为空')
+      logger.error('创建通知失败：userId 为空', {type, title})
+      return false
+    }
+
     logger.db('创建通知', 'notifications', {userId, type, title, message, relatedId})
 
     const {error} = await supabase.from('notifications').insert({

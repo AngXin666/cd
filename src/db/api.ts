@@ -1776,6 +1776,21 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       return false
     }
 
+    // 调试日志：检查获取到的数据
+    console.log('📋 获取到的请假申请数据:', {
+      applicationId,
+      user_id: application.user_id,
+      leave_type: application.leave_type,
+      start_date: application.start_date,
+      end_date: application.end_date
+    })
+
+    // 验证 user_id 是否存在
+    if (!application.user_id) {
+      console.error('❌ 请假申请的 user_id 为空，无法创建通知')
+      return false
+    }
+
     // 更新审批状态
     const {error: updateError} = await supabase
       .from('leave_applications')
@@ -1805,13 +1820,13 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     }
     const leaveTypeLabel = leaveTypeMap[application.leave_type] || '请假'
 
-    await createNotification(
-      application.user_id,
-      notificationType,
-      notificationTitle,
-      `您的${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
-      applicationId
-    )
+    await createNotification({
+      user_id: application.user_id,
+      type: notificationType,
+      title: notificationTitle,
+      message: `您的${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      related_id: applicationId
+    })
 
     console.log('✅ 请假申请审批成功，已通知司机')
     return true
@@ -2004,13 +2019,13 @@ export async function reviewResignationApplication(
     const notificationTitle = review.status === 'approved' ? '离职申请已通过' : '离职申请已驳回'
     const statusText = review.status === 'approved' ? '已通过' : '已驳回'
 
-    await createNotification(
-      application.user_id,
-      notificationType,
-      notificationTitle,
-      `您的离职申请（期望离职日期：${application.resignation_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
-      applicationId
-    )
+    await createNotification({
+      user_id: application.user_id,
+      type: notificationType,
+      title: notificationTitle,
+      message: `您的离职申请（期望离职日期：${application.resignation_date}）${statusText}${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      related_id: applicationId
+    })
 
     console.log('✅ 离职申请审批成功，已通知司机')
     return true
