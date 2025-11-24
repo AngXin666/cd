@@ -409,6 +409,50 @@ const ManagerHome: React.FC = () => {
             )}
           </View>
 
+          {/* 仓库切换器（多仓库时显示） */}
+          {warehouses.length > 1 && (
+            <View className="mb-4">
+              <View className="flex items-center mb-2">
+                <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
+                <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
+                <Text className="text-xs text-gray-400 ml-2">
+                  ({currentWarehouseIndex + 1}/{warehouses.length})
+                </Text>
+                <Text className="text-xs text-gray-400 ml-auto">按数据量排序</Text>
+              </View>
+              <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                <Swiper
+                  className="h-16"
+                  current={currentWarehouseIndex}
+                  onChange={handleWarehouseChange}
+                  indicatorDots
+                  indicatorColor="rgba(0, 0, 0, 0.2)"
+                  indicatorActiveColor="#1E3A8A">
+                  {warehouses.map((warehouse) => (
+                    <SwiperItem key={warehouse.id}>
+                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                      </View>
+                    </SwiperItem>
+                  ))}
+                </Swiper>
+              </View>
+            </View>
+          )}
+
+          {/* 单个仓库显示 */}
+          {warehouses.length === 1 && (
+            <View className="mb-4">
+              <View className="bg-white rounded-xl p-4 shadow-md">
+                <View className="flex items-center justify-center">
+                  <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                  <Text className="text-lg font-bold text-blue-900">{warehouses[0].name}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* 统计概览（司机统计） */}
           <View className="mb-4">
             <View className="flex items-center justify-between mb-3">
@@ -464,50 +508,6 @@ const ManagerHome: React.FC = () => {
               </View>
             )}
           </View>
-
-          {/* 仓库切换器（多仓库时显示） */}
-          {warehouses.length > 1 && (
-            <View className="mb-4">
-              <View className="flex items-center mb-2">
-                <View className="i-mdi-warehouse text-lg text-blue-900 mr-2" />
-                <Text className="text-sm font-bold text-gray-700">选择仓库</Text>
-                <Text className="text-xs text-gray-400 ml-2">
-                  ({currentWarehouseIndex + 1}/{warehouses.length})
-                </Text>
-                <Text className="text-xs text-gray-400 ml-auto">按数据量排序</Text>
-              </View>
-              <View className="bg-white rounded-xl shadow-md overflow-hidden">
-                <Swiper
-                  className="h-16"
-                  current={currentWarehouseIndex}
-                  onChange={handleWarehouseChange}
-                  indicatorDots
-                  indicatorColor="rgba(0, 0, 0, 0.2)"
-                  indicatorActiveColor="#1E3A8A">
-                  {warehouses.map((warehouse) => (
-                    <SwiperItem key={warehouse.id}>
-                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
-                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
-                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
-                      </View>
-                    </SwiperItem>
-                  ))}
-                </Swiper>
-              </View>
-            </View>
-          )}
-
-          {/* 单个仓库显示 */}
-          {warehouses.length === 1 && (
-            <View className="mb-4">
-              <View className="bg-white rounded-xl p-4 shadow-md">
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
-                  <Text className="text-lg font-bold text-blue-900">{warehouses[0].name}</Text>
-                </View>
-              </View>
-            </View>
-          )}
 
           {/* 快捷功能板块 */}
           <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
