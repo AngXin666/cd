@@ -7,7 +7,7 @@ import {supabase} from '@/client/supabase'
 import {
   createLeaveApplication,
   createNotificationForAllManagers,
-  getDriverName,
+  getDriverDisplayName,
   getDriverWarehouses,
   getMonthlyLeaveCount,
   getMonthlyPendingLeaveCount,
@@ -348,8 +348,8 @@ const ApplyLeave: React.FC = () => {
     setSubmitting(false)
 
     if (success && applicationId) {
-      // 获取司机姓名
-      const driverName = await getDriverName(user.id)
+      // 获取司机显示名称（包含司机类型和姓名）
+      const driverDisplayName = await getDriverDisplayName(user.id)
 
       // 获取请假类型中文名称
       const leaveTypeLabel = leaveTypes.find((t) => t.value === leaveType)?.label || '请假'
@@ -358,7 +358,7 @@ const ApplyLeave: React.FC = () => {
       const notificationCount = await createNotificationForAllManagers({
         type: 'leave_application_submitted',
         title: '新的请假申请',
-        message: `司机 ${driverName} 提交了${leaveTypeLabel}申请，请假时间：${startDate} 至 ${endDate}（${leaveDays}天），事由：${reason.trim()}`,
+        message: `${driverDisplayName} 提交了${leaveTypeLabel}申请，请假时间：${startDate} 至 ${endDate}（${leaveDays}天），事由：${reason.trim()}`,
         related_id: applicationId
       })
 

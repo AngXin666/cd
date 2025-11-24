@@ -7,7 +7,7 @@ import {supabase} from '@/client/supabase'
 import {
   createNotificationForAllManagers,
   createResignationApplication,
-  getDriverName,
+  getDriverDisplayName,
   getDriverWarehouses,
   getWarehouseSettings,
   saveDraftResignationApplication,
@@ -210,14 +210,14 @@ const ApplyResignation: React.FC = () => {
     setSubmitting(false)
 
     if (success && applicationId) {
-      // 获取司机姓名
-      const driverName = await getDriverName(user.id)
+      // 获取司机显示名称（包含司机类型和姓名）
+      const driverDisplayName = await getDriverDisplayName(user.id)
 
       // 为所有管理员创建通知
       const notificationCount = await createNotificationForAllManagers({
         type: 'resignation_application_submitted',
         title: '新的离职申请',
-        message: `司机 ${driverName} 提交了离职申请，期望离职日期：${expectedDate}，离职原因：${reason.trim()}`,
+        message: `${driverDisplayName} 提交了离职申请，期望离职日期：${expectedDate}，离职原因：${reason.trim()}`,
         related_id: applicationId
       })
 

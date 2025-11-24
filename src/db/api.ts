@@ -5537,6 +5537,40 @@ export async function createNotificationForAllManagers(notification: {
  * @param userId 用户ID
  * @returns 司机姓名，失败返回"未知司机"
  */
+/**
+ * 获取司机的显示名称（包含司机类型和姓名）
+ * @param userId 用户ID
+ * @returns 格式化的司机名称，例如："纯司机 张三" 或 "带车司机 李四"
+ */
+export async function getDriverDisplayName(userId: string): Promise<string> {
+  try {
+    const {data, error} = await supabase.from('profiles').select('name, driver_type').eq('id', userId).maybeSingle()
+
+    if (error || !data) {
+      logger.error('获取司机信息失败', {userId, error})
+      return '未知司机'
+    }
+
+    // 司机类型映射
+    const driverTypeMap: Record<string, string> = {
+      pure: '纯司机',
+      with_vehicle: '带车司机'
+    }
+
+    const driverType = data.driver_type ? driverTypeMap[data.driver_type] || '司机' : '司机'
+    const driverName = data.name || '未知'
+
+    return `${driverType} ${driverName}`
+  } catch (error) {
+    logger.error('获取司机信息异常', {userId, error})
+    return '未知司机'
+  }
+}
+
+/**
+ * 获取司机姓名（仅姓名，不含类型）
+ * @deprecated 建议使用 getDriverDisplayName 获取完整的显示名称
+ */
 export async function getDriverName(userId: string): Promise<string> {
   try {
     const {data, error} = await supabase.from('profiles').select('name').eq('id', userId).maybeSingle()
