@@ -42,39 +42,45 @@ src/components/notification/
 ### 集成位置
 
 1. **司机端首页** (`src/pages/driver/index.tsx`)
-   - 位置：欢迎卡片右上角
-   - 样式：绝对定位，top-4 right-4
+   - 位置：欢迎卡片右下角
+   - 样式：绝对定位，bottom-4 right-4
 
 2. **普通管理端首页** (`src/pages/manager/index.tsx`)
-   - 位置：欢迎卡片右上角
-   - 样式：绝对定位，top-4 right-4
+   - 位置：欢迎卡片右下角
+   - 样式：绝对定位，bottom-4 right-4
 
 3. **超级管理端首页** (`src/pages/super-admin/index.tsx`)
-   - 位置：欢迎卡片右上角
-   - 样式：绝对定位，top-4 right-4
+   - 位置：欢迎卡片右下角
+   - 样式：绝对定位，bottom-4 right-4
 
 ## 样式设计
 
 ### 铃铛图标
 - 图标：`i-mdi-bell`（Material Design Icons）
-- 大小：`text-3xl`（约 30px）
+- 大小：`text-2xl`（约 24px，更小巧）
 - 颜色：
   - 有未读：`text-red-500`
   - 无未读：`text-green-500`
 - 过渡：`transition-colors`（平滑颜色变化）
+- 倾斜：`transform: rotate(15deg)`（右倾斜 15 度）
+
+### 位置布局
+- 位置：欢迎卡片右下角
+- 定位：`absolute bottom-4 right-4`
+- 相对定位：相对于欢迎卡片容器
 
 ### 未读徽章
 - 背景：`bg-red-500`（红色）
 - 文字：`text-white`（白色）
 - 大小：`min-w-5 h-5`（最小宽度和高度 20px）
-- 位置：`absolute -top-1 -right-1`（右上角）
+- 位置：`absolute -top-1 -right-1`（铃铛右上角）
 - 圆角：`rounded-full`（完全圆形）
 - 阴影：`shadow-md`（中等阴影）
 - 内边距：`px-1`（水平内边距）
 
 ### 交互效果
 - 点击反馈：`active:opacity-70`（点击时降低透明度）
-- 过渡动画：`transition-opacity`（平滑透明度变化）
+- 过渡动画：`transition-all`（所有属性平滑过渡）
 - 鼠标样式：`cursor-pointer`（手型光标）
 
 ## 数据流

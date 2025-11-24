@@ -342,9 +342,9 @@ const ManagerHome: React.FC = () => {
         <View className="p-4">
           {/* 欢迎卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg relative">
-            {/* 通知铃铛 - 右上角 */}
+            {/* 通知铃铛 - 右下角 */}
             {user && (
-              <View className="absolute top-4 right-4">
+              <View className="absolute bottom-4 right-4">
                 <NotificationBell userId={user.id} />
               </View>
             )}

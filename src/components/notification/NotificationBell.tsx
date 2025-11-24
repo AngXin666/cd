@@ -58,11 +58,12 @@ const NotificationBell: React.FC<NotificationBellProps> = ({userId, className = 
 
   return (
     <View
-      className={`relative flex items-center justify-center cursor-pointer active:opacity-70 transition-opacity ${className}`}
-      onClick={handleClick}>
+      className={`relative flex items-center justify-center cursor-pointer active:opacity-70 transition-all ${className}`}
+      onClick={handleClick}
+      style={{transform: 'rotate(15deg)'}}>
       {/* 铃铛图标 - 有未读显示红色，无未读显示绿色 */}
       <View
-        className={`i-mdi-bell text-3xl transition-colors ${unreadCount > 0 ? 'text-red-500' : 'text-green-500'}`}
+        className={`i-mdi-bell text-2xl transition-colors ${unreadCount > 0 ? 'text-red-500' : 'text-green-500'}`}
       />
 
       {/* 未读数量徽章 */}
