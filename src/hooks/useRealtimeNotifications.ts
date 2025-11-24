@@ -193,7 +193,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           event: 'UPDATE',
           schema: 'public',
           table: 'leave_applications',
-          filter: `driver_id=eq.${userId}`
+          filter: `user_id=eq.${userId}`
         },
         (payload) => {
           console.log('📝 请假申请状态变化:', payload)
@@ -217,7 +217,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           event: 'UPDATE',
           schema: 'public',
           table: 'resignation_applications',
-          filter: `driver_id=eq.${userId}`
+          filter: `user_id=eq.${userId}`
         },
         (payload) => {
           console.log('📝 离职申请状态变化:', payload)
