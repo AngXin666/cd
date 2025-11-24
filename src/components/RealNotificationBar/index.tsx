@@ -139,22 +139,46 @@ const RealNotificationBar: React.FC = () => {
     // 滚动动画持续时间
     const scrollDuration = 8000 // 8秒完成一次滚动
     const pauseDuration = 2000 // 停留2秒
+    const singleNotificationDelay = 10000 // 单条通知滚动3次后延迟10秒
+
+    // 判断是否只有一条通知
+    const isSingleNotification = notifications.length === 1
 
     // 开始滚动循环
     const startScrollCycle = (count: number) => {
       if (count >= 3) {
-        // 滚动3次后，切换到下一条通知
-        logger.info('滚动3次完成，切换到下一条通知', {currentIndex})
-        switchTimerRef.current = setTimeout(() => {
-          setCurrentIndex((prev) => (prev + 1) % notifications.length)
-          setScrollCount(0)
-          setIsScrolling(false)
-        }, 500)
+        // 滚动3次后的处理
+        if (isSingleNotification) {
+          // 只有一条通知：延迟10秒后继续滚动
+          logger.info('单条通知滚动3次完成，延迟10秒后继续滚动', {currentIndex})
+          switchTimerRef.current = setTimeout(() => {
+            setScrollCount(0)
+            setIsScrolling(false)
+            // 10秒后重新开始滚动循环
+            startScrollCycle(0)
+          }, singleNotificationDelay)
+        } else {
+          // 多条通知：切换到下一条通知
+          logger.info('多条通知滚动3次完成，切换到下一条通知', {
+            currentIndex,
+            nextIndex: (currentIndex + 1) % notifications.length
+          })
+          switchTimerRef.current = setTimeout(() => {
+            setCurrentIndex((prev) => (prev + 1) % notifications.length)
+            setScrollCount(0)
+            setIsScrolling(false)
+          }, 500)
+        }
         return
       }
 
       // 开始滚动
-      logger.info('开始滚动', {currentIndex, scrollCount: count + 1})
+      logger.info('开始滚动', {
+        currentIndex,
+        scrollCount: count + 1,
+        totalNotifications: notifications.length,
+        isSingleNotification
+      })
       setScrollCount(count)
       setIsScrolling(true)
 
