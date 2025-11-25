@@ -5,26 +5,24 @@ import {
   activateTenant,
   checkAndHandleExpiredLeases,
   createLease,
-  deleteLease,
   getAllTenants,
   getLeasesByTenantId,
   reduceLease,
   suspendTenant
 } from '@/db/api'
-import type {CreateLeaseInput, ExpireActionType, Lease, Profile} from '@/db/types'
+import type {CreateLeaseInput, Lease, Profile} from '@/db/types'
 
 // 租户租期数据类型
-interface TenantWithLeases {
+interface TenantWithLease {
   tenant: Profile
-  leases: Lease[]
+  lease: Lease | null // 只保留最新的一条租期
 }
 
 export default function LeaseList() {
-  const [tenantsWithLeases, setTenantsWithLeases] = useState<TenantWithLeases[]>([])
+  const [tenantsWithLeases, setTenantsWithLeases] = useState<TenantWithLease[]>([])
   const [loading, setLoading] = useState(true)
-  const [expandedTenantIds, setExpandedTenantIds] = useState<Set<string>>(new Set())
   const [showAddForm, setShowAddForm] = useState<string | null>(null) // 记录当前正在添加租期的租户ID
-  const [showReduceForm, setShowReduceForm] = useState<string | null>(null) // 记录当前正在减少租期的租期ID
+  const [showReduceForm, setShowReduceForm] = useState<string | null>(null) // 记录当前正在减少租期的租户ID
 
   // 表单状态
   const [selectedDurationIndex, setSelectedDurationIndex] = useState(0)
@@ -63,11 +61,13 @@ export default function LeaseList() {
       const tenantsData = await getAllTenants()
       const mainTenants = tenantsData.filter((t) => t.main_account_id === null)
 
-      // 为每个租户加载其租期
+      // 为每个租户加载其最新租期
       const tenantsWithLeasesData = await Promise.all(
         mainTenants.map(async (tenant) => {
           const leases = await getLeasesByTenantId(tenant.id)
-          return {tenant, leases}
+          // 只保留最新的一条租期（按创建时间排序，取第一条）
+          const latestLease = leases.length > 0 ? leases[0] : null
+          return {tenant, lease: latestLease}
         })
       )
 
@@ -87,16 +87,6 @@ export default function LeaseList() {
   useDidShow(() => {
     loadData()
   })
-
-  const handleToggleExpand = (tenantId: string) => {
-    const newExpandedIds = new Set(expandedTenantIds)
-    if (newExpandedIds.has(tenantId)) {
-      newExpandedIds.delete(tenantId)
-    } else {
-      newExpandedIds.add(tenantId)
-    }
-    setExpandedTenantIds(newExpandedIds)
-  }
 
   const handleAddLease = (tenantId: string) => {
     setShowAddForm(tenantId)
@@ -176,28 +166,6 @@ export default function LeaseList() {
       console.error('添加租期失败:', error)
       Taro.showToast({title: '添加失败', icon: 'none'})
     }
-  }
-
-  const handleDelete = async (leaseId: string) => {
-    const result = await Taro.showModal({
-      title: '确认删除',
-      content: '确定要删除该租期记录吗？'
-    })
-
-    if (result.confirm) {
-      const success = await deleteLease(leaseId)
-      if (success) {
-        Taro.showToast({title: '删除成功', icon: 'success'})
-        loadData()
-      } else {
-        Taro.showToast({title: '删除失败', icon: 'none'})
-      }
-    }
-  }
-
-  const handleShowReduceForm = (leaseId: string) => {
-    setShowReduceForm(leaseId)
-    setSelectedReduceMonthsIndex(0)
   }
 
   const handleReduceSubmit = async (leaseId: string) => {
@@ -310,22 +278,17 @@ export default function LeaseList() {
             </View>
           ) : (
             <View className="space-y-3">
-              {tenantsWithLeases.map(({tenant, leases}) => {
-                const isExpanded = expandedTenantIds.has(tenant.id)
+              {tenantsWithLeases.map(({tenant, lease}) => {
                 const isAddingLease = showAddForm === tenant.id
+                const isReducing = showReduceForm === tenant.id
 
                 return (
                   <View key={tenant.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    {/* 租户卡片头部 */}
-                    <View className="p-4 border-b border-gray-200">
-                      <View
-                        className="flex flex-row items-center justify-between mb-3"
-                        onClick={() => handleToggleExpand(tenant.id)}>
-                        <View className="flex flex-row items-center gap-2 flex-1">
-                          {/* 展开/收起图标 */}
-                          <View
-                            className={`${isExpanded ? 'i-mdi-chevron-down' : 'i-mdi-chevron-right'} text-xl text-gray-600 transition-all`}
-                          />
+                    {/* 租户卡片 */}
+                    <View className="p-4">
+                      {/* 租户基本信息 */}
+                      <View className="mb-3">
+                        <View className="flex flex-row items-center gap-2 mb-2">
                           <Text className="text-lg font-semibold text-foreground">{tenant.name || '未命名'}</Text>
                           {/* 状态标识 */}
                           <View className={`px-2 py-1 rounded ${getTenantStatusBgColor(tenant.status || 'active')}`}>
@@ -333,15 +296,7 @@ export default function LeaseList() {
                               {getTenantStatusLabel(tenant.status || 'active')}
                             </Text>
                           </View>
-                          {/* 租期数量 */}
-                          <View className="px-2 py-1 rounded bg-blue-100">
-                            <Text className="text-xs text-blue-600">{leases.length}个租期</Text>
-                          </View>
                         </View>
-                      </View>
-
-                      {/* 租户基本信息 */}
-                      <View className="space-y-1 mb-3">
                         {tenant.phone && (
                           <View>
                             <Text className="text-sm text-muted-foreground">电话：{tenant.phone}</Text>
@@ -354,17 +309,170 @@ export default function LeaseList() {
                         )}
                       </View>
 
+                      {/* 租期信息 */}
+                      {lease ? (
+                        <View className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 mb-3">
+                          <View className="flex flex-row items-center justify-between mb-3">
+                            <Text className="text-base font-semibold text-foreground">租期信息</Text>
+                            <View className={`px-2 py-1 rounded ${getStatusBgColor(lease.status)}`}>
+                              <Text className={`text-xs font-semibold ${getStatusColor(lease.status)}`}>
+                                {getStatusLabel(lease.status)}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View className="space-y-2">
+                            {/* 到期时间 */}
+                            <View className="flex flex-row items-center gap-2">
+                              <View className="i-mdi-calendar-clock text-lg text-primary" />
+                              <View className="flex-1">
+                                <Text className="text-xs text-muted-foreground">到期时间</Text>
+                                <Text className="text-base font-semibold text-foreground">
+                                  {formatDate(lease.end_date)}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {/* 总租期月数 */}
+                            <View className="flex flex-row items-center gap-2">
+                              <View className="i-mdi-clock-outline text-lg text-primary" />
+                              <View className="flex-1">
+                                <Text className="text-xs text-muted-foreground">总租期</Text>
+                                <Text className="text-base font-semibold text-primary">
+                                  {getDurationLabel(lease.duration_months)}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {/* 到期操作 */}
+                            <View className="flex flex-row items-start gap-2">
+                              <View className="i-mdi-cog text-lg text-muted-foreground mt-0.5" />
+                              <View className="flex-1">
+                                <Text className="text-xs text-muted-foreground">到期后操作</Text>
+                                <Text className="text-sm text-foreground">
+                                  {getExpireActionLabel(lease.expire_action)}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className="bg-gray-100 rounded-lg p-4 mb-3">
+                          <View className="flex items-center justify-center py-4">
+                            <View className="i-mdi-calendar-blank text-4xl text-gray-300 mb-2" />
+                            <Text className="text-sm text-muted-foreground">暂无租期</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 添加租期表单 */}
+                      {isAddingLease && (
+                        <View className="bg-gray-50 rounded-lg p-4 mb-3 border border-gray-200">
+                          <View className="mb-3">
+                            <Text className="text-base font-semibold text-foreground">
+                              {lease ? '续期' : '添加租期'}
+                            </Text>
+                          </View>
+
+                          {/* 选择租期时长 */}
+                          <View className="mb-3">
+                            <Text className="text-sm text-muted-foreground mb-2">租期时长</Text>
+                            <View
+                              className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
+                              onClick={handleShowDurationPicker}>
+                              <Text className="text-foreground">{durationOptions[selectedDurationIndex].label}</Text>
+                              <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
+                            </View>
+                          </View>
+
+                          {/* 选择到期操作 */}
+                          <View className="mb-3">
+                            <Text className="text-sm text-muted-foreground mb-2">到期后操作</Text>
+                            <View
+                              className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
+                              onClick={handleShowExpireActionPicker}>
+                              <Text className="text-foreground text-xs flex-1">
+                                {expireActionOptions[selectedExpireActionIndex].label}
+                              </Text>
+                              <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
+                            </View>
+                          </View>
+
+                          {/* 操作按钮 */}
+                          <View className="flex flex-row gap-3">
+                            <Button
+                              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded break-keep text-sm"
+                              size="mini"
+                              onClick={() => setShowAddForm(null)}>
+                              取消
+                            </Button>
+                            <Button
+                              className="flex-1 bg-primary text-white py-2 rounded break-keep text-sm"
+                              size="mini"
+                              onClick={() => handleSubmit(tenant.id)}>
+                              确认{lease ? '续期' : '添加'}
+                            </Button>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 减少租期表单 */}
+                      {isReducing && lease && (
+                        <View className="bg-gray-50 rounded-lg p-4 mb-3 border border-gray-200">
+                          <View className="mb-3">
+                            <Text className="text-base font-semibold text-foreground">减少租期</Text>
+                          </View>
+
+                          {/* 选择减少月数 */}
+                          <View className="mb-3">
+                            <Text className="text-sm text-muted-foreground mb-2">减少月数</Text>
+                            <View
+                              className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
+                              onClick={handleShowReduceMonthsPicker}>
+                              <Text className="text-foreground">
+                                {reduceMonthsOptions[selectedReduceMonthsIndex].label}
+                              </Text>
+                              <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
+                            </View>
+                          </View>
+
+                          {/* 操作按钮 */}
+                          <View className="flex flex-row gap-3">
+                            <Button
+                              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded break-keep text-sm"
+                              size="mini"
+                              onClick={() => setShowReduceForm(null)}>
+                              取消
+                            </Button>
+                            <Button
+                              className="flex-1 bg-orange-500 text-white py-2 rounded break-keep text-sm"
+                              size="mini"
+                              onClick={() => handleReduceSubmit(lease.id)}>
+                              确认减少
+                            </Button>
+                          </View>
+                        </View>
+                      )}
+
                       {/* 操作按钮 */}
                       <View className="flex flex-row gap-2">
                         <Button
                           className="flex-1 bg-primary text-white py-2 rounded break-keep text-sm"
                           size="mini"
                           onClick={() => handleAddLease(tenant.id)}>
-                          添加租期
+                          {lease ? '续期' : '添加租期'}
                         </Button>
-                        {(tenant.status || 'active') === 'active' ? (
+                        {lease && (
                           <Button
                             className="flex-1 bg-orange-500 text-white py-2 rounded break-keep text-sm"
+                            size="mini"
+                            onClick={() => setShowReduceForm(tenant.id)}>
+                            减少租期
+                          </Button>
+                        )}
+                        {(tenant.status || 'active') === 'active' ? (
+                          <Button
+                            className="flex-1 bg-red-500 text-white py-2 rounded break-keep text-sm"
                             size="mini"
                             onClick={() => handleSuspend(tenant.id)}>
                             停用账号
@@ -379,173 +487,6 @@ export default function LeaseList() {
                         )}
                       </View>
                     </View>
-
-                    {/* 添加租期表单 */}
-                    {isAddingLease && (
-                      <View className="bg-gray-50 p-4 border-b border-gray-200">
-                        <View className="mb-3">
-                          <Text className="text-base font-semibold text-foreground">添加新租期</Text>
-                        </View>
-
-                        {/* 选择租期时长 */}
-                        <View className="mb-3">
-                          <Text className="text-sm text-muted-foreground mb-2">租期时长</Text>
-                          <View
-                            className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
-                            onClick={handleShowDurationPicker}>
-                            <Text className="text-foreground">{durationOptions[selectedDurationIndex].label}</Text>
-                            <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
-                          </View>
-                        </View>
-
-                        {/* 选择到期操作 */}
-                        <View className="mb-3">
-                          <Text className="text-sm text-muted-foreground mb-2">到期后操作</Text>
-                          <View
-                            className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
-                            onClick={handleShowExpireActionPicker}>
-                            <Text className="text-foreground text-xs flex-1">
-                              {expireActionOptions[selectedExpireActionIndex].label}
-                            </Text>
-                            <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
-                          </View>
-                        </View>
-
-                        {/* 操作按钮 */}
-                        <View className="flex flex-row gap-3">
-                          <Button
-                            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded break-keep text-sm"
-                            size="mini"
-                            onClick={() => setShowAddForm(null)}>
-                            取消
-                          </Button>
-                          <Button
-                            className="flex-1 bg-primary text-white py-2 rounded break-keep text-sm"
-                            size="mini"
-                            onClick={() => handleSubmit(tenant.id)}>
-                            确认添加
-                          </Button>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 展开的租期列表 */}
-                    {isExpanded && (
-                      <View className="bg-gray-50 p-4">
-                        {leases.length === 0 ? (
-                          <View className="py-8">
-                            <View className="flex items-center justify-center">
-                              <View className="i-mdi-calendar-blank text-4xl text-gray-300 mb-2" />
-                            </View>
-                            <Text className="text-center text-sm text-muted-foreground">暂无租期记录</Text>
-                          </View>
-                        ) : (
-                          <View className="space-y-3">
-                            {leases.map((lease) => {
-                              const isReducing = showReduceForm === lease.id
-
-                              return (
-                                <View key={lease.id} className="bg-white rounded-lg p-3 shadow-sm">
-                                  {/* 状态标识 */}
-                                  <View className="flex flex-row items-center justify-between mb-2">
-                                    <View className={`px-2 py-1 rounded ${getStatusBgColor(lease.status)}`}>
-                                      <Text className={`text-xs font-semibold ${getStatusColor(lease.status)}`}>
-                                        {getStatusLabel(lease.status)}
-                                      </Text>
-                                    </View>
-                                    <Text className="text-xs text-muted-foreground">
-                                      创建于 {formatDate(lease.created_at)}
-                                    </Text>
-                                  </View>
-
-                                  {/* 租期信息 */}
-                                  <View className="space-y-1 mb-2">
-                                    <View className="flex flex-row items-center gap-2">
-                                      <View className="i-mdi-calendar text-sm text-muted-foreground" />
-                                      <Text className="text-xs text-muted-foreground">
-                                        开始：{formatDate(lease.start_date)}
-                                      </Text>
-                                    </View>
-                                    <View className="flex flex-row items-center gap-2">
-                                      <View className="i-mdi-calendar-check text-sm text-muted-foreground" />
-                                      <Text className="text-xs text-muted-foreground">
-                                        结束：{formatDate(lease.end_date)}
-                                      </Text>
-                                    </View>
-                                    <View className="flex flex-row items-center gap-2">
-                                      <View className="i-mdi-clock-outline text-sm text-muted-foreground" />
-                                      <Text className="text-xs font-semibold text-primary">
-                                        租期时长：{getDurationLabel(lease.duration_months)}
-                                      </Text>
-                                    </View>
-                                    <View className="flex flex-row items-start gap-2">
-                                      <View className="i-mdi-cog text-sm text-muted-foreground mt-0.5" />
-                                      <Text className="text-xs text-muted-foreground flex-1">
-                                        到期操作：{getExpireActionLabel(lease.expire_action)}
-                                      </Text>
-                                    </View>
-                                  </View>
-
-                                  {/* 减少租期表单 */}
-                                  {isReducing && (
-                                    <View className="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-200">
-                                      <View className="mb-2">
-                                        <Text className="text-sm font-semibold text-foreground">减少租期</Text>
-                                      </View>
-
-                                      {/* 选择减少月数 */}
-                                      <View className="mb-2">
-                                        <Text className="text-xs text-muted-foreground mb-1">减少月数</Text>
-                                        <View
-                                          className="bg-white rounded px-3 py-2 border border-border flex flex-row items-center justify-between"
-                                          onClick={handleShowReduceMonthsPicker}>
-                                          <Text className="text-xs text-foreground">
-                                            {reduceMonthsOptions[selectedReduceMonthsIndex].label}
-                                          </Text>
-                                          <View className="i-mdi-chevron-down text-base text-muted-foreground" />
-                                        </View>
-                                      </View>
-
-                                      {/* 操作按钮 */}
-                                      <View className="flex flex-row gap-2">
-                                        <Button
-                                          className="flex-1 bg-gray-200 text-gray-700 py-1 rounded break-keep text-xs"
-                                          size="mini"
-                                          onClick={() => setShowReduceForm(null)}>
-                                          取消
-                                        </Button>
-                                        <Button
-                                          className="flex-1 bg-orange-500 text-white py-1 rounded break-keep text-xs"
-                                          size="mini"
-                                          onClick={() => handleReduceSubmit(lease.id)}>
-                                          确认减少
-                                        </Button>
-                                      </View>
-                                    </View>
-                                  )}
-
-                                  {/* 操作按钮 */}
-                                  <View className="flex flex-row gap-2">
-                                    <Button
-                                      className="flex-1 bg-orange-500 text-white py-1 rounded break-keep text-xs"
-                                      size="mini"
-                                      onClick={() => handleShowReduceForm(lease.id)}>
-                                      减少租期
-                                    </Button>
-                                    <Button
-                                      className="flex-1 bg-red-500 text-white py-1 rounded break-keep text-xs"
-                                      size="mini"
-                                      onClick={() => handleDelete(lease.id)}>
-                                      删除租期
-                                    </Button>
-                                  </View>
-                                </View>
-                              )
-                            })}
-                          </View>
-                        )}
-                      </View>
-                    )}
                   </View>
                 )
               })}

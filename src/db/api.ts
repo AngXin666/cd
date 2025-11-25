@@ -7152,20 +7152,20 @@ export async function getLeasesByTenantId(tenantId: string): Promise<Lease[]> {
 }
 
 /**
- * 创建新租期（续期功能）
- * 如果租户已有租期，新租期将从最后一个租期的结束日期开始
- * 如果租户没有租期，则使用传入的开始日期
+ * 添加租期（累积模式）
+ * 如果租户已有租期，则延长现有租期并累加月数
+ * 如果租户没有租期，则创建新租期
  */
 export async function createLease(input: CreateLeaseInput): Promise<boolean> {
   try {
-    console.log('createLease 接收到的参数:', input)
+    console.log('添加租期 - 接收参数:', input)
 
-    // 查询该租户的最新租期
+    // 查询该租户的现有租期
     const {data: existingLeases, error: queryError} = await supabase
       .from('leases')
-      .select('end_date')
+      .select('*')
       .eq('tenant_id', input.tenant_id)
-      .order('end_date', {ascending: false})
+      .order('created_at', {ascending: false})
       .limit(1)
 
     if (queryError) {
@@ -7173,45 +7173,71 @@ export async function createLease(input: CreateLeaseInput): Promise<boolean> {
       return false
     }
 
-    // 确定新租期的开始日期
-    let actualStartDate: string
     if (existingLeases && existingLeases.length > 0) {
-      // 如果存在租期，从最后一个租期的结束日期开始
-      actualStartDate = existingLeases[0].end_date
-      console.log('检测到现有租期，从上一个租期结束日期开始:', actualStartDate)
+      // 已有租期，更新现有记录
+      const existingLease = existingLeases[0]
+      console.log('检测到现有租期，执行累积更新:', existingLease)
+
+      // 从现有结束日期开始计算新的结束日期
+      const currentEndDate = new Date(existingLease.end_date)
+      const newEndDate = new Date(currentEndDate)
+      newEndDate.setMonth(newEndDate.getMonth() + input.duration_months)
+      const newEndDateStr = newEndDate.toISOString().split('T')[0]
+
+      // 累加月数
+      const newTotalMonths = existingLease.duration_months + input.duration_months
+
+      console.log(`租期累积: ${existingLease.end_date} + ${input.duration_months}个月 = ${newEndDateStr}`)
+      console.log(`总月数: ${existingLease.duration_months} + ${input.duration_months} = ${newTotalMonths}个月`)
+
+      // 更新现有租期
+      const {error: updateError} = await supabase
+        .from('leases')
+        .update({
+          end_date: newEndDateStr,
+          duration_months: newTotalMonths,
+          status: 'active',
+          expire_action: input.expire_action
+        })
+        .eq('id', existingLease.id)
+
+      if (updateError) {
+        console.error('更新租期失败:', updateError)
+        return false
+      }
+
+      console.log('租期累积成功')
+      return true
     } else {
-      // 如果不存在租期，使用传入的开始日期
-      actualStartDate = input.start_date
-      console.log('首次添加租期，使用指定开始日期:', actualStartDate)
+      // 首次创建租期
+      console.log('首次创建租期，使用指定开始日期:', input.start_date)
+
+      const startDate = new Date(input.start_date)
+      const endDate = new Date(startDate)
+      endDate.setMonth(endDate.getMonth() + input.duration_months)
+      const endDateStr = endDate.toISOString().split('T')[0]
+
+      console.log(`新租期: ${input.start_date} + ${input.duration_months}个月 = ${endDateStr}`)
+
+      const {error: insertError} = await supabase.from('leases').insert({
+        tenant_id: input.tenant_id,
+        start_date: input.start_date,
+        end_date: endDateStr,
+        duration_months: input.duration_months,
+        status: 'active',
+        expire_action: input.expire_action
+      })
+
+      if (insertError) {
+        console.error('创建租期失败:', insertError)
+        return false
+      }
+
+      console.log('租期创建成功')
+      return true
     }
-
-    // 计算结束日期
-    const startDate = new Date(actualStartDate)
-    const endDate = new Date(startDate)
-    endDate.setMonth(endDate.getMonth() + input.duration_months)
-
-    const endDateStr = endDate.toISOString().split('T')[0]
-    console.log('计算的结束日期:', endDateStr)
-    console.log(`租期详情: ${actualStartDate} + ${input.duration_months}个月 = ${endDateStr}`)
-
-    const {error} = await supabase.from('leases').insert({
-      tenant_id: input.tenant_id,
-      start_date: actualStartDate,
-      end_date: endDateStr,
-      duration_months: input.duration_months,
-      status: 'active',
-      expire_action: input.expire_action
-    })
-
-    if (error) {
-      console.error('创建租期失败:', error)
-      return false
-    }
-
-    console.log('租期创建成功')
-    return true
   } catch (error) {
-    console.error('创建租期异常:', error)
+    console.error('添加租期异常:', error)
     return false
   }
 }
@@ -7236,11 +7262,13 @@ export async function deleteLease(leaseId: string): Promise<boolean> {
 }
 
 /**
- * 减少租期
- * 从现有租期中减少指定的月数
+ * 减少租期（累积模式）
+ * 从租户的总租期中减少指定的月数
  */
 export async function reduceLease(leaseId: string, reduceMonths: number): Promise<boolean> {
   try {
+    console.log(`减少租期 - 租期ID: ${leaseId}, 减少月数: ${reduceMonths}`)
+
     // 获取当前租期信息
     const {data: lease, error: fetchError} = await supabase.from('leases').select('*').eq('id', leaseId).maybeSingle()
 
@@ -7262,13 +7290,17 @@ export async function reduceLease(leaseId: string, reduceMonths: number): Promis
     const startDate = new Date(lease.start_date)
     const newEndDate = new Date(startDate)
     newEndDate.setMonth(newEndDate.getMonth() + newDurationMonths)
+    const newEndDateStr = newEndDate.toISOString().split('T')[0]
+
+    console.log(`租期减少: 总月数 ${lease.duration_months} - ${reduceMonths} = ${newDurationMonths}个月`)
+    console.log(`新到期日期: ${newEndDateStr}`)
 
     // 更新租期
     const {error: updateError} = await supabase
       .from('leases')
       .update({
         duration_months: newDurationMonths,
-        end_date: newEndDate.toISOString().split('T')[0],
+        end_date: newEndDateStr,
         // 如果新的结束日期已经过期，更新状态为 expired
         status: newEndDate < new Date() ? 'expired' : 'active'
       })
@@ -7279,6 +7311,7 @@ export async function reduceLease(leaseId: string, reduceMonths: number): Promis
       return false
     }
 
+    console.log('租期减少成功')
     return true
   } catch (error) {
     console.error('减少租期异常:', error)
