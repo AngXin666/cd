@@ -1021,7 +1021,28 @@ export async function insertManagerWarehouseAssignment(input: {
   manager_id: string
   warehouse_id: string
 }): Promise<boolean> {
-  const {error} = await supabase.from('manager_warehouses').insert(input)
+  // 获取当前用户的 tenant_id
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('插入管理员仓库分配失败: 用户未登录')
+    return false
+  }
+
+  // 获取当前用户的 tenant_id
+  const {data: profile} = await supabase.from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.tenant_id) {
+    console.error('插入管理员仓库分配失败: 无法获取 tenant_id')
+    return false
+  }
+
+  const {error} = await supabase.from('manager_warehouses').insert({
+    ...input,
+    tenant_id: profile.tenant_id
+  })
 
   if (error) {
     console.error('插入管理员仓库分配失败:', error)
