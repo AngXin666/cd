@@ -1,3 +1,7 @@
+/**
+ * 租期管理页面 - 累积模式
+ * 每个租户只显示一条租期记录，添加租期时自动累积到现有租期
+ */
 import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
