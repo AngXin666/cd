@@ -970,3 +970,90 @@ export interface VehicleRecordInput {
   register_date?: string | null
   engine_number?: string | null
 }
+
+// ============================================
+// 司机通知系统类型定义
+// ============================================
+
+/**
+ * 通知模板
+ */
+export interface NotificationTemplate {
+  id: string
+  title: string
+  content: string
+  category: 'general' | 'attendance' | 'piece_work' | 'vehicle' | 'leave'
+  is_favorite: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 定时通知
+ */
+export interface ScheduledNotification {
+  id: string
+  title: string
+  content: string
+  send_time: string
+  target_type: 'all' | 'warehouse' | 'specific'
+  target_ids: string[]
+  status: 'pending' | 'sent' | 'cancelled' | 'failed'
+  created_by: string
+  created_at: string
+  sent_at: string | null
+}
+
+/**
+ * 自动提醒规则
+ */
+export interface AutoReminderRule {
+  id: string
+  rule_type: 'attendance' | 'piece_work'
+  rule_name: string
+  check_time: string
+  reminder_content: string
+  warehouse_id: string | null
+  is_active: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 通知发送记录
+ */
+export interface NotificationSendRecord {
+  id: string
+  notification_type: 'manual' | 'scheduled' | 'auto'
+  title: string
+  content: string
+  recipient_count: number
+  target_type: string
+  target_ids: string[]
+  sent_by: string
+  sent_at: string
+  related_notification_id: string | null
+}
+
+/**
+ * 带仓库信息的自动提醒规则
+ */
+export interface AutoReminderRuleWithWarehouse extends AutoReminderRule {
+  warehouse?: {
+    id: string
+    name: string
+  } | null
+}
+
+/**
+ * 带发送者信息的通知发送记录
+ */
+export interface NotificationSendRecordWithSender extends NotificationSendRecord {
+  sender?: {
+    id: string
+    name: string
+    role: string
+  }
+}

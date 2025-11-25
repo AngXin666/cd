@@ -558,6 +558,14 @@ const ManagerHome: React.FC = () => {
                 <Text className="text-xs text-gray-700 font-medium">考勤管理</Text>
               </View>
 
+              {/* 司机通知 */}
+              <View
+                onClick={() => navigateTo({url: '/pages/shared/driver-notification/index'})}
+                className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
+                <View className="i-mdi-bell-ring text-3xl text-blue-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">司机通知</Text>
+              </View>
+
               {/* 仓库品类配置 */}
               <View
                 onClick={handleWarehouseCategories}

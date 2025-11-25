@@ -9,6 +9,8 @@ import type {
   AttendanceRule,
   AttendanceRuleInput,
   AttendanceRuleUpdate,
+  AutoReminderRule,
+  AutoReminderRuleWithWarehouse,
   CategoryPrice,
   CategoryPriceInput,
   DriverLicense,
@@ -25,6 +27,9 @@ import type {
   LockedPhotos,
   ManagerPermission,
   ManagerPermissionInput,
+  NotificationSendRecord,
+  NotificationSendRecordWithSender,
+  NotificationTemplate,
   PieceWorkCategory,
   PieceWorkCategoryInput,
   PieceWorkRecord,
@@ -34,6 +39,7 @@ import type {
   ProfileUpdate,
   ResignationApplication,
   ResignationApplicationInput,
+  ScheduledNotification,
   UserRole,
   Vehicle,
   VehicleInput,
@@ -5974,6 +5980,373 @@ export async function getTableConstraints(tableName: string): Promise<DatabaseCo
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error('获取表约束信息异常:', error)
+    return []
+  }
+}
+
+// ============================================
+// 司机通知系统 API
+// ============================================
+
+/**
+ * 获取所有通知模板
+ */
+export async function getNotificationTemplates(): Promise<NotificationTemplate[]> {
+  try {
+    const {data, error} = await supabase
+      .from('notification_templates')
+      .select('*')
+      .order('is_favorite', {ascending: false})
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取通知模板失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取通知模板异常:', error)
+    return []
+  }
+}
+
+/**
+ * 创建通知模板
+ */
+export async function createNotificationTemplate(
+  template: Omit<NotificationTemplate, 'id' | 'created_at' | 'updated_at'>
+): Promise<NotificationTemplate | null> {
+  try {
+    const {data, error} = await supabase.from('notification_templates').insert(template).select().maybeSingle()
+
+    if (error) {
+      console.error('创建通知模板失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建通知模板异常:', error)
+    return null
+  }
+}
+
+/**
+ * 更新通知模板
+ */
+export async function updateNotificationTemplate(id: string, updates: Partial<NotificationTemplate>): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('notification_templates').update(updates).eq('id', id)
+
+    if (error) {
+      console.error('更新通知模板失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('更新通知模板异常:', error)
+    return false
+  }
+}
+
+/**
+ * 删除通知模板
+ */
+export async function deleteNotificationTemplate(id: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('notification_templates').delete().eq('id', id)
+
+    if (error) {
+      console.error('删除通知模板失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除通知模板异常:', error)
+    return false
+  }
+}
+
+/**
+ * 获取所有定时通知
+ */
+export async function getScheduledNotifications(): Promise<ScheduledNotification[]> {
+  try {
+    const {data, error} = await supabase
+      .from('scheduled_notifications')
+      .select('*')
+      .order('send_time', {ascending: true})
+
+    if (error) {
+      console.error('获取定时通知失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取定时通知异常:', error)
+    return []
+  }
+}
+
+/**
+ * 创建定时通知
+ */
+export async function createScheduledNotification(
+  notification: Omit<ScheduledNotification, 'id' | 'created_at' | 'sent_at' | 'status'>
+): Promise<ScheduledNotification | null> {
+  try {
+    const {data, error} = await supabase
+      .from('scheduled_notifications')
+      .insert({...notification, status: 'pending'})
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      console.error('创建定时通知失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建定时通知异常:', error)
+    return null
+  }
+}
+
+/**
+ * 更新定时通知状态
+ */
+export async function updateScheduledNotificationStatus(
+  id: string,
+  status: 'pending' | 'sent' | 'cancelled' | 'failed'
+): Promise<boolean> {
+  try {
+    const updates: any = {status}
+    if (status === 'sent') {
+      updates.sent_at = new Date().toISOString()
+    }
+
+    const {error} = await supabase.from('scheduled_notifications').update(updates).eq('id', id)
+
+    if (error) {
+      console.error('更新定时通知状态失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('更新定时通知状态异常:', error)
+    return false
+  }
+}
+
+/**
+ * 获取所有自动提醒规则
+ */
+export async function getAutoReminderRules(): Promise<AutoReminderRuleWithWarehouse[]> {
+  try {
+    const {data, error} = await supabase
+      .from('auto_reminder_rules')
+      .select(
+        `
+        *,
+        warehouse:warehouses(id, name)
+      `
+      )
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取自动提醒规则失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取自动提醒规则异常:', error)
+    return []
+  }
+}
+
+/**
+ * 创建自动提醒规则
+ */
+export async function createAutoReminderRule(
+  rule: Omit<AutoReminderRule, 'id' | 'created_at' | 'updated_at'>
+): Promise<AutoReminderRule | null> {
+  try {
+    const {data, error} = await supabase.from('auto_reminder_rules').insert(rule).select().maybeSingle()
+
+    if (error) {
+      console.error('创建自动提醒规则失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建自动提醒规则异常:', error)
+    return null
+  }
+}
+
+/**
+ * 更新自动提醒规则
+ */
+export async function updateAutoReminderRule(id: string, updates: Partial<AutoReminderRule>): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('auto_reminder_rules').update(updates).eq('id', id)
+
+    if (error) {
+      console.error('更新自动提醒规则失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('更新自动提醒规则异常:', error)
+    return false
+  }
+}
+
+/**
+ * 删除自动提醒规则
+ */
+export async function deleteAutoReminderRule(id: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('auto_reminder_rules').delete().eq('id', id)
+
+    if (error) {
+      console.error('删除自动提醒规则失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除自动提醒规则异常:', error)
+    return false
+  }
+}
+
+/**
+ * 获取通知发送记录
+ */
+export async function getNotificationSendRecords(): Promise<NotificationSendRecordWithSender[]> {
+  try {
+    const {data, error} = await supabase
+      .from('notification_send_records')
+      .select(
+        `
+        *,
+        sender:profiles!notification_send_records_sent_by_fkey(id, name, role)
+      `
+      )
+      .order('sent_at', {ascending: false})
+
+    if (error) {
+      console.error('获取通知发送记录失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取通知发送记录异常:', error)
+    return []
+  }
+}
+
+/**
+ * 创建通知发送记录
+ */
+export async function createNotificationSendRecord(
+  record: Omit<NotificationSendRecord, 'id' | 'sent_at'>
+): Promise<NotificationSendRecord | null> {
+  try {
+    const {data, error} = await supabase.from('notification_send_records').insert(record).select().maybeSingle()
+
+    if (error) {
+      console.error('创建通知发送记录失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建通知发送记录异常:', error)
+    return null
+  }
+}
+
+/**
+ * 发送通知给司机
+ * @param driverIds 司机ID列表
+ * @param title 通知标题
+ * @param content 通知内容
+ */
+export async function sendNotificationToDrivers(driverIds: string[], title: string, content: string): Promise<boolean> {
+  try {
+    // 为每个司机创建通知记录
+    const notifications = driverIds.map((driverId) => ({
+      user_id: driverId,
+      title,
+      content,
+      type: 'system',
+      is_read: false
+    }))
+
+    const {error} = await supabase.from('notifications').insert(notifications)
+
+    if (error) {
+      console.error('发送通知失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('发送通知异常:', error)
+    return false
+  }
+}
+
+/**
+ * 获取指定仓库的所有司机ID
+ */
+export async function getDriverIdsByWarehouse(warehouseId: string): Promise<string[]> {
+  try {
+    const {data, error} = await supabase.from('driver_warehouses').select('driver_id').eq('warehouse_id', warehouseId)
+
+    if (error) {
+      console.error('获取仓库司机失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data.map((item) => item.driver_id) : []
+  } catch (error) {
+    console.error('获取仓库司机异常:', error)
+    return []
+  }
+}
+
+/**
+ * 获取所有司机ID
+ */
+export async function getAllDriverIds(): Promise<string[]> {
+  try {
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'driver')
+      .order('id', {ascending: true})
+
+    if (error) {
+      console.error('获取所有司机失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data.map((item) => item.id) : []
+  } catch (error) {
+    console.error('获取所有司机异常:', error)
     return []
   }
 }

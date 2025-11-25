@@ -59,7 +59,12 @@ const pages = [
   'pages/super-admin/staff-management/index',
   'pages/super-admin/permission-config/index',
   'pages/super-admin/edit-user/index',
-  'pages/super-admin/database-schema/index'
+  'pages/super-admin/database-schema/index',
+  'pages/shared/driver-notification/index',
+  'pages/shared/notification-templates/index',
+  'pages/shared/scheduled-notifications/index',
+  'pages/shared/notification-records/index',
+  'pages/shared/auto-reminder-rules/index'
 ]
 
 export default defineAppConfig({
