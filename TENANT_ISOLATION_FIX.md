@@ -97,6 +97,34 @@ CREATE POLICY "租户数据隔离 - vehicles" ON vehicles
 
 ⚠️ 这些策略特别危险，因为它们允许**所有登录用户**（包括普通司机）查看所有租户的数据！
 
+#### 迁移 047：修复 profiles 表的跨租户查看
+
+**文件**：`supabase/migrations/047_fix_profiles_cross_tenant_view.sql`
+
+**问题**：新老板在设置仓库管理员时，能看到其他租户的管理员和车队长。
+
+**根本原因**："All users can view managers" 策略允许所有用户查看所有管理员和老板：
+```sql
+-- 有问题的策略
+CREATE POLICY "All users can view managers" ON profiles
+  FOR SELECT
+  USING (role = ANY (ARRAY['manager', 'super_admin']));
+```
+
+这个策略只检查角色，不检查 tenant_id，导致跨租户访问。
+
+**删除的策略**：
+- profiles: "All users can view managers" ⚠️⚠️⚠️
+- profiles: "Managers can view all drivers"
+
+⚠️⚠️⚠️ **这是最严重的数据泄露问题**，允许所有用户查看所有租户的管理员和老板信息！
+
+**影响**：
+- 删除后，用户只能通过租户隔离策略访问 profiles
+- 同一租户内的用户可以互相查看
+- 不同租户的用户无法互相查看
+
+
 ## 验证修复
 
 ### 1. 检查策略是否已删除
@@ -254,7 +282,7 @@ $$;
 
 ## 更新时间
 
-2025-11-25 22:30:00 (UTC+8)
+2025-11-25 23:00:00 (UTC+8)
 
 ## 更新历史
 
@@ -262,5 +290,7 @@ $$;
 - **2025-11-25 22:30** - 修复剩余的跨租户访问策略（迁移 046）
   - 删除所有 "Super admins can view all" 策略
   - 删除所有 "Authenticated users can view" 策略
-  - 完全实现租户数据隔离
+- **2025-11-25 23:00** - 修复 profiles 表跨租户查看问题（迁移 047）
+  - 删除 "All users can view managers" 策略
+  - 完全实现租户数据和用户隔离
 
