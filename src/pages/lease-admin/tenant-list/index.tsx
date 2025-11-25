@@ -117,6 +117,10 @@ export default function TenantList() {
     Taro.navigateTo({url: '/pages/lease-admin/tenant-form/index?mode=create'})
   }
 
+  const handleAddPeerAccount = (mainAccountId: string) => {
+    Taro.navigateTo({url: `/pages/lease-admin/tenant-form/index?mode=create_peer&mainAccountId=${mainAccountId}`})
+  }
+
   return (
     <View className="min-h-screen bg-gray-50">
       <ScrollView scrollY className="h-screen box-border">
@@ -178,6 +182,17 @@ export default function TenantList() {
                   <View className="flex flex-row items-center justify-between mb-3">
                     <View className="flex flex-row items-center gap-2">
                       <Text className="text-lg font-semibold text-foreground">{tenant.name || '未命名'}</Text>
+                      {/* 主账号/平级账号标识 */}
+                      {tenant.main_account_id === null ? (
+                        <View className="px-2 py-1 rounded bg-blue-100">
+                          <Text className="text-xs text-blue-600">主账号</Text>
+                        </View>
+                      ) : (
+                        <View className="px-2 py-1 rounded bg-purple-100">
+                          <Text className="text-xs text-purple-600">平级账号</Text>
+                        </View>
+                      )}
+                      {/* 状态标识 */}
                       <View
                         className={`px-2 py-1 rounded ${(tenant.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
                         <Text
@@ -206,7 +221,8 @@ export default function TenantList() {
                     )}
                   </View>
 
-                  <View className="flex flex-row gap-2">
+                  {/* 操作按钮 */}
+                  <View className="flex flex-row gap-2 mb-2">
                     <Button
                       className="flex-1 bg-blue-500 text-white py-2 rounded break-keep text-sm"
                       size="mini"
@@ -241,6 +257,18 @@ export default function TenantList() {
                       删除
                     </Button>
                   </View>
+
+                  {/* 如果是主账号，显示"新增老板账号"按钮 */}
+                  {tenant.main_account_id === null && (
+                    <View className="mt-2">
+                      <Button
+                        className="w-full bg-purple-500 text-white py-2 rounded break-keep text-sm"
+                        size="mini"
+                        onClick={() => handleAddPeerAccount(tenant.id)}>
+                        新增老板账号
+                      </Button>
+                    </View>
+                  )}
                 </View>
               ))}
             </View>

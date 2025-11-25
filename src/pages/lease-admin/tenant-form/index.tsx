@@ -1,11 +1,12 @@
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useEffect, useState} from 'react'
-import {createTenant, getTenantById, updateTenant} from '@/db/api'
+import {createPeerAccount, createTenant, getTenantById, updateTenant} from '@/db/api'
 
 export default function TenantForm() {
-  const [mode, setMode] = useState<'create' | 'edit'>('create')
+  const [mode, setMode] = useState<'create' | 'edit' | 'create_peer'>('create')
   const [tenantId, setTenantId] = useState('')
+  const [mainAccountId, setMainAccountId] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -39,10 +40,16 @@ export default function TenantForm() {
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
     if (params) {
-      setMode((params.mode as 'create' | 'edit') || 'create')
+      const currentMode = (params.mode as 'create' | 'edit' | 'create_peer') || 'create'
+      setMode(currentMode)
+
       if (params.id) {
         setTenantId(params.id)
         loadTenant(params.id)
+      }
+
+      if (params.mainAccountId) {
+        setMainAccountId(params.mainAccountId)
       }
     }
   }, [loadTenant])
@@ -54,13 +61,13 @@ export default function TenantForm() {
     }
 
     // 创建模式下必须填写邮箱和密码
-    if (mode === 'create' && (!formData.email || !formData.password)) {
+    if ((mode === 'create' || mode === 'create_peer') && (!formData.email || !formData.password)) {
       Taro.showToast({title: '请填写邮箱和密码', icon: 'none'})
       return
     }
 
     // 验证密码长度
-    if (mode === 'create' && formData.password.length < 6) {
+    if ((mode === 'create' || mode === 'create_peer') && formData.password.length < 6) {
       Taro.showToast({title: '密码至少6位', icon: 'none'})
       return
     }
@@ -68,6 +75,7 @@ export default function TenantForm() {
     setLoading(true)
     try {
       if (mode === 'create') {
+        // 创建主账号
         const result = await createTenant(
           {
             name: formData.name,
@@ -92,18 +100,50 @@ export default function TenantForm() {
             lease_end_date: formData.lease_end_date || null,
             monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
             notes: formData.notes || null,
-            tenant_id: null
+            tenant_id: null,
+            main_account_id: null
           },
           formData.email,
           formData.password
         )
         if (result) {
           Taro.showToast({title: '创建成功', icon: 'success'})
-          setTimeout(() => Taro.navigateBack(), 1500)
+          setTimeout(() => {
+            Taro.navigateBack()
+          }, 1500)
+        } else {
+          Taro.showToast({title: '创建失败', icon: 'none'})
+        }
+      } else if (mode === 'create_peer') {
+        // 创建平级账号
+        if (!mainAccountId) {
+          Taro.showToast({title: '缺少主账号ID', icon: 'none'})
+          return
+        }
+
+        const result = await createPeerAccount(
+          mainAccountId,
+          {
+            name: formData.name,
+            phone: formData.phone,
+            company_name: formData.company_name || null,
+            monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
+            notes: formData.notes || null
+          },
+          formData.email,
+          formData.password
+        )
+
+        if (result) {
+          Taro.showToast({title: '创建平级账号成功', icon: 'success'})
+          setTimeout(() => {
+            Taro.navigateBack()
+          }, 1500)
         } else {
           Taro.showToast({title: '创建失败', icon: 'none'})
         }
       } else {
+        // 编辑模式
         const result = await updateTenant(tenantId, {
           name: formData.name,
           phone: formData.phone,
@@ -115,26 +155,47 @@ export default function TenantForm() {
         })
         if (result) {
           Taro.showToast({title: '更新成功', icon: 'success'})
-          setTimeout(() => Taro.navigateBack(), 1500)
+          setTimeout(() => {
+            Taro.navigateBack()
+          }, 1500)
         } else {
           Taro.showToast({title: '更新失败', icon: 'none'})
         }
       }
+    } catch (error) {
+      console.error('提交失败:', error)
+      Taro.showToast({title: '操作失败', icon: 'none'})
     } finally {
       setLoading(false)
     }
+  }
+
+  const getTitle = () => {
+    if (mode === 'create') return '新增老板账号'
+    if (mode === 'create_peer') return '新增老板账号（平级账号）'
+    return '编辑老板账号'
   }
 
   return (
     <View className="min-h-screen bg-gray-50">
       <ScrollView scrollY className="h-screen box-border">
         <View className="p-4">
-          <View className="bg-white rounded-lg p-4 space-y-4">
+          {/* 页面标题 */}
+          <View className="mb-6">
+            <Text className="text-2xl font-bold text-primary">{getTitle()}</Text>
+            {mode === 'create_peer' && (
+              <Text className="text-sm text-muted-foreground mt-1">创建的账号将与主账号共享同一个租户的数据</Text>
+            )}
+          </View>
+
+          {/* 表单 */}
+          <View className="bg-white rounded-lg p-4 shadow-sm space-y-4">
+            {/* 姓名 */}
             <View>
               <Text className="text-sm text-foreground mb-2">姓名 *</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
+                  className="bg-input rounded-lg px-4 py-3 border border-border"
                   placeholder="请输入姓名"
                   value={formData.name}
                   onInput={(e) => setFormData({...formData, name: e.detail.value})}
@@ -142,11 +203,12 @@ export default function TenantForm() {
               </View>
             </View>
 
+            {/* 电话 */}
             <View>
               <Text className="text-sm text-foreground mb-2">电话 *</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
+                  className="bg-input rounded-lg px-4 py-3 border border-border"
                   placeholder="请输入电话"
                   value={formData.phone}
                   onInput={(e) => setFormData({...formData, phone: e.detail.value})}
@@ -154,40 +216,43 @@ export default function TenantForm() {
               </View>
             </View>
 
-            {mode === 'create' && (
-              <>
-                <View>
-                  <Text className="text-sm text-foreground mb-2">邮箱 *</Text>
-                  <View style={{overflow: 'hidden'}}>
-                    <Input
-                      className="bg-input px-3 py-2 rounded border border-border w-full"
-                      placeholder="请输入邮箱（用于登录）"
-                      value={formData.email}
-                      onInput={(e) => setFormData({...formData, email: e.detail.value})}
-                    />
-                  </View>
+            {/* 邮箱（创建时必填） */}
+            {(mode === 'create' || mode === 'create_peer') && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">邮箱 *</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="请输入邮箱"
+                    value={formData.email}
+                    onInput={(e) => setFormData({...formData, email: e.detail.value})}
+                  />
                 </View>
-
-                <View>
-                  <Text className="text-sm text-foreground mb-2">密码 *</Text>
-                  <View style={{overflow: 'hidden'}}>
-                    <Input
-                      className="bg-input px-3 py-2 rounded border border-border w-full"
-                      placeholder="请输入密码（至少6位）"
-                      password
-                      value={formData.password}
-                      onInput={(e) => setFormData({...formData, password: e.detail.value})}
-                    />
-                  </View>
-                </View>
-              </>
+              </View>
             )}
 
+            {/* 密码（创建时必填） */}
+            {(mode === 'create' || mode === 'create_peer') && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">密码 *</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="请输入密码（至少6位）"
+                    password
+                    value={formData.password}
+                    onInput={(e) => setFormData({...formData, password: e.detail.value})}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* 公司名称 */}
             <View>
               <Text className="text-sm text-foreground mb-2">公司名称</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
+                  className="bg-input rounded-lg px-4 py-3 border border-border"
                   placeholder="请输入公司名称"
                   value={formData.company_name}
                   onInput={(e) => setFormData({...formData, company_name: e.detail.value})}
@@ -195,35 +260,42 @@ export default function TenantForm() {
               </View>
             </View>
 
-            <View>
-              <Text className="text-sm text-foreground mb-2">租赁开始日期</Text>
-              <View style={{overflow: 'hidden'}}>
-                <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
-                  placeholder="YYYY-MM-DD"
-                  value={formData.lease_start_date}
-                  onInput={(e) => setFormData({...formData, lease_start_date: e.detail.value})}
-                />
+            {/* 租赁开始日期（仅主账号创建时显示） */}
+            {mode === 'create' && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">租赁开始日期</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="YYYY-MM-DD"
+                    value={formData.lease_start_date}
+                    onInput={(e) => setFormData({...formData, lease_start_date: e.detail.value})}
+                  />
+                </View>
               </View>
-            </View>
+            )}
 
-            <View>
-              <Text className="text-sm text-foreground mb-2">租赁结束日期</Text>
-              <View style={{overflow: 'hidden'}}>
-                <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
-                  placeholder="YYYY-MM-DD"
-                  value={formData.lease_end_date}
-                  onInput={(e) => setFormData({...formData, lease_end_date: e.detail.value})}
-                />
+            {/* 租赁结束日期（仅主账号创建时显示） */}
+            {mode === 'create' && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">租赁结束日期</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="YYYY-MM-DD"
+                    value={formData.lease_end_date}
+                    onInput={(e) => setFormData({...formData, lease_end_date: e.detail.value})}
+                  />
+                </View>
               </View>
-            </View>
+            )}
 
+            {/* 月租费用 */}
             <View>
               <Text className="text-sm text-foreground mb-2">月租费用</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
+                  className="bg-input rounded-lg px-4 py-3 border border-border"
                   placeholder="请输入月租费用"
                   type="digit"
                   value={formData.monthly_fee}
@@ -232,24 +304,28 @@ export default function TenantForm() {
               </View>
             </View>
 
+            {/* 备注 */}
             <View>
               <Text className="text-sm text-foreground mb-2">备注</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
-                  className="bg-input px-3 py-2 rounded border border-border w-full"
-                  placeholder="请输入备注"
+                  className="bg-input rounded-lg px-4 py-3 border border-border"
+                  placeholder="请输入备注信息"
                   value={formData.notes}
                   onInput={(e) => setFormData({...formData, notes: e.detail.value})}
                 />
               </View>
             </View>
+          </View>
 
+          {/* 提交按钮 */}
+          <View className="mt-6">
             <Button
-              className="w-full bg-primary text-white py-3 rounded break-keep text-base"
+              className="w-full bg-primary text-white py-4 rounded-lg break-keep text-base"
               size="default"
               onClick={handleSubmit}
-              loading={loading}>
-              {mode === 'create' ? '创建' : '保存'}
+              disabled={loading}>
+              {loading ? '提交中...' : '提交'}
             </Button>
           </View>
         </View>

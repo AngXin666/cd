@@ -42,6 +42,7 @@ export interface Profile {
   monthly_fee: number | null // 月租费用（仅老板账号）
   notes: string | null // 备注信息
   tenant_id: string | null // 租户ID，指向super_admin的id
+  main_account_id: string | null // 主账号ID，NULL表示这是主账号，非NULL表示这是平级账号
   created_at: string
   updated_at: string
 }
