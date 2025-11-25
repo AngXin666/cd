@@ -16,6 +16,7 @@ import {
 import {createNotification} from '@/db/notificationApi'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
+import {formatLeaveDateRangeDisplay} from '@/utils/date'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -749,13 +750,19 @@ const SuperAdminLeaveApproval: React.FC = () => {
                         <View className="flex items-center">
                           <View className="i-mdi-calendar-range text-lg text-gray-500 mr-2" />
                           <Text className="text-sm text-gray-700">
-                            {formatDate(app.start_date)} 至 {formatDate(app.end_date)}
+                            请假日期：{formatLeaveDateRangeDisplay(app.start_date, app.end_date)}
                           </Text>
                         </View>
                         <View className="flex items-center">
                           <View className="i-mdi-calendar-clock text-lg text-gray-500 mr-2" />
                           <Text className="text-sm text-gray-700">
                             请假天数：{calculateLeaveDays(app.start_date, app.end_date)} 天
+                          </Text>
+                        </View>
+                        <View className="flex items-center">
+                          <View className="i-mdi-calendar text-lg text-gray-500 mr-2" />
+                          <Text className="text-xs text-gray-500">
+                            具体日期：{formatDate(app.start_date)} 至 {formatDate(app.end_date)}
                           </Text>
                         </View>
                         {app.reason && (

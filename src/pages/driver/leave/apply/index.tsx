@@ -17,7 +17,12 @@ import {
   validateLeaveApplication
 } from '@/db/api'
 import type {LeaveType} from '@/db/types'
-import {getLocalDateString, getTomorrowDateString} from '@/utils/date'
+import {
+  formatLeaveDateRangeDisplay,
+  getDayAfterTomorrowDateString,
+  getLocalDateString,
+  getTomorrowDateString
+} from '@/utils/date'
 
 type LeaveMode = 'quick' | 'makeup'
 
@@ -373,6 +378,30 @@ const ApplyLeave: React.FC = () => {
       return
     }
 
+    // 生成确认提示信息
+    const dateRangeDisplay = formatLeaveDateRangeDisplay(startDate, endDate)
+    const confirmMessage = `确定要提交${dateRangeDisplay}的请假申请吗？`
+
+    // 显示确认对话框
+    const confirmResult = await new Promise<boolean>((resolve) => {
+      Taro.showModal({
+        title: '确认提交',
+        content: confirmMessage,
+        confirmText: '确定提交',
+        cancelText: '再想想',
+        success: (res) => {
+          resolve(res.confirm)
+        },
+        fail: () => {
+          resolve(false)
+        }
+      })
+    })
+
+    if (!confirmResult) {
+      return
+    }
+
     setSubmitting(true)
 
     let success = false
@@ -563,6 +592,54 @@ const ApplyLeave: React.FC = () => {
             {mode === 'quick' ? (
               <>
                 {/* 快捷请假模式 */}
+                {/* 快捷日期选择按钮 */}
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">快捷选择</Text>
+                  <View className="flex gap-3">
+                    <View
+                      className="flex-1 text-center py-3 rounded-lg"
+                      style={{
+                        backgroundColor: startDate === getTomorrowDateString() ? '#1E3A8A' : '#E5E7EB',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        const tomorrow = getTomorrowDateString()
+                        setStartDate(tomorrow)
+                        const end = calculateEndDate(tomorrow, quickDays)
+                        setEndDate(end)
+                      }}>
+                      <Text
+                        className="text-sm font-bold"
+                        style={{
+                          color: startDate === getTomorrowDateString() ? 'white' : '#6B7280'
+                        }}>
+                        明天
+                      </Text>
+                    </View>
+                    <View
+                      className="flex-1 text-center py-3 rounded-lg"
+                      style={{
+                        backgroundColor: startDate === getDayAfterTomorrowDateString() ? '#1E3A8A' : '#E5E7EB',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        const dayAfterTomorrow = getDayAfterTomorrowDateString()
+                        setStartDate(dayAfterTomorrow)
+                        const end = calculateEndDate(dayAfterTomorrow, quickDays)
+                        setEndDate(end)
+                      }}>
+                      <Text
+                        className="text-sm font-bold"
+                        style={{
+                          color: startDate === getDayAfterTomorrowDateString() ? 'white' : '#6B7280'
+                        }}>
+                        后天
+                      </Text>
+                    </View>
+                  </View>
+                  <Text className="text-xs text-gray-400 block mt-1">点击快捷按钮快速选择日期</Text>
+                </View>
+
                 <View className="mb-4">
                   <Text className="text-sm text-gray-700 block mb-2">请假天数</Text>
                   <Picker mode="selector" range={daysOptions} value={quickDays - 1} onChange={handleQuickDaysChange}>
@@ -576,20 +653,28 @@ const ApplyLeave: React.FC = () => {
 
                 <View className="mb-4">
                   <Text className="text-sm text-gray-700 block mb-2">起始日期</Text>
-                  <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between bg-gray-50">
-                    <Text className="text-sm text-gray-800">{startDate}</Text>
-                    <View className="i-mdi-calendar text-xl text-gray-400" />
-                  </View>
-                  <Text className="text-xs text-gray-400 block mt-1">自动设置为明天</Text>
+                  <Picker
+                    mode="date"
+                    value={startDate}
+                    start={getTomorrowDateString()}
+                    onChange={handleStartDateChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{startDate}</Text>
+                      <View className="i-mdi-calendar text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                  <Text className="text-xs text-gray-400 block mt-1">可选明天及之后的日期</Text>
                 </View>
 
                 <View className="mb-4">
                   <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
-                  <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between bg-gray-50">
-                    <Text className="text-sm text-gray-800">{endDate}</Text>
-                    <View className="i-mdi-calendar text-xl text-gray-400" />
-                  </View>
-                  <Text className="text-xs text-gray-400 block mt-1">自动计算</Text>
+                  <Picker mode="date" value={endDate} start={startDate} onChange={handleEndDateChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{endDate}</Text>
+                      <View className="i-mdi-calendar text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                  <Text className="text-xs text-gray-400 block mt-1">自动计算或手动调整</Text>
                 </View>
               </>
             ) : (

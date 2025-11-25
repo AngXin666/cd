@@ -158,3 +158,68 @@ export function calculateDrivingYears(firstIssueDate: string | null): number | n
     return null
   }
 }
+
+/**
+ * 获取后天的日期字符串
+ * @returns 后天的日期字符串（YYYY-MM-DD格式）
+ */
+export function getDayAfterTomorrowDateString(): string {
+  const dayAfterTomorrow = new Date()
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
+  return getLocalDateString(dayAfterTomorrow)
+}
+
+/**
+ * 格式化日期显示（用于请假申请）
+ * 当天申请明天/后天请假时显示"明天"/"后天"
+ * 其他情况显示具体日期（如：18号、19号）
+ * @param dateStr 日期字符串（YYYY-MM-DD格式）
+ * @returns 格式化后的日期显示
+ */
+export function formatLeaveDateDisplay(dateStr: string): string {
+  if (!dateStr) return ''
+
+  const tomorrow = getTomorrowDateString()
+  const dayAfterTomorrow = getDayAfterTomorrowDateString()
+
+  if (dateStr === tomorrow) {
+    return '明天'
+  }
+  if (dateStr === dayAfterTomorrow) {
+    return '后天'
+  }
+
+  // 其他情况显示具体日期
+  const date = new Date(dateStr)
+  const day = date.getDate()
+  const month = date.getMonth() + 1
+  const today = new Date()
+  const currentMonth = today.getMonth() + 1
+
+  // 如果是当月，只显示日期
+  if (month === currentMonth) {
+    return `${day}号`
+  }
+
+  // 如果是下个月，显示"下个月X号"
+  return `下个月${day}号`
+}
+
+/**
+ * 格式化日期范围显示（用于请假申请确认）
+ * @param startDate 开始日期字符串（YYYY-MM-DD格式）
+ * @param endDate 结束日期字符串（YYYY-MM-DD格式）
+ * @returns 格式化后的日期范围显示
+ */
+export function formatLeaveDateRangeDisplay(startDate: string, endDate: string): string {
+  if (!startDate || !endDate) return ''
+
+  const startDisplay = formatLeaveDateDisplay(startDate)
+  const endDisplay = formatLeaveDateDisplay(endDate)
+
+  if (startDisplay === endDisplay) {
+    return startDisplay
+  }
+
+  return `${startDisplay}至${endDisplay}`
+}
