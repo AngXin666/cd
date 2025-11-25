@@ -147,8 +147,8 @@ const Login: React.FC = () => {
         actualAccount = accountMapping[account.toLowerCase()]
       }
 
-      // 转换为 email 格式
-      const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
+      // 转换为 email 格式（与创建账号时保持一致）
+      const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@phone.local`
 
       const {error} = await supabase.auth.signInWithPassword({
         email,
