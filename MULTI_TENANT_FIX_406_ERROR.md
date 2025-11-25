@@ -8,25 +8,39 @@
 PATCH https://backend.appmiaoda.com/projects/.../rest/v1/profiles?id=eq.xxx&select=* 406 (Not Acceptable)
 ```
 
-## 问题原因
+## 根本原因分析
 
-1. **创建流程**：
-   - 租赁管理员使用 `supabase.auth.signUp()` 创建认证用户
-   - 触发器自动创建 `profiles` 记录（此时 `tenant_id` 为 NULL）
-   - 尝试更新 `profiles` 记录设置租赁信息和 `tenant_id`
+### 问题1：RLS 策略中的 NULL 比较
 
-2. **权限问题**：
-   - 旧的 RLS 策略"租赁管理员更新老板账号"的 USING 条件包含了对 `tenant_id` 的检查
-   - 新创建的记录 `tenant_id` 为 NULL，不满足策略条件
-   - 导致更新操作被拒绝
+**SQL 中的 NULL 比较规则**：
+- `NULL = NULL` 返回 `UNKNOWN`（不是 `TRUE`）
+- `UNKNOWN` 在 WHERE 条件中被视为 `FALSE`
+- 这导致 RLS 策略拒绝访问
+
+**具体场景**：
+1. 租赁管理员（lease_admin）的 `tenant_id` 是 `NULL`
+2. `get_user_tenant_id()` 函数对于 lease_admin 返回 `NULL`
+3. 新创建的老板账号的 `tenant_id` 也是 `NULL`
+4. 旧策略条件：`tenant_id = get_user_tenant_id()`
+5. 实际执行：`NULL = NULL` → `UNKNOWN` → 拒绝访问
+
+### 问题2：多个 RLS 策略的交互
+
+系统中有多个 RLS 策略同时作用于 `profiles` 表：
+1. "租赁管理员更新老板账号" - 允许更新 super_admin 记录
+2. "租户数据隔离 - profiles" - 控制数据访问范围
+
+即使修复了策略1，策略2 仍然会因为 NULL 比较问题而拒绝访问。
 
 ## 解决方案
 
-### 修改 RLS 策略
+需要修复两个 RLS 策略：
 
-创建迁移 `038_fix_lease_admin_update_new_tenant.sql`，修改策略：
+### 修复1：租赁管理员更新老板账号策略
 
-**旧策略（有问题）：**
+**迁移文件**：`038_fix_lease_admin_update_new_tenant.sql`
+
+**旧策略（有问题）**：
 ```sql
 CREATE POLICY "租赁管理员更新老板账号" ON profiles
   FOR UPDATE
@@ -38,7 +52,7 @@ CREATE POLICY "租赁管理员更新老板账号" ON profiles
   );
 ```
 
-**新策略（已修复）：**
+**新策略（已修复）**：
 ```sql
 CREATE POLICY "租赁管理员更新老板账号" ON profiles
   FOR UPDATE
@@ -53,19 +67,61 @@ CREATE POLICY "租赁管理员更新老板账号" ON profiles
   );
 ```
 
+### 修复2：租户数据隔离策略
+
+**迁移文件**：`039_fix_lease_admin_tenant_id_null_comparison.sql`
+
+**旧策略（有问题）**：
+```sql
+CREATE POLICY "租户数据隔离 - profiles" ON profiles
+  FOR ALL
+  USING (
+    is_lease_admin() 
+    OR (id = auth.uid())
+    OR (tenant_id = get_user_tenant_id())  -- NULL = NULL 问题
+  );
+```
+
+**新策略（已修复）**：
+```sql
+CREATE POLICY "租户数据隔离 - profiles" ON profiles
+  FOR ALL
+  USING (
+    -- lease_admin 可以访问所有数据
+    is_lease_admin() 
+    OR 
+    -- 用户可以访问自己的记录
+    (id = auth.uid())
+    OR
+    -- 用户可以访问同租户的数据（明确处理 NULL）
+    (
+      tenant_id IS NOT NULL 
+      AND get_user_tenant_id() IS NOT NULL 
+      AND tenant_id = get_user_tenant_id()
+    )
+  );
+```
+
+**关键改进**：
+- 明确检查 `tenant_id IS NOT NULL`
+- 明确检查 `get_user_tenant_id() IS NOT NULL`
+- 只有两者都不为 NULL 时才进行相等比较
+- 避免了 `NULL = NULL` 的问题
+
 ## 修复步骤
 
 1. **应用数据库迁移**：
    ```bash
-   # 迁移已自动应用
+   # 两个迁移已自动应用
    supabase/migrations/038_fix_lease_admin_update_new_tenant.sql
+   supabase/migrations/039_fix_lease_admin_tenant_id_null_comparison.sql
    ```
 
 2. **验证修复**：
    - 使用租赁管理员账号（admin888 / hye19911206）登录
    - 尝试创建新的老板账号
    - 填写所有必填信息（姓名、手机、邮箱、密码）
-   - 提交后应该成功创建
+   - 提交后应该成功创建，不再出现 406 错误
 
 ## 创建流程说明
 
