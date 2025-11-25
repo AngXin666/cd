@@ -309,6 +309,8 @@ manager_warehouses 表现在有：
 ## Git 提交记录
 
 ```
+commit bae758d - 修复 setManagerWarehouses 函数缺少 tenant_id 的问题
+commit 2912572 - 添加仓库分配问题完整修复报告
 commit 24bda5b - 修复 manager_warehouses 表的 RLS 策略和 tenant_id 问题
 commit 37cd760 - 修复仓库分配问题：新建老板自动创建仓库，支持车队长仓库分配
 ```
