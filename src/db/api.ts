@@ -6543,36 +6543,42 @@ export async function createPeerAccount(
       return null
     }
 
-    // 4. 自动确认用户邮箱
+    // 4. 自动确认用户邮箱（这会触发 handle_new_user 触发器创建基础 profiles 记录）
     const {error: confirmError} = await supabase.rpc('confirm_user_email', {
       user_id: authData.user.id
     })
 
     if (confirmError) {
       console.error('确认用户邮箱失败:', confirmError)
+      return null
     }
 
-    // 5. 创建 profiles 记录（平级账号）
+    // 5. 等待触发器创建 profiles 记录（短暂延迟）
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // 6. 更新 profiles 记录，设置平级账号相关字段
     const {data: profileData, error: profileError} = await supabase
       .from('profiles')
-      .insert({
-        id: authData.user.id,
+      .update({
         name: account.name,
         phone: account.phone,
         email: email,
         role: 'super_admin' as UserRole,
         company_name: account.company_name || mainAccount.company_name,
         monthly_fee: account.monthly_fee || mainAccount.monthly_fee,
+        lease_start_date: mainAccount.lease_start_date,
+        lease_end_date: mainAccount.lease_end_date,
         notes: account.notes,
         status: 'active',
         tenant_id: mainAccount.tenant_id, // 使用主账号的 tenant_id
         main_account_id: mainAccountId // 设置主账号ID
       })
+      .eq('id', authData.user.id)
       .select()
       .maybeSingle()
 
     if (profileError) {
-      console.error('创建平级账号 profiles 记录失败:', profileError)
+      console.error('更新平级账号 profiles 记录失败:', profileError)
       return null
     }
 
