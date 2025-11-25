@@ -100,23 +100,25 @@ export default function LeaseAdminDashboard() {
           {/* 快捷功能 */}
           <View className="mb-6">
             <Text className="text-lg font-semibold text-foreground mb-3">快捷功能</Text>
-            <View className="grid grid-cols-1 gap-3">
-              {/* 账号管理 */}
-              <View
-                className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
-                onClick={() => handleNavigate('/pages/lease-admin/tenant-list/index')}>
-                <View className="i-mdi-account-group text-3xl text-white mb-2"></View>
-                <Text className="text-white font-semibold">账号管理</Text>
-                <Text className="text-white text-xs opacity-80 mt-1">查看和管理所有老板账号</Text>
-              </View>
+            <View className="bg-white rounded-lg p-3 shadow-sm">
+              <View className="grid grid-cols-2 gap-3">
+                {/* 账号管理 */}
+                <View
+                  className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                  onClick={() => handleNavigate('/pages/lease-admin/tenant-list/index')}>
+                  <View className="i-mdi-account-group text-3xl text-white mb-2"></View>
+                  <Text className="text-white font-semibold text-sm">账号管理</Text>
+                  <Text className="text-white text-xs opacity-80 mt-1">查看和管理所有老板账号</Text>
+                </View>
 
-              {/* 租期管理 */}
-              <View
-                className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
-                onClick={() => handleNavigate('/pages/lease-admin/lease-list/index')}>
-                <View className="i-mdi-calendar-clock text-3xl text-white mb-2"></View>
-                <Text className="text-white font-semibold">租期管理</Text>
-                <Text className="text-white text-xs opacity-80 mt-1">管理租赁期限和续约</Text>
+                {/* 租期管理 */}
+                <View
+                  className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                  onClick={() => handleNavigate('/pages/lease-admin/lease-list/index')}>
+                  <View className="i-mdi-calendar-clock text-3xl text-white mb-2"></View>
+                  <Text className="text-white font-semibold text-sm">租期管理</Text>
+                  <Text className="text-white text-xs opacity-80 mt-1">管理租赁期限和续约</Text>
+                </View>
               </View>
             </View>
           </View>
