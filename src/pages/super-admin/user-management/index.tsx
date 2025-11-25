@@ -1403,8 +1403,8 @@ const UserManagement: React.FC = () => {
                       </View>
                     )}
 
-                    {/* 仓库分配按钮（仅司机） */}
-                    {u.role === 'driver' && (
+                    {/* 仓库分配按钮（司机、管理员、老板） */}
+                    {(u.role === 'driver' || u.role === 'manager' || u.role === 'super_admin') && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1445,8 +1445,8 @@ const UserManagement: React.FC = () => {
                     )}
                   </View>
 
-                  {/* 仓库分配面板（展开时显示） */}
-                  {u.role === 'driver' && isWarehouseExpanded && (
+                  {/* 仓库分配面板（展开时显示 - 司机、管理员、老板） */}
+                  {(u.role === 'driver' || u.role === 'manager' || u.role === 'super_admin') && isWarehouseExpanded && (
                     <View className="px-4 pb-4 bg-gray-50 border-t border-gray-200">
                       <View className="pt-4">
                         <Text className="text-sm font-medium text-gray-700 mb-3 block">选择仓库</Text>
