@@ -152,12 +152,17 @@ export default function LeaseList() {
       const selectedDuration = durationOptions[selectedDurationIndex]
       const selectedExpireAction = expireActionOptions[selectedExpireActionIndex]
 
+      console.log('添加租期 - 选中的索引:', selectedDurationIndex)
+      console.log('添加租期 - 选中的时长:', selectedDuration)
+
       const input: CreateLeaseInput = {
         tenant_id: tenantId,
         start_date: new Date().toISOString().split('T')[0],
         duration_months: selectedDuration.value,
         expire_action: selectedExpireAction.value as ExpireActionType
       }
+
+      console.log('添加租期 - 提交的数据:', input)
 
       const success = await createLease(input)
       if (success) {
