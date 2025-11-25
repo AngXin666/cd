@@ -13,7 +13,7 @@
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {createContext, useCallback, useContext, useEffect, useState} from 'react'
-import {getProfileById, getWarehousesByDriver, getWarehousesByManager} from '@/db/api'
+import {getProfileById, getWarehouseAssignmentsByDriver, getWarehouseAssignmentsByManager} from '@/db/api'
 import type {Profile, UserRole} from '@/db/types'
 
 /**
@@ -65,6 +65,7 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
    * 加载用户资料
    */
   const loadProfile = useCallback(async () => {
+    // 如果用户未登录，直接返回，不加载资料
     if (!user?.id) {
       setProfile(null)
       setLoading(false)
@@ -80,15 +81,16 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
       if (userProfile) {
         if (userProfile.role === 'manager') {
           // 管理员：加载管理的仓库
-          const warehouses = await getWarehousesByManager(user.id)
-          setManagedWarehouseIds(warehouses.map((w) => w.id))
+          const assignments = await getWarehouseAssignmentsByManager(user.id)
+          setManagedWarehouseIds(assignments.map((a) => a.warehouse_id))
         } else if (userProfile.role === 'driver') {
           // 司机：加载分配的仓库
-          const warehouses = await getWarehousesByDriver(user.id)
-          setAssignedWarehouseIds(warehouses.map((w) => w.id))
+          const assignments = await getWarehouseAssignmentsByDriver(user.id)
+          setAssignedWarehouseIds(assignments.map((a) => a.warehouse_id))
         }
       }
     } catch (error) {
+      // 静默处理错误，不影响登录流程
       console.error('加载用户资料失败:', error)
       setProfile(null)
     } finally {
