@@ -6408,41 +6408,65 @@ export async function getTenantById(id: string): Promise<Profile | null> {
 }
 
 /**
- * 创建老板账号
+ * 创建老板账号（包含认证用户创建）
  */
-export async function createTenant(tenant: Omit<Profile, 'id' | 'created_at' | 'updated_at'>): Promise<Profile | null> {
+export async function createTenant(
+  tenant: Omit<Profile, 'id' | 'created_at' | 'updated_at'>,
+  email: string,
+  password: string
+): Promise<Profile | null> {
   try {
-    // 创建租户账号
-    const {data, error} = await supabase.from('profiles').insert([tenant]).select().maybeSingle()
-
-    if (error) {
-      console.error('创建老板账号失败:', error)
-      return null
-    }
-
-    if (!data) {
-      console.error('创建老板账号失败：未返回数据')
-      return null
-    }
-
-    // 如果是super_admin角色，需要更新tenant_id为自己的id
-    if (data.role === 'super_admin') {
-      const {data: updatedData, error: updateError} = await supabase
-        .from('profiles')
-        .update({tenant_id: data.id})
-        .eq('id', data.id)
-        .select()
-        .maybeSingle()
-
-      if (updateError) {
-        console.error('更新租户tenant_id失败:', updateError)
-        return data // 返回原始数据，虽然tenant_id可能不正确
+    // 1. 先创建认证用户
+    const {data: authData, error: authError} = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: tenant.name,
+          phone: tenant.phone,
+          role: 'super_admin'
+        }
       }
+    })
 
-      return updatedData || data
+    if (authError) {
+      console.error('创建认证用户失败:', authError)
+      return null
     }
 
-    return data
+    if (!authData.user) {
+      console.error('创建认证用户失败：未返回用户数据')
+      return null
+    }
+
+    // 2. 等待触发器创建 profiles 记录
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // 3. 更新 profiles 记录的租赁相关字段
+    const {data: profileData, error: profileError} = await supabase
+      .from('profiles')
+      .update({
+        name: tenant.name,
+        phone: tenant.phone,
+        email: email,
+        company_name: tenant.company_name,
+        lease_start_date: tenant.lease_start_date,
+        lease_end_date: tenant.lease_end_date,
+        monthly_fee: tenant.monthly_fee,
+        notes: tenant.notes,
+        status: 'active',
+        tenant_id: authData.user.id // 设置 tenant_id 为自己的 id
+      })
+      .eq('id', authData.user.id)
+      .select()
+      .maybeSingle()
+
+    if (profileError) {
+      console.error('更新老板账号信息失败:', profileError)
+      return null
+    }
+
+    return profileData
   } catch (error) {
     console.error('创建老板账号异常:', error)
     return null

@@ -9,6 +9,8 @@ export default function TenantForm() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    email: '',
+    password: '',
     company_name: '',
     lease_start_date: '',
     lease_end_date: '',
@@ -23,6 +25,8 @@ export default function TenantForm() {
       setFormData({
         name: tenant.name || '',
         phone: tenant.phone || '',
+        email: tenant.email || '',
+        password: '', // 编辑时不显示密码
         company_name: tenant.company_name || '',
         lease_start_date: tenant.lease_start_date || '',
         lease_end_date: tenant.lease_end_date || '',
@@ -49,34 +53,50 @@ export default function TenantForm() {
       return
     }
 
+    // 创建模式下必须填写邮箱和密码
+    if (mode === 'create' && (!formData.email || !formData.password)) {
+      Taro.showToast({title: '请填写邮箱和密码', icon: 'none'})
+      return
+    }
+
+    // 验证密码长度
+    if (mode === 'create' && formData.password.length < 6) {
+      Taro.showToast({title: '密码至少6位', icon: 'none'})
+      return
+    }
+
     setLoading(true)
     try {
       if (mode === 'create') {
-        const result = await createTenant({
-          name: formData.name,
-          phone: formData.phone,
-          email: null,
-          role: 'super_admin',
-          driver_type: null,
-          avatar_url: null,
-          nickname: null,
-          address_province: null,
-          address_city: null,
-          address_district: null,
-          address_detail: null,
-          emergency_contact_name: null,
-          emergency_contact_phone: null,
-          login_account: null,
-          vehicle_plate: null,
-          join_date: null,
-          status: 'active',
-          company_name: formData.company_name || null,
-          lease_start_date: formData.lease_start_date || null,
-          lease_end_date: formData.lease_end_date || null,
-          monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
-          notes: formData.notes || null,
-          tenant_id: null // 创建时为null，触发器会自动设置
-        })
+        const result = await createTenant(
+          {
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            role: 'super_admin',
+            driver_type: null,
+            avatar_url: null,
+            nickname: null,
+            address_province: null,
+            address_city: null,
+            address_district: null,
+            address_detail: null,
+            emergency_contact_name: null,
+            emergency_contact_phone: null,
+            login_account: null,
+            vehicle_plate: null,
+            join_date: null,
+            status: 'active',
+            company_name: formData.company_name || null,
+            lease_start_date: formData.lease_start_date || null,
+            lease_end_date: formData.lease_end_date || null,
+            monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
+            notes: formData.notes || null,
+            tenant_id: null
+          },
+          formData.email,
+          formData.password
+        )
         if (result) {
           Taro.showToast({title: '创建成功', icon: 'success'})
           setTimeout(() => Taro.navigateBack(), 1500)
@@ -133,6 +153,35 @@ export default function TenantForm() {
                 />
               </View>
             </View>
+
+            {mode === 'create' && (
+              <>
+                <View>
+                  <Text className="text-sm text-foreground mb-2">邮箱 *</Text>
+                  <View style={{overflow: 'hidden'}}>
+                    <Input
+                      className="bg-input px-3 py-2 rounded border border-border w-full"
+                      placeholder="请输入邮箱（用于登录）"
+                      value={formData.email}
+                      onInput={(e) => setFormData({...formData, email: e.detail.value})}
+                    />
+                  </View>
+                </View>
+
+                <View>
+                  <Text className="text-sm text-foreground mb-2">密码 *</Text>
+                  <View style={{overflow: 'hidden'}}>
+                    <Input
+                      className="bg-input px-3 py-2 rounded border border-border w-full"
+                      placeholder="请输入密码（至少6位）"
+                      password
+                      value={formData.password}
+                      onInput={(e) => setFormData({...formData, password: e.detail.value})}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
 
             <View>
               <Text className="text-sm text-foreground mb-2">公司名称</Text>
