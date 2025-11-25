@@ -1,5 +1,6 @@
 import {supabase} from '@/client/supabase'
 import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/utils/cache'
+import {formatLeaveDate} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
 import type {
   ApplicationReviewInput,
@@ -1839,7 +1840,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     // 先获取申请信息（包括司机ID和申请详情）
     const {data: application, error: fetchError} = await supabase
       .from('leave_applications')
-      .select('user_id, leave_type, start_date, end_date, reason')
+      .select('user_id, leave_type, start_date, end_date, days, reason')
       .eq('id', applicationId)
       .maybeSingle()
 
@@ -1854,7 +1855,8 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       user_id: application.user_id,
       leave_type: application.leave_type,
       start_date: application.start_date,
-      end_date: application.end_date
+      end_date: application.end_date,
+      days: application.days
     })
 
     // 验证 user_id 是否存在
@@ -1934,6 +1936,9 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     }
     const leaveTypeLabel = leaveTypeMap[application.leave_type] || '请假'
 
+    // 格式化日期为人性化显示
+    const dateRangeText = formatLeaveDate(application.start_date, application.end_date, application.days)
+
     // 获取所有管理员的待审核通知
     const {data: managerNotifications, error: fetchNotifError} = await supabase
       .from('notifications')
@@ -1955,7 +1960,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
           .update({
             type: notificationType,
             title: `请假申请${verbText}${statusText}`,
-            message: `${operatorText}${verbText}${statusText.replace('已', '')}了${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`
+            message: `${operatorText}${verbText}${statusText.replace('已', '')}了${leaveTypeLabel}申请（${dateRangeText}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`
           })
           .eq('id', notif.id)
       }
@@ -1967,7 +1972,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       user_id: application.user_id,
       type: notificationType,
       title: notificationTitle,
-      message: `您的${leaveTypeLabel}申请（${application.start_date} 至 ${application.end_date}）${statusText}（审批人：${reviewerName}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
+      message: `您的${leaveTypeLabel}申请（${dateRangeText}）${statusText}（审批人：${reviewerName}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
       related_id: applicationId
     })
 
@@ -1985,8 +1990,8 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       // 构建详细的通知消息
       const detailedMessage =
         admin.id === review.reviewed_by
-          ? `您${verbText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请时间：${application.start_date} 至 ${application.end_date}${application.reason ? `\n申请事由：${application.reason}` : ''}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
-          : `${operatorText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请人：${applicantName}${applicant.phone ? `（${applicant.phone}）` : ''}\n申请时间：${application.start_date} 至 ${application.end_date}${application.reason ? `\n申请事由：${application.reason}` : ''}\n审批人：${reviewerName}\n审批时间：${new Date(review.reviewed_at).toLocaleString('zh-CN')}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
+          ? `您${verbText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请时间：${dateRangeText}${application.reason ? `\n申请事由：${application.reason}` : ''}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
+          : `${operatorText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请人：${applicantName}${applicant.phone ? `（${applicant.phone}）` : ''}\n申请时间：${dateRangeText}${application.reason ? `\n申请事由：${application.reason}` : ''}\n审批人：${reviewerName}\n审批时间：${new Date(review.reviewed_at).toLocaleString('zh-CN')}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
 
       await createNotification({
         user_id: admin.id,

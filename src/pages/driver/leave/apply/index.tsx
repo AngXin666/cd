@@ -23,6 +23,7 @@ import {
   getLocalDateString,
   getTomorrowDateString
 } from '@/utils/date'
+import {formatLeaveDate} from '@/utils/dateFormat'
 
 type LeaveMode = 'quick' | 'makeup'
 
@@ -439,11 +440,14 @@ const ApplyLeave: React.FC = () => {
       // 获取请假类型中文名称
       const leaveTypeLabel = leaveTypes.find((t) => t.value === leaveType)?.label || '请假'
 
+      // 格式化日期为人性化显示
+      const dateRangeText = formatLeaveDate(startDate, endDate, leaveDays)
+
       // 为所有管理员创建通知
       const notificationCount = await createNotificationForAllManagers({
         type: 'leave_application_submitted',
         title: '新的请假申请',
-        message: `${driverDisplayName} 提交了${leaveTypeLabel}申请，请假时间：${startDate} 至 ${endDate}（${leaveDays}天），事由：${reason.trim()}`,
+        message: `${driverDisplayName} 提交了${leaveTypeLabel}申请，请假时间：${dateRangeText}，事由：${reason.trim()}`,
         related_id: applicationId
       })
 
