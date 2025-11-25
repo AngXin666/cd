@@ -6439,16 +6439,16 @@ export async function createTenant(
       return null
     }
 
-    // 2. 等待触发器创建 profiles 记录
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // 3. 更新 profiles 记录的租赁相关字段
+    // 2. 直接插入 profiles 记录（不依赖触发器）
+    // 因为触发器只在用户确认邮箱后才执行，但我们需要立即创建 profiles 记录
     const {data: profileData, error: profileError} = await supabase
       .from('profiles')
-      .update({
+      .insert({
+        id: authData.user.id,
         name: tenant.name,
         phone: tenant.phone,
         email: email,
+        role: 'super_admin' as UserRole,
         company_name: tenant.company_name,
         lease_start_date: tenant.lease_start_date,
         lease_end_date: tenant.lease_end_date,
@@ -6457,12 +6457,11 @@ export async function createTenant(
         status: 'active',
         tenant_id: authData.user.id // 设置 tenant_id 为自己的 id
       })
-      .eq('id', authData.user.id)
       .select()
       .maybeSingle()
 
     if (profileError) {
-      console.error('更新老板账号信息失败:', profileError)
+      console.error('创建老板账号 profiles 记录失败:', profileError)
       return null
     }
 

@@ -34,7 +34,7 @@ PATCH https://backend.appmiaoda.com/projects/.../rest/v1/profiles?id=eq.xxx&sele
 
 ## 解决方案
 
-需要修复三个问题：
+需要修复四个问题：
 
 ### 修复1：租赁管理员更新老板账号策略
 
@@ -145,18 +145,71 @@ $$;
 - 使用正确的枚举类型比较
 - 确保类型匹配，避免隐式转换问题
 
+### 修复4：前端代码不再依赖触发器
+
+**问题**：
+- 原代码等待触发器创建 profiles 记录
+- 触发器只在用户确认邮箱（`confirmed_at` 从 NULL 变为非 NULL）时才执行
+- 在开发环境中，用户可能不会立即确认邮箱
+- 导致 profiles 记录没有被创建，后续更新操作失败（406 错误）
+
+**旧代码（有问题）**：
+```typescript
+// 1. 创建认证用户
+const {data: authData} = await supabase.auth.signUp({...})
+
+// 2. 等待触发器创建 profiles 记录
+await new Promise((resolve) => setTimeout(resolve, 1000))
+
+// 3. 更新 profiles 记录
+const {data: profileData} = await supabase
+  .from('profiles')
+  .update({...})  // 更新一个不存在的记录 -> 406 错误
+  .eq('id', authData.user.id)
+```
+
+**新代码（已修复）**：
+```typescript
+// 1. 创建认证用户
+const {data: authData} = await supabase.auth.signUp({...})
+
+// 2. 直接插入 profiles 记录（不依赖触发器）
+const {data: profileData} = await supabase
+  .from('profiles')
+  .insert({
+    id: authData.user.id,
+    name: tenant.name,
+    role: 'super_admin' as UserRole,
+    tenant_id: authData.user.id,
+    // ... 其他字段
+  })
+```
+
+**关键改进**：
+- 不再依赖触发器，直接插入 profiles 记录
+- 确保 profiles 记录立即创建，无需等待邮箱确认
+- 避免了更新不存在记录的问题
+
+**迁移文件**：`041_cleanup_failed_tenant_creation.sql`
+- 清理之前创建失败留下的孤立 auth.users 记录
+
 ## 修复步骤
 
 1. **应用数据库迁移**：
    ```bash
-   # 三个迁移已自动应用
+   # 四个迁移已自动应用
    supabase/migrations/038_fix_lease_admin_update_new_tenant.sql
    supabase/migrations/039_fix_lease_admin_tenant_id_null_comparison.sql
    supabase/migrations/040_fix_is_lease_admin_user_enum_type.sql
+   supabase/migrations/041_cleanup_failed_tenant_creation.sql
    ```
 
-2. **验证修复**：
-   - 使用租赁管理员账号（admin888 / hye19911206）登录
+2. **前端代码已更新**：
+   - `src/db/api.ts` 中的 `createTenant()` 函数已修改
+   - 不再依赖触发器，直接插入 profiles 记录
+
+3. **验证修复**：
+   - 使用租赁管理员账号（admin888@fleet.com / hye19911206）登录
    - 尝试创建新的老板账号
    - 填写所有必填信息（姓名、手机、邮箱、密码）
    - 提交后应该成功创建，不再出现 406 错误
