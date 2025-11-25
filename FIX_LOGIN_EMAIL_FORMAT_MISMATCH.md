@@ -33,36 +33,65 @@ POST https://backend.appmiaoda.com/projects/supabase244341780043055104/auth/v1/t
 
 ## 解决方案
 
-### 修改内容
+### 最终修改内容
 
-修改登录页面的邮箱格式，使其与创建账号时保持一致。
+**统一所有地方使用 `@fleet.com` 邮箱格式**，确保新老账号都能正常登录。
 
-**文件**：`src/pages/login/index.tsx`
+#### 1. 修改 createTenant 函数
+
+**文件**：`src/db/api.ts`（第6424-6425行）
 
 **修改前**：
 ```typescript
-// 转换为 email 格式
-const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
+// 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
+const authEmail = email || `${tenant.phone}@phone.local`
 ```
 
 **修改后**：
 ```typescript
+// 如果没有提供邮箱，使用手机号作为邮箱（添加 @fleet.com 后缀）
+const authEmail = email || `${tenant.phone}@fleet.com`
+```
+
+#### 2. 修改 createPeerAccount 函数
+
+**文件**：`src/db/api.ts`（第6535-6536行）
+
+**修改前**：
+```typescript
+// 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
+const authEmail = email || `${account.phone}@phone.local`
+```
+
+**修改后**：
+```typescript
+// 如果没有提供邮箱，使用手机号作为邮箱（添加 @fleet.com 后缀）
+const authEmail = email || `${account.phone}@fleet.com`
+```
+
+#### 3. 修改登录页面
+
+**文件**：`src/pages/login/index.tsx`（第150-151行）
+
+**最终版本**：
+```typescript
 // 转换为 email 格式（与创建账号时保持一致）
-const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@phone.local`
+const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
 ```
 
 ### 修改说明
 
-1. **邮箱后缀统一**：将 `@fleet.com` 改为 `@phone.local`
-2. **保持一致性**：与 `createTenant` 和 `createPeerAccount` 函数使用相同的邮箱格式
-3. **添加注释**：说明这是为了与创建账号时保持一致
+1. **邮箱后缀统一**：所有地方都使用 `@fleet.com`
+2. **保持一致性**：创建账号、登录、所有认证流程使用相同格式
+3. **向后兼容**：确保老账号（使用 `@fleet.com`）能正常登录
+4. **添加注释**：说明这是为了与创建账号时保持一致
 
 ## 技术细节
 
 ### 邮箱格式转换逻辑
 
 ```typescript
-const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@phone.local`
+const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
 ```
 
 这个逻辑的工作方式：
@@ -70,15 +99,16 @@ const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@ph
 1. **如果输入包含 `@`**：说明用户输入的是完整邮箱，直接使用
    - 例如：`test@example.com` → `test@example.com`
 
-2. **如果输入不包含 `@`**：说明用户输入的是手机号，添加 `@phone.local` 后缀
-   - 例如：`13800138000` → `13800138000@phone.local`
+2. **如果输入不包含 `@`**：说明用户输入的是手机号，添加 `@fleet.com` 后缀
+   - 例如：`13800138000` → `13800138000@fleet.com`
 
-### 为什么使用 @phone.local
+### 为什么使用 @fleet.com
 
-1. **虚拟邮箱**：`@phone.local` 是一个虚拟的邮箱域名，不是真实的邮箱地址
+1. **虚拟邮箱**：`@fleet.com` 是一个虚拟的邮箱域名，不是真实的邮箱地址
 2. **手机号登录**：允许用户使用手机号作为主要登录凭证，而不需要真实邮箱
 3. **Supabase 要求**：Supabase Auth 要求必须有邮箱字段，所以使用虚拟邮箱满足这个要求
-4. **唯一性**：手机号是唯一的，所以 `手机号@phone.local` 也是唯一的
+4. **唯一性**：手机号是唯一的，所以 `手机号@fleet.com` 也是唯一的
+5. **向后兼容**：老账号已经使用 `@fleet.com` 格式，统一使用可以避免兼容性问题
 
 ## 测试场景
 
@@ -91,7 +121,7 @@ const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@ph
 - 密码：123456
 
 **系统行为**：
-- 创建时使用邮箱：`13800138000@phone.local`
+- 创建时使用邮箱：`13800138000@fleet.com`
 
 **登录测试**：
 1. 输入账号：`13800138000`
@@ -100,7 +130,7 @@ const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@ph
 
 **预期结果**：
 - ✅ 登录成功
-- 系统使用 `13800138000@phone.local` 进行认证
+- 系统使用 `13800138000@fleet.com` 进行认证
 - 邮箱格式匹配，认证通过
 
 ### 场景2：使用真实邮箱登录（填写了邮箱的账号）
@@ -142,13 +172,31 @@ const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@ph
 
 **预期结果**：
 - ❌ 登录失败（这是预期行为）
-- 系统使用 `13800138002@phone.local` 进行认证
+- 系统使用 `13800138002@fleet.com` 进行认证
 - 但实际邮箱是 `user@example.com`
 - 邮箱不匹配，认证失败
 
 **解决方法**：
 - 用户应该使用邮箱 `user@example.com` 登录
 - 或者在创建账号时不填写邮箱，只使用手机号
+
+### 场景4：老账号登录测试（向后兼容性验证）
+
+**老账号信息**：
+- 手机号：13800000001
+- 邮箱：`13800000001@fleet.com`（系统自动生成）
+- 密码：oldpassword123
+
+**登录测试**：
+1. 输入账号：`13800000001`
+2. 输入密码：`oldpassword123`
+3. 点击登录
+
+**预期结果**：
+- ✅ 登录成功
+- 系统使用 `13800000001@fleet.com` 进行认证
+- 与老账号的邮箱格式完全匹配
+- 向后兼容性验证通过
 
 ## 相关代码位置
 
@@ -180,6 +228,8 @@ const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@ph
 
 ## 提交记录
 
+### 第一次提交（错误的方向）
+
 ```
 commit ec65234
 修复登录邮箱格式不匹配问题
@@ -193,6 +243,29 @@ commit ec65234
 - 将登录页面的邮箱格式改为 @phone.local
 - 与 createTenant 和 createPeerAccount 保持一致
 - 确保创建和登录使用相同的邮箱格式
+```
+
+### 最终提交（正确的方向）
+
+```
+commit c7843d6
+统一使用 @fleet.com 邮箱格式
+
+问题：
+- 之前使用 @phone.local 作为虚拟邮箱后缀
+- 这会导致老账号（使用 @fleet.com）出现登录问题
+- 需要统一邮箱格式以保持向后兼容
+
+解决方案：
+- 将所有 @phone.local 改为 @fleet.com
+- 修改 createTenant 函数的邮箱格式
+- 修改 createPeerAccount 函数的邮箱格式
+- 修改登录页面的邮箱格式
+- 确保新老账号都使用统一的 @fleet.com 格式
+
+影响范围：
+- src/db/api.ts (createTenant 和 createPeerAccount)
+- src/pages/login/index.tsx (登录页面)
 ```
 
 ## 验证步骤
@@ -234,30 +307,39 @@ commit ec65234
 
 ### 问题原因
 
-创建账号和登录时使用的邮箱格式不一致，导致认证失败。
+创建账号和登录时使用的邮箱格式不一致，导致认证失败。更重要的是，使用 `@phone.local` 会导致老账号（使用 `@fleet.com`）无法登录。
 
 ### 解决方法
 
-统一邮箱格式，使用 `@phone.local` 作为虚拟邮箱后缀。
+统一所有地方使用 `@fleet.com` 作为虚拟邮箱后缀，确保新老账号都能正常登录。
 
 ### 关键改进
 
-1. ✅ **格式统一**：创建和登录使用相同的邮箱格式
+1. ✅ **格式统一**：创建和登录使用相同的邮箱格式（`@fleet.com`）
 2. ✅ **代码一致性**：所有相关函数使用相同的邮箱转换逻辑
 3. ✅ **用户体验**：用户可以使用手机号或邮箱登录，系统自动处理格式转换
-4. ✅ **向后兼容**：不影响已有的邮箱登录功能
+4. ✅ **向后兼容**：确保老账号能正常登录，不影响已有用户
+5. ✅ **新账号支持**：新创建的账号也使用统一格式，避免混乱
 
 ### 最佳实践
 
 1. **创建账号时**：
    - 如果不需要邮箱通知，可以不填写邮箱
-   - 系统会自动使用手机号作为登录凭证
+   - 系统会自动使用 `手机号@fleet.com` 作为登录凭证
 
 2. **登录时**：
-   - 使用手机号登录：直接输入手机号
+   - 使用手机号登录：直接输入手机号（系统自动添加 `@fleet.com`）
    - 使用邮箱登录：输入完整的邮箱地址
 
 3. **开发建议**：
    - 保持创建和登录的邮箱格式一致
    - 使用统一的邮箱转换函数
    - 添加清晰的注释说明邮箱格式规则
+   - 考虑向后兼容性，避免破坏性更改
+
+### 经验教训
+
+1. **向后兼容性优先**：在修改认证相关逻辑时，必须考虑老账号的兼容性
+2. **统一标准**：系统中所有地方应该使用统一的邮箱格式标准
+3. **充分测试**：修改认证逻辑后，需要测试新老账号的登录情况
+4. **文档记录**：详细记录修改过程和原因，方便后续维护
