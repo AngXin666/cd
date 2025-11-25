@@ -239,6 +239,8 @@ USING (is_lease_admin());
   - 移除"只能为司机分配仓库"的限制
   - 修改加载仓库分配的逻辑（根据角色使用不同函数）
   - 修改保存仓库分配的逻辑（根据角色使用不同表）
+  - 修改仓库分配按钮显示条件：支持司机、管理员、老板（第 1407 行）
+  - 修改仓库分配面板显示条件：支持所有角色（第 1449 行）
 
 ### 文档
 - `WAREHOUSE_ASSIGNMENT_FIX.md` - 详细修复说明
@@ -314,6 +316,7 @@ manager_warehouses 表现在有：
 ## Git 提交记录
 
 ```
+commit 3ed1884 - 修复用户管理页面：为管理员和老板添加仓库分配功能
 commit bae758d - 修复 setManagerWarehouses 函数缺少 tenant_id 的问题
 commit 2912572 - 添加仓库分配问题完整修复报告
 commit 24bda5b - 修复 manager_warehouses 表的 RLS 策略和 tenant_id 问题
