@@ -6445,6 +6445,30 @@ export async function getAllTenants(): Promise<Profile[]> {
 }
 
 /**
+ * 获取某个租户下的所有车队长
+ */
+export async function getManagersByTenantId(tenantId: string): Promise<Profile[]> {
+  try {
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'manager')
+      .eq('tenant_id', tenantId)
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取车队长列表失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取车队长列表异常:', error)
+    return []
+  }
+}
+
+/**
  * 根据ID获取老板账号详情
  */
 export async function getTenantById(id: string): Promise<Profile | null> {
