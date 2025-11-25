@@ -16,7 +16,7 @@ function parseLocalDate(dateStr: string): Date {
 /**
  * 将日期格式化为人性化的显示文本
  * @param dateStr 日期字符串 (YYYY-MM-DD)
- * @returns 格式化后的文本，如"今天"、"明天"、"后天"、"12月25日"等
+ * @returns 格式化后的文本，如"今天"、"明天"、"后天"、"25号"等
  */
 export function formatDateHumanReadable(dateStr: string): string {
   if (!dateStr) return ''
@@ -42,32 +42,17 @@ export function formatDateHumanReadable(dateStr: string): string {
   if (diffDays === 2) {
     return '后天'
   }
-  if (diffDays === -1) {
-    return '昨天'
-  }
-  if (diffDays === -2) {
-    return '前天'
-  }
 
-  // 其他日期显示月日
-  const month = targetDate.getMonth() + 1
+  // 其他所有日期都显示为"X号"格式
   const day = targetDate.getDate()
-
-  // 如果是今年，只显示月日
-  if (targetDate.getFullYear() === today.getFullYear()) {
-    return `${month}月${day}日`
-  }
-
-  // 如果不是今年，显示年月日
-  const year = targetDate.getFullYear()
-  return `${year}年${month}月${day}日`
+  return `${day}号`
 }
 
 /**
  * 格式化日期范围为人性化的显示文本
  * @param startDate 开始日期 (YYYY-MM-DD)
  * @param endDate 结束日期 (YYYY-MM-DD)
- * @returns 格式化后的文本，如"明天至后天"、"12月25日至12月27日"等
+ * @returns 格式化后的文本，如"明天"、"29-30号"等
  */
 export function formatDateRange(startDate: string, endDate: string): string {
   if (!startDate || !endDate) return ''
@@ -80,7 +65,22 @@ export function formatDateRange(startDate: string, endDate: string): string {
     return startText
   }
 
-  return `${startText}至${endText}`
+  // 如果开始或结束日期是"今天"、"明天"、"后天"，使用完整格式
+  if (
+    startText === '今天' ||
+    startText === '明天' ||
+    startText === '后天' ||
+    endText === '今天' ||
+    endText === '明天' ||
+    endText === '后天'
+  ) {
+    return `${startText}-${endText}`
+  }
+
+  // 其他情况，提取数字部分，显示为"29-30号"格式
+  const startDay = parseLocalDate(startDate).getDate()
+  const endDay = parseLocalDate(endDate).getDate()
+  return `${startDay}-${endDay}号`
 }
 
 /**
@@ -88,7 +88,7 @@ export function formatDateRange(startDate: string, endDate: string): string {
  * @param startDate 开始日期 (YYYY-MM-DD)
  * @param endDate 结束日期 (YYYY-MM-DD)
  * @param days 请假天数（可选）
- * @returns 格式化后的文本，如"明天至后天（2天）"
+ * @returns 格式化后的文本，如"明天（1天）"、"29-30号（2天）"
  */
 export function formatLeaveDate(startDate: string, endDate: string, days?: number): string {
   const rangeText = formatDateRange(startDate, endDate)
