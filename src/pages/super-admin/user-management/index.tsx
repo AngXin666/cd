@@ -45,11 +45,13 @@ const UserManagement: React.FC = () => {
   const [filteredUsers, setFilteredUsers] = useState<UserWithRealName[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
   const [showSearch, setShowSearch] = useState(false) // 搜索框展开状态
-  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('driver') // 默认显示司机
+  // 默认角色过滤：如果是老板登录，显示管理员；否则显示司机
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>(user?.role === 'super_admin' ? 'manager' : 'driver')
   const [loading, setLoading] = useState(false)
 
   // 标签页状态：'driver' 或 'manager'
-  const [activeTab, setActiveTab] = useState<'driver' | 'manager'>('driver')
+  // 默认值：如果是老板登录，显示管理员标签页；否则显示司机标签页
+  const [activeTab, setActiveTab] = useState<'driver' | 'manager'>(user?.role === 'super_admin' ? 'manager' : 'driver')
 
   // 用户详细信息展开状态
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
