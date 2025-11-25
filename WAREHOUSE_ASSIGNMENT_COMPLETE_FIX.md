@@ -19,6 +19,11 @@
 - `insertManagerWarehouseAssignment` 函数没有添加 `tenant_id` 字段
 - `setManagerWarehouses` 函数没有添加 `tenant_id` 字段
 
+### 问题3：UI 显示问题
+- 仓库分配按钮只对司机显示（第 1407 行）
+- 仓库分配面板也只对司机显示（第 1449 行）
+- 管理员和老板无法在用户管理页面中看到仓库分配功能
+
 ## 完整修复方案
 
 ### 第一步：为现有老板创建默认仓库（迁移 00148）
