@@ -384,50 +384,56 @@ export default function TenantList() {
                                 <View className="space-y-2">
                                   {peerAccounts.map((peer) => (
                                     <View key={peer.id} className="bg-white rounded-lg p-3 border border-gray-200">
-                                      {/* 顶部：姓名和状态标识，右侧停用/启用按钮 */}
-                                      <View className="flex flex-row items-center justify-between mb-2">
-                                        <View className="flex flex-row items-center gap-2 flex-1">
-                                          <View className="i-mdi-account text-lg text-purple-600" />
-                                          <Text className="text-sm font-medium text-gray-900">
-                                            {peer.name || '未命名'}
-                                          </Text>
-                                          {/* 状态标识 */}
-                                          <View
-                                            className={`px-2 py-0.5 rounded ${(peer.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
-                                            <Text
-                                              className={`text-xs ${(peer.status || 'active') === 'active' ? 'text-green-600' : 'text-orange-600'}`}>
-                                              {(peer.status || 'active') === 'active' ? '正常' : '停用'}
+                                      {/* 整体布局：左侧信息区域，右侧停用/启用按钮 */}
+                                      <View className="flex flex-row items-center justify-between">
+                                        {/* 左侧信息区域 */}
+                                        <View className="flex-1">
+                                          {/* 姓名和状态标识 */}
+                                          <View className="flex flex-row items-center gap-2 mb-2">
+                                            <View className="i-mdi-account text-lg text-purple-600" />
+                                            <Text className="text-sm font-medium text-gray-900">
+                                              {peer.name || '未命名'}
                                             </Text>
+                                            {/* 状态标识 */}
+                                            <View
+                                              className={`px-2 py-0.5 rounded ${(peer.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
+                                              <Text
+                                                className={`text-xs ${(peer.status || 'active') === 'active' ? 'text-green-600' : 'text-orange-600'}`}>
+                                                {(peer.status || 'active') === 'active' ? '正常' : '停用'}
+                                              </Text>
+                                            </View>
                                           </View>
+                                          {/* 电话和账号信息 */}
+                                          {peer.phone && (
+                                            <View className="mb-1">
+                                              <Text className="text-xs text-gray-600">电话：{peer.phone}</Text>
+                                            </View>
+                                          )}
+                                          {peer.login_account && (
+                                            <View>
+                                              <Text className="text-xs text-gray-600">账号：{peer.login_account}</Text>
+                                            </View>
+                                          )}
                                         </View>
-                                        {/* 停用/启用按钮放在右上角 */}
-                                        {(peer.status || 'active') === 'active' ? (
-                                          <Button
-                                            className="bg-orange-500 text-white px-3 py-1 rounded break-keep text-xs"
-                                            size="mini"
-                                            onClick={() => handleSuspendPeerAccount(peer.id, tenant.id)}>
-                                            停用
-                                          </Button>
-                                        ) : (
-                                          <Button
-                                            className="bg-green-500 text-white px-3 py-1 rounded break-keep text-xs"
-                                            size="mini"
-                                            onClick={() => handleActivatePeerAccount(peer.id, tenant.id)}>
-                                            启用
-                                          </Button>
-                                        )}
+                                        {/* 右侧停用/启用按钮（垂直居中） */}
+                                        <View className="ml-3">
+                                          {(peer.status || 'active') === 'active' ? (
+                                            <Button
+                                              className="bg-orange-500 text-white px-3 py-1 rounded break-keep text-xs"
+                                              size="mini"
+                                              onClick={() => handleSuspendPeerAccount(peer.id, tenant.id)}>
+                                              停用
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              className="bg-green-500 text-white px-3 py-1 rounded break-keep text-xs"
+                                              size="mini"
+                                              onClick={() => handleActivatePeerAccount(peer.id, tenant.id)}>
+                                              启用
+                                            </Button>
+                                          )}
+                                        </View>
                                       </View>
-                                      {/* 电话和账号信息 */}
-                                      {peer.phone && (
-                                        <View className="mb-1">
-                                          <Text className="text-xs text-gray-600">电话：{peer.phone}</Text>
-                                        </View>
-                                      )}
-                                      {peer.login_account && (
-                                        <View>
-                                          <Text className="text-xs text-gray-600">账号：{peer.login_account}</Text>
-                                        </View>
-                                      )}
                                     </View>
                                   ))}
                                 </View>
