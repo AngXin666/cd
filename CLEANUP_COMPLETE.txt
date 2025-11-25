@@ -1,0 +1,10 @@
+ 电脑端管理后台代码清理完成
+
+git config --global user.name miaoda
+- 2个页面目录（web-admin, admin-dashboard）
+- 2个路由配置
+- 7个API函数（312行代码）
+
+#
+#
+UP_SUMMARY.md

@@ -12,7 +12,6 @@ const pages = [
   'pages/profile/help/index',
   'pages/profile/feedback/index',
   'pages/common/notifications/index',
-  'pages/admin-dashboard/index',
   'pages/driver/clock-in/index',
   'pages/driver/attendance/index',
   'pages/driver/warehouse-stats/index',
@@ -65,8 +64,7 @@ const pages = [
   'pages/shared/notification-templates/index',
   'pages/shared/scheduled-notifications/index',
   'pages/shared/notification-records/index',
-  'pages/shared/auto-reminder-rules/index',
-  'pages/web-admin/index'
+  'pages/shared/auto-reminder-rules/index'
 ]
 
 export default defineAppConfig({
