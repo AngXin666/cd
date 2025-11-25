@@ -47,7 +47,12 @@ export default function LeaseAdminDashboard() {
           {/* 页面标题 */}
           <View className="mb-6">
             <Text className="text-2xl font-bold text-primary">租赁系统管理</Text>
-            <Text className="text-sm text-muted-foreground mt-1">管理租用车队管家小程序的客户</Text>
+            <View className="mt-1">
+              <Text className="text-sm text-muted-foreground">管理租用车队管家小程序的客户</Text>
+            </View>
+            <View>
+              <Text className="text-sm text-muted-foreground">帮助您的客户</Text>
+            </View>
           </View>
 
           {/* 统计卡片 */}
@@ -92,17 +97,26 @@ export default function LeaseAdminDashboard() {
             </View>
           </View>
 
-          {/* 快速操作 */}
+          {/* 快捷功能 */}
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-foreground mb-3">快速操作</Text>
+            <Text className="text-lg font-semibold text-foreground mb-3">快捷功能</Text>
             <View className="grid grid-cols-1 gap-3">
-              {/* 老板账号管理 */}
+              {/* 账号管理 */}
               <View
                 className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
                 onClick={() => handleNavigate('/pages/lease-admin/tenant-list/index')}>
                 <View className="i-mdi-account-group text-3xl text-white mb-2"></View>
-                <Text className="text-white font-semibold">老板账号管理</Text>
+                <Text className="text-white font-semibold">账号管理</Text>
                 <Text className="text-white text-xs opacity-80 mt-1">查看和管理所有老板账号</Text>
+              </View>
+
+              {/* 租期管理 */}
+              <View
+                className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                onClick={() => handleNavigate('/pages/lease-admin/lease-list/index')}>
+                <View className="i-mdi-calendar-clock text-3xl text-white mb-2"></View>
+                <Text className="text-white font-semibold">租期管理</Text>
+                <Text className="text-white text-xs opacity-80 mt-1">管理租赁期限和续约</Text>
               </View>
             </View>
           </View>
