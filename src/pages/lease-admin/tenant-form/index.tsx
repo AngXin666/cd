@@ -1,4 +1,4 @@
-import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useEffect, useState} from 'react'
 import {createPeerAccount, createTenant, getTenantById, updateTenant} from '@/db/api'
@@ -10,7 +10,6 @@ export default function TenantForm() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    email: '',
     password: '',
     confirmPassword: '',
     company_name: '',
@@ -21,15 +20,38 @@ export default function TenantForm() {
   })
   const [loading, setLoading] = useState(false)
 
+  // 格式化日期为 YYYY-MM-DD
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // 计算结束日期
+  const calculateEndDate = (startDate: string, months: number): string => {
+    if (!startDate) return ''
+    const date = new Date(startDate)
+    date.setMonth(date.getMonth() + months)
+    return formatDate(date)
+  }
+
+  // 初始化开始日期为当天
+  useEffect(() => {
+    if (mode === 'create' && !formData.lease_start_date) {
+      const today = formatDate(new Date())
+      setFormData((prev) => ({...prev, lease_start_date: today}))
+    }
+  }, [mode, formData.lease_start_date, formatDate])
+
   const loadTenant = async (id: string) => {
     const tenant = await getTenantById(id)
     if (tenant) {
       setFormData({
         name: tenant.name || '',
         phone: tenant.phone || '',
-        email: tenant.email || '',
-        password: '', // 编辑时不显示密码
-        confirmPassword: '', // 编辑时不显示确认密码
+        password: '',
+        confirmPassword: '',
         company_name: tenant.company_name || '',
         lease_start_date: tenant.lease_start_date || '',
         lease_end_date: tenant.lease_end_date || '',
@@ -88,7 +110,7 @@ export default function TenantForm() {
           {
             name: formData.name,
             phone: formData.phone,
-            email: formData.email || null,
+            email: null,
             role: 'super_admin',
             driver_type: null,
             avatar_url: null,
@@ -111,13 +133,11 @@ export default function TenantForm() {
             tenant_id: null,
             main_account_id: null
           },
-          formData.email || null,
+          null,
           formData.password
         )
         if (result === 'EMAIL_EXISTS') {
-          // 根据是否填写了邮箱，显示不同的错误提示
-          const errorMsg = formData.email ? '该邮箱已被注册，请使用其他邮箱' : '该手机号已被注册，请使用其他手机号'
-          Taro.showToast({title: errorMsg, icon: 'none', duration: 2500})
+          Taro.showToast({title: '该手机号已被注册，请使用其他手机号', icon: 'none', duration: 2500})
         } else if (result) {
           Taro.showToast({title: '创建成功', icon: 'success'})
           setTimeout(() => {
@@ -140,14 +160,12 @@ export default function TenantForm() {
             phone: formData.phone,
             notes: formData.notes || null
           },
-          formData.email || null,
+          null,
           formData.password
         )
 
         if (result === 'EMAIL_EXISTS') {
-          // 根据是否填写了邮箱，显示不同的错误提示
-          const errorMsg = formData.email ? '该邮箱已被注册，请使用其他邮箱' : '该手机号已被注册，请使用其他手机号'
-          Taro.showToast({title: errorMsg, icon: 'none', duration: 2500})
+          Taro.showToast({title: '该手机号已被注册，请使用其他手机号', icon: 'none', duration: 2500})
         } else if (result) {
           Taro.showToast({title: '创建平级账号成功', icon: 'success'})
           setTimeout(() => {
@@ -188,6 +206,16 @@ export default function TenantForm() {
     if (mode === 'create') return '新增老板账号'
     if (mode === 'create_peer') return '新增老板账号（平级账号）'
     return '编辑老板账号'
+  }
+
+  // 处理快捷日期选择
+  const handleQuickDate = (months: number) => {
+    if (!formData.lease_start_date) {
+      Taro.showToast({title: '请先选择开始日期', icon: 'none'})
+      return
+    }
+    const endDate = calculateEndDate(formData.lease_start_date, months)
+    setFormData({...formData, lease_end_date: endDate})
   }
 
   return (
@@ -232,21 +260,6 @@ export default function TenantForm() {
                 />
               </View>
             </View>
-
-            {/* 邮箱（可选） */}
-            {(mode === 'create' || mode === 'create_peer') && (
-              <View>
-                <Text className="text-sm text-foreground mb-2">邮箱（可选，不填写则使用手机号登录）</Text>
-                <View style={{overflow: 'hidden'}}>
-                  <Input
-                    className="bg-input rounded-lg px-4 py-3 border border-border"
-                    placeholder="请输入邮箱"
-                    value={formData.email}
-                    onInput={(e) => setFormData({...formData, email: e.detail.value})}
-                  />
-                </View>
-              </View>
-            )}
 
             {/* 密码（创建时必填） */}
             {(mode === 'create' || mode === 'create_peer') && (
@@ -299,14 +312,16 @@ export default function TenantForm() {
             {mode === 'create' && (
               <View>
                 <Text className="text-sm text-foreground mb-2">租赁开始日期</Text>
-                <View style={{overflow: 'hidden'}}>
-                  <Input
-                    className="bg-input rounded-lg px-4 py-3 border border-border"
-                    placeholder="YYYY-MM-DD"
-                    value={formData.lease_start_date}
-                    onInput={(e) => setFormData({...formData, lease_start_date: e.detail.value})}
-                  />
-                </View>
+                <Picker
+                  mode="date"
+                  value={formData.lease_start_date}
+                  onChange={(e) => setFormData({...formData, lease_start_date: e.detail.value})}>
+                  <View className="bg-input rounded-lg px-4 py-3 border border-border">
+                    <Text className={formData.lease_start_date ? 'text-foreground' : 'text-muted-foreground'}>
+                      {formData.lease_start_date || '请选择开始日期'}
+                    </Text>
+                  </View>
+                </Picker>
               </View>
             )}
 
@@ -314,13 +329,35 @@ export default function TenantForm() {
             {mode === 'create' && (
               <View>
                 <Text className="text-sm text-foreground mb-2">租赁结束日期</Text>
-                <View style={{overflow: 'hidden'}}>
-                  <Input
-                    className="bg-input rounded-lg px-4 py-3 border border-border"
-                    placeholder="YYYY-MM-DD"
-                    value={formData.lease_end_date}
-                    onInput={(e) => setFormData({...formData, lease_end_date: e.detail.value})}
-                  />
+                <Picker
+                  mode="date"
+                  value={formData.lease_end_date}
+                  start={formData.lease_start_date || undefined}
+                  onChange={(e) => setFormData({...formData, lease_end_date: e.detail.value})}>
+                  <View className="bg-input rounded-lg px-4 py-3 border border-border">
+                    <Text className={formData.lease_end_date ? 'text-foreground' : 'text-muted-foreground'}>
+                      {formData.lease_end_date || '请选择结束日期'}
+                    </Text>
+                  </View>
+                </Picker>
+
+                {/* 快捷日期选择 */}
+                <View className="mt-3">
+                  <Text className="text-xs text-muted-foreground mb-2">快捷选择：</Text>
+                  <View className="flex flex-row gap-2 flex-wrap">
+                    <View className="px-3 py-2 rounded-lg bg-blue-100" onClick={() => handleQuickDate(1)}>
+                      <Text className="text-sm text-blue-600">1个月</Text>
+                    </View>
+                    <View className="px-3 py-2 rounded-lg bg-blue-100" onClick={() => handleQuickDate(3)}>
+                      <Text className="text-sm text-blue-600">3个月</Text>
+                    </View>
+                    <View className="px-3 py-2 rounded-lg bg-blue-100" onClick={() => handleQuickDate(6)}>
+                      <Text className="text-sm text-blue-600">6个月</Text>
+                    </View>
+                    <View className="px-3 py-2 rounded-lg bg-blue-100" onClick={() => handleQuickDate(12)}>
+                      <Text className="text-sm text-blue-600">1年</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
