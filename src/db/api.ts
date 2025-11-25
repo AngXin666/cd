@@ -7202,6 +7202,57 @@ export async function deleteLease(leaseId: string): Promise<boolean> {
 }
 
 /**
+ * 减少租期
+ * 从现有租期中减少指定的月数
+ */
+export async function reduceLease(leaseId: string, reduceMonths: number): Promise<boolean> {
+  try {
+    // 获取当前租期信息
+    const {data: lease, error: fetchError} = await supabase.from('leases').select('*').eq('id', leaseId).maybeSingle()
+
+    if (fetchError || !lease) {
+      console.error('获取租期信息失败:', fetchError)
+      return false
+    }
+
+    // 计算新的租期时长
+    const newDurationMonths = lease.duration_months - reduceMonths
+
+    // 如果减少后的租期小于等于0，则不允许减少
+    if (newDurationMonths <= 0) {
+      console.error('减少后的租期必须大于0个月')
+      return false
+    }
+
+    // 计算新的结束日期
+    const startDate = new Date(lease.start_date)
+    const newEndDate = new Date(startDate)
+    newEndDate.setMonth(newEndDate.getMonth() + newDurationMonths)
+
+    // 更新租期
+    const {error: updateError} = await supabase
+      .from('leases')
+      .update({
+        duration_months: newDurationMonths,
+        end_date: newEndDate.toISOString().split('T')[0],
+        // 如果新的结束日期已经过期，更新状态为 expired
+        status: newEndDate < new Date() ? 'expired' : 'active'
+      })
+      .eq('id', leaseId)
+
+    if (updateError) {
+      console.error('更新租期失败:', updateError)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('减少租期异常:', error)
+    return false
+  }
+}
+
+/**
  * 处理租期到期
  * 根据 expire_action 执行相应的停用操作
  */
