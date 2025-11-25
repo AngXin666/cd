@@ -227,6 +227,28 @@ export default function LeaseList() {
     return `${months}个月`
   }
 
+  // 计算从现在到到期日期的剩余月数
+  const getRemainingMonths = (endDate: string) => {
+    const now = new Date()
+    const end = new Date(endDate)
+
+    // 计算年份差和月份差
+    const yearDiff = end.getFullYear() - now.getFullYear()
+    const monthDiff = end.getMonth() - now.getMonth()
+    const dayDiff = end.getDate() - now.getDate()
+
+    // 总月数 = 年份差 * 12 + 月份差
+    let totalMonths = yearDiff * 12 + monthDiff
+
+    // 如果日期差为负（例如：现在是15号，到期日是10号），则减去一个月
+    if (dayDiff < 0) {
+      totalMonths -= 1
+    }
+
+    // 确保不返回负数
+    return Math.max(0, totalMonths)
+  }
+
   const getExpireActionLabel = (action: string) => {
     const option = expireActionOptions.find((o) => o.value === action)
     return option ? option.label : action
@@ -337,13 +359,13 @@ export default function LeaseList() {
                               </View>
                             </View>
 
-                            {/* 总租期月数 */}
+                            {/* 剩余租期月数 */}
                             <View className="flex flex-row items-center gap-2">
                               <View className="i-mdi-clock-outline text-lg text-primary" />
                               <View className="flex-1">
-                                <Text className="text-xs text-muted-foreground">总租期</Text>
+                                <Text className="text-xs text-muted-foreground">剩余租期</Text>
                                 <Text className="text-base font-semibold text-primary">
-                                  {getDurationLabel(lease.duration_months)}
+                                  {getDurationLabel(getRemainingMonths(lease.end_date))}
                                 </Text>
                               </View>
                             </View>
