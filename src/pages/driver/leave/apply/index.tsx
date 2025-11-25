@@ -46,6 +46,7 @@ const ApplyLeave: React.FC = () => {
   const [monthlyPendingDays, setMonthlyPendingDays] = useState(0)
   const [monthlyLimit, setMonthlyLimit] = useState(0)
   const [warehouses, setWarehouses] = useState<Array<{id: string; name: string}>>([])
+  const [availableQuickDays, setAvailableQuickDays] = useState(7) // 实际可选的快捷天数上限
 
   const leaveTypes = [
     {label: '事假', value: 'personal'},
@@ -208,6 +209,36 @@ const ApplyLeave: React.FC = () => {
       setLeaveDays(days)
     }
   }, [mode, startDate, endDate, calculateDays])
+
+  // 快捷请假模式：当用户手动修改结束日期时，重新计算天数和quickDays
+  useEffect(() => {
+    if (mode === 'quick' && startDate && endDate) {
+      const days = calculateDays(startDate, endDate)
+      // 只有当天数发生变化时才更新
+      if (days !== quickDays) {
+        setQuickDays(days)
+        setLeaveDays(days)
+      }
+    }
+  }, [mode, startDate, endDate, calculateDays, quickDays])
+
+  // 计算实际可用的快捷天数上限（基于剩余额度）
+  useEffect(() => {
+    if (monthlyLimit > 0) {
+      const remainingDays = monthlyLimit - monthlyApprovedDays - monthlyPendingDays
+      // 实际可选天数 = min(剩余额度, 系统最大天数)
+      const maxAvailable = Math.max(1, Math.min(remainingDays, maxLeaveDays))
+      setAvailableQuickDays(maxAvailable)
+
+      // 如果当前选择的天数超过了可用天数，自动调整
+      if (quickDays > maxAvailable) {
+        setQuickDays(maxAvailable)
+      }
+    } else {
+      // 如果没有月度限制，使用系统最大天数
+      setAvailableQuickDays(maxLeaveDays)
+    }
+  }, [monthlyLimit, monthlyApprovedDays, monthlyPendingDays, maxLeaveDays, quickDays])
 
   // 验证请假天数
   useEffect(() => {
@@ -462,8 +493,8 @@ const ApplyLeave: React.FC = () => {
     }
   }
 
-  // 生成天数选项
-  const daysOptions = Array.from({length: maxLeaveDays}, (_, i) => `${i + 1}天`)
+  // 生成天数选项（基于实际可用天数）
+  const daysOptions = Array.from({length: availableQuickDays}, (_, i) => `${i + 1}天`)
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
@@ -652,7 +683,11 @@ const ApplyLeave: React.FC = () => {
                       <View className="i-mdi-chevron-down text-xl text-gray-400" />
                     </View>
                   </Picker>
-                  <Text className="text-xs text-gray-400 block mt-1">最多可选{maxLeaveDays}天</Text>
+                  <Text className="text-xs text-gray-400 block mt-1">
+                    {monthlyLimit > 0
+                      ? `根据剩余额度，最多可选${availableQuickDays}天`
+                      : `最多可选${availableQuickDays}天`}
+                  </Text>
                 </View>
 
                 <View className="mb-4">
