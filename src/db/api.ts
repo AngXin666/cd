@@ -7478,3 +7478,106 @@ export async function checkAndHandleExpiredLeases(): Promise<number> {
     return 0
   }
 }
+
+/**
+ * 检查用户的租期状态
+ * 返回值：
+ * - 'ok': 用户可以正常使用（司机或有有效租期）
+ * - 'main_expired': 主账号（老板号）租期已过期
+ * - 'related_expired': 平级账号或车队长的主账号租期已过期
+ */
+export async function checkUserLeaseStatus(
+  userId: string
+): Promise<{status: 'ok' | 'main_expired' | 'related_expired'; message?: string}> {
+  try {
+    // 获取用户信息
+    const {data: user, error: userError} = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+
+    if (userError || !user) {
+      console.error('获取用户信息失败:', userError)
+      return {status: 'ok'}
+    }
+
+    // 司机不受租期限制
+    if (user.role === 'driver') {
+      return {status: 'ok'}
+    }
+
+    // 租赁管理员不受租期限制
+    if (user.role === 'lease_admin') {
+      return {status: 'ok'}
+    }
+
+    // 确定主账号ID
+    let mainAccountId: string
+    let isMainAccount = false
+
+    if (user.role === 'super_admin' && user.main_account_id === null) {
+      // 当前用户是主账号（老板号）
+      mainAccountId = user.id
+      isMainAccount = true
+    } else if (user.role === 'super_admin' && user.main_account_id !== null) {
+      // 当前用户是平级账号
+      mainAccountId = user.main_account_id
+      isMainAccount = false
+    } else if (user.role === 'manager') {
+      // 当前用户是车队长，需要找到所属的主账号
+      mainAccountId = user.tenant_id || ''
+      isMainAccount = false
+    } else {
+      // 其他角色不受限制
+      return {status: 'ok'}
+    }
+
+    // 检查主账号是否有有效租期
+    const {data: leases, error: leaseError} = await supabase
+      .from('leases')
+      .select('*')
+      .eq('tenant_id', mainAccountId)
+      .eq('status', 'active')
+      .order('end_date', {ascending: false})
+      .limit(1)
+
+    if (leaseError) {
+      console.error('获取租期信息失败:', leaseError)
+      return {status: 'ok'}
+    }
+
+    // 如果没有有效租期
+    if (!leases || leases.length === 0) {
+      if (isMainAccount) {
+        return {
+          status: 'main_expired',
+          message: '账户已过期，请续费'
+        }
+      } else {
+        return {
+          status: 'related_expired',
+          message: '账户已过期，请让老板续费'
+        }
+      }
+    }
+
+    // 检查租期是否已到期
+    const lease = leases[0]
+    const today = new Date().toISOString().split('T')[0]
+    if (lease.end_date < today) {
+      if (isMainAccount) {
+        return {
+          status: 'main_expired',
+          message: '账户已过期，请续费'
+        }
+      } else {
+        return {
+          status: 'related_expired',
+          message: '账户已过期，请让老板续费'
+        }
+      }
+    }
+
+    return {status: 'ok'}
+  } catch (error) {
+    console.error('检查用户租期状态异常:', error)
+    return {status: 'ok'}
+  }
+}

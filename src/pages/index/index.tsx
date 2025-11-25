@@ -3,7 +3,7 @@ import Taro, {reLaunch, switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
-import {getCurrentUserRole} from '@/db/api'
+import {checkUserLeaseStatus, getCurrentUserRole} from '@/db/api'
 import type {UserRole} from '@/db/types'
 
 const IndexPage: React.FC = () => {
@@ -65,6 +65,34 @@ const IndexPage: React.FC = () => {
       }
 
       console.log('[IndexPage] 用户角色获取成功:', userRole)
+
+      // 检查租期状态（仅对老板号、平级账号、车队长进行检查）
+      if (userRole === 'super_admin' || userRole === 'manager') {
+        setLoadingStatus('正在检查租期状态...')
+        const leaseStatus = await checkUserLeaseStatus(user.id)
+
+        if (leaseStatus.status !== 'ok') {
+          console.log('[IndexPage] 租期检查失败:', leaseStatus)
+          setError(leaseStatus.message || '账户已过期')
+
+          // 显示提示后阻止跳转
+          Taro.showModal({
+            title: '账户已过期',
+            content: leaseStatus.message || '账户已过期',
+            showCancel: false,
+            confirmText: '我知道了',
+            success: () => {
+              // 跳转到个人中心，让用户查看详情或联系管理员
+              if (!hasRedirected.current) {
+                hasRedirected.current = true
+                switchTab({url: '/pages/profile/index'})
+              }
+            }
+          })
+          return
+        }
+      }
+
       setRole(userRole)
       setError(null)
     } catch (error) {
