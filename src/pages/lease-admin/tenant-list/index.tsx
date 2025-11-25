@@ -175,6 +175,39 @@ export default function TenantList() {
     Taro.navigateTo({url: `/pages/lease-admin/tenant-form/index?mode=create_peer&mainAccountId=${mainAccountId}`})
   }
 
+  // 停用平级账号
+  const handleSuspendPeerAccount = async (peerId: string, mainAccountId: string) => {
+    const result = await Taro.showModal({
+      title: '确认停用',
+      content: '确定要停用该平级账号吗？停用后该账号将无法登录。'
+    })
+
+    if (result.confirm) {
+      const success = await suspendTenant(peerId)
+      if (success) {
+        Taro.showToast({title: '停用成功', icon: 'success'})
+        // 重新加载该主账号下的平级账号列表
+        const peerAccounts = await getPeerAccountsByMainId(mainAccountId)
+        setPeerAccountsMap(new Map(peerAccountsMap).set(mainAccountId, peerAccounts))
+      } else {
+        Taro.showToast({title: '停用失败', icon: 'none'})
+      }
+    }
+  }
+
+  // 启用平级账号
+  const handleActivatePeerAccount = async (peerId: string, mainAccountId: string) => {
+    const success = await activateTenant(peerId)
+    if (success) {
+      Taro.showToast({title: '启用成功', icon: 'success'})
+      // 重新加载该主账号下的平级账号列表
+      const peerAccounts = await getPeerAccountsByMainId(mainAccountId)
+      setPeerAccountsMap(new Map(peerAccountsMap).set(mainAccountId, peerAccounts))
+    } else {
+      Taro.showToast({title: '启用失败', icon: 'none'})
+    }
+  }
+
   return (
     <View className="min-h-screen bg-gray-50">
       <ScrollView scrollY className="h-screen box-border">
@@ -373,10 +406,28 @@ export default function TenantList() {
                                         </View>
                                       )}
                                       {peer.login_account && (
-                                        <View>
+                                        <View className="mb-2">
                                           <Text className="text-xs text-gray-600">账号：{peer.login_account}</Text>
                                         </View>
                                       )}
+                                      {/* 平级账号操作按钮 */}
+                                      <View className="flex flex-row gap-2 mt-2">
+                                        {(peer.status || 'active') === 'active' ? (
+                                          <Button
+                                            className="flex-1 bg-orange-500 text-white py-1 rounded break-keep text-xs"
+                                            size="mini"
+                                            onClick={() => handleSuspendPeerAccount(peer.id, tenant.id)}>
+                                            停用
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            className="flex-1 bg-green-500 text-white py-1 rounded break-keep text-xs"
+                                            size="mini"
+                                            onClick={() => handleActivatePeerAccount(peer.id, tenant.id)}>
+                                            启用
+                                          </Button>
+                                        )}
+                                      </View>
                                     </View>
                                   ))}
                                 </View>
