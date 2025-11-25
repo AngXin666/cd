@@ -1015,6 +1015,23 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
 }
 
 /**
+ * 插入管理员/车队长的仓库分配
+ */
+export async function insertManagerWarehouseAssignment(input: {
+  manager_id: string
+  warehouse_id: string
+}): Promise<boolean> {
+  const {error} = await supabase.from('manager_warehouses').insert(input)
+
+  if (error) {
+    console.error('插入管理员仓库分配失败:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
  * 批量设置司机的仓库
  */
 export async function setDriverWarehouses(
@@ -6488,6 +6505,36 @@ export async function createTenant(
     if (profileError) {
       console.error('更新老板账号 profiles 记录失败:', profileError)
       return null
+    }
+
+    // 5. 自动创建默认仓库
+    const {data: warehouseData, error: warehouseError} = await supabase
+      .from('warehouses')
+      .insert({
+        name: `${tenant.company_name || tenant.name}的仓库`,
+        tenant_id: authData.user.id,
+        is_active: true
+      })
+      .select()
+      .maybeSingle()
+
+    if (warehouseError) {
+      console.error('创建默认仓库失败:', warehouseError)
+      // 不返回 null，因为账号已经创建成功，只是仓库创建失败
+    }
+
+    // 6. 自动分配仓库给老板
+    if (warehouseData) {
+      const {error: assignError} = await supabase.from('manager_warehouses').insert({
+        manager_id: authData.user.id,
+        warehouse_id: warehouseData.id,
+        tenant_id: authData.user.id
+      })
+
+      if (assignError) {
+        console.error('分配仓库给老板失败:', assignError)
+        // 不返回 null，因为账号和仓库已经创建成功，只是分配失败
+      }
     }
 
     return profileData

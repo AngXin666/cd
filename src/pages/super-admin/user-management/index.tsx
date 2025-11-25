@@ -21,10 +21,12 @@ import {
   getWarehouseAssignmentsByDriver,
   getWarehouseAssignmentsByManager,
   getWarehouseManagers,
+  insertManagerWarehouseAssignment,
   insertWarehouseAssignment,
   updateProfile
 } from '@/db/api'
 import {createNotifications} from '@/db/notificationApi'
+import {supabase} from '@/db/supabase'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {matchWithPinyin} from '@/utils/pinyin'
@@ -368,14 +370,27 @@ const UserManagement: React.FC = () => {
 
       if (newUser) {
         // 分配仓库
-        console.log('开始为新用户分配仓库', {userId: newUser.id, warehouseIds: newUserWarehouseIds})
-        for (const warehouseId of newUserWarehouseIds) {
-          await insertWarehouseAssignment({
-            driver_id: newUser.id,
-            warehouse_id: warehouseId
-          })
+        console.log('开始为新用户分配仓库', {userId: newUser.id, role: newUserRole, warehouseIds: newUserWarehouseIds})
+
+        if (newUserRole === 'driver') {
+          // 为司机分配仓库（使用 driver_warehouses 表）
+          for (const warehouseId of newUserWarehouseIds) {
+            await insertWarehouseAssignment({
+              driver_id: newUser.id,
+              warehouse_id: warehouseId
+            })
+          }
+        } else if (newUserRole === 'manager' || newUserRole === 'super_admin') {
+          // 为管理员和车队长分配仓库（使用 manager_warehouses 表）
+          for (const warehouseId of newUserWarehouseIds) {
+            await insertManagerWarehouseAssignment({
+              manager_id: newUser.id,
+              warehouse_id: warehouseId
+            })
+          }
         }
-        console.log('仓库分配完成', {userId: newUser.id, count: newUserWarehouseIds.length})
+
+        console.log('仓库分配完成', {userId: newUser.id, role: newUserRole, count: newUserWarehouseIds.length})
 
         Taro.hideLoading()
         setAddingUser(false)
@@ -550,11 +565,6 @@ const UserManagement: React.FC = () => {
   // 处理仓库分配按钮点击
   const handleWarehouseAssignClick = useCallback(
     async (targetUser: UserWithRealName) => {
-      if (targetUser.role !== 'driver') {
-        showToast({title: '只能为司机分配仓库', icon: 'none'})
-        return
-      }
-
       if (warehouseAssignExpanded === targetUser.id) {
         // 如果已经展开，则收起
         setWarehouseAssignExpanded(null)
@@ -562,9 +572,16 @@ const UserManagement: React.FC = () => {
       } else {
         // 展开仓库分配面板
         setWarehouseAssignExpanded(targetUser.id)
-        // 加载该司机已分配的仓库
+        // 加载该用户已分配的仓库
         showLoading({title: '加载中...'})
-        const assignments = await getWarehouseAssignmentsByDriver(targetUser.id)
+
+        let assignments: Array<{warehouse_id: string}> = []
+        if (targetUser.role === 'driver') {
+          assignments = await getWarehouseAssignmentsByDriver(targetUser.id)
+        } else if (targetUser.role === 'manager' || targetUser.role === 'super_admin') {
+          assignments = await getWarehouseAssignmentsByManager(targetUser.id)
+        }
+
         Taro.hideLoading()
         setSelectedWarehouseIds(assignments.map((a) => a.warehouse_id))
       }
@@ -578,6 +595,7 @@ const UserManagement: React.FC = () => {
       // 获取用户信息用于显示名称
       const targetUser = users.find((u) => u.id === userId)
       const userName = targetUser?.real_name || targetUser?.name || '该用户'
+      const userRole = targetUser?.role
 
       // 获取选中的仓库名称
       const selectedWarehouseNames = warehouses
@@ -602,18 +620,35 @@ const UserManagement: React.FC = () => {
       showLoading({title: '保存中...'})
 
       // 获取之前的仓库分配（用于对比变更）
-      const previousAssignments = await getWarehouseAssignmentsByDriver(userId)
+      let previousAssignments: Array<{warehouse_id: string}> = []
+      if (userRole === 'driver') {
+        previousAssignments = await getWarehouseAssignmentsByDriver(userId)
+      } else if (userRole === 'manager' || userRole === 'super_admin') {
+        previousAssignments = await getWarehouseAssignmentsByManager(userId)
+      }
       const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
 
       // 先删除该用户的所有仓库分配
-      await deleteWarehouseAssignmentsByDriver(userId)
+      if (userRole === 'driver') {
+        await deleteWarehouseAssignmentsByDriver(userId)
+      } else if (userRole === 'manager' || userRole === 'super_admin') {
+        // 删除管理员/车队长的仓库分配
+        await supabase.from('manager_warehouses').delete().eq('manager_id', userId)
+      }
 
       // 添加新的仓库分配
       for (const warehouseId of selectedWarehouseIds) {
-        await insertWarehouseAssignment({
-          driver_id: userId,
-          warehouse_id: warehouseId
-        })
+        if (userRole === 'driver') {
+          await insertWarehouseAssignment({
+            driver_id: userId,
+            warehouse_id: warehouseId
+          })
+        } else if (userRole === 'manager' || userRole === 'super_admin') {
+          await insertManagerWarehouseAssignment({
+            manager_id: userId,
+            warehouse_id: warehouseId
+          })
+        }
       }
 
       Taro.hideLoading()
