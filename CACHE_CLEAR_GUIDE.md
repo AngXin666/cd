@@ -1,77 +1,152 @@
 # 缓存清理指南
 
-## 问题说明
+## 问题描述
 
-在移除计件报表筛选条件后，如果遇到以下错误：
+在优化租赁端功能后，可能会遇到以下错误：
+
 ```
-ReferenceError: selectedDriverId is not defined
-ReferenceError: showFilters is not defined
+Uncaught TypeError: Cannot read properties of undefined (reading 'toFixed')
+    at LeaseAdminDashboard (/pages/lease-admin/index.tsx:499:63)
 ```
 
-这是**浏览器缓存问题**，不是代码问题。源代码中已经完全移除了这些变量。
+## 问题原因
 
-## 验证结果
+这个错误是由于**浏览器或开发服务器缓存了旧版本的代码**导致的。虽然源代码已经更新，但是：
 
-✅ **管理员端** (`src/pages/manager/piece-work-report/index.tsx`)
-- selectedDriverId: ✅ 已移除
-- showFilters: ✅ 已移除
-- driverSearchKeyword: ✅ 已移除
+1. 浏览器可能缓存了旧的 JavaScript 文件
+2. Vite 开发服务器可能缓存了旧的编译结果
+3. Node.js 模块缓存可能保留了旧的模块
 
-✅ **超级管理员端** (`src/pages/super-admin/piece-work-report/index.tsx`)
-- selectedDriverId: ✅ 已移除
-- showFilters: ✅ 已移除
-- driverSearchKeyword: ✅ 已移除
-- quickFilter: ✅ 已移除
+在旧版本的代码中，`stats` 对象包含 `thisMonthVerifiedAmount` 字段，并且使用了 `toFixed()` 方法来格式化金额。但在新版本中，这个字段已经被移除。
 
 ## 解决方案
 
-### 1. 清理编译缓存（✅ 已完成）
-```bash
-cd /workspace/app-7cdqf07mbu9t
-rm -rf dist .temp node_modules/.cache
-```
+### 方案一：完全清理缓存（推荐）
 
-### 2. 重启开发服务器
-如果正在运行开发服务器，请：
-1. 停止当前的开发服务器（Ctrl+C）
-2. 重新启动：
+1. **停止开发服务器**（如果正在运行）
    ```bash
-   pnpm run dev:h5
-   # 或
-   pnpm run dev:weapp
+   # 按 Ctrl+C 停止服务器
    ```
 
-### 3. 清理浏览器缓存
-在浏览器中：
-- **Chrome/Edge**: 按 `Ctrl+Shift+Delete`，选择"缓存的图像和文件"，清除
-- **或者**: 按 `Ctrl+F5` 强制刷新页面
-- **或者**: 打开开发者工具（F12），右键点击刷新按钮，选择"清空缓存并硬性重新加载"
+2. **运行清理脚本**
+   ```bash
+   bash clear-cache.sh
+   ```
 
-### 4. 微信开发者工具
-如果是在微信开发者工具中：
-1. 点击工具栏的"清缓存" -> "清除全部缓存"
-2. 重新编译项目
+3. **重新启动开发服务器**
+   ```bash
+   pnpm run dev:h5
+   ```
 
-## 为什么会出现这个问题？
+### 方案二：手动清理缓存
 
-1. **编译缓存**: Taro/Webpack会缓存编译结果以加快构建速度
-2. **浏览器缓存**: 浏览器会缓存JavaScript文件以加快加载速度
-3. **热更新限制**: 开发服务器的热更新可能不会完全刷新所有模块
+如果清理脚本无法运行，可以手动执行以下命令：
 
-## 确认修复成功
+```bash
+# 清理编译输出
+rm -rf dist
+rm -rf .temp
 
-重启后，访问计件报表页面，应该：
-- ✅ 不再显示筛选UI
-- ✅ 直接显示所有数据
-- ✅ 没有任何ReferenceError错误
-- ✅ 排序功能正常工作
-- ✅ 仓库切换功能正常工作
+# 清理 Vite 缓存
+rm -rf node_modules/.cache
+rm -rf node_modules/.vite
 
-## 技术细节
+# 清理浏览器缓存（在浏览器中）
+# Chrome/Edge: Ctrl+Shift+Delete -> 清除缓存
+# Firefox: Ctrl+Shift+Delete -> 清除缓存
+# Safari: Command+Option+E
+```
 
-错误信息中的行号（如280、293、1314）是**编译后代码**的行号，不是源代码行号。这是因为：
-1. TypeScript编译成JavaScript
-2. Taro转换React代码为小程序代码
-3. Webpack打包和优化代码
+### 方案三：强制刷新浏览器
 
-所以即使源代码只有1090行，编译后的代码可能有更多行。
+在浏览器中按以下快捷键强制刷新：
+
+- **Windows/Linux**: `Ctrl + Shift + R` 或 `Ctrl + F5`
+- **Mac**: `Command + Shift + R`
+
+## 验证修复
+
+清理缓存后，验证以下内容：
+
+1. **检查页面是否正常加载**
+   - 访问租赁系统管理页面
+   - 确认显示4个统计卡片（不是6个）
+   - 确认只有1个快速操作按钮（不是4个）
+
+2. **检查控制台是否有错误**
+   - 打开浏览器开发者工具（F12）
+   - 查看 Console 标签
+   - 确认没有 `toFixed` 相关的错误
+
+3. **检查数据是否正确显示**
+   - 老板账号总数
+   - 活跃账号
+   - 停用账号
+   - 本月新增
+
+## 技术说明
+
+### 修改内容
+
+在本次优化中，我们对 `src/pages/lease-admin/index.tsx` 进行了以下修改：
+
+**移除的字段：**
+- `pendingBills`（待核销账单）
+- `thisMonthVerifiedAmount`（本月核销金额）
+
+**保留的字段：**
+- `totalTenants`（老板账号总数）
+- `activeTenants`（活跃账号）
+- `suspendedTenants`（停用账号）
+- `thisMonthNewTenants`（本月新增）
+
+### 为什么会出现缓存问题？
+
+1. **开发服务器热更新限制**
+   - Vite 的热模块替换（HMR）有时无法完全更新所有依赖
+   - 特别是涉及类型定义变更时
+
+2. **浏览器缓存策略**
+   - 浏览器会缓存 JavaScript 文件以提高性能
+   - 即使文件内容改变，浏览器可能仍使用缓存版本
+
+3. **模块缓存**
+   - Node.js 会缓存已加载的模块
+   - 需要清理缓存才能加载新版本
+
+## 预防措施
+
+为了避免将来出现类似问题：
+
+1. **在进行重大修改后，始终清理缓存**
+   ```bash
+   bash clear-cache.sh
+   ```
+
+2. **使用硬刷新测试**
+   - 在测试新功能时，使用 `Ctrl+Shift+R` 强制刷新
+
+3. **检查浏览器开发者工具**
+   - 在 Network 标签中，勾选 "Disable cache"
+   - 这样可以确保每次都加载最新的文件
+
+4. **定期清理 node_modules 缓存**
+   ```bash
+   rm -rf node_modules/.cache
+   rm -rf node_modules/.vite
+   ```
+
+## 相关文件
+
+- `src/pages/lease-admin/index.tsx` - 租赁管理主页面
+- `src/db/api.ts` - `getLeaseStats()` 函数
+- `clear-cache.sh` - 缓存清理脚本
+
+## 总结
+
+这个错误是由于缓存问题导致的，不是代码本身的问题。源代码已经正确更新，只需要清理缓存即可解决。
+
+如果清理缓存后问题仍然存在，请检查：
+1. 是否有其他地方引用了已删除的字段
+2. 是否有 TypeScript 编译错误
+3. 是否有其他页面或组件使用了旧的数据结构
