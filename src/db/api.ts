@@ -6421,8 +6421,8 @@ export async function createTenant(
   password: string
 ): Promise<Profile | null | 'EMAIL_EXISTS'> {
   try {
-    // 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
-    const authEmail = email || `${tenant.phone}@phone.local`
+    // 如果没有提供邮箱，使用手机号作为邮箱（添加 @fleet.com 后缀）
+    const authEmail = email || `${tenant.phone}@fleet.com`
 
     // 1. 先创建认证用户
     const {data: authData, error: authError} = await supabase.auth.signUp({
@@ -6532,8 +6532,8 @@ export async function createPeerAccount(
       return null
     }
 
-    // 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
-    const authEmail = email || `${account.phone}@phone.local`
+    // 如果没有提供邮箱，使用手机号作为邮箱（添加 @fleet.com 后缀）
+    const authEmail = email || `${account.phone}@fleet.com`
 
     // 3. 创建认证用户
     const {data: authData, error: authError} = await supabase.auth.signUp({
