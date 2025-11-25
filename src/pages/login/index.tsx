@@ -128,30 +128,20 @@ const Login: React.FC = () => {
       return
     }
 
-    // 租赁管理员账号只能使用验证码登录
-    const leaseAdminPhone = '15766121960'
-    if (account === leaseAdminPhone || account.includes(leaseAdminPhone)) {
-      showToast({
-        title: '租赁管理员账号仅支持验证码登录',
-        icon: 'none',
-        duration: 2500
-      })
-      return
-    }
-
     setLoading(true)
     try {
       // 账号名到手机号的映射
       const accountMapping: Record<string, string> = {
         admin: '13800000001',
         admin1: '13800000002',
-        admin2: '13800000003'
+        admin2: '13800000003',
+        admin888: 'admin888'
       }
 
       // 判断输入的是手机号还是账号名
       const isPhoneNumber = validatePhone(account)
 
-      // 如果是账号名，转换为对应的手机号
+      // 如果是账号名，转换为对应的手机号或账号
       let actualAccount = account
       if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
         actualAccount = accountMapping[account.toLowerCase()]
@@ -369,7 +359,7 @@ const Login: React.FC = () => {
               <Text className="text-xs text-blue-100 block">老板账号：admin / 123456</Text>
             </View>
             <View className="pt-3 border-t border-white border-opacity-20">
-              <Text className="text-xs text-blue-100 block">手机号登录：15766121960 / 123456</Text>
+              <Text className="text-xs text-blue-100 block">租赁管理员：admin888 / hye19911206</Text>
             </View>
           </View>
         </View>
