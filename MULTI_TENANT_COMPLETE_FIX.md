@@ -270,6 +270,8 @@ CREATE POLICY "租户数据隔离 - <table_name>" ON <table_name>
 
 - [租户数据隔离问题修复总结](./TENANT_ISOLATION_FIX.md)
 - [租户数据隔离测试指南](./TENANT_ISOLATION_TEST.md)
+- [司机仓库分配问题修复](./DRIVER_WAREHOUSE_ASSIGNMENT_FIX.md)
+- [Supabase 多重关系查询错误修复](./SUPABASE_MULTIPLE_RELATIONSHIPS_FIX.md)
 - [邮箱确认问题修复总结](./EMAIL_CONFIRMATION_FIX.md)
 - [多租户功能 406 错误修复](./MULTI_TENANT_FIX_406_COMPLETE.md)
 - [快速测试指南](./QUICK_TEST_CREATE_TENANT.md)
@@ -279,25 +281,27 @@ CREATE POLICY "租户数据隔离 - <table_name>" ON <table_name>
 
 ## 更新时间
 
-2025-11-25 23:30:00 (UTC+8)
+2025-11-25 23:45:00 (UTC+8)
 
 ## 更新历史
 
 - **2025-11-25 22:30** - 完成迁移 041-046，修复创建、登录和基本数据隔离
 - **2025-11-25 23:00** - 完成迁移 047，修复 profiles 表跨租户查看问题
 - **2025-11-25 23:30** - 完成迁移 048，修复司机仓库分配的 tenant_id 问题
+- **2025-11-25 23:45** - 修复 Supabase 多重关系查询错误（getCurrentUserWithRealName）
 
 ---
 
 ## 总结
 
-经过 **8 个数据库迁移**和前端代码修复，多租户功能现在完全正常：
+经过 **8 个数据库迁移**和**前端代码修复**，多租户功能现在完全正常：
 
 ✅ **创建功能**：租赁管理员可以成功创建老板账号  
 ✅ **登录功能**：新老板账号可以直接登录  
 ✅ **数据隔离**：不同租户的数据完全隔离  
 ✅ **用户隔离**：不同租户的用户（管理员、司机）完全隔离  
 ✅ **仓库分配**：司机可以正确查看自己的仓库分配  
+✅ **查询修复**：修复了 Supabase 多重关系查询错误  
 ✅ **权限管理**：租赁管理员可以管理所有租户  
 
 系统现在可以安全地支持多个独立的车队（租户），每个车队的数据和用户完全隔离，互不干扰。

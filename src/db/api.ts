@@ -140,12 +140,14 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
     console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
 
     // 查询用户档案，并 LEFT JOIN driver_licenses 表获取真实姓名
+    // 注意：driver_licenses 表有两个外键指向 profiles（driver_id 和 tenant_id）
+    // 必须明确指定使用 driver_id 关系，否则 Supabase 会报错
     const {data, error} = await supabase
       .from('profiles')
       .select(
         `
         *,
-        driver_licenses (
+        driver_licenses!driver_licenses_driver_id_fkey (
           id_card_name
         )
       `
