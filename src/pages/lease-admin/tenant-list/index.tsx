@@ -384,8 +384,9 @@ export default function TenantList() {
                                 <View className="space-y-2">
                                   {peerAccounts.map((peer) => (
                                     <View key={peer.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                                      {/* 顶部：姓名和状态标识，右侧停用/启用按钮 */}
                                       <View className="flex flex-row items-center justify-between mb-2">
-                                        <View className="flex flex-row items-center gap-2">
+                                        <View className="flex flex-row items-center gap-2 flex-1">
                                           <View className="i-mdi-account text-lg text-purple-600" />
                                           <Text className="text-sm font-medium text-gray-900">
                                             {peer.name || '未命名'}
@@ -399,35 +400,34 @@ export default function TenantList() {
                                             </Text>
                                           </View>
                                         </View>
-                                      </View>
-                                      {peer.phone && (
-                                        <View className="mb-1">
-                                          <Text className="text-xs text-gray-600">电话：{peer.phone}</Text>
-                                        </View>
-                                      )}
-                                      {peer.login_account && (
-                                        <View className="mb-2">
-                                          <Text className="text-xs text-gray-600">账号：{peer.login_account}</Text>
-                                        </View>
-                                      )}
-                                      {/* 平级账号操作按钮 */}
-                                      <View className="flex flex-row gap-2 mt-2">
+                                        {/* 停用/启用按钮放在右上角 */}
                                         {(peer.status || 'active') === 'active' ? (
                                           <Button
-                                            className="flex-1 bg-orange-500 text-white py-1 rounded break-keep text-xs"
+                                            className="bg-orange-500 text-white px-3 py-1 rounded break-keep text-xs"
                                             size="mini"
                                             onClick={() => handleSuspendPeerAccount(peer.id, tenant.id)}>
                                             停用
                                           </Button>
                                         ) : (
                                           <Button
-                                            className="flex-1 bg-green-500 text-white py-1 rounded break-keep text-xs"
+                                            className="bg-green-500 text-white px-3 py-1 rounded break-keep text-xs"
                                             size="mini"
                                             onClick={() => handleActivatePeerAccount(peer.id, tenant.id)}>
                                             启用
                                           </Button>
                                         )}
                                       </View>
+                                      {/* 电话和账号信息 */}
+                                      {peer.phone && (
+                                        <View className="mb-1">
+                                          <Text className="text-xs text-gray-600">电话：{peer.phone}</Text>
+                                        </View>
+                                      )}
+                                      {peer.login_account && (
+                                        <View>
+                                          <Text className="text-xs text-gray-600">账号：{peer.login_account}</Text>
+                                        </View>
+                                      )}
                                     </View>
                                   ))}
                                 </View>
