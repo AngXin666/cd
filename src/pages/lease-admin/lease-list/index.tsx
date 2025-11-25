@@ -1,4 +1,4 @@
-import {Button, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
 import {
@@ -103,6 +103,48 @@ export default function LeaseList() {
     // 重置表单
     setSelectedDurationIndex(0)
     setSelectedExpireActionIndex(0)
+  }
+
+  // 显示租期时长选择
+  const handleShowDurationPicker = async () => {
+    try {
+      const result = await Taro.showActionSheet({
+        itemList: durationOptions.map((o) => o.label)
+      })
+      if (result.tapIndex !== undefined) {
+        setSelectedDurationIndex(result.tapIndex)
+      }
+    } catch (_error) {
+      // 用户取消选择
+    }
+  }
+
+  // 显示到期操作选择
+  const handleShowExpireActionPicker = async () => {
+    try {
+      const result = await Taro.showActionSheet({
+        itemList: expireActionOptions.map((o) => o.label)
+      })
+      if (result.tapIndex !== undefined) {
+        setSelectedExpireActionIndex(result.tapIndex)
+      }
+    } catch (_error) {
+      // 用户取消选择
+    }
+  }
+
+  // 显示减少月数选择
+  const handleShowReduceMonthsPicker = async () => {
+    try {
+      const result = await Taro.showActionSheet({
+        itemList: reduceMonthsOptions.map((o) => o.label)
+      })
+      if (result.tapIndex !== undefined) {
+        setSelectedReduceMonthsIndex(result.tapIndex)
+      }
+    } catch (_error) {
+      // 用户取消选择
+    }
   }
 
   const handleSubmit = async (tenantId: string) => {
@@ -343,31 +385,25 @@ export default function LeaseList() {
                         {/* 选择租期时长 */}
                         <View className="mb-3">
                           <Text className="text-sm text-muted-foreground mb-2">租期时长</Text>
-                          <Picker
-                            mode="selector"
-                            range={durationOptions.map((o) => o.label)}
-                            value={selectedDurationIndex}
-                            onChange={(e) => setSelectedDurationIndex(Number(e.detail.value))}>
-                            <View className="bg-white rounded-lg px-4 py-3 border border-border">
-                              <Text className="text-foreground">{durationOptions[selectedDurationIndex].label}</Text>
-                            </View>
-                          </Picker>
+                          <View
+                            className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
+                            onClick={handleShowDurationPicker}>
+                            <Text className="text-foreground">{durationOptions[selectedDurationIndex].label}</Text>
+                            <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
+                          </View>
                         </View>
 
                         {/* 选择到期操作 */}
                         <View className="mb-3">
                           <Text className="text-sm text-muted-foreground mb-2">到期后操作</Text>
-                          <Picker
-                            mode="selector"
-                            range={expireActionOptions.map((o) => o.label)}
-                            value={selectedExpireActionIndex}
-                            onChange={(e) => setSelectedExpireActionIndex(Number(e.detail.value))}>
-                            <View className="bg-white rounded-lg px-4 py-3 border border-border">
-                              <Text className="text-foreground text-xs">
-                                {expireActionOptions[selectedExpireActionIndex].label}
-                              </Text>
-                            </View>
-                          </Picker>
+                          <View
+                            className="bg-white rounded-lg px-4 py-3 border border-border flex flex-row items-center justify-between"
+                            onClick={handleShowExpireActionPicker}>
+                            <Text className="text-foreground text-xs flex-1">
+                              {expireActionOptions[selectedExpireActionIndex].label}
+                            </Text>
+                            <View className="i-mdi-chevron-down text-lg text-muted-foreground" />
+                          </View>
                         </View>
 
                         {/* 操作按钮 */}
@@ -449,17 +485,14 @@ export default function LeaseList() {
                                       {/* 选择减少月数 */}
                                       <View className="mb-2">
                                         <Text className="text-xs text-muted-foreground mb-1">减少月数</Text>
-                                        <Picker
-                                          mode="selector"
-                                          range={reduceMonthsOptions.map((o) => o.label)}
-                                          value={selectedReduceMonthsIndex}
-                                          onChange={(e) => setSelectedReduceMonthsIndex(Number(e.detail.value))}>
-                                          <View className="bg-white rounded px-3 py-2 border border-border">
-                                            <Text className="text-xs text-foreground">
-                                              {reduceMonthsOptions[selectedReduceMonthsIndex].label}
-                                            </Text>
-                                          </View>
-                                        </Picker>
+                                        <View
+                                          className="bg-white rounded px-3 py-2 border border-border flex flex-row items-center justify-between"
+                                          onClick={handleShowReduceMonthsPicker}>
+                                          <Text className="text-xs text-foreground">
+                                            {reduceMonthsOptions[selectedReduceMonthsIndex].label}
+                                          </Text>
+                                          <View className="i-mdi-chevron-down text-base text-muted-foreground" />
+                                        </View>
                                       </View>
 
                                       {/* 操作按钮 */}
