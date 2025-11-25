@@ -16,30 +16,20 @@ POST https://backend.appmiaoda.com/projects/supabase244341780043055104/auth/v1/t
 
 通过代码审查发现，创建账号和登录时使用的邮箱格式不一致：
 
-#### 创建账号时（src/db/api.ts）
+#### 第一次修复（错误的方向）
 
-```typescript
-// createTenant 函数
-const authEmail = email || `${tenant.phone}@phone.local`
+**创建账号时**使用 `@phone.local`，**登录时**使用 `@fleet.com`，导致邮箱不匹配。
 
-// createPeerAccount 函数
-const authEmail = email || `${account.phone}@phone.local`
-```
+#### 最终修复（正确的方向）
 
-**邮箱格式**：`手机号@phone.local`
-
-#### 登录时（src/pages/login/index.tsx）
-
-```typescript
-// 修复前
-const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
-```
-
-**邮箱格式**：`手机号@fleet.com`
+**统一使用 `@fleet.com`** 作为邮箱后缀，因为：
+1. 老账号已经使用 `@fleet.com` 格式
+2. 使用 `@phone.local` 会导致老账号无法登录
+3. 需要保持向后兼容性
 
 ### 问题根源
 
-当用户创建账号时没有填写邮箱，系统会自动使用 `手机号@phone.local` 作为认证邮箱。但是在登录时，系统使用 `手机号@fleet.com` 作为邮箱进行认证，导致邮箱不匹配，即使密码正确也无法登录。
+当用户创建账号时没有填写邮箱，系统会自动使用 `手机号@邮箱后缀` 作为认证邮箱。如果创建和登录使用不同的邮箱后缀，会导致邮箱不匹配，即使密码正确也无法登录。
 
 ## 解决方案
 
