@@ -22,6 +22,7 @@ import type {
   Feedback,
   FeedbackInput,
   FeedbackStatus,
+  LeaseBill,
   LeaveApplication,
   LeaveApplicationInput,
   LockedPhotos,
@@ -43,7 +44,6 @@ import type {
   UserRole,
   Vehicle,
   VehicleInput,
-  VehicleLease,
   VehicleUpdate,
   VehicleWithDriver,
   VehicleWithDriverDetails,
@@ -6356,148 +6356,401 @@ export async function getAllDriverIds(): Promise<string[]> {
 // 车辆租赁管理 API
 // ============================================
 
+// ============================================
+// 租赁系统管理 API
+// ============================================
+
 /**
- * 获取所有租赁记录
+ * 获取所有老板账号（租户）
  */
-export async function getAllVehicleLeases(): Promise<VehicleLease[]> {
+export async function getAllTenants(): Promise<Profile[]> {
   try {
-    const {data, error} = await supabase.from('vehicle_leases').select('*').order('created_at', {ascending: false})
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'super_admin')
+      .order('created_at', {ascending: false})
 
     if (error) {
-      console.error('获取租赁列表失败:', error)
+      console.error('获取老板账号列表失败:', error)
       return []
     }
 
     return Array.isArray(data) ? data : []
   } catch (error) {
-    console.error('获取租赁列表异常:', error)
+    console.error('获取老板账号列表异常:', error)
     return []
   }
 }
 
 /**
- * 根据ID获取租赁记录
+ * 根据ID获取老板账号详情
  */
-export async function getVehicleLeaseById(id: string): Promise<VehicleLease | null> {
+export async function getTenantById(id: string): Promise<Profile | null> {
   try {
-    const {data, error} = await supabase.from('vehicle_leases').select('*').eq('id', id).maybeSingle()
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .eq('role', 'super_admin')
+      .maybeSingle()
 
     if (error) {
-      console.error('获取租赁详情失败:', error)
+      console.error('获取老板账号详情失败:', error)
       return null
     }
 
     return data
   } catch (error) {
-    console.error('获取租赁详情异常:', error)
+    console.error('获取老板账号详情异常:', error)
     return null
   }
 }
 
 /**
- * 创建租赁记录
+ * 创建老板账号
  */
-export async function createVehicleLease(
-  lease: Omit<VehicleLease, 'id' | 'created_at' | 'updated_at'>
-): Promise<VehicleLease | null> {
+export async function createTenant(tenant: Omit<Profile, 'id' | 'created_at' | 'updated_at'>): Promise<Profile | null> {
   try {
-    const {data, error} = await supabase.from('vehicle_leases').insert([lease]).select().maybeSingle()
+    const {data, error} = await supabase.from('profiles').insert([tenant]).select().maybeSingle()
 
     if (error) {
-      console.error('创建租赁记录失败:', error)
+      console.error('创建老板账号失败:', error)
       return null
     }
 
     return data
   } catch (error) {
-    console.error('创建租赁记录异常:', error)
+    console.error('创建老板账号异常:', error)
     return null
   }
 }
 
 /**
- * 更新租赁记录
+ * 更新老板账号信息
  */
-export async function updateVehicleLease(
+export async function updateTenant(
   id: string,
-  updates: Partial<Omit<VehicleLease, 'id' | 'created_at' | 'updated_at'>>
-): Promise<VehicleLease | null> {
+  updates: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>
+): Promise<Profile | null> {
   try {
-    const {data, error} = await supabase.from('vehicle_leases').update(updates).eq('id', id).select().maybeSingle()
+    const {data, error} = await supabase.from('profiles').update(updates).eq('id', id).select().maybeSingle()
 
     if (error) {
-      console.error('更新租赁记录失败:', error)
+      console.error('更新老板账号失败:', error)
       return null
     }
 
     return data
   } catch (error) {
-    console.error('更新租赁记录异常:', error)
+    console.error('更新老板账号异常:', error)
     return null
   }
 }
 
 /**
- * 删除租赁记录
+ * 停用老板账号
  */
-export async function deleteVehicleLease(id: string): Promise<boolean> {
+export async function suspendTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('vehicle_leases').delete().eq('id', id)
+    const {error} = await supabase.from('profiles').update({status: 'suspended'}).eq('id', id)
 
     if (error) {
-      console.error('删除租赁记录失败:', error)
+      console.error('停用老板账号失败:', error)
       return false
     }
 
     return true
   } catch (error) {
-    console.error('删除租赁记录异常:', error)
+    console.error('停用老板账号异常:', error)
     return false
   }
 }
 
 /**
- * 根据车辆ID获取租赁记录
+ * 启用老板账号
  */
-export async function getVehicleLeasesByVehicleId(vehicleId: string): Promise<VehicleLease[]> {
+export async function activateTenant(id: string): Promise<boolean> {
   try {
-    const {data, error} = await supabase
-      .from('vehicle_leases')
-      .select('*')
-      .eq('vehicle_id', vehicleId)
-      .order('start_date', {ascending: false})
+    const {error} = await supabase.from('profiles').update({status: 'active'}).eq('id', id)
 
     if (error) {
-      console.error('获取车辆租赁记录失败:', error)
+      console.error('启用老板账号失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('启用老板账号异常:', error)
+    return false
+  }
+}
+
+/**
+ * 删除老板账号
+ */
+export async function deleteTenant(id: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('profiles').delete().eq('id', id)
+
+    if (error) {
+      console.error('删除老板账号失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除老板账号异常:', error)
+    return false
+  }
+}
+
+/**
+ * 获取租赁统计信息
+ */
+export async function getLeaseStats(): Promise<{
+  totalTenants: number
+  activeTenants: number
+  suspendedTenants: number
+  pendingBills: number
+  thisMonthNewTenants: number
+  thisMonthVerifiedAmount: number
+}> {
+  try {
+    // 获取所有老板账号
+    const {data: tenants, error: tenantsError} = await supabase
+      .from('profiles')
+      .select('id, status, created_at')
+      .eq('role', 'super_admin')
+
+    if (tenantsError) {
+      console.error('获取老板账号统计失败:', tenantsError)
+      return {
+        totalTenants: 0,
+        activeTenants: 0,
+        suspendedTenants: 0,
+        pendingBills: 0,
+        thisMonthNewTenants: 0,
+        thisMonthVerifiedAmount: 0
+      }
+    }
+
+    const allTenants = Array.isArray(tenants) ? tenants : []
+    const totalTenants = allTenants.length
+    const activeTenants = allTenants.filter((t) => t.status === 'active' || !t.status).length
+    const suspendedTenants = allTenants.filter((t) => t.status === 'suspended').length
+
+    // 获取本月新增租户数
+    const now = new Date()
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    const thisMonthNewTenants = allTenants.filter((t) => t.created_at >= thisMonthStart).length
+
+    // 获取待核销账单数
+    const {data: bills, error: billsError} = await supabase
+      .from('lease_bills')
+      .select('id, status, amount, verified_at')
+      .eq('status', 'pending')
+
+    if (billsError) {
+      console.error('获取账单统计失败:', billsError)
+    }
+
+    const allBills = Array.isArray(bills) ? bills : []
+    const pendingBills = allBills.length
+
+    // 获取本月核销金额
+    const {data: verifiedBills, error: verifiedError} = await supabase
+      .from('lease_bills')
+      .select('amount, verified_at')
+      .eq('status', 'verified')
+      .gte('verified_at', thisMonthStart)
+
+    if (verifiedError) {
+      console.error('获取本月核销金额失败:', verifiedError)
+    }
+
+    const thisMonthVerifiedAmount = Array.isArray(verifiedBills)
+      ? verifiedBills.reduce((sum, bill) => sum + (bill.amount || 0), 0)
+      : 0
+
+    return {
+      totalTenants,
+      activeTenants,
+      suspendedTenants,
+      pendingBills,
+      thisMonthNewTenants,
+      thisMonthVerifiedAmount
+    }
+  } catch (error) {
+    console.error('获取租赁统计信息异常:', error)
+    return {
+      totalTenants: 0,
+      activeTenants: 0,
+      suspendedTenants: 0,
+      pendingBills: 0,
+      thisMonthNewTenants: 0,
+      thisMonthVerifiedAmount: 0
+    }
+  }
+}
+
+// ============================================
+// 租赁账单管理 API
+// ============================================
+
+/**
+ * 获取所有账单
+ */
+export async function getAllLeaseBills(): Promise<LeaseBill[]> {
+  try {
+    const {data, error} = await supabase.from('lease_bills').select('*').order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取账单列表失败:', error)
       return []
     }
 
     return Array.isArray(data) ? data : []
   } catch (error) {
-    console.error('获取车辆租赁记录异常:', error)
+    console.error('获取账单列表异常:', error)
     return []
   }
 }
 
 /**
- * 根据司机ID获取租赁记录
+ * 获取待核销账单
  */
-export async function getVehicleLeasesByDriverId(driverId: string): Promise<VehicleLease[]> {
+export async function getPendingLeaseBills(): Promise<LeaseBill[]> {
   try {
     const {data, error} = await supabase
-      .from('vehicle_leases')
+      .from('lease_bills')
       .select('*')
-      .eq('driver_id', driverId)
-      .order('start_date', {ascending: false})
+      .eq('status', 'pending')
+      .order('created_at', {ascending: false})
 
     if (error) {
-      console.error('获取司机租赁记录失败:', error)
+      console.error('获取待核销账单失败:', error)
       return []
     }
 
     return Array.isArray(data) ? data : []
   } catch (error) {
-    console.error('获取司机租赁记录异常:', error)
+    console.error('获取待核销账单异常:', error)
     return []
+  }
+}
+
+/**
+ * 根据租户ID获取账单
+ */
+export async function getLeaseBillsByTenantId(tenantId: string): Promise<LeaseBill[]> {
+  try {
+    const {data, error} = await supabase
+      .from('lease_bills')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('bill_month', {ascending: false})
+
+    if (error) {
+      console.error('获取租户账单失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取租户账单异常:', error)
+    return []
+  }
+}
+
+/**
+ * 创建账单
+ */
+export async function createLeaseBill(
+  bill: Omit<LeaseBill, 'id' | 'created_at' | 'updated_at'>
+): Promise<LeaseBill | null> {
+  try {
+    const {data, error} = await supabase.from('lease_bills').insert([bill]).select().maybeSingle()
+
+    if (error) {
+      console.error('创建账单失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建账单异常:', error)
+    return null
+  }
+}
+
+/**
+ * 核销账单
+ */
+export async function verifyLeaseBill(billId: string, verifiedBy: string): Promise<boolean> {
+  try {
+    const {error} = await supabase
+      .from('lease_bills')
+      .update({
+        status: 'verified',
+        verified_at: new Date().toISOString(),
+        verified_by: verifiedBy
+      })
+      .eq('id', billId)
+
+    if (error) {
+      console.error('核销账单失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('核销账单异常:', error)
+    return false
+  }
+}
+
+/**
+ * 取消核销
+ */
+export async function cancelLeaseBillVerification(billId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase
+      .from('lease_bills')
+      .update({
+        status: 'pending',
+        verified_at: null,
+        verified_by: null
+      })
+      .eq('id', billId)
+
+    if (error) {
+      console.error('取消核销失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('取消核销异常:', error)
+    return false
+  }
+}
+
+/**
+ * 删除账单
+ */
+export async function deleteLeaseBill(billId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('lease_bills').delete().eq('id', billId)
+
+    if (error) {
+      console.error('删除账单失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除账单异常:', error)
+    return false
   }
 }

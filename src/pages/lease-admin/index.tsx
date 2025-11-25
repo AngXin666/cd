@@ -1,265 +1,167 @@
-import {Button, ScrollView, Text, View} from '@tarojs/components'
+import {ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
-import {useAuth} from 'miaoda-auth-taro'
-import type React from 'react'
-import {useCallback, useState} from 'react'
-import {useTenant} from '@/contexts/TenantContext'
-import {getAllVehicleLeases} from '@/db/api'
-import type {VehicleLease} from '@/db/types'
+import {useCallback, useEffect, useState} from 'react'
+import {getLeaseStats} from '@/db/api'
 
-/**
- * 租赁端工作台
- *
- * 功能：
- * - 显示租赁统计信息
- * - 快速访问租赁管理功能
- * - 查看最近的租赁记录
- */
-const LeaseAdminDashboard: React.FC = () => {
-  const {user} = useAuth({guard: true})
-  const {profile, isLeaseAdmin, loading: tenantLoading} = useTenant()
-  const [leases, setLeases] = useState<VehicleLease[]>([])
+export default function LeaseAdminDashboard() {
   const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    expired: 0,
-    totalRevenue: 0
+    totalTenants: 0,
+    activeTenants: 0,
+    suspendedTenants: 0,
+    pendingBills: 0,
+    thisMonthNewTenants: 0,
+    thisMonthVerifiedAmount: 0
   })
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  /**
-   * 加载租赁数据
-   */
-  const loadData = useCallback(async () => {
-    if (!user?.id) return
-
+  const loadStats = useCallback(async () => {
     try {
       setLoading(true)
-
-      // 获取所有租赁记录
-      const allLeases = await getAllVehicleLeases()
-      setLeases(allLeases)
-
-      // 计算统计数据
-      const now = new Date()
-      const active = allLeases.filter((lease) => {
-        if (!lease.end_date) return true
-        return new Date(lease.end_date) >= now
-      })
-      const expired = allLeases.filter((lease) => {
-        if (!lease.end_date) return false
-        return new Date(lease.end_date) < now
-      })
-
-      // 计算总收入（活跃租赁的月租金总和）
-      const totalRevenue = active.reduce((sum, lease) => sum + (lease.monthly_rent || 0), 0)
-
-      setStats({
-        total: allLeases.length,
-        active: active.length,
-        expired: expired.length,
-        totalRevenue
-      })
+      const data = await getLeaseStats()
+      setStats(data)
     } catch (error) {
-      console.error('加载租赁数据失败:', error)
+      console.error('加载统计数据失败:', error)
       Taro.showToast({
         title: '加载失败',
-        icon: 'error'
+        icon: 'none'
       })
     } finally {
       setLoading(false)
     }
-  }, [user?.id])
+  }, [])
 
-  // 页面显示时加载数据
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
+
   useDidShow(() => {
-    loadData()
+    loadStats()
   })
 
-  /**
-   * 导航到租赁列表
-   */
-  const goToLeaseList = () => {
-    Taro.navigateTo({
-      url: '/pages/lease-admin/lease-list/index'
-    })
-  }
-
-  /**
-   * 导航到添加租赁
-   */
-  const goToAddLease = () => {
-    Taro.navigateTo({
-      url: '/pages/lease-admin/add-lease/index'
-    })
-  }
-
-  /**
-   * 查看租赁详情
-   */
-  const viewLeaseDetail = (leaseId: string) => {
-    Taro.navigateTo({
-      url: `/pages/lease-admin/lease-detail/index?id=${leaseId}`
-    })
-  }
-
-  // 权限检查
-  if (tenantLoading) {
-    return (
-      <View className="flex items-center justify-center min-h-screen bg-background">
-        <Text className="text-muted-foreground">加载中...</Text>
-      </View>
-    )
-  }
-
-  if (!isLeaseAdmin) {
-    return (
-      <View className="flex items-center justify-center min-h-screen bg-background p-4">
-        <View className="text-center">
-          <View className="i-mdi-alert-circle text-6xl text-destructive mb-4" />
-          <Text className="text-lg font-medium text-foreground mb-2">无权访问</Text>
-          <Text className="text-muted-foreground">您没有权限访问租赁管理端</Text>
-        </View>
-      </View>
-    )
+  const handleNavigate = (url: string) => {
+    Taro.navigateTo({url})
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{background: 'transparent', minHeight: '100vh'}}>
+    <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <ScrollView scrollY className="h-screen box-border">
         <View className="p-4">
-          {/* 欢迎信息 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
-            <Text className="text-xl font-bold text-primary mb-1">欢迎，{profile?.name || '租赁管理员'}</Text>
-            <Text className="text-sm text-muted-foreground">租赁管理工作台</Text>
+          {/* 页面标题 */}
+          <View className="mb-6">
+            <Text className="text-2xl font-bold text-primary">租赁系统管理</Text>
+            <Text className="text-sm text-muted-foreground mt-1">管理租用车队管家小程序的客户</Text>
           </View>
 
           {/* 统计卡片 */}
-          <View className="grid grid-cols-2 gap-3 mb-4">
-            {/* 总租赁数 */}
-            <View className="bg-white rounded-lg p-4 shadow-sm">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-muted-foreground">总租赁数</Text>
-                <View className="i-mdi-file-document-multiple text-2xl text-primary" />
+          <View className="mb-6">
+            <Text className="text-lg font-semibold text-foreground mb-3">数据概览</Text>
+            <View className="grid grid-cols-2 gap-3">
+              {/* 老板账号总数 */}
+              <View className="bg-white rounded-lg p-4 shadow-sm">
+                <View className="flex flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-muted-foreground">老板账号总数</Text>
+                  <View className="i-mdi-account-group text-2xl text-primary"></View>
+                </View>
+                <Text className="text-3xl font-bold text-primary">{stats.totalTenants}</Text>
               </View>
-              <Text className="text-2xl font-bold text-foreground">{stats.total}</Text>
-            </View>
 
-            {/* 活跃租赁 */}
-            <View className="bg-white rounded-lg p-4 shadow-sm">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-muted-foreground">活跃租赁</Text>
-                <View className="i-mdi-check-circle text-2xl text-green-500" />
+              {/* 活跃账号数 */}
+              <View className="bg-white rounded-lg p-4 shadow-sm">
+                <View className="flex flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-muted-foreground">活跃账号</Text>
+                  <View className="i-mdi-check-circle text-2xl text-green-500"></View>
+                </View>
+                <Text className="text-3xl font-bold text-green-500">{stats.activeTenants}</Text>
               </View>
-              <Text className="text-2xl font-bold text-foreground">{stats.active}</Text>
-            </View>
 
-            {/* 已过期 */}
-            <View className="bg-white rounded-lg p-4 shadow-sm">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-muted-foreground">已过期</Text>
-                <View className="i-mdi-clock-alert text-2xl text-orange-500" />
+              {/* 停用账号数 */}
+              <View className="bg-white rounded-lg p-4 shadow-sm">
+                <View className="flex flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-muted-foreground">停用账号</Text>
+                  <View className="i-mdi-cancel text-2xl text-orange-500"></View>
+                </View>
+                <Text className="text-3xl font-bold text-orange-500">{stats.suspendedTenants}</Text>
               </View>
-              <Text className="text-2xl font-bold text-foreground">{stats.expired}</Text>
-            </View>
 
-            {/* 月租金总额 */}
-            <View className="bg-white rounded-lg p-4 shadow-sm">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-muted-foreground">月租金总额</Text>
-                <View className="i-mdi-currency-cny text-2xl text-secondary" />
+              {/* 待核销账单数 */}
+              <View className="bg-white rounded-lg p-4 shadow-sm">
+                <View className="flex flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-muted-foreground">待核销账单</Text>
+                  <View className="i-mdi-file-document-alert text-2xl text-red-500"></View>
+                </View>
+                <Text className="text-3xl font-bold text-red-500">{stats.pendingBills}</Text>
               </View>
-              <Text className="text-2xl font-bold text-foreground">¥{stats.totalRevenue.toLocaleString()}</Text>
+
+              {/* 本月新增账号 */}
+              <View className="bg-white rounded-lg p-4 shadow-sm">
+                <View className="flex flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-muted-foreground">本月新增</Text>
+                  <View className="i-mdi-account-plus text-2xl text-blue-500"></View>
+                </View>
+                <Text className="text-3xl font-bold text-blue-500">{stats.thisMonthNewTenants}</Text>
+              </View>
+
+              {/* 本月核销金额 */}
+              <View className="bg-white rounded-lg p-4 shadow-sm">
+                <View className="flex flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-muted-foreground">本月核销</Text>
+                  <View className="i-mdi-currency-cny text-2xl text-purple-500"></View>
+                </View>
+                <Text className="text-3xl font-bold text-purple-500">¥{stats.thisMonthVerifiedAmount.toFixed(2)}</Text>
+              </View>
             </View>
           </View>
 
           {/* 快速操作 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
-            <Text className="text-base font-medium text-foreground mb-3">快速操作</Text>
+          <View className="mb-6">
+            <Text className="text-lg font-semibold text-foreground mb-3">快速操作</Text>
             <View className="grid grid-cols-2 gap-3">
-              <Button
-                className="bg-primary text-white py-3 rounded break-keep text-sm"
-                size="default"
-                onClick={goToAddLease}>
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-plus-circle text-lg mr-1" />
-                  <Text>添加租赁</Text>
-                </View>
-              </Button>
-              <Button
-                className="bg-secondary text-white py-3 rounded break-keep text-sm"
-                size="default"
-                onClick={goToLeaseList}>
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-format-list-bulleted text-lg mr-1" />
-                  <Text>租赁列表</Text>
-                </View>
-              </Button>
+              {/* 老板账号管理 */}
+              <View
+                className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                onClick={() => handleNavigate('/pages/lease-admin/tenant-list/index')}>
+                <View className="i-mdi-account-group text-3xl text-white mb-2"></View>
+                <Text className="text-white font-semibold">老板账号管理</Text>
+                <Text className="text-white text-xs opacity-80 mt-1">查看和管理所有老板账号</Text>
+              </View>
+
+              {/* 核销管理 */}
+              <View
+                className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                onClick={() => handleNavigate('/pages/lease-admin/verification/index')}>
+                <View className="i-mdi-check-circle text-3xl text-white mb-2"></View>
+                <Text className="text-white font-semibold">核销管理</Text>
+                <Text className="text-white text-xs opacity-80 mt-1">处理待核销账单</Text>
+              </View>
+
+              {/* 新增老板账号 */}
+              <View
+                className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                onClick={() => handleNavigate('/pages/lease-admin/tenant-form/index?mode=create')}>
+                <View className="i-mdi-account-plus text-3xl text-white mb-2"></View>
+                <Text className="text-white font-semibold">新增老板账号</Text>
+                <Text className="text-white text-xs opacity-80 mt-1">创建新的租户账号</Text>
+              </View>
+
+              {/* 账单管理 */}
+              <View
+                className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
+                onClick={() => handleNavigate('/pages/lease-admin/bill-list/index')}>
+                <View className="i-mdi-file-document text-3xl text-white mb-2"></View>
+                <Text className="text-white font-semibold">账单管理</Text>
+                <Text className="text-white text-xs opacity-80 mt-1">查看所有账单记录</Text>
+              </View>
             </View>
           </View>
 
-          {/* 最近租赁记录 */}
-          <View className="bg-white rounded-lg p-4 shadow-sm">
-            <View className="flex items-center justify-between mb-3">
-              <Text className="text-base font-medium text-foreground">最近租赁记录</Text>
-              <Text className="text-sm text-primary" onClick={goToLeaseList}>
-                查看全部 →
-              </Text>
+          {/* 加载状态 */}
+          {loading && (
+            <View className="flex items-center justify-center py-8">
+              <Text className="text-muted-foreground">加载中...</Text>
             </View>
-
-            {loading ? (
-              <View className="py-8 text-center">
-                <Text className="text-muted-foreground">加载中...</Text>
-              </View>
-            ) : leases.length === 0 ? (
-              <View className="py-8 text-center">
-                <View className="i-mdi-file-document-outline text-4xl text-muted-foreground mb-2" />
-                <Text className="text-muted-foreground">暂无租赁记录</Text>
-              </View>
-            ) : (
-              <View className="space-y-3">
-                {leases.slice(0, 5).map((lease) => {
-                  const isActive = !lease.end_date || new Date(lease.end_date) >= new Date()
-                  return (
-                    <View
-                      key={lease.id}
-                      className="border border-border rounded-lg p-3"
-                      onClick={() => viewLeaseDetail(lease.id)}>
-                      <View className="flex items-center justify-between mb-2">
-                        <Text className="text-sm font-medium text-foreground">
-                          车牌号：{lease.vehicle_id || '未知'}
-                        </Text>
-                        <View
-                          className={`px-2 py-1 rounded text-xs ${
-                            isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                          }`}>
-                          <Text>{isActive ? '活跃' : '已过期'}</Text>
-                        </View>
-                      </View>
-                      <View className="flex items-center text-xs text-muted-foreground mb-1">
-                        <View className="i-mdi-calendar text-sm mr-1" />
-                        <Text>开始：{lease.start_date}</Text>
-                      </View>
-                      {lease.end_date && (
-                        <View className="flex items-center text-xs text-muted-foreground mb-1">
-                          <View className="i-mdi-calendar-end text-sm mr-1" />
-                          <Text>结束：{lease.end_date}</Text>
-                        </View>
-                      )}
-                      <View className="flex items-center text-xs text-muted-foreground">
-                        <View className="i-mdi-currency-cny text-sm mr-1" />
-                        <Text>月租金：¥{lease.monthly_rent?.toLocaleString() || 0}</Text>
-                      </View>
-                    </View>
-                  )
-                })}
-              </View>
-            )}
-          </View>
+          )}
         </View>
       </ScrollView>
     </View>
   )
 }
-
-export default LeaseAdminDashboard

@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '租赁系统管理',
+  navigationBarTitleText: '老板账号详情',
   enableShareAppMessage: false
 })

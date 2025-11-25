@@ -35,6 +35,12 @@ export interface Profile {
   login_account: string | null
   vehicle_plate: string | null
   join_date: string | null
+  status: string | null // 账号状态：active(正常), suspended(停用), deleted(已删除)
+  company_name: string | null // 公司名称（仅老板账号）
+  lease_start_date: string | null // 租赁开始日期（仅老板账号）
+  lease_end_date: string | null // 租赁结束日期（仅老板账号）
+  monthly_fee: number | null // 月租费用（仅老板账号）
+  notes: string | null // 备注信息
   created_at: string
   updated_at: string
 }
@@ -789,17 +795,16 @@ export interface VehicleLeaseInfo extends VehicleBase {
   is_lease_active: boolean // 租赁是否有效（在租期内）
 }
 
-// 车辆租赁记录（vehicle_leases表）
-export interface VehicleLease {
+// 租赁账单（lease_bills表）
+export interface LeaseBill {
   id: string
-  vehicle_id: string // 车辆ID（车牌号）
-  driver_id: string | null // 司机ID
-  start_date: string // 租赁开始日期
-  end_date: string | null // 租赁结束日期（NULL表示无限期）
-  monthly_rent: number // 月租金
-  deposit: number | null // 押金
+  tenant_id: string // 租户ID（老板账号）
+  bill_month: string // 账单月份，格式：2025-01
+  amount: number // 账单金额
+  status: string // 账单状态：pending(待核销), verified(已核销), cancelled(已取消)
+  verified_at: string | null // 核销时间
+  verified_by: string | null // 核销人ID
   notes: string | null // 备注
-  created_by: string | null // 创建人ID
   created_at: string
   updated_at: string
 }
