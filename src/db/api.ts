@@ -6416,13 +6416,16 @@ export async function getTenantById(id: string): Promise<Profile | null> {
  */
 export async function createTenant(
   tenant: Omit<Profile, 'id' | 'created_at' | 'updated_at'>,
-  email: string,
+  email: string | null,
   password: string
 ): Promise<Profile | null> {
   try {
+    // 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
+    const authEmail = email || `${tenant.phone}@phone.local`
+
     // 1. 先创建认证用户
     const {data: authData, error: authError} = await supabase.auth.signUp({
-      email,
+      email: authEmail,
       password,
       options: {
         data: {
@@ -6461,7 +6464,7 @@ export async function createTenant(
         id: authData.user.id,
         name: tenant.name,
         phone: tenant.phone,
-        email: email,
+        email: email, // 保存真实邮箱（可能为 null）
         role: 'super_admin' as UserRole,
         company_name: tenant.company_name,
         lease_start_date: tenant.lease_start_date,
@@ -6499,7 +6502,7 @@ export async function createPeerAccount(
     monthly_fee?: number | null
     notes?: string | null
   },
-  email: string,
+  email: string | null,
   password: string
 ): Promise<Profile | null | 'EMAIL_EXISTS'> {
   try {
@@ -6521,9 +6524,12 @@ export async function createPeerAccount(
       return null
     }
 
+    // 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
+    const authEmail = email || `${account.phone}@phone.local`
+
     // 3. 创建认证用户
     const {data: authData, error: authError} = await supabase.auth.signUp({
-      email,
+      email: authEmail,
       password,
       options: {
         data: {
@@ -6537,7 +6543,7 @@ export async function createPeerAccount(
     if (authError) {
       // 检查是否是邮箱已存在的错误
       if (authError.message?.includes('User already registered') || authError.message?.includes('already registered')) {
-        console.error('邮箱已被注册:', email)
+        console.error('邮箱已被注册:', authEmail)
         return 'EMAIL_EXISTS'
       }
       console.error('创建认证用户失败:', authError)
@@ -6568,7 +6574,7 @@ export async function createPeerAccount(
       .update({
         name: account.name,
         phone: account.phone,
-        email: email,
+        email: email, // 保存真实邮箱（可能为 null）
         role: 'super_admin' as UserRole,
         company_name: account.company_name || mainAccount.company_name,
         monthly_fee: account.monthly_fee || mainAccount.monthly_fee,
@@ -6738,9 +6744,7 @@ export async function getLeaseStats(): Promise<{
   totalTenants: number
   activeTenants: number
   suspendedTenants: number
-  pendingBills: number
   thisMonthNewTenants: number
-  thisMonthVerifiedAmount: number
 }> {
   try {
     // 获取所有老板账号
@@ -6755,9 +6759,7 @@ export async function getLeaseStats(): Promise<{
         totalTenants: 0,
         activeTenants: 0,
         suspendedTenants: 0,
-        pendingBills: 0,
-        thisMonthNewTenants: 0,
-        thisMonthVerifiedAmount: 0
+        thisMonthNewTenants: 0
       }
     }
 
@@ -6771,41 +6773,11 @@ export async function getLeaseStats(): Promise<{
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
     const thisMonthNewTenants = allTenants.filter((t) => t.created_at >= thisMonthStart).length
 
-    // 获取待核销账单数
-    const {data: bills, error: billsError} = await supabase
-      .from('lease_bills')
-      .select('id, status, amount, verified_at')
-      .eq('status', 'pending')
-
-    if (billsError) {
-      console.error('获取账单统计失败:', billsError)
-    }
-
-    const allBills = Array.isArray(bills) ? bills : []
-    const pendingBills = allBills.length
-
-    // 获取本月核销金额
-    const {data: verifiedBills, error: verifiedError} = await supabase
-      .from('lease_bills')
-      .select('amount, verified_at')
-      .eq('status', 'verified')
-      .gte('verified_at', thisMonthStart)
-
-    if (verifiedError) {
-      console.error('获取本月核销金额失败:', verifiedError)
-    }
-
-    const thisMonthVerifiedAmount = Array.isArray(verifiedBills)
-      ? verifiedBills.reduce((sum, bill) => sum + (bill.amount || 0), 0)
-      : 0
-
     return {
       totalTenants,
       activeTenants,
       suspendedTenants,
-      pendingBills,
-      thisMonthNewTenants,
-      thisMonthVerifiedAmount
+      thisMonthNewTenants
     }
   } catch (error) {
     console.error('获取租赁统计信息异常:', error)
@@ -6813,9 +6785,7 @@ export async function getLeaseStats(): Promise<{
       totalTenants: 0,
       activeTenants: 0,
       suspendedTenants: 0,
-      pendingBills: 0,
-      thisMonthNewTenants: 0,
-      thisMonthVerifiedAmount: 0
+      thisMonthNewTenants: 0
     }
   }
 }

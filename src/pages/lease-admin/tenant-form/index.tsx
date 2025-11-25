@@ -12,6 +12,7 @@ export default function TenantForm() {
     phone: '',
     email: '',
     password: '',
+    confirmPassword: '',
     company_name: '',
     lease_start_date: '',
     lease_end_date: '',
@@ -28,6 +29,7 @@ export default function TenantForm() {
         phone: tenant.phone || '',
         email: tenant.email || '',
         password: '', // 编辑时不显示密码
+        confirmPassword: '', // 编辑时不显示确认密码
         company_name: tenant.company_name || '',
         lease_start_date: tenant.lease_start_date || '',
         lease_end_date: tenant.lease_end_date || '',
@@ -60,15 +62,21 @@ export default function TenantForm() {
       return
     }
 
-    // 创建模式下必须填写邮箱和密码
-    if ((mode === 'create' || mode === 'create_peer') && (!formData.email || !formData.password)) {
-      Taro.showToast({title: '请填写邮箱和密码', icon: 'none'})
+    // 创建模式下必须填写密码
+    if ((mode === 'create' || mode === 'create_peer') && !formData.password) {
+      Taro.showToast({title: '请填写密码', icon: 'none'})
       return
     }
 
     // 验证密码长度
     if ((mode === 'create' || mode === 'create_peer') && formData.password.length < 6) {
       Taro.showToast({title: '密码至少6位', icon: 'none'})
+      return
+    }
+
+    // 验证密码确认
+    if ((mode === 'create' || mode === 'create_peer') && formData.password !== formData.confirmPassword) {
+      Taro.showToast({title: '两次输入的密码不一致', icon: 'none'})
       return
     }
 
@@ -80,7 +88,7 @@ export default function TenantForm() {
           {
             name: formData.name,
             phone: formData.phone,
-            email: formData.email,
+            email: formData.email || null,
             role: 'super_admin',
             driver_type: null,
             avatar_url: null,
@@ -103,7 +111,7 @@ export default function TenantForm() {
             tenant_id: null,
             main_account_id: null
           },
-          formData.email,
+          formData.email || null,
           formData.password
         )
         if (result) {
@@ -128,7 +136,7 @@ export default function TenantForm() {
             phone: formData.phone,
             notes: formData.notes || null
           },
-          formData.email,
+          formData.email || null,
           formData.password
         )
 
@@ -219,10 +227,10 @@ export default function TenantForm() {
               </View>
             </View>
 
-            {/* 邮箱（创建时必填） */}
+            {/* 邮箱（可选） */}
             {(mode === 'create' || mode === 'create_peer') && (
               <View>
-                <Text className="text-sm text-foreground mb-2">邮箱 *</Text>
+                <Text className="text-sm text-foreground mb-2">邮箱（可选，不填写则使用手机号登录）</Text>
                 <View style={{overflow: 'hidden'}}>
                   <Input
                     className="bg-input rounded-lg px-4 py-3 border border-border"
@@ -245,6 +253,22 @@ export default function TenantForm() {
                     password
                     value={formData.password}
                     onInput={(e) => setFormData({...formData, password: e.detail.value})}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* 确认密码（创建时必填） */}
+            {(mode === 'create' || mode === 'create_peer') && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">确认密码 *</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="请再次输入密码"
+                    password
+                    value={formData.confirmPassword}
+                    onInput={(e) => setFormData({...formData, confirmPassword: e.detail.value})}
                   />
                 </View>
               </View>

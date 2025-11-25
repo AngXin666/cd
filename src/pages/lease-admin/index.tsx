@@ -8,9 +8,7 @@ export default function LeaseAdminDashboard() {
     totalTenants: 0,
     activeTenants: 0,
     suspendedTenants: 0,
-    pendingBills: 0,
-    thisMonthNewTenants: 0,
-    thisMonthVerifiedAmount: 0
+    thisMonthNewTenants: 0
   })
   const [loading, setLoading] = useState(true)
 
@@ -83,15 +81,6 @@ export default function LeaseAdminDashboard() {
                 <Text className="text-3xl font-bold text-orange-500">{stats.suspendedTenants}</Text>
               </View>
 
-              {/* 待核销账单数 */}
-              <View className="bg-white rounded-lg p-4 shadow-sm">
-                <View className="flex flex-row items-center justify-between mb-2">
-                  <Text className="text-sm text-muted-foreground">待核销账单</Text>
-                  <View className="i-mdi-file-document-alert text-2xl text-red-500"></View>
-                </View>
-                <Text className="text-3xl font-bold text-red-500">{stats.pendingBills}</Text>
-              </View>
-
               {/* 本月新增账号 */}
               <View className="bg-white rounded-lg p-4 shadow-sm">
                 <View className="flex flex-row items-center justify-between mb-2">
@@ -100,22 +89,13 @@ export default function LeaseAdminDashboard() {
                 </View>
                 <Text className="text-3xl font-bold text-blue-500">{stats.thisMonthNewTenants}</Text>
               </View>
-
-              {/* 本月核销金额 */}
-              <View className="bg-white rounded-lg p-4 shadow-sm">
-                <View className="flex flex-row items-center justify-between mb-2">
-                  <Text className="text-sm text-muted-foreground">本月核销</Text>
-                  <View className="i-mdi-currency-cny text-2xl text-purple-500"></View>
-                </View>
-                <Text className="text-3xl font-bold text-purple-500">¥{stats.thisMonthVerifiedAmount.toFixed(2)}</Text>
-              </View>
             </View>
           </View>
 
           {/* 快速操作 */}
           <View className="mb-6">
             <Text className="text-lg font-semibold text-foreground mb-3">快速操作</Text>
-            <View className="grid grid-cols-2 gap-3">
+            <View className="grid grid-cols-1 gap-3">
               {/* 老板账号管理 */}
               <View
                 className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
@@ -123,33 +103,6 @@ export default function LeaseAdminDashboard() {
                 <View className="i-mdi-account-group text-3xl text-white mb-2"></View>
                 <Text className="text-white font-semibold">老板账号管理</Text>
                 <Text className="text-white text-xs opacity-80 mt-1">查看和管理所有老板账号</Text>
-              </View>
-
-              {/* 核销管理 */}
-              <View
-                className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
-                onClick={() => handleNavigate('/pages/lease-admin/verification/index')}>
-                <View className="i-mdi-check-circle text-3xl text-white mb-2"></View>
-                <Text className="text-white font-semibold">核销管理</Text>
-                <Text className="text-white text-xs opacity-80 mt-1">处理待核销账单</Text>
-              </View>
-
-              {/* 新增老板账号 */}
-              <View
-                className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
-                onClick={() => handleNavigate('/pages/lease-admin/tenant-form/index?mode=create')}>
-                <View className="i-mdi-account-plus text-3xl text-white mb-2"></View>
-                <Text className="text-white font-semibold">新增老板账号</Text>
-                <Text className="text-white text-xs opacity-80 mt-1">创建新的租户账号</Text>
-              </View>
-
-              {/* 账单管理 */}
-              <View
-                className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 shadow-md active:scale-95 transition-transform"
-                onClick={() => handleNavigate('/pages/lease-admin/bill-list/index')}>
-                <View className="i-mdi-file-document text-3xl text-white mb-2"></View>
-                <Text className="text-white font-semibold">账单管理</Text>
-                <Text className="text-white text-xs opacity-80 mt-1">查看所有账单记录</Text>
               </View>
             </View>
           </View>
