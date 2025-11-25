@@ -17,6 +17,7 @@
 - 没有为管理员和车队长分配仓库的功能（应该使用 `manager_warehouses` 表）
 - `manager_warehouses` 表缺少 INSERT、UPDATE、DELETE 的 RLS 策略
 - `insertManagerWarehouseAssignment` 函数没有添加 `tenant_id` 字段
+- `setManagerWarehouses` 函数没有添加 `tenant_id` 字段
 
 ## 完整修复方案
 
@@ -224,6 +225,7 @@ USING (is_lease_admin());
 - `src/db/api.ts`
   - 修改 `createTenant` 函数：添加自动创建默认仓库和分配逻辑
   - 新增 `insertManagerWarehouseAssignment` 函数：支持管理员仓库分配（包含 tenant_id）
+  - 修改 `setManagerWarehouses` 函数：插入数据时包含 tenant_id 字段
 
 ### 前端代码
 - `src/pages/super-admin/user-management/index.tsx`
