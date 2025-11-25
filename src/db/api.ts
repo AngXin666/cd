@@ -43,6 +43,7 @@ import type {
   UserRole,
   Vehicle,
   VehicleInput,
+  VehicleLease,
   VehicleUpdate,
   VehicleWithDriver,
   VehicleWithDriverDetails,
@@ -6347,6 +6348,156 @@ export async function getAllDriverIds(): Promise<string[]> {
     return Array.isArray(data) ? data.map((item) => item.id) : []
   } catch (error) {
     console.error('获取所有司机异常:', error)
+    return []
+  }
+}
+
+// ============================================
+// 车辆租赁管理 API
+// ============================================
+
+/**
+ * 获取所有租赁记录
+ */
+export async function getAllVehicleLeases(): Promise<VehicleLease[]> {
+  try {
+    const {data, error} = await supabase.from('vehicle_leases').select('*').order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取租赁列表失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取租赁列表异常:', error)
+    return []
+  }
+}
+
+/**
+ * 根据ID获取租赁记录
+ */
+export async function getVehicleLeaseById(id: string): Promise<VehicleLease | null> {
+  try {
+    const {data, error} = await supabase.from('vehicle_leases').select('*').eq('id', id).maybeSingle()
+
+    if (error) {
+      console.error('获取租赁详情失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('获取租赁详情异常:', error)
+    return null
+  }
+}
+
+/**
+ * 创建租赁记录
+ */
+export async function createVehicleLease(
+  lease: Omit<VehicleLease, 'id' | 'created_at' | 'updated_at'>
+): Promise<VehicleLease | null> {
+  try {
+    const {data, error} = await supabase.from('vehicle_leases').insert([lease]).select().maybeSingle()
+
+    if (error) {
+      console.error('创建租赁记录失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建租赁记录异常:', error)
+    return null
+  }
+}
+
+/**
+ * 更新租赁记录
+ */
+export async function updateVehicleLease(
+  id: string,
+  updates: Partial<Omit<VehicleLease, 'id' | 'created_at' | 'updated_at'>>
+): Promise<VehicleLease | null> {
+  try {
+    const {data, error} = await supabase.from('vehicle_leases').update(updates).eq('id', id).select().maybeSingle()
+
+    if (error) {
+      console.error('更新租赁记录失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('更新租赁记录异常:', error)
+    return null
+  }
+}
+
+/**
+ * 删除租赁记录
+ */
+export async function deleteVehicleLease(id: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('vehicle_leases').delete().eq('id', id)
+
+    if (error) {
+      console.error('删除租赁记录失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除租赁记录异常:', error)
+    return false
+  }
+}
+
+/**
+ * 根据车辆ID获取租赁记录
+ */
+export async function getVehicleLeasesByVehicleId(vehicleId: string): Promise<VehicleLease[]> {
+  try {
+    const {data, error} = await supabase
+      .from('vehicle_leases')
+      .select('*')
+      .eq('vehicle_id', vehicleId)
+      .order('start_date', {ascending: false})
+
+    if (error) {
+      console.error('获取车辆租赁记录失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取车辆租赁记录异常:', error)
+    return []
+  }
+}
+
+/**
+ * 根据司机ID获取租赁记录
+ */
+export async function getVehicleLeasesByDriverId(driverId: string): Promise<VehicleLease[]> {
+  try {
+    const {data, error} = await supabase
+      .from('vehicle_leases')
+      .select('*')
+      .eq('driver_id', driverId)
+      .order('start_date', {ascending: false})
+
+    if (error) {
+      console.error('获取司机租赁记录失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取司机租赁记录异常:', error)
     return []
   }
 }

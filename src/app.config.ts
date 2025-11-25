@@ -4,6 +4,8 @@ const pages = [
   'pages/driver/index',
   'pages/manager/index',
   'pages/super-admin/index',
+  'pages/lease-admin/index',
+  'pages/lease-admin/lease-list/index',
   'pages/profile/index',
   'pages/profile/settings/index',
   'pages/profile/change-phone/index',

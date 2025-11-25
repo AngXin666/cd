@@ -1,4 +1,4 @@
-export type UserRole = 'driver' | 'manager' | 'super_admin'
+export type UserRole = 'driver' | 'manager' | 'super_admin' | 'lease_admin'
 
 // 司机类型（与数据库枚举值匹配）
 export type DriverType = 'pure' | 'with_vehicle'
@@ -787,6 +787,21 @@ export interface VehicleBase {
 export interface VehicleLeaseInfo extends VehicleBase {
   next_payment_date: string | null // 下一个租金缴纳日期
   is_lease_active: boolean // 租赁是否有效（在租期内）
+}
+
+// 车辆租赁记录（vehicle_leases表）
+export interface VehicleLease {
+  id: string
+  vehicle_id: string // 车辆ID（车牌号）
+  driver_id: string | null // 司机ID
+  start_date: string // 租赁开始日期
+  end_date: string | null // 租赁结束日期（NULL表示无限期）
+  monthly_rent: number // 月租金
+  deposit: number | null // 押金
+  notes: string | null // 备注
+  created_by: string | null // 创建人ID
+  created_at: string
+  updated_at: string
 }
 
 // 车辆录入记录（vehicle_records表）

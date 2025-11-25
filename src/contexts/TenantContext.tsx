@@ -34,6 +34,8 @@ interface TenantContextValue {
   isManager: boolean
   // 是否为司机
   isDriver: boolean
+  // 是否为租赁管理员
+  isLeaseAdmin: boolean
   // 获取用户管理的仓库ID列表
   getManagedWarehouseIds: () => Promise<string[]>
   // 获取用户分配的仓库ID列表
@@ -180,6 +182,11 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
         return true
       }
 
+      // 租赁管理员可以访问所有用户的数据（只读）
+      if (profile.role === 'lease_admin') {
+        return true
+      }
+
       // 管理员可以访问管理仓库下的司机数据
       // 这里需要异步查询，所以返回 false，实际权限由 RLS 策略控制
       if (profile.role === 'manager') {
@@ -207,6 +214,11 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
         return true
       }
 
+      // 租赁管理员可以访问所有仓库（只读）
+      if (profile.role === 'lease_admin') {
+        return true
+      }
+
       // 管理员检查是否管理该仓库
       if (profile.role === 'manager') {
         return managedWarehouseIds.includes(warehouseId)
@@ -228,6 +240,7 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
   const isSuperAdmin = profile?.role === 'super_admin'
   const isManager = profile?.role === 'manager'
   const isDriver = profile?.role === 'driver'
+  const isLeaseAdmin = profile?.role === 'lease_admin'
 
   /**
    * 上下文值
@@ -240,6 +253,7 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
     isSuperAdmin,
     isManager,
     isDriver,
+    isLeaseAdmin,
     getManagedWarehouseIds,
     getAssignedWarehouseIds,
     canAccessUser,

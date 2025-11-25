@@ -128,6 +128,17 @@ const Login: React.FC = () => {
       return
     }
 
+    // 租赁管理员账号只能使用验证码登录
+    const leaseAdminPhone = '15766121960'
+    if (account === leaseAdminPhone || account.includes(leaseAdminPhone)) {
+      showToast({
+        title: '租赁管理员账号仅支持验证码登录',
+        icon: 'none',
+        duration: 2500
+      })
+      return
+    }
+
     setLoading(true)
     try {
       // 账号名到手机号的映射

@@ -132,6 +132,9 @@ const IndexPage: React.FC = () => {
         case 'super_admin':
           reLaunch({url: '/pages/super-admin/index'})
           break
+        case 'lease_admin':
+          reLaunch({url: '/pages/lease-admin/index'})
+          break
         default:
           console.warn('[IndexPage] 未知角色:', role)
           // 如果角色未知，跳转到个人中心
