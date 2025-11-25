@@ -7152,24 +7152,51 @@ export async function getLeasesByTenantId(tenantId: string): Promise<Lease[]> {
 }
 
 /**
- * 创建新租期
+ * 创建新租期（续期功能）
+ * 如果租户已有租期，新租期将从最后一个租期的结束日期开始
+ * 如果租户没有租期，则使用传入的开始日期
  */
 export async function createLease(input: CreateLeaseInput): Promise<boolean> {
   try {
     console.log('createLease 接收到的参数:', input)
 
+    // 查询该租户的最新租期
+    const {data: existingLeases, error: queryError} = await supabase
+      .from('leases')
+      .select('end_date')
+      .eq('tenant_id', input.tenant_id)
+      .order('end_date', {ascending: false})
+      .limit(1)
+
+    if (queryError) {
+      console.error('查询现有租期失败:', queryError)
+      return false
+    }
+
+    // 确定新租期的开始日期
+    let actualStartDate: string
+    if (existingLeases && existingLeases.length > 0) {
+      // 如果存在租期，从最后一个租期的结束日期开始
+      actualStartDate = existingLeases[0].end_date
+      console.log('检测到现有租期，从上一个租期结束日期开始:', actualStartDate)
+    } else {
+      // 如果不存在租期，使用传入的开始日期
+      actualStartDate = input.start_date
+      console.log('首次添加租期，使用指定开始日期:', actualStartDate)
+    }
+
     // 计算结束日期
-    const startDate = new Date(input.start_date)
+    const startDate = new Date(actualStartDate)
     const endDate = new Date(startDate)
     endDate.setMonth(endDate.getMonth() + input.duration_months)
 
     const endDateStr = endDate.toISOString().split('T')[0]
     console.log('计算的结束日期:', endDateStr)
-    console.log(`租期详情: ${input.start_date} + ${input.duration_months}个月 = ${endDateStr}`)
+    console.log(`租期详情: ${actualStartDate} + ${input.duration_months}个月 = ${endDateStr}`)
 
     const {error} = await supabase.from('leases').insert({
       tenant_id: input.tenant_id,
-      start_date: input.start_date,
+      start_date: actualStartDate,
       end_date: endDateStr,
       duration_months: input.duration_months,
       status: 'active',
