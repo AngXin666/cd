@@ -6446,22 +6446,23 @@ export async function createTenant(
       return null
     }
 
-    // 2. 自动确认用户邮箱（调用数据库函数）
+    // 2. 自动确认用户邮箱（这会触发 handle_new_user 触发器创建基础 profiles 记录）
     const {error: confirmError} = await supabase.rpc('confirm_user_email', {
       user_id: authData.user.id
     })
 
     if (confirmError) {
       console.error('确认用户邮箱失败:', confirmError)
-      // 不返回 null，继续创建 profiles 记录
+      return null
     }
 
-    // 3. 直接插入 profiles 记录（不依赖触发器）
-    // 因为触发器只在用户确认邮箱后才执行，但我们需要立即创建 profiles 记录
+    // 3. 等待触发器创建 profiles 记录（短暂延迟）
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // 4. 更新 profiles 记录，设置老板账号相关字段
     const {data: profileData, error: profileError} = await supabase
       .from('profiles')
-      .insert({
-        id: authData.user.id,
+      .update({
         name: tenant.name,
         phone: tenant.phone,
         email: email, // 保存真实邮箱（可能为 null）
@@ -6474,11 +6475,12 @@ export async function createTenant(
         status: 'active',
         tenant_id: authData.user.id // 设置 tenant_id 为自己的 id
       })
+      .eq('id', authData.user.id)
       .select()
       .maybeSingle()
 
     if (profileError) {
-      console.error('创建老板账号 profiles 记录失败:', profileError)
+      console.error('更新老板账号 profiles 记录失败:', profileError)
       return null
     }
 
