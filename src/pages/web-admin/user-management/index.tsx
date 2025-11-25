@@ -1,16 +1,17 @@
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import {navigateBack, showModal, showToast, useDidShow} from '@tarojs/taro'
-import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getAllUsers, updateProfile} from '@/db/api'
 import type {Profile, UserRole} from '@/db/types'
+import {useAdminAuth} from '@/hooks/useAdminAuth'
 
 /**
  * 用户管理页面（电脑端）
+ * 仅允许管理员和超级管理员访问
  */
 const UserManagement: React.FC = () => {
-  useAuth({guard: true})
+  const {isAuthorized, isLoading} = useAdminAuth()
   const [users, setUsers] = useState<Profile[]>([])
   const [filteredUsers, setFilteredUsers] = useState<Profile[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -116,6 +117,18 @@ const UserManagement: React.FC = () => {
       super_admin: 'bg-purple-100 text-purple-700'
     }
     return colorMap[role] || 'bg-gray-100 text-gray-700'
+  }
+
+  // 如果正在加载或未授权，显示提示
+  if (isLoading || !isAuthorized) {
+    return (
+      <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <View className="text-center">
+          <View className="i-mdi-shield-lock text-6xl text-gray-400 mb-4" />
+          <Text className="text-xl text-gray-600">正在验证权限...</Text>
+        </View>
+      </View>
+    )
   }
 
   return (

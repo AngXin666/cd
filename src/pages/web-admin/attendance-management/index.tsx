@@ -1,10 +1,10 @@
 import {Picker, ScrollView, Text, View} from '@tarojs/components'
 import {navigateBack, useDidShow} from '@tarojs/taro'
-import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getAllWarehouses, getAttendanceRecordsByWarehouse} from '@/db/api'
 import type {AttendanceRecord, Warehouse} from '@/db/types'
+import {useAdminAuth} from '@/hooks/useAdminAuth'
 
 // 扩展考勤记录类型，包含司机信息
 interface AttendanceRecordWithDriver extends AttendanceRecord {
@@ -14,9 +14,10 @@ interface AttendanceRecordWithDriver extends AttendanceRecord {
 
 /**
  * 考勤管理页面（电脑端）
+ * 仅允许管理员和超级管理员访问
  */
 const AttendanceManagement: React.FC = () => {
-  useAuth({guard: true})
+  const {isAuthorized, isLoading} = useAdminAuth()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecordWithDriver[]>([])
@@ -92,6 +93,18 @@ const AttendanceManagement: React.FC = () => {
     const end = new Date(clockOut).getTime()
     const hours = (end - start) / (1000 * 60 * 60)
     return `${hours.toFixed(1)} 小时`
+  }
+
+  // 如果正在加载或未授权，显示提示
+  if (isLoading || !isAuthorized) {
+    return (
+      <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <View className="text-center">
+          <View className="i-mdi-shield-lock text-6xl text-gray-400 mb-4" />
+          <Text className="text-xl text-gray-600">正在验证权限...</Text>
+        </View>
+      </View>
+    )
   }
 
   return (

@@ -1,16 +1,17 @@
 import {Button, Input, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import {navigateBack, showModal, showToast, useDidShow} from '@tarojs/taro'
-import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {createWarehouse, deleteWarehouse, getAllWarehouses, updateWarehouse} from '@/db/api'
 import type {Warehouse} from '@/db/types'
+import {useAdminAuth} from '@/hooks/useAdminAuth'
 
 /**
  * 仓库配置页面（电脑端）
+ * 仅允许管理员和超级管理员访问
  */
 const WarehouseConfig: React.FC = () => {
-  useAuth({guard: true})
+  const {isAuthorized, isLoading} = useAdminAuth()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null)
@@ -103,6 +104,18 @@ const WarehouseConfig: React.FC = () => {
         showToast({title: '删除失败', icon: 'error'})
       }
     }
+  }
+
+  // 如果正在加载或未授权，显示提示
+  if (isLoading || !isAuthorized) {
+    return (
+      <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <View className="text-center">
+          <View className="i-mdi-shield-lock text-6xl text-gray-400 mb-4" />
+          <Text className="text-xl text-gray-600">正在验证权限...</Text>
+        </View>
+      </View>
+    )
   }
 
   return (

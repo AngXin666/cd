@@ -2,26 +2,15 @@ import {ScrollView, Text, View} from '@tarojs/components'
 import {navigateTo} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
-import {getCurrentUserProfile} from '@/db/api'
-import type {Profile} from '@/db/types'
+import {useAdminAuth} from '@/hooks/useAdminAuth'
 
 /**
  * 电脑端后台管理系统首页
+ * 仅允许管理员和超级管理员访问
  */
 const WebAdminHome: React.FC = () => {
-  const {user, logout} = useAuth({guard: true})
-  const [profile, setProfile] = useState<Profile | null>(null)
-
-  // 加载用户信息
-  const loadProfile = useCallback(async () => {
-    const data = await getCurrentUserProfile()
-    setProfile(data)
-  }, [])
-
-  useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
+  const {logout} = useAuth()
+  const {profile, isAuthorized, isLoading} = useAdminAuth()
 
   // 导航到功能页面
   const navigateToPage = (url: string) => {
@@ -31,6 +20,18 @@ const WebAdminHome: React.FC = () => {
   // 退出登录
   const handleLogout = () => {
     logout()
+  }
+
+  // 如果正在加载或未授权，显示提示
+  if (isLoading || !isAuthorized) {
+    return (
+      <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <View className="text-center">
+          <View className="i-mdi-shield-lock text-6xl text-gray-400 mb-4" />
+          <Text className="text-xl text-gray-600">正在验证权限...</Text>
+        </View>
+      </View>
+    )
   }
 
   return (

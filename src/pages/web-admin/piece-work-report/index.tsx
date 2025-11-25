@@ -1,16 +1,16 @@
 import {Picker, ScrollView, Text, View} from '@tarojs/components'
 import {navigateBack, useDidShow} from '@tarojs/taro'
-import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getAllWarehouses, getPieceWorkRecordsByWarehouse} from '@/db/api'
 import type {PieceWorkRecord, Warehouse} from '@/db/types'
+import {useAdminAuth} from '@/hooks/useAdminAuth'
 
 /**
  * 件数报表页面（电脑端）
  */
 const PieceWorkReport: React.FC = () => {
-  useAuth({guard: true})
+  const {isAuthorized, isLoading} = useAdminAuth()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [reportData, setReportData] = useState<PieceWorkRecord[]>([])
@@ -67,6 +67,18 @@ const PieceWorkReport: React.FC = () => {
   const handleMonthChange = (e: any) => {
     const month = monthOptions[e.detail.value]
     setSelectedMonth(month)
+  }
+
+  // 如果正在加载或未授权，显示提示
+  if (isLoading || !isAuthorized) {
+    return (
+      <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <View className="text-center">
+          <View className="i-mdi-shield-lock text-6xl text-gray-400 mb-4" />
+          <Text className="text-xl text-gray-600">正在验证权限...</Text>
+        </View>
+      </View>
+    )
   }
 
   return (
