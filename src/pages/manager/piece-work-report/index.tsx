@@ -1264,7 +1264,11 @@ const ManagerPieceWorkReport: React.FC = () => {
                         strokeWidth={6}
                         label="今天达标率"
                       />
-                      <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}件</Text>
+                      {dailyTarget > 0 ? (
+                        <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}件</Text>
+                      ) : (
+                        <Text className="text-xs text-warning mt-1">未设置目标</Text>
+                      )}
                     </View>
 
                     {/* 本周达标率环形图 */}
