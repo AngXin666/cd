@@ -13,6 +13,7 @@ import type {
   AutoReminderRuleWithWarehouse,
   CategoryPrice,
   CategoryPriceInput,
+  CreateLeaseInput,
   DriverLicense,
   DriverLicenseInput,
   DriverLicenseUpdate,
@@ -22,7 +23,9 @@ import type {
   Feedback,
   FeedbackInput,
   FeedbackStatus,
+  Lease,
   LeaseBill,
+  LeaseWithTenant,
   LeaveApplication,
   LeaveApplicationInput,
   LockedPhotos,
@@ -7091,5 +7094,269 @@ export async function deleteLeaseBill(billId: string): Promise<boolean> {
   } catch (error) {
     console.error('删除账单异常:', error)
     return false
+  }
+}
+
+// ============================================
+// 租期管理相关 API
+// ============================================
+
+/**
+ * 获取所有租期记录（带租户信息）
+ */
+export async function getAllLeases(): Promise<LeaseWithTenant[]> {
+  try {
+    const {data, error} = await supabase
+      .from('leases')
+      .select(
+        `
+        *,
+        tenant:profiles!leases_tenant_id_fkey(id, name, phone, company_name)
+      `
+      )
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取租期列表失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取租期列表异常:', error)
+    return []
+  }
+}
+
+/**
+ * 根据租户ID获取租期记录
+ */
+export async function getLeasesByTenantId(tenantId: string): Promise<Lease[]> {
+  try {
+    const {data, error} = await supabase
+      .from('leases')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取租户租期失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取租户租期异常:', error)
+    return []
+  }
+}
+
+/**
+ * 创建新租期
+ */
+export async function createLease(input: CreateLeaseInput): Promise<boolean> {
+  try {
+    // 计算结束日期
+    const startDate = new Date(input.start_date)
+    const endDate = new Date(startDate)
+    endDate.setMonth(endDate.getMonth() + input.duration_months)
+
+    const {error} = await supabase.from('leases').insert({
+      tenant_id: input.tenant_id,
+      start_date: input.start_date,
+      end_date: endDate.toISOString().split('T')[0],
+      duration_months: input.duration_months,
+      status: 'active',
+      expire_action: input.expire_action
+    })
+
+    if (error) {
+      console.error('创建租期失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('创建租期异常:', error)
+    return false
+  }
+}
+
+/**
+ * 删除租期
+ */
+export async function deleteLease(leaseId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('leases').delete().eq('id', leaseId)
+
+    if (error) {
+      console.error('删除租期失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除租期异常:', error)
+    return false
+  }
+}
+
+/**
+ * 处理租期到期
+ * 根据 expire_action 执行相应的停用操作
+ */
+export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
+  try {
+    // 获取租期信息
+    const {data: lease, error: leaseError} = await supabase.from('leases').select('*').eq('id', leaseId).maybeSingle()
+
+    if (leaseError || !lease) {
+      console.error('获取租期信息失败:', leaseError)
+      return false
+    }
+
+    const {tenant_id, expire_action} = lease
+
+    // 根据到期操作类型执行相应的停用操作
+    switch (expire_action) {
+      case 'suspend_all':
+        // 停用主账号、平级账号和车队长
+        await suspendTenantAndRelated(tenant_id)
+        break
+
+      case 'suspend_main':
+        // 仅停用主账号
+        await suspendTenant(tenant_id)
+        break
+
+      case 'suspend_peer':
+        // 停用平级账号
+        await suspendPeerAccounts(tenant_id)
+        break
+
+      case 'suspend_manager':
+        // 停用车队长
+        await suspendManagers(tenant_id)
+        break
+
+      default:
+        console.error('未知的到期操作类型:', expire_action)
+        return false
+    }
+
+    // 更新租期状态为已过期
+    const {error: updateError} = await supabase.from('leases').update({status: 'expired'}).eq('id', leaseId)
+
+    if (updateError) {
+      console.error('更新租期状态失败:', updateError)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('处理租期到期异常:', error)
+    return false
+  }
+}
+
+/**
+ * 停用租户及其所有相关账号（主账号、平级账号、车队长）
+ */
+async function suspendTenantAndRelated(tenantId: string): Promise<boolean> {
+  try {
+    // 停用主账号
+    await suspendTenant(tenantId)
+
+    // 停用平级账号
+    await suspendPeerAccounts(tenantId)
+
+    // 停用车队长
+    await suspendManagers(tenantId)
+
+    return true
+  } catch (error) {
+    console.error('停用租户及相关账号异常:', error)
+    return false
+  }
+}
+
+/**
+ * 停用平级账号
+ */
+async function suspendPeerAccounts(mainAccountId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('profiles').update({status: 'suspended'}).eq('main_account_id', mainAccountId)
+
+    if (error) {
+      console.error('停用平级账号失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('停用平级账号异常:', error)
+    return false
+  }
+}
+
+/**
+ * 停用车队长
+ */
+async function suspendManagers(tenantId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase
+      .from('profiles')
+      .update({status: 'suspended'})
+      .eq('tenant_id', tenantId)
+      .eq('role', 'manager')
+
+    if (error) {
+      console.error('停用车队长失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('停用车队长异常:', error)
+    return false
+  }
+}
+
+/**
+ * 检查并处理所有到期的租期
+ */
+export async function checkAndHandleExpiredLeases(): Promise<number> {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+
+    // 获取所有已到期但状态仍为 active 的租期
+    const {data: expiredLeases, error} = await supabase
+      .from('leases')
+      .select('*')
+      .eq('status', 'active')
+      .lte('end_date', today)
+
+    if (error) {
+      console.error('获取到期租期失败:', error)
+      return 0
+    }
+
+    if (!expiredLeases || expiredLeases.length === 0) {
+      return 0
+    }
+
+    // 处理每个到期的租期
+    let successCount = 0
+    for (const lease of expiredLeases) {
+      const success = await handleLeaseExpiration(lease.id)
+      if (success) {
+        successCount++
+      }
+    }
+
+    return successCount
+  } catch (error) {
+    console.error('检查并处理到期租期异常:', error)
+    return 0
   }
 }

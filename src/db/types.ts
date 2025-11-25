@@ -1079,3 +1079,52 @@ export interface NotificationSendRecordWithSender extends NotificationSendRecord
     role: string
   }
 }
+
+// ==================== 租期管理相关类型 ====================
+
+/**
+ * 租期状态
+ */
+export type LeaseStatus = 'active' | 'expired'
+
+/**
+ * 到期操作类型
+ */
+export type ExpireActionType = 'suspend_all' | 'suspend_main' | 'suspend_peer' | 'suspend_manager'
+
+/**
+ * 租期记录
+ */
+export interface Lease {
+  id: string
+  tenant_id: string // 老板账号ID（主账号）
+  start_date: string // 租期开始日期
+  end_date: string // 租期结束日期
+  duration_months: number // 租期月数（1/3/6/12）
+  status: LeaseStatus // 租期状态
+  expire_action: ExpireActionType // 到期操作
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 带租户信息的租期记录
+ */
+export interface LeaseWithTenant extends Lease {
+  tenant?: {
+    id: string
+    name: string | null
+    phone: string | null
+    company_name: string | null
+  }
+}
+
+/**
+ * 创建租期的输入参数
+ */
+export interface CreateLeaseInput {
+  tenant_id: string
+  start_date: string
+  duration_months: number // 1, 3, 6, 12
+  expire_action: ExpireActionType
+}
