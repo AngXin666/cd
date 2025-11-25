@@ -269,14 +269,13 @@ const PieceWorkEntry: React.FC = () => {
       setPieceWorkItems((prev) =>
         prev.map((item) => {
           if (priceConfig) {
-            // 根据司机类型选择对应的价格
-            // unit_price 对应纯司机价格，upstairs_price 对应带车司机价格
-            const price =
-              driverProfile.driver_type === 'with_vehicle' ? priceConfig.upstairsPrice : priceConfig.unitPrice
-
+            // 所有司机都使用相同的基础单价
+            // unit_price: 基础单价
+            // upstairs_price: 上楼费（额外费用）
+            // sorting_unit_price: 分拣单价（额外费用）
             return {
               ...item,
-              unitPrice: price.toString(),
+              unitPrice: priceConfig.unitPrice.toString(),
               unitPriceLocked: true
             }
           }
@@ -310,11 +309,11 @@ const PieceWorkEntry: React.FC = () => {
     if (selectedWarehouse && selectedCategory && driverProfile) {
       const priceConfig = await getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
       if (priceConfig) {
-        // 根据司机类型选择对应的价格
-        // unit_price 对应纯司机价格，upstairs_price 对应带车司机价格
-        const price = driverProfile.driver_type === 'with_vehicle' ? priceConfig.upstairsPrice : priceConfig.unitPrice
-
-        unitPrice = price.toString()
+        // 所有司机都使用相同的基础单价
+        // unit_price: 基础单价
+        // upstairs_price: 上楼费（额外费用）
+        // sorting_unit_price: 分拣单价（额外费用）
+        unitPrice = priceConfig.unitPrice.toString()
         unitPriceLocked = true
       }
     }
