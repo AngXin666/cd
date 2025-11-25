@@ -74,7 +74,8 @@ export default function TenantForm() {
           lease_start_date: formData.lease_start_date || null,
           lease_end_date: formData.lease_end_date || null,
           monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
-          notes: formData.notes || null
+          notes: formData.notes || null,
+          tenant_id: null // 创建时为null，触发器会自动设置
         })
         if (result) {
           Taro.showToast({title: '创建成功', icon: 'success'})

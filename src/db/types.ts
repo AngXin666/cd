@@ -41,6 +41,7 @@ export interface Profile {
   lease_end_date: string | null // 租赁结束日期（仅老板账号）
   monthly_fee: number | null // 月租费用（仅老板账号）
   notes: string | null // 备注信息
+  tenant_id: string | null // 租户ID，指向super_admin的id
   created_at: string
   updated_at: string
 }
