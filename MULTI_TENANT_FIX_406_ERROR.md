@@ -34,7 +34,7 @@ PATCH https://backend.appmiaoda.com/projects/.../rest/v1/profiles?id=eq.xxx&sele
 
 ## 解决方案
 
-需要修复两个 RLS 策略：
+需要修复三个问题：
 
 ### 修复1：租赁管理员更新老板账号策略
 
@@ -108,13 +108,51 @@ CREATE POLICY "租户数据隔离 - profiles" ON profiles
 - 只有两者都不为 NULL 时才进行相等比较
 - 避免了 `NULL = NULL` 的问题
 
+### 修复3：is_lease_admin_user 函数类型问题
+
+**迁移文件**：`040_fix_is_lease_admin_user_enum_type.sql`
+
+**问题**：
+- 函数检查 `role = 'lease_admin'`（字符串比较）
+- 应该使用 `role = 'lease_admin'::user_role`（枚举类型比较）
+- 字符串比较可能导致类型不匹配
+
+**旧函数（有问题）**：
+```sql
+CREATE FUNCTION is_lease_admin_user(user_id uuid DEFAULT NULL)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = COALESCE(user_id, auth.uid()) 
+    AND role = 'lease_admin'  -- 字符串比较
+  );
+$$;
+```
+
+**新函数（已修复）**：
+```sql
+CREATE OR REPLACE FUNCTION is_lease_admin_user(user_id uuid DEFAULT NULL)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = COALESCE(user_id, auth.uid()) 
+    AND role = 'lease_admin'::user_role  -- 枚举类型比较
+  );
+$$;
+```
+
+**关键改进**：
+- 使用正确的枚举类型比较
+- 确保类型匹配，避免隐式转换问题
+
 ## 修复步骤
 
 1. **应用数据库迁移**：
    ```bash
-   # 两个迁移已自动应用
+   # 三个迁移已自动应用
    supabase/migrations/038_fix_lease_admin_update_new_tenant.sql
    supabase/migrations/039_fix_lease_admin_tenant_id_null_comparison.sql
+   supabase/migrations/040_fix_is_lease_admin_user_enum_type.sql
    ```
 
 2. **验证修复**：
