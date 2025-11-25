@@ -3397,6 +3397,24 @@ export async function getManagerWarehouseIds(managerId: string): Promise<string[
  * 设置管理员管辖的仓库（先删除旧的，再插入新的）
  */
 export async function setManagerWarehouses(managerId: string, warehouseIds: string[]): Promise<boolean> {
+  // 0. 获取当前用户的 tenant_id
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('设置管理员仓库失败: 用户未登录')
+    return false
+  }
+
+  // 获取当前用户的 tenant_id
+  const {data: profile} = await supabase.from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.tenant_id) {
+    console.error('设置管理员仓库失败: 无法获取 tenant_id')
+    return false
+  }
+
   // 1. 删除旧的关联
   const {error: deleteError} = await supabase.from('manager_warehouses').delete().eq('manager_id', managerId)
 
@@ -3417,10 +3435,11 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
     return true
   }
 
-  // 3. 插入新的关联
+  // 3. 插入新的关联（包含 tenant_id）
   const insertData = warehouseIds.map((warehouseId) => ({
     manager_id: managerId,
-    warehouse_id: warehouseId
+    warehouse_id: warehouseId,
+    tenant_id: profile.tenant_id
   }))
 
   const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
