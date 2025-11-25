@@ -7163,12 +7163,14 @@ export async function createLease(input: CreateLeaseInput): Promise<boolean> {
     const endDate = new Date(startDate)
     endDate.setMonth(endDate.getMonth() + input.duration_months)
 
-    console.log('计算的结束日期:', endDate.toISOString().split('T')[0])
+    const endDateStr = endDate.toISOString().split('T')[0]
+    console.log('计算的结束日期:', endDateStr)
+    console.log(`租期详情: ${input.start_date} + ${input.duration_months}个月 = ${endDateStr}`)
 
     const {error} = await supabase.from('leases').insert({
       tenant_id: input.tenant_id,
       start_date: input.start_date,
-      end_date: endDate.toISOString().split('T')[0],
+      end_date: endDateStr,
       duration_months: input.duration_months,
       status: 'active',
       expire_action: input.expire_action

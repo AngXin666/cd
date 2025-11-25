@@ -463,13 +463,19 @@ export default function LeaseList() {
                                     <View className="flex flex-row items-center gap-2">
                                       <View className="i-mdi-calendar text-sm text-muted-foreground" />
                                       <Text className="text-xs text-muted-foreground">
-                                        {formatDate(lease.start_date)} 至 {formatDate(lease.end_date)}
+                                        开始：{formatDate(lease.start_date)}
+                                      </Text>
+                                    </View>
+                                    <View className="flex flex-row items-center gap-2">
+                                      <View className="i-mdi-calendar-check text-sm text-muted-foreground" />
+                                      <Text className="text-xs text-muted-foreground">
+                                        结束：{formatDate(lease.end_date)}
                                       </Text>
                                     </View>
                                     <View className="flex flex-row items-center gap-2">
                                       <View className="i-mdi-clock-outline text-sm text-muted-foreground" />
-                                      <Text className="text-xs text-muted-foreground">
-                                        租期：{getDurationLabel(lease.duration_months)}
+                                      <Text className="text-xs font-semibold text-primary">
+                                        租期时长：{getDurationLabel(lease.duration_months)}
                                       </Text>
                                     </View>
                                     <View className="flex flex-row items-start gap-2">
