@@ -167,6 +167,12 @@ export default function TenantList() {
     Taro.navigateTo({url: `/pages/lease-admin/tenant-detail/index?id=${id}`})
   }
 
+  const handleLeaseManagement = (tenantId: string, tenantName: string) => {
+    Taro.navigateTo({
+      url: `/pages/lease-admin/tenant-lease-management/index?tenantId=${tenantId}&tenantName=${encodeURIComponent(tenantName || '未命名')}`
+    })
+  }
+
   const handleCreate = () => {
     Taro.navigateTo({url: '/pages/lease-admin/tenant-form/index?mode=create'})
   }
@@ -330,6 +336,16 @@ export default function TenantList() {
                           onClick={() => handleEdit(tenant.id)}>
                           编辑
                         </Button>
+                        <Button
+                          className="flex-1 bg-purple-500 text-white py-2 rounded break-keep text-sm"
+                          size="mini"
+                          onClick={() => handleLeaseManagement(tenant.id, tenant.name || '未命名')}>
+                          租期
+                        </Button>
+                      </View>
+
+                      {/* 第二行操作按钮 */}
+                      <View className="flex flex-row gap-2 mb-2">
                         {(tenant.status || 'active') === 'active' ? (
                           <Button
                             className="flex-1 bg-orange-500 text-white py-2 rounded break-keep text-sm"

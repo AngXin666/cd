@@ -9,6 +9,7 @@ const pages = [
   'pages/lease-admin/tenant-form/index',
   'pages/lease-admin/tenant-detail/index',
   'pages/lease-admin/lease-list/index',
+  'pages/lease-admin/tenant-lease-management/index',
   'pages/profile/index',
   'pages/profile/settings/index',
   'pages/profile/change-phone/index',
