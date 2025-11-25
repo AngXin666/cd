@@ -1,8 +1,8 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'
-import {getProfileById} from '@/db/api'
+import {getDashboardStats, getProfileById} from '@/db/api'
 import type {Profile} from '@/db/types'
 
 type MenuItem = {
@@ -12,11 +12,45 @@ type MenuItem = {
   description: string
 }
 
+type DashboardStats = {
+  todayAttendance: {
+    attendedCount: number
+    totalCount: number
+    attendanceRate: number
+  }
+  todayPieceWork: {
+    totalQuantity: number
+    completedQuantity: number
+    completionRate: number
+  }
+  monthlyStats: {
+    totalAttendanceDays: number
+    totalPieceWorkQuantity: number
+    totalCompletedQuantity: number
+  }
+  vehicleStats: {
+    activeCount: number
+    inactiveCount: number
+    inUseCount: number
+  }
+  driverStats: {
+    activeCount: number
+    resignedCount: number
+    newThisMonth: number
+  }
+  pendingTasks: {
+    pendingLeaveCount: number
+    unassignedDrivers: number
+  }
+}
+
 const WebAdmin: React.FC = () => {
   const {user, logout} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeMenu, setActiveMenu] = useState('dashboard')
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return
@@ -43,9 +77,38 @@ const WebAdmin: React.FC = () => {
     }
   }, [user?.id])
 
+  const loadDashboardStats = useCallback(async () => {
+    setStatsLoading(true)
+    try {
+      const stats = await getDashboardStats()
+      setDashboardStats(stats)
+    } catch (error) {
+      console.error('加载仪表盘数据失败:', error)
+      await Taro.showToast({
+        title: '加载数据失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadProfile()
   }, [loadProfile])
+
+  useEffect(() => {
+    if (activeMenu === 'dashboard' && profile) {
+      loadDashboardStats()
+    }
+  }, [activeMenu, profile, loadDashboardStats])
+
+  useDidShow(() => {
+    if (activeMenu === 'dashboard' && profile) {
+      loadDashboardStats()
+    }
+  })
 
   const handleLogout = async () => {
     try {
@@ -74,65 +137,222 @@ const WebAdmin: React.FC = () => {
     {id: 'users', title: '用户管理', icon: 'i-mdi-account-cog', description: '用户权限管理'}
   ]
 
-  const renderContent = () => {
-    switch (activeMenu) {
-      case 'dashboard':
-        return (
-          <View className="space-y-6">
-            <Text className="text-2xl font-bold text-foreground">仪表盘</Text>
-            <View className="grid grid-cols-4 gap-4">
-              <View className="bg-card p-6 rounded-lg border border-border">
-                <View className="i-mdi-account-group text-4xl text-primary mb-2" />
-                <Text className="text-3xl font-bold text-foreground">0</Text>
-                <Text className="text-sm text-muted-foreground mt-1">司机总数</Text>
-              </View>
-              <View className="bg-card p-6 rounded-lg border border-border">
-                <View className="i-mdi-car text-4xl text-secondary mb-2" />
-                <Text className="text-3xl font-bold text-foreground">0</Text>
-                <Text className="text-sm text-muted-foreground mt-1">车辆总数</Text>
-              </View>
-              <View className="bg-card p-6 rounded-lg border border-border">
-                <View className="i-mdi-calendar-check text-4xl text-accent mb-2" />
-                <Text className="text-3xl font-bold text-foreground">0%</Text>
-                <Text className="text-sm text-muted-foreground mt-1">今日出勤率</Text>
-              </View>
-              <View className="bg-card p-6 rounded-lg border border-border">
-                <View className="i-mdi-file-document text-4xl text-muted mb-2" />
-                <Text className="text-3xl font-bold text-foreground">0</Text>
-                <Text className="text-sm text-muted-foreground mt-1">待审批请假</Text>
-              </View>
+  const renderDashboard = () => {
+    if (statsLoading) {
+      return (
+        <View className="flex items-center justify-center py-20">
+          <Text className="text-muted-foreground">加载数据中...</Text>
+        </View>
+      )
+    }
+
+    if (!dashboardStats) {
+      return (
+        <View className="flex items-center justify-center py-20">
+          <Text className="text-muted-foreground">暂无数据</Text>
+        </View>
+      )
+    }
+
+    return (
+      <View className="space-y-6">
+        {/* 今日数据统计 */}
+        <View>
+          <Text className="text-xl font-bold text-foreground mb-4">今日数据</Text>
+          <View className="grid grid-cols-4 gap-4">
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-account-check text-4xl text-primary mb-2" />
+              <Text className="text-3xl font-bold text-foreground">
+                {dashboardStats.todayAttendance.attendedCount}/{dashboardStats.todayAttendance.totalCount}
+              </Text>
+              <Text className="text-sm text-muted-foreground mt-1">今日出勤</Text>
+              <Text className="text-xs text-primary mt-1">出勤率 {dashboardStats.todayAttendance.attendanceRate}%</Text>
             </View>
             <View className="bg-card p-6 rounded-lg border border-border">
-              <Text className="text-lg font-bold text-foreground mb-4">快速操作</Text>
-              <View className="grid grid-cols-4 gap-3">
-                <Button
-                  className="bg-primary text-primary-foreground py-3 rounded break-keep text-sm"
-                  size="default"
-                  onClick={() => setActiveMenu('drivers')}>
-                  添加司机
-                </Button>
-                <Button
-                  className="bg-secondary text-secondary-foreground py-3 rounded break-keep text-sm"
-                  size="default"
-                  onClick={() => setActiveMenu('vehicles')}>
-                  添加车辆
-                </Button>
-                <Button
-                  className="bg-accent text-accent-foreground py-3 rounded break-keep text-sm"
-                  size="default"
-                  onClick={() => setActiveMenu('attendance')}>
-                  查看考勤
-                </Button>
-                <Button
-                  className="bg-muted text-muted-foreground py-3 rounded break-keep text-sm"
-                  size="default"
-                  onClick={() => setActiveMenu('leave')}>
-                  审批请假
-                </Button>
+              <View className="i-mdi-clipboard-list text-4xl text-secondary mb-2" />
+              <Text className="text-3xl font-bold text-foreground">{dashboardStats.todayPieceWork.totalQuantity}</Text>
+              <Text className="text-sm text-muted-foreground mt-1">今日总件数</Text>
+              <Text className="text-xs text-secondary mt-1">
+                已完成 {dashboardStats.todayPieceWork.completedQuantity} 件
+              </Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-chart-line text-4xl text-accent mb-2" />
+              <Text className="text-3xl font-bold text-foreground">
+                {dashboardStats.todayPieceWork.completionRate}%
+              </Text>
+              <Text className="text-sm text-muted-foreground mt-1">今日完成率</Text>
+              <Text className="text-xs text-accent mt-1">
+                {dashboardStats.todayPieceWork.completedQuantity}/{dashboardStats.todayPieceWork.totalQuantity}
+              </Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-alert-circle text-4xl text-destructive mb-2" />
+              <Text className="text-3xl font-bold text-foreground">
+                {dashboardStats.pendingTasks.pendingLeaveCount}
+              </Text>
+              <Text className="text-sm text-muted-foreground mt-1">待审批请假</Text>
+              {dashboardStats.pendingTasks.pendingLeaveCount > 0 && (
+                <Text className="text-xs text-destructive mt-1">需要处理</Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* 本月数据统计 */}
+        <View>
+          <Text className="text-xl font-bold text-foreground mb-4">本月数据</Text>
+          <View className="grid grid-cols-3 gap-4">
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-calendar-month text-4xl text-primary mb-2" />
+              <Text className="text-3xl font-bold text-foreground">
+                {dashboardStats.monthlyStats.totalAttendanceDays}
+              </Text>
+              <Text className="text-sm text-muted-foreground mt-1">本月总出勤天数</Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-package-variant text-4xl text-secondary mb-2" />
+              <Text className="text-3xl font-bold text-foreground">
+                {dashboardStats.monthlyStats.totalPieceWorkQuantity}
+              </Text>
+              <Text className="text-sm text-muted-foreground mt-1">本月总件数</Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-check-circle text-4xl text-accent mb-2" />
+              <Text className="text-3xl font-bold text-foreground">
+                {dashboardStats.monthlyStats.totalCompletedQuantity}
+              </Text>
+              <Text className="text-sm text-muted-foreground mt-1">本月完成件数</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 车辆和司机状态 */}
+        <View>
+          <Text className="text-xl font-bold text-foreground mb-4">车辆与司机</Text>
+          <View className="grid grid-cols-4 gap-4">
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-car text-4xl text-primary mb-2" />
+              <Text className="text-3xl font-bold text-foreground">{dashboardStats.vehicleStats.activeCount}</Text>
+              <Text className="text-sm text-muted-foreground mt-1">在用车辆</Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-car-off text-4xl text-muted mb-2" />
+              <Text className="text-3xl font-bold text-foreground">{dashboardStats.vehicleStats.inactiveCount}</Text>
+              <Text className="text-sm text-muted-foreground mt-1">停用车辆</Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-account-group text-4xl text-secondary mb-2" />
+              <Text className="text-3xl font-bold text-foreground">{dashboardStats.driverStats.activeCount}</Text>
+              <Text className="text-sm text-muted-foreground mt-1">在职司机</Text>
+            </View>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="i-mdi-account-plus text-4xl text-accent mb-2" />
+              <Text className="text-3xl font-bold text-foreground">{dashboardStats.driverStats.newThisMonth}</Text>
+              <Text className="text-sm text-muted-foreground mt-1">本月新入职</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 待处理事项 */}
+        {(dashboardStats.pendingTasks.pendingLeaveCount > 0 || dashboardStats.pendingTasks.unassignedDrivers > 0) && (
+          <View>
+            <Text className="text-xl font-bold text-foreground mb-4">待处理事项</Text>
+            <View className="bg-card p-6 rounded-lg border border-border">
+              <View className="space-y-3">
+                {dashboardStats.pendingTasks.pendingLeaveCount > 0 && (
+                  <View className="flex items-center justify-between p-3 bg-destructive/10 rounded-lg">
+                    <View className="flex items-center">
+                      <View className="i-mdi-file-document text-2xl text-destructive mr-3" />
+                      <View>
+                        <Text className="text-sm font-medium text-foreground">待审批请假申请</Text>
+                        <Text className="text-xs text-muted-foreground">
+                          有 {dashboardStats.pendingTasks.pendingLeaveCount} 条请假申请待处理
+                        </Text>
+                      </View>
+                    </View>
+                    <Button
+                      className="bg-destructive text-destructive-foreground py-2 px-4 rounded break-keep text-xs"
+                      size="mini"
+                      onClick={() => setActiveMenu('leave')}>
+                      去处理
+                    </Button>
+                  </View>
+                )}
+                {dashboardStats.pendingTasks.unassignedDrivers > 0 && (
+                  <View className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                    <View className="flex items-center">
+                      <View className="i-mdi-warehouse text-2xl text-primary mr-3" />
+                      <View>
+                        <Text className="text-sm font-medium text-foreground">未分配仓库的司机</Text>
+                        <Text className="text-xs text-muted-foreground">
+                          有 {dashboardStats.pendingTasks.unassignedDrivers} 名司机未分配仓库
+                        </Text>
+                      </View>
+                    </View>
+                    <Button
+                      className="bg-primary text-primary-foreground py-2 px-4 rounded break-keep text-xs"
+                      size="mini"
+                      onClick={() => setActiveMenu('warehouse')}>
+                      去分配
+                    </Button>
+                  </View>
+                )}
               </View>
             </View>
           </View>
-        )
+        )}
+
+        {/* 快速操作 */}
+        <View>
+          <Text className="text-xl font-bold text-foreground mb-4">快速操作</Text>
+          <View className="grid grid-cols-4 gap-3">
+            <Button
+              className="bg-primary text-primary-foreground py-4 rounded break-keep text-sm"
+              size="default"
+              onClick={() => setActiveMenu('drivers')}>
+              <View className="flex flex-col items-center">
+                <View className="i-mdi-account-plus text-2xl mb-1" />
+                <Text>添加司机</Text>
+              </View>
+            </Button>
+            <Button
+              className="bg-secondary text-secondary-foreground py-4 rounded break-keep text-sm"
+              size="default"
+              onClick={() => setActiveMenu('vehicles')}>
+              <View className="flex flex-col items-center">
+                <View className="i-mdi-car-plus text-2xl mb-1" />
+                <Text>添加车辆</Text>
+              </View>
+            </Button>
+            <Button
+              className="bg-accent text-accent-foreground py-4 rounded break-keep text-sm"
+              size="default"
+              onClick={() => setActiveMenu('attendance')}>
+              <View className="flex flex-col items-center">
+                <View className="i-mdi-calendar-check text-2xl mb-1" />
+                <Text>查看考勤</Text>
+              </View>
+            </Button>
+            <Button
+              className="bg-muted text-muted-foreground py-4 rounded break-keep text-sm"
+              size="default"
+              onClick={() => setActiveMenu('piecework')}>
+              <View className="flex flex-col items-center">
+                <View className="i-mdi-clipboard-list text-2xl mb-1" />
+                <Text>计件管理</Text>
+              </View>
+            </Button>
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  const renderContent = () => {
+    switch (activeMenu) {
+      case 'dashboard':
+        return renderDashboard()
       default:
         return (
           <View className="bg-card p-8 rounded-lg border border-border text-center">
@@ -228,12 +448,28 @@ const WebAdmin: React.FC = () => {
         <View className="flex-1 flex flex-col">
           {/* 顶部标题栏 */}
           <View className="bg-card border-b border-border p-6">
-            <Text className="text-2xl font-bold text-foreground">
-              {menuItems.find((m) => m.id === activeMenu)?.title || '仪表盘'}
-            </Text>
-            <Text className="text-sm text-muted-foreground mt-1">
-              {menuItems.find((m) => m.id === activeMenu)?.description || '数据统计和图表'}
-            </Text>
+            <View className="flex items-center justify-between">
+              <View>
+                <Text className="text-2xl font-bold text-foreground">
+                  {menuItems.find((m) => m.id === activeMenu)?.title || '仪表盘'}
+                </Text>
+                <Text className="text-sm text-muted-foreground mt-1">
+                  {menuItems.find((m) => m.id === activeMenu)?.description || '数据统计和图表'}
+                </Text>
+              </View>
+              {activeMenu === 'dashboard' && (
+                <Button
+                  className="bg-primary text-primary-foreground py-2 px-4 rounded break-keep text-sm"
+                  size="mini"
+                  onClick={loadDashboardStats}
+                  disabled={statsLoading}>
+                  <View className="flex items-center">
+                    <View className="i-mdi-refresh text-lg mr-1" />
+                    <Text>{statsLoading ? '刷新中...' : '刷新数据'}</Text>
+                  </View>
+                </Button>
+              )}
+            </View>
           </View>
 
           {/* 内容区域 */}
