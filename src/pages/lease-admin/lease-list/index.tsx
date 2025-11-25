@@ -14,7 +14,7 @@ import {
   reduceLease,
   suspendTenant
 } from '@/db/api'
-import type {CreateLeaseInput, Lease, Profile} from '@/db/types'
+import type {CreateLeaseInput, ExpireActionType, Lease, Profile} from '@/db/types'
 
 // 租户租期数据类型
 interface TenantWithLease {
