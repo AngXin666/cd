@@ -496,7 +496,7 @@ const DriverHome: React.FC = () => {
               </View>
             </View>
 
-            {/* 2x3网格布局 */}
+            {/* 2x2网格布局 */}
             <View className="grid grid-cols-2 gap-4">
               {/* 计件录入 */}
               <View
@@ -528,14 +528,6 @@ const DriverHome: React.FC = () => {
                 onClick={() => navigateTo({url: '/pages/driver/vehicle-list/index'})}>
                 <View className="i-mdi-car text-5xl text-cyan-600 mb-3" />
                 <Text className="text-base font-medium text-gray-800">车辆管理</Text>
-              </View>
-
-              {/* 通知中心 */}
-              <View
-                className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all shadow"
-                onClick={() => navigateTo({url: '/pages/shared/notification-center/index'})}>
-                <View className="i-mdi-bell-outline text-5xl text-green-600 mb-3" />
-                <Text className="text-base font-medium text-gray-800">通知中心</Text>
               </View>
             </View>
           </View>

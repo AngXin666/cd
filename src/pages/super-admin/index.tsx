@@ -530,23 +530,6 @@ const SuperAdminHome: React.FC = () => {
                 <Text className="text-xs text-gray-700 font-medium">考勤管理</Text>
               </View>
 
-              {/* 数据库结构 */}
-              <View
-                onClick={() => navigateTo({url: '/pages/super-admin/database-schema/index'})}
-                className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
-                <View className="i-mdi-database text-3xl text-cyan-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">数据库结构</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 通知管理板块 */}
-          <View className="bg-white rounded-xl p-4 mb-4 shadow-md">
-            <View className="flex items-center mb-4">
-              <View className="i-mdi-bell text-xl text-blue-600 mr-2" />
-              <Text className="text-lg font-bold text-gray-800">通知管理</Text>
-            </View>
-            <View className="grid grid-cols-2 gap-3">
               {/* 通知中心 */}
               <View
                 onClick={() => navigateTo({url: '/pages/shared/notification-center/index'})}
