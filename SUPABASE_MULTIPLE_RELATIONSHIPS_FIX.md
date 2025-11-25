@@ -2,7 +2,7 @@
 
 ## 问题描述
 
-**错误信息**：
+**错误信息 1**：
 ```
 [getCurrentUserWithRealName] 查询用户档案失败: {
   code: 'PGRST201',
@@ -12,15 +12,28 @@
 }
 ```
 
+**错误信息 2**：
+```
+获取仓库司机失败: {
+  code: 'PGRST201',
+  details: Array(2),
+  hint: "Try changing 'profiles' to one of the following...",
+  message: "Could not embed because more than one relationship was found for 'driver_warehouses' and 'profiles'"
+}
+```
+
 **症状**：
 - 用户管理页面无法加载
 - 司机管理页面无法加载
 - 请假审批页面无法加载
-- 所有调用 `getCurrentUserWithRealName()` 的功能都失败
+- 仓库司机列表无法加载
+- 所有调用 `getCurrentUserWithRealName()` 和 `getDriversByWarehouse()` 的功能都失败
 
 ## 问题分析
 
 ### 根本原因
+
+**问题 1：driver_licenses 表**
 
 `driver_licenses` 表有**两个外键**指向 `profiles` 表：
 
@@ -36,7 +49,25 @@ ALTER TABLE driver_licenses
   FOREIGN KEY (tenant_id) REFERENCES profiles(id);
 ```
 
+**问题 2：driver_warehouses 表**
+
+`driver_warehouses` 表也有**两个外键**指向 `profiles` 表：
+
+```sql
+-- 外键 1：司机 ID
+ALTER TABLE driver_warehouses
+  ADD CONSTRAINT driver_warehouses_driver_id_fkey
+  FOREIGN KEY (driver_id) REFERENCES profiles(id);
+
+-- 外键 2：租户 ID
+ALTER TABLE driver_warehouses
+  ADD CONSTRAINT driver_warehouses_tenant_id_fkey
+  FOREIGN KEY (tenant_id) REFERENCES profiles(id);
+```
+
 ### 查询代码的问题
+
+**问题 1：getCurrentUserWithRealName()**
 
 原始查询代码：
 
@@ -53,10 +84,21 @@ const {data, error} = await supabase
   .maybeSingle()
 ```
 
-**问题**：
+**问题 2：getDriversByWarehouse()**
+
+原始查询代码：
+
+```typescript
+const {data, error} = await supabase
+  .from('driver_warehouses')
+  .select('driver_id, profiles(*)')
+  .eq('warehouse_id', warehouseId)
+```
+
+**共同问题**：
 - Supabase 不知道应该使用哪个外键关系
-- `driver_licenses.driver_id → profiles.id` ？
-- `driver_licenses.tenant_id → profiles.id` ？
+- 对于 `driver_licenses`：`driver_id → profiles.id` 还是 `tenant_id → profiles.id`？
+- 对于 `driver_warehouses`：`driver_id → profiles.id` 还是 `tenant_id → profiles.id`？
 
 ### Supabase 的行为
 
@@ -68,6 +110,8 @@ const {data, error} = await supabase
 ## 解决方案
 
 ### 修复代码
+
+**修复 1：getCurrentUserWithRealName()**
 
 在查询中明确指定使用 `driver_id` 外键关系：
 
@@ -84,8 +128,20 @@ const {data, error} = await supabase
   .maybeSingle()
 ```
 
+**修复 2：getDriversByWarehouse()**
+
+在查询中明确指定使用 `driver_id` 外键关系：
+
+```typescript
+const {data, error} = await supabase
+  .from('driver_warehouses')
+  .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
+  .eq('warehouse_id', warehouseId)
+```
+
 **语法说明**：
 - `driver_licenses!driver_licenses_driver_id_fkey` 
+- `profiles!driver_warehouses_driver_id_fkey`
 - `!` 后面是外键约束的名称
 - 明确告诉 Supabase 使用 `driver_id` 关系
 
@@ -93,15 +149,21 @@ const {data, error} = await supabase
 
 **文件**：`src/db/api.ts`
 
-**函数**：`getCurrentUserWithRealName()`
-
 **修改内容**：
-```diff
-- driver_licenses (
-+ driver_licenses!driver_licenses_driver_id_fkey (
-    id_card_name
-  )
-```
+
+1. **函数**：`getCurrentUserWithRealName()`
+   ```diff
+   - driver_licenses (
+   + driver_licenses!driver_licenses_driver_id_fkey (
+       id_card_name
+     )
+   ```
+
+2. **函数**：`getDriversByWarehouse()`
+   ```diff
+   - .select('driver_id, profiles(*)')
+   + .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
+   ```
 
 ## 验证修复
 
@@ -123,7 +185,14 @@ const {data, error} = await supabase
 2. 进入"请假审批"页面
 3. 验证页面正常加载，显示请假申请列表
 
-### 4. 检查控制台日志
+### 4. 测试仓库司机列表
+
+1. 登录老板或车队长账号
+2. 进入"仓库管理"页面
+3. 点击某个仓库查看司机列表
+4. 验证司机列表正常显示
+
+### 5. 检查控制台日志
 
 查看浏览器控制台，应该看到：
 ```

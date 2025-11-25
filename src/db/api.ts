@@ -860,9 +860,11 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
  * 获取仓库的司机列表
  */
 export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
+  // 注意：driver_warehouses 表有两个外键指向 profiles（driver_id 和 tenant_id）
+  // 必须明确指定使用 driver_id 关系
   const {data, error} = await supabase
     .from('driver_warehouses')
-    .select('driver_id, profiles(*)')
+    .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
     .eq('warehouse_id', warehouseId)
 
   if (error) {
