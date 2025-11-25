@@ -114,7 +114,11 @@ export default function TenantForm() {
           formData.email || null,
           formData.password
         )
-        if (result) {
+        if (result === 'EMAIL_EXISTS') {
+          // 根据是否填写了邮箱，显示不同的错误提示
+          const errorMsg = formData.email ? '该邮箱已被注册，请使用其他邮箱' : '该手机号已被注册，请使用其他手机号'
+          Taro.showToast({title: errorMsg, icon: 'none', duration: 2500})
+        } else if (result) {
           Taro.showToast({title: '创建成功', icon: 'success'})
           setTimeout(() => {
             Taro.navigateBack()
@@ -141,7 +145,9 @@ export default function TenantForm() {
         )
 
         if (result === 'EMAIL_EXISTS') {
-          Taro.showToast({title: '该邮箱已被注册，请使用其他邮箱', icon: 'none', duration: 2500})
+          // 根据是否填写了邮箱，显示不同的错误提示
+          const errorMsg = formData.email ? '该邮箱已被注册，请使用其他邮箱' : '该手机号已被注册，请使用其他手机号'
+          Taro.showToast({title: errorMsg, icon: 'none', duration: 2500})
         } else if (result) {
           Taro.showToast({title: '创建平级账号成功', icon: 'success'})
           setTimeout(() => {

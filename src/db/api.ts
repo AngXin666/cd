@@ -6412,13 +6412,14 @@ export async function getTenantById(id: string): Promise<Profile | null> {
 }
 
 /**
- * 创建老板账号（包含认证用户创建）
+ * 创建老板账号（租赁系统的主账号）
+ * @returns {Profile | null | 'EMAIL_EXISTS'} 成功返回 Profile，邮箱/手机号已存在返回 'EMAIL_EXISTS'，其他错误返回 null
  */
 export async function createTenant(
   tenant: Omit<Profile, 'id' | 'created_at' | 'updated_at'>,
   email: string | null,
   password: string
-): Promise<Profile | null> {
+): Promise<Profile | null | 'EMAIL_EXISTS'> {
   try {
     // 如果没有提供邮箱，使用手机号作为邮箱（添加 @phone.local 后缀）
     const authEmail = email || `${tenant.phone}@phone.local`
@@ -6437,6 +6438,11 @@ export async function createTenant(
     })
 
     if (authError) {
+      // 检查是否是邮箱/手机号已存在的错误
+      if (authError.message?.includes('User already registered') || authError.message?.includes('already registered')) {
+        console.error('邮箱/手机号已被注册:', authEmail)
+        return 'EMAIL_EXISTS'
+      }
       console.error('创建认证用户失败:', authError)
       return null
     }

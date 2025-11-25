@@ -370,7 +370,10 @@ const UserManagement: React.FC = () => {
         // 分配仓库
         console.log('开始为新用户分配仓库', {userId: newUser.id, warehouseIds: newUserWarehouseIds})
         for (const warehouseId of newUserWarehouseIds) {
-          await insertWarehouseAssignment(newUser.id, warehouseId)
+          await insertWarehouseAssignment({
+            driver_id: newUser.id,
+            warehouse_id: warehouseId
+          })
         }
         console.log('仓库分配完成', {userId: newUser.id, count: newUserWarehouseIds.length})
 
