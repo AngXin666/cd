@@ -34,15 +34,17 @@ CREATE POLICY "租户数据隔离 - vehicles" ON vehicles
 
 ## 解决方案
 
-删除所有 "Super admins can manage all" 策略，只保留租户隔离策略。
+删除所有允许跨租户访问的策略，只保留租户隔离策略。
 
 租户隔离策略已经允许 super_admin 访问自己租户的所有数据：
 - `get_user_tenant_id()` 对于 super_admin 返回自己的 id
 - `tenant_id = get_user_tenant_id()` 确保只能访问自己租户的数据
 
-### 修复的表
+### 修复的策略
 
-**迁移文件**：`supabase/migrations/045_fix_super_admin_tenant_isolation.sql`
+#### 迁移 045：删除 "Super admins can manage all" 策略
+
+**文件**：`supabase/migrations/045_fix_super_admin_tenant_isolation.sql`
 
 删除了以下表的 "Super admins can manage all" 策略：
 - attendance
@@ -65,6 +67,35 @@ CREATE POLICY "租户数据隔离 - vehicles" ON vehicles
 - notification_send_records
 - lease_bills
 - resignation_applications
+
+#### 迁移 046：删除剩余的跨租户访问策略
+
+**文件**：`supabase/migrations/046_fix_remaining_cross_tenant_policies.sql`
+
+**问题**：迁移 045 只删除了 "manage all" 策略，但还有很多 SELECT 策略允许跨租户访问。
+
+**删除的策略类型**：
+
+1. **Super admin VIEW 策略**（允许所有老板查看所有数据）：
+   - piece_work_records: "Super admins can view all piece work records"
+   - vehicle_records: "Super admins can view all vehicle records"
+   - driver_licenses: "Super admins can view all driver licenses"
+   - driver_warehouses: "Super admins can view all driver warehouses"
+   - manager_warehouses: "Super admins can view all manager warehouses"
+   - leave_applications: "Super admins can view all leave applications"
+   - resignation_applications: "Super admins can view all resignation applications"
+
+2. **Super admin UPDATE/DELETE 策略**：
+   - profiles: "Super admins can update all profiles"
+   - profiles: "Super admins can delete profiles"
+
+3. **Authenticated users 策略**（允许所有登录用户查看所有数据）：
+   - vehicles: "Authenticated users can view vehicles" ⚠️
+   - attendance_rules: "Authenticated users can view attendance rules" ⚠️
+   - category_prices: "Authenticated users can view category prices" ⚠️
+   - warehouses: "Authenticated users can view active warehouses" ⚠️
+
+⚠️ 这些策略特别危险，因为它们允许**所有登录用户**（包括普通司机）查看所有租户的数据！
 
 ## 验证修复
 
@@ -223,4 +254,13 @@ $$;
 
 ## 更新时间
 
-2025-11-25 22:00:00 (UTC+8)
+2025-11-25 22:30:00 (UTC+8)
+
+## 更新历史
+
+- **2025-11-25 22:00** - 创建文档，修复 super_admin 策略（迁移 045）
+- **2025-11-25 22:30** - 修复剩余的跨租户访问策略（迁移 046）
+  - 删除所有 "Super admins can view all" 策略
+  - 删除所有 "Authenticated users can view" 策略
+  - 完全实现租户数据隔离
+
