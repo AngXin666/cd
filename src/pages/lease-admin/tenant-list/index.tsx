@@ -1,7 +1,14 @@
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
-import {activateTenant, deleteTenant, getAllTenants, getManagersByTenantId, suspendTenant} from '@/db/api'
+import {
+  activateTenant,
+  deleteTenant,
+  getAllTenants,
+  getManagersByTenantId,
+  getPeerAccountsByMainId,
+  suspendTenant
+} from '@/db/api'
 import type {Profile} from '@/db/types'
 
 export default function TenantList() {
@@ -10,15 +17,20 @@ export default function TenantList() {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all')
   const [loading, setLoading] = useState(true)
-  // 展开状态：记录哪些老板账号被展开了
+  // 展开状态：记录哪些主账号被展开了
   const [expandedTenantIds, setExpandedTenantIds] = useState<Set<string>>(new Set())
-  // 车队长数据：记录每个老板下的车队长列表
+  // 车队长数据：记录每个主账号下的车队长列表
   const [managersMap, setManagersMap] = useState<Map<string, Profile[]>>(new Map())
-  // 加载中的老板ID
-  const [loadingManagerIds, setLoadingManagerIds] = useState<Set<string>>(new Set())
+  // 平级账号数据：记录每个主账号下的平级账号列表
+  const [peerAccountsMap, setPeerAccountsMap] = useState<Map<string, Profile[]>>(new Map())
+  // 加载中的主账号ID
+  const [loadingTenantIds, setLoadingTenantIds] = useState<Set<string>>(new Set())
 
   const filterTenants = useCallback((data: Profile[], search: string, status: string) => {
     let filtered = data
+
+    // 只显示主账号（main_account_id 为 null）
+    filtered = filtered.filter((t) => t.main_account_id === null)
 
     if (search) {
       filtered = filtered.filter(
@@ -67,7 +79,7 @@ export default function TenantList() {
     setStatusFilter(status)
   }
 
-  // 切换展开/收起老板账号
+  // 切换展开/收起主账号
   const handleToggleExpand = async (tenantId: string) => {
     const newExpandedIds = new Set(expandedTenantIds)
 
@@ -80,19 +92,24 @@ export default function TenantList() {
       newExpandedIds.add(tenantId)
       setExpandedTenantIds(newExpandedIds)
 
-      // 如果还没有加载过车队长数据，则加载
-      if (!managersMap.has(tenantId)) {
-        setLoadingManagerIds(new Set(loadingManagerIds).add(tenantId))
+      // 如果还没有加载过数据，则加载平级账号和车队长
+      if (!managersMap.has(tenantId) || !peerAccountsMap.has(tenantId)) {
+        setLoadingTenantIds(new Set(loadingTenantIds).add(tenantId))
         try {
-          const managers = await getManagersByTenantId(tenantId)
+          // 并行加载平级账号和车队长
+          const [managers, peerAccounts] = await Promise.all([
+            getManagersByTenantId(tenantId),
+            getPeerAccountsByMainId(tenantId)
+          ])
           setManagersMap(new Map(managersMap).set(tenantId, managers))
+          setPeerAccountsMap(new Map(peerAccountsMap).set(tenantId, peerAccounts))
         } catch (error) {
-          console.error('加载车队长列表失败:', error)
-          Taro.showToast({title: '加载车队长失败', icon: 'none'})
+          console.error('加载数据失败:', error)
+          Taro.showToast({title: '加载数据失败', icon: 'none'})
         } finally {
-          const newLoadingIds = new Set(loadingManagerIds)
+          const newLoadingIds = new Set(loadingTenantIds)
           newLoadingIds.delete(tenantId)
-          setLoadingManagerIds(newLoadingIds)
+          setLoadingTenantIds(newLoadingIds)
         }
       }
     }
@@ -203,7 +220,7 @@ export default function TenantList() {
             </Button>
           </View>
 
-          {/* 老板账号列表 */}
+          {/* 主账号列表 */}
           {loading ? (
             <View className="flex items-center justify-center py-8">
               <Text className="text-muted-foreground">加载中...</Text>
@@ -217,11 +234,12 @@ export default function TenantList() {
               {filteredTenants.map((tenant) => {
                 const isExpanded = expandedTenantIds.has(tenant.id)
                 const managers = managersMap.get(tenant.id) || []
-                const isLoadingManagers = loadingManagerIds.has(tenant.id)
+                const peerAccounts = peerAccountsMap.get(tenant.id) || []
+                const isLoadingData = loadingTenantIds.has(tenant.id)
 
                 return (
                   <View key={tenant.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    {/* 老板账号主卡片 */}
+                    {/* 主账号卡片 */}
                     <View className="p-4">
                       <View
                         className="flex flex-row items-center justify-between mb-3"
@@ -232,16 +250,10 @@ export default function TenantList() {
                             className={`${isExpanded ? 'i-mdi-chevron-down' : 'i-mdi-chevron-right'} text-xl text-gray-600 transition-all`}
                           />
                           <Text className="text-lg font-semibold text-foreground">{tenant.name || '未命名'}</Text>
-                          {/* 主账号/平级账号标识 */}
-                          {tenant.main_account_id === null ? (
-                            <View className="px-2 py-1 rounded bg-blue-100">
-                              <Text className="text-xs text-blue-600">主账号</Text>
-                            </View>
-                          ) : (
-                            <View className="px-2 py-1 rounded bg-purple-100">
-                              <Text className="text-xs text-purple-600">平级账号</Text>
-                            </View>
-                          )}
+                          {/* 主账号标识 */}
+                          <View className="px-2 py-1 rounded bg-blue-100">
+                            <Text className="text-xs text-blue-600">主账号</Text>
+                          </View>
                           {/* 状态标识 */}
                           <View
                             className={`px-2 py-1 rounded ${(tenant.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
@@ -308,68 +320,116 @@ export default function TenantList() {
                         </Button>
                       </View>
 
-                      {/* 如果是主账号，显示"新增老板账号"按钮 */}
-                      {tenant.main_account_id === null && (
-                        <View className="mt-2">
-                          <Button
-                            className="w-full bg-purple-500 text-white py-2 rounded break-keep text-sm"
-                            size="mini"
-                            onClick={() => handleAddPeerAccount(tenant.id)}>
-                            新增老板账号
-                          </Button>
-                        </View>
-                      )}
+                      {/* 新增平级账号按钮 */}
+                      <View className="mt-2">
+                        <Button
+                          className="w-full bg-purple-500 text-white py-2 rounded break-keep text-sm"
+                          size="mini"
+                          onClick={() => handleAddPeerAccount(tenant.id)}>
+                          新增平级账号
+                        </Button>
+                      </View>
                     </View>
 
-                    {/* 展开的车队长列表 */}
+                    {/* 展开的内容区域 */}
                     {isExpanded && (
-                      <View className="bg-gray-50 border-t border-gray-200 px-4 py-3">
-                        <View className="flex flex-row items-center mb-2">
-                          <View className="i-mdi-account-group text-lg text-blue-600 mr-2" />
-                          <Text className="text-sm font-semibold text-gray-700">车队长列表</Text>
-                          <Text className="text-xs text-gray-500 ml-2">({managers.length}人)</Text>
-                        </View>
-
-                        {isLoadingManagers ? (
-                          <View className="flex items-center justify-center py-4">
+                      <View className="bg-gray-50 border-t border-gray-200">
+                        {isLoadingData ? (
+                          <View className="flex items-center justify-center py-8">
                             <Text className="text-sm text-gray-500">加载中...</Text>
                           </View>
-                        ) : managers.length === 0 ? (
-                          <View className="flex items-center justify-center py-4">
-                            <Text className="text-sm text-gray-500">暂无车队长</Text>
-                          </View>
                         ) : (
-                          <View className="space-y-2">
-                            {managers.map((manager) => (
-                              <View key={manager.id} className="bg-white rounded-lg p-3 border border-gray-200">
-                                <View className="flex flex-row items-center justify-between mb-2">
-                                  <View className="flex flex-row items-center gap-2">
-                                    <View className="i-mdi-account-tie text-lg text-blue-600" />
-                                    <Text className="text-sm font-medium text-gray-900">
-                                      {manager.name || '未命名'}
-                                    </Text>
-                                    {/* 状态标识 */}
-                                    <View
-                                      className={`px-2 py-0.5 rounded ${(manager.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
-                                      <Text
-                                        className={`text-xs ${(manager.status || 'active') === 'active' ? 'text-green-600' : 'text-orange-600'}`}>
-                                        {(manager.status || 'active') === 'active' ? '正常' : '停用'}
-                                      </Text>
-                                    </View>
-                                  </View>
+                          <View>
+                            {/* 平级账号列表 */}
+                            {peerAccounts.length > 0 && (
+                              <View className="px-4 py-3 border-b border-gray-200">
+                                <View className="flex flex-row items-center mb-2">
+                                  <View className="i-mdi-account-multiple text-lg text-purple-600 mr-2" />
+                                  <Text className="text-sm font-semibold text-gray-700">平级账号</Text>
+                                  <Text className="text-xs text-gray-500 ml-2">({peerAccounts.length}个)</Text>
                                 </View>
-                                {manager.phone && (
-                                  <View className="mb-1">
-                                    <Text className="text-xs text-gray-600">电话：{manager.phone}</Text>
-                                  </View>
-                                )}
-                                {manager.login_account && (
-                                  <View>
-                                    <Text className="text-xs text-gray-600">账号：{manager.login_account}</Text>
-                                  </View>
-                                )}
+                                <View className="space-y-2">
+                                  {peerAccounts.map((peer) => (
+                                    <View key={peer.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                                      <View className="flex flex-row items-center justify-between mb-2">
+                                        <View className="flex flex-row items-center gap-2">
+                                          <View className="i-mdi-account text-lg text-purple-600" />
+                                          <Text className="text-sm font-medium text-gray-900">
+                                            {peer.name || '未命名'}
+                                          </Text>
+                                          {/* 状态标识 */}
+                                          <View
+                                            className={`px-2 py-0.5 rounded ${(peer.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
+                                            <Text
+                                              className={`text-xs ${(peer.status || 'active') === 'active' ? 'text-green-600' : 'text-orange-600'}`}>
+                                              {(peer.status || 'active') === 'active' ? '正常' : '停用'}
+                                            </Text>
+                                          </View>
+                                        </View>
+                                      </View>
+                                      {peer.phone && (
+                                        <View className="mb-1">
+                                          <Text className="text-xs text-gray-600">电话：{peer.phone}</Text>
+                                        </View>
+                                      )}
+                                      {peer.login_account && (
+                                        <View>
+                                          <Text className="text-xs text-gray-600">账号：{peer.login_account}</Text>
+                                        </View>
+                                      )}
+                                    </View>
+                                  ))}
+                                </View>
                               </View>
-                            ))}
+                            )}
+
+                            {/* 车队长列表 */}
+                            <View className="px-4 py-3">
+                              <View className="flex flex-row items-center mb-2">
+                                <View className="i-mdi-account-group text-lg text-blue-600 mr-2" />
+                                <Text className="text-sm font-semibold text-gray-700">车队长</Text>
+                                <Text className="text-xs text-gray-500 ml-2">({managers.length}人)</Text>
+                              </View>
+
+                              {managers.length === 0 ? (
+                                <View className="flex items-center justify-center py-4">
+                                  <Text className="text-sm text-gray-500">暂无车队长</Text>
+                                </View>
+                              ) : (
+                                <View className="space-y-2">
+                                  {managers.map((manager) => (
+                                    <View key={manager.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                                      <View className="flex flex-row items-center justify-between mb-2">
+                                        <View className="flex flex-row items-center gap-2">
+                                          <View className="i-mdi-account-tie text-lg text-blue-600" />
+                                          <Text className="text-sm font-medium text-gray-900">
+                                            {manager.name || '未命名'}
+                                          </Text>
+                                          {/* 状态标识 */}
+                                          <View
+                                            className={`px-2 py-0.5 rounded ${(manager.status || 'active') === 'active' ? 'bg-green-100' : 'bg-orange-100'}`}>
+                                            <Text
+                                              className={`text-xs ${(manager.status || 'active') === 'active' ? 'text-green-600' : 'text-orange-600'}`}>
+                                              {(manager.status || 'active') === 'active' ? '正常' : '停用'}
+                                            </Text>
+                                          </View>
+                                        </View>
+                                      </View>
+                                      {manager.phone && (
+                                        <View className="mb-1">
+                                          <Text className="text-xs text-gray-600">电话：{manager.phone}</Text>
+                                        </View>
+                                      )}
+                                      {manager.login_account && (
+                                        <View>
+                                          <Text className="text-xs text-gray-600">账号：{manager.login_account}</Text>
+                                        </View>
+                                      )}
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+                            </View>
                           </View>
                         )}
                       </View>

@@ -6469,6 +6469,30 @@ export async function getManagersByTenantId(tenantId: string): Promise<Profile[]
 }
 
 /**
+ * 获取某个主账号下的所有平级账号
+ */
+export async function getPeerAccountsByMainId(mainAccountId: string): Promise<Profile[]> {
+  try {
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'super_admin')
+      .eq('main_account_id', mainAccountId)
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取平级账号列表失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取平级账号列表异常:', error)
+    return []
+  }
+}
+
+/**
  * 根据ID获取老板账号详情
  */
 export async function getTenantById(id: string): Promise<Profile | null> {
