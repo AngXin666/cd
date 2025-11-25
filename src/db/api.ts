@@ -6439,7 +6439,17 @@ export async function createTenant(
       return null
     }
 
-    // 2. 直接插入 profiles 记录（不依赖触发器）
+    // 2. 自动确认用户邮箱（调用数据库函数）
+    const {error: confirmError} = await supabase.rpc('confirm_user_email', {
+      user_id: authData.user.id
+    })
+
+    if (confirmError) {
+      console.error('确认用户邮箱失败:', confirmError)
+      // 不返回 null，继续创建 profiles 记录
+    }
+
+    // 3. 直接插入 profiles 记录（不依赖触发器）
     // 因为触发器只在用户确认邮箱后才执行，但我们需要立即创建 profiles 记录
     const {data: profileData, error: profileError} = await supabase
       .from('profiles')
