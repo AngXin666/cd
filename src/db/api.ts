@@ -6488,6 +6488,7 @@ export async function createTenant(
 
 /**
  * 创建平级账号（绑定到主账号）
+ * @returns {Profile | null | 'EMAIL_EXISTS'} 成功返回 Profile，邮箱已存在返回 'EMAIL_EXISTS'，其他错误返回 null
  */
 export async function createPeerAccount(
   mainAccountId: string,
@@ -6500,7 +6501,7 @@ export async function createPeerAccount(
   },
   email: string,
   password: string
-): Promise<Profile | null> {
+): Promise<Profile | null | 'EMAIL_EXISTS'> {
   try {
     // 1. 获取主账号信息
     const {data: mainAccount, error: mainAccountError} = await supabase
@@ -6534,6 +6535,11 @@ export async function createPeerAccount(
     })
 
     if (authError) {
+      // 检查是否是邮箱已存在的错误
+      if (authError.message?.includes('User already registered') || authError.message?.includes('already registered')) {
+        console.error('邮箱已被注册:', email)
+        return 'EMAIL_EXISTS'
+      }
       console.error('创建认证用户失败:', authError)
       return null
     }
