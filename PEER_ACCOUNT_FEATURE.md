@@ -301,16 +301,81 @@ async function isPrimaryAccount(accountId: string): Promise<boolean>
    - 始终与主账号保持一致
    - 确保数据隔离
 
+## 已修复的问题
+
+### 问题 1：主键冲突错误（已修复）
+
+**错误信息**：
+```
+duplicate key value violates unique constraint "profiles_pkey"
+```
+
+**原因**：
+- 数据库触发器 `handle_new_user` 在确认邮箱后自动创建 profiles 记录
+- `createPeerAccount` 函数又尝试手动插入同一个 ID 的记录
+
+**解决方案**：
+- 改为让触发器创建基础 profiles 记录
+- 然后通过 UPDATE 操作设置平级账号相关字段
+- 添加 500ms 延迟确保触发器执行完成
+
+### 问题 2：邮箱已存在错误（已修复）
+
+**错误信息**：
+```
+AuthApiError: User already registered
+```
+
+**解决方案**：
+- 修改 `createPeerAccount` 返回类型为 `Profile | null | 'EMAIL_EXISTS'`
+- 捕获邮箱已存在错误并返回特殊标识
+- 前端显示友好提示："该邮箱已被注册，请使用其他邮箱"
+
+### 问题 3：平级账号无法获取车队数据（已修复）
+
+**问题描述**：
+- 平级账号登录后无法看到主账号租户下的车辆、司机等数据
+
+**原因分析**：
+- `get_user_tenant_id()` 函数对所有 `super_admin` 角色都返回 `p.id`
+- 平级账号的 role 也是 `super_admin`，但应该返回 `tenant_id` 而不是自己的 id
+
+**解决方案**（迁移 050）：
+```sql
+CREATE OR REPLACE FUNCTION get_user_tenant_id()
+RETURNS uuid
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT 
+    CASE 
+      -- 主账号：main_account_id 为 NULL 且角色为 super_admin
+      WHEN p.role = 'super_admin'::user_role AND p.main_account_id IS NULL THEN p.id
+      -- 平级账号和其他角色：使用 tenant_id
+      ELSE p.tenant_id
+    END
+  FROM profiles p
+  WHERE p.id = auth.uid();
+$$;
+```
+
+**修复效果**：
+- ✅ 平级账号现在可以访问主账号租户的所有数据
+- ✅ 包括车辆、司机、仓库、考勤等所有业务数据
+- ✅ 数据隔离仍然有效，不同租户之间数据互不可见
+
 ## 相关文件
 
 ### 数据库迁移
-- `supabase/migrations/049_add_main_account_id_to_profiles.sql`
+- `supabase/migrations/049_add_main_account_id_to_profiles.sql` - 添加 main_account_id 字段
+- `supabase/migrations/050_fix_peer_account_tenant_access.sql` - 修复平级账号数据访问
 
 ### API 函数
 - `src/db/api.ts`
-  - `createPeerAccount()`
-  - `getPeerAccounts()`
-  - `isPrimaryAccount()`
+  - `createPeerAccount()` - 创建平级账号
+  - `getPeerAccounts()` - 获取平级账号列表
+  - `isPrimaryAccount()` - 检查是否为主账号
 
 ### 类型定义
 - `src/db/types.ts`
@@ -347,4 +412,5 @@ async function isPrimaryAccount(accountId: string): Promise<boolean>
 ---
 
 **更新时间**：2025-11-25  
-**版本**：v1.0
+**版本**：v1.1  
+**最后修复**：修复平级账号无法获取车队数据的问题
