@@ -6524,9 +6524,9 @@ export async function getVehicleStats() {
 }
 
 /**
- * 获取司机状态统计
+ * 获取司机状态统计（仪表盘用）
  */
-export async function getDriverStats() {
+export async function getDashboardDriverStats() {
   try {
     // 获取所有司机
     const {data, error} = await supabase
@@ -6638,7 +6638,7 @@ export async function getDashboardStats() {
       getTodayPieceWorkStats(),
       getMonthlyStats(),
       getVehicleStats(),
-      getDriverStats(),
+      getDashboardDriverStats(),
       getPendingTasks()
     ])
 
