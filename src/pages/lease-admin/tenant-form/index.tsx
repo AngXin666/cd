@@ -126,8 +126,6 @@ export default function TenantForm() {
           {
             name: formData.name,
             phone: formData.phone,
-            company_name: formData.company_name || null,
-            monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
             notes: formData.notes || null
           },
           formData.email,
@@ -184,7 +182,10 @@ export default function TenantForm() {
           <View className="mb-6">
             <Text className="text-2xl font-bold text-primary">{getTitle()}</Text>
             {mode === 'create_peer' && (
-              <Text className="text-sm text-muted-foreground mt-1">创建的账号将与主账号共享同一个租户的数据</Text>
+              <View className="mt-1">
+                <Text className="text-sm text-muted-foreground">创建的账号将与主账号共享同一个租户的数据</Text>
+                <Text className="text-sm text-muted-foreground">公司名称和月租费用将自动继承主账号的设置</Text>
+              </View>
             )}
           </View>
 
@@ -247,18 +248,20 @@ export default function TenantForm() {
               </View>
             )}
 
-            {/* 公司名称 */}
-            <View>
-              <Text className="text-sm text-foreground mb-2">公司名称</Text>
-              <View style={{overflow: 'hidden'}}>
-                <Input
-                  className="bg-input rounded-lg px-4 py-3 border border-border"
-                  placeholder="请输入公司名称"
-                  value={formData.company_name}
-                  onInput={(e) => setFormData({...formData, company_name: e.detail.value})}
-                />
+            {/* 公司名称（仅主账号创建和编辑时显示） */}
+            {mode !== 'create_peer' && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">公司名称</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="请输入公司名称"
+                    value={formData.company_name}
+                    onInput={(e) => setFormData({...formData, company_name: e.detail.value})}
+                  />
+                </View>
               </View>
-            </View>
+            )}
 
             {/* 租赁开始日期（仅主账号创建时显示） */}
             {mode === 'create' && (
@@ -290,19 +293,21 @@ export default function TenantForm() {
               </View>
             )}
 
-            {/* 月租费用 */}
-            <View>
-              <Text className="text-sm text-foreground mb-2">月租费用</Text>
-              <View style={{overflow: 'hidden'}}>
-                <Input
-                  className="bg-input rounded-lg px-4 py-3 border border-border"
-                  placeholder="请输入月租费用"
-                  type="digit"
-                  value={formData.monthly_fee}
-                  onInput={(e) => setFormData({...formData, monthly_fee: e.detail.value})}
-                />
+            {/* 月租费用（仅主账号创建和编辑时显示） */}
+            {mode !== 'create_peer' && (
+              <View>
+                <Text className="text-sm text-foreground mb-2">月租费用</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-input rounded-lg px-4 py-3 border border-border"
+                    placeholder="请输入月租费用"
+                    type="digit"
+                    value={formData.monthly_fee}
+                    onInput={(e) => setFormData({...formData, monthly_fee: e.detail.value})}
+                  />
+                </View>
               </View>
-            </View>
+            )}
 
             {/* 备注 */}
             <View>
