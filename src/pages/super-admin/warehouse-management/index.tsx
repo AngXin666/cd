@@ -107,9 +107,10 @@ const WarehouseManagement: React.FC = () => {
         setShowAddWarehouse(false)
         await loadWarehouses()
       }
-    } catch (_error) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '创建失败'
       showToast({
-        title: '创建失败',
+        title: errorMessage,
         icon: 'none',
         duration: 2000
       })

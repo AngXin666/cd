@@ -666,7 +666,11 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
 
   if (error) {
     console.error('创建仓库失败:', error)
-    return null
+    // 检查是否是重复名称错误
+    if (error.code === '23505' && error.message.includes('warehouses_name_key')) {
+      throw new Error('仓库名称已存在，请使用其他名称')
+    }
+    throw new Error('创建仓库失败，请稍后重试')
   }
 
   return data
