@@ -31,8 +31,12 @@ details: 'Key (target_user_id)=(xxx) is not present in table "profiles".'
 **修复方案**：
 1. 删除 `trigger_audit_profile_delete` 触发器（删除用户时不再记录审计日志）
 2. 将 `target_user_id` 外键约束改为 `ON DELETE CASCADE`（删除用户时自动删除相关审计日志）
+3. 修改 `log_permission_change` 函数，添加用户存在性检查和异常处理
 
-**迁移文件**：`01001_fix_permission_audit_logs_cascade_delete.sql`  
+**迁移文件**：
+- `01001_fix_permission_audit_logs_cascade_delete.sql`
+- `01002_fix_log_permission_change_for_deleted_users.sql`
+
 **状态**：✅ 已修复
 
 ## 🔧 修复详情
@@ -56,11 +60,15 @@ details: 'Key (target_user_id)=(xxx) is not present in table "profiles".'
 
 ### 修复 3：修复审计日志外键约束
 
-**文件**：`supabase/migrations/01001_fix_permission_audit_logs_cascade_delete.sql`
+**文件**：
+- `supabase/migrations/01001_fix_permission_audit_logs_cascade_delete.sql`
+- `supabase/migrations/01002_fix_log_permission_change_for_deleted_users.sql`
 
 **效果**：
 - ✅ 删除用户时不再尝试记录审计日志
 - ✅ 删除用户时，相关的审计日志会被自动删除
+- ✅ `log_permission_change` 函数会检查用户是否存在
+- ✅ 如果用户不存在，静默失败，不影响主操作
 - ✅ 不会再出现外键约束冲突
 
 ### 修复 4：添加详细的删除日志
@@ -100,7 +108,8 @@ details: 'Key (target_user_id)=(xxx) is not present in table "profiles".'
 
 1. `00999_add_lease_admin_delete_permission.sql` - 添加租赁管理员删除权限
 2. `01000_fix_delete_last_warehouse_for_lease_admin.sql` - 修复仓库删除约束
-3. `01001_fix_permission_audit_logs_cascade_delete.sql` - 修复审计日志外键约束
+3. `01001_fix_permission_audit_logs_cascade_delete.sql` - 修复审计日志外键约束（删除触发器）
+4. `01002_fix_log_permission_change_for_deleted_users.sql` - 修复审计日志函数（添加用户存在性检查）
 
 ## 🎯 修复效果
 
