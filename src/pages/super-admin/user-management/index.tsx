@@ -41,6 +41,7 @@ interface UserWithRealName extends Profile {
 
 const UserManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null) // 当前登录用户的完整信息
   const [users, setUsers] = useState<UserWithRealName[]>([])
   const [filteredUsers, setFilteredUsers] = useState<UserWithRealName[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -90,10 +91,28 @@ const UserManagement: React.FC = () => {
 
       // 角色过滤
       if (role !== 'all') {
-        // 特殊处理：当角色为 manager 时，只显示车队长
-        // 不显示 super_admin（老板账号和平级账号）
+        // 特殊处理：当角色为 manager 时，根据当前登录用户类型决定显示内容
         if (role === 'manager') {
-          filtered = filtered.filter((u) => u.role === 'manager')
+          // 判断当前登录用户是主账号还是平级账号
+          const isMainAccount = currentUserProfile?.main_account_id === null
+          const isPeerAccount = currentUserProfile?.main_account_id !== null
+
+          if (isMainAccount) {
+            // 主账号登录：显示车队长 + 平级账号（不显示自己）
+            filtered = filtered.filter((u) => {
+              // 显示车队长
+              if (u.role === 'manager') return true
+              // 显示平级账号（但不显示自己）
+              if (u.role === 'super_admin' && u.main_account_id !== null && u.id !== user?.id) return true
+              return false
+            })
+          } else if (isPeerAccount) {
+            // 平级账号登录：只显示车队长
+            filtered = filtered.filter((u) => u.role === 'manager')
+          } else {
+            // 其他情况（理论上不应该出现）：只显示车队长
+            filtered = filtered.filter((u) => u.role === 'manager')
+          }
         } else {
           filtered = filtered.filter((u) => u.role === role)
         }
@@ -128,7 +147,7 @@ const UserManagement: React.FC = () => {
 
       setFilteredUsers(filtered)
     },
-    [warehouses, userWarehouseIdsMap]
+    [warehouses, userWarehouseIdsMap, currentUserProfile, user]
   )
 
   // 加载仓库列表
@@ -153,6 +172,22 @@ const UserManagement: React.FC = () => {
       console.log('当前登录用户:', user)
       console.log('强制刷新:', forceRefresh)
       console.log('========================================')
+
+      // 先加载当前登录用户的完整信息（包括 main_account_id）
+      if (!currentUserProfile && user) {
+        try {
+          const {data: profile, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+
+          if (!error && profile) {
+            setCurrentUserProfile(profile)
+            console.log('✅ 当前用户信息:', profile)
+            console.log('是否为主账号:', profile.main_account_id === null)
+            console.log('是否为平级账号:', profile.main_account_id !== null)
+          }
+        } catch (error) {
+          console.error('加载当前用户信息失败:', error)
+        }
+      }
 
       // 如果不是强制刷新，先尝试从缓存加载
       if (!forceRefresh) {
@@ -256,7 +291,7 @@ const UserManagement: React.FC = () => {
         setLoading(false)
       }
     },
-    [searchKeyword, roleFilter, currentWarehouseIndex, filterUsers, user]
+    [searchKeyword, roleFilter, currentWarehouseIndex, filterUsers, user, currentUserProfile]
   )
 
   // 搜索关键词变化
