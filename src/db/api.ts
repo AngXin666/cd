@@ -3649,8 +3649,8 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
     return null
   }
 
-  // 如果是老板，返回所有权限
-  if (profile.role === 'super_admin') {
+  // 如果是老板或平级管理员，返回所有权限
+  if (profile.role === 'super_admin' || profile.role === 'peer_admin') {
     const now = new Date().toISOString()
     return {
       id: managerId, // 使用 managerId 作为 id
@@ -8095,13 +8095,13 @@ export async function checkUserLeaseStatus(
     let mainAccountId: string
     let isMainAccount = false
 
-    if (user.role === 'super_admin' && user.main_account_id === null) {
-      // 当前用户是主账号（老板号）
-      // 老板号的租期记录中，boss_id 应该是老板号自己的 boss_id
+    if ((user.role === 'super_admin' || user.role === 'peer_admin') && user.main_account_id === null) {
+      // 当前用户是主账号（老板号或独立的平级管理员）
+      // 主账号的租期记录中，boss_id 应该是主账号自己的 boss_id
       mainAccountId = user.boss_id || user.id
       isMainAccount = true
-      console.log('[租期检测] 当前用户是主账号（老板号），boss_id:', mainAccountId)
-    } else if (user.role === 'super_admin' && user.main_account_id !== null) {
+      console.log('[租期检测] 当前用户是主账号，boss_id:', mainAccountId)
+    } else if ((user.role === 'super_admin' || user.role === 'peer_admin') && user.main_account_id !== null) {
       // 当前用户是平级账号，需要查询主账号的 boss_id
       const {data: mainAccount} = await supabase
         .from('profiles')

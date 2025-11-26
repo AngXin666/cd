@@ -1,4 +1,4 @@
-export type UserRole = 'driver' | 'manager' | 'super_admin' | 'lease_admin'
+export type UserRole = 'driver' | 'manager' | 'super_admin' | 'peer_admin' | 'lease_admin'
 
 // 司机类型（与数据库枚举值匹配）
 export type DriverType = 'pure' | 'with_vehicle'
