@@ -1046,6 +1046,19 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
+  // 检查是否已经存在该分配
+  const {data: existingAssignment} = await supabase
+    .from('manager_warehouses')
+    .select('id')
+    .eq('manager_id', input.manager_id)
+    .eq('warehouse_id', input.warehouse_id)
+    .maybeSingle()
+
+  if (existingAssignment) {
+    console.log('该车队长已经被分配到此仓库，无需重复分配')
+    return true
+  }
+
   const {error} = await supabase.from('manager_warehouses').insert({
     ...input,
     boss_id: profile.boss_id
