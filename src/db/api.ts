@@ -5818,26 +5818,43 @@ export async function createNotification(notification: {
   try {
     logger.info('创建通知', notification)
 
-    const {data, error} = await supabase
-      .from('notifications')
-      .insert({
-        user_id: notification.user_id,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        related_id: notification.related_id,
-        is_read: false
-      })
-      .select('id')
-      .maybeSingle()
+    // 使用 create_notifications_batch 函数来创建通知，利用其向后兼容性
+    const {data, error} = await supabase.rpc('create_notifications_batch', {
+      notifications: [
+        {
+          user_id: notification.user_id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          related_id: notification.related_id || null,
+          is_read: false
+        }
+      ]
+    })
 
     if (error) {
       logger.error('创建通知失败', error)
       return null
     }
 
-    logger.info('创建通知成功', {notificationId: data?.id})
-    return data?.id || null
+    // 查询刚创建的通知ID
+    const {data: createdNotification, error: queryError} = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('recipient_id', notification.user_id)
+      .eq('type', notification.type)
+      .eq('title', notification.title)
+      .order('created_at', {ascending: false})
+      .limit(1)
+      .maybeSingle()
+
+    if (queryError) {
+      logger.error('查询通知ID失败', queryError)
+      return null
+    }
+
+    logger.info('创建通知成功', {notificationId: createdNotification?.id})
+    return createdNotification?.id || null
   } catch (error) {
     logger.error('创建通知异常', error)
     return null
