@@ -210,18 +210,6 @@ const ApplyLeave: React.FC = () => {
     }
   }, [mode, startDate, endDate, calculateDays])
 
-  // 快捷请假模式：当用户手动修改结束日期时，重新计算天数和quickDays
-  useEffect(() => {
-    if (mode === 'quick' && startDate && endDate) {
-      const days = calculateDays(startDate, endDate)
-      // 只有当天数发生变化时才更新
-      if (days !== quickDays) {
-        setQuickDays(days)
-        setLeaveDays(days)
-      }
-    }
-  }, [mode, startDate, endDate, calculateDays, quickDays])
-
   // 计算实际可用的快捷天数上限（基于剩余额度）
   useEffect(() => {
     if (monthlyLimit > 0) {
@@ -325,7 +313,15 @@ const ApplyLeave: React.FC = () => {
   }
 
   const handleEndDateChange = (e: any) => {
-    setEndDate(e.detail.value)
+    const newEndDate = e.detail.value
+    setEndDate(newEndDate)
+
+    // 快捷请假模式下，用户手动修改结束日期时，重新计算天数
+    if (mode === 'quick' && startDate && newEndDate) {
+      const days = calculateDays(startDate, newEndDate)
+      setQuickDays(days)
+      setLeaveDays(days)
+    }
   }
 
   const handleSaveDraft = async () => {
