@@ -3,7 +3,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
 import {
   activateTenant,
-  deleteTenant,
+  deleteTenantWithLog,
   getAllTenants,
   getManagersByTenantId,
   getPeerAccountsByMainId,
@@ -176,12 +176,34 @@ export default function TenantList() {
       // 显示加载提示
       Taro.showLoading({title: '删除中...', mask: true})
 
-      const success = await deleteTenant(id)
+      const deleteResult = await deleteTenantWithLog(id)
 
       Taro.hideLoading()
 
-      if (success) {
-        Taro.showToast({title: '删除成功', icon: 'success'})
+      if (deleteResult.success) {
+        // 构建删除成功的详细信息
+        const data = deleteResult.deletedData
+        let successMsg = '删除成功！\n\n'
+        successMsg += `已删除：\n`
+        successMsg += `• 租户：${data?.tenant}\n`
+        successMsg += `• 平级账号：${data?.peerAccounts || 0} 个\n`
+        successMsg += `• 车队长：${data?.managers || 0} 名\n`
+        successMsg += `• 司机：${data?.drivers || 0} 名\n`
+        successMsg += `• 车辆：${data?.vehicles || 0} 辆\n`
+        successMsg += `• 仓库：${data?.warehouses || 0} 个\n`
+        successMsg += `• 考勤记录：${data?.attendance || 0} 条\n`
+        successMsg += `• 请假记录：${data?.leaves || 0} 条\n`
+        successMsg += `• 计件记录：${data?.pieceWorks || 0} 条\n`
+        successMsg += `• 通知：${data?.notifications || 0} 条\n\n`
+        successMsg += `总计删除：${data?.total || 0} 条记录`
+
+        await Taro.showModal({
+          title: '✅ 删除成功',
+          content: successMsg,
+          showCancel: false,
+          confirmText: '确定'
+        })
+
         // 清除缓存的数据
         const newManagersMap = new Map(managersMap)
         newManagersMap.delete(id)
@@ -198,7 +220,19 @@ export default function TenantList() {
         // 重新加载列表
         loadTenants()
       } else {
-        Taro.showToast({title: '删除失败，请重试', icon: 'none', duration: 2000})
+        // 显示详细的错误信息
+        let errorMsg = `删除失败\n\n`
+        errorMsg += `原因：${deleteResult.message}\n`
+        if (deleteResult.error) {
+          errorMsg += `详情：${deleteResult.error}`
+        }
+
+        await Taro.showModal({
+          title: '❌ 删除失败',
+          content: errorMsg,
+          showCancel: false,
+          confirmText: '确定'
+        })
       }
     }
   }

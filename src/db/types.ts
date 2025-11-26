@@ -1168,3 +1168,25 @@ export interface CreateNotificationInput {
   content: string
   action_url?: string
 }
+
+/**
+ * 删除租户结果
+ */
+export interface DeleteTenantResult {
+  success: boolean
+  message: string
+  deletedData?: {
+    tenant: string
+    peerAccounts: number
+    managers: number
+    drivers: number
+    vehicles: number
+    warehouses: number
+    attendance: number
+    leaves: number
+    pieceWorks: number
+    notifications: number
+    total: number
+  }
+  error?: string
+}

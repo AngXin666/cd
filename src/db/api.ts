@@ -8146,3 +8146,168 @@ export async function sendVerificationReminder(
     return false
   }
 }
+
+/**
+ * 删除租户结果
+ */
+export interface DeleteTenantResult {
+  success: boolean
+  message: string
+  deletedData?: {
+    tenant: string
+    peerAccounts: number
+    managers: number
+    drivers: number
+    vehicles: number
+    warehouses: number
+    attendance: number
+    leaves: number
+    pieceWorks: number
+    notifications: number
+    total: number
+  }
+  error?: string
+}
+
+/**
+ * 删除租户（老板账号）- 带详细日志版本
+ * 会级联删除该租户下的所有数据
+ */
+export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResult> {
+  try {
+    // 1. 验证是否为主账号
+    const {data: tenant, error: fetchError} = await supabase
+      .from('profiles')
+      .select('id, role, main_account_id, name, phone')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (fetchError) {
+      console.error('查询租户信息失败:', fetchError)
+      return {
+        success: false,
+        message: '查询租户信息失败',
+        error: fetchError.message
+      }
+    }
+
+    if (!tenant) {
+      console.error('租户不存在')
+      return {
+        success: false,
+        message: '租户不存在',
+        error: '未找到指定的租户'
+      }
+    }
+
+    // 确保是老板账号
+    if (tenant.role !== 'super_admin') {
+      console.error('只能删除老板账号，当前角色:', tenant.role)
+      return {
+        success: false,
+        message: '只能删除老板账号',
+        error: `当前用户角色为 ${tenant.role}，不是 super_admin`
+      }
+    }
+
+    // 确保是主账号（不是平级账号）
+    if (tenant.main_account_id !== null) {
+      console.error('只能删除主账号，不能删除平级账号')
+      return {
+        success: false,
+        message: '只能删除主账号，不能删除平级账号',
+        error: '请删除主账号，平级账号会自动级联删除'
+      }
+    }
+
+    // 2. 统计将要删除的数据
+    const [
+      {data: peerAccounts},
+      {data: managers},
+      {data: drivers},
+      {data: vehicles},
+      {data: warehouses},
+      {data: attendance},
+      {data: leaves},
+      {data: pieceWorks},
+      {data: notifications}
+    ] = await Promise.all([
+      supabase.from('profiles').select('id').eq('role', 'super_admin').eq('main_account_id', id),
+      supabase.from('profiles').select('id').eq('role', 'manager').eq('boss_id', id),
+      supabase.from('profiles').select('id').eq('role', 'driver').eq('boss_id', id),
+      supabase.from('vehicles').select('id').eq('tenant_id', id),
+      supabase.from('warehouses').select('id').eq('tenant_id', id),
+      supabase.from('attendance').select('id').eq('tenant_id', id),
+      supabase.from('leave_applications').select('id').eq('tenant_id', id),
+      supabase.from('piece_work_records').select('id').eq('tenant_id', id),
+      supabase.from('notifications').select('id').eq('tenant_id', id)
+    ])
+
+    const stats = {
+      tenant: `${tenant.name || '未命名'} (${tenant.phone || '无手机号'})`,
+      peerAccounts: peerAccounts?.length || 0,
+      managers: managers?.length || 0,
+      drivers: drivers?.length || 0,
+      vehicles: vehicles?.length || 0,
+      warehouses: warehouses?.length || 0,
+      attendance: attendance?.length || 0,
+      leaves: leaves?.length || 0,
+      pieceWorks: pieceWorks?.length || 0,
+      notifications: notifications?.length || 0,
+      total: 0
+    }
+
+    stats.total =
+      1 + // 租户本身
+      stats.peerAccounts +
+      stats.managers +
+      stats.drivers +
+      stats.vehicles +
+      stats.warehouses +
+      stats.attendance +
+      stats.leaves +
+      stats.pieceWorks +
+      stats.notifications
+
+    console.log('准备删除租户:', stats)
+
+    // 3. 删除主账号（会自动级联删除所有关联数据）
+    const {error: deleteError} = await supabase.from('profiles').delete().eq('id', id)
+
+    if (deleteError) {
+      console.error('删除老板账号失败:', deleteError)
+      return {
+        success: false,
+        message: '删除失败',
+        error: deleteError.message
+      }
+    }
+
+    // 4. 验证删除是否成功
+    const {data: verifyTenant} = await supabase.from('profiles').select('id').eq('id', id).maybeSingle()
+
+    if (verifyTenant) {
+      console.error('删除失败：租户仍然存在')
+      return {
+        success: false,
+        message: '删除失败：租户仍然存在',
+        error: '可能是权限不足或数据库约束问题',
+        deletedData: stats
+      }
+    }
+
+    console.log('成功删除租户及其所有关联数据')
+    return {
+      success: true,
+      message: '删除成功',
+      deletedData: stats
+    }
+  } catch (error) {
+    console.error('删除老板账号异常:', error)
+    return {
+      success: false,
+      message: '删除异常',
+      error: error instanceof Error ? error.message : String(error)
+    }
+  }
+}
