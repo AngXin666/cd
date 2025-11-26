@@ -1,9 +1,11 @@
 import {ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
+import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'
 import {getLeaseStats} from '@/db/api'
 
 export default function LeaseAdminDashboard() {
+  const {logout} = useAuth()
   const [stats, setStats] = useState({
     totalTenants: 0,
     activeTenants: 0,
@@ -40,13 +42,38 @@ export default function LeaseAdminDashboard() {
     Taro.navigateTo({url})
   }
 
+  // 退出登录
+  const handleLogout = useCallback(() => {
+    Taro.showModal({
+      title: '退出登录',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          logout()
+          Taro.showToast({
+            title: '已退出登录',
+            icon: 'success'
+          })
+        }
+      }
+    })
+  }, [logout])
+
   return (
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <ScrollView scrollY className="h-screen box-border">
         <View className="p-4">
-          {/* 页面标题 */}
+          {/* 页面标题和退出登录按钮 */}
           <View className="mb-6">
-            <Text className="text-2xl font-bold text-primary">租赁系统管理</Text>
+            <View className="flex flex-row items-center justify-between mb-2">
+              <Text className="text-2xl font-bold text-primary">租赁系统管理</Text>
+              <View
+                className="flex flex-row items-center bg-red-500 px-4 py-2 rounded-lg active:bg-red-600 transition-colors"
+                onClick={handleLogout}>
+                <View className="i-mdi-logout text-white text-lg mr-1"></View>
+                <Text className="text-white text-sm font-medium">退出登录</Text>
+              </View>
+            </View>
             <View className="mt-1">
               <Text className="text-sm text-muted-foreground">管理租用车队管家小程序的客户</Text>
             </View>

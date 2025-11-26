@@ -1,4 +1,5 @@
 export default definePageConfig({
   navigationBarTitleText: '老板账号管理',
-  enableShareAppMessage: false
+  enableShareAppMessage: false,
+  disableSwipeBack: false
 })
