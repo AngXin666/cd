@@ -39,22 +39,27 @@ export type NotificationProcessStatus = 'pending' | 'processed' | 'info_only'
 // 通知接口
 export interface Notification {
   id: string
-  user_id: string
-  type: NotificationType
+  recipient_id: string // 改为recipient_id以匹配新表结构
+  sender_id: string // 新增
+  sender_name: string // 新增
+  sender_role: string // 新增
+  type: NotificationType | string // 支持字符串类型
   category: NotificationCategory
   title: string
-  message: string
+  content: string // 改为content以匹配新表结构
+  action_url: string | null // 新增
   related_id: string | null
   is_read: boolean
   created_at: string
+  updated_at?: string // 新增
 }
 
 /**
  * 判断通知是否为待处理状态
  * 待处理状态：需要管理员进行操作的申请类通知
  */
-export function isNotificationPending(type: NotificationType): boolean {
-  const pendingTypes: NotificationType[] = [
+export function isNotificationPending(type: NotificationType | string): boolean {
+  const pendingTypes: string[] = [
     'leave_application_submitted', // 请假申请提交
     'resignation_application_submitted', // 离职申请提交
     'vehicle_review_pending' // 车辆待审核
@@ -66,8 +71,8 @@ export function isNotificationPending(type: NotificationType): boolean {
  * 判断通知是否为已处理状态
  * 已处理状态：申请已被审批或拒绝的通知
  */
-export function isNotificationProcessed(type: NotificationType): boolean {
-  const processedTypes: NotificationType[] = [
+export function isNotificationProcessed(type: NotificationType | string): boolean {
+  const processedTypes: string[] = [
     'leave_approved', // 请假批准
     'leave_rejected', // 请假拒绝
     'resignation_approved', // 离职批准
@@ -81,7 +86,7 @@ export function isNotificationProcessed(type: NotificationType): boolean {
 /**
  * 获取通知的处理状态
  */
-export function getNotificationProcessStatus(type: NotificationType): NotificationProcessStatus {
+export function getNotificationProcessStatus(type: NotificationType | string): NotificationProcessStatus {
   if (isNotificationPending(type)) {
     return 'pending'
   }
@@ -94,7 +99,7 @@ export function getNotificationProcessStatus(type: NotificationType): Notificati
 /**
  * 获取通知状态标签
  */
-export function getNotificationStatusLabel(type: NotificationType): string {
+export function getNotificationStatusLabel(type: NotificationType | string): string {
   switch (type) {
     case 'leave_application_submitted':
       return '待审批'
@@ -122,7 +127,7 @@ export function getNotificationStatusLabel(type: NotificationType): string {
 /**
  * 获取通知状态颜色
  */
-export function getNotificationStatusColor(type: NotificationType): string {
+export function getNotificationStatusColor(type: NotificationType | string): string {
   const status = getNotificationProcessStatus(type)
   switch (status) {
     case 'pending':
@@ -153,7 +158,7 @@ export async function getUserNotifications(userId: string, limit = 50): Promise<
     const {data, error} = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', userId)
+      .eq('recipient_id', userId)
       .order('created_at', {ascending: false})
       .limit(limit)
 
@@ -181,7 +186,7 @@ export async function getUnreadNotificationCount(userId: string): Promise<number
     const {count, error} = await supabase
       .from('notifications')
       .select('*', {count: 'exact', head: true})
-      .eq('user_id', userId)
+      .eq('recipient_id', userId)
       .eq('is_read', false)
 
     if (error) {
@@ -231,7 +236,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<boolea
     const {error} = await supabase
       .from('notifications')
       .update({is_read: true})
-      .eq('user_id', userId)
+      .eq('recipient_id', userId)
       .eq('is_read', false)
 
     if (error) {
@@ -310,7 +315,7 @@ export async function deleteReadNotifications(userId: string): Promise<boolean> 
   try {
     logger.db('删除所有已读通知', 'notifications', {userId})
 
-    const {error} = await supabase.from('notifications').delete().eq('user_id', userId).eq('is_read', true)
+    const {error} = await supabase.from('notifications').delete().eq('recipient_id', userId).eq('is_read', true)
 
     if (error) {
       logger.error('删除所有已读通知失败', error)
@@ -341,7 +346,7 @@ export function subscribeToNotifications(userId: string, callback: (notification
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
-        filter: `user_id=eq.${userId}`
+        filter: `recipient_id=eq.${userId}`
       },
       (payload) => {
         logger.info('收到新通知', payload)
@@ -362,7 +367,7 @@ export function subscribeToNotifications(userId: string, callback: (notification
  * @param type 通知类型
  * @returns 通知分类
  */
-export function getNotificationCategory(type: NotificationType): NotificationCategory {
+export function getNotificationCategory(type: NotificationType | string): NotificationCategory {
   // 请假离职信息
   if (
     type === 'leave_application_submitted' ||
@@ -420,17 +425,35 @@ export async function createNotification(
       return false
     }
 
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+    if (!user) {
+      logger.error('创建通知失败：无法获取当前用户信息')
+      return false
+    }
+
+    // 获取发送者的profile信息
+    const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+    const senderName = senderProfile?.name || '系统'
+    const senderRole = senderProfile?.role || 'system'
+
     // 自动确定分类
     const category = getNotificationCategory(type)
 
     logger.db('创建通知', 'notifications', {userId, type, category, title, message, relatedId})
 
     const {error} = await supabase.from('notifications').insert({
-      user_id: userId,
+      recipient_id: userId,
+      sender_id: user.id,
+      sender_name: senderName,
+      sender_role: senderRole,
       type,
-      category,
       title,
-      message,
+      content: message,
+      action_url: null,
       related_id: relatedId || null,
       is_read: false
     })
@@ -465,12 +488,30 @@ export async function createNotifications(
   try {
     logger.db('批量创建通知', 'notifications', {count: notifications.length})
 
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+    if (!user) {
+      logger.error('批量创建通知失败：无法获取当前用户信息')
+      return false
+    }
+
+    // 获取发送者的profile信息
+    const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+    const senderName = senderProfile?.name || '系统'
+    const senderRole = senderProfile?.role || 'system'
+
     const notificationData = notifications.map((n) => ({
-      user_id: n.userId,
+      recipient_id: n.userId,
+      sender_id: user.id,
+      sender_name: senderName,
+      sender_role: senderRole,
       type: n.type,
-      category: getNotificationCategory(n.type), // 自动确定分类
       title: n.title,
-      message: n.message,
+      content: n.message,
+      action_url: null,
       related_id: n.relatedId || null,
       is_read: false
     }))

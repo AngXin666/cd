@@ -409,7 +409,7 @@ const RealNotificationBar: React.FC = () => {
               transform: isScrolling ? 'translateX(0)' : 'translateX(0)'
             }}>
             <Text className="text-sm font-medium text-foreground mr-4">{currentNotification.title}</Text>
-            <Text className="text-xs text-muted-foreground">{currentNotification.message}</Text>
+            <Text className="text-xs text-muted-foreground">{currentNotification.content}</Text>
           </View>
         </View>
 

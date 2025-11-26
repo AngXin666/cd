@@ -714,7 +714,7 @@ const NotificationsPage: React.FC = () => {
 
                             {/* 通知内容 */}
                             <View className="ml-6">
-                              <Text className="text-sm text-gray-600 mb-3 leading-relaxed">{notification.message}</Text>
+                              <Text className="text-sm text-gray-600 mb-3 leading-relaxed">{notification.content}</Text>
 
                               {/* 通知底部：时间和操作提示 */}
                               <View className="flex items-center justify-between">
