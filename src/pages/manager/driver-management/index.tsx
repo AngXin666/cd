@@ -67,6 +67,9 @@ const DriverManagement: React.FC = () => {
   const [newDriverWarehouseIds, setNewDriverWarehouseIds] = useState<string[]>([]) // 新司机的仓库分配
   const [addingDriver, setAddingDriver] = useState(false)
 
+  // 车队长权限状态
+  const [managerPermissionsEnabled, setManagerPermissionsEnabled] = useState<boolean>(true) // 默认为true，加载后更新
+
   // 过滤后的司机列表（支持搜索实名和仓库过滤）
   const filteredDrivers = useMemo(() => {
     let result = drivers
@@ -195,19 +198,37 @@ const DriverManagement: React.FC = () => {
     [warehouses]
   )
 
+  // 加载车队长权限状态
+  const loadManagerPermissions = useCallback(async () => {
+    if (!user?.id) return
+    logger.info('开始加载车队长权限状态', {managerId: user.id})
+    try {
+      const currentUser = await getCurrentUserWithRealName()
+      if (currentUser) {
+        const enabled = currentUser.manager_permissions_enabled ?? true // 默认为true
+        setManagerPermissionsEnabled(enabled)
+        logger.info(`车队长权限状态: ${enabled ? '已启用' : '已禁用'}`, {managerId: user.id})
+      }
+    } catch (error) {
+      logger.error('加载车队长权限状态失败', error)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     loadDrivers()
     loadWarehouses()
-  }, [loadDrivers, loadWarehouses])
+    loadManagerPermissions()
+  }, [loadDrivers, loadWarehouses, loadManagerPermissions])
 
   useDidShow(() => {
     loadDrivers()
     loadWarehouses()
+    loadManagerPermissions()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadDrivers(), loadWarehouses()])
+    await Promise.all([loadDrivers(), loadWarehouses(), loadManagerPermissions()])
     Taro.stopPullDownRefresh()
   })
 
@@ -626,6 +647,21 @@ const DriverManagement: React.FC = () => {
 
           {warehouses.length > 0 && (
             <>
+              {/* 权限禁用提示 */}
+              {!managerPermissionsEnabled && (
+                <View className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                  <View className="flex items-start">
+                    <View className="i-mdi-lock text-orange-600 text-xl mr-2 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-orange-800 text-sm block mb-1 font-medium">权限已禁用</Text>
+                      <Text className="text-orange-700 text-xs block">
+                        您的用户信息修改权限已被禁用，无法添加司机、分配仓库或切换司机类型。如需开启权限，请联系管理员。
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
               {/* 司机列表 */}
               <View className="bg-white rounded-lg p-4 mb-4 shadow">
                 <View className="flex items-center justify-between mb-3">
@@ -633,13 +669,15 @@ const DriverManagement: React.FC = () => {
                     <View className="i-mdi-account-group text-blue-600 text-xl mr-2" />
                     <Text className="text-gray-800 text-base font-bold">选择司机</Text>
                   </View>
-                  {/* 添加司机按钮 */}
-                  <View
-                    onClick={toggleAddDriver}
-                    className="flex items-center bg-blue-600 rounded-lg px-3 py-2 active:scale-95 transition-all">
-                    <View className={`${showAddDriver ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
-                    <Text className="text-white text-xs font-medium">{showAddDriver ? '取消' : '添加司机'}</Text>
-                  </View>
+                  {/* 添加司机按钮 - 仅在权限启用时显示 */}
+                  {managerPermissionsEnabled && (
+                    <View
+                      onClick={toggleAddDriver}
+                      className="flex items-center bg-blue-600 rounded-lg px-3 py-2 active:scale-95 transition-all">
+                      <View className={`${showAddDriver ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
+                      <Text className="text-white text-xs font-medium">{showAddDriver ? '取消' : '添加司机'}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* 仓库切换器（多仓库时显示） */}
@@ -1015,28 +1053,32 @@ const DriverManagement: React.FC = () => {
                               <View className="i-mdi-car text-green-600 text-base mr-1.5" />
                               <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
                             </View>
-                            {/* 仓库分配按钮 */}
-                            <View
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleWarehouseAssignClick(driver)
-                              }}
-                              className="flex items-center justify-center bg-purple-50 border border-purple-200 rounded-lg py-2.5 active:bg-purple-100 transition-all">
-                              <View className="i-mdi-warehouse text-purple-600 text-base mr-1.5" />
-                              <Text className="text-purple-700 text-sm font-medium">仓库分配</Text>
-                            </View>
-                            {/* 司机类型切换按钮 */}
-                            <View
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleToggleDriverType(driver)
-                              }}
-                              className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg py-2.5 active:bg-orange-100 transition-all">
-                              <View className="i-mdi-swap-horizontal text-orange-600 text-base mr-1.5" />
-                              <Text className="text-orange-700 text-xs font-medium">
-                                {driver.driver_type === 'with_vehicle' ? '切换为纯司机' : '切换为带车'}
-                              </Text>
-                            </View>
+                            {/* 仓库分配按钮 - 仅在权限启用时显示 */}
+                            {managerPermissionsEnabled && (
+                              <View
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleWarehouseAssignClick(driver)
+                                }}
+                                className="flex items-center justify-center bg-purple-50 border border-purple-200 rounded-lg py-2.5 active:bg-purple-100 transition-all">
+                                <View className="i-mdi-warehouse text-purple-600 text-base mr-1.5" />
+                                <Text className="text-purple-700 text-sm font-medium">仓库分配</Text>
+                              </View>
+                            )}
+                            {/* 司机类型切换按钮 - 仅在权限启用时显示 */}
+                            {managerPermissionsEnabled && (
+                              <View
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleDriverType(driver)
+                                }}
+                                className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg py-2.5 active:bg-orange-100 transition-all">
+                                <View className="i-mdi-swap-horizontal text-orange-600 text-base mr-1.5" />
+                                <Text className="text-orange-700 text-xs font-medium">
+                                  {driver.driver_type === 'with_vehicle' ? '切换为纯司机' : '切换为带车'}
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
                           {/* 仓库分配面板 */}
