@@ -1423,7 +1423,30 @@ export async function getAllPieceWorkRecords(): Promise<PieceWorkRecord[]> {
 
 // 创建计件记录
 export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_records').insert(record)
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建计件记录失败: 用户未登录')
+    return false
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('创建计件记录失败: 无法获取 boss_id')
+    return false
+  }
+
+  // 3. 插入计件记录（自动添加 boss_id 和 tenant_id）
+  const {error} = await supabase.from('piece_work_records').insert({
+    ...record,
+    boss_id: profile.boss_id,
+    tenant_id: profile.boss_id
+  })
 
   if (error) {
     console.error('创建计件记录失败:', error)
@@ -1677,6 +1700,25 @@ export async function getCategoryPrice(warehouseId: string, categoryName: string
 
 // 创建或更新品类价格配置
 export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<boolean> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('保存品类价格配置失败: 用户未登录')
+    return false
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('保存品类价格配置失败: 无法获取 boss_id')
+    return false
+  }
+
+  // 3. 插入/更新价格配置（自动添加 boss_id 和 tenant_id）
   const {error} = await supabase.from('category_prices').upsert(
     {
       warehouse_id: input.warehouse_id,
@@ -1684,7 +1726,9 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
       unit_price: input.unit_price,
       upstairs_price: input.upstairs_price,
       sorting_unit_price: input.sorting_unit_price,
-      is_active: input.is_active ?? true
+      is_active: input.is_active ?? true,
+      boss_id: profile.boss_id,
+      tenant_id: profile.boss_id
     },
     {
       onConflict: 'warehouse_id,category_name'
@@ -1701,6 +1745,25 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
 
 // 批量创建或更新品类价格配置
 export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): Promise<boolean> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('批量保存品类价格配置失败: 用户未登录')
+    return false
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('批量保存品类价格配置失败: 无法获取 boss_id')
+    return false
+  }
+
+  // 3. 批量插入/更新价格配置（自动添加 boss_id 和 tenant_id）
   const {error} = await supabase.from('category_prices').upsert(
     inputs.map((input) => ({
       warehouse_id: input.warehouse_id,
@@ -1708,7 +1771,9 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
       unit_price: input.unit_price,
       upstairs_price: input.upstairs_price,
       sorting_unit_price: input.sorting_unit_price,
-      is_active: input.is_active ?? true
+      is_active: input.is_active ?? true,
+      boss_id: profile.boss_id,
+      tenant_id: profile.boss_id
     })),
     {
       onConflict: 'warehouse_id,category_name'
