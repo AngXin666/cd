@@ -7523,32 +7523,45 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    // 确定主账号ID
+    // 确定主账号ID（用于查询租期的tenant_id）
     let mainAccountId: string
     let isMainAccount = false
 
     if (user.role === 'super_admin' && user.main_account_id === null) {
       // 当前用户是主账号（老板号）
-      mainAccountId = user.id
+      // 老板号的租期记录中，tenant_id 应该是老板号自己的 tenant_id
+      mainAccountId = user.tenant_id || user.id
       isMainAccount = true
-      console.log('[租期检测] 当前用户是主账号（老板号）')
+      console.log('[租期检测] 当前用户是主账号（老板号），tenant_id:', mainAccountId)
     } else if (user.role === 'super_admin' && user.main_account_id !== null) {
-      // 当前用户是平级账号
-      mainAccountId = user.main_account_id
+      // 当前用户是平级账号，需要查询主账号的 tenant_id
+      const {data: mainAccount} = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', user.main_account_id)
+        .maybeSingle()
+
+      mainAccountId = mainAccount?.tenant_id || user.main_account_id
       isMainAccount = false
-      console.log('[租期检测] 当前用户是平级账号，主账号ID:', mainAccountId)
+      console.log('[租期检测] 当前用户是平级账号，主账号ID:', user.main_account_id, '主账号tenant_id:', mainAccountId)
     } else if (user.role === 'manager') {
-      // 当前用户是车队长，需要找到所属的主账号
-      mainAccountId = user.tenant_id || ''
+      // 当前用户是车队长，需要查询所属老板号的 tenant_id
+      const {data: bossAccount} = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', user.tenant_id)
+        .maybeSingle()
+
+      mainAccountId = bossAccount?.tenant_id || user.tenant_id || ''
       isMainAccount = false
-      console.log('[租期检测] 当前用户是车队长，主账号ID:', mainAccountId)
+      console.log('[租期检测] 当前用户是车队长，老板号ID:', user.tenant_id, '老板号tenant_id:', mainAccountId)
     } else {
       // 其他角色不受限制
       console.log('[租期检测] 其他角色，不受租期限制')
       return {status: 'ok'}
     }
 
-    console.log('[租期检测] 查询主账号租期，mainAccountId:', mainAccountId)
+    console.log('[租期检测] 查询租期，tenant_id:', mainAccountId)
 
     // 检查主账号是否有有效租期（只查询 active 状态的租期）
     const {data: leases, error: leaseError} = await supabase
