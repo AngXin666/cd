@@ -769,6 +769,25 @@ export async function getAllAttendanceRules(): Promise<AttendanceRule[]> {
  * 创建考勤规则
  */
 export async function createAttendanceRule(input: AttendanceRuleInput): Promise<AttendanceRule | null> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建考勤规则失败: 用户未登录')
+    throw new Error('用户未登录')
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('创建考勤规则失败: 无法获取 boss_id')
+    throw new Error('无法获取用户信息')
+  }
+
+  // 3. 插入考勤规则（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('attendance_rules')
     .insert({
@@ -777,14 +796,16 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
       work_end_time: input.work_end_time,
       late_threshold: input.late_threshold || 15,
       early_threshold: input.early_threshold || 15,
-      is_active: input.is_active !== undefined ? input.is_active : true
+      is_active: input.is_active !== undefined ? input.is_active : true,
+      boss_id: profile.boss_id,
+      tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
     })
     .select()
     .maybeSingle()
 
   if (error) {
     console.error('创建考勤规则失败:', error)
-    return null
+    throw new Error('创建考勤规则失败，请稍后重试')
   }
 
   return data
