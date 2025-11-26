@@ -1,22 +1,15 @@
 /*
-# 修复 attendance_records 表的 RLS 启用状态
+# 修复说明：attendance 表已启用 RLS
 
-## 问题
-attendance_records 表虽然定义了9个RLS策略，但表本身未启用RLS，导致：
-- 策略不生效
-- 租户间考勤数据可能泄露
-- 未授权用户可能访问其他租户的考勤记录
+## 检查结果
+经过检查，发现：
+- 表名为 attendance（不是 attendance_records）
+- RLS 已经启用 ✅
+- 策略已正确配置
 
-## 解决方案
-启用 RLS（策略已经存在，只需要启用表的RLS）
-
-## 影响
-- 修复后，已定义的RLS策略将生效
-- 用户只能访问自己租户的考勤数据
+## 结论
+此表无需修复，RLS 策略已正确配置。
 */
 
--- 启用 RLS
-ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
-
--- 添加注释
-COMMENT ON TABLE attendance_records IS '考勤记录表 - 已启用RLS租户隔离';
+-- 此迁移文件仅用于记录，无需执行任何操作
+-- attendance 表的 RLS 已经正确启用
