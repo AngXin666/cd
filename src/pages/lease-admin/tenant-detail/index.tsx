@@ -1,6 +1,6 @@
 import {ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import {useEffect, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import {getTenantById} from '@/db/api'
 import type {Profile} from '@/db/types'
 
@@ -8,7 +8,7 @@ export default function TenantDetail() {
   const [tenant, setTenant] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadTenant = async (id: string) => {
+  const loadTenant = useCallback(async (id: string) => {
     try {
       setLoading(true)
       const data = await getTenantById(id)
@@ -16,7 +16,7 @@ export default function TenantDetail() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params

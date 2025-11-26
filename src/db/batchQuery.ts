@@ -3,8 +3,8 @@
  * 用于优化 N+1 查询问题，提升查询性能
  */
 
-import { supabase } from './supabase';
-import { getCurrentUserBossId } from './tenant-utils';
+import {supabase} from './supabase'
+import {getCurrentUserBossId} from './tenant-utils'
 
 /**
  * 批量获取用户信息
@@ -12,20 +12,20 @@ import { getCurrentUserBossId } from './tenant-utils';
  * @returns 用户信息数组
  */
 export async function batchGetProfiles(userIds: string[]) {
-  if (userIds.length === 0) return [];
-  
-  const { data, error } = await supabase
+  if (userIds.length === 0) return []
+
+  const {data, error} = await supabase
     .from('profiles')
     .select('*')
     .in('id', userIds)
-    .eq('boss_id', getCurrentUserBossId());
-  
+    .eq('boss_id', getCurrentUserBossId())
+
   if (error) {
-    console.error('[批量查询] 获取用户信息失败:', error);
-    return [];
+    console.error('[批量查询] 获取用户信息失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -34,20 +34,20 @@ export async function batchGetProfiles(userIds: string[]) {
  * @returns 仓库信息数组
  */
 export async function batchGetWarehouses(warehouseIds: string[]) {
-  if (warehouseIds.length === 0) return [];
-  
-  const { data, error } = await supabase
+  if (warehouseIds.length === 0) return []
+
+  const {data, error} = await supabase
     .from('warehouses')
     .select('*')
     .in('id', warehouseIds)
-    .eq('boss_id', getCurrentUserBossId());
-  
+    .eq('boss_id', getCurrentUserBossId())
+
   if (error) {
-    console.error('[批量查询] 获取仓库信息失败:', error);
-    return [];
+    console.error('[批量查询] 获取仓库信息失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -56,20 +56,20 @@ export async function batchGetWarehouses(warehouseIds: string[]) {
  * @returns 车辆信息数组
  */
 export async function batchGetVehicles(vehicleIds: string[]) {
-  if (vehicleIds.length === 0) return [];
-  
-  const { data, error } = await supabase
+  if (vehicleIds.length === 0) return []
+
+  const {data, error} = await supabase
     .from('vehicles')
     .select('*')
     .in('id', vehicleIds)
-    .eq('boss_id', getCurrentUserBossId());
-  
+    .eq('boss_id', getCurrentUserBossId())
+
   if (error) {
-    console.error('[批量查询] 获取车辆信息失败:', error);
-    return [];
+    console.error('[批量查询] 获取车辆信息失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -78,7 +78,7 @@ export async function batchGetVehicles(vehicleIds: string[]) {
  * @returns 司机列表（包含仓库信息）
  */
 export async function getDriversWithWarehouses() {
-  const { data, error } = await supabase
+  const {data, error} = await supabase
     .from('profiles')
     .select(`
       *,
@@ -93,14 +93,14 @@ export async function getDriversWithWarehouses() {
     `)
     .eq('role', 'driver')
     .eq('boss_id', getCurrentUserBossId())
-    .order('created_at', { ascending: false });
-  
+    .order('created_at', {ascending: false})
+
   if (error) {
-    console.error('[批量查询] 获取司机列表失败:', error);
-    return [];
+    console.error('[批量查询] 获取司机列表失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -111,7 +111,7 @@ export async function getDriversWithWarehouses() {
  * @returns 考勤记录列表（包含用户信息）
  */
 export async function getAttendanceWithUsers(startDate: string, endDate: string) {
-  const { data, error } = await supabase
+  const {data, error} = await supabase
     .from('attendance')
     .select(`
       *,
@@ -124,14 +124,14 @@ export async function getAttendanceWithUsers(startDate: string, endDate: string)
     .eq('boss_id', getCurrentUserBossId())
     .gte('work_date', startDate)
     .lte('work_date', endDate)
-    .order('work_date', { ascending: false });
-  
+    .order('work_date', {ascending: false})
+
   if (error) {
-    console.error('[批量查询] 获取考勤记录失败:', error);
-    return [];
+    console.error('[批量查询] 获取考勤记录失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -142,7 +142,7 @@ export async function getAttendanceWithUsers(startDate: string, endDate: string)
  * @returns 车辆记录列表（包含车辆和司机信息）
  */
 export async function getVehicleRecordsWithDetails(startDate: string, endDate: string) {
-  const { data, error } = await supabase
+  const {data, error} = await supabase
     .from('vehicle_records')
     .select(`
       *,
@@ -160,14 +160,14 @@ export async function getVehicleRecordsWithDetails(startDate: string, endDate: s
     .eq('boss_id', getCurrentUserBossId())
     .gte('created_at', startDate)
     .lte('created_at', endDate)
-    .order('created_at', { ascending: false });
-  
+    .order('created_at', {ascending: false})
+
   if (error) {
-    console.error('[批量查询] 获取车辆记录失败:', error);
-    return [];
+    console.error('[批量查询] 获取车辆记录失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -178,7 +178,7 @@ export async function getVehicleRecordsWithDetails(startDate: string, endDate: s
  * @returns 计件记录列表（包含用户和仓库信息）
  */
 export async function getPieceWorkRecordsWithDetails(startDate: string, endDate: string) {
-  const { data, error } = await supabase
+  const {data, error} = await supabase
     .from('piece_work_records')
     .select(`
       *,
@@ -195,14 +195,14 @@ export async function getPieceWorkRecordsWithDetails(startDate: string, endDate:
     .eq('boss_id', getCurrentUserBossId())
     .gte('work_date', startDate)
     .lte('work_date', endDate)
-    .order('work_date', { ascending: false });
-  
+    .order('work_date', {ascending: false})
+
   if (error) {
-    console.error('[批量查询] 获取计件记录失败:', error);
-    return [];
+    console.error('[批量查询] 获取计件记录失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -227,20 +227,20 @@ export async function getLeaveApplicationsWithUsers(status?: string) {
       )
     `)
     .eq('boss_id', getCurrentUserBossId())
-    .order('created_at', { ascending: false });
-  
+    .order('created_at', {ascending: false})
+
   if (status) {
-    query = query.eq('status', status);
+    query = query.eq('status', status)
   }
-  
-  const { data, error } = await query;
-  
+
+  const {data, error} = await query
+
   if (error) {
-    console.error('[批量查询] 获取请假申请失败:', error);
-    return [];
+    console.error('[批量查询] 获取请假申请失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -265,20 +265,20 @@ export async function getResignationApplicationsWithUsers(status?: string) {
       )
     `)
     .eq('boss_id', getCurrentUserBossId())
-    .order('created_at', { ascending: false });
-  
+    .order('created_at', {ascending: false})
+
   if (status) {
-    query = query.eq('status', status);
+    query = query.eq('status', status)
   }
-  
-  const { data, error } = await query;
-  
+
+  const {data, error} = await query
+
   if (error) {
-    console.error('[批量查询] 获取离职申请失败:', error);
-    return [];
+    console.error('[批量查询] 获取离职申请失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
 
 /**
@@ -303,18 +303,18 @@ export async function getFeedbackWithUsers(status?: string) {
       )
     `)
     .eq('boss_id', getCurrentUserBossId())
-    .order('created_at', { ascending: false });
-  
+    .order('created_at', {ascending: false})
+
   if (status) {
-    query = query.eq('status', status);
+    query = query.eq('status', status)
   }
-  
-  const { data, error } = await query;
-  
+
+  const {data, error} = await query
+
   if (error) {
-    console.error('[批量查询] 获取反馈列表失败:', error);
-    return [];
+    console.error('[批量查询] 获取反馈列表失败:', error)
+    return []
   }
-  
-  return data || [];
+
+  return data || []
 }
