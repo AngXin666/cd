@@ -655,11 +655,32 @@ export async function getWarehouseWithRule(id: string): Promise<WarehouseWithRul
  * 创建仓库
  */
 export async function createWarehouse(input: WarehouseInput): Promise<Warehouse | null> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建仓库失败: 用户未登录')
+    throw new Error('用户未登录')
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('创建仓库失败: 无法获取 boss_id')
+    throw new Error('无法获取用户信息')
+  }
+
+  // 3. 插入仓库（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('warehouses')
     .insert({
       name: input.name,
-      is_active: input.is_active !== undefined ? input.is_active : true
+      is_active: input.is_active !== undefined ? input.is_active : true,
+      boss_id: profile.boss_id,
+      tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
     })
     .select()
     .maybeSingle()
