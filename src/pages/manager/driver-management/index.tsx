@@ -1047,30 +1047,26 @@ const DriverManagement: React.FC = () => {
 
                           {/* 操作按钮 */}
                           <View className="grid grid-cols-2 gap-2 p-3 bg-gray-50 border-t border-gray-100">
-                            {/* 查看个人信息按钮 - 仅在已录入个人信息时显示 */}
-                            {hasPersonalInfo && (
-                              <View
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleViewDriverProfile(driver.id)
-                                }}
-                                className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-2.5 active:bg-blue-100 transition-all">
-                                <View className="i-mdi-account-card text-blue-600 text-base mr-1.5" />
-                                <Text className="text-blue-700 text-sm font-medium">个人信息</Text>
-                              </View>
-                            )}
-                            {/* 查看车辆按钮 - 仅在已录入车辆信息时显示 */}
-                            {hasVehicleInfo && (
-                              <View
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleViewDriverVehicles(driver.id)
-                                }}
-                                className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg py-2.5 active:bg-green-100 transition-all">
-                                <View className="i-mdi-car text-green-600 text-base mr-1.5" />
-                                <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
-                              </View>
-                            )}
+                            {/* 查看个人信息按钮 - 始终显示 */}
+                            <View
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleViewDriverProfile(driver.id)
+                              }}
+                              className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-2.5 active:bg-blue-100 transition-all">
+                              <View className="i-mdi-account-card text-blue-600 text-base mr-1.5" />
+                              <Text className="text-blue-700 text-sm font-medium">个人信息</Text>
+                            </View>
+                            {/* 查看车辆按钮 - 始终显示 */}
+                            <View
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleViewDriverVehicles(driver.id)
+                              }}
+                              className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg py-2.5 active:bg-green-100 transition-all">
+                              <View className="i-mdi-car text-green-600 text-base mr-1.5" />
+                              <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
+                            </View>
                             {/* 仓库分配按钮 - 仅在权限启用时显示 */}
                             {managerPermissionsEnabled && (
                               <View
