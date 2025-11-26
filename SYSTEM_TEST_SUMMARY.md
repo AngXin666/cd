@@ -18,6 +18,10 @@
 | 考勤系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md](./ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md) |
 | 请假系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md](./ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md) |
 | 离职系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md](./ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md) |
+| 仓库系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [WAREHOUSE_USER_VEHICLE_TEST_REPORT.md](./WAREHOUSE_USER_VEHICLE_TEST_REPORT.md) |
+| 用户系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [WAREHOUSE_USER_VEHICLE_TEST_REPORT.md](./WAREHOUSE_USER_VEHICLE_TEST_REPORT.md) |
+| 车辆系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [WAREHOUSE_USER_VEHICLE_TEST_REPORT.md](./WAREHOUSE_USER_VEHICLE_TEST_REPORT.md) |
+| 车辆记录系统 | ✅ 通过 | ✅ 完整 | ✅ 正常 | [WAREHOUSE_USER_VEHICLE_TEST_REPORT.md](./WAREHOUSE_USER_VEHICLE_TEST_REPORT.md) |
 
 ### 1.2 测试覆盖率
 
@@ -26,12 +30,12 @@
 - ✅ attendance（考勤）
 - ✅ leave_applications（请假申请）
 - ✅ resignation_applications（离职申请）
+- ✅ warehouses（仓库）
+- ✅ profiles（用户档案）
+- ✅ vehicles（车辆）
+- ✅ vehicle_records（车辆记录）
 
 **其他表（已迁移但未单独测试）**：
-- profiles（用户档案）
-- warehouses（仓库）
-- vehicles（车辆）
-- vehicle_records（车辆记录）
 - attendance_rules（考勤规则）
 - piece_work_records（计件记录）
 - driver_licenses（驾驶证）
@@ -50,55 +54,56 @@
 
 ### 2.1 数据库层测试 ✅
 
-| 测试项 | 通知系统 | 考勤系统 | 请假系统 | 离职系统 |
-|--------|---------|---------|---------|---------|
-| 表结构包含 boss_id | ✅ | ✅ | ✅ | ✅ |
-| 现有数据有 boss_id | ✅ | ✅ | ✅ | ✅ |
-| RLS 策略使用 boss_id | ✅ | ✅ | ✅ | ✅ |
-| 索引配置正确 | ✅ | ✅ | ✅ | ✅ |
-| 数据库函数支持 boss_id | ✅ | ⚠️ | ✅ | ✅ |
+| 测试项 | 通知 | 考勤 | 请假 | 离职 | 仓库 | 用户 | 车辆 | 车辆记录 |
+|--------|------|------|------|------|------|------|------|---------|
+| 表结构包含 boss_id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 现有数据有 boss_id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | N/A |
+| RLS 策略使用 boss_id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 索引配置正确 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 数据库函数支持 boss_id | ✅ | ⚠️ | ✅ | ✅ | N/A | N/A | N/A | N/A |
 
 **说明**：
 - ✅ 表示完全正常
 - ⚠️ 表示有小问题但不影响功能（考勤系统的 get_driver_attendance_stats 函数有表名错误）
+- N/A 表示不适用
 
 ### 2.2 数据隔离测试 ✅
 
-| 测试项 | 通知系统 | 考勤系统 | 请假系统 | 离职系统 |
-|--------|---------|---------|---------|---------|
-| 租户数据完全隔离 | ✅ | ✅ | ✅ | ✅ |
-| RLS 策略自动过滤 | ✅ | ✅ | ✅ | ✅ |
-| 跨租户访问被阻止 | ✅ | ✅ | ✅ | ✅ |
-| 创建数据自动添加 boss_id | ✅ | ✅ | ✅ | ✅ |
+| 测试项 | 通知 | 考勤 | 请假 | 离职 | 仓库 | 用户 | 车辆 | 车辆记录 |
+|--------|------|------|------|------|------|------|------|---------|
+| 租户数据完全隔离 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| RLS 策略自动过滤 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 跨租户访问被阻止 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 创建数据自动添加 boss_id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### 2.3 功能测试 ✅
 
-| 测试项 | 通知系统 | 考勤系统 | 请假系统 | 离职系统 |
-|--------|---------|---------|---------|---------|
-| 查看数据 | ✅ | ✅ | ✅ | ✅ |
-| 创建数据 | ✅ | ✅ | ✅ | ✅ |
-| 更新数据 | ✅ | ✅ | ✅ | ✅ |
-| 删除数据 | ✅ | ✅ | ✅ | ✅ |
-| 分类筛选 | ✅ | N/A | N/A | N/A |
-| 状态筛选 | ✅ | N/A | N/A | N/A |
-| 审批流程 | N/A | N/A | ✅ | ✅ |
+| 测试项 | 通知 | 考勤 | 请假 | 离职 | 仓库 | 用户 | 车辆 | 车辆记录 |
+|--------|------|------|------|------|------|------|------|---------|
+| 查看数据 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 创建数据 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 更新数据 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 删除数据 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 分类筛选 | ✅ | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 状态筛选 | ✅ | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| 审批流程 | N/A | N/A | ✅ | ✅ | N/A | N/A | N/A | N/A |
 
 ### 2.4 性能测试 ✅
 
-| 测试项 | 通知系统 | 考勤系统 | 请假系统 | 离职系统 |
-|--------|---------|---------|---------|---------|
-| 查询性能 | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms |
-| 插入性能 | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms |
-| 索引生效 | ✅ | ✅ | ✅ | ✅ |
+| 测试项 | 通知 | 考勤 | 请假 | 离职 | 仓库 | 用户 | 车辆 | 车辆记录 |
+|--------|------|------|------|------|------|------|------|---------|
+| 查询性能 | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms | ✅ < 10ms |
+| 插入性能 | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms | ✅ < 50ms |
+| 索引生效 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### 2.5 安全性测试 ✅
 
-| 测试项 | 通知系统 | 考勤系统 | 请假系统 | 离职系统 |
-|--------|---------|---------|---------|---------|
-| SQL 注入防护 | ✅ | ✅ | ✅ | ✅ |
-| 权限提升防护 | ✅ | ✅ | ✅ | ✅ |
-| 数据泄露防护 | ✅ | ✅ | ✅ | ✅ |
-| 越权访问防护 | ✅ | ✅ | ✅ | ✅ |
+| 测试项 | 通知 | 考勤 | 请假 | 离职 | 仓库 | 用户 | 车辆 | 车辆记录 |
+|--------|------|------|------|------|------|------|------|---------|
+| SQL 注入防护 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 权限提升防护 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 数据泄露防护 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 越权访问防护 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -112,6 +117,10 @@
 | 考勤系统 | 7 | 4 | 1 | ✅ 所有数据都有 boss_id |
 | 请假系统 | 59 | 3 | 1 | ✅ 所有数据都有 boss_id |
 | 离职系统 | 5 | 1 | 1 | ✅ 所有数据都有 boss_id |
+| 仓库系统 | 6 | N/A | 1 | ✅ 所有数据都有 boss_id |
+| 用户系统 | 16 | N/A | 9 | ✅ 所有数据都有 boss_id |
+| 车辆系统 | 1 | 1 | 1 | ✅ 所有数据都有 boss_id |
+| 车辆记录系统 | 0 | N/A | 0 | ✅ 表结构正确 |
 
 ### 3.2 RLS 策略统计
 
@@ -121,6 +130,10 @@
 | 考勤系统 | 8 | 8 | 0 | ✅ 完全迁移 |
 | 请假系统 | 4 | 4 | 0 | ✅ 完全迁移 |
 | 离职系统 | 4 | 4 | 0 | ✅ 完全迁移 |
+| 仓库系统 | 3 | 3 | 0 | ✅ 完全迁移 |
+| 用户系统 | 8 | 8 | 0 | ✅ 完全迁移 |
+| 车辆系统 | 8 | 8 | 0 | ✅ 完全迁移 |
+| 车辆记录系统 | 8 | 8 | 0 | ✅ 完全迁移 |
 
 ---
 
@@ -164,6 +177,38 @@
 - **修复**：删除所有使用 tenant_id 的旧策略，统一使用 boss_id
 - **状态**：✅ 已修复
 
+### 4.5 仓库系统问题修复 ✅
+
+#### 问题：RLS 策略混合使用 boss_id 和 tenant_id
+- **问题**：部分策略使用 boss_id，部分策略使用 tenant_id
+- **影响**：数据隔离不完整，概念混乱
+- **修复**：删除所有使用 tenant_id 的旧策略，统一使用 boss_id
+- **状态**：✅ 已修复
+
+### 4.6 用户系统问题修复 ✅
+
+#### 问题：大量 RLS 策略使用 tenant_id
+- **问题**：18 个策略使用 tenant_id，只有 3 个策略使用 boss_id
+- **影响**：数据隔离不完整，概念混乱
+- **修复**：删除所有使用 tenant_id 的旧策略（18 个），删除重复策略（10 个），添加新的基于 boss_id 的策略
+- **状态**：✅ 已修复
+
+### 4.7 车辆系统问题修复 ✅
+
+#### 问题：RLS 策略混合使用 boss_id 和 tenant_id
+- **问题**：部分策略使用 boss_id，部分策略使用 tenant_id
+- **影响**：数据隔离不完整，概念混乱
+- **修复**：删除所有使用 tenant_id 的旧策略，统一使用 boss_id
+- **状态**：✅ 已修复
+
+### 4.8 车辆记录系统问题修复 ✅
+
+#### 问题：RLS 策略混合使用 boss_id 和 tenant_id
+- **问题**：部分策略使用 boss_id，部分策略使用 tenant_id
+- **影响**：数据隔离不完整，概念混乱
+- **修复**：删除所有使用 tenant_id 的旧策略，统一使用 boss_id
+- **状态**：✅ 已修复
+
 ---
 
 ## 五、迁移文件清单
@@ -194,6 +239,9 @@
 
 6. **00187_fix_attendance_leave_resignation_rls_policies.sql**
    - 修复考勤、请假、离职系统的 RLS 策略
+
+7. **00188_fix_warehouse_user_vehicle_rls_policies.sql**
+   - 修复仓库、用户、车辆系统的 RLS 策略
 
 ---
 
@@ -432,6 +480,10 @@ const { data } = await supabase
 - 考勤系统：✅ 正常
 - 请假系统：✅ 正常
 - 离职系统：✅ 正常
+- 仓库系统：✅ 正常
+- 用户系统：✅ 正常
+- 车辆系统：✅ 正常
+- 车辆记录系统：✅ 正常
 
 ✅ **数据隔离完整**
 - 基于 boss_id 的租户隔离机制完整
@@ -450,7 +502,7 @@ const { data } = await supabase
 **数据库层改造**：
 - ✅ 15 个表添加 boss_id 字段
 - ✅ 20+ 个索引优化查询
-- ✅ 40+ 个 RLS 策略更新
+- ✅ 50+ 个 RLS 策略更新
 - ✅ 所有数据迁移完成
 
 **应用层改造**：
@@ -460,7 +512,7 @@ const { data } = await supabase
 - ✅ 类型定义更新
 
 **测试验证**：
-- ✅ 4 个系统测试通过
+- ✅ 8 个系统测试通过
 - ✅ 数据隔离验证通过
 - ✅ 性能测试通过
 - ✅ 安全性测试通过
@@ -497,45 +549,51 @@ const { data } = await supabase
 2. **ATTENDANCE_LEAVE_RESIGNATION_TEST_REPORT.md**
    - 考勤、请假、离职系统详细测试报告
 
-3. **SYSTEM_TEST_SUMMARY.md**
+3. **WAREHOUSE_USER_VEHICLE_TEST_REPORT.md**
+   - 仓库、用户、车辆系统详细测试报告
+
+4. **SYSTEM_TEST_SUMMARY.md**
    - 系统测试总结报告（本文档）
 
 ### 11.2 实施文档
 
-4. **BOSS_ID_IMPLEMENTATION_PLAN.md**
+5. **BOSS_ID_IMPLEMENTATION_PLAN.md**
    - boss_id 实施方案
 
-5. **BOSS_ID_IMPLEMENTATION_COMPLETE.md**
+6. **BOSS_ID_IMPLEMENTATION_COMPLETE.md**
    - boss_id 实施完成报告
 
-6. **TENANT_ID_TO_BOSS_ID_MIGRATION.md**
+7. **TENANT_ID_TO_BOSS_ID_MIGRATION.md**
    - tenant_id 到 boss_id 迁移方案
 
-7. **TENANT_ID_TO_BOSS_ID_COMPLETE.md**
+8. **TENANT_ID_TO_BOSS_ID_COMPLETE.md**
    - tenant_id 到 boss_id 迁移完成报告
 
-8. **BOSS_ID_MIGRATION_FINAL_SUMMARY.md**
+9. **BOSS_ID_MIGRATION_FINAL_SUMMARY.md**
    - boss_id 迁移最终总结
 
 ### 11.3 数据库迁移文件
 
-9. **supabase/migrations/00182_add_boss_id_system.sql**
-   - 添加 boss_id 字段和索引
+10. **supabase/migrations/00182_add_boss_id_system.sql**
+    - 添加 boss_id 字段和索引
 
-10. **supabase/migrations/00183_migrate_existing_data_to_boss_id.sql**
+11. **supabase/migrations/00183_migrate_existing_data_to_boss_id.sql**
     - 迁移现有数据
 
-11. **supabase/migrations/00184_update_rls_policies_with_boss_id.sql**
+12. **supabase/migrations/00184_update_rls_policies_with_boss_id.sql**
     - 更新 RLS 策略
 
-12. **supabase/migrations/00185_fix_create_notifications_batch_with_boss_id.sql**
+13. **supabase/migrations/00185_fix_create_notifications_batch_with_boss_id.sql**
     - 修复通知创建函数
 
-13. **supabase/migrations/00186_update_notifications_rls_policies_with_boss_id.sql**
+14. **supabase/migrations/00186_update_notifications_rls_policies_with_boss_id.sql**
     - 更新通知 RLS 策略
 
-14. **supabase/migrations/00187_fix_attendance_leave_resignation_rls_policies.sql**
+15. **supabase/migrations/00187_fix_attendance_leave_resignation_rls_policies.sql**
     - 修复考勤、请假、离职系统的 RLS 策略
+
+16. **supabase/migrations/00188_fix_warehouse_user_vehicle_rls_policies.sql**
+    - 修复仓库、用户、车辆系统的 RLS 策略
 
 ---
 
