@@ -99,11 +99,13 @@ const UserManagement: React.FC = () => {
       }
 
       // 仓库过滤（对所有角色生效，且有多个仓库时）
-      if (warehouses.length > 1 && warehouses[warehouseIndex]) {
+      // 注意：warehouseIndex === 0 表示"所有仓库"，不进行过滤
+      if (warehouses.length > 1 && warehouses[warehouseIndex] && warehouseIndex > 0) {
         const currentWarehouseId = warehouses[warehouseIndex].id
         filtered = filtered.filter((u) => {
           const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
-          return userWarehouseIds.includes(currentWarehouseId)
+          // 包含分配到该仓库的用户，以及未分配任何仓库的用户（新用户）
+          return userWarehouseIds.includes(currentWarehouseId) || userWarehouseIds.length === 0
         })
       }
 
@@ -131,7 +133,15 @@ const UserManagement: React.FC = () => {
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     const data = await getAllWarehouses()
-    setWarehouses(data.filter((w) => w.is_active))
+    // 在仓库列表开头添加"所有仓库"选项
+    const allWarehousesOption = {
+      id: 'all',
+      name: '所有仓库',
+      boss_id: '',
+      is_active: true,
+      created_at: new Date().toISOString()
+    } as Warehouse
+    setWarehouses([allWarehousesOption, ...data.filter((w) => w.is_active)])
   }, [])
 
   // 加载用户列表
@@ -962,16 +972,30 @@ const UserManagement: React.FC = () => {
                   indicatorActiveColor="#1E3A8A">
                   {warehouses.map((warehouse) => {
                     // 计算该仓库的用户数量（根据当前标签页）
-                    const warehouseUserCount = users.filter((u) => {
-                      // 根据当前标签页过滤角色
-                      if (activeTab === 'driver') {
-                        if (u.role !== 'driver') return false
-                      } else {
-                        if (u.role !== 'manager' && u.role !== 'super_admin') return false
-                      }
-                      const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
-                      return userWarehouseIds.includes(warehouse.id)
-                    }).length
+                    let warehouseUserCount = 0
+
+                    if (warehouse.id === 'all') {
+                      // "所有仓库"选项：显示所有用户
+                      warehouseUserCount = users.filter((u) => {
+                        if (activeTab === 'driver') {
+                          return u.role === 'driver'
+                        } else {
+                          return u.role === 'manager' || u.role === 'super_admin'
+                        }
+                      }).length
+                    } else {
+                      // 特定仓库：只显示分配到该仓库的用户
+                      warehouseUserCount = users.filter((u) => {
+                        // 根据当前标签页过滤角色
+                        if (activeTab === 'driver') {
+                          if (u.role !== 'driver') return false
+                        } else {
+                          if (u.role !== 'manager' && u.role !== 'super_admin') return false
+                        }
+                        const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
+                        return userWarehouseIds.includes(warehouse.id)
+                      }).length
+                    }
 
                     return (
                       <SwiperItem key={warehouse.id}>
