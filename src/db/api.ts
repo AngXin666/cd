@@ -7563,9 +7563,13 @@ export async function checkUserLeaseStatus(
 
     console.log('[租期检测] 查询租期，tenant_id:', mainAccountId)
 
+    // 调试：查看所有租期记录（不过滤status）
+    const {data: allLeasesDebug} = await supabase.from('leases').select('*')
+    console.log('[租期检测] 所有租期记录（不过滤status）:', allLeasesDebug)
+
     // 调试：查看所有有效租期记录
     const {data: allLeases} = await supabase.from('leases').select('*').eq('status', 'active')
-    console.log('[租期检测] 所有有效租期记录:', allLeases)
+    console.log('[租期检测] 所有有效租期记录（status=active）:', allLeases)
 
     // 检查主账号是否有有效租期（只查询 active 状态的租期）
     const {data: leases, error: leaseError} = await supabase
