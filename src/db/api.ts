@@ -7018,16 +7018,42 @@ export async function updateTenant(
  */
 export async function suspendTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('profiles').update({status: 'suspended'}).eq('id', id)
+    // 停用主账号
+    const {error: mainError} = await supabase.from('profiles').update({status: 'inactive'}).eq('id', id)
 
-    if (error) {
-      console.error('停用老板账号失败:', error)
+    if (mainError) {
+      console.error('停用主账号失败:', mainError)
       return false
     }
 
+    // 停用平级账号
+    const {error: peerError} = await supabase
+      .from('profiles')
+      .update({status: 'inactive'})
+      .eq('main_account_id', id)
+      .eq('role', 'super_admin')
+
+    if (peerError) {
+      console.error('停用平级账号失败:', peerError)
+      // 不返回 false，继续停用车队长
+    }
+
+    // 停用车队长
+    const {error: adminError} = await supabase
+      .from('profiles')
+      .update({status: 'inactive'})
+      .eq('boss_id', id)
+      .eq('role', 'admin')
+
+    if (adminError) {
+      console.error('停用车队长失败:', adminError)
+      // 不返回 false
+    }
+
+    console.log('✅ 租户账号已停用（主账号、平级账号、车队长）')
     return true
   } catch (error) {
-    console.error('停用老板账号异常:', error)
+    console.error('停用租户账号异常:', error)
     return false
   }
 }
@@ -7037,16 +7063,42 @@ export async function suspendTenant(id: string): Promise<boolean> {
  */
 export async function activateTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('profiles').update({status: 'active'}).eq('id', id)
+    // 启用主账号
+    const {error: mainError} = await supabase.from('profiles').update({status: 'active'}).eq('id', id)
 
-    if (error) {
-      console.error('启用老板账号失败:', error)
+    if (mainError) {
+      console.error('启用主账号失败:', mainError)
       return false
     }
 
+    // 启用平级账号
+    const {error: peerError} = await supabase
+      .from('profiles')
+      .update({status: 'active'})
+      .eq('main_account_id', id)
+      .eq('role', 'super_admin')
+
+    if (peerError) {
+      console.error('启用平级账号失败:', peerError)
+      // 不返回 false，继续启用车队长
+    }
+
+    // 启用车队长
+    const {error: adminError} = await supabase
+      .from('profiles')
+      .update({status: 'active'})
+      .eq('boss_id', id)
+      .eq('role', 'admin')
+
+    if (adminError) {
+      console.error('启用车队长失败:', adminError)
+      // 不返回 false
+    }
+
+    console.log('✅ 租户账号已启用（主账号、平级账号、车队长）')
     return true
   } catch (error) {
-    console.error('启用老板账号异常:', error)
+    console.error('启用租户账号异常:', error)
     return false
   }
 }
