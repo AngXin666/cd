@@ -14,6 +14,7 @@
 1. **问题**：之前的 RLS + boss_id 模式存在数据泄露风险，修复了一天仍有问题
 2. **要求**：实现真正的独立数据库隔离，而不是共享数据库 + RLS 模式
 3. **新需求**：租赁系统管理员创建租户时，自动为新租户创建独立数据库
+4. **平级账号**：平级账号不应该视为租户，应该使用主账号的数据库，一个主账号最多创建3个平级账号
 
 ### 解决方案
 采用 **PostgreSQL Schema 隔离** 实现物理级别的数据隔离，每个租户拥有独立的 Schema。
@@ -76,21 +77,28 @@
 - ✅ `drop_tenant_schema(tenant_boss_id)` - 删除租户 Schema
 
 #### 创建的触发器
-- ✅ `trigger_auto_create_tenant_schema` - 创建老板账号时自动创建 Schema
+- ✅ `trigger_auto_create_tenant_schema` - 创建主账号时自动创建 Schema（排除平级账号）
+- ✅ `trigger_check_peer_account_limit` - 检查平级账号数量限制（最多3个）
 
 **触发逻辑**：
 ```sql
--- 监听 profiles 表的插入操作
--- 当 role = 'super_admin' 时自动触发
--- 调用 create_tenant_schema() 创建独立 Schema
+-- 只为主账号创建 Schema
+IF NEW.role = 'super_admin' AND NEW.main_account_id IS NULL THEN
+  -- 创建独立的 tenant_xxx schema
+  PERFORM create_tenant_schema(NEW.id);
+ELSIF NEW.role = 'super_admin' AND NEW.main_account_id IS NOT NULL THEN
+  -- 平级账号，不创建 Schema，使用主账号的 Schema
+  RAISE NOTICE '平级账号，使用主账号的 Schema';
+END IF;
 ```
 
 #### 已创建的 Schema
-为 4 个现有租户创建了独立 Schema：
-- `tenant_29659703_7b22_40c3_b9c0_b56b05060fa0`
-- `tenant_75b2aa94_ed8e_4e54_be74_531e6cda332b`
-- `tenant_7718e31c_f386_4af1_9be8_a4b64a844abb`
-- `tenant_9e04dfd6_9b18_4e00_992f_bcfb73a86900`
+为 3 个主账号创建了独立 Schema：
+- `tenant_29659703_7b22_40c3_b9c0_b56b05060fa0` - 主账号
+- `tenant_75b2aa94_ed8e_4e54_be74_531e6cda332b` - 主账号
+- `tenant_9e04dfd6_9b18_4e00_992f_bcfb73a86900` - 主账号
+
+**注意**：平级账号 `7718e31c-f386-4af1-9be8-a4b64a844abb` 不创建独立 Schema，使用主账号 `29659703-7b22-40c3-b9c0-b56b05060fa0` 的 Schema。
 
 每个 Schema 包含 14 张业务表，数据已迁移。
 
@@ -159,6 +167,7 @@ const schema = await TenantSchemaManager.getSchema()
 - ✅ [完整使用指南](docs/TENANT_ISOLATION_GUIDE.md) - 详细说明
 - ✅ [实施总结](SCHEMA_ISOLATION_SUMMARY.md) - 技术细节
 - ✅ [租赁系统数据库架构](docs/LEASE_SYSTEM_DATABASE_ARCHITECTURE.md) - 两层架构设计
+- ✅ [平级账号管理指南](docs/PEER_ACCOUNT_MANAGEMENT.md) - 平级账号的使用和管理
 - ✅ [自动创建测试指南](docs/AUTO_CREATE_TENANT_SCHEMA_TEST.md) - 测试方法
 - ✅ [实施报告](SCHEMA_ISOLATION_IMPLEMENTATION_REPORT.md) - 完整报告
 - ✅ [实施进度](TODO_SCHEMA_ISOLATION.md) - 任务跟踪
@@ -189,8 +198,15 @@ const schema = await TenantSchemaManager.getSchema()
 
 ### 5. 清晰的职责分离 🏗️
 - 租赁管理员管理租户账号
-- 租户管理自己的业务数据
+- 主账号管理自己的业务数据和平级账号
+- 平级账号与主账号共享数据，拥有相同权限
 - 两层架构，职责清晰
+
+### 6. 平级账号支持 👥
+- 一个主账号最多创建 3 个平级账号
+- 平级账号与主账号共享同一个数据库
+- 平级账号不创建独立 Schema
+- 自动数量限制，防止滥用
 
 ---
 
@@ -206,6 +222,7 @@ const schema = await TenantSchemaManager.getSchema()
 | 代码复杂度 | ⚠️ 高 | ✅ 低 |
 | 维护成本 | ⚠️ 高 | ✅ 低 |
 | 租赁系统管理 | ⚠️ 复杂 | ✅ 简单 |
+| 平级账号支持 | ⚠️ 复杂 | ✅ 简单（自动共享数据） |
 
 ---
 
@@ -341,6 +358,7 @@ const deactivateTenant = async (tenantId: string) => {
 | [完整指南](docs/TENANT_ISOLATION_GUIDE.md) | 详细的使用说明和最佳实践 | 开发者 |
 | [实施总结](SCHEMA_ISOLATION_SUMMARY.md) | 技术细节和架构对比 | 技术负责人 |
 | [租赁系统架构](docs/LEASE_SYSTEM_DATABASE_ARCHITECTURE.md) | 两层架构设计 | 架构师 |
+| [平级账号管理](docs/PEER_ACCOUNT_MANAGEMENT.md) | 平级账号的使用和管理 | 所有开发者 |
 | [自动创建测试](docs/AUTO_CREATE_TENANT_SCHEMA_TEST.md) | 测试新租户创建流程 | 测试人员 |
 | [实施报告](SCHEMA_ISOLATION_IMPLEMENTATION_REPORT.md) | 完整的实施报告 | 项目经理 |
 | [实施进度](TODO_SCHEMA_ISOLATION.md) | 任务跟踪 | 所有人 |
@@ -359,6 +377,7 @@ const deactivateTenant = async (tenantId: string) => {
 ✅ **自动化创建** - 租赁管理员创建租户时自动创建数据库  
 ✅ **清晰的职责分离** - 租赁系统管理租户，租户管理业务  
 ✅ **完整的管理功能** - 查看、增加、修改、停用、删除租户  
+✅ **平级账号支持** - 主账号和平级账号共享数据，最多3个平级账号  
 
 这是一个**彻底的解决方案**，完全解决了之前 RLS 模式的所有问题，并且为租赁系统提供了清晰、安全、易用的租户管理功能！
 
