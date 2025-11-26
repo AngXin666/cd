@@ -1405,8 +1405,8 @@ const UserManagement: React.FC = () => {
                       </View>
                     )}
 
-                    {/* 仓库分配按钮（仅司机和老板） */}
-                    {(u.role === 'driver' || u.role === 'super_admin') && (
+                    {/* 仓库分配按钮（司机、管理员、老板） */}
+                    {(u.role === 'driver' || u.role === 'manager' || u.role === 'super_admin') && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1433,22 +1433,22 @@ const UserManagement: React.FC = () => {
                       </View>
                     )}
 
-                    {/* 仓库分配按钮（仅管理员 - 跳转到权限配置页面） */}
+                    {/* 配置权限按钮（仅管理员） */}
                     {u.role === 'manager' && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
                           handleConfigPermission(u)
                         }}
-                        className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg py-2.5 active:bg-orange-100 transition-all">
-                        <View className="i-mdi-warehouse text-orange-600 text-lg mr-1.5" />
-                        <Text className="text-orange-700 text-sm font-medium">仓库分配</Text>
+                        className="flex items-center justify-center bg-rose-50 border border-rose-200 rounded-lg py-2.5 active:bg-rose-100 transition-all">
+                        <View className="i-mdi-shield-account text-rose-600 text-lg mr-1.5" />
+                        <Text className="text-rose-700 text-sm font-medium">权限</Text>
                       </View>
                     )}
                   </View>
 
-                  {/* 仓库分配面板（展开时显示 - 仅司机和老板） */}
-                  {(u.role === 'driver' || u.role === 'super_admin') && isWarehouseExpanded && (
+                  {/* 仓库分配面板（展开时显示 - 司机、管理员、老板） */}
+                  {(u.role === 'driver' || u.role === 'manager' || u.role === 'super_admin') && isWarehouseExpanded && (
                     <View className="px-4 pb-4 bg-gray-50 border-t border-gray-200">
                       <View className="pt-4">
                         <Text className="text-sm font-medium text-gray-700 mb-3 block">选择仓库</Text>

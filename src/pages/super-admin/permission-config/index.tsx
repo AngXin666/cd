@@ -1,16 +1,9 @@
-import {Button, Checkbox, CheckboxGroup, ScrollView, Switch, Text, View} from '@tarojs/components'
+import {Button, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  getAllWarehouses,
-  getManagerPermissionsEnabled,
-  getManagerWarehouseIds,
-  setManagerWarehouses,
-  updateManagerPermissionsEnabled
-} from '@/db/api'
-import type {Warehouse} from '@/db/types'
+import {getManagerPermissionsEnabled, updateManagerPermissionsEnabled} from '@/db/api'
 
 const PermissionConfig: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -18,8 +11,6 @@ const PermissionConfig: React.FC = () => {
   const {userId, userName} = router.params
 
   const [loading, setLoading] = useState(false)
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
 
   // 权限开关状态 - 使用新的 manager_permissions_enabled 字段
   const [managerPermissionsEnabled, setManagerPermissionsEnabled] = useState(true)
@@ -30,19 +21,11 @@ const PermissionConfig: React.FC = () => {
 
     setLoading(true)
     try {
-      // 加载所有仓库
-      const warehouseData = await getAllWarehouses()
-      setWarehouses(warehouseData)
-
       // 加载车队长权限状态
       const permissionsEnabled = await getManagerPermissionsEnabled(userId)
       if (permissionsEnabled !== null) {
         setManagerPermissionsEnabled(permissionsEnabled)
       }
-
-      // 加载管理员管辖仓库
-      const warehouseIds = await getManagerWarehouseIds(userId)
-      setSelectedWarehouseIds(warehouseIds)
     } catch (error) {
       console.error('加载数据失败:', error)
       Taro.showToast({title: '加载失败', icon: 'error'})
@@ -54,11 +37,6 @@ const PermissionConfig: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [loadData])
-
-  // 仓库选择变化
-  const handleWarehouseChange = useCallback((e: any) => {
-    setSelectedWarehouseIds(e.detail.value)
-  }, [])
 
   // 保存配置
   const handleSave = useCallback(async () => {
@@ -73,13 +51,6 @@ const PermissionConfig: React.FC = () => {
         throw new Error('保存权限配置失败')
       }
 
-      // 保存管辖仓库
-      const warehouseSuccess = await setManagerWarehouses(userId, selectedWarehouseIds)
-
-      if (!warehouseSuccess) {
-        throw new Error('保存管辖仓库失败')
-      }
-
       Taro.showToast({title: '保存成功', icon: 'success'})
       setTimeout(() => {
         Taro.navigateBack()
@@ -90,7 +61,7 @@ const PermissionConfig: React.FC = () => {
     } finally {
       Taro.hideLoading()
     }
-  }, [userId, managerPermissionsEnabled, selectedWarehouseIds])
+  }, [userId, managerPermissionsEnabled])
 
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #fef2f2, #fee2e2)'}}>
@@ -107,38 +78,6 @@ const PermissionConfig: React.FC = () => {
           </View>
         ) : (
           <>
-            {/* 管辖仓库分配 */}
-            <View className="px-4 mb-4">
-              <View className="bg-white rounded-lg p-4 shadow-sm">
-                <View className="flex items-center mb-3">
-                  <View className="i-mdi-warehouse text-xl text-blue-600 mr-2" />
-                  <Text className="text-lg font-semibold text-gray-800">管辖仓库分配</Text>
-                </View>
-                <Text className="text-sm text-gray-500 mb-3">选择该管理员有权管理的仓库</Text>
-
-                {warehouses.length === 0 ? (
-                  <Text className="text-sm text-gray-400 text-center py-4">暂无仓库数据</Text>
-                ) : (
-                  <CheckboxGroup onChange={handleWarehouseChange}>
-                    {warehouses.map((warehouse) => (
-                      <View
-                        key={warehouse.id}
-                        className="flex items-center py-2 border-b border-gray-100 last:border-0">
-                        <Checkbox
-                          value={warehouse.id}
-                          checked={selectedWarehouseIds.includes(warehouse.id)}
-                          className="mr-2"
-                        />
-                        <View className="flex-1">
-                          <Text className="text-base text-gray-800">{warehouse.name}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </CheckboxGroup>
-                )}
-              </View>
-            </View>
-
             {/* 功能权限开关 */}
             <View className="px-4 mb-4">
               <View className="bg-white rounded-lg p-4 shadow-sm">
