@@ -29,7 +29,15 @@ const { data } = await client.from('warehouses').select('*')
 - [快速入门](QUICK_START_SCHEMA_ISOLATION.md) - 5 分钟了解如何使用
 - [完整指南](docs/TENANT_ISOLATION_GUIDE.md) - 详细的使用说明和最佳实践
 - [实施总结](SCHEMA_ISOLATION_SUMMARY.md) - 技术细节和架构对比
+- [租赁系统数据库架构](docs/LEASE_SYSTEM_DATABASE_ARCHITECTURE.md) - 租赁系统如何管理租户
 - [实施进度](TODO_SCHEMA_ISOLATION.md) - 任务跟踪
+
+### 两层数据库架构
+系统采用清晰的两层架构：
+- **第一层（Public Schema）**：租赁系统数据，管理所有租户的账号、合同、账单
+- **第二层（Tenant Schemas）**：租户业务数据，每个租户独立隔离
+
+租赁管理员通过 `public.profiles` 表管理所有租户（查看、增加、修改、停用、删除），每个租户的业务数据在独立的 `tenant_xxx` schema 中物理隔离。
 
 ---
 
