@@ -368,13 +368,12 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
     return null
   }
 
-  // 3. 插入考勤记录（自动添加 boss_id 和 tenant_id）
+  // 3. 插入考勤记录（自动添加 boss_id）
   const {data, error} = await supabase
     .from('attendance')
     .insert({
       ...input,
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
+      boss_id: profile.boss_id
     })
     .select()
     .maybeSingle()
@@ -706,8 +705,7 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
     .insert({
       name: input.name,
       is_active: input.is_active !== undefined ? input.is_active : true,
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
+      boss_id: profile.boss_id
     })
     .select()
     .maybeSingle()
@@ -824,8 +822,7 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
       late_threshold: input.late_threshold || 15,
       early_threshold: input.early_threshold || 15,
       is_active: input.is_active !== undefined ? input.is_active : true,
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
+      boss_id: profile.boss_id
     })
     .select()
     .maybeSingle()
@@ -1136,11 +1133,10 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
     return false
   }
 
-  // 插入时自动添加 boss_id 和 tenant_id
+  // 插入时自动添加 boss_id
   const {error} = await supabase.from('driver_warehouses').insert({
     ...input,
-    boss_id: profile.boss_id,
-    tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
+    boss_id: profile.boss_id
   })
 
   if (error) {
@@ -1441,11 +1437,10 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
     return false
   }
 
-  // 3. 插入计件记录（自动添加 boss_id 和 tenant_id）
+  // 3. 插入计件记录（自动添加 boss_id）
   const {error} = await supabase.from('piece_work_records').insert({
     ...record,
-    boss_id: profile.boss_id,
-    tenant_id: profile.boss_id
+    boss_id: profile.boss_id
   })
 
   if (error) {
@@ -1727,8 +1722,7 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
       upstairs_price: input.upstairs_price,
       sorting_unit_price: input.sorting_unit_price,
       is_active: input.is_active ?? true,
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id
+      boss_id: profile.boss_id
     },
     {
       onConflict: 'warehouse_id,category_name'
@@ -1772,8 +1766,7 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
       upstairs_price: input.upstairs_price,
       sorting_unit_price: input.sorting_unit_price,
       is_active: input.is_active ?? true,
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id
+      boss_id: profile.boss_id
     })),
     {
       onConflict: 'warehouse_id,category_name'
@@ -1991,8 +1984,7 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       end_date: input.end_date,
       reason: input.reason,
       status: 'pending',
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id
+      boss_id: profile.boss_id
     })
     .select()
     .maybeSingle()
@@ -2329,8 +2321,7 @@ export async function createResignationApplication(
       resignation_date: input.resignation_date,
       reason: input.reason,
       status: 'pending',
-      boss_id: profile.boss_id,
-      tenant_id: profile.boss_id
+      boss_id: profile.boss_id
     })
     .select()
     .maybeSingle()
@@ -4194,8 +4185,7 @@ export async function createUser(
       name,
       role: role as UserRole,
       email: loginEmail,
-      boss_id: currentProfile.boss_id, // 添加 boss_id
-      tenant_id: currentProfile.boss_id // 添加 tenant_id
+      boss_id: currentProfile.boss_id // 添加 boss_id
     }
 
     // 如果是司机，添加司机类型和入职日期
