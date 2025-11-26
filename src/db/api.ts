@@ -2302,6 +2302,25 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 export async function createResignationApplication(
   input: ResignationApplicationInput
 ): Promise<ResignationApplication | null> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建离职申请失败: 用户未登录')
+    return null
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('创建离职申请失败: 无法获取 boss_id')
+    return null
+  }
+
+  // 3. 插入离职申请（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('resignation_applications')
     .insert({
@@ -2309,7 +2328,9 @@ export async function createResignationApplication(
       warehouse_id: input.warehouse_id,
       resignation_date: input.resignation_date,
       reason: input.reason,
-      status: 'pending'
+      status: 'pending',
+      boss_id: profile.boss_id,
+      tenant_id: profile.boss_id
     })
     .select()
     .maybeSingle()
@@ -8187,6 +8208,25 @@ export async function checkUserLeaseStatus(
  */
 export async function createNotificationRecord(input: CreateNotificationInput): Promise<Notification | null> {
   try {
+    // 1. 获取当前用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('创建通知失败: 用户未登录')
+      return null
+    }
+
+    // 2. 获取当前用户的 boss_id
+    const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+    if (!profile?.boss_id) {
+      console.error('创建通知失败: 无法获取 boss_id')
+      return null
+    }
+
+    // 3. 插入通知（自动添加 boss_id）
     const {data, error} = await supabase
       .from('notifications')
       .insert({
@@ -8197,7 +8237,8 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
         type: input.type,
         title: input.title,
         content: input.content,
-        action_url: input.action_url || null
+        action_url: input.action_url || null,
+        boss_id: profile.boss_id
       })
       .select()
       .maybeSingle()
