@@ -3974,6 +3974,27 @@ export async function createUser(
   console.log(`${'='.repeat(80)}\n`)
 
   try {
+    // 步骤0: 获取当前用户的 boss_id
+    console.log('📋 [步骤0] 获取当前用户的 boss_id')
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('  ❌ 用户未登录')
+      return null
+    }
+
+    const {data: currentProfile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+    if (!currentProfile?.boss_id) {
+      console.error('  ❌ 无法获取当前用户的 boss_id')
+      return null
+    }
+
+    console.log('  ✅ 当前用户的 boss_id:', currentProfile.boss_id)
+    console.log('')
+
     // 步骤1: 检查手机号是否已存在
     console.log('📋 [步骤1] 检查手机号是否已存在')
     console.log('  - 查询条件: phone =', phone)
@@ -4058,14 +4079,16 @@ export async function createUser(
 
     console.log('')
 
-    // 步骤3: 创建 profiles 表记录
+    // 步骤3: 创建 profiles 表记录（自动添加 boss_id 和 tenant_id）
     console.log('📋 [步骤3] 创建 profiles 表记录')
     const insertData: any = {
       id: userId,
       phone,
       name,
       role: role as UserRole,
-      email: loginEmail
+      email: loginEmail,
+      boss_id: currentProfile.boss_id, // 添加 boss_id
+      tenant_id: currentProfile.boss_id // 添加 tenant_id
     }
 
     // 如果是司机，添加司机类型和入职日期
@@ -4099,6 +4122,8 @@ export async function createUser(
     console.log('  - 姓名:', data.name)
     console.log('  - 角色:', data.role)
     console.log('  - 邮箱:', data.email)
+    console.log('  - boss_id:', data.boss_id)
+    console.log('  - tenant_id:', data.tenant_id)
     if (role === 'driver') {
       console.log('  - 司机类型:', data.driver_type)
       console.log('  - 入职日期:', data.join_date)
