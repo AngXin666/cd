@@ -32,22 +32,30 @@
 
 **修复方案**:
 ```sql
--- 添加租赁管理员权限检查
+-- 添加权限检查（允许租赁管理员和老板账号）
 SELECT role INTO current_user_role
 FROM profiles
 WHERE id = auth.uid();
 
-IF current_user_role != 'lease_admin' THEN
-  RAISE EXCEPTION '权限不足：只有租赁管理员可以清理孤立用户';
+IF current_user_role NOT IN ('lease_admin', 'super_admin') THEN
+  RAISE EXCEPTION '权限不足：只有租赁管理员和老板账号可以清理孤立用户';
 END IF;
 ```
 
-**修复状态**: ✅ 已在 migration 057 中修复
+**修复状态**: ✅ 已在 migration 057 中修复，在 migration 059 中调整权限
+
+**权限说明**:
+- ✅ 租赁管理员：可以清理所有孤立用户
+- ✅ 老板账号：可以清理自己租户下的孤立用户
+- ❌ 车队长：不能清理孤立用户
+- ❌ 司机：不能清理孤立用户
 
 **测试建议**:
-1. 使用非租赁管理员账号调用，应返回权限错误
-2. 使用租赁管理员账号调用，应成功执行
-3. 验证操作日志是否正确记录
+1. 使用租赁管理员账号调用，应成功执行
+2. 使用老板账号调用，应成功执行
+3. 使用车队长账号调用，应返回权限错误
+4. 使用司机账号调用，应返回权限错误
+5. 验证操作日志是否正确记录
 
 ---
 
@@ -64,9 +72,9 @@ END IF;
 
 **修复方案**:
 ```sql
--- 1. 添加租赁管理员权限检查
-IF current_user_role != 'lease_admin' THEN
-  RAISE EXCEPTION '权限不足：只有租赁管理员可以创建用户认证账号';
+-- 1. 添加权限检查（允许租赁管理员、老板账号、车队长）
+IF current_user_role NOT IN ('lease_admin', 'super_admin', 'manager') THEN
+  RAISE EXCEPTION '权限不足：只有管理员可以创建用户';
 END IF;
 
 -- 2. 添加输入验证
@@ -88,14 +96,22 @@ RETURN jsonb_build_object(
 );
 ```
 
-**修复状态**: ✅ 已在 migration 057 中修复
+**修复状态**: ✅ 已在 migration 057 中修复，在 migration 059 中调整权限
+
+**权限说明**:
+- ✅ 租赁管理员：可以创建任何角色
+- ✅ 老板账号/平级账号：可以创建车队长和司机
+- ✅ 车队长：可以创建司机
+- ❌ 司机：不能创建用户
 
 **测试建议**:
-1. 使用非租赁管理员账号调用，应返回权限错误
-2. 使用无效邮箱格式调用，应返回格式错误
-3. 使用无效手机号格式调用，应返回格式错误
-4. 验证返回值不包含默认密码
-5. 验证操作日志是否正确记录
+1. 使用老板账号调用，应成功创建车队长和司机
+2. 使用车队长账号调用，应成功创建司机
+3. 使用司机账号调用，应返回权限错误
+4. 使用无效邮箱格式调用，应返回格式错误
+5. 使用无效手机号格式调用，应返回格式错误
+6. 验证返回值不包含默认密码
+7. 验证操作日志是否正确记录
 
 ---
 
@@ -285,14 +301,15 @@ RETURN jsonb_build_object(
 ## 📋 修复清单
 
 ### 已完成 ✅
-- [x] cleanup_orphaned_auth_users - 添加租赁管理员权限检查
-- [x] create_user_auth_account_first - 添加权限检查和输入验证
-- [x] 创建安全审计日志表
+- [x] cleanup_orphaned_auth_users - 添加租赁管理员和老板账号权限检查（migration 057, 059）
+- [x] create_user_auth_account_first - 添加权限检查和输入验证（migration 057, 059）
+- [x] 创建安全审计日志表（migration 057）
+- [x] get_database_tables - 添加租赁管理员权限检查（migration 058）
+- [x] get_table_columns - 添加租赁管理员权限检查（migration 058）
+- [x] get_table_constraints - 添加租赁管理员权限检查（migration 058）
 
 ### 建议改进 ⚠️
-- [ ] get_database_tables - 添加租赁管理员权限检查
-- [ ] get_table_columns - 添加租赁管理员权限检查
-- [ ] get_table_constraints - 添加租赁管理员权限检查
+- 无（所有建议改进已完成）
 
 ---
 
