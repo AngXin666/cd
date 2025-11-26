@@ -28,11 +28,31 @@ CREATE POLICY "Super admin and peer admin can manage tenant notifications" ON no
 
 这个策略只允许 `super_admin` 和 `peer_admin` 创建通知，导致 `manager`（车队长）无法创建通知。
 
-### 原因 2：createNotifications 函数未设置 boss_id
+### 原因 2：createNotification 和 createNotifications 函数未设置 boss_id
 
-在 `src/db/notificationApi.ts` 的 `createNotifications` 函数中，插入通知时没有设置 `boss_id` 字段：
+在 `src/db/notificationApi.ts` 中有两个创建通知的函数：
+1. `createNotification` - 创建单个通知（第 458 行）
+2. `createNotifications` - 批量创建通知（第 541 行）
+
+这两个函数在插入通知时都没有设置 `boss_id` 字段：
 
 ```typescript
+// createNotification 函数
+const {error} = await supabase.from('notifications').insert({
+  recipient_id: userId,
+  sender_id: user.id,
+  sender_name: senderName,
+  sender_role: senderRole,
+  type,
+  title,
+  content: message,
+  action_url: null,
+  related_id: relatedId || null,
+  is_read: false
+  // 缺少 boss_id 字段！
+})
+
+// createNotifications 函数
 const notificationData = notifications.map((n) => ({
   recipient_id: n.userId,
   sender_id: user.id,
@@ -61,9 +81,45 @@ const notificationData = notifications.map((n) => ({
 3. **用户更新通知策略**：允许用户更新自己的通知（标记已读）
 4. **用户删除通知策略**：允许用户删除自己的通知
 
-### 修复 2：修改 createNotifications 函数
+### 修复 2：修改 createNotification 和 createNotifications 函数
 
-在 `src/db/notificationApi.ts` 中修改 `createNotifications` 函数，添加 `boss_id` 字段：
+在 `src/db/notificationApi.ts` 中修改两个函数，都添加 `boss_id` 字段：
+
+#### createNotification 函数（单个通知）
+
+```typescript
+// 获取发送者的profile信息（包括 boss_id）
+const {data: senderProfile} = await supabase
+  .from('profiles')
+  .select('name, role, boss_id')
+  .eq('id', user.id)
+  .maybeSingle()
+
+const senderName = senderProfile?.name || '系统'
+const senderRole = senderProfile?.role || 'system'
+const bossId = senderProfile?.boss_id
+
+if (!bossId) {
+  logger.error('创建通知失败：无法获取当前用户的 boss_id')
+  return false
+}
+
+const {error} = await supabase.from('notifications').insert({
+  recipient_id: userId,
+  sender_id: user.id,
+  sender_name: senderName,
+  sender_role: senderRole,
+  type,
+  title,
+  content: message,
+  action_url: null,
+  related_id: relatedId || null,
+  is_read: false,
+  boss_id: bossId  // 添加 boss_id 字段
+})
+```
+
+#### createNotifications 函数（批量通知）
 
 ```typescript
 // 获取发送者的profile信息（包括 boss_id）
@@ -101,7 +157,19 @@ const notificationData = notifications.map((n) => ({
 
 ### 修改的文件
 1. `supabase/migrations/19_fix_notifications_rls_for_manager.sql` - 新增迁移文件
-2. `src/db/notificationApi.ts` - 修改 `createNotifications` 函数
+2. `src/db/notificationApi.ts` - 修改 `createNotification` 和 `createNotifications` 两个函数
+
+### 代码修改详情
+
+#### 1. createNotification 函数（第 437-470 行）
+- 添加获取 `boss_id` 的逻辑
+- 在 insert 语句中添加 `boss_id` 字段
+- 添加 `boss_id` 为空的错误处理
+
+#### 2. createNotifications 函数（第 500-528 行）
+- 添加获取 `boss_id` 的逻辑
+- 在 notificationData 映射中添加 `boss_id` 字段
+- 添加 `boss_id` 为空的错误处理
 
 ### 新增的 RLS 策略
 

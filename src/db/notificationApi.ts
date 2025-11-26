@@ -434,11 +434,21 @@ export async function createNotification(
       return false
     }
 
-    // 获取发送者的profile信息
-    const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+    // 获取发送者的profile信息（包括 boss_id）
+    const {data: senderProfile} = await supabase
+      .from('profiles')
+      .select('name, role, boss_id')
+      .eq('id', user.id)
+      .maybeSingle()
 
     const senderName = senderProfile?.name || '系统'
     const senderRole = senderProfile?.role || 'system'
+    const bossId = senderProfile?.boss_id
+
+    if (!bossId) {
+      logger.error('创建通知失败：无法获取当前用户的 boss_id')
+      return false
+    }
 
     // 自动确定分类
     const category = getNotificationCategory(type)
@@ -455,7 +465,8 @@ export async function createNotification(
       content: message,
       action_url: null,
       related_id: relatedId || null,
-      is_read: false
+      is_read: false,
+      boss_id: bossId
     })
 
     if (error) {
