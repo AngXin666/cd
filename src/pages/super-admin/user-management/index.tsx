@@ -45,7 +45,7 @@ const UserManagement: React.FC = () => {
   const [filteredUsers, setFilteredUsers] = useState<UserWithRealName[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
   const [showSearch, setShowSearch] = useState(false) // 搜索框展开状态
-  // 默认角色过滤：如果是老板登录，显示管理员；否则显示司机
+  // 默认角色过滤：如果是老板登录，显示车队长；否则显示司机
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>(user?.role === 'super_admin' ? 'manager' : 'driver')
   const [loading, setLoading] = useState(false)
 
@@ -90,9 +90,10 @@ const UserManagement: React.FC = () => {
 
       // 角色过滤
       if (role !== 'all') {
-        // 特殊处理：当角色为 manager 时，显示车队长和老板
+        // 特殊处理：当角色为 manager 时，只显示车队长
+        // 不显示 super_admin（老板账号和平级账号）
         if (role === 'manager') {
-          filtered = filtered.filter((u) => u.role === 'manager' || u.role === 'super_admin')
+          filtered = filtered.filter((u) => u.role === 'manager')
         } else {
           filtered = filtered.filter((u) => u.role === role)
         }
@@ -273,6 +274,7 @@ const UserManagement: React.FC = () => {
     (tab: 'driver' | 'manager') => {
       setActiveTab(tab)
       // 切换标签时自动设置角色筛选
+      // 管理员标签页显示车队长（manager），不显示老板账号（super_admin）
       const role: UserRole = tab === 'driver' ? 'driver' : 'manager'
       setRoleFilter(role)
       filterUsers(users, searchKeyword, role, currentWarehouseIndex)

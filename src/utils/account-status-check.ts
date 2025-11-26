@@ -1,6 +1,6 @@
 /**
  * 账号状态检查工具
- * 
+ *
  * 用于检查用户账号是否可以登录，并返回相应的提示信息
  */
 
@@ -21,7 +21,7 @@ export interface AccountStatusResult {
 
 /**
  * 检查账号状态
- * 
+ *
  * @param userId 用户ID
  * @returns 账号状态检查结果
  */
@@ -45,10 +45,10 @@ export async function checkAccountStatus(userId: string): Promise<AccountStatusR
 
 /**
  * 登录后检查账号状态
- * 
+ *
  * 在用户登录后调用，检查账号是否可以继续使用
  * 如果账号已过期或被停用，显示相应的提示信息并跳转到登录页
- * 
+ *
  * @returns 是否可以继续登录
  */
 export async function checkLoginStatus(): Promise<boolean> {
@@ -111,9 +111,9 @@ export async function checkLoginStatus(): Promise<boolean> {
 
 /**
  * 显示账号过期提示
- * 
+ *
  * 根据用户角色显示不同的提示信息
- * 
+ *
  * @param role 用户角色
  * @param isMainAccount 是否是主账号
  */
@@ -141,9 +141,9 @@ export function showExpiredMessage(role: string, isMainAccount: boolean = false)
 
 /**
  * 在页面显示时检查账号状态
- * 
+ *
  * 在 useDidShow 中调用，确保每次页面显示时都检查账号状态
- * 
+ *
  * @param excludeRoles 排除的角色（这些角色不需要检查）
  */
 export async function checkAccountStatusOnPageShow(excludeRoles: string[] = []): Promise<boolean> {
@@ -159,11 +159,7 @@ export async function checkAccountStatusOnPageShow(excludeRoles: string[] = []):
     }
 
     // 获取用户角色
-    const {data: profile} = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    const {data: profile} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 
     if (!profile) {
       return false

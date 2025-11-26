@@ -11,6 +11,7 @@ const pages = [
   'pages/lease-admin/lease-list/index',
   'pages/profile/index',
   'pages/profile/settings/index',
+  'pages/profile/account-management/index',
   'pages/profile/change-phone/index',
   'pages/profile/change-password/index',
   'pages/profile/edit-name/index',

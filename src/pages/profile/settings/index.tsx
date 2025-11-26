@@ -1,10 +1,23 @@
 import {ScrollView, Text, View} from '@tarojs/components'
-import {navigateTo} from '@tarojs/taro'
+import {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
+import {useCallback, useState} from 'react'
+import {getCurrentUserProfile} from '@/db/api'
+import type {Profile} from '@/db/types'
 
 const SettingsPage: React.FC = () => {
   useAuth({guard: true})
+  const [profile, setProfile] = useState<Profile | null>(null)
+
+  const loadProfile = useCallback(async () => {
+    const data = await getCurrentUserProfile()
+    setProfile(data)
+  }, [])
+
+  useDidShow(() => {
+    loadProfile()
+  })
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -15,6 +28,22 @@ const SettingsPage: React.FC = () => {
             <View className="px-4 py-3 border-b border-gray-100">
               <Text className="text-base font-bold text-gray-800">账户与安全</Text>
             </View>
+
+            {/* 账号管理 - 仅老板账号显示 */}
+            {profile?.role === 'super_admin' && (
+              <View
+                className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
+                onClick={() => navigateTo({url: '/pages/profile/account-management/index'})}>
+                <View className="flex items-center">
+                  <View className="i-mdi-account-multiple-plus text-2xl text-blue-900 mr-3" />
+                  <View>
+                    <Text className="text-sm text-gray-800 block mb-1">账号管理</Text>
+                    <Text className="text-xs text-gray-500">管理主账号和平级账号</Text>
+                  </View>
+                </View>
+                <View className="i-mdi-chevron-right text-xl text-gray-400" />
+              </View>
+            )}
 
             {/* 修改手机号 */}
             <View
