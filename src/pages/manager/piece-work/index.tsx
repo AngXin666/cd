@@ -143,8 +143,10 @@ const ManagerPieceWork: React.FC = () => {
     loadRecords()
   }, [loadRecords])
 
+  // 页面显示时刷新数据（从其他页面返回时也会触发）
   useDidShow(() => {
     loadData()
+    loadRecords() // 修复：添加计件记录刷新，确保数据实时更新
   })
 
   // 快捷筛选：前一天
