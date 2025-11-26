@@ -41,7 +41,7 @@ export interface Profile {
   lease_end_date: string | null // 租赁结束日期（仅老板账号）
   monthly_fee: number | null // 月租费用（仅老板账号）
   notes: string | null // 备注信息
-  boss_id: string | null // 租户ID，指向super_admin的id
+  tenant_id: string | null // 租户ID，指向super_admin的id
   main_account_id: string | null // 主账号ID，NULL表示这是主账号，非NULL表示这是平级账号
   peer_account_permission: 'full' | 'readonly' | null // 平级账号权限类型：full=完整权限，readonly=仅查看权限
   manager_permissions_enabled: boolean | null // 车队长权限是否启用，true=启用，false=禁用，默认true
@@ -802,7 +802,7 @@ export interface VehicleLeaseInfo extends VehicleBase {
 // 租赁账单（lease_bills表）
 export interface LeaseBill {
   id: string
-  boss_id: string // 租户ID（老板账号）
+  tenant_id: string // 租户ID（老板账号）
   bill_month: string // 账单月份，格式：2025-01
   amount: number // 账单金额
   status: string // 账单状态：pending(待核销), verified(已核销), cancelled(已取消)
@@ -1096,7 +1096,7 @@ export type ExpireActionType = 'suspend_all' | 'suspend_main' | 'suspend_peer' |
  */
 export interface Lease {
   id: string
-  boss_id: string // 老板账号ID（主账号）
+  tenant_id: string // 老板账号ID（主账号）
   start_date: string // 租期开始日期
   end_date: string // 租期结束日期
   duration_months: number // 租期月数（1/3/6/12）
@@ -1122,7 +1122,7 @@ export interface LeaseWithTenant extends Lease {
  * 创建租期的输入参数
  */
 export interface CreateLeaseInput {
-  boss_id: string
+  tenant_id: string
   start_date: string
   duration_months: number // 1, 3, 6, 12
   expire_action: ExpireActionType

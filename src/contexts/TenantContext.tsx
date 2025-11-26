@@ -22,6 +22,8 @@ import type {Profile, UserRole} from '@/db/types'
 interface TenantContextValue {
   // 当前用户ID
   userId: string | null
+  // 当前用户的 boss_id（租户唯一标识）
+  bossId: string | null
   // 当前用户资料
   profile: Profile | null
   // 当前用户角色
@@ -247,6 +249,7 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
    */
   const value: TenantContextValue = {
     userId: user?.id || null,
+    bossId: profile?.boss_id || null,
     profile,
     role: profile?.role || null,
     loading,
