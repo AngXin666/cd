@@ -7453,11 +7453,12 @@ export async function checkAndHandleExpiredLeases(): Promise<number> {
     const today = new Date().toISOString().split('T')[0]
 
     // 获取所有已到期但状态仍为 active 的租期
+    // 注意：使用 lt (小于) 而不是 lte (小于等于)，确保到期当天还能使用
     const {data: expiredLeases, error} = await supabase
       .from('leases')
       .select('*')
       .eq('status', 'active')
-      .lte('end_date', today)
+      .lt('end_date', today)
 
     if (error) {
       console.error('获取到期租期失败:', error)
@@ -7539,7 +7540,6 @@ export async function checkUserLeaseStatus(
       .from('leases')
       .select('*')
       .eq('tenant_id', mainAccountId)
-      .eq('status', 'active')
       .order('end_date', {ascending: false})
       .limit(1)
 
@@ -7548,7 +7548,7 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    // 如果没有有效租期
+    // 如果没有任何租期记录
     if (!leases || leases.length === 0) {
       if (isMainAccount) {
         return {
@@ -7563,9 +7563,12 @@ export async function checkUserLeaseStatus(
       }
     }
 
-    // 检查租期是否已到期
+    // 检查最新的租期是否已到期
     const lease = leases[0]
     const today = new Date().toISOString().split('T')[0]
+
+    // 只有当租期真正过期（end_date < today）时才判定为过期
+    // 到期当天（end_date === today）仍然可以使用
     if (lease.end_date < today) {
       if (isMainAccount) {
         return {
