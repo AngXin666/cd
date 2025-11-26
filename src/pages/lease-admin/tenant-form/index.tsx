@@ -131,7 +131,9 @@ export default function TenantForm() {
             monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : null,
             notes: formData.notes || null,
             tenant_id: null,
-            main_account_id: null
+            main_account_id: null,
+            peer_account_permission: null,
+            manager_permissions_enabled: null
           },
           null,
           formData.password

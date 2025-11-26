@@ -3388,6 +3388,65 @@ export async function upsertManagerPermission(_input: ManagerPermissionInput): P
 }
 
 /**
+ * 更新车队长的权限启用状态
+ * @param managerId 车队长ID
+ * @param enabled 是否启用权限
+ * @returns 是否更新成功
+ */
+export async function updateManagerPermissionsEnabled(managerId: string, enabled: boolean): Promise<boolean> {
+  try {
+    console.log('[updateManagerPermissionsEnabled] 开始更新车队长权限状态', {managerId, enabled})
+
+    const {error} = await supabase.from('profiles').update({manager_permissions_enabled: enabled}).eq('id', managerId)
+
+    if (error) {
+      console.error('[updateManagerPermissionsEnabled] 更新失败:', error)
+      return false
+    }
+
+    console.log('[updateManagerPermissionsEnabled] 更新成功')
+    return true
+  } catch (error) {
+    console.error('[updateManagerPermissionsEnabled] 更新异常:', error)
+    return false
+  }
+}
+
+/**
+ * 获取车队长的权限启用状态
+ * @param managerId 车队长ID
+ * @returns 权限启用状态，如果获取失败返回 null
+ */
+export async function getManagerPermissionsEnabled(managerId: string): Promise<boolean | null> {
+  try {
+    console.log('[getManagerPermissionsEnabled] 开始获取车队长权限状态', {managerId})
+
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('manager_permissions_enabled')
+      .eq('id', managerId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('[getManagerPermissionsEnabled] 获取失败:', error)
+      return null
+    }
+
+    if (!data) {
+      console.warn('[getManagerPermissionsEnabled] 未找到用户')
+      return null
+    }
+
+    const enabled = data.manager_permissions_enabled ?? true // 默认为 true
+    console.log('[getManagerPermissionsEnabled] 获取成功', {enabled})
+    return enabled
+  } catch (error) {
+    console.error('[getManagerPermissionsEnabled] 获取异常:', error)
+    return null
+  }
+}
+
+/**
  * 获取管理员管辖的仓库ID列表
  */
 export async function getManagerWarehouseIds(managerId: string): Promise<string[]> {

@@ -5,10 +5,10 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {
   getAllWarehouses,
-  getManagerPermission,
+  getManagerPermissionsEnabled,
   getManagerWarehouseIds,
   setManagerWarehouses,
-  upsertManagerPermission
+  updateManagerPermissionsEnabled
 } from '@/db/api'
 import type {Warehouse} from '@/db/types'
 
@@ -21,11 +21,8 @@ const PermissionConfig: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
 
-  // 权限开关状态
-  const [canEditUserInfo, setCanEditUserInfo] = useState(false)
-  const [canEditPieceWork, setCanEditPieceWork] = useState(false)
-  const [canManageAttendanceRules, setCanManageAttendanceRules] = useState(false)
-  const [canManageCategories, setCanManageCategories] = useState(false)
+  // 权限开关状态 - 使用新的 manager_permissions_enabled 字段
+  const [managerPermissionsEnabled, setManagerPermissionsEnabled] = useState(true)
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -37,13 +34,10 @@ const PermissionConfig: React.FC = () => {
       const warehouseData = await getAllWarehouses()
       setWarehouses(warehouseData)
 
-      // 加载管理员权限配置
-      const permission = await getManagerPermission(userId)
-      if (permission) {
-        setCanEditUserInfo(permission.can_edit_user_info)
-        setCanEditPieceWork(permission.can_edit_piece_work)
-        setCanManageAttendanceRules(permission.can_manage_attendance_rules)
-        setCanManageCategories(permission.can_manage_categories)
+      // 加载车队长权限状态
+      const permissionsEnabled = await getManagerPermissionsEnabled(userId)
+      if (permissionsEnabled !== null) {
+        setManagerPermissionsEnabled(permissionsEnabled)
       }
 
       // 加载管理员管辖仓库
@@ -72,14 +66,8 @@ const PermissionConfig: React.FC = () => {
 
     Taro.showLoading({title: '保存中...'})
     try {
-      // 保存权限配置
-      const permissionSuccess = await upsertManagerPermission({
-        manager_id: userId,
-        can_edit_user_info: canEditUserInfo,
-        can_edit_piece_work: canEditPieceWork,
-        can_manage_attendance_rules: canManageAttendanceRules,
-        can_manage_categories: canManageCategories
-      })
+      // 保存车队长权限状态
+      const permissionSuccess = await updateManagerPermissionsEnabled(userId, managerPermissionsEnabled)
 
       if (!permissionSuccess) {
         throw new Error('保存权限配置失败')
@@ -102,7 +90,7 @@ const PermissionConfig: React.FC = () => {
     } finally {
       Taro.hideLoading()
     }
-  }, [userId, canEditUserInfo, canEditPieceWork, canManageAttendanceRules, canManageCategories, selectedWarehouseIds])
+  }, [userId, managerPermissionsEnabled, selectedWarehouseIds])
 
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #fef2f2, #fee2e2)'}}>
@@ -160,43 +148,16 @@ const PermissionConfig: React.FC = () => {
                 </View>
                 <Text className="text-sm text-gray-500 mb-3">配置该管理员的具体操作权限</Text>
 
-                {/* 用户信息修改权 */}
-                <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <View className="flex-1">
-                    <Text className="text-base text-gray-800 mb-1">用户信息修改权</Text>
-                    <Text className="text-xs text-gray-500">允许编辑用户的基本信息</Text>
-                  </View>
-                  <Switch checked={canEditUserInfo} onChange={(e) => setCanEditUserInfo(e.detail.value)} />
-                </View>
-
-                {/* 用户计件数据修改权 */}
-                <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <View className="flex-1">
-                    <Text className="text-base text-gray-800 mb-1">用户计件数据修改权</Text>
-                    <Text className="text-xs text-gray-500">允许修改和管理计件工作数据</Text>
-                  </View>
-                  <Switch checked={canEditPieceWork} onChange={(e) => setCanEditPieceWork(e.detail.value)} />
-                </View>
-
-                {/* 考勤规则管理权 */}
-                <View className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <View className="flex-1">
-                    <Text className="text-base text-gray-800 mb-1">考勤规则管理权</Text>
-                    <Text className="text-xs text-gray-500">允许设置和修改考勤规则</Text>
-                  </View>
-                  <Switch
-                    checked={canManageAttendanceRules}
-                    onChange={(e) => setCanManageAttendanceRules(e.detail.value)}
-                  />
-                </View>
-
-                {/* 品类管理权限 */}
+                {/* 用户信息修改权 - 主开关 */}
                 <View className="flex items-center justify-between py-3">
                   <View className="flex-1">
-                    <Text className="text-base text-gray-800 mb-1">品类管理</Text>
-                    <Text className="text-xs text-gray-500">允许管理计件品类配置</Text>
+                    <Text className="text-base text-gray-800 mb-1">用户信息修改权</Text>
+                    <Text className="text-xs text-gray-500">允许编辑用户的基本信息、分配仓库、切换司机类型等操作</Text>
                   </View>
-                  <Switch checked={canManageCategories} onChange={(e) => setCanManageCategories(e.detail.value)} />
+                  <Switch
+                    checked={managerPermissionsEnabled}
+                    onChange={(e) => setManagerPermissionsEnabled(e.detail.value)}
+                  />
                 </View>
               </View>
             </View>

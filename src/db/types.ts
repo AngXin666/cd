@@ -43,6 +43,8 @@ export interface Profile {
   notes: string | null // 备注信息
   tenant_id: string | null // 租户ID，指向super_admin的id
   main_account_id: string | null // 主账号ID，NULL表示这是主账号，非NULL表示这是平级账号
+  peer_account_permission: 'full' | 'readonly' | null // 平级账号权限类型：full=完整权限，readonly=仅查看权限
+  manager_permissions_enabled: boolean | null // 车队长权限是否启用，true=启用，false=禁用，默认true
   created_at: string
   updated_at: string
 }
