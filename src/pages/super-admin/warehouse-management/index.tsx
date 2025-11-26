@@ -278,6 +278,16 @@ const WarehouseManagement: React.FC = () => {
 
   // 删除仓库
   const handleDeleteWarehouse = async (warehouse: WarehouseWithRule) => {
+    // 检查是否是最后一个仓库
+    if (warehouses.length <= 1) {
+      showToast({
+        title: '无法删除：每个老板号必须保留至少一个仓库',
+        icon: 'none',
+        duration: 3000
+      })
+      return
+    }
+
     const confirmed = await confirmDelete(
       '确认删除',
       `确定要删除仓库"${warehouse.name}"吗？\n\n删除后相关考勤规则和打卡记录也将被删除，此操作无法恢复。`
@@ -300,10 +310,17 @@ const WarehouseManagement: React.FC = () => {
           })
 
           await loadWarehouses()
+        } else {
+          showToast({
+            title: '删除失败',
+            icon: 'none',
+            duration: 2000
+          })
         }
-      } catch (_error) {
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '删除失败'
         showToast({
-          title: '删除失败',
+          title: errorMessage,
           icon: 'none',
           duration: 2000
         })

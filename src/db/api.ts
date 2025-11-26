@@ -698,7 +698,11 @@ export async function deleteWarehouse(id: string): Promise<boolean> {
 
   if (error) {
     console.error('删除仓库失败:', error)
-    return false
+    // 检查是否是最后一个仓库的错误
+    if (error.message?.includes('每个老板号必须保留至少一个仓库')) {
+      throw new Error('无法删除：每个老板号必须保留至少一个仓库')
+    }
+    throw new Error('删除仓库失败，请稍后重试')
   }
 
   return true
