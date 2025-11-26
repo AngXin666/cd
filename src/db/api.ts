@@ -7535,11 +7535,12 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    // 检查主账号是否有有效租期
+    // 检查主账号是否有有效租期（只查询 active 状态的租期）
     const {data: leases, error: leaseError} = await supabase
       .from('leases')
       .select('*')
       .eq('tenant_id', mainAccountId)
+      .eq('status', 'active')
       .order('end_date', {ascending: false})
       .limit(1)
 
@@ -7548,7 +7549,7 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    // 如果没有任何租期记录
+    // 如果没有任何有效租期记录（active 状态）
     if (!leases || leases.length === 0) {
       if (isMainAccount) {
         return {
