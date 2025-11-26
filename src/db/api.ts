@@ -7104,17 +7104,127 @@ export async function activateTenant(id: string): Promise<boolean> {
 }
 
 /**
- * 删除老板账号
+ * 删除租户（老板账号）
+ * 会级联删除该租户下的所有数据：
+ * - 平级账号
+ * - 车队长
+ * - 司机
+ * - 车辆
+ * - 仓库
+ * - 考勤记录
+ * - 请假记录
+ * - 计件记录
+ * - 通知
+ * 等所有关联数据
  */
 export async function deleteTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('profiles').delete().eq('id', id)
+    // 1. 验证是否为主账号
+    const {data: tenant, error: fetchError} = await supabase
+      .from('profiles')
+      .select('id, role, main_account_id, name, phone')
+      .eq('id', id)
+      .maybeSingle()
 
-    if (error) {
-      console.error('删除老板账号失败:', error)
+    if (fetchError) {
+      console.error('查询租户信息失败:', fetchError)
       return false
     }
 
+    if (!tenant) {
+      console.error('租户不存在')
+      return false
+    }
+
+    // 确保是老板账号
+    if (tenant.role !== 'super_admin') {
+      console.error('只能删除老板账号')
+      return false
+    }
+
+    // 确保是主账号（不是平级账号）
+    if (tenant.main_account_id !== null) {
+      console.error('只能删除主账号，不能删除平级账号')
+      return false
+    }
+
+    // 2. 统计将要删除的数据
+    const [
+      {data: peerAccounts},
+      {data: managers},
+      {data: drivers},
+      {data: vehicles},
+      {data: warehouses},
+      {data: attendance},
+      {data: leaves},
+      {data: pieceWorks}
+    ] = await Promise.all([
+      // 平级账号
+      supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'super_admin')
+        .eq('main_account_id', id),
+      // 车队长
+      supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'manager')
+        .eq('boss_id', id),
+      // 司机
+      supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'driver')
+        .eq('boss_id', id),
+      // 车辆
+      supabase
+        .from('vehicles')
+        .select('id')
+        .eq('tenant_id', id),
+      // 仓库
+      supabase
+        .from('warehouses')
+        .select('id')
+        .eq('tenant_id', id),
+      // 考勤记录
+      supabase
+        .from('attendance')
+        .select('id')
+        .eq('tenant_id', id),
+      // 请假记录
+      supabase
+        .from('leave_applications')
+        .select('id')
+        .eq('tenant_id', id),
+      // 计件记录
+      supabase
+        .from('piece_work_records')
+        .select('id')
+        .eq('tenant_id', id)
+    ])
+
+    console.log('准备删除租户:', {
+      tenant: `${tenant.name} (${tenant.phone})`,
+      peerAccounts: peerAccounts?.length || 0,
+      managers: managers?.length || 0,
+      drivers: drivers?.length || 0,
+      vehicles: vehicles?.length || 0,
+      warehouses: warehouses?.length || 0,
+      attendance: attendance?.length || 0,
+      leaves: leaves?.length || 0,
+      pieceWorks: pieceWorks?.length || 0
+    })
+
+    // 3. 删除主账号（会自动级联删除所有关联数据）
+    const {error: deleteError} = await supabase.from('profiles').delete().eq('id', id)
+
+    if (deleteError) {
+      console.error('删除老板账号失败:', deleteError)
+      return false
+    }
+
+    console.log('成功删除租户及其所有关联数据')
     return true
   } catch (error) {
     console.error('删除老板账号异常:', error)

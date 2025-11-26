@@ -143,18 +143,62 @@ export default function TenantList() {
   }
 
   const handleDelete = async (id: string) => {
+    // 查找要删除的租户信息
+    const tenant = tenants.find((t) => t.id === id)
+    if (!tenant) {
+      Taro.showToast({title: '租户不存在', icon: 'none'})
+      return
+    }
+
+    // 统计该租户下的数据
+    const peerAccounts = tenants.filter((t) => t.main_account_id === id)
+    const managers = managersMap.get(id) || []
+
+    // 构建详细的删除提示
+    let content = `删除租户：${tenant.name || '未命名'}\n`
+    content += `手机号：${tenant.phone || '未设置'}\n\n`
+    content += `将同时删除：\n`
+    content += `• 平级账号：${peerAccounts.length} 个\n`
+    content += `• 车队长：${managers.length} 名\n`
+    content += `• 该租户下的所有司机\n`
+    content += `• 所有车辆、仓库数据\n`
+    content += `• 所有考勤、请假记录\n\n`
+    content += `此操作不可恢复！`
+
     const result = await Taro.showModal({
-      title: '确认删除',
-      content: '确定要删除该老板账号吗？此操作不可恢复！'
+      title: '⚠️ 危险操作',
+      content: content,
+      confirmText: '确认删除',
+      cancelText: '取消'
     })
 
     if (result.confirm) {
+      // 显示加载提示
+      Taro.showLoading({title: '删除中...', mask: true})
+
       const success = await deleteTenant(id)
+
+      Taro.hideLoading()
+
       if (success) {
         Taro.showToast({title: '删除成功', icon: 'success'})
+        // 清除缓存的数据
+        const newManagersMap = new Map(managersMap)
+        newManagersMap.delete(id)
+        setManagersMap(newManagersMap)
+
+        const newPeerAccountsMap = new Map(peerAccountsMap)
+        newPeerAccountsMap.delete(id)
+        setPeerAccountsMap(newPeerAccountsMap)
+
+        const newExpandedIds = new Set(expandedTenantIds)
+        newExpandedIds.delete(id)
+        setExpandedTenantIds(newExpandedIds)
+
+        // 重新加载列表
         loadTenants()
       } else {
-        Taro.showToast({title: '删除失败', icon: 'none'})
+        Taro.showToast({title: '删除失败，请重试', icon: 'none', duration: 2000})
       }
     }
   }
