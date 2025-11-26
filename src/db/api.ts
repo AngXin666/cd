@@ -350,7 +350,34 @@ export async function getManagerProfiles(): Promise<Profile[]> {
  * 创建上班打卡记录
  */
 export async function createClockIn(input: AttendanceRecordInput): Promise<AttendanceRecord | null> {
-  const {data, error} = await supabase.from('attendance').insert(input).select().maybeSingle()
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建打卡记录失败: 用户未登录')
+    return null
+  }
+
+  // 2. 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('创建打卡记录失败: 无法获取 boss_id')
+    return null
+  }
+
+  // 3. 插入考勤记录（自动添加 boss_id 和 tenant_id）
+  const {data, error} = await supabase
+    .from('attendance')
+    .insert({
+      ...input,
+      boss_id: profile.boss_id,
+      tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
+    })
+    .select()
+    .maybeSingle()
 
   if (error) {
     console.error('创建打卡记录失败:', error)
