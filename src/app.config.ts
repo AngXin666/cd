@@ -17,6 +17,7 @@ const pages = [
   'pages/profile/help/index',
   'pages/profile/feedback/index',
   'pages/common/notifications/index',
+  'pages/driver/notifications/index',
   'pages/driver/clock-in/index',
   'pages/driver/attendance/index',
   'pages/driver/warehouse-stats/index',

@@ -886,12 +886,9 @@ export interface VehicleRecordWithDetails extends VehicleRecord {
   driver_email?: string | null // 司机邮箱
   // 身份证实名信息（从driver_licenses表）
   id_card_name?: string | null // 身份证姓名
-  id_card_number?: string | null // 身份证号码
   id_card_address?: string | null // 身份证地址
   id_card_birth_date?: string | null // 出生日期
   // 驾驶证信息（从driver_licenses表）
-  license_number?: string | null // 驾驶证号
-  license_class?: string | null // 准驾车型
   driving_license_photo?: string | null // 驾驶证照片
 }
 
@@ -1129,4 +1126,45 @@ export interface CreateLeaseInput {
   start_date: string
   duration_months: number // 1, 3, 6, 12
   expire_action: ExpireActionType
+}
+
+/**
+ * 通知类型
+ */
+export type NotificationType = 'verification_reminder' | 'system' | 'announcement'
+
+/**
+ * 发送者角色类型
+ */
+export type SenderRole = 'manager' | 'super_admin' | 'driver'
+
+/**
+ * 通知记录
+ */
+export interface Notification {
+  id: string
+  recipient_id: string // 接收者ID
+  sender_id: string // 发送者ID
+  sender_name: string // 发送者姓名
+  sender_role: SenderRole // 发送者角色
+  type: NotificationType // 通知类型
+  title: string // 通知标题
+  content: string // 通知内容
+  action_url: string | null // 跳转链接
+  is_read: boolean // 是否已读
+  created_at: string // 创建时间
+}
+
+/**
+ * 创建通知的输入参数
+ */
+export interface CreateNotificationInput {
+  recipient_id: string
+  sender_id: string
+  sender_name: string
+  sender_role: SenderRole
+  type: NotificationType
+  title: string
+  content: string
+  action_url?: string
 }

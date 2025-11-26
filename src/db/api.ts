@@ -15,6 +15,7 @@ import type {
   CategoryPrice,
   CategoryPriceInput,
   CreateLeaseInput,
+  CreateNotificationInput,
   DriverLicense,
   DriverLicenseInput,
   DriverLicenseUpdate,
@@ -32,6 +33,7 @@ import type {
   LockedPhotos,
   ManagerPermission,
   ManagerPermissionInput,
+  Notification,
   NotificationSendRecord,
   NotificationSendRecordWithSender,
   NotificationTemplate,
@@ -45,6 +47,7 @@ import type {
   ResignationApplication,
   ResignationApplicationInput,
   ScheduledNotification,
+  SenderRole,
   UserRole,
   Vehicle,
   VehicleInput,
@@ -7689,5 +7692,179 @@ export async function checkUserLeaseStatus(
   } catch (error) {
     console.error('检查用户租期状态异常:', error)
     return {status: 'ok'}
+  }
+}
+
+/**
+ * ============================================
+ * 通知管理相关API
+ * ============================================
+ */
+
+/**
+ * 创建通知记录（新版通知系统）
+ */
+export async function createNotificationRecord(input: CreateNotificationInput): Promise<Notification | null> {
+  try {
+    const {data, error} = await supabase
+      .from('notifications')
+      .insert({
+        recipient_id: input.recipient_id,
+        sender_id: input.sender_id,
+        sender_name: input.sender_name,
+        sender_role: input.sender_role,
+        type: input.type,
+        title: input.title,
+        content: input.content,
+        action_url: input.action_url || null
+      })
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      console.error('创建通知失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建通知异常:', error)
+    return null
+  }
+}
+
+/**
+ * 获取用户的通知列表
+ */
+export async function getNotifications(userId: string, limit = 50): Promise<Notification[]> {
+  try {
+    const {data, error} = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('recipient_id', userId)
+      .order('created_at', {ascending: false})
+      .limit(limit)
+
+    if (error) {
+      console.error('获取通知列表失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取通知列表异常:', error)
+    return []
+  }
+}
+
+/**
+ * 获取未读通知数量
+ */
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  try {
+    const {count, error} = await supabase
+      .from('notifications')
+      .select('*', {count: 'exact', head: true})
+      .eq('recipient_id', userId)
+      .eq('is_read', false)
+
+    if (error) {
+      console.error('获取未读通知数量失败:', error)
+      return 0
+    }
+
+    return count || 0
+  } catch (error) {
+    console.error('获取未读通知数量异常:', error)
+    return 0
+  }
+}
+
+/**
+ * 标记通知为已读
+ */
+export async function markNotificationAsRead(notificationId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('notifications').update({is_read: true}).eq('id', notificationId)
+
+    if (error) {
+      console.error('标记通知为已读失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('标记通知为已读异常:', error)
+    return false
+  }
+}
+
+/**
+ * 标记所有通知为已读
+ */
+export async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase
+      .from('notifications')
+      .update({is_read: true})
+      .eq('recipient_id', userId)
+      .eq('is_read', false)
+
+    if (error) {
+      console.error('标记所有通知为已读失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('标记所有通知为已读异常:', error)
+    return false
+  }
+}
+
+/**
+ * 删除通知
+ */
+export async function deleteNotification(notificationId: string): Promise<boolean> {
+  try {
+    const {error} = await supabase.from('notifications').delete().eq('id', notificationId)
+
+    if (error) {
+      console.error('删除通知失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除通知异常:', error)
+    return false
+  }
+}
+
+/**
+ * 发送实名提醒通知
+ */
+export async function sendVerificationReminder(
+  recipientId: string,
+  senderId: string,
+  senderName: string,
+  senderRole: SenderRole
+): Promise<boolean> {
+  try {
+    const notification = await createNotificationRecord({
+      recipient_id: recipientId,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
+      type: 'verification_reminder',
+      title: '实名提醒',
+      content: `${senderName}要求您尽快完成实名和车辆录入`,
+      action_url: '/pages/driver/vehicle-list/index'
+    })
+
+    return notification !== null
+  } catch (error) {
+    console.error('发送实名提醒通知异常:', error)
+    return false
   }
 }

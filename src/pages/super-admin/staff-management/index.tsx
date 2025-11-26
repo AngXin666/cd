@@ -7,11 +7,13 @@ import {
   addManagerWarehouse,
   getAllManagers,
   getAllWarehouses,
+  getCurrentUserWithRealName,
   getDriversByWarehouse,
   getManagerPermission,
   getManagerWarehouses,
   removeManagerWarehouse,
   resetUserPassword,
+  sendVerificationReminder,
   updateProfile,
   updateUserRole,
   upsertManagerPermission
@@ -337,6 +339,56 @@ const StaffManagement: React.FC = () => {
       phoneNumber: phone
     })
   }, [])
+
+  // 发送实名通知
+  const handleSendVerificationReminder = useCallback(
+    async (driver: Profile) => {
+      if (!user) return
+
+      Taro.showLoading({title: '发送中...', mask: true})
+
+      try {
+        // 获取当前用户信息
+        const currentUser = await getCurrentUserWithRealName()
+        if (!currentUser) {
+          Taro.showToast({
+            title: '获取用户信息失败',
+            icon: 'none'
+          })
+          return
+        }
+
+        // 发送通知
+        const success = await sendVerificationReminder(
+          driver.id,
+          user.id,
+          currentUser.real_name || currentUser.name || '老板',
+          'super_admin'
+        )
+
+        if (success) {
+          Taro.showToast({
+            title: '通知已发送',
+            icon: 'success'
+          })
+        } else {
+          Taro.showToast({
+            title: '发送失败，请重试',
+            icon: 'none'
+          })
+        }
+      } catch (error) {
+        console.error('发送实名通知异常:', error)
+        Taro.showToast({
+          title: '发送失败',
+          icon: 'none'
+        })
+      } finally {
+        Taro.hideLoading()
+      }
+    },
+    [user]
+  )
 
   // 保存管理员信息
   const handleSaveManager = useCallback(async () => {
@@ -746,6 +798,21 @@ const StaffManagement: React.FC = () => {
             </View>
           </View>
         </View>
+
+        {/* 实名通知按钮 - 仅对未实名司机显示 */}
+        {!isVerified && (
+          <View className="flex justify-center mb-3">
+            <View
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSendVerificationReminder(driver)
+              }}
+              className="flex items-center justify-center bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg px-6 py-3 active:opacity-80 transition-all shadow-md">
+              <View className="i-mdi-bell-alert text-white text-lg mr-2" />
+              <Text className="text-white text-base font-bold">实名通知</Text>
+            </View>
+          </View>
+        )}
 
         <View className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
           <Button

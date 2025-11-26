@@ -14,9 +14,9 @@ import {
   getManagerWarehouses,
   getWarehouseAssignmentsByDriver,
   insertWarehouseAssignment,
+  sendVerificationReminder,
   updateProfile
 } from '@/db/api'
-import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
@@ -264,6 +264,57 @@ const DriverManagement: React.FC = () => {
     })
   }
 
+  // 发送实名通知
+  const handleSendVerificationReminder = async (driver: DriverWithRealName) => {
+    if (!user) return
+
+    logger.userAction('发送实名通知', {driverId: driver.id, driverName: driver.name})
+
+    Taro.showLoading({title: '发送中...', mask: true})
+
+    try {
+      // 获取当前用户信息
+      const currentUser = await getCurrentUserWithRealName()
+      if (!currentUser) {
+        Taro.showToast({
+          title: '获取用户信息失败',
+          icon: 'none'
+        })
+        return
+      }
+
+      // 发送通知
+      const success = await sendVerificationReminder(
+        driver.id,
+        user.id,
+        currentUser.real_name || currentUser.name || '管理员',
+        'manager'
+      )
+
+      if (success) {
+        Taro.showToast({
+          title: '通知已发送',
+          icon: 'success'
+        })
+        logger.info('实名通知发送成功', {driverId: driver.id})
+      } else {
+        Taro.showToast({
+          title: '发送失败，请重试',
+          icon: 'none'
+        })
+        logger.error('实名通知发送失败', {driverId: driver.id})
+      }
+    } catch (error) {
+      logger.error('发送实名通知异常', {error, driverId: driver.id})
+      Taro.showToast({
+        title: '发送失败',
+        icon: 'none'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
   // 切换添加司机表单显示
   const toggleAddDriver = () => {
     setShowAddDriver(!showAddDriver)
@@ -453,11 +504,11 @@ const DriverManagement: React.FC = () => {
             }
           }
 
-          // 批量发送通知
-          if (notifications.length > 0) {
-            await createNotifications(notifications)
-            console.log(`✅ 已发送 ${notifications.length} 条司机类型变更通知`)
-          }
+          // 批量发送通知（旧系统，已废弃）
+          // if (notifications.length > 0) {
+          //   await createNotifications(notifications)
+          //   console.log(`✅ 已发送 ${notifications.length} 条司机类型变更通知`)
+          // }
         } catch (error) {
           console.error('❌ 发送司机类型变更通知失败:', error)
         }
@@ -603,18 +654,18 @@ const DriverManagement: React.FC = () => {
           })
         }
 
-        // 批量发送通知
-        if (notifications.length > 0) {
-          console.log('📤 [仓库分配-管理员] 准备发送通知:', notifications)
-          const success = await createNotifications(notifications)
-          if (success) {
-            console.log(`✅ [仓库分配-管理员] 已成功发送 ${notifications.length} 条通知`)
-          } else {
-            console.error('❌ [仓库分配-管理员] 通知发送失败')
-          }
-        } else {
-          console.log('ℹ️ [仓库分配-管理员] 没有需要发送的通知')
-        }
+        // 批量发送通知（旧系统，已废弃）
+        // if (notifications.length > 0) {
+        //   console.log('📤 [仓库分配-管理员] 准备发送通知:', notifications)
+        //   const success = await createNotifications(notifications)
+        //   if (success) {
+        //     console.log(`✅ [仓库分配-管理员] 已成功发送 ${notifications.length} 条通知`)
+        //   } else {
+        //     console.error('❌ [仓库分配-管理员] 通知发送失败')
+        //   }
+        // } else {
+        //   console.log('ℹ️ [仓库分配-管理员] 没有需要发送的通知')
+        // }
       } catch (error) {
         console.error('❌ [仓库分配-管理员] 发送通知失败:', error)
       }
@@ -1042,6 +1093,21 @@ const DriverManagement: React.FC = () => {
                                   </View>
                                 </View>
                               )}
+                            </View>
+                          )}
+
+                          {/* 实名通知按钮 - 仅对未实名司机显示 */}
+                          {!isVerified && (
+                            <View className="px-4 pb-3 flex justify-center">
+                              <View
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSendVerificationReminder(driver)
+                                }}
+                                className="flex items-center justify-center bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg px-6 py-3 active:opacity-80 transition-all shadow-md">
+                                <View className="i-mdi-bell-alert text-white text-lg mr-2" />
+                                <Text className="text-white text-base font-bold">实名通知</Text>
+                              </View>
                             </View>
                           )}
 

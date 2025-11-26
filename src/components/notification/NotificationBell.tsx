@@ -13,8 +13,8 @@
 import {View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
-import {getUnreadNotificationCount, subscribeToNotifications} from '@/db/notificationApi'
+import {useCallback, useState} from 'react'
+import {getUnreadNotificationCount} from '@/db/api'
 
 interface NotificationBellProps {
   userId: string
@@ -36,24 +36,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({userId, className = 
     loadUnreadCount()
   })
 
-  // 订阅实时通知更新
-  useEffect(() => {
-    if (!userId) return
-
-    const unsubscribe = subscribeToNotifications(userId, () => {
-      // 有新通知时刷新未读数量
-      loadUnreadCount()
-    })
-
-    return () => {
-      unsubscribe()
-    }
-  }, [userId, loadUnreadCount])
-
   // 点击跳转到通知中心
   const handleClick = () => {
     Taro.navigateTo({
-      url: '/pages/common/notifications/index'
+      url: '/pages/driver/notifications/index'
     })
   }
 

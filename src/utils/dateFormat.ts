@@ -120,3 +120,47 @@ export function calculateDays(startDate: string, endDate: string): number {
 
   return diffDays > 0 ? diffDays : 0
 }
+
+/**
+ * 将时间戳转换为相对时间描述
+ * @param dateString ISO格式的日期字符串
+ * @returns 相对时间描述，如"刚刚"、"5分钟前"、"2小时前"、"昨天"、"2天前"等
+ */
+export function formatDistanceToNow(dateString: string): string {
+  if (!dateString) return ''
+
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffSeconds < 60) {
+    return '刚刚'
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes}分钟前`
+  }
+  if (diffHours < 24) {
+    return `${diffHours}小时前`
+  }
+  if (diffDays === 1) {
+    return '昨天'
+  }
+  if (diffDays < 7) {
+    return `${diffDays}天前`
+  }
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7)
+    return `${weeks}周前`
+  }
+  if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30)
+    return `${months}个月前`
+  }
+
+  const years = Math.floor(diffDays / 365)
+  return `${years}年前`
+}
