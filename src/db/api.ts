@@ -7504,13 +7504,22 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
+    console.log('[租期检测] 用户信息:', {
+      userId: user.id,
+      role: user.role,
+      tenant_id: user.tenant_id,
+      main_account_id: user.main_account_id
+    })
+
     // 司机不受租期限制
     if (user.role === 'driver') {
+      console.log('[租期检测] 司机角色，不受租期限制')
       return {status: 'ok'}
     }
 
     // 租赁管理员不受租期限制
     if (user.role === 'lease_admin') {
+      console.log('[租期检测] 租赁管理员角色，不受租期限制')
       return {status: 'ok'}
     }
 
@@ -7522,18 +7531,24 @@ export async function checkUserLeaseStatus(
       // 当前用户是主账号（老板号）
       mainAccountId = user.id
       isMainAccount = true
+      console.log('[租期检测] 当前用户是主账号（老板号）')
     } else if (user.role === 'super_admin' && user.main_account_id !== null) {
       // 当前用户是平级账号
       mainAccountId = user.main_account_id
       isMainAccount = false
+      console.log('[租期检测] 当前用户是平级账号，主账号ID:', mainAccountId)
     } else if (user.role === 'manager') {
       // 当前用户是车队长，需要找到所属的主账号
       mainAccountId = user.tenant_id || ''
       isMainAccount = false
+      console.log('[租期检测] 当前用户是车队长，主账号ID:', mainAccountId)
     } else {
       // 其他角色不受限制
+      console.log('[租期检测] 其他角色，不受租期限制')
       return {status: 'ok'}
     }
+
+    console.log('[租期检测] 查询主账号租期，mainAccountId:', mainAccountId)
 
     // 检查主账号是否有有效租期（只查询 active 状态的租期）
     const {data: leases, error: leaseError} = await supabase
@@ -7545,12 +7560,15 @@ export async function checkUserLeaseStatus(
       .limit(1)
 
     if (leaseError) {
-      console.error('获取租期信息失败:', leaseError)
+      console.error('[租期检测] 获取租期信息失败:', leaseError)
       return {status: 'ok'}
     }
 
+    console.log('[租期检测] 查询到的租期记录:', leases)
+
     // 如果没有任何有效租期记录（active 状态）
     if (!leases || leases.length === 0) {
+      console.log('[租期检测] 没有有效租期记录')
       if (isMainAccount) {
         return {
           status: 'main_expired',
@@ -7568,9 +7586,19 @@ export async function checkUserLeaseStatus(
     const lease = leases[0]
     const today = new Date().toISOString().split('T')[0]
 
+    console.log('[租期检测] 租期信息:', {
+      lease_id: lease.id,
+      start_date: lease.start_date,
+      end_date: lease.end_date,
+      status: lease.status,
+      today: today,
+      isExpired: lease.end_date < today
+    })
+
     // 只有当租期真正过期（end_date < today）时才判定为过期
     // 到期当天（end_date === today）仍然可以使用
     if (lease.end_date < today) {
+      console.log('[租期检测] 租期已过期')
       if (isMainAccount) {
         return {
           status: 'main_expired',
@@ -7584,6 +7612,7 @@ export async function checkUserLeaseStatus(
       }
     }
 
+    console.log('[租期检测] 租期有效，可以使用')
     return {status: 'ok'}
   } catch (error) {
     console.error('检查用户租期状态异常:', error)
