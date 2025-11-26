@@ -696,6 +696,8 @@ const StaffManagement: React.FC = () => {
   // 渲染司机卡片（司机管理标签）
   const renderDriverCard = (driver: Profile) => {
     const workDays = getWorkDays(driver.join_date)
+    // 检测司机是否已实名（有车牌号或登录账号表示已录入信息）
+    const isVerified = driver.vehicle_plate || driver.login_account
 
     return (
       <View key={driver.id} className="bg-white rounded-xl p-4 mb-3 shadow-sm">
@@ -703,9 +705,15 @@ const StaffManagement: React.FC = () => {
           <View className="flex-1">
             <View className="flex items-center mb-2">
               <Text className="text-lg font-bold text-gray-800 mr-2">{driver.name || '未命名'}</Text>
-              <View className="px-2 py-1 rounded bg-green-100">
-                <Text className="text-xs text-green-600">{getDriverTypeText(driver.driver_type)}</Text>
-              </View>
+              {isVerified ? (
+                <View className="px-2 py-1 rounded bg-green-100">
+                  <Text className="text-xs text-green-600">{getDriverTypeText(driver.driver_type)}</Text>
+                </View>
+              ) : (
+                <View className="px-2 py-1 rounded bg-gray-100">
+                  <Text className="text-xs text-gray-600">未实名</Text>
+                </View>
+              )}
             </View>
             <View className="space-y-1">
               {driver.phone && (

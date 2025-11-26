@@ -876,6 +876,11 @@ const DriverManagement: React.FC = () => {
                   <View className="space-y-3">
                     {filteredDrivers.map((driver) => {
                       const detail = driverDetails.get(driver.id)
+                      // 检测司机是否已录入个人信息和车辆信息
+                      const hasPersonalInfo = !!detail?.license?.id_card_number
+                      const hasVehicleInfo = detail?.vehicles && detail.vehicles.length > 0
+                      const isVerified = hasPersonalInfo || hasVehicleInfo // 只要有一个就算已实名
+
                       return (
                         <View key={driver.id} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
                           {/* 司机头部信息 */}
@@ -889,22 +894,31 @@ const DriverManagement: React.FC = () => {
                                   <Text className="text-gray-900 text-lg font-bold">
                                     {driver.real_name || driver.name || '未设置姓名'}
                                   </Text>
-                                  {driver.real_name && (
-                                    <View className="bg-green-100 px-2 py-0.5 rounded-full">
-                                      <Text className="text-green-700 text-xs font-medium">已实名</Text>
-                                    </View>
-                                  )}
-                                  {detail && (
-                                    <View
-                                      className={`px-2 py-0.5 rounded-full ${
-                                        detail.driverType === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
-                                      }`}>
-                                      <Text
-                                        className={`text-xs font-medium ${
-                                          detail.driverType === '带车司机' ? 'text-orange-700' : 'text-blue-700'
-                                        }`}>
-                                        {detail.driverType}
-                                      </Text>
+                                  {/* 实名状态标签 */}
+                                  {isVerified ? (
+                                    <>
+                                      {driver.real_name && (
+                                        <View className="bg-green-100 px-2 py-0.5 rounded-full">
+                                          <Text className="text-green-700 text-xs font-medium">已实名</Text>
+                                        </View>
+                                      )}
+                                      {detail && (
+                                        <View
+                                          className={`px-2 py-0.5 rounded-full ${
+                                            detail.driverType === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
+                                          }`}>
+                                          <Text
+                                            className={`text-xs font-medium ${
+                                              detail.driverType === '带车司机' ? 'text-orange-700' : 'text-blue-700'
+                                            }`}>
+                                            {detail.driverType}
+                                          </Text>
+                                        </View>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <View className="bg-gray-100 px-2 py-0.5 rounded-full">
+                                      <Text className="text-gray-600 text-xs font-medium">未实名</Text>
                                     </View>
                                   )}
                                 </View>
@@ -1033,26 +1047,30 @@ const DriverManagement: React.FC = () => {
 
                           {/* 操作按钮 */}
                           <View className="grid grid-cols-2 gap-2 p-3 bg-gray-50 border-t border-gray-100">
-                            {/* 查看个人信息按钮 */}
-                            <View
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleViewDriverProfile(driver.id)
-                              }}
-                              className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-2.5 active:bg-blue-100 transition-all">
-                              <View className="i-mdi-account-card text-blue-600 text-base mr-1.5" />
-                              <Text className="text-blue-700 text-sm font-medium">个人信息</Text>
-                            </View>
-                            {/* 查看车辆按钮 */}
-                            <View
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleViewDriverVehicles(driver.id)
-                              }}
-                              className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg py-2.5 active:bg-green-100 transition-all">
-                              <View className="i-mdi-car text-green-600 text-base mr-1.5" />
-                              <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
-                            </View>
+                            {/* 查看个人信息按钮 - 仅在已录入个人信息时显示 */}
+                            {hasPersonalInfo && (
+                              <View
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleViewDriverProfile(driver.id)
+                                }}
+                                className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg py-2.5 active:bg-blue-100 transition-all">
+                                <View className="i-mdi-account-card text-blue-600 text-base mr-1.5" />
+                                <Text className="text-blue-700 text-sm font-medium">个人信息</Text>
+                              </View>
+                            )}
+                            {/* 查看车辆按钮 - 仅在已录入车辆信息时显示 */}
+                            {hasVehicleInfo && (
+                              <View
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleViewDriverVehicles(driver.id)
+                                }}
+                                className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg py-2.5 active:bg-green-100 transition-all">
+                                <View className="i-mdi-car text-green-600 text-base mr-1.5" />
+                                <Text className="text-green-700 text-sm font-medium">车辆管理</Text>
+                              </View>
+                            )}
                             {/* 仓库分配按钮 - 仅在权限启用时显示 */}
                             {managerPermissionsEnabled && (
                               <View
