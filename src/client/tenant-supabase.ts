@@ -1,6 +1,6 @@
 /**
  * 租户隔离的 Supabase 客户端
- * 
+ *
  * 自动设置 search_path 到当前用户的租户 Schema，
  * 实现真正的数据库级别隔离。
  */
@@ -50,7 +50,7 @@ export async function setTenantSearchPath(): Promise<boolean> {
 
 /**
  * 获取配置了租户 Schema 的 Supabase 客户端
- * 
+ *
  * 使用示例：
  * ```typescript
  * const client = await getTenantSupabaseClient()
