@@ -4,6 +4,35 @@
 
 ---
 
+## 🔒 独立数据库隔离架构 ⭐ 最新
+
+**实施日期**：2025-11-05
+
+系统已升级为**真正的独立数据库隔离架构**，每个租户（老板）拥有完全独立的 PostgreSQL Schema，实现物理级别的数据隔离。
+
+### 核心优势
+- ✅ **绝对安全**：每个租户的数据在独立的 Schema 中，物理隔离，无法跨租户访问
+- ✅ **代码简单**：无需 `boss_id` 字段，无需 RLS 策略，无需在每个查询中过滤
+- ✅ **性能更好**：无需检查 `boss_id`，无 RLS 策略开销，查询更快
+- ✅ **易于维护**：代码简洁，问题易定位，数据迁移简单
+
+### 快速开始
+```typescript
+import { getTenantSupabaseClient } from '@/client/tenant-supabase'
+
+// 获取租户客户端（自动查询当前租户的数据）
+const client = await getTenantSupabaseClient()
+const { data } = await client.from('warehouses').select('*')
+```
+
+### 相关文档
+- [快速入门](QUICK_START_SCHEMA_ISOLATION.md) - 5 分钟了解如何使用
+- [完整指南](docs/TENANT_ISOLATION_GUIDE.md) - 详细的使用说明和最佳实践
+- [实施总结](SCHEMA_ISOLATION_SUMMARY.md) - 技术细节和架构对比
+- [实施进度](TODO_SCHEMA_ISOLATION.md) - 任务跟踪
+
+---
+
 ## 🌐 访问地址
 
 ### 小程序版本
