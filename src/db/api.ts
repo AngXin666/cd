@@ -899,10 +899,27 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
 export async function assignWarehouseToDriver(
   input: DriverWarehouseInput
 ): Promise<{success: boolean; error?: string}> {
-  // 检查仓库是否被禁用
+  // 1. 检查司机是否存在并获取其 boss_id
+  const {data: driver, error: driverError} = await supabase
+    .from('profiles')
+    .select('boss_id, name')
+    .eq('id', input.driver_id)
+    .maybeSingle()
+
+  if (driverError) {
+    console.error('查询司机信息失败:', driverError)
+    return {success: false, error: '查询司机信息失败'}
+  }
+
+  if (!driver) {
+    console.error('司机不存在:', input.driver_id)
+    return {success: false, error: '司机不存在'}
+  }
+
+  // 2. 检查仓库是否存在并获取其 boss_id
   const {data: warehouse, error: warehouseError} = await supabase
     .from('warehouses')
-    .select('is_active, name')
+    .select('is_active, name, boss_id')
     .eq('id', input.warehouse_id)
     .maybeSingle()
 
@@ -916,11 +933,24 @@ export async function assignWarehouseToDriver(
     return {success: false, error: '仓库不存在'}
   }
 
+  // 3. 验证司机和仓库是否属于同一个租户
+  if (driver.boss_id !== warehouse.boss_id) {
+    console.error('跨租户分配错误:', {
+      driver_name: driver.name,
+      driver_boss_id: driver.boss_id,
+      warehouse_name: warehouse.name,
+      warehouse_boss_id: warehouse.boss_id
+    })
+    return {success: false, error: '无法分配：司机和仓库不属于同一个租户'}
+  }
+
+  // 4. 检查仓库是否被禁用
   if (!warehouse.is_active) {
     console.error('仓库已被禁用，不允许分配司机:', warehouse.name)
     return {success: false, error: `仓库"${warehouse.name}"已被禁用，不允许分配司机`}
   }
 
+  // 5. 执行分配
   const {error} = await supabase.from('driver_warehouses').insert(input)
 
   if (error) {
@@ -1054,7 +1084,58 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
-  // 检查是否已经存在该分配
+  // 1. 检查车队长是否存在并获取其 boss_id
+  const {data: manager, error: managerError} = await supabase
+    .from('profiles')
+    .select('boss_id, name')
+    .eq('id', input.manager_id)
+    .maybeSingle()
+
+  if (managerError) {
+    console.error('查询车队长信息失败:', managerError)
+    return false
+  }
+
+  if (!manager) {
+    console.error('车队长不存在:', input.manager_id)
+    return false
+  }
+
+  // 2. 检查仓库是否存在并获取其 boss_id
+  const {data: warehouse, error: warehouseError} = await supabase
+    .from('warehouses')
+    .select('boss_id, name')
+    .eq('id', input.warehouse_id)
+    .maybeSingle()
+
+  if (warehouseError) {
+    console.error('查询仓库信息失败:', warehouseError)
+    return false
+  }
+
+  if (!warehouse) {
+    console.error('仓库不存在:', input.warehouse_id)
+    return false
+  }
+
+  // 3. 验证车队长和仓库是否属于同一个租户
+  if (manager.boss_id !== warehouse.boss_id) {
+    console.error('跨租户分配错误:', {
+      manager_name: manager.name,
+      manager_boss_id: manager.boss_id,
+      warehouse_name: warehouse.name,
+      warehouse_boss_id: warehouse.boss_id
+    })
+    return false
+  }
+
+  // 4. 验证当前用户是否有权限（必须是同一个租户）
+  if (profile.boss_id !== manager.boss_id) {
+    console.error('无权限：当前用户不属于该租户')
+    return false
+  }
+
+  // 5. 检查是否已经存在该分配
   const {data: existingAssignment} = await supabase
     .from('manager_warehouses')
     .select('id')
@@ -1067,6 +1148,7 @@ export async function insertManagerWarehouseAssignment(input: {
     return true
   }
 
+  // 6. 执行分配
   const {error} = await supabase.from('manager_warehouses').insert({
     ...input,
     boss_id: profile.boss_id
