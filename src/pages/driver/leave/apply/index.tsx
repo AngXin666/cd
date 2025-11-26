@@ -412,7 +412,7 @@ const ApplyLeave: React.FC = () => {
 
     // 生成确认提示信息
     const dateRangeDisplay = formatLeaveDateRangeDisplay(startDate, endDate)
-    const confirmMessage = `确定要提交${dateRangeDisplay}的请假申请吗？`
+    const confirmMessage = `确定要提交${dateRangeDisplay}的请假申请吗？\n\n请假天数：${leaveDays}天`
 
     // 显示确认对话框
     const confirmResult = await new Promise<boolean>((resolve) => {
