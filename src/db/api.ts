@@ -1049,7 +1049,30 @@ export async function deleteWarehouseAssignmentsByDriver(driverId: string): Prom
  * 插入单个仓库分配
  */
 export async function insertWarehouseAssignment(input: DriverWarehouseInput): Promise<boolean> {
-  const {error} = await supabase.from('driver_warehouses').insert(input)
+  // 获取当前用户的 boss_id
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('插入仓库分配失败: 用户未登录')
+    return false
+  }
+
+  // 获取当前用户的 boss_id
+  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+  if (!profile?.boss_id) {
+    console.error('插入仓库分配失败: 无法获取 boss_id')
+    return false
+  }
+
+  // 插入时自动添加 boss_id 和 tenant_id
+  const {error} = await supabase.from('driver_warehouses').insert({
+    ...input,
+    boss_id: profile.boss_id,
+    tenant_id: profile.boss_id // tenant_id 与 boss_id 相同
+  })
 
   if (error) {
     console.error('插入仓库分配失败:', error)
