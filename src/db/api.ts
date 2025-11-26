@@ -5184,7 +5184,32 @@ export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
   logger.db('插入', 'vehicles', {plate: vehicle.plate_number})
   try {
-    const {data, error} = await supabase.from('vehicles').insert(vehicle).select().maybeSingle()
+    // 获取当前用户的 boss_id
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      logger.error('添加车辆失败: 用户未登录')
+      return null
+    }
+
+    const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+
+    if (!profile?.boss_id) {
+      logger.error('添加车辆失败: 无法获取 boss_id')
+      return null
+    }
+
+    // 插入车辆信息（自动添加 boss_id）
+    const {data, error} = await supabase
+      .from('vehicles')
+      .insert({
+        ...vehicle,
+        boss_id: profile.boss_id
+      })
+      .select()
+      .maybeSingle()
 
     if (error) {
       logger.error('添加车辆失败', {
