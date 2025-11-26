@@ -783,7 +783,8 @@ const MyPage: React.FC = () => {
 | `/pages/profile/help/index` | 帮助与反馈 | 使用说明、常见问题、联系我们 |
 | `/pages/profile/feedback/index` | 意见反馈 | 提交反馈、查看历史反馈 |
 | `/pages/admin-dashboard/index` | 用户管理 | 超级管理员用户管理页面 |
-| `/pages/shared/notification-center/index` | 通知中心 | 查看接收到的通知（所有角色） |
+| `/pages/common/notifications/index` | 通知中心 | 查看接收到的通知（车队长/老板） |
+| `/pages/driver/notifications/index` | 通知中心 | 查看接收到的通知（司机） |
 | `/pages/shared/driver-notification/index` | 发送通知 | 发送通知给司机（老板/车队长） |
 | `/pages/shared/notification-templates/index` | 通知模板管理 | 管理快捷通知模板（老板/车队长） |
 | `/pages/shared/scheduled-notifications/index` | 定时通知管理 | 管理定时发送的通知（老板/车队长） |

@@ -532,7 +532,7 @@ const SuperAdminHome: React.FC = () => {
 
               {/* 通知中心 */}
               <View
-                onClick={() => navigateTo({url: '/pages/shared/notification-center/index'})}
+                onClick={() => navigateTo({url: '/pages/common/notifications/index'})}
                 className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-bell-outline text-3xl text-blue-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">通知中心</Text>
