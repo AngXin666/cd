@@ -69,6 +69,7 @@
 - **vehicle_records** - 车辆记录表
 - **driver_licenses** - 驾驶证表
 - **feedback** - 反馈表
+- **notifications** - 通知表（包含 recipient_id, sender_id, sender_name, sender_role, type, title, content, action_url, related_id, is_read）
 
 ## 权限说明
 
@@ -148,6 +149,39 @@ FROM category_prices cp
 JOIN warehouses w ON cp.warehouse_id = w.id
 WHERE cp.is_active = true
 ORDER BY w.name, cp.category_name;
+```
+
+### 查看用户通知
+```sql
+-- 查看某个用户的所有通知
+SELECT 
+  n.id,
+  n.title,
+  n.content,
+  n.type,
+  n.sender_name,
+  n.sender_role,
+  n.is_read,
+  n.created_at
+FROM notifications n
+WHERE n.recipient_id = 'user_id_here'
+ORDER BY n.created_at DESC;
+```
+
+### 查看特定业务对象的通知
+```sql
+-- 查看某个请假申请的所有通知
+SELECT 
+  n.id,
+  n.title,
+  n.content,
+  p.name as recipient_name,
+  n.is_read,
+  n.created_at
+FROM notifications n
+JOIN profiles p ON n.recipient_id = p.id
+WHERE n.related_id = 'application_id_here'
+ORDER BY n.created_at DESC;
 ```
 
 ## 环境变量
