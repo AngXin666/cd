@@ -647,6 +647,10 @@ const { data } = await supabase
     - 修复通知系统函数的 boss_id 隔离
     - 修复仓库访问函数的 boss_id 隔离
 
+20. **supabase/migrations/00191_cleanup_old_tenant_id_triggers_and_functions.sql**
+    - 清理所有使用 tenant_id 的触发器（14 个）
+    - 清理所有使用 tenant_id 的函数（4 个）
+
 ---
 
 **报告结束**
