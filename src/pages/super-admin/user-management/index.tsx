@@ -73,7 +73,7 @@ const UserManagement: React.FC = () => {
   const [showAddUser, setShowAddUser] = useState(false)
   const [newUserPhone, setNewUserPhone] = useState('')
   const [newUserName, setNewUserName] = useState('')
-  const [newUserRole, setNewUserRole] = useState<'driver' | 'manager'>('driver')
+  const [newUserRole, setNewUserRole] = useState<'driver' | 'manager' | 'boss'>('driver')
   const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure')
   const [newUserWarehouseIds, setNewUserWarehouseIds] = useState<string[]>([]) // 新用户的仓库分配
   const [addingUser, setAddingUser] = useState(false)
@@ -400,8 +400,8 @@ const UserManagement: React.FC = () => {
       return
     }
 
-    // 验证仓库选择（司机和管理员都需要）
-    if (newUserWarehouseIds.length === 0) {
+    // 验证仓库选择（司机和管理员需要，老板不需要）
+    if (newUserRole !== 'boss' && newUserWarehouseIds.length === 0) {
       const roleText = newUserRole === 'driver' ? '司机' : '管理员'
       showToast({title: `请为${roleText}至少选择一个仓库`, icon: 'none'})
       return
@@ -411,50 +411,93 @@ const UserManagement: React.FC = () => {
     showLoading({title: '添加中...'})
 
     try {
-      // 调用创建用户函数
-      const newUser = await createUser(
-        newUserPhone.trim(),
-        newUserName.trim(),
-        newUserRole,
-        newUserRole === 'driver' ? newDriverType : undefined
-      )
-
-      if (newUser) {
-        // 分配仓库
-        console.log('开始为新用户分配仓库', {userId: newUser.id, role: newUserRole, warehouseIds: newUserWarehouseIds})
-
-        if (newUserRole === 'driver') {
-          // 为司机分配仓库（使用 driver_warehouses 表）
-          for (const warehouseId of newUserWarehouseIds) {
-            await insertWarehouseAssignment({
-              driver_id: newUser.id,
-              warehouse_id: warehouseId
-            })
+      // 如果是添加老板角色，需要特殊处理
+      let newUser
+      if (newUserRole === 'boss') {
+        // 创建平级老板账号
+        // 1. 先在 Supabase Auth 中创建用户
+        const {data: authData, error: authError} = await supabase.auth.signUp({
+          phone: newUserPhone.trim(),
+          password: '123456', // 默认密码
+          options: {
+            data: {
+              name: newUserName.trim()
+            }
           }
-        } else if (newUserRole === 'manager' || newUserRole === 'super_admin') {
-          // 为管理员和车队长分配仓库（使用 manager_warehouses 表）
-          for (const warehouseId of newUserWarehouseIds) {
-            await insertManagerWarehouseAssignment({
-              manager_id: newUser.id,
-              warehouse_id: warehouseId
-            })
-          }
+        })
+
+        if (authError || !authData.user) {
+          throw new Error(authError?.message || '创建用户失败')
         }
 
-        console.log('仓库分配完成', {userId: newUser.id, role: newUserRole, count: newUserWarehouseIds.length})
+        // 2. 在 profiles 表中创建记录，设置为平级账号
+        const {data: profile, error: profileError} = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            name: newUserName.trim(),
+            phone: newUserPhone.trim(),
+            role: 'super_admin', // 老板角色在数据库中是 super_admin
+            permission_type: 'full',
+            status: 'active',
+            main_account_id: user?.id // 设置主账号ID，标记为平级账号
+          })
+          .select()
+          .maybeSingle()
+
+        if (profileError || !profile) {
+          throw new Error(profileError?.message || '创建用户档案失败')
+        }
+
+        newUser = profile
+      } else {
+        // 调用创建用户函数（司机或管理员）
+        newUser = await createUser(
+          newUserPhone.trim(),
+          newUserName.trim(),
+          newUserRole,
+          newUserRole === 'driver' ? newDriverType : undefined
+        )
+      }
+
+      if (newUser) {
+        // 分配仓库（老板不需要分配仓库）
+        if (newUserRole !== 'boss') {
+          console.log('开始为新用户分配仓库', {
+            userId: newUser.id,
+            role: newUserRole,
+            warehouseIds: newUserWarehouseIds
+          })
+
+          if (newUserRole === 'driver') {
+            // 为司机分配仓库（使用 driver_warehouses 表）
+            for (const warehouseId of newUserWarehouseIds) {
+              await insertWarehouseAssignment({
+                driver_id: newUser.id,
+                warehouse_id: warehouseId
+              })
+            }
+          } else if (newUserRole === 'manager' || newUserRole === 'super_admin') {
+            // 为管理员和车队长分配仓库（使用 manager_warehouses 表）
+            for (const warehouseId of newUserWarehouseIds) {
+              await insertManagerWarehouseAssignment({
+                manager_id: newUser.id,
+                warehouse_id: warehouseId
+              })
+            }
+          }
+
+          console.log('仓库分配完成', {userId: newUser.id, role: newUserRole, count: newUserWarehouseIds.length})
+        }
 
         Taro.hideLoading()
         setAddingUser(false)
 
         // 显示详细的创建成功信息
         const loginAccount = `${newUserPhone.trim()}@fleet.com`
-        const roleText = newUserRole === 'driver' ? '司机' : '管理员'
+        const roleText = newUserRole === 'driver' ? '司机' : newUserRole === 'manager' ? '管理员' : '老板（平级账号）'
         const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
         const defaultPassword = '123456'
-        const warehouseNames = warehouses
-          .filter((w) => newUserWarehouseIds.includes(w.id))
-          .map((w) => w.name)
-          .join('、')
 
         let content = `姓名：${newUserName.trim()}\n手机号码：${newUserPhone.trim()}\n用户角色：${roleText}\n`
 
@@ -462,7 +505,15 @@ const UserManagement: React.FC = () => {
           content += `司机类型：${driverTypeText}\n`
         }
 
-        content += `分配仓库：${warehouseNames}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}`
+        if (newUserRole !== 'boss') {
+          const warehouseNames = warehouses
+            .filter((w) => newUserWarehouseIds.includes(w.id))
+            .map((w) => w.name)
+            .join('、')
+          content += `分配仓库：${warehouseNames}\n`
+        }
+
+        content += `登录账号：${loginAccount}\n默认密码：${defaultPassword}`
 
         Taro.showModal({
           title: '用户创建成功',
@@ -1134,6 +1185,22 @@ const UserManagement: React.FC = () => {
                       管理员
                     </Text>
                   </View>
+                  <View
+                    onClick={() => setNewUserRole('boss')}
+                    className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
+                      newUserRole === 'boss'
+                        ? 'bg-blue-600 border-blue-600'
+                        : 'bg-white border-gray-300 active:bg-gray-50'
+                    }`}>
+                    <View
+                      className={`i-mdi-account-star text-base mr-1.5 ${
+                        newUserRole === 'boss' ? 'text-white' : 'text-gray-600'
+                      }`}
+                    />
+                    <Text className={`text-sm font-medium ${newUserRole === 'boss' ? 'text-white' : 'text-gray-700'}`}>
+                      老板
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -1182,36 +1249,40 @@ const UserManagement: React.FC = () => {
                 </View>
               )}
 
-              {/* 仓库分配 */}
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">
-                  分配仓库 <Text className="text-red-500">*</Text>
-                </Text>
-                {warehouses.length > 0 ? (
-                  <CheckboxGroup
-                    onChange={(e) => setNewUserWarehouseIds(e.detail.value as string[])}
-                    className="space-y-2">
-                    {warehouses.map((warehouse) => (
-                      <View
-                        key={warehouse.id}
-                        className={`flex items-center bg-white rounded-lg px-3 py-2.5 border-2 transition-all ${
-                          newUserWarehouseIds.includes(warehouse.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-300'
-                        }`}>
-                        <Checkbox
-                          value={warehouse.id}
-                          checked={newUserWarehouseIds.includes(warehouse.id)}
-                          className="mr-2"
-                        />
-                        <Text className="text-sm text-gray-700 flex-1">{warehouse.name}</Text>
-                      </View>
-                    ))}
-                  </CheckboxGroup>
-                ) : (
-                  <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <Text className="text-yellow-800 text-xs">暂无可分配的仓库</Text>
-                  </View>
-                )}
-              </View>
+              {/* 仓库分配（老板角色不需要） */}
+              {newUserRole !== 'boss' && (
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">
+                    分配仓库 <Text className="text-red-500">*</Text>
+                  </Text>
+                  {warehouses.length > 0 ? (
+                    <CheckboxGroup
+                      onChange={(e) => setNewUserWarehouseIds(e.detail.value as string[])}
+                      className="space-y-2">
+                      {warehouses.map((warehouse) => (
+                        <View
+                          key={warehouse.id}
+                          className={`flex items-center bg-white rounded-lg px-3 py-2.5 border-2 transition-all ${
+                            newUserWarehouseIds.includes(warehouse.id)
+                              ? 'border-blue-600 bg-blue-50'
+                              : 'border-gray-300'
+                          }`}>
+                          <Checkbox
+                            value={warehouse.id}
+                            checked={newUserWarehouseIds.includes(warehouse.id)}
+                            className="mr-2"
+                          />
+                          <Text className="text-sm text-gray-700 flex-1">{warehouse.name}</Text>
+                        </View>
+                      ))}
+                    </CheckboxGroup>
+                  ) : (
+                    <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <Text className="text-yellow-800 text-xs">暂无可分配的仓库</Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* 密码提示 */}
               <View className="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
