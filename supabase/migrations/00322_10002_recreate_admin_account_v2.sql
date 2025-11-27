@@ -1,24 +1,19 @@
 /*
-# 创建中央管理系统管理员账号
+# 重新创建中央管理系统管理员账号
 
 ## 概述
-创建系统管理员账号，用于中央管理系统登录。
+重新创建系统管理员账号，使用正确的密码哈希格式。
 
 ## 账号信息
 - 用户名：admin
 - 密码：hye19911206
+- Email：admin@fleet.com
 - 角色：super_admin（超级管理员）
 
 ## 说明
-- 中央管理系统账号不需要邮箱
-- 使用 email 字段存储用户名（admin）
+- 使用 Supabase Auth 兼容的密码哈希格式
+- 使用完整的 email 格式（admin@fleet.com）
 - 用于登录中央管理系统
-
-## 操作步骤
-1. 检查账号是否已存在
-2. 创建 auth.users 记录
-3. 创建 public.profiles 记录
-4. 设置角色为 super_admin
 */
 
 -- 启用 pgcrypto 扩展（如果尚未启用）
@@ -47,8 +42,6 @@ BEGIN
 END $$;
 
 -- 创建管理员账号
--- 注意：Supabase Auth 使用特定的密码哈希格式
--- 密码 'hye19911206' 的 bcrypt 哈希值（使用 Supabase 兼容的格式）
 DO $$
 DECLARE
   admin_user_id uuid;
@@ -58,7 +51,6 @@ BEGIN
   admin_user_id := gen_random_uuid();
   
   -- 使用 Supabase Auth 兼容的密码哈希格式
-  -- 这是 'hye19911206' 的 bcrypt 哈希值
   encrypted_password := crypt('hye19911206', gen_salt('bf'));
   
   -- 插入到 auth.users 表
@@ -83,7 +75,7 @@ BEGIN
   ) VALUES (
     admin_user_id,
     '00000000-0000-0000-0000-000000000000',
-    'admin@fleet.com',  -- 使用完整的 email 格式
+    'admin@fleet.com',
     encrypted_password,
     now(),
     '13800000000',
