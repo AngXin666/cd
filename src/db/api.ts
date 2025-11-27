@@ -3427,7 +3427,37 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
  */
 export async function getAllUsers(): Promise<Profile[]> {
   console.log('🔍 getAllUsers: 开始从数据库获取用户列表')
-  const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
+
+  // 获取当前登录用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('❌ 未登录，无法获取用户列表')
+    return []
+  }
+
+  // 获取当前用户的 profile 信息
+  const {data: currentProfile} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+
+  console.log('👤 当前登录用户:', currentProfile)
+
+  // 构建查询
+  let query = supabase.from('profiles').select('*')
+
+  // 如果是系统超级管理员（tenant_id 为 NULL），只显示系统级用户
+  if (currentProfile?.role === 'super_admin' && currentProfile?.tenant_id === null) {
+    console.log('🔐 系统超级管理员登录，只显示系统级用户（tenant_id 为 NULL）')
+    query = query.is('tenant_id', null)
+  }
+  // 如果是租户老板（tenant_id 不为 NULL），只显示同租户的用户
+  else if (currentProfile?.tenant_id !== null) {
+    console.log(`🏢 租户用户登录，只显示租户 ${currentProfile?.tenant_id} 的用户`)
+    query = query.eq('tenant_id', currentProfile?.tenant_id)
+  }
+
+  const {data, error} = await query.order('created_at', {ascending: false})
 
   if (error) {
     console.error('❌ 获取用户列表失败:', error)
@@ -3435,6 +3465,7 @@ export async function getAllUsers(): Promise<Profile[]> {
   }
 
   console.log('📦 getAllUsers: 从数据库获取到的原始数据:')
+  console.log(`   总数: ${data?.length || 0}`)
   console.log(JSON.stringify(data, null, 2))
 
   // 检查每个用户的 vehicle_plate 字段

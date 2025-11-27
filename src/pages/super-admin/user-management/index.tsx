@@ -874,13 +874,18 @@ const UserManagement: React.FC = () => {
 
   // 页面显示时加载数据
   useDidShow(() => {
-    loadUsers()
+    console.log('========================================')
+    console.log('📱 用户管理页面显示，强制刷新数据')
+    console.log('========================================')
+    // 强制刷新，不使用缓存
+    loadUsers(true)
     loadWarehouses()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadUsers(), loadWarehouses()])
+    console.log('🔄 下拉刷新，强制刷新数据')
+    await Promise.all([loadUsers(true), loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
 
