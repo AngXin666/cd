@@ -1224,6 +1224,7 @@ export interface CreateTenantInput {
   boss_name: string
   boss_phone: string
   boss_email?: string
+  boss_account?: string // 登录账号
   boss_password: string
 }
 

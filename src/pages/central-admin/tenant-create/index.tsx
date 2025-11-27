@@ -21,6 +21,8 @@ export default function TenantCreatePage() {
     boss_email: '',
     boss_password: ''
   })
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loginAccount, setLoginAccount] = useState('')
   const [loading, setLoading] = useState(false)
 
   // 更新表单字段
@@ -56,13 +58,34 @@ export default function TenantCreatePage() {
       return false
     }
 
+    if (!loginAccount.trim()) {
+      Taro.showToast({title: '请输入登录账号', icon: 'none'})
+      return false
+    }
+
+    // 验证登录账号格式（只允许字母、数字、下划线，4-20位）
+    if (!/^[a-zA-Z0-9_]{4,20}$/.test(loginAccount)) {
+      Taro.showToast({title: '登录账号格式不正确（4-20位字母、数字或下划线）', icon: 'none'})
+      return false
+    }
+
     if (!formData.boss_password.trim()) {
-      Taro.showToast({title: '请输入老板账号密码', icon: 'none'})
+      Taro.showToast({title: '请输入登录密码', icon: 'none'})
       return false
     }
 
     if (formData.boss_password.length < 6) {
       Taro.showToast({title: '密码至少6位', icon: 'none'})
+      return false
+    }
+
+    if (!confirmPassword.trim()) {
+      Taro.showToast({title: '请确认密码', icon: 'none'})
+      return false
+    }
+
+    if (formData.boss_password !== confirmPassword) {
+      Taro.showToast({title: '两次输入的密码不一致', icon: 'none'})
       return false
     }
 
@@ -83,14 +106,20 @@ export default function TenantCreatePage() {
     Taro.showLoading({title: '创建中...', mask: true})
 
     try {
-      const result = await createTenant(formData)
+      // 添加登录账号到表单数据
+      const submitData = {
+        ...formData,
+        boss_account: loginAccount
+      }
+
+      const result = await createTenant(submitData)
 
       Taro.hideLoading()
 
       if (result.success) {
         Taro.showModal({
           title: '创建成功',
-          content: `租户"${formData.company_name}"创建成功！\n\n老板账号：${formData.boss_phone}\n密码：${formData.boss_password}\n\n请妥善保管账号信息。`,
+          content: `租户"${formData.company_name}"创建成功！\n\n登录账号：${loginAccount}\n密码：${formData.boss_password}\n手机号：${formData.boss_phone}\n\n请妥善保管账号信息。`,
           showCancel: false,
           success: () => {
             Taro.navigateBack()
@@ -224,31 +253,34 @@ export default function TenantCreatePage() {
             <View style={{overflow: 'hidden'}}>
               <Input
                 className="w-full border border-border rounded px-3 py-2 text-base"
-                placeholder="请输入手机号（用于登录）"
+                placeholder="请输入手机号"
                 type="number"
                 maxlength={11}
                 value={formData.boss_phone}
                 onInput={(e) => updateField('boss_phone', e.detail.value)}
               />
             </View>
-            <Text className="text-xs text-gray-400 block mt-1">手机号将作为登录账号</Text>
+            <Text className="text-xs text-gray-400 block mt-1">用于接收通知和验证码登录</Text>
           </View>
 
           <View className="mb-4">
-            <Text className="text-sm text-gray-600 block mb-2">邮箱</Text>
+            <Text className="text-sm text-gray-600 block mb-2">
+              登录账号 <Text className="text-red-500">*</Text>
+            </Text>
             <View style={{overflow: 'hidden'}}>
               <Input
                 className="w-full border border-border rounded px-3 py-2 text-base"
-                placeholder="请输入邮箱（可选）"
-                value={formData.boss_email}
-                onInput={(e) => updateField('boss_email', e.detail.value)}
+                placeholder="请输入登录账号（4-20位字母、数字或下划线）"
+                value={loginAccount}
+                onInput={(e) => setLoginAccount(e.detail.value)}
               />
             </View>
+            <Text className="text-xs text-gray-400 block mt-1">用于账号密码登录</Text>
           </View>
 
-          <View>
+          <View className="mb-4">
             <Text className="text-sm text-gray-600 block mb-2">
-              密码 <Text className="text-red-500">*</Text>
+              登录密码 <Text className="text-red-500">*</Text>
             </Text>
             <View style={{overflow: 'hidden'}}>
               <Input
@@ -260,6 +292,22 @@ export default function TenantCreatePage() {
               />
             </View>
             <Text className="text-xs text-gray-400 block mt-1">密码至少6位</Text>
+          </View>
+
+          <View>
+            <Text className="text-sm text-gray-600 block mb-2">
+              确认密码 <Text className="text-red-500">*</Text>
+            </Text>
+            <View style={{overflow: 'hidden'}}>
+              <Input
+                className="w-full border border-border rounded px-3 py-2 text-base"
+                placeholder="请再次输入密码"
+                password
+                value={confirmPassword}
+                onInput={(e) => setConfirmPassword(e.detail.value)}
+              />
+            </View>
+            <Text className="text-xs text-gray-400 block mt-1">请再次输入密码以确认</Text>
           </View>
         </View>
 

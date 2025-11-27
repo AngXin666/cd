@@ -25,6 +25,7 @@ interface CreateTenantInput {
   boss_name: string
   boss_phone: string
   boss_email?: string
+  boss_account?: string // 登录账号
   boss_password: string
 }
 
@@ -143,14 +144,18 @@ Deno.serve(async (req) => {
     console.log('✅ Schema 创建成功')
 
     // 4. 创建老板账号
+    // 如果提供了账号名，将其作为 email（格式：account@fleet.local）
+    const accountEmail = input.boss_account ? `${input.boss_account}@fleet.local` : input.boss_email
+    
     const {data: authData, error: authError} = await supabase.auth.admin.createUser({
       phone: input.boss_phone,
+      email: accountEmail,
       password: input.boss_password,
-      email: input.boss_email || undefined,
       phone_confirm: true,
       email_confirm: true,
       user_metadata: {
         name: input.boss_name,
+        account: input.boss_account || input.boss_phone, // 登录账号，默认使用手机号
         role: 'boss',
         tenant_id: tenant.id,
         schema_name: schemaName

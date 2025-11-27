@@ -130,7 +130,7 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      // 账号名到手机号的映射
+      // 账号名到手机号的映射（系统管理员账号）
       const accountMapping: Record<string, string> = {
         admin: '13800000001', // 中央管理系统管理员
         admin1: '13800000001',
@@ -142,7 +142,7 @@ const Login: React.FC = () => {
       // 判断输入的是手机号还是账号名
       const isPhoneNumber = validatePhone(account)
 
-      // 如果是账号名，转换为对应的手机号
+      // 如果是账号名，转换为对应的手机号或邮箱
       let actualAccount = account
       if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
         actualAccount = accountMapping[account.toLowerCase()]
@@ -160,8 +160,9 @@ const Login: React.FC = () => {
         })
         error = result.error
       } else {
-        // 使用邮箱登录（兼容旧账号）
-        const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
+        // 使用邮箱登录
+        // 如果输入的不是完整邮箱，添加 @fleet.local 后缀
+        const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.local`
         const result = await supabase.auth.signInWithPassword({
           email,
           password
