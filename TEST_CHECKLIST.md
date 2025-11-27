@@ -13,10 +13,18 @@
 - ✅ 超级管理员可以查看所有档案
 - ✅ 超级管理员拥有完整的 CRUD 权限
 
-### 3. 账号状态检查修复
-- ✅ 修复了 `check_account_status` 函数
+### 3. 账号状态检查修复（数据库层）
+- ✅ 修复了 `check_account_status` 数据库函数
 - ✅ 系统超级管理员不再受租约限制
 - ✅ 只检查账号的 status 字段，不检查租约
+
+### 4. 租期检查逻辑修复（应用层）⭐ 最新修复
+- ✅ 修复了 `checkUserLeaseStatus()` API 函数
+- ✅ 添加了系统超级管理员判断（tenant_id 为 NULL）
+- ✅ 创建了 `getCurrentUserRoleAndTenant()` 函数
+- ✅ 更新了 `index.tsx` 页面逻辑
+- ✅ 前端明确判断是否需要检查租期
+- ✅ 系统超级管理员不会调用租期检查函数
 
 ## 🧪 测试项目
 
@@ -129,6 +137,52 @@
 
 ---
 
+### 测试6：验证租期检查逻辑 ⭐ 重点测试
+
+**目的**：确认系统超级管理员不会被租期检查拦截
+
+**步骤**：
+1. 打开浏览器开发者工具（F12）
+2. 切换到 Console 标签页
+3. 清空控制台日志
+4. 使用 admin 账号登录
+5. 仔细观察控制台输出
+
+**预期结果**：
+
+✅ **应该看到的日志**：
+```
+[IndexPage] 开始获取用户角色，用户ID: d79327e9-69b4-42b7-b1b4-5d13de6e9814
+[getCurrentUserRoleAndTenant] 开始获取用户角色和租户信息
+[getCurrentUserRoleAndTenant] 成功获取: {role: 'super_admin', tenant_id: null}
+[IndexPage] 用户角色获取成功: super_admin 租户ID: null
+[IndexPage] 无需检查租期状态，角色: super_admin 租户ID: null
+[IndexPage] 根据角色快速跳转: super_admin
+```
+
+❌ **不应该看到的日志**：
+```
+❌ 正在检查租期状态...
+❌ [租期检测] 查询到的租期记录
+❌ [租期检测] 没有有效租期记录
+❌ 账户已过期
+```
+
+**关键检查点**：
+- [ ] 看到 "租户ID: null"
+- [ ] 看到 "无需检查租期状态"
+- [ ] 没有看到 "正在检查租期状态"
+- [ ] 没有看到任何 "[租期检测]" 日志
+- [ ] 没有弹出 "账户已过期" 提示
+- [ ] 成功跳转到超级管理员界面
+
+**实际结果**：
+```
+请在此处粘贴控制台日志
+```
+
+---
+
 ## 🔍 故障排查
 
 ### 如果测试失败
@@ -164,11 +218,12 @@ ORDER BY cmd, policyname;
 - 查看 [LOGIN_FIX_SUMMARY.md](LOGIN_FIX_SUMMARY.md) 中的 RLS 策略部分
 - 如果策略缺失，重新执行迁移文件
 
-#### 问题3：仍然提示账号过期
+#### 问题3：仍然提示账号过期 ⭐ 最新修复
 
 **检查项**：
 1. 确认登录的是系统超级管理员账号（admin）
 2. 检查账号的 tenant_id 是否为 NULL
+3. 查看控制台日志，确认是否调用了租期检查
 
 **验证 SQL**：
 ```sql
@@ -185,11 +240,28 @@ WHERE email = 'admin@fleet.com';
 **预期结果**：
 - role: super_admin
 - status: active
-- tenant_id: NULL
+- tenant_id: NULL （⭐ 关键：必须是 NULL）
+
+**控制台日志检查**：
+
+如果看到以下日志，说明修复成功：
+```
+✅ [IndexPage] 无需检查租期状态，角色: super_admin 租户ID: null
+```
+
+如果看到以下日志，说明还有问题：
+```
+❌ [IndexPage] 需要检查租期状态
+❌ [租期检测] 查询到的租期记录
+```
 
 **解决方案**：
-- 查看 [SUPER_ADMIN_FIX_SUMMARY.md](SUPER_ADMIN_FIX_SUMMARY.md) 获取详细信息
-- 如果 tenant_id 不是 NULL，需要更新数据库
+1. 查看 [LEASE_CHECK_FIX.md](LEASE_CHECK_FIX.md) 获取详细的修复说明
+2. 确认 `src/db/api.ts` 中的 `checkUserLeaseStatus()` 函数已更新
+3. 确认 `src/pages/index/index.tsx` 中的逻辑已更新
+4. 清除浏览器缓存并刷新页面
+5. 如果问题仍然存在，检查 tenant_id 是否为 NULL
+6. 查看 [SUPER_ADMIN_FIX_SUMMARY.md](SUPER_ADMIN_FIX_SUMMARY.md) 获取更多信息
 
 ## 📊 测试结果汇总
 

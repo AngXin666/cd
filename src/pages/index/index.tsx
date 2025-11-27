@@ -3,7 +3,7 @@ import Taro, {reLaunch, switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
-import {checkUserLeaseStatus, getCurrentUserRole} from '@/db/api'
+import {checkUserLeaseStatus, getCurrentUserRoleAndTenant} from '@/db/api'
 import type {UserRole} from '@/db/types'
 
 const IndexPage: React.FC = () => {
@@ -50,9 +50,9 @@ const IndexPage: React.FC = () => {
 
     try {
       console.log('[IndexPage] 开始获取用户角色，用户ID:', user.id)
-      const userRole = await getCurrentUserRole()
+      const userInfo = await getCurrentUserRoleAndTenant()
 
-      if (!userRole) {
+      if (!userInfo) {
         console.error('[IndexPage] 用户角色不存在')
         setError('用户角色不存在，请联系管理员')
         setTimeout(() => {
@@ -64,10 +64,16 @@ const IndexPage: React.FC = () => {
         return
       }
 
-      console.log('[IndexPage] 用户角色获取成功:', userRole)
+      const {role: userRole, tenant_id} = userInfo
+      console.log('[IndexPage] 用户角色获取成功:', userRole, '租户ID:', tenant_id)
 
-      // 检查租期状态（仅对老板号、平级账号、车队长进行检查）
-      if (userRole === 'super_admin' || userRole === 'manager') {
+      // 检查租期状态
+      // 只对租户内的账号进行检查（tenant_id 不为 NULL）
+      // 系统超级管理员（tenant_id 为 NULL）、租赁管理员、司机不需要检查
+      const needLeaseCheck = tenant_id !== null && (userRole === 'super_admin' || userRole === 'manager')
+
+      if (needLeaseCheck) {
+        console.log('[IndexPage] 需要检查租期状态')
         setLoadingStatus('正在检查租期状态...')
         const leaseStatus = await checkUserLeaseStatus(user.id)
 
@@ -91,6 +97,8 @@ const IndexPage: React.FC = () => {
           })
           return
         }
+      } else {
+        console.log('[IndexPage] 无需检查租期状态，角色:', userRole, '租户ID:', tenant_id)
       }
 
       setRole(userRole)

@@ -238,6 +238,54 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
   }
 }
 
+/**
+ * 获取当前用户的角色和租户信息
+ * 用于判断是否需要检查租期
+ */
+export async function getCurrentUserRoleAndTenant(): Promise<{
+  role: UserRole
+  tenant_id: string | null
+} | null> {
+  try {
+    console.log('[getCurrentUserRoleAndTenant] 开始获取用户角色和租户信息')
+    const {
+      data: {user},
+      error: authError
+    } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('[getCurrentUserRoleAndTenant] 获取认证用户失败:', authError)
+      return null
+    }
+
+    if (!user) {
+      console.warn('[getCurrentUserRoleAndTenant] 用户未登录')
+      return null
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
+
+    // 查询 role 和 tenant_id
+    const {data, error} = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).maybeSingle()
+
+    if (error) {
+      console.error('[getCurrentUserRoleAndTenant] 查询失败:', error)
+      return null
+    }
+
+    if (!data) {
+      console.warn('[getCurrentUserRoleAndTenant] 用户档案不存在，用户ID:', user.id)
+      return null
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 成功获取:', {role: data.role, tenant_id: data.tenant_id})
+    return {role: data.role, tenant_id: data.tenant_id}
+  } catch (error) {
+    console.error('[getCurrentUserRoleAndTenant] 未预期的错误:', error)
+    return null
+  }
+}
+
 export async function getAllProfiles(): Promise<Profile[]> {
   const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
 
@@ -7920,6 +7968,12 @@ export async function checkUserLeaseStatus(
 
     if (userError || !user) {
       console.error('获取用户信息失败:', userError)
+      return {status: 'ok'}
+    }
+
+    // 系统超级管理员不受租期限制（tenant_id 为 NULL）
+    if (user.role === 'super_admin' && user.tenant_id === null) {
+      console.log('[租期检测] 系统超级管理员，不受租期限制')
       return {status: 'ok'}
     }
 
