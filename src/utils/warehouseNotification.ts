@@ -165,7 +165,9 @@ export const sendWarehouseAssignmentNotifications = async (
             管理员数量: managers.length,
             管理员: managers.map((m) => m.name)
           })
-          managers.forEach((m) => managersSet.add(m.id))
+          for (const m of managers) {
+            managersSet.add(m.id)
+          }
         }
 
         console.log('👥 [通知系统] 需要通知的管理员总数', {

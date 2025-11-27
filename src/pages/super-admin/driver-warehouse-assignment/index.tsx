@@ -221,7 +221,9 @@ const DriverWarehouseAssignment: React.FC = () => {
               车队长数量: managers.length,
               车队长: managers.map((m) => m.name)
             })
-            managers.forEach((m) => managersSet.add(m.id))
+            for (const m of managers) {
+              managersSet.add(m.id)
+            }
           }
 
           console.log('👥 [通知系统] 需要通知的车队长总数', {

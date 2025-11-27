@@ -615,7 +615,9 @@ const UserManagement: React.FC = () => {
             // 获取这些仓库的管理员
             for (const warehouseId of driverWarehouseIds) {
               const managers = await getWarehouseManagers(warehouseId)
-              managers.forEach((m) => managersSet.add(m.id))
+              for (const m of managers) {
+                managersSet.add(m.id)
+              }
             }
 
             // 通知相关管理员
@@ -855,7 +857,9 @@ const UserManagement: React.FC = () => {
               `👥 [仓库分配] 仓库 ${warehouseId} 的管理员:`,
               managers.map((m) => m.name)
             )
-            managers.forEach((m) => managersSet.add(m.id))
+            for (const m of managers) {
+              managersSet.add(m.id)
+            }
           }
 
           console.log('👥 [仓库分配] 需要通知的管理员总数:', managersSet.size)
