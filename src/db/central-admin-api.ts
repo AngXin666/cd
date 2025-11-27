@@ -187,61 +187,44 @@ export async function activateTenant(tenantId: string): Promise<boolean> {
  * 警告：此操作会删除租户的所有数据，不可恢复！
  *
  * 流程：
- * 1. 删除老板账号（auth.users）
- * 2. 调用数据库函数删除 Schema（CASCADE 会删除所有表和数据）
- * 3. 删除租户记录
+ * 1. 调用 Edge Function 删除租户（包括老板账号、Schema 和租户记录）
  */
 export async function deleteTenant(tenantId: string): Promise<boolean> {
   try {
     console.log('🗑️ 开始删除租户:', tenantId)
 
-    // 1. 获取租户信息
-    const tenant = await getTenantById(tenantId)
-    if (!tenant) {
-      console.error('❌ 租户不存在')
+    // 获取访问令牌
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      console.error('❌ 未登录')
       return false
     }
 
-    // 2. 删除老板账号
-    if (tenant.boss_user_id) {
-      const {error: authError} = await supabase.auth.admin.deleteUser(tenant.boss_user_id)
-      if (authError) {
-        console.error('❌ 删除老板账号失败:', authError)
-        // 继续执行，不中断
-      } else {
-        console.log('✅ 老板账号删除成功')
-      }
-    }
+    // 调用 Edge Function 删除租户
+    const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
+    const response = await fetch(`${supabaseUrl}/functions/v1/delete-tenant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({tenantId})
+    })
 
-    // 3. 删除 Schema（会删除所有表和数据）
-    // 只有当 schema_name 存在时才删除 Schema
-    if (tenant.schema_name) {
-      const {data: schemaResult, error: schemaError} = await supabase.rpc('delete_tenant_schema', {
-        p_schema_name: tenant.schema_name
-      })
+    const result = await response.json()
 
-      if (schemaError || !schemaResult?.success) {
-        console.error('❌ 删除 Schema 失败:', schemaError || schemaResult?.error)
-        // 继续执行，不中断
-      } else {
-        console.log('✅ Schema 删除成功')
-      }
-    } else {
-      console.log('ℹ️ 租户没有 Schema，跳过删除')
-    }
-
-    // 4. 删除租户记录
-    const {error: tenantError} = await supabase.from('tenants').delete().eq('id', tenantId)
-
-    if (tenantError) {
-      console.error('❌ 删除租户记录失败:', tenantError)
+    if (!response.ok || !result.success) {
+      console.error('❌ 删除租户失败:', result.error)
       return false
     }
 
-    console.log('✅ 租户删除完成')
+    console.log('✅ 租户删除成功')
     return true
   } catch (error) {
-    console.error('❌ 删除租户异常:', error)
+    console.error('❌ 删除租户失败:', error)
     return false
   }
 }
