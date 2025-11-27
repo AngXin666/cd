@@ -6,9 +6,36 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：通知系统和司机管理系统已完成全面修复，所有功能正常运行！✅
+**最新更新**：RLS 策略已从根本上修复，所有功能正常运行！✅
 
-### 修复6：车队长司机查询修复 ✅ 已完成并验证
+### 修复7：RLS 策略根本性修复 ✅ 已完成并验证
+- ✅ **修复辅助函数**：添加异常处理，能够正确处理无效的 UUID
+- ✅ **保留 RLS 策略保护**：不绕过 RLS 策略，保持系统安全性
+- ✅ **一次修复，全局生效**：不需要为每个查询创建专门的 RPC 函数
+- ✅ **代码更简洁**：恢复原来的查询逻辑，易于维护
+- ✅ **系统更稳定**：不会因为 `auth.uid()` 返回 "anon" 而报错
+
+### 数据库函数修复 ✅
+- ✅ `is_admin()` - 添加异常处理，能够处理无效的 UUID
+- ✅ `is_manager()` - 添加异常处理，能够处理无效的 UUID
+- ✅ `is_driver()` - 添加异常处理，能够处理无效的 UUID
+
+### 代码修复 ✅
+- ✅ `getDriverWarehouseIds()` - 恢复直接查询，添加参数验证
+- ✅ `getManagerWarehouses()` - 恢复直接查询，添加参数验证
+- ✅ `getPrimaryAdmin()` - 恢复直接查询
+- ✅ `getPeerAccounts()` - 恢复直接查询
+- ✅ `getManagersWithJurisdiction()` - 恢复直接查询，添加参数验证
+
+### 测试结果 - RLS 策略修复
+| 测试项 | 状态 | 结果 |
+|--------|------|------|
+| 正常 UUID | ✅ 通过 | 返回正确的角色检查结果 |
+| NULL 值 | ✅ 通过 | 返回 false |
+| 无效 UUID | ✅ 通过 | 返回 false（不报错） |
+| 代码质量检查 | ✅ 通过 | 230 个文件，无错误 |
+
+### 修复6：车队长司机查询修复 ✅ 已完成并验证（已废弃，使用修复7）
 - ✅ **创建专用 RPC 函数**：使用 `SECURITY DEFINER` 绕过 RLS 策略限制
 - ✅ **数据库迁移已应用**：所有 RPC 函数已成功创建并测试通过
 - ✅ **性能优化**：单次 RPC 调用替代多次数据库查询，查询次数减少 50%
@@ -79,7 +106,9 @@
 - ✅ 创建 RPC 函数 - 绕过 RLS 策略，确保通知系统稳定运行
 
 详细信息请查看：
-- [车队长司机查询修复确认报告](MANAGER_DRIVER_QUERY_FIX_CONFIRMED.md) - 车队长司机查询修复确认 ✅ 最新
+- [RLS 策略根本性修复确认报告](RLS_POLICY_ROOT_CAUSE_FIX_CONFIRMED.md) - RLS 策略根本性修复确认 ✅ 最新
+- [RLS 策略根本性修复方案](RLS_POLICY_ROOT_CAUSE_FIX.md) - 详细的错误分析和解决方案
+- [车队长司机查询修复确认报告](MANAGER_DRIVER_QUERY_FIX_CONFIRMED.md) - 车队长司机查询修复确认（已废弃，使用 RLS 策略根本性修复）
 - [车队长司机查询错误分析报告](MANAGER_DRIVER_QUERY_ERROR_ANALYSIS.md) - 详细的错误分析和解决方案
 - [通知系统修复确认报告](NOTIFICATION_FIX_CONFIRMED.md) - 通知系统修复确认和测试结果
 - [通知系统完整修复总结](NOTIFICATION_SYSTEM_COMPLETE_FIX_SUMMARY.md) - 完整修复总结

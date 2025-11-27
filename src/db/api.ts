@@ -945,20 +945,23 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
  * 获取司机的仓库ID列表
  */
 export async function getDriverWarehouseIds(driverId: string): Promise<string[]> {
-  logger.db('RPC调用', 'get_driver_warehouse_ids_for_management', {driverId})
+  // 添加参数验证
+  if (!driverId || driverId === 'anon' || driverId.length < 10) {
+    logger.error('无效的司机 ID', {driverId})
+    return []
+  }
 
-  // 使用 RPC 函数，绕过 RLS 策略
-  const {data, error} = await supabase.rpc('get_driver_warehouse_ids_for_management', {
-    p_driver_id: driverId
-  })
+  logger.db('查询', 'driver_warehouses', {driverId})
+
+  const {data, error} = await supabase.from('driver_warehouses').select('warehouse_id').eq('driver_id', driverId)
 
   if (error) {
     logger.error('获取司机仓库ID失败', error)
     return []
   }
 
-  const warehouseIds = data?.map((item: any) => item.warehouse_id) || []
-  logger.db('查询成功', 'get_driver_warehouse_ids_for_management', {
+  const warehouseIds = data?.map((item) => item.warehouse_id) || []
+  logger.db('查询成功', 'driver_warehouses', {
     driverId,
     count: warehouseIds.length
   })
@@ -1774,7 +1777,13 @@ export async function getCategoryPriceForDriver(
 
 // 获取管理员的仓库列表
 export async function getManagerWarehouses(managerId: string): Promise<Warehouse[]> {
-  logger.db('RPC调用', 'get_manager_warehouses_for_management', {managerId})
+  // 添加参数验证
+  if (!managerId || managerId === 'anon' || managerId.length < 10) {
+    logger.error('无效的管理员 ID', {managerId})
+    return []
+  }
+
+  logger.db('查询', 'manager_warehouses', {managerId})
 
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.WAREHOUSE_ASSIGNMENTS}_${managerId}`
@@ -1782,25 +1791,43 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
   // 尝试从缓存获取
   const cached = getCache<Warehouse[]>(cacheKey)
   if (cached) {
-    logger.db('缓存命中', 'get_manager_warehouses_for_management', {
+    logger.db('缓存命中', 'manager_warehouses', {
       managerId,
       count: cached.length
     })
     return cached
   }
 
-  // 使用 RPC 函数，绕过 RLS 策略
-  const {data, error} = await supabase.rpc('get_manager_warehouses_for_management', {
-    p_manager_id: managerId
-  })
+  // 从数据库查询
+  const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
 
   if (error) {
     logger.error('获取管理员仓库失败', error)
     return []
   }
 
-  const result = Array.isArray(data) ? data : []
-  logger.db('查询成功', 'get_manager_warehouses_for_management', {
+  if (!data || data.length === 0) {
+    logger.db('查询结果为空', 'manager_warehouses', {managerId})
+    // 缓存空结果，避免重复查询（缓存5分钟）
+    setCache(cacheKey, [], 5 * 60 * 1000)
+    return []
+  }
+
+  // 查询仓库详情
+  const warehouseIds = data.map((item) => item.warehouse_id)
+  const {data: warehouses, error: warehouseError} = await supabase
+    .from('warehouses')
+    .select('*')
+    .in('id', warehouseIds)
+    .order('name', {ascending: true})
+
+  if (warehouseError) {
+    logger.error('获取仓库信息失败', warehouseError)
+    return []
+  }
+
+  const result = Array.isArray(warehouses) ? warehouses : []
+  logger.db('查询成功', 'manager_warehouses', {
     managerId,
     count: result.length
   })
