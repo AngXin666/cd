@@ -19,22 +19,38 @@ import {supabase} from './supabase'
  * }
  * ```
  */
-export async function getCurrentUserBossId(): Promise<string | null> {
+/**
+ * 获取当前用户的 boss_id
+ * 
+ * @param userId 可选的用户ID，如果不提供则从 supabase.auth.getUser() 获取
+ * @returns boss_id 或 null
+ */
+export async function getCurrentUserBossId(userId?: string): Promise<string | null> {
   try {
-    // 获取当前登录用户
-    const {
-      data: {user}
-    } = await supabase.auth.getUser()
+    let currentUserId = userId
 
-    if (!user) {
-      console.warn('⚠️ getCurrentUserBossId: 未找到当前用户')
-      return null
+    // 如果没有提供 userId，则从认证系统获取
+    if (!currentUserId) {
+      const {
+        data: {user}
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        console.warn('⚠️ getCurrentUserBossId: 未找到当前用户')
+        return null
+      }
+
+      currentUserId = user.id
     }
 
-    console.log('🔍 getCurrentUserBossId: 查询用户信息', {userId: user.id})
+    console.log('🔍 getCurrentUserBossId: 查询用户信息', {userId: currentUserId})
 
     // 从 profiles 表获取用户的 boss_id 和 role
-    const {data, error} = await supabase.from('profiles').select('boss_id, role, name').eq('id', user.id).maybeSingle()
+    const {data, error} = await supabase
+      .from('profiles')
+      .select('boss_id, role, name')
+      .eq('id', currentUserId)
+      .maybeSingle()
 
     if (error) {
       console.error('❌ 获取 boss_id 失败:', error)
@@ -42,12 +58,12 @@ export async function getCurrentUserBossId(): Promise<string | null> {
     }
 
     if (!data) {
-      console.warn('⚠️ getCurrentUserBossId: 未找到用户 profile', {userId: user.id})
+      console.warn('⚠️ getCurrentUserBossId: 未找到用户 profile', {userId: currentUserId})
       return null
     }
 
     console.log('📋 getCurrentUserBossId: 用户信息', {
-      userId: user.id,
+      userId: currentUserId,
       name: data.name,
       role: data.role,
       boss_id: data.boss_id
@@ -55,13 +71,13 @@ export async function getCurrentUserBossId(): Promise<string | null> {
 
     // 如果是老板（super_admin），boss_id 为 NULL，返回自己的 ID
     if (!data.boss_id && data.role === 'super_admin') {
-      console.log('✅ getCurrentUserBossId: 当前用户是老板，返回自己的 ID', {bossId: user.id})
-      return user.id
+      console.log('✅ getCurrentUserBossId: 当前用户是老板，返回自己的 ID', {bossId: currentUserId})
+      return currentUserId
     }
 
     if (!data.boss_id) {
       console.warn('⚠️ getCurrentUserBossId: 用户的 boss_id 为 NULL，且不是老板', {
-        userId: user.id,
+        userId: currentUserId,
         role: data.role
       })
       return null

@@ -471,8 +471,8 @@ const ApplyLeave: React.FC = () => {
       // 格式化日期为人性化显示
       const dateRangeText = formatLeaveDate(startDate, endDate, leaveDays)
 
-      // 获取当前用户的 boss_id
-      const bossId = await getCurrentUserBossId()
+      // 获取当前用户的 boss_id（传入 user.id 避免认证状态问题）
+      const bossId = await getCurrentUserBossId(user.id)
 
       console.log('🔍 调试信息 - 开始发送通知', {
         driverId: user.id,

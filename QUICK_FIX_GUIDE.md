@@ -1,7 +1,19 @@
 # 司机请假通知问题快速修复指南
 
 ## 问题现象
-司机提交请假后，日志显示 `bossId: null`，提示"未找到 boss_id，无法发送通知"。
+司机提交请假后，日志显示以下错误之一：
+1. `⚠️ getCurrentUserBossId: 未找到当前用户` + `bossId: null`
+2. `⚠️ getCurrentUserBossId: 用户的 boss_id 为 NULL，且不是老板`
+
+## 问题原因
+
+### 原因1：认证状态问题（已修复）
+`getCurrentUserBossId()` 函数内部调用 `supabase.auth.getUser()` 时，认证状态可能还没有完全加载。
+
+**解决方案**：已修改函数接受可选的 `userId` 参数，页面直接传入已获取的 `user.id`。
+
+### 原因2：司机的 boss_id 未设置（需要手动修复数据）
+司机账号创建时，`boss_id` 字段没有正确设置为老板的 ID。
 
 ## 快速诊断
 
@@ -9,8 +21,11 @@
 打开浏览器开发者工具（F12），查看控制台日志：
 
 ```
-🔍 调试信息 - 开始发送通知
-  - bossId: null  // ❌ 如果是 null，说明司机的 boss_id 未设置
+📋 getCurrentUserBossId: 用户信息
+  - userId: xxx
+  - name: 司机姓名
+  - role: driver
+  - boss_id: null  // ❌ 如果是 null，说明需要修复数据
 ```
 
 ### 步骤2：检查数据库
@@ -96,9 +111,43 @@ WHERE role = 'driver' AND boss_id IS NULL;
 
 ## 如果还是不行
 
-请查看完整的修复文档：`NOTIFICATION_FIX_FINAL.md`
+### 检查其他角色的 boss_id
+
+```sql
+-- 检查所有用户的 boss_id 设置
+SELECT id, name, role, boss_id 
+FROM profiles 
+ORDER BY role, name;
+```
+
+**正确的设置应该是**：
+- `super_admin`（老板）：`boss_id` 为 `NULL`
+- `peer_admin`（平级账号）：`boss_id` 应该等于老板的 `id`
+- `manager`（车队长）：`boss_id` 应该等于老板的 `id`
+- `driver`（司机）：`boss_id` 应该等于老板的 `id`
+
+### 修复所有角色的 boss_id
+
+```sql
+-- 自动修复所有非老板用户的 boss_id
+UPDATE profiles 
+SET boss_id = (
+  SELECT id 
+  FROM profiles 
+  WHERE role = 'super_admin' 
+  LIMIT 1
+)
+WHERE role != 'super_admin' AND boss_id IS NULL;
+```
+
+## 联系技术支持
+
+如果问题仍然存在，请查看完整的修复文档：`NOTIFICATION_FIX_FINAL.md`
 
 或者联系技术支持，提供以下信息：
-1. 浏览器控制台的完整日志
-2. 司机的 profile 数据（执行 SQL 查询结果）
-3. 老板的 profile 数据（执行 SQL 查询结果）
+1. 浏览器控制台的完整日志（从提交请假开始到结束）
+2. 执行以下 SQL 的结果：
+   ```sql
+   SELECT id, name, role, boss_id FROM profiles ORDER BY role, name;
+   ```
+3. 司机的用户 ID
