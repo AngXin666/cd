@@ -133,7 +133,8 @@
 - ✅ 创建 RPC 函数 - 绕过 RLS 策略，确保通知系统稳定运行
 
 详细信息请查看：
-- [RLS 策略最终修复确认报告](RLS_POLICY_FINAL_FIX_CONFIRMED.md) - RLS 策略最终修复确认 ✅ 最新
+- [RLS 策略完整修复验证报告](RLS_POLICY_COMPLETE_FIX_VERIFICATION.md) - 完整修复验证报告 ✅ 最新
+- [RLS 策略最终修复确认报告](RLS_POLICY_FINAL_FIX_CONFIRMED.md) - RLS 策略最终修复确认
 - [RLS 策略正确修复方案](RLS_POLICY_PROPER_FIX.md) - 详细的错误分析和解决方案
 - [RLS 策略根本性修复确认报告](RLS_POLICY_ROOT_CAUSE_FIX_CONFIRMED.md) - 之前的修复确认（已废弃）
 - [RLS 策略根本性修复方案](RLS_POLICY_ROOT_CAUSE_FIX.md) - 之前的修复方案（已废弃）
