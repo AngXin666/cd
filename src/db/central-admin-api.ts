@@ -48,7 +48,7 @@ export async function getTenantById(tenantId: string): Promise<Tenant | null> {
  * 生成租户代码
  * 格式：tenant-001, tenant-002, ...
  */
-async function generateTenantCode(): Promise<string> {
+async function _generateTenantCode(): Promise<string> {
   try {
     // 获取最新的租户代码
     const {data, error} = await supabase
@@ -85,148 +85,45 @@ async function generateTenantCode(): Promise<string> {
  * 创建租户（自动化部署）
  *
  * 流程：
- * 1. 生成租户代码和 Schema 名称
- * 2. 创建租户记录
- * 3. 调用数据库函数创建 Schema 和表结构
- * 4. 创建老板账号
- * 5. 在租户 Schema 中创建老板的 profile 记录
- * 6. 更新租户记录，保存老板账号信息
+ * 1. 调用 Edge Function 完成租户创建
+ * 2. Edge Function 内部会：
+ *    - 生成租户代码和 Schema 名称
+ *    - 创建租户记录
+ *    - 调用数据库函数创建 Schema 和表结构
+ *    - 创建老板账号
+ *    - 在租户 Schema 中创建老板的 profile 记录
+ *    - 更新租户记录，保存老板账号信息
  */
 export async function createTenant(input: CreateTenantInput): Promise<CreateTenantResult> {
   try {
     console.log('🚀 开始创建租户:', input.company_name)
 
-    // 1. 生成租户代码
-    const tenantCode = await generateTenantCode()
-    const schemaName = tenantCode.replace(/-/g, '_') // tenant-001 -> tenant_001
-
-    console.log('📝 租户代码:', tenantCode)
-    console.log('📝 Schema 名称:', schemaName)
-
-    // 2. 创建租户记录
-    const {data: tenant, error: tenantError} = await supabase
-      .from('tenants')
-      .insert({
-        company_name: input.company_name,
-        tenant_code: tenantCode,
-        schema_name: schemaName,
-        contact_name: input.contact_name || null,
-        contact_phone: input.contact_phone || null,
-        contact_email: input.contact_email || null,
-        expired_at: input.expired_at || null,
-        status: 'active'
-      })
-      .select()
-      .single()
-
-    if (tenantError || !tenant) {
-      console.error('❌ 创建租户记录失败:', tenantError)
-      return {
-        success: false,
-        error: tenantError?.message || '创建租户记录失败'
-      }
-    }
-
-    console.log('✅ 租户记录创建成功:', tenant.id)
-
-    // 3. 调用数据库函数创建 Schema 和表结构
-    const {data: schemaResult, error: schemaError} = await supabase.rpc('create_tenant_schema', {
-      p_schema_name: schemaName
+    // 调用 Edge Function
+    const {data, error} = await supabase.functions.invoke('create-tenant', {
+      body: input
     })
 
-    if (schemaError || !schemaResult?.success) {
-      console.error('❌ 创建 Schema 失败:', schemaError || schemaResult?.error)
-
-      // 回滚：删除租户记录
-      await supabase.from('tenants').delete().eq('id', tenant.id)
-
+    if (error) {
+      console.error('❌ 调用 Edge Function 失败:', error)
       return {
         success: false,
-        error: schemaResult?.error || schemaError?.message || '创建 Schema 失败'
+        error: error.message || '创建租户失败'
       }
     }
 
-    console.log('✅ Schema 创建成功:', schemaName)
-
-    // 4. 创建老板账号（使用 Supabase Auth）
-    const {data: authData, error: authError} = await supabase.auth.admin.createUser({
-      phone: input.boss_phone,
-      password: input.boss_password,
-      email: input.boss_email || undefined,
-      phone_confirm: true, // 自动确认手机号
-      email_confirm: true, // 自动确认邮箱
-      user_metadata: {
-        name: input.boss_name,
-        role: 'boss',
-        tenant_id: tenant.id,
-        schema_name: schemaName
-      }
-    })
-
-    if (authError || !authData.user) {
-      console.error('❌ 创建老板账号失败:', authError)
-
-      // 回滚：删除 Schema 和租户记录
-      await supabase.rpc('delete_tenant_schema', {p_schema_name: schemaName})
-      await supabase.from('tenants').delete().eq('id', tenant.id)
-
+    if (!data.success) {
+      console.error('❌ 创建租户失败:', data.error)
       return {
         success: false,
-        error: authError?.message || '创建老板账号失败'
+        error: data.error || '创建租户失败'
       }
     }
 
-    console.log('✅ 老板账号创建成功:', authData.user.id)
-
-    // 5. 在租户 Schema 中创建老板的 profile 记录
-    // 注意：需要使用原始 SQL，因为 Supabase JS 客户端不支持动态 Schema
-    const {error: profileError} = await supabase.rpc('exec_sql', {
-      sql: `
-        INSERT INTO ${schemaName}.profiles (id, name, phone, email, role, status)
-        VALUES ('${authData.user.id}', '${input.boss_name}', '${input.boss_phone}', ${input.boss_email ? `'${input.boss_email}'` : 'NULL'}, 'boss', 'active')
-      `
-    })
-
-    if (profileError) {
-      console.error('❌ 创建老板 profile 失败:', profileError)
-
-      // 回滚：删除老板账号、Schema 和租户记录
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      await supabase.rpc('delete_tenant_schema', {p_schema_name: schemaName})
-      await supabase.from('tenants').delete().eq('id', tenant.id)
-
-      return {
-        success: false,
-        error: '创建老板 profile 失败'
-      }
-    }
-
-    console.log('✅ 老板 profile 创建成功')
-
-    // 6. 更新租户记录，保存老板账号信息
-    const {data: updatedTenant, error: updateError} = await supabase
-      .from('tenants')
-      .update({
-        boss_user_id: authData.user.id,
-        boss_name: input.boss_name,
-        boss_phone: input.boss_phone,
-        boss_email: input.boss_email || null
-      })
-      .eq('id', tenant.id)
-      .select()
-      .single()
-
-    if (updateError) {
-      console.error('❌ 更新租户记录失败:', updateError)
-      // 不回滚，因为核心功能已完成
-    }
-
-    console.log('✅ 租户创建完成！')
-
+    console.log('✅ 租户创建成功')
     return {
       success: true,
-      tenant: updatedTenant || tenant,
-      message: '租户创建成功'
+      tenant: data.tenant,
+      message: data.message || '租户创建成功'
     }
   } catch (error) {
     console.error('❌ 创建租户异常:', error)

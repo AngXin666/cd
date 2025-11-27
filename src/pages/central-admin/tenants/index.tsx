@@ -6,7 +6,7 @@
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useState} from 'react'
-import {activateTenant, deleteTenant, getAllTenants, suspendTenant, updateTenantExpiry} from '@/db/central-admin-api'
+import {activateTenant, deleteTenant, getAllTenants, suspendTenant} from '@/db/central-admin-api'
 import type {Tenant} from '@/db/types'
 
 export default function TenantsPage() {
@@ -52,32 +52,11 @@ export default function TenantsPage() {
 
   // 编辑租期
   const handleEditExpiry = async (tenant: Tenant) => {
-    const currentDate = tenant.expired_at ? tenant.expired_at.split('T')[0] : ''
-
+    // 简化：直接提示用户，暂不支持在线编辑
     Taro.showModal({
       title: '编辑租期',
-      editable: true,
-      placeholderText: '请输入到期日期（YYYY-MM-DD）',
-      content: currentDate,
-      success: async (res) => {
-        if (res.confirm && res.content) {
-          const newExpiry = res.content.trim()
-
-          // 验证日期格式
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(newExpiry)) {
-            Taro.showToast({title: '日期格式错误', icon: 'error'})
-            return
-          }
-
-          const success = await updateTenantExpiry(tenant.id, newExpiry)
-          if (success) {
-            Taro.showToast({title: '租期更新成功', icon: 'success'})
-            loadTenants()
-          } else {
-            Taro.showToast({title: '租期更新失败', icon: 'error'})
-          }
-        }
-      }
+      content: `当前到期时间：${tenant.expired_at ? tenant.expired_at.split('T')[0] : '永久有效'}\n\n暂不支持在线编辑，请联系技术支持修改。`,
+      showCancel: false
     })
   }
 
