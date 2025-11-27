@@ -15,6 +15,49 @@
 - ✅ **更新所有 RLS 策略**：使用 `current_user_id()` 替代 `auth.uid()`
 - ✅ **恢复简单的角色检查函数**：不使用异常处理来掩盖问题
 
+### 如何验证修复
+
+**方法1：使用验证脚本（推荐）**
+1. 打开 Supabase SQL Editor
+2. 复制 `scripts/verify_rls_fix.sql` 的内容
+3. 运行脚本
+4. 检查所有验证结果是否通过
+
+**方法2：手动验证**
+```sql
+-- 1. 检查 current_user_id() 函数
+SELECT public.current_user_id();
+
+-- 2. 检查 RLS 策略
+SELECT tablename, policyname 
+FROM pg_policies 
+WHERE qual::text LIKE '%current_user_id%';
+
+-- 3. 检查 RLS 启用状态
+SELECT tablename, rowsecurity 
+FROM pg_tables 
+WHERE schemaname = 'public';
+```
+
+**方法3：功能测试**
+1. 以车队长身份登录
+2. 查看司机列表
+3. 查看仓库列表
+4. 确认所有功能正常工作
+
+### 安全性检查清单
+
+- ✅ **权限泄露风险**：低风险，权限正确配置
+- ✅ **RLS 策略绕过风险**：低风险，所有表都已启用 RLS
+- ✅ **SQL 注入风险**：无风险，无用户输入
+- ✅ **权限提升风险**：无风险，函数不提升权限
+- ✅ **性能问题**：无性能问题，函数标记为 STABLE
+- ✅ **并发问题**：无并发问题，每个会话独立
+- ✅ **Schema 路径问题**：无问题，显式指定路径
+- ✅ **数据泄露风险**：低风险，RLS 策略正确配置
+
+详细的安全性分析和验证方法请查看：[RLS 策略修复详细说明](RLS_POLICY_FIX_DETAILED_EXPLANATION.md)
+
 ### 数据库函数 ✅
 - ✅ `current_user_id()` - 安全代理函数，显式指定 Schema 路径
 - ✅ `is_admin()` - 简单的角色检查函数
@@ -133,7 +176,8 @@
 - ✅ 创建 RPC 函数 - 绕过 RLS 策略，确保通知系统稳定运行
 
 详细信息请查看：
-- [RLS 策略完整修复验证报告](RLS_POLICY_COMPLETE_FIX_VERIFICATION.md) - 完整修复验证报告 ✅ 最新
+- [RLS 策略修复详细说明](RLS_POLICY_FIX_DETAILED_EXPLANATION.md) - 详细的问题分析、解决方案和安全性验证 ✅ 最新
+- [RLS 策略完整修复验证报告](RLS_POLICY_COMPLETE_FIX_VERIFICATION.md) - 完整修复验证报告
 - [RLS 策略最终修复确认报告](RLS_POLICY_FINAL_FIX_CONFIRMED.md) - RLS 策略最终修复确认
 - [RLS 策略正确修复方案](RLS_POLICY_PROPER_FIX.md) - 详细的错误分析和解决方案
 - [RLS 策略根本性修复确认报告](RLS_POLICY_ROOT_CAUSE_FIX_CONFIRMED.md) - 之前的修复确认（已废弃）
