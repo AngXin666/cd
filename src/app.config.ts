@@ -66,7 +66,6 @@ const pages = [
   'pages/super-admin/permission-config/index',
   'pages/super-admin/edit-user/index',
   'pages/super-admin/database-schema/index',
-  'pages/super-admin/tenant-config/index',
   'pages/shared/driver-notification/index',
   'pages/shared/notification-templates/index',
   'pages/shared/scheduled-notifications/index',
