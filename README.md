@@ -39,6 +39,53 @@ const { data } = await supabase
 
 ---
 
+## 🏢 多租户系统 ⭐ 最新
+
+**实施日期**：2025-11-05
+
+系统现已支持**多租户架构**，允许多个独立的租户（车队）使用同一个应用，每个租户拥有独立的数据库和配置。
+
+### 核心特性
+- ✅ **中央管理**：统一管理所有租户的配置信息
+- ✅ **动态客户端**：根据用户所属租户自动创建专属 Supabase 客户端
+- ✅ **自动路由**：用户登录后自动加载租户配置，数据操作自动路由到正确的数据库
+- ✅ **配置缓存**：客户端和配置缓存，提升性能
+- ✅ **租户管理**：超级管理员可以创建、编辑、暂停、激活、删除租户
+
+### 三层架构
+1. **中央管理层（Public Schema）**
+   - 存储所有租户的配置信息
+   - 管理租户的创建、暂停、激活、删除
+   - 只有超级管理员可以访问
+
+2. **租户数据层（Tenant Schemas）**
+   - 每个租户拥有独立的 Schema
+   - 物理隔离，确保数据安全
+   - 租户之间数据完全隔离
+
+3. **应用层**
+   - 用户登录后自动加载所属租户的配置
+   - 动态创建租户专属的 Supabase 客户端
+   - 所有数据操作自动路由到正确的租户数据库
+
+### 快速开始
+```typescript
+import { getTenantSupabaseClient } from '@/client/tenantSupabaseManager'
+
+// 获取当前租户的客户端
+const client = await getTenantSupabaseClient()
+
+// 使用客户端查询数据（自动路由到正确的租户数据库）
+const { data } = await client.from('warehouses').select('*')
+```
+
+### 相关文档
+- [多租户系统使用指南](MULTI_TENANT_SYSTEM_GUIDE.md) - 完整的使用说明和最佳实践
+- [租户配置管理](src/pages/super-admin/tenant-config/index.tsx) - 超级管理员管理页面
+- [API 文档](docs/API_GUIDE.md) - API 使用说明
+
+---
+
 ## 🔒 独立数据库隔离架构
 
 **实施日期**：2025-11-05
