@@ -16,7 +16,7 @@
 - **定位**：中央管理系统管理员
 - **职责**：管理所有租户、管理租户配置、监控系统运行状态
 - **登录信息**：
-  - 用户名：admin@fleet.com
+  - 用户名：admin
   - 密码：hye19911206
   - 说明：中央管理系统账号不需要邮箱，使用用户名登录
 
@@ -180,7 +180,7 @@ can_manage_user(manager_id uuid, target_user_id uuid) RETURNS boolean
 
 ### 管理员登录
 
-- **用户名**：admin@fleet.com
+- **用户名**：admin
 - **密码**：hye19911206
 - **说明**：中央管理系统账号不需要邮箱，使用用户名登录
 
