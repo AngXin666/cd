@@ -945,14 +945,24 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
  * 获取司机的仓库ID列表
  */
 export async function getDriverWarehouseIds(driverId: string): Promise<string[]> {
-  const {data, error} = await supabase.from('driver_warehouses').select('warehouse_id').eq('driver_id', driverId)
+  logger.db('RPC调用', 'get_driver_warehouse_ids_for_management', {driverId})
+
+  // 使用 RPC 函数，绕过 RLS 策略
+  const {data, error} = await supabase.rpc('get_driver_warehouse_ids_for_management', {
+    p_driver_id: driverId
+  })
 
   if (error) {
-    console.error('获取司机仓库ID失败:', error)
+    logger.error('获取司机仓库ID失败', error)
     return []
   }
 
-  return data?.map((item) => item.warehouse_id) || []
+  const warehouseIds = data?.map((item: any) => item.warehouse_id) || []
+  logger.db('查询成功', 'get_driver_warehouse_ids_for_management', {
+    driverId,
+    count: warehouseIds.length
+  })
+  return warehouseIds
 }
 
 /**
@@ -1764,62 +1774,39 @@ export async function getCategoryPriceForDriver(
 
 // 获取管理员的仓库列表
 export async function getManagerWarehouses(managerId: string): Promise<Warehouse[]> {
-  console.log('[getManagerWarehouses] 开始查询，管理员ID:', managerId)
+  logger.db('RPC调用', 'get_manager_warehouses_for_management', {managerId})
 
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.WAREHOUSE_ASSIGNMENTS}_${managerId}`
-  console.log('[getManagerWarehouses] 缓存键:', cacheKey)
 
   // 尝试从缓存获取
   const cached = getCache<Warehouse[]>(cacheKey)
   if (cached) {
-    console.log(`✅ [getManagerWarehouses] 使用缓存数据，仓库数: ${cached.length}`)
+    logger.db('缓存命中', 'get_manager_warehouses_for_management', {
+      managerId,
+      count: cached.length
+    })
     return cached
   }
 
-  console.log('[getManagerWarehouses] 缓存未命中，从数据库查询...')
-
-  const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
-
-  console.log('[getManagerWarehouses] 查询结果:', {data, error})
+  // 使用 RPC 函数，绕过 RLS 策略
+  const {data, error} = await supabase.rpc('get_manager_warehouses_for_management', {
+    p_manager_id: managerId
+  })
 
   if (error) {
-    console.error('[getManagerWarehouses] 获取管理员仓库失败:', error)
+    logger.error('获取管理员仓库失败', error)
     return []
   }
 
-  if (!data || data.length === 0) {
-    console.log('[getManagerWarehouses] 没有找到仓库分配数据')
-    // 缓存空结果，避免重复查询（缓存5分钟）
-    setCache(cacheKey, [], 5 * 60 * 1000)
-    return []
-  }
-
-  console.log(
-    '[getManagerWarehouses] 找到仓库ID列表:',
-    data.map((item) => item.warehouse_id)
-  )
-
-  const warehouseIds = data.map((item) => item.warehouse_id)
-  const {data: warehouses, error: warehouseError} = await supabase
-    .from('warehouses')
-    .select('*')
-    .in('id', warehouseIds)
-    .order('name', {ascending: true})
-
-  console.log('[getManagerWarehouses] 仓库详情查询结果:', {warehouses, warehouseError})
-
-  if (warehouseError) {
-    console.error('[getManagerWarehouses] 获取仓库信息失败:', warehouseError)
-    return []
-  }
-
-  const result = Array.isArray(warehouses) ? warehouses : []
-  console.log('[getManagerWarehouses] 最终返回仓库数量:', result.length)
+  const result = Array.isArray(data) ? data : []
+  logger.db('查询成功', 'get_manager_warehouses_for_management', {
+    managerId,
+    count: result.length
+  })
 
   // 缓存30分钟
   setCache(cacheKey, result, 30 * 60 * 1000)
-  console.log('[getManagerWarehouses] 已缓存数据，有效期: 30分钟')
 
   return result
 }

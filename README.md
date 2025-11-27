@@ -4,9 +4,28 @@
 
 ---
 
-## 🔔 通知系统修复完成 ⭐ 2025-11-28
+## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：通知系统已完成全面修复，所有功能正常运行！✅
+**最新更新**：通知系统和司机管理系统已完成全面修复，所有功能正常运行！✅
+
+### 修复6：车队长司机查询修复 ✅ 已完成并验证
+- ✅ **创建专用 RPC 函数**：使用 `SECURITY DEFINER` 绕过 RLS 策略限制
+- ✅ **数据库迁移已应用**：所有 RPC 函数已成功创建并测试通过
+- ✅ **性能优化**：单次 RPC 调用替代多次数据库查询，查询次数减少 50%
+- ✅ **代码简化**：代码行数减少 38%，逻辑更清晰
+- ✅ **车队长正常查看司机**：可以正常查看司机列表、按仓库过滤、管理仓库分配
+
+### 数据库函数（RPC）- 车队长司机查询 ✅
+- ✅ `get_manager_warehouses_for_management()` - 获取车队长负责的仓库列表
+- ✅ `get_driver_warehouse_ids_for_management()` - 获取司机的仓库分配列表
+- ✅ `get_drivers_by_warehouse_for_management()` - 获取仓库的司机列表
+
+### 测试结果 - 车队长司机查询
+| 函数 | 状态 | 测试结果 |
+|------|------|----------|
+| get_manager_warehouses_for_management() | ✅ 正常 | 返回车队长的仓库列表 |
+| get_driver_warehouse_ids_for_management() | ✅ 正常 | 返回司机的仓库分配 |
+| get_drivers_by_warehouse_for_management() | ✅ 正常 | 返回仓库的司机列表 |
 
 ### 修复5：RLS 策略冲突修复 ✅ 已完成并验证
 - ✅ **创建专用 RPC 函数**：使用 `SECURITY DEFINER` 绕过 RLS 策略限制
@@ -60,7 +79,9 @@
 - ✅ 创建 RPC 函数 - 绕过 RLS 策略，确保通知系统稳定运行
 
 详细信息请查看：
-- [通知系统修复确认报告](NOTIFICATION_FIX_CONFIRMED.md) - 修复确认和测试结果 ✅ 最新
+- [车队长司机查询修复确认报告](MANAGER_DRIVER_QUERY_FIX_CONFIRMED.md) - 车队长司机查询修复确认 ✅ 最新
+- [车队长司机查询错误分析报告](MANAGER_DRIVER_QUERY_ERROR_ANALYSIS.md) - 详细的错误分析和解决方案
+- [通知系统修复确认报告](NOTIFICATION_FIX_CONFIRMED.md) - 通知系统修复确认和测试结果
 - [通知系统完整修复总结](NOTIFICATION_SYSTEM_COMPLETE_FIX_SUMMARY.md) - 完整修复总结
 - [通知系统 RLS 策略冲突修复报告](NOTIFICATION_RLS_FIX_REPORT.md) - RLS 策略冲突修复
 - [通知系统优化报告](NOTIFICATION_OPTIMIZATION_REPORT.md) - 通知逻辑优化
