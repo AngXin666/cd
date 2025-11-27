@@ -361,7 +361,7 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('创建打卡记录失败: 无法获取 boss_id')
@@ -372,8 +372,7 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
   const {data, error} = await supabase
     .from('attendance')
     .insert({
-      ...input,
-      boss_id: profile.boss_id
+      ...input
     })
     .select()
     .maybeSingle()
@@ -692,7 +691,7 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('创建仓库失败: 无法获取 boss_id')
@@ -704,8 +703,7 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
     .from('warehouses')
     .insert({
       name: input.name,
-      is_active: input.is_active !== undefined ? input.is_active : true,
-      boss_id: profile.boss_id
+      is_active: input.is_active !== undefined ? input.is_active : true
     })
     .select()
     .maybeSingle()
@@ -805,7 +803,7 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('创建考勤规则失败: 无法获取 boss_id')
@@ -821,8 +819,7 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
       work_end_time: input.work_end_time,
       late_threshold: input.late_threshold || 15,
       early_threshold: input.early_threshold || 15,
-      is_active: input.is_active !== undefined ? input.is_active : true,
-      boss_id: profile.boss_id
+      is_active: input.is_active !== undefined ? input.is_active : true
     })
     .select()
     .maybeSingle()
@@ -1126,7 +1123,7 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
   }
 
   // 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('插入仓库分配失败: 无法获取 boss_id')
@@ -1135,8 +1132,7 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
 
   // 插入时自动添加 boss_id
   const {error} = await supabase.from('driver_warehouses').insert({
-    ...input,
-    boss_id: profile.boss_id
+    ...input
   })
 
   if (error) {
@@ -1165,7 +1161,7 @@ export async function insertManagerWarehouseAssignment(input: {
   }
 
   // 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('插入管理员仓库分配失败: 无法获取 boss_id')
@@ -1238,8 +1234,7 @@ export async function insertManagerWarehouseAssignment(input: {
 
   // 6. 执行分配
   const {error} = await supabase.from('manager_warehouses').insert({
-    ...input,
-    boss_id: profile.boss_id
+    ...input
   })
 
   if (error) {
@@ -1430,7 +1425,7 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('创建计件记录失败: 无法获取 boss_id')
@@ -1439,8 +1434,7 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
 
   // 3. 插入计件记录（自动添加 boss_id）
   const {error} = await supabase.from('piece_work_records').insert({
-    ...record,
-    boss_id: profile.boss_id
+    ...record
   })
 
   if (error) {
@@ -1706,7 +1700,7 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('保存品类价格配置失败: 无法获取 boss_id')
@@ -1721,8 +1715,7 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
       unit_price: input.unit_price,
       upstairs_price: input.upstairs_price,
       sorting_unit_price: input.sorting_unit_price,
-      is_active: input.is_active ?? true,
-      boss_id: profile.boss_id
+      is_active: input.is_active ?? true
     },
     {
       onConflict: 'warehouse_id,category_name'
@@ -1750,7 +1743,7 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('批量保存品类价格配置失败: 无法获取 boss_id')
@@ -1765,8 +1758,7 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
       unit_price: input.unit_price,
       upstairs_price: input.upstairs_price,
       sorting_unit_price: input.sorting_unit_price,
-      is_active: input.is_active ?? true,
-      boss_id: profile.boss_id
+      is_active: input.is_active ?? true
     })),
     {
       onConflict: 'warehouse_id,category_name'
@@ -1966,7 +1958,7 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('创建请假申请失败: 无法获取 boss_id')
@@ -1983,8 +1975,7 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       start_date: input.start_date,
       end_date: input.end_date,
       reason: input.reason,
-      status: 'pending',
-      boss_id: profile.boss_id
+      status: 'pending'
     })
     .select()
     .maybeSingle()
@@ -2305,7 +2296,7 @@ export async function createResignationApplication(
   }
 
   // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('创建离职申请失败: 无法获取 boss_id')
@@ -2320,8 +2311,7 @@ export async function createResignationApplication(
       warehouse_id: input.warehouse_id,
       resignation_date: input.resignation_date,
       reason: input.reason,
-      status: 'pending',
-      boss_id: profile.boss_id
+      status: 'pending'
     })
     .select()
     .maybeSingle()
@@ -3771,7 +3761,7 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   }
 
   // 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
   if (!profile?.boss_id) {
     console.error('设置管理员仓库失败: 无法获取 boss_id')
@@ -3801,8 +3791,7 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   // 3. 插入新的关联（包含 boss_id）
   const insertData = warehouseIds.map((warehouseId) => ({
     manager_id: managerId,
-    warehouse_id: warehouseId,
-    boss_id: profile.boss_id
+    warehouse_id: warehouseId
   }))
 
   const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
@@ -5250,7 +5239,7 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
       return null
     }
 
-    const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+    const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
     if (!profile?.boss_id) {
       logger.error('添加车辆失败: 无法获取 boss_id')
@@ -5261,8 +5250,7 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
     const {data, error} = await supabase
       .from('vehicles')
       .insert({
-        ...vehicle,
-        boss_id: profile.boss_id
+        ...vehicle
       })
       .select()
       .maybeSingle()
@@ -6948,7 +6936,7 @@ export async function getManagersByTenantId(tenantId: string): Promise<Profile[]
       .from('profiles')
       .select('*')
       .eq('role', 'manager')
-      .eq('boss_id', tenantId)
+      
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -7347,7 +7335,7 @@ export async function suspendTenant(id: string): Promise<boolean> {
     const {error: adminError} = await supabase
       .from('profiles')
       .update({status: 'inactive'})
-      .eq('boss_id', id)
+      
       .eq('role', 'admin')
 
     if (adminError) {
@@ -7392,7 +7380,7 @@ export async function activateTenant(id: string): Promise<boolean> {
     const {error: adminError} = await supabase
       .from('profiles')
       .update({status: 'active'})
-      .eq('boss_id', id)
+      
       .eq('role', 'admin')
 
     if (adminError) {
@@ -7475,13 +7463,13 @@ export async function deleteTenant(id: string): Promise<boolean> {
         .from('profiles')
         .select('id')
         .eq('role', 'manager')
-        .eq('boss_id', id),
+        ,
       // 司机
       supabase
         .from('profiles')
         .select('id')
         .eq('role', 'driver')
-        .eq('boss_id', id),
+        ,
       // 车辆
       supabase
         .from('vehicles')
@@ -7644,7 +7632,7 @@ export async function getLeaseBillsByTenantId(tenantId: string): Promise<LeaseBi
     const {data, error} = await supabase
       .from('lease_bills')
       .select('*')
-      .eq('boss_id', tenantId)
+      
       .order('bill_month', {ascending: false})
 
     if (error) {
@@ -7790,7 +7778,7 @@ export async function getLeasesByTenantId(tenantId: string): Promise<Lease[]> {
     const {data, error} = await supabase
       .from('leases')
       .select('*')
-      .eq('boss_id', tenantId)
+      
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -8079,7 +8067,7 @@ async function suspendManagers(tenantId: string): Promise<boolean> {
     const {error} = await supabase
       .from('profiles')
       .update({status: 'suspended'})
-      .eq('boss_id', tenantId)
+      
       .eq('role', 'manager')
 
     if (error) {
@@ -8186,7 +8174,7 @@ export async function checkUserLeaseStatus(
       // 当前用户是平级账号，需要查询主账号的 boss_id
       const {data: mainAccount} = await supabase
         .from('profiles')
-        .select('boss_id')
+        .select('id')
         .eq('id', user.main_account_id)
         .maybeSingle()
 
@@ -8195,7 +8183,7 @@ export async function checkUserLeaseStatus(
       console.log('[租期检测] 当前用户是平级账号，主账号ID:', user.main_account_id, '主账号boss_id:', mainAccountId)
     } else if (user.role === 'manager') {
       // 当前用户是车队长，需要查询所属老板号的 boss_id
-      const {data: bossAccount} = await supabase.from('profiles').select('boss_id').eq('id', user.boss_id).maybeSingle()
+      const {data: bossAccount} = await supabase.from('profiles').select('id').eq('id', user.boss_id).maybeSingle()
 
       mainAccountId = bossAccount?.boss_id || user.boss_id || ''
       isMainAccount = false
@@ -8212,7 +8200,7 @@ export async function checkUserLeaseStatus(
     const {data: leases, error: leaseError} = await supabase
       .from('leases')
       .select('*')
-      .eq('boss_id', mainAccountId)
+      
       .eq('status', 'active')
       .order('end_date', {ascending: false})
       .limit(1)
@@ -8300,7 +8288,7 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
     }
 
     // 2. 获取当前用户的 boss_id
-    const {data: profile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+    const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
 
     if (!profile?.boss_id) {
       console.error('创建通知失败: 无法获取 boss_id')
@@ -8318,8 +8306,7 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
         type: input.type,
         title: input.title,
         content: input.content,
-        action_url: input.action_url || null,
-        boss_id: profile.boss_id
+        action_url: input.action_url || null
       })
       .select()
       .maybeSingle()
@@ -8558,8 +8545,8 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       {data: notifications}
     ] = await Promise.all([
       supabase.from('profiles').select('id').eq('role', 'super_admin').eq('main_account_id', id),
-      supabase.from('profiles').select('id').eq('role', 'manager').eq('boss_id', id),
-      supabase.from('profiles').select('id').eq('role', 'driver').eq('boss_id', id),
+      supabase.from('profiles').select('id').eq('role', 'manager'),
+      supabase.from('profiles').select('id').eq('role', 'driver'),
       supabase.from('vehicles').select('id').eq('tenant_id', id),
       supabase.from('warehouses').select('id').eq('tenant_id', id),
       supabase.from('attendance').select('id').eq('tenant_id', id),

@@ -312,10 +312,14 @@
   - 新策略：SELECT * FROM users WHERE role = 'driver'
 
 ### 7.2 前端代码更新
+- **重构 src/db/api.ts**：删除所有 boss_id 相关代码
+- **更新其他数据库 API 文件**：tenantQuery.ts、batchQuery.ts 等
+- **更新页面组件中的 boss_id 逻辑**：全面移除前端代码中的boss_id相关逻辑
 - **删除API调用中的boss_id参数**：src/db/api.ts
 - **移除通知API中的boss_id逻辑**：src/db/notificationApi.ts
 - **请假申请中删除boss_id相关代码**：src/pages/driver/leave/apply/index.tsx
-- **其他10+个文件的boss_id清理**：全面移除前端代码中的boss_id相关逻辑\n
+- **其他10+个文件的boss_id清理**：全面移除前端代码中的boss_id相关逻辑
+
 ### 7.3 后端代码重构
 - **API接口重构**：移除所有boss_id参数和过滤条件
 - **数据库查询优化**：基于角色权限的简化查询逻辑
@@ -330,8 +334,4 @@
 - 过期提示色：橙红色（#FF7875）用于到期提醒信息
 - 通知提醒色：橙色（#FF8C00）用于新通知标识
 
-### 8.2 视觉细节
-- 圆角设计：统一使用4px圆角，增加亲和力
-- 卡片式布局：数据展示采用卡片形式，层次分明
-- 图标风格：线性图标风格，简洁现代
-- 按钮样式：主操作
+###
