@@ -1183,3 +1183,80 @@ export interface DeleteTenantResult {
   }
   error?: string
 }
+
+// ==================== 中央管理系统类型定义 ====================
+
+/**
+ * 租户状态
+ */
+export type TenantStatus = 'active' | 'suspended' | 'deleted'
+
+/**
+ * 租户信息
+ */
+export interface Tenant {
+  id: string
+  company_name: string // 公司名称
+  tenant_code: string // 租户代码（tenant-001）
+  schema_name: string // Schema 名称（tenant_001）
+  contact_name: string | null // 联系人
+  contact_phone: string | null // 联系电话
+  contact_email: string | null // 联系邮箱
+  status: TenantStatus // 状态
+  expired_at: string | null // 过期时间
+  boss_user_id: string | null // 老板的 auth.users.id
+  boss_name: string | null // 老板姓名
+  boss_phone: string | null // 老板手机号
+  boss_email: string | null // 老板邮箱
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 创建租户的输入参数
+ */
+export interface CreateTenantInput {
+  company_name: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  expired_at?: string // 过期时间
+  boss_name: string
+  boss_phone: string
+  boss_email?: string
+  boss_password: string
+}
+
+/**
+ * 更新租户的输入参数
+ */
+export interface UpdateTenantInput {
+  company_name?: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  expired_at?: string
+  status?: TenantStatus
+}
+
+/**
+ * 系统管理员信息
+ */
+export interface SystemAdmin {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  status: string
+  created_at: string
+}
+
+/**
+ * 创建租户结果
+ */
+export interface CreateTenantResult {
+  success: boolean
+  tenant?: Tenant
+  message?: string
+  error?: string
+}
