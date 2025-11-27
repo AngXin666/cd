@@ -177,15 +177,23 @@
 
 ## 🏗️ 数据库设计
 
+### 物理隔离架构
+
+**核心理念**：每个租户使用独立的数据库（独立的 Schema），数据在物理上完全隔离。
+
+**关键点**：
+- ✅ 不需要 `tenant_id` 字段（数据已经物理隔离）
+- ✅ 不需要 `boss_id` 字段（数据已经物理隔离）
+- ✅ 只需要 `manager_id` 来标识司机所属的车队长
+- ✅ 只需要 `managed_warehouses` 来标识车队长管辖的仓库
+
 ### profiles 表字段
 
 ```sql
 CREATE TABLE profiles (
   id uuid PRIMARY KEY,
-  tenant_id uuid REFERENCES tenant_configs(id),  -- 所属租户
   role text NOT NULL,  -- 角色：super_admin, boss, peer, manager, driver
-  permission_level text,  -- 权限级别：full_permission, read_only
-  boss_id uuid REFERENCES profiles(id),  -- 所属老板（仅平级账号和车队长）
+  permission_level text,  -- 权限级别：full_permission, read_only（仅平级账号和车队长）
   manager_id uuid REFERENCES profiles(id),  -- 所属车队长（仅司机）
   managed_warehouses uuid[],  -- 管辖的仓库（仅车队长）
   real_name text,
@@ -198,19 +206,22 @@ CREATE TABLE profiles (
 
 ### 字段说明
 
-- **tenant_id**：所属租户ID，超级管理员为 NULL
 - **role**：角色类型
-  - `super_admin`：超级管理员
-  - `boss`：老板
+  - `super_admin`：超级管理员（中央管理系统）
+  - `boss`：老板（租户系统最高权限所有者）
   - `peer`：平级账号
   - `manager`：车队长
   - `driver`：司机
-- **permission_level**：权限级别（仅平级账号和车队长）
+- **permission_level**：权限级别（仅平级账号和车队长需要）
   - `full_permission`：完整权限
   - `read_only`：只读权限
-- **boss_id**：所属老板ID（仅平级账号和车队长需要）
 - **manager_id**：所属车队长ID（仅司机需要）
 - **managed_warehouses**：管辖的仓库ID数组（仅车队长需要）
+
+**注意**：
+- 超级管理员在中央管理系统的 `public` schema 中
+- 其他角色在各自租户的独立 schema 中（如 `tenant_xxx`）
+- 数据通过物理隔离，不需要 `tenant_id` 或 `boss_id` 字段
 
 ---
 
@@ -219,9 +230,8 @@ CREATE TABLE profiles (
 ### 1. 超级管理员创建老板账号
 
 ```typescript
-// 超级管理员操作
+// 超级管理员操作（在中央管理系统）
 const boss = await createBossAccount({
-  tenant_id: tenantId,
   real_name: '张三',
   phone: '13800000001',
   email: 'zhangsan@example.com',
@@ -229,12 +239,16 @@ const boss = await createBossAccount({
 })
 ```
 
+**说明**：
+- 超级管理员在中央管理系统创建老板账号
+- 同时创建租户配置和独立的数据库 Schema
+- 老板账号在租户的独立 Schema 中
+
 ### 2. 老板创建平级账号
 
 ```typescript
-// 老板操作
+// 老板操作（在租户系统）
 const peer = await createPeerAccount({
-  boss_id: bossId,
   real_name: '李四',
   phone: '13800000002',
   email: 'lisi@example.com',
@@ -243,12 +257,16 @@ const peer = await createPeerAccount({
 })
 ```
 
+**说明**：
+- 最多可创建 3 个平级账号
+- 不需要指定 `boss_id`（数据已物理隔离）
+- 平级账号在同一个租户 Schema 中
+
 ### 3. 老板或平级账号（完整权限）创建车队长
 
 ```typescript
 // 老板或平级账号（完整权限）操作
 const manager = await createManagerAccount({
-  boss_id: bossId,
   real_name: '王五',
   phone: '13800000003',
   email: 'wangwu@example.com',
@@ -258,18 +276,27 @@ const manager = await createManagerAccount({
 })
 ```
 
+**说明**：
+- 不需要指定 `boss_id`（数据已物理隔离）
+- 需要指定管辖的仓库
+- 车队长在同一个租户 Schema 中
+
 ### 4. 老板、平级账号（完整权限）或车队长（完整权限）创建司机
 
 ```typescript
 // 老板、平级账号（完整权限）或车队长（完整权限）操作
 const driver = await createDriverAccount({
-  boss_id: bossId,
-  manager_id: managerId,  // 可选
   real_name: '赵六',
   phone: '13800000004',
-  password: 'password123'
+  password: 'password123',
+  manager_id: managerId  // 可选，指定所属车队长
 })
 ```
+
+**说明**：
+- 不需要指定 `boss_id`（数据已物理隔离）
+- 可选指定 `manager_id`（所属车队长）
+- 司机在同一个租户 Schema 中
 
 ---
 
@@ -278,45 +305,45 @@ const driver = await createDriverAccount({
 ### 超级管理员策略
 
 ```sql
--- 超级管理员可以查看所有租户配置
+-- 超级管理员可以查看所有租户配置（在中央管理系统的 public schema）
 CREATE POLICY "超级管理员查看租户配置" ON tenant_configs
   FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'super_admin'
-    )
+    is_super_admin(auth.uid())
   );
 ```
+
+**说明**：
+- 超级管理员只在中央管理系统的 `public` schema 中操作
+- 不能直接访问租户的业务数据
 
 ### 老板策略
 
 ```sql
--- 老板可以查看自己租户内的所有数据
+-- 老板可以查看所有数据（在租户 schema 中）
 CREATE POLICY "老板查看所有数据" ON profiles
   FOR SELECT
   TO authenticated
   USING (
-    tenant_id = (
-      SELECT tenant_id FROM profiles
-      WHERE id = auth.uid()
-      AND role = 'boss'
-    )
+    is_boss(auth.uid())
   );
 ```
+
+**说明**：
+- 不需要检查 `tenant_id` 或 `boss_id`（数据已物理隔离）
+- 老板可以查看同一租户 schema 中的所有数据
 
 ### 平级账号策略
 
 ```sql
--- 平级账号（完整权限）可以查看和修改租户内的所有数据
+-- 平级账号（完整权限）可以查看和修改所有数据
 CREATE POLICY "平级账号完整权限" ON profiles
   FOR ALL
   TO authenticated
   USING (
-    tenant_id = (
-      SELECT tenant_id FROM profiles
+    EXISTS (
+      SELECT 1 FROM profiles
       WHERE id = auth.uid()
       AND role = 'peer'
       AND permission_level = 'full_permission'
@@ -328,14 +355,18 @@ CREATE POLICY "平级账号只读权限" ON profiles
   FOR SELECT
   TO authenticated
   USING (
-    tenant_id = (
-      SELECT tenant_id FROM profiles
+    EXISTS (
+      SELECT 1 FROM profiles
       WHERE id = auth.uid()
       AND role = 'peer'
       AND permission_level = 'read_only'
     )
   );
 ```
+
+**说明**：
+- 不需要检查 `tenant_id` 或 `boss_id`（数据已物理隔离）
+- 平级账号可以访问同一租户 schema 中的数据
 
 ### 车队长策略
 
@@ -345,7 +376,11 @@ CREATE POLICY "车队长完整权限" ON drivers
   FOR ALL
   TO authenticated
   USING (
-    warehouse_id = ANY(
+    -- 司机属于车队长管辖
+    manager_id = auth.uid()
+    OR
+    -- 司机的仓库在车队长管辖范围内
+    warehouse_id IN (
       SELECT unnest(managed_warehouses) FROM profiles
       WHERE id = auth.uid()
       AND role = 'manager'
@@ -358,7 +393,11 @@ CREATE POLICY "车队长只读权限" ON drivers
   FOR SELECT
   TO authenticated
   USING (
-    warehouse_id = ANY(
+    -- 司机属于车队长管辖
+    manager_id = auth.uid()
+    OR
+    -- 司机的仓库在车队长管辖范围内
+    warehouse_id IN (
       SELECT unnest(managed_warehouses) FROM profiles
       WHERE id = auth.uid()
       AND role = 'manager'
@@ -366,6 +405,10 @@ CREATE POLICY "车队长只读权限" ON drivers
     )
   );
 ```
+
+**说明**：
+- 不需要检查 `tenant_id` 或 `boss_id`（数据已物理隔离）
+- 车队长只能访问管辖范围内的数据
 
 ### 司机策略
 
@@ -387,6 +430,10 @@ CREATE POLICY "司机修改自己的数据" ON profiles
     AND role = 'driver'
   );
 ```
+
+**说明**：
+- 不需要检查 `tenant_id` 或 `boss_id`（数据已物理隔离）
+- 司机只能访问自己的数据
 
 ---
 
