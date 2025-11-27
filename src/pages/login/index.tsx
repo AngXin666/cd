@@ -130,9 +130,9 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      // 账号名到 email 的映射
+      // 账号名到手机号的映射
       const accountMapping: Record<string, string> = {
-        admin: 'admin', // 超级管理员账号
+        admin: '13800000001', // 中央管理系统管理员
         admin1: '13800000001',
         admin2: '13800000002',
         admin3: '13800000003',
@@ -142,19 +142,32 @@ const Login: React.FC = () => {
       // 判断输入的是手机号还是账号名
       const isPhoneNumber = validatePhone(account)
 
-      // 如果是账号名，转换为对应的手机号或账号
+      // 如果是账号名，转换为对应的手机号
       let actualAccount = account
       if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
         actualAccount = accountMapping[account.toLowerCase()]
       }
 
-      // 转换为 email 格式（与创建账号时保持一致）
-      const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
+      // 判断最终账号是手机号还是邮箱
+      const isFinalPhone = validatePhone(actualAccount)
 
-      const {error} = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
+      let error
+      if (isFinalPhone) {
+        // 使用手机号登录
+        const result = await supabase.auth.signInWithPassword({
+          phone: actualAccount,
+          password
+        })
+        error = result.error
+      } else {
+        // 使用邮箱登录（兼容旧账号）
+        const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.com`
+        const result = await supabase.auth.signInWithPassword({
+          email,
+          password
+        })
+        error = result.error
+      }
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
@@ -360,8 +373,8 @@ const Login: React.FC = () => {
               <Text className="text-xs text-blue-100 block">老板账号：admin3 / 123456</Text>
             </View>
             <View className="pt-3 border-t border-white border-opacity-20">
-              <Text className="text-xs text-blue-100 block mb-2">超级管理员：admin / hye19911206</Text>
-              <Text className="text-xs text-blue-100 block">租赁管理员：admin888 / hye19911206</Text>
+              <Text className="text-xs text-blue-100 block mb-2">中央管理员：13800000001 / hye19911206</Text>
+              <Text className="text-xs text-blue-100 block">或使用：admin / hye19911206</Text>
             </View>
           </View>
         </View>
