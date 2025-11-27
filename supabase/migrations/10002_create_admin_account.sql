@@ -5,9 +5,14 @@
 创建系统管理员账号，用于中央管理系统登录。
 
 ## 账号信息
-- 用户名：admin
+- 用户名：admin@fleet.com
 - 密码：hye19911206
-- 角色：super_admin
+- 角色：super_admin（超级管理员）
+
+## 说明
+- 中央管理系统账号不需要邮箱
+- 使用 email 字段存储用户名（admin@fleet.com）
+- 用于登录中央管理系统
 
 ## 操作步骤
 1. 检查账号是否已存在
@@ -96,7 +101,6 @@ BEGIN
   INSERT INTO public.profiles (
     id,
     phone,
-    email,
     role,
     real_name,
     created_at,
@@ -104,7 +108,6 @@ BEGIN
   ) VALUES (
     admin_user_id,
     '13800000000',
-    'admin@fleet.com',
     'super_admin',
     '系统管理员',
     now(),
@@ -124,7 +127,7 @@ DECLARE
 BEGIN
   SELECT COUNT(*) INTO admin_count
   FROM public.profiles
-  WHERE email = 'admin@fleet.com' AND role = 'super_admin';
+  WHERE role = 'super_admin' AND real_name = '系统管理员';
   
   IF admin_count > 0 THEN
     RAISE NOTICE '✅ 管理员账号验证成功';
