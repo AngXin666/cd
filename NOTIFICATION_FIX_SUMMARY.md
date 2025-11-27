@@ -1,7 +1,7 @@
 # 司机请假通知修复总结
 
 ## 问题描述
-司机创建请假申请后，车队长、老板和平级账号都没有收到通知，通知中心也没有信息。
+司机创建请假申请后，虽然能看到弹窗提示，但通知栏和通知中心都没有显示通知记录。
 
 ## 根本原因分析
 
@@ -50,6 +50,25 @@ if (!bossId && senderProfile?.role === 'super_admin') {
 }
 ```
 
+### 3. 数据库 RLS 策略错误（关键问题）
+**位置**: 数据库 `notifications` 表的 RLS 策略
+
+**原问题**:
+司机创建通知的策略中，查询老板账号时使用了错误的条件：
+```sql
+-- 错误的查询条件
+SELECT p.id 
+FROM profiles p
+WHERE p.role = 'super_admin'
+AND p.boss_id = get_current_user_boss_id()  -- ❌ 老板的 boss_id 是 NULL，永远查不到
+```
+
+**修复后**:
+```sql
+-- 正确的查询条件
+SELECT get_current_user_boss_id()::uuid  -- ✅ 直接返回老板的 ID
+```
+
 ## 修复内容
 
 ### 1. 修复了通知服务 (`src/services/notificationService.ts`)
@@ -70,6 +89,11 @@ if (!bossId && senderProfile?.role === 'super_admin') {
 - ✅ 删除 `src/db/types.ts` 中重复的 `NotificationType` 定义
 - ✅ 统一使用 `src/db/notificationApi.ts` 中的定义
 - ✅ 添加 `leave_submitted` 和 `verification_reminder` 类型
+
+### 5. 修复了数据库 RLS 策略（关键修复）
+- ✅ 修复司机创建通知的策略，正确查询老板账号
+- ✅ 修复类型转换问题（TEXT → UUID）
+- ✅ 创建迁移文件：`supabase/migrations/99999_fix_driver_notification_creation_policy_v2.sql`
 
 ## 调试日志说明
 
@@ -147,21 +171,24 @@ if (!bossId && senderProfile?.role === 'super_admin') {
    - 检查平级账号的通知中心是否收到通知
    - 检查车队长的通知中心是否收到通知
    - 检查通知内容是否正确
+   - **重要**：检查通知是否真的保存到数据库中（不只是弹窗）
 
 ## 预期结果
 
 司机提交请假申请后：
-- ✅ 老板账号收到通知
-- ✅ 所有平级账号收到通知
-- ✅ 管辖该司机的车队长收到通知
+- ✅ 老板账号收到通知（弹窗 + 通知中心）
+- ✅ 所有平级账号收到通知（弹窗 + 通知中心）
+- ✅ 管辖该司机的车队长收到通知（弹窗 + 通知中心）
 - ✅ 通知内容包含：司机姓名、请假类型、请假时间、请假事由
 - ✅ 浏览器控制台输出详细的调试日志
+- ✅ 通知记录保存到数据库的 `notifications` 表中
 
 ## 注意事项
 
 1. **查看日志**：打开浏览器的开发者工具（F12），切换到 Console 标签页，可以看到详细的调试日志
 2. **Toast 提示**：如果通知发送失败，会显示 Toast 提示信息
 3. **数据库检查**：可以直接查询 `notifications` 表，确认通知是否已创建
+4. **RLS 策略**：确保数据库的 RLS 策略已经更新（运行了最新的迁移文件）
 
 ## 相关文件
 
@@ -169,3 +196,4 @@ if (!bossId && senderProfile?.role === 'super_admin') {
 - `src/db/notificationApi.ts` - 通知API
 - `src/pages/driver/leave/apply/index.tsx` - 司机请假申请页面
 - `src/db/types.ts` - 类型定义
+- `supabase/migrations/99999_fix_driver_notification_creation_policy_v2.sql` - RLS 策略修复迁移文件
