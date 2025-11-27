@@ -417,19 +417,10 @@ const WarehouseCategories: React.FC = () => {
                     <View className="flex-1">
                       <Text className="text-gray-600 text-xs font-bold">品类名称</Text>
                     </View>
-                    <View className="w-16 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">单价</Text>
-                    </View>
-                    <View className="w-16 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">上楼</Text>
-                    </View>
-                    <View className="w-16 text-center">
-                      <Text className="text-gray-600 text-xs font-bold">分拣</Text>
-                    </View>
-                    <View className="w-16 text-center">
+                    <View className="w-20 text-center">
                       <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
                     </View>
-                    <View className="w-16 text-center">
+                    <View className="w-20 text-center">
                       <Text className="text-gray-600 text-xs font-bold">带车</Text>
                     </View>
                     <View className="w-16 text-center">
@@ -467,47 +458,8 @@ const WarehouseCategories: React.FC = () => {
                         )}
                       </View>
 
-                      {/* 单价 */}
-                      <View className="w-16 px-1">
-                        <View style={{overflow: 'hidden'}}>
-                          <Input
-                            type="digit"
-                            className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
-                            placeholder="0"
-                            value={edit.unitPrice}
-                            onInput={(e) => updatePriceEdit(index, 'unitPrice', e.detail.value)}
-                          />
-                        </View>
-                      </View>
-
-                      {/* 上楼价格 */}
-                      <View className="w-16 px-1">
-                        <View style={{overflow: 'hidden'}}>
-                          <Input
-                            type="digit"
-                            className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
-                            placeholder="0"
-                            value={edit.upstairsPrice}
-                            onInput={(e) => updatePriceEdit(index, 'upstairsPrice', e.detail.value)}
-                          />
-                        </View>
-                      </View>
-
-                      {/* 分拣单价 */}
-                      <View className="w-16 px-1">
-                        <View style={{overflow: 'hidden'}}>
-                          <Input
-                            type="digit"
-                            className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
-                            placeholder="0"
-                            value={edit.sortingUnitPrice}
-                            onInput={(e) => updatePriceEdit(index, 'sortingUnitPrice', e.detail.value)}
-                          />
-                        </View>
-                      </View>
-
                       {/* 纯司机单价 */}
-                      <View className="w-16 px-1">
+                      <View className="w-20 px-1">
                         <View style={{overflow: 'hidden'}}>
                           <Input
                             type="digit"
@@ -520,7 +472,7 @@ const WarehouseCategories: React.FC = () => {
                       </View>
 
                       {/* 带车司机单价 */}
-                      <View className="w-16 px-1">
+                      <View className="w-20 px-1">
                         <View style={{overflow: 'hidden'}}>
                           <Input
                             type="digit"
