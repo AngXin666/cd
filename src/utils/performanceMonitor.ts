@@ -56,9 +56,9 @@ class PerformanceMonitor {
   /**
    * 初始化监控器
    */
-  init(userId: string) {
+  async init(userId: string) {
     this.userId = userId
-    this.bossId = getCurrentUserBossId()
+    this.bossId = (await getCurrentUserBossId(userId)) || ''
     console.log('[性能监控] 初始化完成', {userId, bossId: this.bossId})
   }
 

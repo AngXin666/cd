@@ -3980,8 +3980,51 @@ export async function createDriver(
     console.log('  - 默认密码:', authResult.default_password)
     console.log('')
 
-    // 步骤3: 创建 profiles 表记录
-    console.log('📋 [步骤3] 创建 profiles 表记录')
+    // 步骤3: 获取当前用户的 boss_id（用于多租户隔离）
+    console.log('📋 [步骤3] 获取当前用户的 boss_id')
+    const {
+      data: {user: currentUser}
+    } = await supabase.auth.getUser()
+
+    if (!currentUser) {
+      console.error('  ❌ 无法获取当前登录用户')
+      return null
+    }
+
+    console.log('  - 当前用户ID:', currentUser.id)
+
+    // 查询当前用户的 boss_id
+    const {data: currentUserProfile, error: profileError} = await supabase
+      .from('profiles')
+      .select('boss_id, role')
+      .eq('id', currentUser.id)
+      .maybeSingle()
+
+    if (profileError || !currentUserProfile) {
+      console.error('  ❌ 无法获取当前用户的 profile:', profileError)
+      return null
+    }
+
+    console.log('  - 当前用户角色:', currentUserProfile.role)
+    console.log('  - 当前用户 boss_id:', currentUserProfile.boss_id)
+
+    // 确定新用户的 boss_id
+    let newUserBossId: string
+    if (currentUserProfile.role === 'super_admin') {
+      // 如果当前用户是老板，新用户的 boss_id 就是老板的 ID
+      newUserBossId = currentUser.id
+      console.log('  - 当前用户是老板，新用户的 boss_id 设置为老板的 ID:', newUserBossId)
+    } else if (currentUserProfile.boss_id) {
+      // 如果当前用户不是老板，新用户的 boss_id 与当前用户相同
+      newUserBossId = currentUserProfile.boss_id
+      console.log('  - 当前用户不是老板，新用户的 boss_id 与当前用户相同:', newUserBossId)
+    } else {
+      console.error('  ❌ 当前用户的 boss_id 为空，无法创建新用户')
+      return null
+    }
+
+    // 步骤4: 创建 profiles 表记录
+    console.log('📋 [步骤4] 创建 profiles 表记录')
     const insertData = {
       id: userId, // 使用 auth.users 的 ID
       phone,
@@ -3989,7 +4032,8 @@ export async function createDriver(
       role: 'driver' as UserRole,
       email: loginEmail,
       driver_type: driverType,
-      join_date: new Date().toISOString().split('T')[0] // 设置入职日期为今天
+      join_date: new Date().toISOString().split('T')[0], // 设置入职日期为今天
+      boss_id: newUserBossId // 设置 boss_id
     }
     console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
 
@@ -4083,14 +4127,36 @@ export async function createUser(
       return null
     }
 
-    const {data: currentProfile} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+    const {data: currentProfile} = await supabase
+      .from('profiles')
+      .select('boss_id, role')
+      .eq('id', user.id)
+      .maybeSingle()
 
-    if (!currentProfile?.boss_id) {
-      console.error('  ❌ 无法获取当前用户的 boss_id')
+    if (!currentProfile) {
+      console.error('  ❌ 无法获取当前用户的 profile')
       return null
     }
 
-    console.log('  ✅ 当前用户的 boss_id:', currentProfile.boss_id)
+    console.log('  - 当前用户角色:', currentProfile.role)
+    console.log('  - 当前用户 boss_id:', currentProfile.boss_id)
+
+    // 确定新用户的 boss_id
+    let newUserBossId: string
+    if (currentProfile.role === 'super_admin') {
+      // 如果当前用户是老板，新用户的 boss_id 就是老板的 ID
+      newUserBossId = user.id
+      console.log('  - 当前用户是老板，新用户的 boss_id 设置为老板的 ID:', newUserBossId)
+    } else if (currentProfile.boss_id) {
+      // 如果当前用户不是老板，新用户的 boss_id 与当前用户相同
+      newUserBossId = currentProfile.boss_id
+      console.log('  - 当前用户不是老板，新用户的 boss_id 与当前用户相同:', newUserBossId)
+    } else {
+      console.error('  ❌ 当前用户的 boss_id 为空，无法创建新用户')
+      return null
+    }
+
+    console.log('  ✅ 新用户的 boss_id:', newUserBossId)
     console.log('')
 
     // 步骤1: 检查手机号是否已存在
@@ -4185,7 +4251,7 @@ export async function createUser(
       name,
       role: role as UserRole,
       email: loginEmail,
-      boss_id: currentProfile.boss_id // 添加 boss_id
+      boss_id: newUserBossId // 使用新计算的 boss_id
     }
 
     // 如果是司机，添加司机类型和入职日期

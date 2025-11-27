@@ -39,7 +39,12 @@ const PerformanceMonitor: React.FC = () => {
 
       setFeatureWeights(weights)
       setPerformanceStats(stats)
-      setCacheStats(cache)
+      setCacheStats({
+        hitRate: cache.cacheHitRate,
+        totalMetrics: cache.totalMetrics,
+        cacheHits: cache.cacheHits,
+        cacheMisses: cache.cacheMisses
+      })
     } catch (error) {
       console.error('加载数据失败:', error)
     } finally {

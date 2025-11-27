@@ -159,7 +159,10 @@ const UserManagement: React.FC = () => {
       name: '所有仓库',
       boss_id: '',
       is_active: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      max_leave_days: 0,
+      resignation_notice_days: 0,
+      updated_at: new Date().toISOString()
     } as Warehouse
     setWarehouses([allWarehousesOption, ...data.filter((w) => w.is_active)])
   }, [])

@@ -93,7 +93,7 @@ class BehaviorTracker {
    */
   async init(userId: string) {
     this.userId = userId
-    this.bossId = getCurrentUserBossId()
+    this.bossId = (await getCurrentUserBossId(userId)) || ''
     console.log('[行为追踪] 初始化完成', {userId, bossId: this.bossId})
   }
 
