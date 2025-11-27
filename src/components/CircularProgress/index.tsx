@@ -44,7 +44,8 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
     <View className="flex flex-col items-center">
       {/* SVG 环形图 */}
       <View className="relative" style={{width: `${size}px`, height: `${size}px`}}>
-        <svg width={size} height={size} style={{transform: 'rotate(-90deg)'}}>
+        <svg width={size} height={size} style={{transform: 'rotate(-90deg)'}} role="img" aria-label="进度环形图">
+          <title>进度环形图</title>
           {/* 背景圆环 */}
           <circle
             cx={size / 2}

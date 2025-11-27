@@ -1,7 +1,7 @@
 import {ScrollView, Text, View} from '@tarojs/components'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useEffect, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import {behaviorTracker, FeatureModule, type FeatureWeight} from '@/utils/behaviorTracker'
 import {type PerformanceStats, performanceMonitor} from '@/utils/performanceMonitor'
 
@@ -21,14 +21,7 @@ const PerformanceMonitor: React.FC = () => {
   })
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (user) {
-      loadData()
-      behaviorTracker.trackPageView(FeatureModule.DASHBOARD, '/pages/performance-monitor/index')
-    }
-  }, [user, loadData])
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const [weights, stats, cache] = await Promise.all([
@@ -50,7 +43,14 @@ const PerformanceMonitor: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      loadData()
+      behaviorTracker.trackPageView(FeatureModule.DASHBOARD, '/pages/performance-monitor/index')
+    }
+  }, [user, loadData])
 
   const getWeightColor = (score: number) => {
     if (score >= 80) return 'text-red-500'

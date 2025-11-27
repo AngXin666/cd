@@ -390,22 +390,22 @@ const NotificationsPage: React.FC = () => {
   }, [])
 
   // 格式化时间
-  const _formatTime = (dateString: string) => {
+  const _formatTime = useCallback((dateString: string) => {
     const date = new Date(dateString)
     const hours = date.getHours().toString().padStart(2, '0')
     const minutes = date.getMinutes().toString().padStart(2, '0')
     return `${hours}:${minutes}`
-  }
+  }, [])
 
   // 格式化历史日期
-  const _formatHistoryDate = (dateString: string) => {
+  const _formatHistoryDate = useCallback((dateString: string) => {
     const date = new Date(dateString)
     const month = date.getMonth() + 1
     const day = date.getDate()
     const hours = date.getHours().toString().padStart(2, '0')
     const minutes = date.getMinutes().toString().padStart(2, '0')
     return `${month}月${day}日 ${hours}:${minutes}`
-  }
+  }, [])
 
   // 格式化通知时间（根据日期分类显示不同格式）
   const formatNotificationTime = useCallback(

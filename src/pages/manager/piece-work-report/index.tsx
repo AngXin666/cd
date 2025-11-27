@@ -448,17 +448,17 @@ const ManagerPieceWorkReport: React.FC = () => {
   const [driverSummaries, setDriverSummaries] = useState<DriverSummary[]>([])
 
   // 辅助函数：获取今天的日期范围
-  const getTodayRange = () => {
+  const getTodayRange = useCallback(() => {
     const today = new Date()
     const year = today.getFullYear()
     const month = String(today.getMonth() + 1).padStart(2, '0')
     const day = String(today.getDate()).padStart(2, '0')
     const todayStr = `${year}-${month}-${day}`
     return {start: todayStr, end: todayStr}
-  }
+  }, [])
 
   // 辅助函数：获取本周的日期范围（周一到今天）
-  const getWeekRange = () => {
+  const getWeekRange = useCallback(() => {
     const today = new Date()
     const dayOfWeek = today.getDay()
     const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // 周一为起点
@@ -469,10 +469,10 @@ const ManagerPieceWorkReport: React.FC = () => {
     const mondayStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     return {start: mondayStr, end: todayStr}
-  }
+  }, [])
 
   // 辅助函数：获取本月的日期范围（本月1号到今天）
-  const getMonthRange = () => {
+  const getMonthRange = useCallback(() => {
     const today = new Date()
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
 
@@ -480,18 +480,21 @@ const ManagerPieceWorkReport: React.FC = () => {
     const firstDayStr = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     return {start: firstDayStr, end: todayStr}
-  }
+  }, [])
 
   // 辅助函数：计算指定日期范围内的件数
-  const calculateQuantityInRange = (driverId: string, startDate: string, endDate: string): number => {
-    return records
-      .filter((record) => {
-        if (record.user_id !== driverId) return false
-        const recordDate = record.work_date
-        return recordDate >= startDate && recordDate <= endDate
-      })
-      .reduce((sum, record) => sum + (record.quantity || 0), 0)
-  }
+  const calculateQuantityInRange = useCallback(
+    (driverId: string, startDate: string, endDate: string): number => {
+      return records
+        .filter((record) => {
+          if (record.user_id !== driverId) return false
+          const recordDate = record.work_date
+          return recordDate >= startDate && recordDate <= endDate
+        })
+        .reduce((sum, record) => sum + (record.quantity || 0), 0)
+    },
+    [records]
+  )
 
   // 加载考勤数据并合并
   useEffect(() => {

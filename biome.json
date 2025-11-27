@@ -8,7 +8,6 @@
       "src/**/*.jsx",
       "src/**/*.css",
       "src/**/*.scss",
-      "src/**/*.html",
       "src/**/*.json",
       "config/**/*.ts"
     ]

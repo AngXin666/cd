@@ -169,25 +169,31 @@ const ManagerLeaveApproval: React.FC = () => {
   })
 
   // 获取用户姓名
-  const getUserName = (userId: string) => {
-    const profile = profiles.find((p) => p.id === userId)
-    return profile?.name || profile?.phone || '未知'
-  }
+  const getUserName = useCallback(
+    (userId: string) => {
+      const profile = profiles.find((p) => p.id === userId)
+      return profile?.name || profile?.phone || '未知'
+    },
+    [profiles]
+  )
 
   // 获取仓库名称
-  const getWarehouseName = (warehouseId: string) => {
-    const warehouse = warehouses.find((w) => w.id === warehouseId)
-    return warehouse?.name || '未知仓库'
-  }
+  const getWarehouseName = useCallback(
+    (warehouseId: string) => {
+      const warehouse = warehouses.find((w) => w.id === warehouseId)
+      return warehouse?.name || '未知仓库'
+    },
+    [warehouses]
+  )
 
   // 计算请假天数
-  const calculateLeaveDays = (startDate: string, endDate: string) => {
+  const calculateLeaveDays = useCallback((startDate: string, endDate: string) => {
     const start = new Date(startDate)
     const end = new Date(endDate)
     const diffTime = Math.abs(end.getTime() - start.getTime())
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
     return diffDays
-  }
+  }, [])
 
   // 计算待审核请假数量
   const calculatePendingLeaveCount = useCallback(
@@ -203,7 +209,7 @@ const ManagerLeaveApproval: React.FC = () => {
   }
 
   // 获取可见的仓库列表（只显示管理员管辖的且有数据的仓库）
-  const getVisibleWarehouses = () => {
+  const getVisibleWarehouses = useCallback(() => {
     const managedWarehouseIds = managerWarehouses.map((w) => w.id)
     const managedWarehouses = warehouses.filter((w) => managedWarehouseIds.includes(w.id))
 
@@ -226,20 +232,20 @@ const ManagerLeaveApproval: React.FC = () => {
       .map((item) => item.warehouse)
 
     return warehousesWithData
-  }
+  }, [warehouses, leaveApplications, resignationApplications, attendanceRecords, managerWarehouses])
 
   // 获取当前仓库
-  const getCurrentWarehouse = () => {
-    const visibleWarehouses = getVisibleWarehouses()
-    if (visibleWarehouses.length === 0) return null
-    return visibleWarehouses[currentWarehouseIndex] || visibleWarehouses[0]
-  }
+  const getCurrentWarehouse = useCallback(() => {
+    const warehousesWithData = getVisibleWarehouses()
+    if (warehousesWithData.length === 0) return null
+    return warehousesWithData[currentWarehouseIndex] || warehousesWithData[0]
+  }, [currentWarehouseIndex, getVisibleWarehouses])
 
   // 获取当前仓库ID（用于筛选）
-  const getCurrentWarehouseId = () => {
+  const getCurrentWarehouseId = useCallback(() => {
     const currentWarehouse = getCurrentWarehouse()
     return currentWarehouse?.id || 'all'
-  }
+  }, [getCurrentWarehouse])
 
   // 处理仓库切换
   const handleWarehouseChange = useCallback((e: any) => {
@@ -248,7 +254,7 @@ const ManagerLeaveApproval: React.FC = () => {
   }, [])
 
   // 获取可见的申请数据（只显示管辖仓库的数据）
-  const getVisibleApplications = () => {
+  const getVisibleApplications = useCallback(() => {
     const managedWarehouseIds = managerWarehouses.map((w) => w.id)
     let visibleLeave = leaveApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
     let visibleResignation = resignationApplications.filter((app) => managedWarehouseIds.includes(app.warehouse_id))
@@ -261,7 +267,7 @@ const ManagerLeaveApproval: React.FC = () => {
     }
 
     return {visibleLeave, visibleResignation}
-  }
+  }, [managerWarehouses, leaveApplications, resignationApplications, getCurrentWarehouseId])
 
   // 计算从指定月份1号到当前日期（或指定结束日期）的天数
   // yearMonth: 格式为 "YYYY-MM"

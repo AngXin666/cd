@@ -1,6 +1,6 @@
 import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import {useEffect, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import {createPeerAccount, createTenant, getTenantById, updateTenant} from '@/db/api'
 
 export default function TenantForm() {
@@ -21,20 +21,23 @@ export default function TenantForm() {
   const [loading, setLoading] = useState(false)
 
   // 格式化日期为 YYYY-MM-DD
-  const formatDate = (date: Date): string => {
+  const formatDate = useCallback((date: Date): string => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
-  }
+  }, [])
 
   // 计算结束日期
-  const calculateEndDate = (startDate: string, months: number): string => {
-    if (!startDate) return ''
-    const date = new Date(startDate)
-    date.setMonth(date.getMonth() + months)
-    return formatDate(date)
-  }
+  const calculateEndDate = useCallback(
+    (startDate: string, months: number): string => {
+      if (!startDate) return ''
+      const date = new Date(startDate)
+      date.setMonth(date.getMonth() + months)
+      return formatDate(date)
+    },
+    [formatDate]
+  )
 
   // 初始化开始日期为当天
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function TenantForm() {
     }
   }, [mode, formData.lease_start_date, formatDate])
 
-  const loadTenant = async (id: string) => {
+  const loadTenant = useCallback(async (id: string) => {
     const tenant = await getTenantById(id)
     if (tenant) {
       setFormData({
@@ -59,7 +62,7 @@ export default function TenantForm() {
         notes: tenant.notes || ''
       })
     }
-  }
+  }, [])
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
