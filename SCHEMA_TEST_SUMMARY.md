@@ -163,16 +163,19 @@ SELECT delete_tenant_schema('test_schema_verification');
 
 ## 六、数据隔离验证
 
-### 现有租户 Schema
+### 当前租户状态
 
-系统中已存在以下租户 Schema：
-- `tenant_29659703_7b22_40c3_b9c0_b56b05060fa0`
-- `tenant_75b2aa94_ed8e_4e54_be74_531e6cda332b`
-- `tenant_87153444_c31f_420e_9e29_3a01c50ce40a`
-- `tenant_9e04dfd6_9b18_4e00_992f_bcfb73a86900`
-- `tenant_d79327e9_69b4_42b7_b1b4_5d13de6e9814`
+✅ 系统已清理完毕，当前没有租户
+- tenants 表：空
+- 租户 Schema：无
 
-每个 Schema 都包含独立的表和数据，互不影响。
+### 数据隔离机制
+
+当创建租户时：
+1. 每个租户会获得独立的 Schema
+2. Schema 命名格式：`tenant_001`, `tenant_002`, `tenant_003`, ...
+3. 每个 Schema 包含独立的表和数据，互不影响
+4. 通过 RLS 策略确保数据访问安全
 
 ---
 

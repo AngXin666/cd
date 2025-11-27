@@ -160,7 +160,17 @@ USING (
 
 ## 六、实际测试验证
 
-### 1. 查询现有租户 Schema
+### 1. 查询现有租户
+
+```sql
+SELECT id, company_name, tenant_code, schema_name, status
+FROM tenants
+ORDER BY created_at DESC;
+```
+
+**结果**：✅ tenants 表为空，当前没有租户
+
+### 2. 查询租户 Schema
 
 ```sql
 SELECT schema_name
@@ -169,45 +179,81 @@ WHERE schema_name LIKE 'tenant_%'
 ORDER BY schema_name;
 ```
 
-**结果**：发现以下租户 Schema
-- `tenant_29659703_7b22_40c3_b9c0_b56b05060fa0`
-- `tenant_75b2aa94_ed8e_4e54_be74_531e6cda332b`
-- `tenant_87153444_c31f_420e_9e29_3a01c50ce40a`
-- `tenant_9e04dfd6_9b18_4e00_992f_bcfb73a86900`
-- `tenant_d79327e9_69b4_42b7_b1b4_5d13de6e9814`
+**结果**：✅ 没有租户 Schema，系统已清理完毕
 
-### 2. 查询租户 Schema 中的表
+### 3. 测试创建 Schema
+
+```sql
+SELECT create_tenant_schema('test_schema_verification');
+```
+
+**结果**：✅ 成功创建测试 Schema
+```json
+{
+  "success": true,
+  "schema_name": "test_schema_verification"
+}
+```
+
+### 4. 验证表结构
+
+查询测试 Schema 中的表：
 
 ```sql
 SELECT table_name
 FROM information_schema.tables
-WHERE table_schema = 'tenant_29659703_7b22_40c3_b9c0_b56b05060fa0'
+WHERE table_schema = 'test_schema_verification'
 ORDER BY table_name;
 ```
 
 **结果**：✅ 确认包含以下表
 - `attendance` - 考勤表
-- `piece_work_records` - 计件工作记录表
+- `leave_requests` - 请假申请表
+- `piecework_records` - 计件工作记录表
 - `profiles` - 用户档案表
+- `vehicles` - 车辆表
 - `warehouses` - 仓库表
 
-### 3. 查询 profiles 表结构
+### 5. 查询 profiles 表结构
 
 ```sql
 SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns
-WHERE table_schema = 'tenant_29659703_7b22_40c3_b9c0_b56b05060fa0'
+WHERE table_schema = 'test_schema_verification'
   AND table_name = 'profiles'
 ORDER BY ordinal_position;
 ```
 
 **结果**：✅ 确认包含以下字段
 - `id` (uuid, NOT NULL)
-- `phone` (text)
+- `name` (text, NOT NULL)
 - `email` (text)
-- `name` (text)
-- `role` (text, default: 'driver')
+- `phone` (text)
+- `role` (text, default: 'driver', NOT NULL)
+- `status` (text, default: 'active')
+- `vehicle_plate` (text)
+- `warehouse_ids` (uuid[])
 - `created_at` (timestamptz, default: now())
+- `updated_at` (timestamptz, default: now())
+
+### 6. 清理测试 Schema
+
+```sql
+SELECT delete_tenant_schema('test_schema_verification');
+```
+
+**结果**：✅ 成功删除测试 Schema
+
+### 7. 清理孤立 Schema
+
+在测试过程中发现了一些孤立的 Schema（没有对应的租户记录），已全部清理：
+- ✅ 已删除 `tenant_29659703_7b22_40c3_b9c0_b56b05060fa0`
+- ✅ 已删除 `tenant_75b2aa94_ed8e_4e54_be74_531e6cda332b`
+- ✅ 已删除 `tenant_87153444_c31f_420e_9e29_3a01c50ce40a`
+- ✅ 已删除 `tenant_9e04dfd6_9b18_4e00_992f_bcfb73a86900`
+- ✅ 已删除 `tenant_d79327e9_69b4_42b7_b1b4_5d13de6e9814`
+
+**说明**：这些 Schema 是之前测试时留下的，没有对应的租户记录，已全部清理完毕。
 
 ---
 
