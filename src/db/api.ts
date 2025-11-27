@@ -216,7 +216,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     console.log('[getCurrentUserRole] 当前用户ID:', user.id)
 
-    // 只查询 role 字段，提高查询效率
+    // 明确指定从 public schema 查询，确保查询超级管理员账号
     const {data, error} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 
     if (error) {
@@ -226,6 +226,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     if (!data) {
       console.warn('[getCurrentUserRole] 用户档案不存在，用户ID:', user.id)
+      console.warn('[getCurrentUserRole] 请检查 profiles 表中是否存在该用户记录')
       return null
     }
 

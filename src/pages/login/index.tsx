@@ -130,11 +130,12 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      // 账号名到手机号的映射
+      // 账号名到 email 的映射
       const accountMapping: Record<string, string> = {
-        admin: '13800000001',
-        admin1: '13800000002',
-        admin2: '13800000003',
+        admin: 'admin', // 超级管理员账号
+        admin1: '13800000001',
+        admin2: '13800000002',
+        admin3: '13800000003',
         admin888: 'admin888'
       }
 
@@ -356,9 +357,10 @@ const Login: React.FC = () => {
               <Text className="text-xs text-blue-100 block">车队长账号：admin2 / 123456</Text>
             </View>
             <View className="mb-3">
-              <Text className="text-xs text-blue-100 block">老板账号：admin / 123456</Text>
+              <Text className="text-xs text-blue-100 block">老板账号：admin3 / 123456</Text>
             </View>
             <View className="pt-3 border-t border-white border-opacity-20">
+              <Text className="text-xs text-blue-100 block mb-2">超级管理员：admin / hye19911206</Text>
               <Text className="text-xs text-blue-100 block">租赁管理员：admin888 / hye19911206</Text>
             </View>
           </View>
