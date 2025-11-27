@@ -20,12 +20,15 @@ interface NotificationRecipient {
 
 /**
  * 获取所有管理员（老板 + 平级账号）
+ * 注意：数据库中的 user_role 枚举只包含 'driver', 'manager', 'super_admin'
+ * 平级账号通过 main_account_id 字段标识（main_account_id IS NOT NULL）
  */
 async function getAdmins(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询管理员账号')
 
-    const {data, error} = await supabase.from('profiles').select('id, name, role').in('role', ['boss', 'peer'])
+    // 查询所有 super_admin 角色的用户（包括主账号和平级账号）
+    const {data, error} = await supabase.from('profiles').select('id, name, role').eq('role', 'super_admin')
 
     if (error) {
       logger.error('获取管理员信息失败', error)
