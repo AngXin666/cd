@@ -21,7 +21,7 @@ import {supabase} from './supabase'
  */
 /**
  * 获取当前用户的 boss_id
- * 
+ *
  * @param userId 可选的用户ID，如果不提供则从 supabase.auth.getUser() 获取
  * @returns boss_id 或 null
  */
