@@ -10,7 +10,6 @@ import type {TenantConfig} from '@/client/tenantSupabaseManager'
 // 租户配置输入接口
 export interface TenantConfigInput {
   tenant_name: string
-  schema_name: string
   supabase_url: string
   supabase_anon_key: string
 }
@@ -56,11 +55,16 @@ export async function getUserTenantConfig(userId: string): Promise<TenantConfig 
  * @returns 创建的租户配置
  */
 export async function createTenantConfig(input: TenantConfigInput): Promise<TenantConfig> {
+  // 生成唯一的 schema 名称：tenant_<uuid前8位>_<timestamp后6位>
+  const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 8)
+  const timestamp = Date.now().toString().slice(-6)
+  const schemaName = `tenant_${uuid}_${timestamp}`
+
   const {data, error} = await supabase
     .from('tenant_configs')
     .insert({
       tenant_name: input.tenant_name,
-      schema_name: input.schema_name,
+      schema_name: schemaName,
       supabase_url: input.supabase_url,
       supabase_anon_key: input.supabase_anon_key,
       status: 'active'

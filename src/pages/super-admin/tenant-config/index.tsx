@@ -33,7 +33,6 @@ const TenantConfigManagement: React.FC = () => {
   const [editingTenant, setEditingTenant] = useState<TenantConfig | null>(null)
   const [formData, setFormData] = useState<TenantConfigInput>({
     tenant_name: '',
-    schema_name: '',
     supabase_url: '',
     supabase_anon_key: ''
   })
@@ -68,7 +67,7 @@ const TenantConfigManagement: React.FC = () => {
   // 提交表单
   const handleSubmit = async () => {
     // 验证表单
-    if (!formData.tenant_name || !formData.schema_name || !formData.supabase_url || !formData.supabase_anon_key) {
+    if (!formData.tenant_name || !formData.supabase_url || !formData.supabase_anon_key) {
       Taro.showToast({
         title: '请填写所有字段',
         icon: 'none'
@@ -97,7 +96,6 @@ const TenantConfigManagement: React.FC = () => {
       // 重置表单
       setFormData({
         tenant_name: '',
-        schema_name: '',
         supabase_url: '',
         supabase_anon_key: ''
       })
@@ -122,7 +120,6 @@ const TenantConfigManagement: React.FC = () => {
     setEditingTenant(tenant)
     setFormData({
       tenant_name: tenant.tenant_name,
-      schema_name: tenant.schema_name,
       supabase_url: tenant.supabase_url,
       supabase_anon_key: tenant.supabase_anon_key
     })
@@ -212,7 +209,6 @@ const TenantConfigManagement: React.FC = () => {
     setEditingTenant(null)
     setFormData({
       tenant_name: '',
-      schema_name: '',
       supabase_url: '',
       supabase_anon_key: ''
     })
@@ -287,17 +283,14 @@ const TenantConfigManagement: React.FC = () => {
                 </View>
               </View>
 
-              <View className="mb-4">
-                <Text className="text-sm text-muted-foreground mb-2">Schema 名称</Text>
-                <View style={{overflow: 'hidden'}}>
-                  <Input
-                    className="bg-input text-foreground px-3 py-2 rounded border border-border w-full"
-                    value={formData.schema_name}
-                    onInput={(e) => handleInputChange('schema_name', e.detail.value)}
-                    placeholder="请输入 Schema 名称"
-                  />
+              {editingTenant && (
+                <View className="mb-4">
+                  <Text className="text-sm text-muted-foreground mb-2">Schema 名称（自动生成）</Text>
+                  <View className="bg-muted px-3 py-2 rounded border border-border">
+                    <Text className="text-foreground">{editingTenant.schema_name}</Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
               <View className="mb-4">
                 <Text className="text-sm text-muted-foreground mb-2">Supabase URL</Text>
