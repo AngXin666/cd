@@ -18,21 +18,26 @@
 - 使用 Supabase Auth 兼容的密码哈希格式
 - 使用完整的 email 格式（admin@fleet.com）
 - 使用正确的字段名（name 而不是 real_name）
+- 移除 phone_confirmed_at 设置（保持为 NULL）
+- 不手动设置 confirmed_at（这是一个生成列）
 
 ### 2. 修复内容
 
 **修改的文件**：
 - `supabase/migrations/10002_create_admin_account.sql` - 更新原迁移文件
-- `supabase/migrations/10002_recreate_admin_account_v2.sql` - 新增修复迁移文件
+- `supabase/migrations/10002_recreate_admin_account_v2.sql` - 第一次修复迁移文件
+- `supabase/migrations/10003_fix_admin_account_v2.sql` - 最终修复迁移文件
 
 **主要修改**：
 1. 将 email 从 `'admin'` 改为 `'admin@fleet.com'`
 2. 将字段名从 `real_name` 改为 `name`
-3. 确保使用 Supabase Auth 兼容的密码哈希格式
+3. 移除 `phone_confirmed_at` 设置
+4. 移除 `confirmed_at` 设置（这是一个生成列，会自动生成）
+5. 确保使用 Supabase Auth 兼容的密码哈希格式
 
 ### 3. 执行修复
 
-已执行迁移 `10002_recreate_admin_account_v2.sql`，成功创建管理员账号。
+已执行迁移 `10003_fix_admin_account_v2.sql`，成功创建管理员账号。
 
 ## 📋 验证结果
 
@@ -47,14 +52,18 @@ WHERE u.email = 'admin@fleet.com';
 
 **结果**：
 ```
-id: 87153444-c31f-420e-9e29-3a01c50ce40a
+id: d79327e9-69b4-42b7-b1b4-5d13de6e9814
 email: admin@fleet.com
-phone: 13800000000
+phone: null
+email_confirmed: true
+phone_confirmed: false
+confirmed: true
 role: super_admin
 name: 系统管理员
+password_match: true
 ```
 
-✅ 账号创建成功
+✅ 账号创建成功，所有字段设置正确
 
 ### 登录信息
 
@@ -106,11 +115,33 @@ name: 系统管理员
 - 将所有 `real_name` 改为 `name`
 - 确保与数据库表结构一致
 
+### Phone 字段处理
+
+**问题原因**：
+- 原迁移文件设置了 `phone_confirmed_at`
+- 但这可能导致验证问题
+
+**解决方案**：
+- 移除 `phone_confirmed_at` 设置（保持为 NULL）
+- 在 `auth.users` 表中 `phone` 字段也设置为 NULL
+- 在 `profiles` 表中保留 `phone` 字段（用于显示）
+
+### Confirmed_at 字段
+
+**问题原因**：
+- `confirmed_at` 是一个生成列（generated column）
+- 不能手动设置值
+
+**解决方案**：
+- 从 INSERT 语句中移除 `confirmed_at` 字段
+- 让数据库自动生成该值
+
 ## 📚 相关文档
 
 - [README.md](README.md) - 项目主文档，包含管理员账号信息
 - [租户创建指南](TENANT_CREATION_GUIDE.md) - 超级管理员操作指南
 - [多租户架构详解](MULTI_TENANT_ARCHITECTURE_EXPLAINED.md) - 架构说明
+- [管理员登录测试说明](ADMIN_LOGIN_TEST.md) - 登录测试和故障排查指南
 
 ## 🎯 后续建议
 
