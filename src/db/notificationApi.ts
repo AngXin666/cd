@@ -437,21 +437,11 @@ export async function createNotification(
       return false
     }
 
-    // 获取发送者的profile信息（包括 boss_id）
-    const {data: senderProfile} = await supabase
-      .from('profiles')
-      .select('name, role, boss_id')
-      .eq('id', user.id)
-      .maybeSingle()
+    // 获取发送者的profile信息
+    const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
 
     const senderName = senderProfile?.name || '系统'
     const senderRole = senderProfile?.role || 'system'
-    const bossId = senderProfile?.boss_id
-
-    if (!bossId) {
-      logger.error('创建通知失败：无法获取当前用户的 boss_id')
-      return false
-    }
 
     // 自动确定分类
     const category = getNotificationCategory(type)
@@ -468,8 +458,7 @@ export async function createNotification(
       content: message,
       action_url: null,
       related_id: relatedId || null,
-      is_read: false,
-      boss_id: bossId
+      is_read: false
     })
 
     if (error) {
@@ -513,10 +502,10 @@ export async function createNotifications(
 
     logger.info('📝 当前用户信息', {userId: user.id})
 
-    // 获取发送者的profile信息（包括 boss_id）
+    // 获取发送者的profile信息
     const {data: senderProfile, error: profileError} = await supabase
       .from('profiles')
-      .select('name, role, boss_id')
+      .select('name, role')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -530,22 +519,6 @@ export async function createNotifications(
     const senderName = senderProfile?.name || '系统'
     const senderRole = senderProfile?.role || 'system'
 
-    // 如果当前用户是老板（super_admin），boss_id 为 NULL，使用自己的 ID
-    // 如果是其他角色，使用 boss_id
-    let bossId = senderProfile?.boss_id
-    if (!bossId && senderProfile?.role === 'super_admin') {
-      bossId = user.id
-      logger.info('✅ 当前用户是老板，使用自己的ID作为boss_id', {bossId})
-    }
-
-    if (!bossId) {
-      logger.error('❌ 批量创建通知失败：无法获取当前用户的 boss_id', {
-        userId: user.id,
-        role: senderProfile?.role
-      })
-      return false
-    }
-
     const notificationData = notifications.map((n) => ({
       recipient_id: n.userId,
       sender_id: user.id,
@@ -556,8 +529,7 @@ export async function createNotifications(
       content: n.message,
       action_url: null,
       related_id: n.relatedId || null,
-      is_read: false,
-      boss_id: bossId
+      is_read: false
     }))
 
     logger.info('📤 准备插入通知数据', {count: notificationData.length, data: notificationData})
