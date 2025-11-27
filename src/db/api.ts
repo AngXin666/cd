@@ -147,7 +147,6 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
     console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
 
     // 查询用户档案，并 LEFT JOIN driver_licenses 表获取真实姓名
-    // 注意：driver_licenses 表有两个外键指向 profiles（driver_id 和 boss_id）
     // 必须明确指定使用 driver_id 关系，否则 Supabase 会报错
     const {data, error} = await supabase
       .from('profiles')
@@ -360,15 +359,6 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
     return null
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('创建打卡记录失败: 无法获取 boss_id')
-    return null
-  }
-
-  // 3. 插入考勤记录（自动添加 boss_id）
   const {data, error} = await supabase
     .from('attendance')
     .insert({
@@ -690,15 +680,6 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
     throw new Error('用户未登录')
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('创建仓库失败: 无法获取 boss_id')
-    throw new Error('无法获取用户信息')
-  }
-
-  // 3. 插入仓库（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('warehouses')
     .insert({
@@ -802,15 +783,6 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
     throw new Error('用户未登录')
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('创建考勤规则失败: 无法获取 boss_id')
-    throw new Error('无法获取用户信息')
-  }
-
-  // 3. 插入考勤规则（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('attendance_rules')
     .insert({
@@ -938,7 +910,6 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
  * 获取仓库的司机列表
  */
 export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
-  // 注意：driver_warehouses 表有两个外键指向 profiles（driver_id 和 boss_id）
   // 必须明确指定使用 driver_id 关系
   const {data, error} = await supabase
     .from('driver_warehouses')
@@ -962,10 +933,9 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
 export async function assignWarehouseToDriver(
   input: DriverWarehouseInput
 ): Promise<{success: boolean; error?: string}> {
-  // 1. 检查司机是否存在并获取其 boss_id
   const {data: driver, error: driverError} = await supabase
     .from('profiles')
-    .select('boss_id, name')
+    .select('name')
     .eq('id', input.driver_id)
     .maybeSingle()
 
@@ -979,10 +949,9 @@ export async function assignWarehouseToDriver(
     return {success: false, error: '司机不存在'}
   }
 
-  // 2. 检查仓库是否存在并获取其 boss_id
   const {data: warehouse, error: warehouseError} = await supabase
     .from('warehouses')
-    .select('is_active, name, boss_id')
+    .select('is_active, name')
     .eq('id', input.warehouse_id)
     .maybeSingle()
 
@@ -996,24 +965,13 @@ export async function assignWarehouseToDriver(
     return {success: false, error: '仓库不存在'}
   }
 
-  // 3. 验证司机和仓库是否属于同一个租户
-  if (driver.boss_id !== warehouse.boss_id) {
-    console.error('跨租户分配错误:', {
-      driver_name: driver.name,
-      driver_boss_id: driver.boss_id,
-      warehouse_name: warehouse.name,
-      warehouse_boss_id: warehouse.boss_id
-    })
-    return {success: false, error: '无法分配：司机和仓库不属于同一个租户'}
-  }
-
-  // 4. 检查仓库是否被禁用
+  // 3. 检查仓库是否被禁用
   if (!warehouse.is_active) {
     console.error('仓库已被禁用，不允许分配司机:', warehouse.name)
     return {success: false, error: `仓库"${warehouse.name}"已被禁用，不允许分配司机`}
   }
 
-  // 5. 执行分配
+  // 4. 执行分配
   const {error} = await supabase.from('driver_warehouses').insert(input)
 
   if (error) {
@@ -1112,7 +1070,6 @@ export async function deleteWarehouseAssignmentsByDriver(driverId: string): Prom
  * 插入单个仓库分配
  */
 export async function insertWarehouseAssignment(input: DriverWarehouseInput): Promise<boolean> {
-  // 获取当前用户的 boss_id
   const {
     data: {user}
   } = await supabase.auth.getUser()
@@ -1122,15 +1079,6 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
     return false
   }
 
-  // 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('插入仓库分配失败: 无法获取 boss_id')
-    return false
-  }
-
-  // 插入时自动添加 boss_id
   const {error} = await supabase.from('driver_warehouses').insert({
     ...input
   })
@@ -1150,7 +1098,6 @@ export async function insertManagerWarehouseAssignment(input: {
   manager_id: string
   warehouse_id: string
 }): Promise<boolean> {
-  // 获取当前用户的 boss_id
   const {
     data: {user}
   } = await supabase.auth.getUser()
@@ -1160,18 +1107,9 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
-  // 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('插入管理员仓库分配失败: 无法获取 boss_id')
-    return false
-  }
-
-  // 1. 检查车队长是否存在并获取其 boss_id
   const {data: manager, error: managerError} = await supabase
     .from('profiles')
-    .select('boss_id, name')
+    .select('name')
     .eq('id', input.manager_id)
     .maybeSingle()
 
@@ -1185,10 +1123,9 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
-  // 2. 检查仓库是否存在并获取其 boss_id
   const {data: warehouse, error: warehouseError} = await supabase
     .from('warehouses')
-    .select('boss_id, name')
+    .select('name')
     .eq('id', input.warehouse_id)
     .maybeSingle()
 
@@ -1202,24 +1139,7 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
-  // 3. 验证车队长和仓库是否属于同一个租户
-  if (manager.boss_id !== warehouse.boss_id) {
-    console.error('跨租户分配错误:', {
-      manager_name: manager.name,
-      manager_boss_id: manager.boss_id,
-      warehouse_name: warehouse.name,
-      warehouse_boss_id: warehouse.boss_id
-    })
-    return false
-  }
-
-  // 4. 验证当前用户是否有权限（必须是同一个租户）
-  if (profile.boss_id !== manager.boss_id) {
-    console.error('无权限：当前用户不属于该租户')
-    return false
-  }
-
-  // 5. 检查是否已经存在该分配
+  // 3. 检查是否已经存在该分配
   const {data: existingAssignment} = await supabase
     .from('manager_warehouses')
     .select('id')
@@ -1232,7 +1152,7 @@ export async function insertManagerWarehouseAssignment(input: {
     return true
   }
 
-  // 6. 执行分配
+  // 4. 执行分配
   const {error} = await supabase.from('manager_warehouses').insert({
     ...input
   })
@@ -1424,15 +1344,6 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
     return false
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('创建计件记录失败: 无法获取 boss_id')
-    return false
-  }
-
-  // 3. 插入计件记录（自动添加 boss_id）
   const {error} = await supabase.from('piece_work_records').insert({
     ...record
   })
@@ -1699,15 +1610,6 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
     return false
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('保存品类价格配置失败: 无法获取 boss_id')
-    return false
-  }
-
-  // 3. 插入/更新价格配置（自动添加 boss_id 和 tenant_id）
   const {error} = await supabase.from('category_prices').upsert(
     {
       warehouse_id: input.warehouse_id,
@@ -1742,15 +1644,6 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
     return false
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('批量保存品类价格配置失败: 无法获取 boss_id')
-    return false
-  }
-
-  // 3. 批量插入/更新价格配置（自动添加 boss_id 和 tenant_id）
   const {error} = await supabase.from('category_prices').upsert(
     inputs.map((input) => ({
       warehouse_id: input.warehouse_id,
@@ -1957,15 +1850,6 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
     return null
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('创建请假申请失败: 无法获取 boss_id')
-    return null
-  }
-
-  // 3. 插入请假申请（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('leave_applications')
     .insert({
@@ -2295,15 +2179,6 @@ export async function createResignationApplication(
     return null
   }
 
-  // 2. 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('创建离职申请失败: 无法获取 boss_id')
-    return null
-  }
-
-  // 3. 插入离职申请（自动添加 boss_id 和 tenant_id）
   const {data, error} = await supabase
     .from('resignation_applications')
     .insert({
@@ -3750,21 +3625,12 @@ export async function getManagerWarehouseIds(managerId: string): Promise<string[
  * 设置管理员管辖的仓库（先删除旧的，再插入新的）
  */
 export async function setManagerWarehouses(managerId: string, warehouseIds: string[]): Promise<boolean> {
-  // 0. 获取当前用户的 boss_id
   const {
     data: {user}
   } = await supabase.auth.getUser()
 
   if (!user) {
     console.error('设置管理员仓库失败: 用户未登录')
-    return false
-  }
-
-  // 获取当前用户的 boss_id
-  const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.boss_id) {
-    console.error('设置管理员仓库失败: 无法获取 boss_id')
     return false
   }
 
@@ -3788,7 +3654,6 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
     return true
   }
 
-  // 3. 插入新的关联（包含 boss_id）
   const insertData = warehouseIds.map((warehouseId) => ({
     manager_id: managerId,
     warehouse_id: warehouseId
@@ -3969,8 +3834,6 @@ export async function createDriver(
     console.log('  - 默认密码:', authResult.default_password)
     console.log('')
 
-    // 步骤3: 获取当前用户的 boss_id（用于多租户隔离）
-    console.log('📋 [步骤3] 获取当前用户的 boss_id')
     const {
       data: {user: currentUser}
     } = await supabase.auth.getUser()
@@ -3982,10 +3845,9 @@ export async function createDriver(
 
     console.log('  - 当前用户ID:', currentUser.id)
 
-    // 查询当前用户的 boss_id
     const {data: currentUserProfile, error: profileError} = await supabase
       .from('profiles')
-      .select('boss_id, role')
+      .select('role')
       .eq('id', currentUser.id)
       .maybeSingle()
 
@@ -3995,22 +3857,6 @@ export async function createDriver(
     }
 
     console.log('  - 当前用户角色:', currentUserProfile.role)
-    console.log('  - 当前用户 boss_id:', currentUserProfile.boss_id)
-
-    // 确定新用户的 boss_id
-    let newUserBossId: string
-    if (currentUserProfile.role === 'super_admin') {
-      // 如果当前用户是老板，新用户的 boss_id 就是老板的 ID
-      newUserBossId = currentUser.id
-      console.log('  - 当前用户是老板，新用户的 boss_id 设置为老板的 ID:', newUserBossId)
-    } else if (currentUserProfile.boss_id) {
-      // 如果当前用户不是老板，新用户的 boss_id 与当前用户相同
-      newUserBossId = currentUserProfile.boss_id
-      console.log('  - 当前用户不是老板，新用户的 boss_id 与当前用户相同:', newUserBossId)
-    } else {
-      console.error('  ❌ 当前用户的 boss_id 为空，无法创建新用户')
-      return null
-    }
 
     // 步骤4: 创建 profiles 表记录
     console.log('📋 [步骤4] 创建 profiles 表记录')
@@ -4021,8 +3867,7 @@ export async function createDriver(
       role: 'driver' as UserRole,
       email: loginEmail,
       driver_type: driverType,
-      join_date: new Date().toISOString().split('T')[0], // 设置入职日期为今天
-      boss_id: newUserBossId // 设置 boss_id
+      join_date: new Date().toISOString().split('T')[0] // 设置入职日期为今天
     }
     console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
 
@@ -4105,8 +3950,6 @@ export async function createUser(
   console.log(`${'='.repeat(80)}\n`)
 
   try {
-    // 步骤0: 获取当前用户的 boss_id
-    console.log('📋 [步骤0] 获取当前用户的 boss_id')
     const {
       data: {user}
     } = await supabase.auth.getUser()
@@ -4116,11 +3959,7 @@ export async function createUser(
       return null
     }
 
-    const {data: currentProfile} = await supabase
-      .from('profiles')
-      .select('boss_id, role')
-      .eq('id', user.id)
-      .maybeSingle()
+    const {data: currentProfile} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 
     if (!currentProfile) {
       console.error('  ❌ 无法获取当前用户的 profile')
@@ -4128,24 +3967,7 @@ export async function createUser(
     }
 
     console.log('  - 当前用户角色:', currentProfile.role)
-    console.log('  - 当前用户 boss_id:', currentProfile.boss_id)
 
-    // 确定新用户的 boss_id
-    let newUserBossId: string
-    if (currentProfile.role === 'super_admin') {
-      // 如果当前用户是老板，新用户的 boss_id 就是老板的 ID
-      newUserBossId = user.id
-      console.log('  - 当前用户是老板，新用户的 boss_id 设置为老板的 ID:', newUserBossId)
-    } else if (currentProfile.boss_id) {
-      // 如果当前用户不是老板，新用户的 boss_id 与当前用户相同
-      newUserBossId = currentProfile.boss_id
-      console.log('  - 当前用户不是老板，新用户的 boss_id 与当前用户相同:', newUserBossId)
-    } else {
-      console.error('  ❌ 当前用户的 boss_id 为空，无法创建新用户')
-      return null
-    }
-
-    console.log('  ✅ 新用户的 boss_id:', newUserBossId)
     console.log('')
 
     // 步骤1: 检查手机号是否已存在
@@ -4232,15 +4054,13 @@ export async function createUser(
 
     console.log('')
 
-    // 步骤3: 创建 profiles 表记录（自动添加 boss_id 和 tenant_id）
     console.log('📋 [步骤3] 创建 profiles 表记录')
     const insertData: any = {
       id: userId,
       phone,
       name,
       role: role as UserRole,
-      email: loginEmail,
-      boss_id: newUserBossId // 使用新计算的 boss_id
+      email: loginEmail
     }
 
     // 如果是司机，添加司机类型和入职日期
@@ -4274,7 +4094,6 @@ export async function createUser(
     console.log('  - 姓名:', data.name)
     console.log('  - 角色:', data.role)
     console.log('  - 邮箱:', data.email)
-    console.log('  - boss_id:', data.boss_id)
     console.log('  - tenant_id:', data.tenant_id)
     if (role === 'driver') {
       console.log('  - 司机类型:', data.driver_type)
@@ -5229,7 +5048,6 @@ export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
   logger.db('插入', 'vehicles', {plate: vehicle.plate_number})
   try {
-    // 获取当前用户的 boss_id
     const {
       data: {user}
     } = await supabase.auth.getUser()
@@ -5239,14 +5057,6 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
       return null
     }
 
-    const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-    if (!profile?.boss_id) {
-      logger.error('添加车辆失败: 无法获取 boss_id')
-      return null
-    }
-
-    // 插入车辆信息（自动添加 boss_id）
     const {data, error} = await supabase
       .from('vehicles')
       .insert({
@@ -6930,13 +6740,13 @@ export async function getAllTenants(): Promise<Profile[]> {
 /**
  * 获取某个租户下的所有车队长
  */
-export async function getManagersByTenantId(tenantId: string): Promise<Profile[]> {
+export async function getManagersByTenantId(_tenantId: string): Promise<Profile[]> {
   try {
     const {data, error} = await supabase
       .from('profiles')
       .select('*')
       .eq('role', 'manager')
-      
+
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -7066,8 +6876,7 @@ export async function createTenant(
         lease_end_date: tenant.lease_end_date,
         monthly_fee: tenant.monthly_fee,
         notes: tenant.notes,
-        status: 'active',
-        boss_id: authData.user.id // 设置 boss_id 为自己的 id
+        status: 'active'
       })
       .eq('id', authData.user.id)
       .select()
@@ -7083,7 +6892,6 @@ export async function createTenant(
       .from('warehouses')
       .insert({
         name: `${tenant.company_name || tenant.name}的仓库`,
-        boss_id: authData.user.id,
         is_active: true
       })
       .select()
@@ -7098,8 +6906,7 @@ export async function createTenant(
     if (warehouseData) {
       const {error: assignError} = await supabase.from('manager_warehouses').insert({
         manager_id: authData.user.id,
-        warehouse_id: warehouseData.id,
-        boss_id: authData.user.id
+        warehouse_id: warehouseData.id
       })
 
       if (assignError) {
@@ -7208,7 +7015,6 @@ export async function createPeerAccount(
         lease_end_date: mainAccount.lease_end_date,
         notes: account.notes,
         status: 'active',
-        boss_id: mainAccount.boss_id, // 使用主账号的 boss_id
         main_account_id: mainAccountId // 设置主账号ID
       })
       .eq('id', authData.user.id)
@@ -7335,7 +7141,7 @@ export async function suspendTenant(id: string): Promise<boolean> {
     const {error: adminError} = await supabase
       .from('profiles')
       .update({status: 'inactive'})
-      
+
       .eq('role', 'admin')
 
     if (adminError) {
@@ -7380,7 +7186,7 @@ export async function activateTenant(id: string): Promise<boolean> {
     const {error: adminError} = await supabase
       .from('profiles')
       .update({status: 'active'})
-      
+
       .eq('role', 'admin')
 
     if (adminError) {
@@ -7462,14 +7268,12 @@ export async function deleteTenant(id: string): Promise<boolean> {
       supabase
         .from('profiles')
         .select('id')
-        .eq('role', 'manager')
-        ,
+        .eq('role', 'manager'),
       // 司机
       supabase
         .from('profiles')
         .select('id')
-        .eq('role', 'driver')
-        ,
+        .eq('role', 'driver'),
       // 车辆
       supabase
         .from('vehicles')
@@ -7627,12 +7431,12 @@ export async function getPendingLeaseBills(): Promise<LeaseBill[]> {
 /**
  * 根据租户ID获取账单
  */
-export async function getLeaseBillsByTenantId(tenantId: string): Promise<LeaseBill[]> {
+export async function getLeaseBillsByTenantId(_tenantId: string): Promise<LeaseBill[]> {
   try {
     const {data, error} = await supabase
       .from('lease_bills')
       .select('*')
-      
+
       .order('bill_month', {ascending: false})
 
     if (error) {
@@ -7753,7 +7557,7 @@ export async function getAllLeases(): Promise<LeaseWithTenant[]> {
       .select(
         `
         *,
-        tenant:profiles!leases_boss_id_fkey(id, name, phone, company_name)
+        tenant:profiles(id, name, phone, company_name)
       `
       )
       .order('created_at', {ascending: false})
@@ -7773,12 +7577,12 @@ export async function getAllLeases(): Promise<LeaseWithTenant[]> {
 /**
  * 根据租户ID获取租期记录
  */
-export async function getLeasesByTenantId(tenantId: string): Promise<Lease[]> {
+export async function getLeasesByTenantId(_tenantId: string): Promise<Lease[]> {
   try {
     const {data, error} = await supabase
       .from('leases')
       .select('*')
-      
+
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -7806,7 +7610,6 @@ export async function createLease(input: CreateLeaseInput): Promise<boolean> {
     const {data: existingLeases, error: queryError} = await supabase
       .from('leases')
       .select('*')
-      .eq('boss_id', input.boss_id)
       .order('created_at', {ascending: false})
       .limit(1)
 
@@ -7862,7 +7665,6 @@ export async function createLease(input: CreateLeaseInput): Promise<boolean> {
       console.log(`新租期: ${input.start_date} + ${input.duration_months}个月 = ${endDateStr}`)
 
       const {error: insertError} = await supabase.from('leases').insert({
-        boss_id: input.boss_id,
         start_date: input.start_date,
         end_date: endDateStr,
         duration_months: input.duration_months,
@@ -7964,6 +7766,7 @@ export async function reduceLease(leaseId: string, reduceMonths: number): Promis
 /**
  * 处理租期到期
  * 根据 expire_action 执行相应的停用操作
+ * 注意：在物理隔离架构下，每个老板拥有独立数据库，此功能已不适用
  */
 export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
   try {
@@ -7975,34 +7778,12 @@ export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
       return false
     }
 
-    const {boss_id, expire_action} = lease
+    const {expire_action} = lease
 
-    // 根据到期操作类型执行相应的停用操作
-    switch (expire_action) {
-      case 'suspend_all':
-        // 停用主账号、平级账号和车队长
-        await suspendTenantAndRelated(boss_id)
-        break
-
-      case 'suspend_main':
-        // 仅停用主账号
-        await suspendTenant(boss_id)
-        break
-
-      case 'suspend_peer':
-        // 停用平级账号
-        await suspendPeerAccounts(boss_id)
-        break
-
-      case 'suspend_manager':
-        // 停用车队长
-        await suspendManagers(boss_id)
-        break
-
-      default:
-        console.error('未知的到期操作类型:', expire_action)
-        return false
-    }
+    // 在物理隔离架构下，停用操作应该在数据库级别进行
+    // 这里只更新租期状态
+    console.log('租期到期，到期操作类型:', expire_action)
+    console.log('注意：在物理隔离架构下，停用操作应该在数据库级别进行')
 
     // 更新租期状态为已过期
     const {error: updateError} = await supabase.from('leases').update({status: 'expired'}).eq('id', leaseId)
@@ -8022,7 +7803,7 @@ export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
 /**
  * 停用租户及其所有相关账号（主账号、平级账号、车队长）
  */
-async function suspendTenantAndRelated(tenantId: string): Promise<boolean> {
+async function _suspendTenantAndRelated(tenantId: string): Promise<boolean> {
   try {
     // 停用主账号
     await suspendTenant(tenantId)
@@ -8062,12 +7843,12 @@ async function suspendPeerAccounts(mainAccountId: string): Promise<boolean> {
 /**
  * 停用车队长
  */
-async function suspendManagers(tenantId: string): Promise<boolean> {
+async function suspendManagers(_tenantId: string): Promise<boolean> {
   try {
     const {error} = await supabase
       .from('profiles')
       .update({status: 'suspended'})
-      
+
       .eq('role', 'manager')
 
     if (error) {
@@ -8141,13 +7922,6 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    console.log('[租期检测] 用户信息:', {
-      userId: user.id,
-      role: user.role,
-      boss_id: user.boss_id,
-      main_account_id: user.main_account_id
-    })
-
     // 司机不受租期限制
     if (user.role === 'driver') {
       console.log('[租期检测] 司机角色，不受租期限制')
@@ -8160,47 +7934,34 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    // 确定主账号ID（用于查询租期的boss_id）
-    let mainAccountId: string
+    let _mainAccountId: string
     let isMainAccount = false
 
     if ((user.role === 'super_admin' || user.role === 'peer_admin') && user.main_account_id === null) {
       // 当前用户是主账号（老板号或独立的平级管理员）
-      // 主账号的租期记录中，boss_id 应该是主账号自己的 boss_id
-      mainAccountId = user.boss_id || user.id
+      _mainAccountId = user.id
       isMainAccount = true
-      console.log('[租期检测] 当前用户是主账号，boss_id:', mainAccountId)
     } else if ((user.role === 'super_admin' || user.role === 'peer_admin') && user.main_account_id !== null) {
-      // 当前用户是平级账号，需要查询主账号的 boss_id
       const {data: mainAccount} = await supabase
         .from('profiles')
         .select('id')
         .eq('id', user.main_account_id)
         .maybeSingle()
 
-      mainAccountId = mainAccount?.boss_id || user.main_account_id
+      _mainAccountId = user.id
       isMainAccount = false
-      console.log('[租期检测] 当前用户是平级账号，主账号ID:', user.main_account_id, '主账号boss_id:', mainAccountId)
     } else if (user.role === 'manager') {
-      // 当前用户是车队长，需要查询所属老板号的 boss_id
-      const {data: bossAccount} = await supabase.from('profiles').select('id').eq('id', user.boss_id).maybeSingle()
-
-      mainAccountId = bossAccount?.boss_id || user.boss_id || ''
-      isMainAccount = false
-      console.log('[租期检测] 当前用户是车队长，老板号ID:', user.boss_id, '老板号boss_id:', mainAccountId)
     } else {
       // 其他角色不受限制
       console.log('[租期检测] 其他角色，不受租期限制')
       return {status: 'ok'}
     }
 
-    console.log('[租期检测] 查询租期，boss_id:', mainAccountId)
-
     // 检查主账号是否有有效租期（只查询 active 状态的租期）
     const {data: leases, error: leaseError} = await supabase
       .from('leases')
       .select('*')
-      
+
       .eq('status', 'active')
       .order('end_date', {ascending: false})
       .limit(1)
@@ -8287,15 +8048,6 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
       return null
     }
 
-    // 2. 获取当前用户的 boss_id
-    const {data: profile} = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle()
-
-    if (!profile?.boss_id) {
-      console.error('创建通知失败: 无法获取 boss_id')
-      return null
-    }
-
-    // 3. 插入通知（自动添加 boss_id）
     const {data, error} = await supabase
       .from('notifications')
       .insert({

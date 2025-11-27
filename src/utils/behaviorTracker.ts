@@ -4,7 +4,6 @@
  */
 
 import {supabase} from '@/db/supabase'
-import {getCurrentUserBossId} from '@/db/tenant-utils'
 
 /**
  * 功能模块枚举
@@ -86,22 +85,20 @@ class BehaviorTracker {
   private pageStartTime: number | null = null
   private currentFeature: string | null = null
   private userId: string | null = null
-  private bossId: string | null = null
 
   /**
    * 初始化追踪器
    */
   async init(userId: string) {
     this.userId = userId
-    this.bossId = (await getCurrentUserBossId(userId)) || ''
-    console.log('[行为追踪] 初始化完成', {userId, bossId: this.bossId})
+    console.log('[行为追踪] 初始化完成', {userId})
   }
 
   /**
    * 记录页面访问
    */
   async trackPageView(featureModule: FeatureModule | string, pagePath?: string) {
-    if (!this.userId || !this.bossId) {
+    if (!this.userId) {
       console.warn('[行为追踪] 未初始化，跳过追踪')
       return
     }
@@ -131,7 +128,7 @@ class BehaviorTracker {
    * 记录操作行为
    */
   async trackAction(featureModule: FeatureModule | string, actionType: ActionType, pagePath?: string) {
-    if (!this.userId || !this.bossId) {
+    if (!this.userId) {
       console.warn('[行为追踪] 未初始化，跳过追踪')
       return
     }
@@ -155,7 +152,6 @@ class BehaviorTracker {
     try {
       const {error} = await supabase.from('user_behavior_logs').insert({
         user_id: this.userId,
-        boss_id: this.bossId,
         feature_module: log.featureModule,
         action_type: log.actionType,
         page_path: log.pagePath,
@@ -219,7 +215,7 @@ class BehaviorTracker {
    * 获取所有功能权重
    */
   async getAllFeatureWeights(): Promise<FeatureWeight[]> {
-    if (!this.userId || !this.bossId) {
+    if (!this.userId) {
       console.warn('[行为追踪] 未初始化，返回空列表')
       return []
     }
@@ -229,7 +225,6 @@ class BehaviorTracker {
         .from('user_feature_weights')
         .select('*')
         .eq('user_id', this.userId)
-        .eq('boss_id', this.bossId)
         .order('weight_score', {ascending: false})
 
       if (error) {
@@ -248,7 +243,7 @@ class BehaviorTracker {
    * 获取功能的缓存时间
    */
   async getFeatureCacheTTL(featureModule: string): Promise<number> {
-    if (!this.userId || !this.bossId) {
+    if (!this.userId) {
       return 300000 // 默认5分钟
     }
 
@@ -257,7 +252,6 @@ class BehaviorTracker {
         .from('user_feature_weights')
         .select('cache_ttl')
         .eq('user_id', this.userId)
-        .eq('boss_id', this.bossId)
         .eq('feature_module', featureModule)
         .maybeSingle()
 

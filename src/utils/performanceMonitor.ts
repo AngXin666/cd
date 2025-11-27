@@ -4,7 +4,6 @@
  */
 
 import {supabase} from '@/db/supabase'
-import {getCurrentUserBossId} from '@/db/tenant-utils'
 
 /**
  * 指标类型枚举
@@ -49,7 +48,6 @@ class PerformanceMonitor {
   private metrics: PerformanceMetric[] = []
   private timers: Map<string, number> = new Map()
   private userId: string | null = null
-  private bossId: string | null = null
   private cacheHits = 0
   private cacheMisses = 0
 
@@ -58,8 +56,7 @@ class PerformanceMonitor {
    */
   async init(userId: string) {
     this.userId = userId
-    this.bossId = (await getCurrentUserBossId(userId)) || ''
-    console.log('[性能监控] 初始化完成', {userId, bossId: this.bossId})
+    console.log('[性能监控] 初始化完成', {userId})
   }
 
   /**
@@ -165,13 +162,8 @@ class PerformanceMonitor {
    * 保存指标到数据库
    */
   private async saveMetricToDatabase(metric: PerformanceMetric) {
-    if (!this.bossId) {
-      return
-    }
-
     try {
       const {error} = await supabase.from('system_performance_metrics').insert({
-        boss_id: this.bossId,
         metric_type: metric.metricType,
         metric_name: metric.metricName,
         metric_value: metric.metricValue,
@@ -191,10 +183,6 @@ class PerformanceMonitor {
    * 获取历史性能统计
    */
   async getHistoricalStats(metricType?: MetricType, days: number = 7): Promise<PerformanceStats[]> {
-    if (!this.bossId) {
-      return []
-    }
-
     try {
       const startDate = new Date()
       startDate.setDate(startDate.getDate() - days)
@@ -202,7 +190,6 @@ class PerformanceMonitor {
       let query = supabase
         .from('system_performance_metrics')
         .select('metric_type, metric_name, metric_value, unit')
-        .eq('boss_id', this.bossId)
         .gte('created_at', startDate.toISOString())
 
       if (metricType) {

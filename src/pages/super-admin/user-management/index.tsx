@@ -157,7 +157,6 @@ const UserManagement: React.FC = () => {
     const allWarehousesOption = {
       id: 'all',
       name: '所有仓库',
-      boss_id: '',
       is_active: true,
       created_at: new Date().toISOString(),
       max_leave_days: 0,
