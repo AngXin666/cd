@@ -6104,11 +6104,35 @@ export async function createNotification(notification: {
   try {
     logger.info('创建通知', notification)
 
-    // 使用 create_notifications_batch 函数来创建通知，利用其向后兼容性
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    const senderId = user?.id || null
+    let senderName = '系统'
+    let senderRole = 'system'
+
+    // 如果有当前用户，获取其 profile 信息
+    if (user?.id) {
+      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+      if (senderProfile) {
+        senderName = senderProfile.name || '系统'
+        senderRole = senderProfile.role || 'system'
+      }
+    }
+
+    logger.info('发送者信息', {senderId, senderName, senderRole})
+
+    // 使用 create_notifications_batch 函数来创建通知，传递完整的发送者信息
     const {data, error} = await supabase.rpc('create_notifications_batch', {
       notifications: [
         {
           user_id: notification.user_id,
+          sender_id: senderId,
+          sender_name: senderName,
+          sender_role: senderRole,
           type: notification.type,
           title: notification.title,
           message: notification.message,
@@ -6161,6 +6185,27 @@ export async function createNotificationForAllManagers(notification: {
   try {
     logger.info('为所有管理员创建通知', notification)
 
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    const senderId = user?.id || null
+    let senderName = '系统'
+    let senderRole = 'system'
+
+    // 如果有当前用户，获取其 profile 信息
+    if (user?.id) {
+      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+      if (senderProfile) {
+        senderName = senderProfile.name || '系统'
+        senderRole = senderProfile.role || 'system'
+      }
+    }
+
+    logger.info('发送者信息', {senderId, senderName, senderRole})
+
     // 获取所有车队长和老板
     const {data: managers, error: managersError} = await supabase
       .from('profiles')
@@ -6182,6 +6227,9 @@ export async function createNotificationForAllManagers(notification: {
     // 为每个管理员创建通知
     const notifications = managers.map((manager) => ({
       user_id: manager.id,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
       type: notification.type,
       title: notification.title,
       message: notification.message,
@@ -6222,6 +6270,27 @@ export async function createNotificationForAllSuperAdmins(notification: {
   try {
     logger.info('为所有老板创建通知', notification)
 
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    const senderId = user?.id || null
+    let senderName = '系统'
+    let senderRole = 'system'
+
+    // 如果有当前用户，获取其 profile 信息
+    if (user?.id) {
+      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+      if (senderProfile) {
+        senderName = senderProfile.name || '系统'
+        senderRole = senderProfile.role || 'system'
+      }
+    }
+
+    logger.info('发送者信息', {senderId, senderName, senderRole})
+
     // 获取所有老板
     const {data: superAdmins, error: superAdminsError} = await supabase
       .from('profiles')
@@ -6243,6 +6312,9 @@ export async function createNotificationForAllSuperAdmins(notification: {
     // 为每个老板创建通知
     const notifications = superAdmins.map((admin) => ({
       user_id: admin.id,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
       type: notification.type,
       title: notification.title,
       message: notification.message,
