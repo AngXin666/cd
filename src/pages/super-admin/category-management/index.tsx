@@ -22,6 +22,8 @@ interface CategoryPriceEdit {
   unitPrice: string
   upstairsPrice: string
   sortingUnitPrice: string
+  driverOnlyPrice: string // 纯司机单价
+  driverWithVehiclePrice: string // 带车司机单价
   isNew?: boolean // 标记是否为新添加的品类
 }
 
@@ -66,6 +68,8 @@ const CategoryManagement: React.FC = () => {
       unitPrice: price.unit_price.toString(),
       upstairsPrice: price.upstairs_price.toString(),
       sortingUnitPrice: price.sorting_unit_price.toString(),
+      driverOnlyPrice: price.driver_only_price.toString(),
+      driverWithVehiclePrice: price.driver_with_vehicle_price.toString(),
       isNew: false
     }))
     setPriceEdits(edits)
@@ -109,6 +113,8 @@ const CategoryManagement: React.FC = () => {
       unitPrice: '0',
       upstairsPrice: '0',
       sortingUnitPrice: '0',
+      driverOnlyPrice: '0',
+      driverWithVehiclePrice: '0',
       isNew: true
     }
     setPriceEdits([...priceEdits, newEdit])
@@ -191,6 +197,8 @@ const CategoryManagement: React.FC = () => {
         unit_price: Number.parseFloat(edit.unitPrice),
         upstairs_price: Number.parseFloat(edit.upstairsPrice),
         sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
+        driver_only_price: Number.parseFloat(edit.driverOnlyPrice),
+        driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice),
         is_active: true
       })
 
@@ -243,6 +251,8 @@ const CategoryManagement: React.FC = () => {
       const unitPrice = Number.parseFloat(edit.unitPrice)
       const upstairsPrice = Number.parseFloat(edit.upstairsPrice)
       const sortingUnitPrice = Number.parseFloat(edit.sortingUnitPrice)
+      const driverOnlyPrice = Number.parseFloat(edit.driverOnlyPrice)
+      const driverWithVehiclePrice = Number.parseFloat(edit.driverWithVehiclePrice)
 
       if (Number.isNaN(unitPrice) || unitPrice < 0) {
         Taro.showToast({
@@ -267,6 +277,22 @@ const CategoryManagement: React.FC = () => {
         })
         return
       }
+
+      if (Number.isNaN(driverOnlyPrice) || driverOnlyPrice < 0) {
+        Taro.showToast({
+          title: `${edit.categoryName}的纯司机单价无效`,
+          icon: 'none'
+        })
+        return
+      }
+
+      if (Number.isNaN(driverWithVehiclePrice) || driverWithVehiclePrice < 0) {
+        Taro.showToast({
+          title: `${edit.categoryName}的带车司机单价无效`,
+          icon: 'none'
+        })
+        return
+      }
     }
 
     // 直接保存所有品类价格配置（新品类和已有品类都通过 upsert 处理）
@@ -276,6 +302,8 @@ const CategoryManagement: React.FC = () => {
       unit_price: Number.parseFloat(edit.unitPrice),
       upstairs_price: Number.parseFloat(edit.upstairsPrice),
       sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
+      driver_only_price: Number.parseFloat(edit.driverOnlyPrice),
+      driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice),
       is_active: true
     }))
 
@@ -452,6 +480,12 @@ const CategoryManagement: React.FC = () => {
                       <Text className="text-gray-600 text-xs font-bold">分拣</Text>
                     </View>
                     <View className="w-16 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">纯司机</Text>
+                    </View>
+                    <View className="w-16 text-center">
+                      <Text className="text-gray-600 text-xs font-bold">带车</Text>
+                    </View>
+                    <View className="w-16 text-center">
                       <Text className="text-gray-600 text-xs font-bold">操作</Text>
                     </View>
                   </View>
@@ -521,6 +555,32 @@ const CategoryManagement: React.FC = () => {
                             placeholder="0"
                             value={edit.sortingUnitPrice}
                             onInput={(e) => updatePriceEdit(index, 'sortingUnitPrice', e.detail.value)}
+                          />
+                        </View>
+                      </View>
+
+                      {/* 纯司机单价 */}
+                      <View className="w-16 px-1">
+                        <View style={{overflow: 'hidden'}}>
+                          <Input
+                            type="digit"
+                            className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
+                            placeholder="0"
+                            value={edit.driverOnlyPrice}
+                            onInput={(e) => updatePriceEdit(index, 'driverOnlyPrice', e.detail.value)}
+                          />
+                        </View>
+                      </View>
+
+                      {/* 带车司机单价 */}
+                      <View className="w-16 px-1">
+                        <View style={{overflow: 'hidden'}}>
+                          <Input
+                            type="digit"
+                            className="bg-gray-50 rounded px-2 py-1 text-xs text-center"
+                            placeholder="0"
+                            value={edit.driverWithVehiclePrice}
+                            onInput={(e) => updatePriceEdit(index, 'driverWithVehiclePrice', e.detail.value)}
                           />
                         </View>
                       </View>

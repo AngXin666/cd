@@ -196,6 +196,8 @@ export interface PieceWorkCategory {
   unit_price: number // 单价
   upstairs_price: number // 上楼价
   sorting_unit_price: number // 分拣单价
+  driver_only_price: number // 纯司机单价
+  driver_with_vehicle_price: number // 带车司机单价
   is_active: boolean // 是否启用
   created_at: string
   updated_at: string
@@ -208,6 +210,8 @@ export interface PieceWorkCategoryInput {
   unit_price: number
   upstairs_price: number
   sorting_unit_price: number
+  driver_only_price: number
+  driver_with_vehicle_price: number
   is_active?: boolean
 }
 
@@ -223,6 +227,8 @@ export interface CategoryPriceUpdate {
   unit_price?: number
   upstairs_price?: number
   sorting_unit_price?: number
+  driver_only_price?: number
+  driver_with_vehicle_price?: number
   is_active?: boolean
 }
 

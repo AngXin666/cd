@@ -414,6 +414,8 @@ const WarehouseEdit: React.FC = () => {
         unit_price: Number(newCategoryDriverPrice || 0),
         upstairs_price: Number(newCategoryVehiclePrice || 0),
         sorting_unit_price: Number(newCategorySortingPrice || 0),
+        driver_only_price: 0,
+        driver_with_vehicle_price: 0,
         is_active: true
       }
 
@@ -595,6 +597,8 @@ const WarehouseEdit: React.FC = () => {
           unit_price: Number(categoryDriverPrices.get(categoryName) || 0),
           upstairs_price: Number(categoryVehiclePrices.get(categoryName) || 0),
           sorting_unit_price: Number(categorySortingPrices.get(categoryName) || 0),
+          driver_only_price: 0,
+          driver_with_vehicle_price: 0,
           is_active: true
         }
 
