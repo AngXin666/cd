@@ -179,20 +179,17 @@ Deno.serve(async (req) => {
     console.log('✅ 老板账号创建成功:', authData.user.id)
 
     // 5. 在租户 Schema 中创建老板 profile
-    // 使用 from() 方法，通过设置 search_path 来访问租户 Schema
-    const {error: profileError} = await supabase
-      .from(`${schemaName}.profiles`)
-      .insert({
-        id: authData.user.id,
-        name: input.boss_name,
-        phone: input.boss_phone,
-        email: input.boss_email || null,
-        role: 'boss',
-        status: 'active'
-      })
+    const {data: profileResult, error: profileError} = await supabase.rpc('insert_tenant_profile', {
+      p_schema_name: schemaName,
+      p_user_id: authData.user.id,
+      p_name: input.boss_name,
+      p_phone: input.boss_phone,
+      p_email: input.boss_email || null,
+      p_role: 'boss'
+    })
 
-    if (profileError) {
-      console.error('❌ 创建老板 profile 失败:', profileError)
+    if (profileError || !profileResult?.success) {
+      console.error('❌ 创建老板 profile 失败:', profileError || profileResult?.error)
       
       // 回滚
       await supabase.auth.admin.deleteUser(authData.user.id)
@@ -202,7 +199,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: '创建老板 profile 失败'
+          error: profileResult?.error || profileError?.message || '创建老板 profile 失败'
         }),
         {
           status: 500,
