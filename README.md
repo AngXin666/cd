@@ -82,6 +82,7 @@ const { data } = await client.from('warehouses').select('*')
 - ✅ 可维护性提升：模块化设计，易于扩展
 
 ### 相关文档
+- [数据库文档](DATABASE_DOCUMENTATION.md) - 完整的数据库结构、权限系统和多租户架构说明 ⭐ 最新
 - [重构总结](REFACTORING_SUMMARY.md) - 详细的重构说明和技术细节
 - [快速参考](QUICK_REFERENCE.md) - 测试账号、数据库表结构和常用查询
 - [数据库分析](DATABASE_ANALYSIS.md) - 原有数据库结构分析
