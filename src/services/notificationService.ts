@@ -182,6 +182,12 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
   try {
     logger.info('查询对司机有管辖权的车队长', {driverId})
 
+    // 参数验证：确保 driverId 是有效的 UUID
+    if (!driverId || driverId === 'anon' || driverId.length < 10) {
+      logger.error('❌ 无效的司机ID', {driverId})
+      return []
+    }
+
     // 第一步：获取司机所在的仓库
     const {data: driverWarehouses, error: dwError} = await supabase
       .from('driver_warehouses')
@@ -189,7 +195,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       .eq('driver_id', driverId)
 
     if (dwError) {
-      logger.error('获取司机仓库失败', dwError)
+      logger.error('获取司机仓库失败', {error: dwError, driverId})
       return []
     }
 
@@ -266,6 +272,12 @@ export interface DriverSubmissionNotificationParams {
 export async function sendDriverSubmissionNotification(params: DriverSubmissionNotificationParams): Promise<boolean> {
   try {
     logger.info('📬 发送司机提交申请通知', params)
+
+    // 参数验证：确保 driverId 是有效的 UUID
+    if (!params.driverId || params.driverId === 'anon' || params.driverId.length < 10) {
+      logger.error('❌ 无效的司机ID，无法发送通知', {driverId: params.driverId})
+      return false
+    }
 
     const recipientMap = new Map<string, NotificationRecipient>()
 

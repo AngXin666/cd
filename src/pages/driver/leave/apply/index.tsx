@@ -471,10 +471,23 @@ const ApplyLeave: React.FC = () => {
       const dateRangeText = formatLeaveDate(startDate, endDate, leaveDays)
 
       console.log('🔍 调试信息 - 开始发送通知', {
-        driverId: user.id,
+        userId: user?.id,
+        userObject: user,
         driverName: driverDisplayName,
         applicationId: applicationId
       })
+
+      // 验证 user.id 是否有效
+      if (!user?.id || user.id === 'anon' || user.id.length < 10) {
+        console.error('❌ 无效的用户ID，无法发送通知', {userId: user?.id})
+        showToast({
+          title: '用户信息异常，请重新登录',
+          icon: 'none',
+          duration: 3000
+        })
+        setSubmitting(false)
+        return
+      }
 
       // 使用新的通知服务发送通知
       try {
