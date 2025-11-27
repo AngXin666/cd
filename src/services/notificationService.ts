@@ -25,10 +25,7 @@ async function getAdmins(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询管理员账号')
 
-    const {data, error} = await supabase
-      .from('profiles')
-      .select('id, name, role')
-      .in('role', ['super_admin', 'peer_admin'])
+    const {data, error} = await supabase.from('profiles').select('id, name, role').in('role', ['boss', 'peer'])
 
     if (error) {
       logger.error('获取管理员信息失败', error)
@@ -55,47 +52,60 @@ async function getDriverManagers(driverId: string): Promise<NotificationRecipien
   try {
     logger.info('查询司机的车队长', {driverId})
 
-    const {data, error} = await supabase
+    // 第一步：获取司机所在的仓库
+    const {data: driverWarehouses, error: dwError} = await supabase
       .from('driver_warehouses')
-      .select(
-        `
-        warehouse_id,
-        manager_warehouses!inner(
-          manager_id,
-          profiles!inner(id, name, role)
-        )
-      `
-      )
+      .select('warehouse_id')
       .eq('driver_id', driverId)
 
-    if (error) {
-      logger.error('获取司机的车队长失败', error)
+    if (dwError) {
+      logger.error('获取司机仓库失败', dwError)
       return []
     }
 
-    if (!data || data.length === 0) {
-      logger.warn('司机未分配仓库或仓库没有车队长', {driverId})
+    if (!driverWarehouses || driverWarehouses.length === 0) {
+      logger.warn('司机未分配仓库', {driverId})
+      return []
+    }
+
+    const warehouseIds = driverWarehouses.map((dw) => dw.warehouse_id)
+    logger.info('司机所在仓库', {warehouseIds})
+
+    // 第二步：获取这些仓库的车队长
+    const {data: managerWarehouses, error: mwError} = await supabase
+      .from('manager_warehouses')
+      .select(
+        `
+        manager_id,
+        profiles!manager_warehouses_manager_id_fkey(id, name, role)
+      `
+      )
+      .in('warehouse_id', warehouseIds)
+
+    if (mwError) {
+      logger.error('获取车队长失败', mwError)
+      return []
+    }
+
+    if (!managerWarehouses || managerWarehouses.length === 0) {
+      logger.warn('仓库没有车队长', {warehouseIds})
       return []
     }
 
     // 去重
     const managerMap = new Map<string, NotificationRecipient>()
-    for (const item of data) {
-      const managerWarehouses = item.manager_warehouses as any
-      if (Array.isArray(managerWarehouses)) {
-        for (const mw of managerWarehouses) {
-          const profile = mw.profiles
-          if (profile && !managerMap.has(profile.id)) {
-            managerMap.set(profile.id, {
-              userId: profile.id,
-              name: profile.name || '车队长',
-              role: profile.role
-            })
-          }
-        }
+    for (const mw of managerWarehouses) {
+      const profile = mw.profiles as any
+      if (profile && !managerMap.has(profile.id)) {
+        managerMap.set(profile.id, {
+          userId: profile.id,
+          name: profile.name || '车队长',
+          role: profile.role
+        })
       }
     }
 
+    logger.info('找到车队长', {count: managerMap.size})
     return Array.from(managerMap.values())
   } catch (error) {
     logger.error('获取司机的车队长异常', error)
