@@ -215,7 +215,38 @@ Deno.serve(async (req) => {
 
     console.log('✅ 老板 profile 创建成功')
 
-    // 6. 更新租户记录
+    // 6. 创建默认仓库
+    console.log('📦 开始创建默认仓库')
+    const {data: warehouseResult, error: warehouseError} = await supabase.rpc('insert_tenant_warehouse', {
+      p_schema_name: schemaName,
+      p_warehouse_name: '默认仓库',
+      p_max_leave_days: 7,
+      p_resignation_notice_days: 30
+    })
+
+    if (warehouseError || !warehouseResult?.success) {
+      console.error('❌ 创建默认仓库失败:', warehouseError || warehouseResult?.error)
+      
+      // 回滚
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      await supabase.rpc('delete_tenant_schema', {p_schema_name: schemaName})
+      await supabase.from('tenants').delete().eq('id', tenant.id)
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: warehouseResult?.error || warehouseError?.message || '创建默认仓库失败'
+        }),
+        {
+          status: 500,
+          headers: {...corsHeaders, 'Content-Type': 'application/json'}
+        }
+      )
+    }
+
+    console.log('✅ 默认仓库创建成功')
+
+    // 7. 更新租户记录
     const {data: updatedTenant} = await supabase
       .from('tenants')
       .update({
