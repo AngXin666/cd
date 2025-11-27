@@ -214,15 +214,20 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
     }
 
     // 3. 删除 Schema（会删除所有表和数据）
-    const {data: schemaResult, error: schemaError} = await supabase.rpc('delete_tenant_schema', {
-      p_schema_name: tenant.schema_name
-    })
+    // 只有当 schema_name 存在时才删除 Schema
+    if (tenant.schema_name) {
+      const {data: schemaResult, error: schemaError} = await supabase.rpc('delete_tenant_schema', {
+        p_schema_name: tenant.schema_name
+      })
 
-    if (schemaError || !schemaResult?.success) {
-      console.error('❌ 删除 Schema 失败:', schemaError || schemaResult?.error)
-      // 继续执行，不中断
+      if (schemaError || !schemaResult?.success) {
+        console.error('❌ 删除 Schema 失败:', schemaError || schemaResult?.error)
+        // 继续执行，不中断
+      } else {
+        console.log('✅ Schema 删除成功')
+      }
     } else {
-      console.log('✅ Schema 删除成功')
+      console.log('ℹ️ 租户没有 Schema，跳过删除')
     }
 
     // 4. 删除租户记录
