@@ -27,20 +27,50 @@ export async function getCurrentUserBossId(): Promise<string | null> {
     } = await supabase.auth.getUser()
 
     if (!user) {
+      console.warn('⚠️ getCurrentUserBossId: 未找到当前用户')
       return null
     }
 
-    // 从 profiles 表获取用户的 boss_id
-    const {data, error} = await supabase.from('profiles').select('boss_id').eq('id', user.id).maybeSingle()
+    console.log('🔍 getCurrentUserBossId: 查询用户信息', {userId: user.id})
+
+    // 从 profiles 表获取用户的 boss_id 和 role
+    const {data, error} = await supabase.from('profiles').select('boss_id, role, name').eq('id', user.id).maybeSingle()
 
     if (error) {
-      console.error('获取 boss_id 失败:', error)
+      console.error('❌ 获取 boss_id 失败:', error)
       return null
     }
 
-    return data?.boss_id || null
+    if (!data) {
+      console.warn('⚠️ getCurrentUserBossId: 未找到用户 profile', {userId: user.id})
+      return null
+    }
+
+    console.log('📋 getCurrentUserBossId: 用户信息', {
+      userId: user.id,
+      name: data.name,
+      role: data.role,
+      boss_id: data.boss_id
+    })
+
+    // 如果是老板（super_admin），boss_id 为 NULL，返回自己的 ID
+    if (!data.boss_id && data.role === 'super_admin') {
+      console.log('✅ getCurrentUserBossId: 当前用户是老板，返回自己的 ID', {bossId: user.id})
+      return user.id
+    }
+
+    if (!data.boss_id) {
+      console.warn('⚠️ getCurrentUserBossId: 用户的 boss_id 为 NULL，且不是老板', {
+        userId: user.id,
+        role: data.role
+      })
+      return null
+    }
+
+    console.log('✅ getCurrentUserBossId: 返回 boss_id', {bossId: data.boss_id})
+    return data.boss_id
   } catch (error) {
-    console.error('获取 boss_id 异常:', error)
+    console.error('💥 获取 boss_id 异常:', error)
     return null
   }
 }
