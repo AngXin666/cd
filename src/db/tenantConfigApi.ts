@@ -10,8 +10,6 @@ import type {TenantConfig} from '@/client/tenantSupabaseManager'
 // 租户配置输入接口
 export interface TenantConfigInput {
   tenant_name: string
-  supabase_url: string
-  supabase_anon_key: string
 }
 
 /**
@@ -60,13 +58,17 @@ export async function createTenantConfig(input: TenantConfigInput): Promise<Tena
   const timestamp = Date.now().toString().slice(-6)
   const schemaName = `tenant_${uuid}_${timestamp}`
 
+  // 使用中央 Supabase 的配置
+  const supabaseUrl = process.env.TARO_APP_SUPABASE_URL || ''
+  const supabaseAnonKey = process.env.TARO_APP_SUPABASE_ANON_KEY || ''
+
   const {data, error} = await supabase
     .from('tenant_configs')
     .insert({
       tenant_name: input.tenant_name,
       schema_name: schemaName,
-      supabase_url: input.supabase_url,
-      supabase_anon_key: input.supabase_anon_key,
+      supabase_url: supabaseUrl,
+      supabase_anon_key: supabaseAnonKey,
       status: 'active'
     })
     .select()

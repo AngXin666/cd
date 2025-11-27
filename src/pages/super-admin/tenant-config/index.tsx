@@ -32,9 +32,7 @@ const TenantConfigManagement: React.FC = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingTenant, setEditingTenant] = useState<TenantConfig | null>(null)
   const [formData, setFormData] = useState<TenantConfigInput>({
-    tenant_name: '',
-    supabase_url: '',
-    supabase_anon_key: ''
+    tenant_name: ''
   })
 
   // 加载租户列表
@@ -67,9 +65,9 @@ const TenantConfigManagement: React.FC = () => {
   // 提交表单
   const handleSubmit = async () => {
     // 验证表单
-    if (!formData.tenant_name || !formData.supabase_url || !formData.supabase_anon_key) {
+    if (!formData.tenant_name) {
       Taro.showToast({
-        title: '请填写所有字段',
+        title: '请输入租户名称',
         icon: 'none'
       })
       return
@@ -95,9 +93,7 @@ const TenantConfigManagement: React.FC = () => {
 
       // 重置表单
       setFormData({
-        tenant_name: '',
-        supabase_url: '',
-        supabase_anon_key: ''
+        tenant_name: ''
       })
       setShowForm(false)
       setEditingTenant(null)
@@ -119,9 +115,7 @@ const TenantConfigManagement: React.FC = () => {
   const handleEdit = (tenant: TenantConfig) => {
     setEditingTenant(tenant)
     setFormData({
-      tenant_name: tenant.tenant_name,
-      supabase_url: tenant.supabase_url,
-      supabase_anon_key: tenant.supabase_anon_key
+      tenant_name: tenant.tenant_name
     })
     setShowForm(true)
   }
@@ -208,9 +202,7 @@ const TenantConfigManagement: React.FC = () => {
     setShowForm(false)
     setEditingTenant(null)
     setFormData({
-      tenant_name: '',
-      supabase_url: '',
-      supabase_anon_key: ''
+      tenant_name: ''
     })
   }
 
@@ -278,43 +270,36 @@ const TenantConfigManagement: React.FC = () => {
                     className="bg-input text-foreground px-3 py-2 rounded border border-border w-full"
                     value={formData.tenant_name}
                     onInput={(e) => handleInputChange('tenant_name', e.detail.value)}
-                    placeholder="请输入租户名称"
+                    placeholder="请输入租户名称（例如：张三车队）"
                   />
                 </View>
               </View>
 
               {editingTenant && (
-                <View className="mb-4">
-                  <Text className="text-sm text-muted-foreground mb-2">Schema 名称（自动生成）</Text>
-                  <View className="bg-muted px-3 py-2 rounded border border-border">
-                    <Text className="text-foreground">{editingTenant.schema_name}</Text>
+                <>
+                  <View className="mb-4">
+                    <Text className="text-sm text-muted-foreground mb-2">Schema 名称（自动生成）</Text>
+                    <View className="bg-muted px-3 py-2 rounded border border-border">
+                      <Text className="text-foreground">{editingTenant.schema_name}</Text>
+                    </View>
                   </View>
-                </View>
+
+                  <View className="mb-4">
+                    <Text className="text-sm text-muted-foreground mb-2">Supabase URL（自动配置）</Text>
+                    <View className="bg-muted px-3 py-2 rounded border border-border">
+                      <Text className="text-foreground text-xs">{editingTenant.supabase_url}</Text>
+                    </View>
+                  </View>
+                </>
               )}
 
-              <View className="mb-4">
-                <Text className="text-sm text-muted-foreground mb-2">Supabase URL</Text>
-                <View style={{overflow: 'hidden'}}>
-                  <Input
-                    className="bg-input text-foreground px-3 py-2 rounded border border-border w-full"
-                    value={formData.supabase_url}
-                    onInput={(e) => handleInputChange('supabase_url', e.detail.value)}
-                    placeholder="https://xxx.supabase.co"
-                  />
+              {!editingTenant && (
+                <View className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                  <Text className="text-sm text-blue-800">
+                    💡 提示：Schema 名称、Supabase URL 和 Anon Key 将自动生成和配置
+                  </Text>
                 </View>
-              </View>
-
-              <View className="mb-4">
-                <Text className="text-sm text-muted-foreground mb-2">Supabase Anon Key</Text>
-                <View style={{overflow: 'hidden'}}>
-                  <Input
-                    className="bg-input text-foreground px-3 py-2 rounded border border-border w-full"
-                    value={formData.supabase_anon_key}
-                    onInput={(e) => handleInputChange('supabase_anon_key', e.detail.value)}
-                    placeholder="请输入 Anon Key"
-                  />
-                </View>
-              </View>
+              )}
 
               <View className="flex flex-row gap-2">
                 <Button
