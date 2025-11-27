@@ -3,9 +3,8 @@
  * 负责处理系统中各类业务操作的通知发送
  */
 
-import {createNotifications} from '@/db/notificationApi'
+import {createNotifications, type NotificationType} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
-import type {NotificationType} from '@/db/types'
 import {logger} from '@/utils/logger'
 
 /**
@@ -245,13 +244,24 @@ export async function sendDriverSubmissionNotification(params: {
     }
 
     // 发送通知
-    const notifications = uniqueRecipients.map((recipient) => ({
-      userId: recipient.userId,
-      type: params.type,
-      title: params.title,
-      message: params.content,
-      relatedId: params.relatedId
-    }))
+    const notifications = uniqueRecipients.map((recipient) => {
+      const notification: {
+        userId: string
+        type: NotificationType
+        title: string
+        message: string
+        relatedId?: string
+      } = {
+        userId: recipient.userId,
+        type: params.type,
+        title: params.title,
+        message: params.content
+      }
+      if (params.relatedId) {
+        notification.relatedId = params.relatedId
+      }
+      return notification
+    })
 
     const success = await createNotifications(notifications)
     if (success) {
@@ -313,13 +323,24 @@ export async function sendManagerActionNotification(params: {
     }
 
     // 发送通知
-    const notifications = uniqueRecipients.map((recipient) => ({
-      userId: recipient.userId,
-      type: params.type,
-      title: params.title,
-      message: params.content,
-      relatedId: params.relatedId
-    }))
+    const notifications = uniqueRecipients.map((recipient) => {
+      const notification: {
+        userId: string
+        type: NotificationType
+        title: string
+        message: string
+        relatedId?: string
+      } = {
+        userId: recipient.userId,
+        type: params.type,
+        title: params.title,
+        message: params.content
+      }
+      if (params.relatedId) {
+        notification.relatedId = params.relatedId
+      }
+      return notification
+    })
 
     const success = await createNotifications(notifications)
     if (success) {
@@ -384,13 +405,24 @@ export async function sendBossActionNotification(params: {
     }
 
     // 发送通知
-    const notifications = uniqueRecipients.map((recipient) => ({
-      userId: recipient.userId,
-      type: params.type,
-      title: params.title,
-      message: params.content,
-      relatedId: params.relatedId
-    }))
+    const notifications = uniqueRecipients.map((recipient) => {
+      const notification: {
+        userId: string
+        type: NotificationType
+        title: string
+        message: string
+        relatedId?: string
+      } = {
+        userId: recipient.userId,
+        type: params.type,
+        title: params.title,
+        message: params.content
+      }
+      if (params.relatedId) {
+        notification.relatedId = params.relatedId
+      }
+      return notification
+    })
 
     const success = await createNotifications(notifications)
     if (success) {
@@ -464,13 +496,24 @@ export async function sendPeerAdminActionNotification(params: {
     }
 
     // 发送通知
-    const notifications = uniqueRecipients.map((recipient) => ({
-      userId: recipient.userId,
-      type: params.type,
-      title: params.title,
-      message: params.content,
-      relatedId: params.relatedId
-    }))
+    const notifications = uniqueRecipients.map((recipient) => {
+      const notification: {
+        userId: string
+        type: NotificationType
+        title: string
+        message: string
+        relatedId?: string
+      } = {
+        userId: recipient.userId,
+        type: params.type,
+        title: params.title,
+        message: params.content
+      }
+      if (params.relatedId) {
+        notification.relatedId = params.relatedId
+      }
+      return notification
+    })
 
     const success = await createNotifications(notifications)
     if (success) {

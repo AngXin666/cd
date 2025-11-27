@@ -14,9 +14,11 @@ export type NotificationType =
   | 'driver_info_update' // 司机信息更新
   | 'driver_created' // 司机创建
   | 'leave_application_submitted' // 请假申请提交（管理员收到）
+  | 'leave_submitted' // 请假申请已提交（司机提交后通知）
   | 'leave_approved' // 请假批准（司机收到）
   | 'leave_rejected' // 请假拒绝（司机收到）
   | 'resignation_application_submitted' // 离职申请提交（管理员收到）
+  | 'resignation_submitted' // 离职申请已提交（司机提交后通知）
   | 'resignation_approved' // 离职批准（司机收到）
   | 'resignation_rejected' // 离职拒绝（司机收到）
   | 'warehouse_assigned' // 仓库分配
@@ -26,6 +28,7 @@ export type NotificationType =
   | 'vehicle_review_pending' // 车辆待审核
   | 'vehicle_review_approved' // 车辆审核通过
   | 'vehicle_review_need_supplement' // 车辆需要补录
+  | 'verification_reminder' // 验证提醒
 
 // 通知分类 - 与数据库 notification_category 枚举保持一致
 export type NotificationCategory =

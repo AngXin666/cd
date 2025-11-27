@@ -1,3 +1,5 @@
+import type {NotificationType} from './notificationApi'
+
 export type UserRole = 'driver' | 'manager' | 'super_admin' | 'peer_admin' | 'lease_admin'
 
 // 司机类型（与数据库枚举值匹配）
@@ -1127,11 +1129,6 @@ export interface CreateLeaseInput {
   duration_months: number // 1, 3, 6, 12
   expire_action: ExpireActionType
 }
-
-/**
- * 通知类型
- */
-export type NotificationType = 'verification_reminder' | 'system' | 'announcement'
 
 /**
  * 发送者角色类型

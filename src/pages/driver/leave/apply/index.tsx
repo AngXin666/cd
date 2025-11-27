@@ -6,7 +6,6 @@ import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {
   createLeaveApplication,
-  createNotificationForAllManagers,
   getDriverDisplayName,
   getDriverWarehouses,
   getMonthlyLeaveCount,
@@ -16,7 +15,9 @@ import {
   updateDraftLeaveApplication,
   validateLeaveApplication
 } from '@/db/api'
+import {getCurrentUserBossId} from '@/db/tenantQuery'
 import type {LeaveType} from '@/db/types'
+import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import {
   formatLeaveDateRangeDisplay,
   getDayAfterTomorrowDateString,
@@ -470,15 +471,27 @@ const ApplyLeave: React.FC = () => {
       // 格式化日期为人性化显示
       const dateRangeText = formatLeaveDate(startDate, endDate, leaveDays)
 
-      // 为所有管理员创建通知
-      const notificationCount = await createNotificationForAllManagers({
-        type: 'leave_application_submitted',
-        title: '新的请假申请',
-        message: `${driverDisplayName} 提交了${leaveTypeLabel}申请，请假时间：${dateRangeText}，事由：${reason.trim()}`,
-        related_id: applicationId
-      })
+      // 获取当前用户的 boss_id
+      const bossId = await getCurrentUserBossId()
 
-      console.log('✅ 请假申请提交成功，已通知', notificationCount, '位管理员')
+      // 使用新的通知服务发送通知
+      if (bossId) {
+        const notificationSent = await sendDriverSubmissionNotification({
+          driverId: user.id,
+          driverName: driverDisplayName,
+          bossId: bossId,
+          type: 'leave_submitted',
+          title: '新的请假申请',
+          content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
+          relatedId: applicationId
+        })
+
+        if (notificationSent) {
+          console.log('✅ 请假申请提交成功，已发送通知给老板、平级账号和车队长')
+        } else {
+          console.warn('⚠️ 请假申请提交成功，但通知发送失败')
+        }
+      }
 
       showToast({title: '提交成功', icon: 'success'})
       setTimeout(() => {
