@@ -474,23 +474,53 @@ const ApplyLeave: React.FC = () => {
       // 获取当前用户的 boss_id
       const bossId = await getCurrentUserBossId()
 
+      console.log('🔍 调试信息 - 开始发送通知', {
+        driverId: user.id,
+        driverName: driverDisplayName,
+        bossId: bossId,
+        applicationId: applicationId
+      })
+
       // 使用新的通知服务发送通知
       if (bossId) {
-        const notificationSent = await sendDriverSubmissionNotification({
-          driverId: user.id,
-          driverName: driverDisplayName,
-          bossId: bossId,
-          type: 'leave_submitted',
-          title: '新的请假申请',
-          content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
-          relatedId: applicationId
-        })
+        try {
+          const notificationSent = await sendDriverSubmissionNotification({
+            driverId: user.id,
+            driverName: driverDisplayName,
+            bossId: bossId,
+            type: 'leave_submitted',
+            title: '新的请假申请',
+            content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
+            relatedId: applicationId
+          })
 
-        if (notificationSent) {
-          console.log('✅ 请假申请提交成功，已发送通知给老板、平级账号和车队长')
-        } else {
-          console.warn('⚠️ 请假申请提交成功，但通知发送失败')
+          console.log('📬 通知发送结果:', notificationSent)
+
+          if (notificationSent) {
+            console.log('✅ 请假申请提交成功，已发送通知给老板、平级账号和车队长')
+          } else {
+            console.warn('⚠️ 请假申请提交成功，但通知发送失败')
+            showToast({
+              title: '通知发送失败，请联系管理员',
+              icon: 'none',
+              duration: 3000
+            })
+          }
+        } catch (error) {
+          console.error('❌ 发送通知时出错:', error)
+          showToast({
+            title: '通知发送异常',
+            icon: 'none',
+            duration: 3000
+          })
         }
+      } else {
+        console.warn('⚠️ 未找到 boss_id，无法发送通知')
+        showToast({
+          title: '未找到老板账号，通知发送失败',
+          icon: 'none',
+          duration: 3000
+        })
       }
 
       showToast({title: '提交成功', icon: 'success'})

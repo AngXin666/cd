@@ -34,11 +34,13 @@ interface NotificationContext {
  */
 async function getBoss(bossId: string): Promise<NotificationRecipient | null> {
   try {
+    logger.info('查询老板账号', {bossId})
+
     const {data, error} = await supabase
       .from('profiles')
       .select('id, name, role')
+      .eq('id', bossId)
       .eq('role', 'super_admin')
-      .eq('boss_id', bossId)
       .maybeSingle()
 
     if (error) {
@@ -47,8 +49,11 @@ async function getBoss(bossId: string): Promise<NotificationRecipient | null> {
     }
 
     if (!data) {
+      logger.warn('未找到老板账号', {bossId})
       return null
     }
+
+    logger.info('找到老板账号', {id: data.id, name: data.name})
 
     return {
       userId: data.id,
@@ -66,6 +71,8 @@ async function getBoss(bossId: string): Promise<NotificationRecipient | null> {
  */
 async function getPeerAdmins(bossId: string): Promise<NotificationRecipient[]> {
   try {
+    logger.info('查询平级账号', {bossId})
+
     const {data, error} = await supabase
       .from('profiles')
       .select('id, name, role')
@@ -76,6 +83,8 @@ async function getPeerAdmins(bossId: string): Promise<NotificationRecipient[]> {
       logger.error('获取平级账号失败', error)
       return []
     }
+
+    logger.info('找到平级账号', {count: data?.length || 0})
 
     return (data || []).map((p) => ({
       userId: p.id,
@@ -93,6 +102,8 @@ async function getPeerAdmins(bossId: string): Promise<NotificationRecipient[]> {
  */
 async function getDriverManagers(driverId: string, bossId: string): Promise<NotificationRecipient[]> {
   try {
+    logger.info('查询司机的车队长', {driverId, bossId})
+
     const {data, error} = await supabase
       .from('driver_warehouses')
       .select(
@@ -112,7 +123,10 @@ async function getDriverManagers(driverId: string, bossId: string): Promise<Noti
       return []
     }
 
+    logger.info('司机仓库查询结果', {count: data?.length || 0, data})
+
     if (!data || data.length === 0) {
+      logger.warn('司机未分配仓库或仓库没有车队长', {driverId})
       return []
     }
 
@@ -124,6 +138,7 @@ async function getDriverManagers(driverId: string, bossId: string): Promise<Noti
         for (const mw of managerWarehouses) {
           const profile = mw.profiles
           if (profile && !managerMap.has(profile.id)) {
+            logger.info('找到车队长', {id: profile.id, name: profile.name})
             managerMap.set(profile.id, {
               userId: profile.id,
               name: profile.name || '车队长',
@@ -133,6 +148,8 @@ async function getDriverManagers(driverId: string, bossId: string): Promise<Noti
         }
       }
     }
+
+    logger.info('车队长去重后数量', {count: managerMap.size})
 
     return Array.from(managerMap.values())
   } catch (error) {
@@ -217,29 +234,38 @@ export async function sendDriverSubmissionNotification(params: {
   relatedId?: string
 }): Promise<boolean> {
   try {
-    logger.info('发送司机提交申请通知', params)
+    logger.info('🚀 开始发送司机提交申请通知', params)
 
     const recipients: NotificationRecipient[] = []
 
     // 1. 获取老板
+    logger.info('步骤1: 获取老板账号')
     const boss = await getBoss(params.bossId)
     if (boss) {
       recipients.push(boss)
+      logger.info('✅ 已添加老板到通知列表', boss)
+    } else {
+      logger.warn('⚠️ 未找到老板账号')
     }
 
     // 2. 获取所有平级账号
+    logger.info('步骤2: 获取平级账号')
     const peerAdmins = await getPeerAdmins(params.bossId)
     recipients.push(...peerAdmins)
+    logger.info(`✅ 已添加 ${peerAdmins.length} 个平级账号到通知列表`)
 
     // 3. 获取该司机的车队长
+    logger.info('步骤3: 获取司机的车队长')
     const managers = await getDriverManagers(params.driverId, params.bossId)
     recipients.push(...managers)
+    logger.info(`✅ 已添加 ${managers.length} 个车队长到通知列表`)
 
     // 去重
     const uniqueRecipients = deduplicateRecipients(recipients)
+    logger.info(`📋 去重后的通知接收者列表 (共 ${uniqueRecipients.length} 人):`, uniqueRecipients)
 
     if (uniqueRecipients.length === 0) {
-      logger.warn('没有找到通知接收对象', params)
+      logger.warn('❌ 没有找到通知接收对象', params)
       return false
     }
 
@@ -263,16 +289,18 @@ export async function sendDriverSubmissionNotification(params: {
       return notification
     })
 
+    logger.info('📤 准备发送通知', {count: notifications.length, notifications})
+
     const success = await createNotifications(notifications)
     if (success) {
-      logger.info(`司机提交申请通知发送成功，共 ${notifications.length} 条`, params)
+      logger.info(`✅ 司机提交申请通知发送成功，共 ${notifications.length} 条`, params)
     } else {
-      logger.error('司机提交申请通知发送失败', params)
+      logger.error('❌ 司机提交申请通知发送失败', params)
     }
 
     return success
   } catch (error) {
-    logger.error('发送司机提交申请通知异常', error)
+    logger.error('💥 发送司机提交申请通知异常', error)
     return false
   }
 }

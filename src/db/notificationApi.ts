@@ -500,30 +500,49 @@ export async function createNotifications(
   }>
 ): Promise<boolean> {
   try {
-    logger.db('批量创建通知', 'notifications', {count: notifications.length})
+    logger.db('📬 批量创建通知', 'notifications', {count: notifications.length})
 
     // 获取当前用户信息作为发送者
     const {
       data: {user}
     } = await supabase.auth.getUser()
     if (!user) {
-      logger.error('批量创建通知失败：无法获取当前用户信息')
+      logger.error('❌ 批量创建通知失败：无法获取当前用户信息')
       return false
     }
 
+    logger.info('📝 当前用户信息', {userId: user.id})
+
     // 获取发送者的profile信息（包括 boss_id）
-    const {data: senderProfile} = await supabase
+    const {data: senderProfile, error: profileError} = await supabase
       .from('profiles')
       .select('name, role, boss_id')
       .eq('id', user.id)
       .maybeSingle()
 
+    if (profileError) {
+      logger.error('❌ 获取发送者profile失败', profileError)
+      return false
+    }
+
+    logger.info('👤 发送者profile信息', senderProfile)
+
     const senderName = senderProfile?.name || '系统'
     const senderRole = senderProfile?.role || 'system'
-    const bossId = senderProfile?.boss_id
+
+    // 如果当前用户是老板（super_admin），boss_id 为 NULL，使用自己的 ID
+    // 如果是其他角色，使用 boss_id
+    let bossId = senderProfile?.boss_id
+    if (!bossId && senderProfile?.role === 'super_admin') {
+      bossId = user.id
+      logger.info('✅ 当前用户是老板，使用自己的ID作为boss_id', {bossId})
+    }
 
     if (!bossId) {
-      logger.error('批量创建通知失败：无法获取当前用户的 boss_id')
+      logger.error('❌ 批量创建通知失败：无法获取当前用户的 boss_id', {
+        userId: user.id,
+        role: senderProfile?.role
+      })
       return false
     }
 
@@ -541,17 +560,19 @@ export async function createNotifications(
       boss_id: bossId
     }))
 
+    logger.info('📤 准备插入通知数据', {count: notificationData.length, data: notificationData})
+
     const {error} = await supabase.from('notifications').insert(notificationData)
 
     if (error) {
-      logger.error('批量创建通知失败', error)
+      logger.error('❌ 批量创建通知失败', error)
       return false
     }
 
-    logger.info('批量通知创建成功', {count: notifications.length})
+    logger.info('✅ 批量通知创建成功', {count: notifications.length})
     return true
   } catch (error) {
-    logger.error('批量创建通知异常', error)
+    logger.error('💥 批量创建通知异常', error)
     return false
   }
 }
