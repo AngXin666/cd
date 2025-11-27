@@ -21,33 +21,30 @@ interface NotificationRecipient {
 /**
  * 获取主账号（老板）
  * 注意：主账号的 main_account_id 为 NULL
+ * 使用 RPC 函数绕过 RLS 策略
  */
 async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
   try {
     logger.info('查询主账号（老板）')
 
-    const {data, error} = await supabase
-      .from('profiles')
-      .select('id, name, role, main_account_id')
-      .eq('role', 'super_admin')
-      .is('main_account_id', null)
-      .maybeSingle()
+    const {data, error} = await supabase.rpc('get_primary_admin_for_notification')
 
     if (error) {
-      logger.error('获取主账号失败', error)
+      logger.error('获取主账号失败', {error})
       return null
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
       logger.warn('未找到主账号')
       return null
     }
 
-    logger.info('找到主账号', {userId: data.id, name: data.name})
+    const admin = data[0]
+    logger.info('找到主账号', {userId: admin.id, name: admin.name})
     return {
-      userId: data.id,
-      name: data.name || '老板',
-      role: data.role
+      userId: admin.id,
+      name: admin.name || '老板',
+      role: admin.role
     }
   } catch (error) {
     logger.error('获取主账号异常', error)
@@ -58,19 +55,16 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
 /**
  * 获取所有平级账号
  * 注意：平级账号的 main_account_id 不为 NULL
+ * 使用 RPC 函数绕过 RLS 策略
  */
 async function getPeerAccounts(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询平级账号')
 
-    const {data, error} = await supabase
-      .from('profiles')
-      .select('id, name, role, main_account_id')
-      .eq('role', 'super_admin')
-      .not('main_account_id', 'is', null)
+    const {data, error} = await supabase.rpc('get_peer_accounts_for_notification')
 
     if (error) {
-      logger.error('获取平级账号失败', error)
+      logger.error('获取平级账号失败', {error})
       return []
     }
 
@@ -177,6 +171,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
  * 获取对司机有管辖权的车队长
  * @param driverId 司机ID
  * @returns 有管辖权的车队长列表
+ * 使用 RPC 函数绕过 RLS 策略
  */
 async function getManagersWithJurisdiction(driverId: string): Promise<NotificationRecipient[]> {
   try {
@@ -188,60 +183,27 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       return []
     }
 
-    // 第一步：获取司机所在的仓库
-    const {data: driverWarehouses, error: dwError} = await supabase
-      .from('driver_warehouses')
-      .select('warehouse_id')
-      .eq('driver_id', driverId)
+    // 使用 RPC 函数查询有管辖权的车队长
+    const {data, error} = await supabase.rpc('get_managers_with_jurisdiction_for_notification', {
+      p_driver_id: driverId
+    })
 
-    if (dwError) {
-      logger.error('获取司机仓库失败', {error: dwError, driverId})
+    if (error) {
+      logger.error('获取有管辖权的车队长失败', {error, driverId})
       return []
     }
 
-    if (!driverWarehouses || driverWarehouses.length === 0) {
-      logger.info('司机未分配仓库，无需通知车队长', {driverId})
+    if (!data || data.length === 0) {
+      logger.info('没有对该司机有管辖权的车队长', {driverId})
       return []
     }
 
-    const warehouseIds = driverWarehouses.map((dw) => dw.warehouse_id)
-    logger.info('司机所在仓库', {warehouseIds})
+    const managers = data.map((m) => ({
+      userId: m.id,
+      name: m.name || '车队长',
+      role: m.role
+    }))
 
-    // 第二步：获取这些仓库的车队长
-    const {data: managerWarehouses, error: mwError} = await supabase
-      .from('manager_warehouses')
-      .select(
-        `
-        manager_id,
-        profiles!manager_warehouses_manager_id_fkey(id, name, role)
-      `
-      )
-      .in('warehouse_id', warehouseIds)
-
-    if (mwError) {
-      logger.error('获取车队长失败', mwError)
-      return []
-    }
-
-    if (!managerWarehouses || managerWarehouses.length === 0) {
-      logger.info('仓库没有分配车队长', {warehouseIds})
-      return []
-    }
-
-    // 去重
-    const managerMap = new Map<string, NotificationRecipient>()
-    for (const mw of managerWarehouses) {
-      const profile = mw.profiles as any
-      if (profile && !managerMap.has(profile.id)) {
-        managerMap.set(profile.id, {
-          userId: profile.id,
-          name: profile.name || '车队长',
-          role: profile.role
-        })
-      }
-    }
-
-    const managers = Array.from(managerMap.values())
     logger.info('找到有管辖权的车队长', {count: managers.length})
     return managers
   } catch (error) {
