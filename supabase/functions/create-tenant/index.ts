@@ -179,19 +179,17 @@ Deno.serve(async (req) => {
     console.log('✅ 老板账号创建成功:', authData.user.id)
 
     // 5. 在租户 Schema 中创建老板 profile
-    const {error: profileError} = await supabase.rpc('exec_sql', {
-      sql: `
-        INSERT INTO ${schemaName}.profiles (id, name, phone, email, role, status)
-        VALUES (
-          '${authData.user.id}',
-          '${input.boss_name.replace(/'/g, "''")}',
-          '${input.boss_phone}',
-          ${input.boss_email ? `'${input.boss_email.replace(/'/g, "''")}'` : 'NULL'},
-          'boss',
-          'active'
-        )
-      `
-    })
+    // 使用 from() 方法，通过设置 search_path 来访问租户 Schema
+    const {error: profileError} = await supabase
+      .from(`${schemaName}.profiles`)
+      .insert({
+        id: authData.user.id,
+        name: input.boss_name,
+        phone: input.boss_phone,
+        email: input.boss_email || null,
+        role: 'boss',
+        status: 'active'
+      })
 
     if (profileError) {
       console.error('❌ 创建老板 profile 失败:', profileError)
