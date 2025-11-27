@@ -3,7 +3,7 @@
  * 中央管理系统 - 自动化部署
  */
 
-import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
+import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useState} from 'react'
 import {createTenant} from '@/db/central-admin-api'
@@ -12,27 +12,17 @@ import type {CreateTenantInput} from '@/db/types'
 export default function TenantCreatePage() {
   const [formData, setFormData] = useState<CreateTenantInput>({
     company_name: '',
-    contact_name: '',
-    contact_phone: '',
-    contact_email: '',
-    expired_at: '',
     boss_name: '',
     boss_phone: '',
-    boss_email: '',
+    boss_account: '',
     boss_password: ''
   })
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [loginAccount, setLoginAccount] = useState('')
   const [loading, setLoading] = useState(false)
 
   // 更新表单字段
   const updateField = (field: keyof CreateTenantInput, value: string) => {
     setFormData((prev) => ({...prev, [field]: value}))
-  }
-
-  // 选择日期
-  const handleDateChange = (e: any) => {
-    updateField('expired_at', e.detail.value)
   }
 
   // 验证表单
@@ -48,7 +38,7 @@ export default function TenantCreatePage() {
     }
 
     if (!formData.boss_phone.trim()) {
-      Taro.showToast({title: '请输入老板手机号', icon: 'none'})
+      Taro.showToast({title: '请输入老板电话', icon: 'none'})
       return false
     }
 
@@ -58,13 +48,13 @@ export default function TenantCreatePage() {
       return false
     }
 
-    if (!loginAccount.trim()) {
+    if (!formData.boss_account?.trim()) {
       Taro.showToast({title: '请输入登录账号', icon: 'none'})
       return false
     }
 
     // 验证登录账号格式（只允许字母、数字、下划线，4-20位）
-    if (!/^[a-zA-Z0-9_]{4,20}$/.test(loginAccount)) {
+    if (!/^[a-zA-Z0-9_]{4,20}$/.test(formData.boss_account)) {
       Taro.showToast({title: '登录账号格式不正确（4-20位字母、数字或下划线）', icon: 'none'})
       return false
     }
@@ -89,12 +79,6 @@ export default function TenantCreatePage() {
       return false
     }
 
-    // 验证日期格式（如果填写了）
-    if (formData.expired_at && !/^\d{4}-\d{2}-\d{2}$/.test(formData.expired_at)) {
-      Taro.showToast({title: '日期格式不正确', icon: 'none'})
-      return false
-    }
-
     return true
   }
 
@@ -106,20 +90,14 @@ export default function TenantCreatePage() {
     Taro.showLoading({title: '创建中...', mask: true})
 
     try {
-      // 添加登录账号到表单数据
-      const submitData = {
-        ...formData,
-        boss_account: loginAccount
-      }
-
-      const result = await createTenant(submitData)
+      const result = await createTenant(formData)
 
       Taro.hideLoading()
 
       if (result.success) {
         Taro.showModal({
           title: '创建成功',
-          content: `租户"${formData.company_name}"创建成功！\n\n登录账号：${loginAccount}\n密码：${formData.boss_password}\n手机号：${formData.boss_phone}\n\n请妥善保管账号信息。`,
+          content: `租户"${formData.company_name}"创建成功！\n\n登录账号：${formData.boss_account}\n密码：${formData.boss_password}\n手机号：${formData.boss_phone}\n\n请妥善保管账号信息。`,
           showCancel: false,
           success: () => {
             Taro.navigateBack()
@@ -174,67 +152,8 @@ export default function TenantCreatePage() {
           </View>
 
           <View className="mb-4">
-            <Text className="text-sm text-gray-600 block mb-2">联系人</Text>
-            <View style={{overflow: 'hidden'}}>
-              <Input
-                className="w-full border border-border rounded px-3 py-2 text-base"
-                placeholder="请输入联系人姓名"
-                value={formData.contact_name}
-                onInput={(e) => updateField('contact_name', e.detail.value)}
-              />
-            </View>
-          </View>
-
-          <View className="mb-4">
-            <Text className="text-sm text-gray-600 block mb-2">联系电话</Text>
-            <View style={{overflow: 'hidden'}}>
-              <Input
-                className="w-full border border-border rounded px-3 py-2 text-base"
-                placeholder="请输入联系电话"
-                type="number"
-                value={formData.contact_phone}
-                onInput={(e) => updateField('contact_phone', e.detail.value)}
-              />
-            </View>
-          </View>
-
-          <View>
-            <Text className="text-sm text-gray-600 block mb-2">联系邮箱</Text>
-            <View style={{overflow: 'hidden'}}>
-              <Input
-                className="w-full border border-border rounded px-3 py-2 text-base"
-                placeholder="请输入联系邮箱"
-                value={formData.contact_email}
-                onInput={(e) => updateField('contact_email', e.detail.value)}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* 租期设置 */}
-        <View className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <Text className="text-lg font-bold text-gray-800 block mb-4">租期设置</Text>
-
-          <View>
-            <Text className="text-sm text-gray-600 block mb-2">有效期至</Text>
-            <Picker mode="date" value={formData.expired_at} onChange={handleDateChange}>
-              <View className="w-full border border-border rounded px-3 py-2">
-                <Text className={formData.expired_at ? 'text-gray-800' : 'text-gray-400'}>
-                  {formData.expired_at || '请选择到期日期（可选）'}
-                </Text>
-              </View>
-            </Picker>
-            <Text className="text-xs text-gray-400 block mt-1">不设置则永久有效</Text>
-          </View>
-        </View>
-
-        {/* 老板账号 */}
-        <View className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <Text className="text-lg font-bold text-gray-800 block mb-4">老板账号</Text>
-
-          <View className="mb-4">
             <Text className="text-sm text-gray-600 block mb-2">
-              姓名 <Text className="text-red-500">*</Text>
+              老板姓名 <Text className="text-red-500">*</Text>
             </Text>
             <View style={{overflow: 'hidden'}}>
               <Input
@@ -246,9 +165,9 @@ export default function TenantCreatePage() {
             </View>
           </View>
 
-          <View className="mb-4">
+          <View>
             <Text className="text-sm text-gray-600 block mb-2">
-              手机号 <Text className="text-red-500">*</Text>
+              老板电话 <Text className="text-red-500">*</Text>
             </Text>
             <View style={{overflow: 'hidden'}}>
               <Input
@@ -262,6 +181,11 @@ export default function TenantCreatePage() {
             </View>
             <Text className="text-xs text-gray-400 block mt-1">用于接收通知和验证码登录</Text>
           </View>
+        </View>
+
+        {/* 登录信息 */}
+        <View className="bg-white rounded-lg shadow-sm p-4 mb-4">
+          <Text className="text-lg font-bold text-gray-800 block mb-4">登录信息</Text>
 
           <View className="mb-4">
             <Text className="text-sm text-gray-600 block mb-2">
@@ -271,8 +195,8 @@ export default function TenantCreatePage() {
               <Input
                 className="w-full border border-border rounded px-3 py-2 text-base"
                 placeholder="请输入登录账号（4-20位字母、数字或下划线）"
-                value={loginAccount}
-                onInput={(e) => setLoginAccount(e.detail.value)}
+                value={formData.boss_account}
+                onInput={(e) => updateField('boss_account', e.detail.value)}
               />
             </View>
             <Text className="text-xs text-gray-400 block mt-1">用于账号密码登录</Text>
