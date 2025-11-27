@@ -55,18 +55,9 @@ USING (
 
 COMMENT ON POLICY "Drivers can view same tenant admins" ON profiles IS '司机可以查看同租户的管理员（老板、车队长、平级账号）';
 
--- 添加策略：司机可以查看同租户的其他司机
-CREATE POLICY "Drivers can view same tenant drivers"
-ON profiles
-FOR SELECT
-TO authenticated
-USING (
-  -- 当前用户是司机
-  (SELECT r.role FROM get_user_role_and_boss(auth.uid()) r(role, boss_id)) = 'driver'
-  AND
-  -- 可以查看同租户的其他司机
-  role = 'driver'
-  AND boss_id::text = get_current_user_boss_id()
-);
-
-COMMENT ON POLICY "Drivers can view same tenant drivers" ON profiles IS '司机可以查看同租户的其他司机';
+/*
+注意：司机不能查看同租户的其他司机信息
+司机只能：
+1. 查看自己的信息
+2. 查看同租户的管理员（老板、车队长、平级账号）- 用于提交申请
+*/

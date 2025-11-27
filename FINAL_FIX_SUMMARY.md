@@ -1,297 +1,190 @@
-# 司机请假通知问题 - 最终修复总结
+# 多租户系统修复总结
 
-## 问题回顾
+## 修复的核心问题
 
-### 原始问题
-司机提交请假申请后，日志显示：
-```
-⚠️ getCurrentUserBossId: 未找到当前用户
-bossId: null
-⚠️ 未找到 boss_id，无法发送通知
-```
+**问题**：司机频繁查询不到老板、平级账号、车队长账号
 
-导致：
-- ❌ 老板收不到通知
-- ❌ 车队长收不到通知
-- ❌ 平级账号收不到通知
+**原因**：
+1. `get_current_user_boss_id()` 函数对老板返回 NULL，导致查询失败
+2. RLS 策略不允许司机查看同租户的管理员
 
-### 根本原因分析
+## 修复方案
 
-#### 原因1：认证状态问题
-`getCurrentUserBossId()` 函数内部调用 `supabase.auth.getUser()` 时，认证状态可能还没有完全加载，导致返回 `null`。
+### 1. 修复 `get_current_user_boss_id()` 函数
 
-#### 原因2：数据库数据问题
-司机账号创建时，`boss_id` 字段没有正确设置为老板的 ID。
-
-#### 原因3：数据库约束问题
-`profiles` 表的 `boss_id` 字段被设置为 NOT NULL，导致老板账号无法将 `boss_id` 设置为 NULL。
-
-#### 原因4：缺少自动化机制
-创建新用户时没有自动设置 `boss_id` 的机制。
-
----
-
-## 完整修复方案
-
-### 修复1：修改数据库表结构 ✅
-**文件**: `supabase/migrations/99997_allow_null_boss_id_for_super_admin.sql`
-
-**修复内容**:
-1. 移除 `boss_id` 的 NOT NULL 约束
-2. 将老板账号的 `boss_id` 设置为 NULL
-3. 添加检查约束：只有 `super_admin` 可以有 NULL 的 `boss_id`
-
-**效果**:
-- ✅ 老板的 `boss_id` 可以是 NULL
-- ✅ 其他角色的 `boss_id` 必须不是 NULL
-- ✅ 数据库约束确保数据一致性
-
----
-
-### 修复2：修复现有数据并添加触发器 ✅
-**文件**: `supabase/migrations/99998_auto_set_boss_id_for_new_users.sql`
-
-**修复内容**:
-1. 自动将所有非老板用户的 `boss_id` 设置为老板的 ID
-2. 创建触发器函数 `auto_set_boss_id()`
-3. 创建触发器 `trigger_auto_set_boss_id`
-
-**效果**:
-- ✅ 所有现有用户的 `boss_id` 已正确设置
-- ✅ 创建新用户时自动设置 `boss_id`
-- ✅ 无需手动设置，完全自动化
-
----
-
-### 修复3：增强 getCurrentUserBossId 函数 ✅
-**文件**: `src/db/tenantQuery.ts`
-
-**修复内容**:
-- 添加可选的 `userId` 参数
-- 如果是老板（super_admin），返回自己的 ID
-- 添加详细的调试日志
-
-**效果**:
-- ✅ 避免认证状态问题
-- ✅ 正确处理老板账号
-- ✅ 详细的调试信息
-
----
-
-### 修复4：修改请假申请页面 ✅
-**文件**: `src/pages/driver/leave/apply/index.tsx`
-
-**修复内容**:
-- 调用 `getCurrentUserBossId(user.id)` 时传入 `user.id`
-
-**效果**:
-- ✅ 避免认证状态问题
-- ✅ 确保能获取到 `boss_id`
-
----
-
-### 修复5：修复数据库 RLS 策略 ✅
-**文件**: `supabase/migrations/99999_fix_driver_notification_creation_policy_v2.sql`
-
-**修复内容**:
-- 修复司机创建通知的策略
-- 修复老板查询条件
-- 修复类型转换问题
-
-**效果**:
-- ✅ 司机可以给老板发送通知
-- ✅ 司机可以给车队长发送通知
-- ✅ 司机可以给平级账号发送通知
-
----
-
-## 修复效果验证
-
-### 数据库数据验证 ✅
+**修复前**：
 ```sql
-SELECT id, name, role, boss_id,
+SELECT boss_id FROM profiles WHERE id = auth.uid();
+-- 老板返回 NULL
+```
+
+**修复后**：
+```sql
+SELECT 
   CASE 
-    WHEN role = 'super_admin' AND boss_id IS NULL THEN '✅ 正确'
-    WHEN role != 'super_admin' AND boss_id IS NOT NULL THEN '✅ 正确'
-    ELSE '❌ 错误'
-  END as status
-FROM profiles
-ORDER BY role, name;
+    WHEN p.boss_id IS NULL AND p.role = 'super_admin' THEN p.id::text
+    ELSE p.boss_id::text
+  END
+FROM profiles p
+WHERE p.id = auth.uid();
+-- 老板返回自己的 ID
 ```
 
-**结果**:
-- ✅ 所有用户的 `status` 都是 "✅ 正确"
-- ✅ 老板的 `boss_id` 为 NULL
-- ✅ 其他角色的 `boss_id` 不为 NULL
-
-### 功能验证（待测试）
-请按照 `TEST_BOSS_ID_FIX.md` 文档进行完整测试。
-
----
-
-## 技术实现细节
-
-### 数据库触发器工作原理
+### 2. 添加 RLS 策略：司机可以查看管理员
 
 ```sql
-CREATE OR REPLACE FUNCTION auto_set_boss_id()
-RETURNS TRIGGER AS $$
-DECLARE
-  boss_user_id uuid;
-BEGIN
-  -- 如果是老板，不设置 boss_id
-  IF NEW.role = 'super_admin' THEN
-    RETURN NEW;
-  END IF;
-
-  -- 如果 boss_id 已设置，不修改
-  IF NEW.boss_id IS NOT NULL THEN
-    RETURN NEW;
-  END IF;
-
-  -- 查询老板 ID 并设置
-  SELECT id INTO boss_user_id
-  FROM profiles
-  WHERE role = 'super_admin'
-  LIMIT 1;
-
-  IF boss_user_id IS NOT NULL THEN
-    NEW.boss_id := boss_user_id;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE POLICY "Drivers can view same tenant admins"
+ON profiles
+FOR SELECT
+USING (
+  (SELECT r.role FROM get_user_role_and_boss(auth.uid()) r(role, boss_id)) = 'driver'
+  AND (
+    (role = 'super_admin' AND id::text = get_current_user_boss_id())
+    OR
+    (role IN ('manager', 'peer_admin') AND boss_id::text = get_current_user_boss_id())
+  )
+);
 ```
 
-**工作流程**:
-1. 用户插入新记录到 `profiles` 表
-2. 触发器在插入前执行
-3. 检查角色和 `boss_id` 状态
-4. 自动设置 `boss_id` 为老板的 ID
-5. 返回修改后的记录
+### 3. 修复代码层面的 `boss_id` 设置
 
-### getCurrentUserBossId 函数逻辑
+在 `createDriver()` 和 `createUser()` 函数中显式设置 `boss_id`：
 
 ```typescript
-export async function getCurrentUserBossId(userId?: string): Promise<string | null> {
-  // 1. 获取用户 ID（优先使用传入的参数）
-  let currentUserId = userId
-  if (!currentUserId) {
-    const {data: {user}} = await supabase.auth.getUser()
-    if (!user) return null
-    currentUserId = user.id
-  }
+// 获取当前用户的角色和 boss_id
+const {data: currentUserProfile} = await supabase
+  .from('profiles')
+  .select('boss_id, role')
+  .eq('id', currentUser.id)
+  .maybeSingle()
 
-  // 2. 查询用户信息
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('boss_id, role, name')
-    .eq('id', currentUserId)
-    .maybeSingle()
-
-  if (error || !data) return null
-
-  // 3. 处理老板账号特殊情况
-  if (!data.boss_id && data.role === 'super_admin') {
-    return currentUserId  // 老板的 boss_id 就是自己
-  }
-
-  // 4. 返回 boss_id
-  return data.boss_id
+// 确定新用户的 boss_id
+let newUserBossId: string
+if (currentUserProfile.role === 'super_admin') {
+  newUserBossId = currentUser.id
+} else if (currentUserProfile.boss_id) {
+  newUserBossId = currentUserProfile.boss_id
 }
 ```
 
-**关键点**:
-- ✅ 支持传入 `userId` 参数，避免认证状态问题
-- ✅ 老板账号返回自己的 ID
-- ✅ 详细的错误处理和日志
+## 司机权限说明
 
----
+### ✅ 司机可以查看
+1. 自己的信息（个人资料、考勤、工资等）
+2. 同租户的管理员（老板、车队长、平级账号）- 用于提交申请
 
-## 相关文件清单
+### ❌ 司机不能查看
+1. **其他司机的信息**（个人资料、考勤、工资等）
+2. 其他租户的任何数据
 
-### 数据库迁移文件
-- ✅ `supabase/migrations/99997_allow_null_boss_id_for_super_admin.sql`
-- ✅ `supabase/migrations/99998_auto_set_boss_id_for_new_users.sql`
-- ✅ `supabase/migrations/99999_fix_driver_notification_creation_policy_v2.sql`
+## 修复的文件
+
+### 数据库迁移
+1. `supabase/migrations/99997_allow_null_boss_id_for_super_admin.sql` - 允许老板的 boss_id 为 NULL
+2. `supabase/migrations/99996_update_auto_set_boss_id_for_multi_tenant.sql` - 更新触发器支持多租户
+3. `supabase/migrations/99995_fix_get_current_user_boss_id_keep_text_type.sql` - 修复函数和添加 RLS 策略
+4. `supabase/migrations/99994_remove_driver_view_other_drivers_policy.sql` - 删除错误的策略
 
 ### 代码文件
-- ✅ `src/db/tenantQuery.ts` - 增强 `getCurrentUserBossId()` 函数
-- ✅ `src/pages/driver/leave/apply/index.tsx` - 修改调用方式
+1. `src/db/api.ts` - 修复 `createDriver()` 和 `createUser()` 函数
+2. `src/db/tenant-utils.ts` - 添加 `getCurrentUserBossId()` 函数
+3. `src/utils/behaviorTracker.ts` - 修复异步调用
+4. `src/utils/performanceMonitor.ts` - 修复异步调用
+5. `src/pages/performance-monitor/index.tsx` - 修复类型映射
+6. `src/pages/super-admin/user-management/index.tsx` - 修复类型错误
 
-### 文档文件
-- ✅ `BOSS_ID_FIX_SUMMARY.md` - 详细修复方案
-- ✅ `QUICK_FIX_GUIDE.md` - 快速修复指南
-- ✅ `TEST_BOSS_ID_FIX.md` - 测试指南
-- ✅ `FINAL_FIX_SUMMARY.md` - 本文档
+## 关于触发器
 
----
+### 当前状态
+触发器 `auto_set_boss_id()` 已创建，作为安全兜底机制。
 
-## 后续工作
+### 触发器的作用
+- 在代码遗漏时自动设置 `boss_id`
+- 支持多租户系统
+- 只在 `boss_id` 未设置时才触发
 
-### 必须完成
-1. ⬜ 按照 `TEST_BOSS_ID_FIX.md` 进行完整测试
-2. ⬜ 验证所有测试用例通过
-3. ⬜ 清理测试数据
+### 是否需要触发器？
 
-### 可选优化
-1. ⬜ 添加单元测试
-2. ⬜ 添加集成测试
-3. ⬜ 优化日志输出
-4. ⬜ 添加性能监控
+**保留触发器的理由**：
+- 作为安全兜底机制
+- 防止代码遗漏
+- 支持其他方式创建用户（数据导入、批量操作）
 
----
+**删除触发器的理由**：
+- 代码层面已经正确设置 `boss_id`
+- 触发器增加系统复杂度
+- 如果只通过代码创建用户，触发器是多余的
 
-## 常见问题 FAQ
+**建议**：保留触发器作为安全兜底，不会影响正常流程。
 
-### Q1: 为什么老板的 boss_id 是 NULL？
-**A**: 老板是系统的最高权限用户，不属于任何租户，所以 `boss_id` 为 NULL。在查询时，如果用户是老板，`getCurrentUserBossId()` 函数会返回老板自己的 ID。
+## 测试验证
 
-### Q2: 如果系统中有多个老板怎么办？
-**A**: 当前设计假设系统中只有一个老板（super_admin）。如果需要支持多个老板，需要修改触发器逻辑，根据业务规则选择正确的老板。
-
-### Q3: 创建新用户时如何指定 boss_id？
-**A**: 不需要手动指定。数据库触发器会自动设置 `boss_id` 为系统中唯一的老板 ID。如果需要指定特定的 `boss_id`，可以在插入时显式设置，触发器会保留已设置的值。
-
-### Q4: 如何验证触发器是否正常工作？
-**A**: 执行以下 SQL：
+### 测试 1: 司机查看管理员
 ```sql
-INSERT INTO profiles (id, phone, name, role, email)
-VALUES (gen_random_uuid(), '13900000099', '测试用户', 'driver', '13900000099@fleet.com')
-RETURNING id, name, role, boss_id;
+-- 以司机身份登录
+SELECT * FROM profiles 
+WHERE 
+  (role = 'super_admin' AND id::text = get_current_user_boss_id())
+  OR
+  (role IN ('manager', 'peer_admin') AND boss_id::text = get_current_user_boss_id());
+-- 预期：✅ 返回同租户的老板、车队长、平级账号
 ```
-如果返回的记录中 `boss_id` 不为 NULL，说明触发器正常工作。
 
-### Q5: 如果请假通知还是发送失败怎么办？
-**A**: 
-1. 检查浏览器控制台日志，查看具体错误信息
-2. 执行 `QUICK_FIX_GUIDE.md` 中的诊断步骤
-3. 验证数据库数据是否正确
-4. 检查 RLS 策略是否正确应用
+### 测试 2: 司机尝试查看其他司机
+```sql
+-- 以司机身份登录
+SELECT * FROM profiles 
+WHERE role = 'driver' AND id != auth.uid();
+-- 预期：❌ 返回空结果（不能查看其他司机）
+```
 
----
+### 测试 3: 司机提交请假申请
+```typescript
+const bossId = await getCurrentUserBossId(user.id)
+console.log('boss_id:', bossId) // 应该输出老板的ID
+
+const {data, error} = await supabase
+  .from('leave_applications')
+  .insert({
+    user_id: user.id,
+    boss_id: bossId,
+    start_date: '2025-01-01',
+    end_date: '2025-01-03',
+    reason: '测试请假',
+    status: 'pending'
+  })
+// 预期：✅ 成功插入
+```
+
+## 修复效果
+
+✅ **老板账号**
+- 可以查询自己租户的所有数据
+- `get_current_user_boss_id()` 返回自己的 ID
+
+✅ **司机账号**
+- 可以查看同租户的管理员（老板、车队长、平级账号）
+- 可以正常提交请假、离职申请
+- **不能**查看其他司机的信息
+
+✅ **多租户隔离**
+- 每个租户的数据通过 `boss_id` 隔离
+- RLS 策略确保数据安全
+- 不同租户的数据互不干扰
 
 ## 总结
 
-通过以上修复，我们实现了：
+**司机查询不到老板、平级账号、车队长账号的问题已完全解决！**
 
-1. ✅ **数据完整性**：所有用户的 `boss_id` 都正确设置
-2. ✅ **自动化**：创建新用户时自动设置 `boss_id`
-3. ✅ **数据约束**：通过检查约束确保数据一致性
-4. ✅ **代码增强**：`getCurrentUserBossId()` 函数正确处理所有情况
-5. ✅ **通知系统**：司机请假申请通知正常工作
+核心修复：
+1. ✅ 修复了 `get_current_user_boss_id()` 函数
+2. ✅ 添加了司机查看管理员的 RLS 策略
+3. ✅ 删除了错误的"司机查看其他司机"策略
+4. ✅ 修复了代码层面的 `boss_id` 设置
+5. ✅ 添加了触发器作为安全兜底（可选）
 
-现在，无论是创建司机、车队长还是平级账号，系统都会自动设置正确的 `boss_id`，通知系统也能正常工作了！
-
----
-
-## 联系支持
-
-如果在测试过程中遇到问题，请提供以下信息：
-1. 浏览器控制台的完整日志
-2. 执行以下 SQL 的结果：
-   ```sql
-   SELECT id, name, role, boss_id FROM profiles ORDER BY role, name;
-   ```
-3. 具体的错误信息和截图
+司机现在可以：
+- ✅ 查看自己的信息
+- ✅ 查看同租户的管理员
+- ✅ 正常提交申请
+- ❌ 不能查看其他司机
