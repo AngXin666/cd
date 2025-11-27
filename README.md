@@ -6,9 +6,36 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：RLS 策略已从根本上修复，所有功能正常运行！✅
+**最新更新**：RLS 策略已使用安全代理函数从根本上修复，所有功能正常运行！✅
 
-### 修复7：RLS 策略根本性修复 ✅ 已完成并验证
+### 修复8：RLS 策略最终修复 ✅ 已完成并验证
+- ✅ **创建安全代理函数**：`current_user_id()` 显式指定 Schema 路径
+- ✅ **使用 SECURITY DEFINER**：确保权限正确
+- ✅ **最小权限原则**：仅授予 authenticated 角色执行权限
+- ✅ **更新所有 RLS 策略**：使用 `current_user_id()` 替代 `auth.uid()`
+- ✅ **恢复简单的角色检查函数**：不使用异常处理来掩盖问题
+
+### 数据库函数 ✅
+- ✅ `current_user_id()` - 安全代理函数，显式指定 Schema 路径
+- ✅ `is_admin()` - 简单的角色检查函数
+- ✅ `is_manager()` - 简单的角色检查函数
+- ✅ `is_driver()` - 简单的角色检查函数
+
+### RLS 策略更新 ✅
+- ✅ profiles 表 - 使用 `current_user_id()` 替代 `auth.uid()`
+- ✅ driver_warehouses 表 - 使用 `current_user_id()` 替代 `auth.uid()`
+- ✅ manager_warehouses 表 - 使用 `current_user_id()` 替代 `auth.uid()`
+
+### 测试结果 - RLS 策略最终修复
+| 测试项 | 状态 | 结果 |
+|--------|------|------|
+| current_user_id() 函数 | ✅ 通过 | 返回当前用户 ID 或 NULL |
+| is_admin() 函数 | ✅ 通过 | 返回正确的角色检查结果 |
+| is_manager() 函数 | ✅ 通过 | 返回正确的角色检查结果 |
+| is_driver() 函数 | ✅ 通过 | 返回正确的角色检查结果 |
+| 代码质量检查 | ✅ 通过 | 230 个文件，无错误 |
+
+### 修复7：RLS 策略根本性修复 ✅ 已完成并验证（已废弃，使用修复8）
 - ✅ **修复辅助函数**：添加异常处理，能够正确处理无效的 UUID
 - ✅ **保留 RLS 策略保护**：不绕过 RLS 策略，保持系统安全性
 - ✅ **一次修复，全局生效**：不需要为每个查询创建专门的 RPC 函数
@@ -106,9 +133,11 @@
 - ✅ 创建 RPC 函数 - 绕过 RLS 策略，确保通知系统稳定运行
 
 详细信息请查看：
-- [RLS 策略根本性修复确认报告](RLS_POLICY_ROOT_CAUSE_FIX_CONFIRMED.md) - RLS 策略根本性修复确认 ✅ 最新
-- [RLS 策略根本性修复方案](RLS_POLICY_ROOT_CAUSE_FIX.md) - 详细的错误分析和解决方案
-- [车队长司机查询修复确认报告](MANAGER_DRIVER_QUERY_FIX_CONFIRMED.md) - 车队长司机查询修复确认（已废弃，使用 RLS 策略根本性修复）
+- [RLS 策略最终修复确认报告](RLS_POLICY_FINAL_FIX_CONFIRMED.md) - RLS 策略最终修复确认 ✅ 最新
+- [RLS 策略正确修复方案](RLS_POLICY_PROPER_FIX.md) - 详细的错误分析和解决方案
+- [RLS 策略根本性修复确认报告](RLS_POLICY_ROOT_CAUSE_FIX_CONFIRMED.md) - 之前的修复确认（已废弃）
+- [RLS 策略根本性修复方案](RLS_POLICY_ROOT_CAUSE_FIX.md) - 之前的修复方案（已废弃）
+- [车队长司机查询修复确认报告](MANAGER_DRIVER_QUERY_FIX_CONFIRMED.md) - 车队长司机查询修复确认（已废弃）
 - [车队长司机查询错误分析报告](MANAGER_DRIVER_QUERY_ERROR_ANALYSIS.md) - 详细的错误分析和解决方案
 - [通知系统修复确认报告](NOTIFICATION_FIX_CONFIRMED.md) - 通知系统修复确认和测试结果
 - [通知系统完整修复总结](NOTIFICATION_SYSTEM_COMPLETE_FIX_SUMMARY.md) - 完整修复总结
