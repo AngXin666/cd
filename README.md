@@ -1460,6 +1460,92 @@ pnpm run dev:h5
 
 ### 其他问题
 
-如果遇到其他问题，请查看：
-- [ISSUE_RESOLUTION.md](ISSUE_RESOLUTION.md) - 问题解决报告
-- [CACHE_AND_UI_UPDATES.md](CACHE_AND_UI_UPDATES.md) - 缓存优化和界面更新日志
+如果遇到其他问题，请查看相关文档或联系技术支持。
+
+---
+
+## 📚 文档中心
+
+### 核心文档
+- **[README.md](README.md)** - 项目主文档（本文档）
+- **[TODO.md](TODO.md)** - 任务清单和进度跟踪
+- **[TEST_REPORT.md](TEST_REPORT.md)** - 功能测试报告
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - 实现总结
+
+### 用户文档
+- **[用户手册](docs/USER_MANUAL.md)** - 完整的用户使用手册
+  - 系统简介
+  - 快速开始
+  - 各角色功能说明
+  - 常见问题解答
+
+### 开发文档
+- **[API 参考文档](docs/API_REFERENCE.md)** - 完整的 API 参考
+  - 认证系统
+  - 租户管理
+  - 用户管理
+  - 车辆管理
+  - 仓库管理
+  - 考勤管理
+  - 请假管理
+  - 计件管理
+  - 通知系统
+  - 辅助函数
+
+- **[API 使用指南](docs/API_GUIDE.md)** - API 使用指南
+  - 核心原则
+  - 常用 API 函数
+  - 最佳实践
+
+- **[开发者指南](docs/DEVELOPER_GUIDE.md)** - 开发者指南
+  - 项目概述
+  - 技术栈
+  - 项目结构
+  - 开发环境搭建
+  - 核心概念
+  - 开发规范
+  - 常见开发任务
+  - 调试技巧
+  - 部署指南
+
+### 产品文档
+- **[产品需求文档](docs/prd.md)** - 产品需求文档
+
+### 数据库文档
+- **[数据库 README](src/db/README.md)** - 数据库使用说明
+- **[迁移 README](supabase/migrations/README.md)** - 数据库迁移说明
+
+---
+
+## 🤝 技术支持
+
+如果您在使用过程中遇到任何问题，请：
+
+1. 查看相关文档
+2. 查看 [常见问题](docs/USER_MANUAL.md#常见问题)
+3. 联系技术支持团队
+
+---
+
+## 📝 更新日志
+
+### 2025-11-27
+- ✅ 修复 create_tenant_schema 函数
+- ✅ 添加通知系统
+- ✅ 实现路由配置和权限控制
+- ✅ 创建完整的 API 参考文档
+- ✅ 创建用户手册
+- ✅ 创建开发者指南
+- ✅ 清理旧的无效文档
+
+### 2025-11-05
+- ✅ 完成物理隔离架构重构
+- ✅ 删除所有 boss_id 相关代码
+- ✅ 简化查询逻辑
+- ✅ 提升代码可读性
+
+---
+
+## 📄 许可证
+
+Copyright © 2025 车队管家团队
