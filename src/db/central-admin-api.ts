@@ -105,9 +105,28 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
 
     if (error) {
       console.error('❌ 调用 Edge Function 失败:', error)
+      console.error('错误详情:', JSON.stringify(error, null, 2))
+
+      // 尝试从错误对象中提取更多信息
+      let errorMessage = error.message || '创建租户失败'
+
+      // 如果是 FunctionsHttpError，尝试获取响应体
+      if (error.context) {
+        console.error('错误上下文:', error.context)
+        errorMessage += `\n详情: ${JSON.stringify(error.context)}`
+      }
+
       return {
         success: false,
-        error: error.message || '创建租户失败'
+        error: errorMessage
+      }
+    }
+
+    if (!data) {
+      console.error('❌ Edge Function 返回空数据')
+      return {
+        success: false,
+        error: 'Edge Function 返回空数据'
       }
     }
 
@@ -127,6 +146,7 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
     }
   } catch (error) {
     console.error('❌ 创建租户异常:', error)
+    console.error('异常详情:', JSON.stringify(error, null, 2))
     return {
       success: false,
       error: error instanceof Error ? error.message : '创建租户失败'
