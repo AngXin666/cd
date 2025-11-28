@@ -266,22 +266,19 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
     }
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
+    console.log('[getCurrentUserRoleAndTenant] 用户元数据:', user.user_metadata)
 
-    // 查询 role 和 tenant_id
-    const {data, error} = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).maybeSingle()
+    // 从 user_metadata 获取租户ID和角色
+    const tenant_id = user.user_metadata?.tenant_id || null
+    const role = user.user_metadata?.role || null
 
-    if (error) {
-      console.error('[getCurrentUserRoleAndTenant] 查询失败:', error)
+    if (!role) {
+      console.warn('[getCurrentUserRoleAndTenant] 用户元数据中没有角色信息')
       return null
     }
 
-    if (!data) {
-      console.warn('[getCurrentUserRoleAndTenant] 用户档案不存在，用户ID:', user.id)
-      return null
-    }
-
-    console.log('[getCurrentUserRoleAndTenant] 成功获取:', {role: data.role, tenant_id: data.tenant_id})
-    return {role: data.role, tenant_id: data.tenant_id}
+    console.log('[getCurrentUserRoleAndTenant] 成功获取:', {role, tenant_id})
+    return {role, tenant_id}
   } catch (error) {
     console.error('[getCurrentUserRoleAndTenant] 未预期的错误:', error)
     return null

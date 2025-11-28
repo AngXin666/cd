@@ -6,7 +6,46 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：修复租户用户登录失败问题！✅
+**最新更新**：彻底修复租户用户登录和角色获取问题！✅
+
+### 修复39：修复无限递归和用户档案获取失败问题 ✅ 已完成
+- ✅ **问题现象**：
+  - 租户用户登录后报错：`infinite recursion detected in policy for relation "profiles"`
+  - 用户档案数据为空：`{id: undefined, phone: undefined, role: undefined}`
+  - 显示"角色不存在"错误
+- ✅ **问题根源**：
+  1. **无限递归问题**：
+     - `getCurrentUserRoleAndTenant` 函数直接查询 `public.profiles` 表
+     - `public.profiles` 表的 RLS 策略在检查超级管理员权限时，又查询了 `public.profiles` 表
+     - 导致无限递归：查询 → RLS 检查 → 查询 → RLS 检查 → ...
+  2. **用户档案为空问题**：
+     - `get_current_user_profile` 函数尝试从 `tenants` 表查询 `schema_name`
+     - 但查询逻辑有问题，导致无法获取正确的 Schema 名称
+     - 用户元数据中已经包含了 `schema_name` 信息，但函数没有使用
+- ✅ **解决方案**：
+  1. **修复无限递归**：
+     - 修改 `getCurrentUserRoleAndTenant` 函数
+     - 不再查询 `profiles` 表，直接从 `user_metadata` 获取角色和租户ID
+     - 避免触发 RLS 策略检查
+  2. **修复用户档案获取**：
+     - 修改 `get_current_user_profile` 函数
+     - 直接从 `user_metadata` 获取 `schema_name`
+     - 简化查询逻辑，提高可靠性
+     - 添加详细的日志记录（使用 RAISE NOTICE）
+- ✅ **修改内容**：
+  1. 更新 `src/db/api.ts` 中的 `getCurrentUserRoleAndTenant` 函数：
+     - 从 `user.user_metadata` 获取 `role` 和 `tenant_id`
+     - 移除对 `profiles` 表的查询
+     - 添加详细的日志记录
+  2. 创建并应用新迁移 `fix_get_current_user_profile_use_metadata_schema.sql`：
+     - 重新定义 `get_current_user_profile` 函数
+     - 使用 `raw_user_meta_data->>'schema_name'` 获取 Schema 名称
+     - 添加详细的 RAISE NOTICE 日志
+- ✅ **预期效果**：
+  - 租户用户可以正常登录
+  - 不再出现无限递归错误
+  - 用户档案信息正确获取
+  - 角色信息正确显示
 
 ### 修复38：修复 get_current_user_profile 函数中的 schema_name 歧义问题 ✅ 已完成
 - ✅ **问题现象**：
