@@ -43,6 +43,24 @@ else
     echo "  ℹ️  node_modules/.cache 目录不存在"
 fi
 
+# 清理 .taro-cache 目录
+if [ -d ".taro-cache" ]; then
+    echo "  清理 .taro-cache 目录..."
+    rm -rf .taro-cache
+    echo "  ✅ .taro-cache 目录已清理"
+else
+    echo "  ℹ️  .taro-cache 目录不存在"
+fi
+
+# 清理 node_modules/.vite 目录
+if [ -d "node_modules/.vite" ]; then
+    echo "  清理 node_modules/.vite 目录..."
+    rm -rf node_modules/.vite
+    echo "  ✅ node_modules/.vite 目录已清理"
+else
+    echo "  ℹ️  node_modules/.vite 目录不存在"
+fi
+
 echo ""
 echo "✅ 缓存清理完成！"
 echo ""
