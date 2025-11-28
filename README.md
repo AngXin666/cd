@@ -6,7 +6,36 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：修复创建租户失败问题！✅
+**最新更新**：彻底修复创建租户失败问题！✅
+
+### 修复37：给现有租户的 profiles 表添加 role 列 ✅ 已完成
+- ✅ **问题现象**：
+  - 创建租户时仍然报错：`column "role" of relation "profiles" does not exist`
+  - 即使更新了函数，错误依然存在
+- ✅ **问题根源**：
+  - 现有租户（`tenant_001`）的 profiles 表是用旧版本的 Schema 创建的
+  - 旧版本的表结构**没有 role 列**
+  - 新租户会从 `tenant_001` 克隆表结构，导致新租户也没有 role 列
+- ✅ **解决方案**：
+  1. **给现有租户添加 role 列**：
+     - 遍历所有现有租户的 Schema
+     - 检查 profiles 表是否有 role 列
+     - 如果没有，添加 role 列（TEXT 类型，默认值 'driver'）
+     - 添加 CHECK 约束限制角色值
+     - 创建索引提升查询性能
+  2. **确保未来租户正确**：
+     - `create_tenant_schema` 函数已包含 role 列定义
+     - 克隆功能会正确复制 role 列
+- ✅ **修改内容**：
+  1. 创建并应用新迁移 `add_role_column_to_existing_tenant_profiles.sql`：
+     - 使用 DO 块遍历所有租户
+     - 动态添加 role 列
+     - 添加约束和索引
+     - 添加列注释
+- ✅ **预期效果**：
+  - 现有租户的 profiles 表有 role 列
+  - 新创建的租户会从正确的模板克隆
+  - 创建租户功能完全正常
 
 ### 修复36：修复 insert_tenant_profile 函数的角色类型问题 ✅ 已完成
 - ✅ **问题现象**：
