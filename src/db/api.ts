@@ -6220,11 +6220,11 @@ export async function createNotificationForAllManagers(notification: {
 
     logger.info('发送者信息', {senderId, senderName, senderRole})
 
-    // 获取所有车队长和老板
+    // 获取所有车队长、老板和平级账号
     const {data: managers, error: managersError} = await supabase
       .from('profiles')
       .select('id')
-      .in('role', ['manager', 'super_admin'])
+      .in('role', ['manager', 'super_admin', 'lease_admin', 'peer_admin'])
 
     if (managersError) {
       logger.error('获取管理员列表失败', managersError)
@@ -6236,7 +6236,7 @@ export async function createNotificationForAllManagers(notification: {
       return 0
     }
 
-    logger.info('找到管理员', {count: managers.length})
+    logger.info('找到管理员', {count: managers.length, managers})
 
     // 为每个管理员创建通知
     const notifications = managers.map((manager) => ({
@@ -6251,13 +6251,15 @@ export async function createNotificationForAllManagers(notification: {
       is_read: false
     }))
 
+    logger.info('准备批量创建通知', {notifications})
+
     // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
     const {data, error} = await supabase.rpc('create_notifications_batch', {
       notifications: notifications
     })
 
     if (error) {
-      logger.error('批量创建通知失败', error)
+      logger.error('批量创建通知失败', {error, errorMessage: error.message, errorDetails: error.details})
       return 0
     }
 
