@@ -23,6 +23,7 @@ import {
   getWarehouseManagers,
   insertManagerWarehouseAssignment,
   insertWarehouseAssignment,
+  syncAuthUsersToProfiles,
   updateProfile
 } from '@/db/api'
 import {createNotifications} from '@/db/notificationApi'
@@ -373,6 +374,54 @@ const UserManagement: React.FC = () => {
     if (showSearch) {
       // 收起时清空搜索关键词
       setSearchKeyword('')
+    }
+  }
+
+  // 同步已存在的用户
+  const handleSyncUsers = async () => {
+    // 二次确认
+    const result = await Taro.showModal({
+      title: '同步用户',
+      content: '此操作将为数据库中已存在但未创建档案的用户自动创建档案。确定要继续吗？',
+      confirmText: '确定',
+      cancelText: '取消'
+    })
+
+    if (!result.confirm) {
+      return
+    }
+
+    showLoading({title: '同步中...'})
+
+    try {
+      const syncResult = await syncAuthUsersToProfiles()
+
+      Taro.hideLoading()
+
+      if (syncResult.success) {
+        if (syncResult.syncedCount === 0) {
+          showToast({title: '没有需要同步的用户', icon: 'none', duration: 2000})
+        } else {
+          // 显示同步结果
+          const userList = syncResult.users.map((u) => `${u.name}（${u.phone}）`).join('\n')
+          await Taro.showModal({
+            title: '同步成功',
+            content: `成功同步 ${syncResult.syncedCount} 个用户：\n\n${userList}`,
+            showCancel: false,
+            confirmText: '知道了'
+          })
+
+          // 刷新用户列表
+          onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS])
+          loadUsers(true)
+        }
+      } else {
+        showToast({title: syncResult.error || '同步失败', icon: 'error', duration: 3000})
+      }
+    } catch (error) {
+      Taro.hideLoading()
+      console.error('同步用户失败', error)
+      showToast({title: '同步失败，请重试', icon: 'error'})
     }
   }
 
@@ -1129,12 +1178,18 @@ const UserManagement: React.FC = () => {
 
           {/* 添加用户按钮（仅在司机管理标签页显示） */}
           {activeTab === 'driver' && (
-            <View className="mb-4">
+            <View className="mb-4 flex gap-2">
               <View
                 onClick={toggleAddUser}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg py-3 px-4 flex items-center justify-center shadow-md active:scale-98 transition-all">
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg py-3 px-4 flex items-center justify-center shadow-md active:scale-98 transition-all">
                 <View className={`${showAddUser ? 'i-mdi-close' : 'i-mdi-plus'} text-white text-base mr-1`} />
                 <Text className="text-white text-xs font-medium">{showAddUser ? '取消' : '添加用户'}</Text>
+              </View>
+              <View
+                onClick={handleSyncUsers}
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 rounded-lg py-3 px-4 flex items-center justify-center shadow-md active:scale-98 transition-all">
+                <View className="i-mdi-sync text-white text-base mr-1" />
+                <Text className="text-white text-xs font-medium">同步用户</Text>
               </View>
             </View>
           )}
