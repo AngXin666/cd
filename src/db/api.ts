@@ -3493,50 +3493,75 @@ export async function getAllUsers(): Promise<Profile[]> {
     return []
   }
 
-  // 获取当前用户的 profile 信息
-  const {data: currentProfile} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+  // 从 user_metadata 获取租户信息
+  const tenantId = user.user_metadata?.tenant_id
+  const userRole = user.user_metadata?.role
 
-  console.log('👤 当前登录用户:', currentProfile)
+  console.log('👤 当前登录用户:', {
+    id: user.id,
+    phone: user.phone,
+    role: userRole,
+    tenant_id: tenantId
+  })
 
-  // 构建查询
-  let query = supabase.from('profiles').select('*')
+  // 如果有租户 ID，说明是租户用户，从租户 Schema 查询
+  if (tenantId) {
+    console.log(`🏢 租户用户登录，从租户 Schema 查询用户列表`)
+    console.log(`   租户 ID: ${tenantId}`)
 
-  // 如果是系统超级管理员（tenant_id 为 NULL），只显示系统级用户
-  if (currentProfile?.role === 'super_admin' && currentProfile?.tenant_id === null) {
-    console.log('🔐 系统超级管理员登录，只显示系统级用户（tenant_id 为 NULL）')
-    query = query.is('tenant_id', null)
+    try {
+      // 调用 RPC 函数从租户 Schema 查询
+      const {data: tenantUsers, error} = await supabase.rpc('get_tenant_users', {
+        p_tenant_id: tenantId
+      })
+
+      if (error) {
+        console.error('❌ 从租户 Schema 获取用户列表失败:', error)
+        return []
+      }
+
+      if (!tenantUsers || !Array.isArray(tenantUsers)) {
+        console.log('📦 租户 Schema 中没有用户数据')
+        return []
+      }
+
+      console.log('📦 getAllUsers: 从租户 Schema 获取到的数据:')
+      console.log(`   总数: ${tenantUsers.length}`)
+
+      // 转换租户 Profile 为标准 Profile 格式
+      const profiles: Profile[] = tenantUsers.map((tp: TenantProfile) => convertTenantProfileToProfile(tp))
+
+      console.log('✅ 转换后的用户列表:')
+      profiles.forEach((p, index) => {
+        console.log(`   ${index + 1}. ${p.name}:`)
+        console.log(`      - id: ${p.id}`)
+        console.log(`      - role: ${p.role}`)
+        console.log(`      - phone: ${p.phone}`)
+      })
+
+      return profiles
+    } catch (err) {
+      console.error('❌ 查询租户用户异常:', err)
+      return []
+    }
   }
-  // 如果是租户老板（tenant_id 不为 NULL），只显示同租户的用户
-  else if (currentProfile?.tenant_id !== null) {
-    console.log(`🏢 租户用户登录，只显示租户 ${currentProfile?.tenant_id} 的用户`)
-    query = query.eq('tenant_id', currentProfile?.tenant_id)
-  }
 
-  const {data, error} = await query.order('created_at', {ascending: false})
+  // 否则是中央管理员，从 public.profiles 查询
+  console.log('🔐 中央管理员登录，从 public.profiles 查询')
+
+  const {data, error} = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'super_admin')
+    .order('created_at', {ascending: false})
 
   if (error) {
     console.error('❌ 获取用户列表失败:', error)
     return []
   }
 
-  console.log('📦 getAllUsers: 从数据库获取到的原始数据:')
+  console.log('📦 getAllUsers: 从 public.profiles 获取到的数据:')
   console.log(`   总数: ${data?.length || 0}`)
-  console.log(JSON.stringify(data, null, 2))
-
-  // 检查每个用户的 vehicle_plate 字段
-  if (Array.isArray(data)) {
-    const drivers = data.filter((u) => u.role === 'driver')
-    console.log(`🚗 getAllUsers: 发现 ${drivers.length} 个司机用户`)
-    drivers.forEach((driver, index) => {
-      console.log(`   ${index + 1}. ${driver.name}:`)
-      console.log(`      - id: ${driver.id}`)
-      console.log(`      - role: ${driver.role}`)
-      console.log(
-        `      - vehicle_plate: ${driver.vehicle_plate === null ? '(null)' : driver.vehicle_plate === '' ? '(空字符串)' : driver.vehicle_plate}`
-      )
-      console.log(`      - vehicle_plate 类型: ${typeof driver.vehicle_plate}`)
-    })
-  }
 
   return Array.isArray(data) ? data : []
 }
