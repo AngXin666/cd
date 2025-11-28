@@ -390,14 +390,73 @@ export async function getProfileById(id: string): Promise<Profile | null> {
 }
 
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
-  const {error} = await supabase.from('profiles').update(updates).eq('id', id)
+  console.log('🔄 updateProfile: 开始更新用户档案')
+  console.log('  - 用户 ID:', id)
+  console.log('  - 更新内容:', updates)
 
-  if (error) {
-    console.error('更新用户档案失败:', error)
+  try {
+    // 获取当前登录用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('❌ 用户未登录')
+      return false
+    }
+
+    // 从 user_metadata 获取租户信息
+    const tenantId = user.user_metadata?.tenant_id
+
+    console.log('👤 当前登录用户:')
+    console.log('  - 用户 ID:', user.id)
+    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
+
+    // 如果是租户用户，使用 RPC 函数更新租户 Schema
+    if (tenantId) {
+      console.log('  - 目标：租户 Schema')
+      console.log('  - 使用函数: update_tenant_user')
+
+      const {data, error} = await supabase.rpc('update_tenant_user', {
+        p_tenant_id: tenantId,
+        p_user_id: id,
+        p_name: updates.name || null,
+        p_phone: updates.phone || null,
+        p_email: updates.email || null,
+        p_role: updates.role || null,
+        p_permission_type: updates.permission_type || null,
+        p_vehicle_plate: updates.vehicle_plate || null,
+        p_warehouse_ids: updates.warehouse_ids || null,
+        p_status: updates.status || null
+      })
+
+      if (error) {
+        console.error('❌ 更新租户用户档案失败:', error)
+        return false
+      }
+
+      console.log('✅ 租户用户档案更新成功')
+      console.log('  - 更新后数据:', data)
+      return true
+    }
+
+    // 否则是中央管理员，直接更新 public.profiles
+    console.log('  - 目标：public.profiles')
+    console.log('  - 当前用户是中央管理员')
+
+    const {error} = await supabase.from('profiles').update(updates).eq('id', id)
+
+    if (error) {
+      console.error('❌ 更新用户档案失败:', error)
+      return false
+    }
+
+    console.log('✅ 用户档案更新成功')
+    return true
+  } catch (error) {
+    console.error('❌ 更新用户档案异常:', error)
     return false
   }
-
-  return true
 }
 
 /**

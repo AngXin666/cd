@@ -86,6 +86,9 @@ export interface ProfileUpdate {
   join_date?: string
   role?: UserRole
   driver_type?: DriverType | null // 司机类型
+  permission_type?: string // 权限类型
+  warehouse_ids?: string[] | null // 仓库 ID 数组
+  status?: string // 状态
 }
 
 // 考勤状态类型
