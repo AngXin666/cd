@@ -18,7 +18,7 @@ export default function TenantCreatePage() {
     company_name: '',
     boss_name: '',
     boss_phone: '',
-    boss_account: '',
+    boss_account: '', // 将自动生成，不需要用户输入
     boss_password: ''
   })
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -107,6 +107,13 @@ export default function TenantCreatePage() {
   const updateField = (field: keyof CreateTenantInput, value: string) => {
     setFormData((prev) => {
       const newData = {...prev, [field]: value}
+
+      // 如果修改的是手机号，自动生成登录账号
+      if (field === 'boss_phone') {
+        // 使用手机号作为账号前缀，格式：手机号@fleet.com
+        newData.boss_account = value ? `${value}@fleet.com` : ''
+      }
+
       // 延迟保存草稿，避免频繁写入
       setTimeout(() => {
         try {
@@ -165,16 +172,7 @@ export default function TenantCreatePage() {
       return false
     }
 
-    if (!formData.boss_account?.trim()) {
-      Taro.showToast({title: '请输入登录账号', icon: 'none'})
-      return false
-    }
-
-    // 验证登录账号格式（只允许字母、数字、下划线，4-20位）
-    if (!/^[a-zA-Z0-9_]{4,20}$/.test(formData.boss_account)) {
-      Taro.showToast({title: '登录账号格式不正确（4-20位字母、数字或下划线）', icon: 'none'})
-      return false
-    }
+    // 账号会自动根据手机号生成，不需要验证
 
     if (!formData.boss_password.trim()) {
       Taro.showToast({title: '请输入登录密码', icon: 'none'})
@@ -408,19 +406,15 @@ export default function TenantCreatePage() {
         <View className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <Text className="text-lg font-bold text-gray-800 block mb-4">登录信息</Text>
 
+          {/* 自动生成的登录账号（只读显示） */}
           <View className="mb-4">
-            <Text className="text-sm text-gray-600 block mb-2">
-              登录账号 <Text className="text-red-500">*</Text>
-            </Text>
-            <View style={{overflow: 'hidden'}}>
-              <Input
-                className="w-full border border-border rounded px-3 py-2 text-base"
-                placeholder="请输入登录账号（4-20位字母、数字或下划线）"
-                value={formData.boss_account}
-                onInput={(e) => updateField('boss_account', e.detail.value)}
-              />
+            <Text className="text-sm text-gray-600 block mb-2">登录账号</Text>
+            <View className="w-full border border-border rounded px-3 py-2 bg-gray-50">
+              <Text className="text-base text-gray-700">
+                {formData.boss_account || '请先输入手机号，系统将自动生成登录账号'}
+              </Text>
             </View>
-            <Text className="text-xs text-gray-400 block mt-1">用于账号密码登录</Text>
+            <Text className="text-xs text-gray-400 block mt-1">系统自动生成，格式：手机号@fleet.com</Text>
           </View>
 
           <View className="mb-4">
