@@ -1,21 +1,39 @@
 import type {UserRole} from '@/db/types'
 
 /**
- * 检查用户是否为超级管理员（老板或平级管理员）
+ * 检查用户是否为中央管理系统的超级管理员
  * @param role 用户角色
  * @returns 是否为超级管理员
  */
 export function isSuperAdmin(role: UserRole | undefined | null): boolean {
-  return role === 'super_admin' || role === 'peer_admin'
+  return role === 'super_admin'
 }
 
 /**
- * 检查用户是否为管理员（包括老板、平级管理员和车队长）
+ * 检查用户是否为租户的老板
+ * @param role 用户角色
+ * @returns 是否为老板
+ */
+export function isBoss(role: UserRole | undefined | null): boolean {
+  return role === 'boss'
+}
+
+/**
+ * 检查用户是否为租户管理员（老板或平级管理员）
+ * @param role 用户角色
+ * @returns 是否为租户管理员
+ */
+export function isTenantAdmin(role: UserRole | undefined | null): boolean {
+  return role === 'boss' || role === 'peer_admin'
+}
+
+/**
+ * 检查用户是否为管理员（包括超级管理员、老板、平级管理员和车队长）
  * @param role 用户角色
  * @returns 是否为管理员
  */
 export function isManager(role: UserRole | undefined | null): boolean {
-  return role === 'super_admin' || role === 'peer_admin' || role === 'manager'
+  return role === 'super_admin' || role === 'boss' || role === 'peer_admin' || role === 'manager'
 }
 
 /**
@@ -27,15 +45,20 @@ export function isManager(role: UserRole | undefined | null): boolean {
 export function canManageUser(managerRole: UserRole | undefined | null, targetRole: UserRole): boolean {
   if (!managerRole) return false
 
-  // super_admin 可以管理所有角色
+  // super_admin（中央管理系统）可以管理所有角色
   if (managerRole === 'super_admin') return true
 
-  // peer_admin 可以管理 driver 和 manager，但不能管理 super_admin 和其他 peer_admin
+  // boss（租户老板）可以管理租户内的所有角色（peer_admin, manager, driver）
+  if (managerRole === 'boss') {
+    return targetRole === 'peer_admin' || targetRole === 'manager' || targetRole === 'driver'
+  }
+
+  // peer_admin（平级管理员）可以管理 driver 和 manager，但不能管理 boss 和其他 peer_admin
   if (managerRole === 'peer_admin') {
     return targetRole === 'driver' || targetRole === 'manager'
   }
 
-  // manager 不能管理任何人
+  // manager（车队长）只能查看，不能管理
   return false
 }
 
@@ -64,12 +87,17 @@ export function getRoleDisplayName(role: UserRole): string {
 export function getCreatableRoles(currentRole: UserRole | undefined | null): UserRole[] {
   if (!currentRole) return []
 
-  // super_admin 可以创建所有角色（除了 lease_admin）
+  // super_admin（中央管理系统）只能创建租户，不能直接创建用户
   if (currentRole === 'super_admin') {
+    return []
+  }
+
+  // boss（租户老板）可以创建租户内的所有角色
+  if (currentRole === 'boss') {
     return ['peer_admin', 'manager', 'driver']
   }
 
-  // peer_admin 只能创建 driver 和 manager
+  // peer_admin（平级管理员）只能创建 driver 和 manager
   if (currentRole === 'peer_admin') {
     return ['manager', 'driver']
   }
