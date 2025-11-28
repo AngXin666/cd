@@ -193,7 +193,13 @@ export default function TestAccountsPage() {
   }
 
   const handleBack = () => {
-    Taro.navigateBack()
+    // 尝试返回上一页，如果失败则跳转到租户管理页面
+    const pages = Taro.getCurrentPages()
+    if (pages.length > 1) {
+      Taro.navigateBack()
+    } else {
+      Taro.redirectTo({url: '/pages/central-admin/tenants/index'})
+    }
   }
 
   return (
