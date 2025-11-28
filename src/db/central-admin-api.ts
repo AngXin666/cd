@@ -99,17 +99,25 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
     console.log('🚀 开始创建租户:', input.company_name)
 
     // 获取访问令牌
-    const {
-      data: {session}
-    } = await supabase.auth.getSession()
+    const sessionResult = await supabase.auth.getSession()
+    console.log('📋 Session 获取结果:', {
+      hasData: !!sessionResult.data,
+      hasSession: !!sessionResult.data?.session,
+      hasError: !!sessionResult.error
+    })
+
+    const {session} = sessionResult.data
 
     if (!session) {
-      console.error('❌ 未登录')
+      console.error('❌ 未登录 - session 为空')
+      console.error('Session 详情:', sessionResult)
       return {
         success: false,
-        error: '未登录，请先登录'
+        error: '登录状态已过期，请重新登录'
       }
     }
+
+    console.log('✅ Session 有效，准备调用 Edge Function')
 
     // 使用 fetch 直接调用 Edge Function，以便获取详细错误信息
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
