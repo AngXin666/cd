@@ -6,7 +6,52 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：彻底修复多租户数据隔离问题！✅
+**最新更新**：修复租户删除不完整问题！✅
+
+### 修复43：修复租户删除不完整问题 ✅ 已完成
+- ✅ **问题现象**：
+  - 删除租户时，只是在中央管理系统中不可见
+  - 租户 Schema 中的数据没有被删除
+  - auth.users 中的用户记录没有被删除
+  - 租户 Schema 本身没有被删除
+  - 导致数据残留，无法真正删除租户
+- ✅ **问题根源**：
+  - 旧的删除逻辑只删除了 `tenants` 表中的记录
+  - 只删除了老板账号（boss_user_id）的 auth.users 记录
+  - 没有删除租户 Schema 中的其他用户（司机、车队长等）
+  - 没有删除租户 Schema 本身
+- ✅ **解决方案**：
+  1. **创建完整删除 RPC 函数**：
+     - 创建 `delete_tenant_completely(p_tenant_id)` RPC 函数
+     - 查询租户信息（从 `tenants` 表）
+     - 遍历租户 Schema 中的所有用户，删除 auth.users 记录
+     - 删除租户 Schema 本身（包括所有表和数据）
+     - 删除 `tenants` 表中的租户记录
+  2. **更新 Edge Function**：
+     - 修改 `delete-tenant` Edge Function
+     - 使用新的 `delete_tenant_completely` RPC 函数
+     - 返回详细的删除信息（删除的用户数、Schema 名称等）
+- ✅ **修改内容**：
+  1. 创建并应用迁移 `create_delete_tenant_function.sql`：
+     - 创建 `delete_tenant_completely` RPC 函数
+     - 使用 `SECURITY DEFINER` 权限
+     - 使用 `format()` 函数动态构造 SQL
+     - 使用 `DROP SCHEMA ... CASCADE` 删除 Schema 及其所有数据
+  2. 更新 `supabase/functions/delete-tenant/index.ts`：
+     - 简化删除逻辑，调用 `delete_tenant_completely` RPC
+     - 返回详细的删除结果
+     - 添加详细的日志记录
+  3. 部署更新后的 Edge Function
+- ✅ **预期效果**：
+  - 删除租户时，完整删除所有相关数据
+  - 删除租户 Schema 中的所有用户的 auth.users 记录
+  - 删除租户 Schema 本身（包括所有表和数据）
+  - 删除 `tenants` 表中的租户记录
+  - 数据完全清理，不留残留
+- ⚠️ **注意事项**：
+  - 删除操作不可逆，请谨慎操作
+  - 删除前请确认租户信息
+  - 建议在删除前备份重要数据
 
 ### 修复42：彻底修复多租户数据隔离问题 ✅ 已完成
 - ✅ **问题现象**：

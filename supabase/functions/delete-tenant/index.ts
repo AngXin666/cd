@@ -79,62 +79,17 @@ Deno.serve(async req => {
 
     console.log('🗑️ 开始删除租户:', tenantId)
 
-    // 1. 获取租户信息
-    const {data: tenant, error: tenantError} = await supabase
-      .from('tenants')
-      .select('*')
-      .eq('id', tenantId)
-      .maybeSingle()
-
-    if (tenantError || !tenant) {
-      console.error('❌ 租户不存在:', tenantError)
-      return new Response(
-        JSON.stringify({success: false, error: '租户不存在'}),
-        {
-          status: 404,
-          headers: {...corsHeaders, 'Content-Type': 'application/json'}
-        }
-      )
-    }
-
-    console.log('✅ 租户信息:', tenant)
-
-    // 2. 删除老板账号
-    if (tenant.boss_user_id) {
-      const {error: authDeleteError} = await supabase.auth.admin.deleteUser(tenant.boss_user_id)
-      if (authDeleteError) {
-        console.error('❌ 删除老板账号失败:', authDeleteError)
-        // 继续执行，不中断
-      } else {
-        console.log('✅ 老板账号删除成功')
-      }
-    }
-
-    // 3. 删除 Schema（会删除所有表和数据）
-    if (tenant.schema_name) {
-      const {data: schemaResult, error: schemaError} = await supabase.rpc('delete_tenant_schema', {
-        p_schema_name: tenant.schema_name
-      })
-
-      if (schemaError || !schemaResult?.success) {
-        console.error('❌ 删除 Schema 失败:', schemaError || schemaResult?.error)
-        // 继续执行，不中断
-      } else {
-        console.log('✅ Schema 删除成功')
-      }
-    } else {
-      console.log('ℹ️ 租户没有 Schema，跳过删除')
-    }
-
-    // 4. 删除租户记录
-    const {error: deleteError} = await supabase.from('tenants').delete().eq('id', tenantId)
+    // 使用新的 RPC 函数完整删除租户
+    const {data: deleteResult, error: deleteError} = await supabase.rpc('delete_tenant_completely', {
+      p_tenant_id: tenantId
+    })
 
     if (deleteError) {
-      console.error('❌ 删除租户记录失败:', deleteError)
+      console.error('❌ 删除租户失败:', deleteError)
       return new Response(
         JSON.stringify({
           success: false,
-          error: '删除租户记录失败: ' + deleteError.message
+          error: '删除租户失败: ' + deleteError.message
         }),
         {
           status: 500,
@@ -143,12 +98,30 @@ Deno.serve(async req => {
       )
     }
 
-    console.log('✅ 租户删除成功')
+    if (!deleteResult || !deleteResult.success) {
+      console.error('❌ 删除租户失败:', deleteResult?.error)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: deleteResult?.error || '删除租户失败'
+        }),
+        {
+          status: 500,
+          headers: {...corsHeaders, 'Content-Type': 'application/json'}
+        }
+      )
+    }
+
+    console.log('✅ 租户删除成功:', deleteResult)
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: '租户删除成功'
+        message: deleteResult.message,
+        deletedUsers: deleteResult.deleted_users,
+        deletedSchema: deleteResult.deleted_schema,
+        tenantCode: deleteResult.tenant_code,
+        companyName: deleteResult.company_name
       }),
       {
         status: 200,
