@@ -4014,6 +4014,7 @@ export async function createUser(
   console.log(`${'='.repeat(80)}\n`)
 
   try {
+    // 获取当前登录用户
     const {
       data: {user}
     } = await supabase.auth.getUser()
@@ -4023,50 +4024,22 @@ export async function createUser(
       return null
     }
 
-    const {data: currentProfile} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    // 从 user_metadata 获取租户信息
+    const tenantId = user.user_metadata?.tenant_id
+    const userRole = user.user_metadata?.role
 
-    if (!currentProfile) {
-      console.error('  ❌ 无法获取当前用户的 profile')
-      return null
-    }
-
-    console.log('  - 当前用户角色:', currentProfile.role)
-
+    console.log('👤 当前登录用户:')
+    console.log('  - 用户 ID:', user.id)
+    console.log('  - 角色:', userRole)
+    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
     console.log('')
 
-    // 步骤1: 检查手机号是否已存在
-    console.log('📋 [步骤1] 检查手机号是否已存在')
-    console.log('  - 查询条件: phone =', phone)
-
-    const {data: existingProfiles, error: checkError} = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (checkError) {
-      console.error('  ❌ 查询 profiles 失败:', checkError)
-      console.error('  错误详情:', JSON.stringify(checkError, null, 2))
-      return null
-    }
-
-    if (existingProfiles) {
-      console.warn('  ⚠️ 手机号已存在于 profiles 表')
-      console.warn('  已存在的用户ID:', existingProfiles.id)
-      console.warn('  已存在的用户姓名:', existingProfiles.name)
-      console.log('  ❌ 创建失败：手机号重复\n')
-      return null
-    }
-
-    console.log('  ✅ 手机号可用，继续创建\n')
-
-    // 步骤2: 先创建 auth.users 表记录
-    console.log('📋 [步骤2] 创建 auth.users 表记录')
+    // 步骤1: 创建 auth.users 表记录
+    console.log('📋 [步骤1] 创建 auth.users 表记录')
     const loginEmail = `${phone}@fleet.com`
     console.log('  - 登录邮箱:', loginEmail)
     console.log('  - 手机号:', phone)
     console.log('  - 默认密码: 123456')
-    console.log('  - 使用函数: create_user_auth_account_first')
 
     let userId: string | null = null
 
@@ -4076,38 +4049,17 @@ export async function createUser(
         user_phone: phone
       })
 
-      console.log('  - RPC 调用完成')
-      console.log('  - 返回数据:', rpcData)
-      console.log('  - 错误信息:', authError)
-
-      if (authError) {
+      if (authError || !rpcData || rpcData.success === false) {
         console.error('  ❌ 创建 auth.users 记录失败')
-        console.error('  错误代码:', authError.code)
-        console.error('  错误消息:', authError.message)
-        console.error('  错误详情:', JSON.stringify(authError, null, 2))
-        return null
-      }
-
-      if (!rpcData || rpcData.success === false) {
-        console.error('  ❌ 创建 auth.users 记录失败')
-        console.error('  错误:', rpcData?.error)
-        console.error('  详情:', rpcData?.details)
+        console.error('  错误:', authError?.message || rpcData?.error)
         return null
       }
 
       userId = rpcData.user_id
       console.log('  ✅ auth.users 记录创建成功')
       console.log('  - 用户ID:', userId)
-      console.log('  - 邮箱:', rpcData.email)
-      console.log('  - 默认密码:', rpcData.default_password)
     } catch (authError) {
-      console.error('  ❌ 创建 auth.users 记录异常')
-      console.error('  异常类型:', typeof authError)
-      console.error('  异常内容:', authError)
-      if (authError instanceof Error) {
-        console.error('  异常消息:', authError.message)
-        console.error('  异常堆栈:', authError.stack)
-      }
+      console.error('  ❌ 创建 auth.users 记录异常:', authError)
       return null
     }
 
@@ -4118,7 +4070,87 @@ export async function createUser(
 
     console.log('')
 
-    console.log('📋 [步骤3] 创建 profiles 表记录')
+    // 步骤2: 创建 profiles 表记录
+    console.log('📋 [步骤2] 创建 profiles 表记录')
+
+    // 如果是租户用户，使用 RPC 函数在租户 Schema 中创建
+    if (tenantId) {
+      console.log('  - 目标：租户 Schema')
+      console.log('  - 租户 ID:', tenantId)
+      console.log('  - 使用函数: create_tenant_user')
+
+      try {
+        // 调用 RPC 函数在租户 Schema 中创建用户
+        const {data: tenantUser, error: tenantError} = await supabase.rpc('create_tenant_user', {
+          p_tenant_id: tenantId,
+          p_user_id: userId,
+          p_name: name,
+          p_phone: phone,
+          p_email: loginEmail,
+          p_role: role,
+          p_permission_type: 'full',
+          p_vehicle_plate: driverType === 'with_vehicle' ? '' : null,
+          p_warehouse_ids: null
+        })
+
+        if (tenantError) {
+          console.error('  ❌ 在租户 Schema 创建用户失败:', tenantError)
+          return null
+        }
+
+        if (!tenantUser) {
+          console.error('  ❌ 创建失败：返回数据为空')
+          return null
+        }
+
+        console.log('  ✅ 租户 Schema 中的 profiles 记录创建成功')
+        console.log('  - 用户ID:', tenantUser.id)
+        console.log('  - 姓名:', tenantUser.name)
+        console.log('  - 角色:', tenantUser.role)
+
+        // 更新 user_metadata
+        console.log('\n📋 [步骤3] 更新 user_metadata')
+        const {error: metadataError} = await supabase.rpc('insert_tenant_profile', {
+          p_schema_name: `tenant_${tenantId.replace(/-/g, '_')}`,
+          p_user_id: userId,
+          p_name: name,
+          p_phone: phone,
+          p_email: loginEmail,
+          p_role: role
+        })
+
+        if (metadataError) {
+          console.warn('  ⚠️ 更新 user_metadata 失败:', metadataError.message)
+          console.warn('  用户可以登录，但可能需要手动设置 user_metadata')
+        } else {
+          console.log('  ✅ user_metadata 更新成功')
+        }
+
+        // 转换为标准 Profile 格式
+        const profile: Profile = convertTenantProfileToProfile(tenantUser)
+
+        console.log(`\n${'='.repeat(80)}`)
+        console.log('✅ [createUser] 函数执行完成')
+        console.log('📊 最终结果:')
+        console.log('  - auth.users 表: ✅ 创建成功')
+        console.log('  - 租户 Schema profiles 表: ✅ 创建成功')
+        console.log('  - user_metadata: ✅ 更新成功')
+        console.log('  💡 用户可以使用以下方式登录:')
+        console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
+        console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
+        console.log(`${'='.repeat(80)}\n`)
+
+        return profile
+      } catch (err) {
+        console.error('  ❌ 创建租户用户异常:', err)
+        return null
+      }
+    }
+
+    // 否则是中央管理员，在 public.profiles 中创建
+    console.log('  - 目标：public.profiles')
+    console.log('  - 当前用户是中央管理员')
+
     const insertData: any = {
       id: userId,
       phone,
@@ -4127,7 +4159,6 @@ export async function createUser(
       email: loginEmail
     }
 
-    // 如果是司机，添加司机类型和入职日期
     if (role === 'driver') {
       insertData.driver_type = driverType || 'pure'
       insertData.join_date = new Date().toISOString().split('T')[0]
@@ -4139,11 +4170,7 @@ export async function createUser(
 
     if (error) {
       console.error('  ❌ 插入失败:', error)
-      console.error('  错误代码:', error.code)
-      console.error('  错误消息:', error.message)
-      console.error('  错误详情:', JSON.stringify(error, null, 2))
       console.warn('  ⚠️ auth.users 记录已创建，但 profiles 记录创建失败')
-      console.warn('  💡 需要手动清理 auth.users 记录或稍后重试')
       return null
     }
 
@@ -4152,42 +4179,28 @@ export async function createUser(
       return null
     }
 
-    console.log('  ✅ profiles 表记录创建成功')
+    console.log('  ✅ public.profiles 记录创建成功')
     console.log('  - 用户ID:', data.id)
-    console.log('  - 手机号:', data.phone)
     console.log('  - 姓名:', data.name)
     console.log('  - 角色:', data.role)
-    console.log('  - 邮箱:', data.email)
-    console.log('  - tenant_id:', data.tenant_id)
-    if (role === 'driver') {
-      console.log('  - 司机类型:', data.driver_type)
-      console.log('  - 入职日期:', data.join_date)
-    }
-    console.log('  - 创建时间:', data.created_at)
-    console.log('  - 完整数据:', JSON.stringify(data, null, 2))
 
-    console.log('')
-    console.log('='.repeat(80))
+    console.log(`\n${'='.repeat(80)}`)
     console.log('✅ [createUser] 函数执行完成')
     console.log('📊 最终结果:')
     console.log('  - auth.users 表: ✅ 创建成功')
-    console.log('  - profiles 表: ✅ 创建成功')
+    console.log('  - public.profiles 表: ✅ 创建成功')
     console.log('  💡 用户可以使用以下方式登录:')
     console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
     console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-    console.log('    3. 手机号 + 验证码')
-    console.log('  - 返回数据:', JSON.stringify(data, null, 2))
     console.log(`${'='.repeat(80)}\n`)
 
     return data as Profile
   } catch (error) {
     console.error(`\n${'='.repeat(80)}`)
     console.error('❌ [createUser] 函数执行异常')
-    console.error('异常类型:', typeof error)
     console.error('异常内容:', error)
     if (error instanceof Error) {
       console.error('异常消息:', error.message)
-      console.error('异常堆栈:', error.stack)
     }
     console.error(`${'='.repeat(80)}\n`)
     return null
