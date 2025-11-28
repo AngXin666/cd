@@ -6,7 +6,28 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：修复角色定义，添加 boss 角色！✅
+**最新更新**：修复租户用户角色显示问题！✅
+
+### 修复29：修复租户用户角色显示问题 ✅ 已完成
+- ✅ **问题现象**：创建新租户后，老板登录显示角色为"司机"而不是"老板"
+- ✅ **问题根源**：
+  1. 系统使用租户 Schema 隔离架构，每个租户有独立的 Schema
+  2. Edge Function 在租户 Schema 中创建老板 profile（角色 'boss'）
+  3. `handle_new_user` 触发器在 `public.profiles` 表中也创建了记录（默认角色 'driver'）
+  4. 前端从 `public.profiles` 表查询，得到错误的角色
+- ✅ **解决方案**：
+  1. 修改 `handle_new_user` 触发器，检查 `user_metadata` 中是否有 `tenant_id`
+  2. 如果有 `tenant_id`，跳过在 `public.profiles` 表中创建记录
+  3. 创建 `get_current_user_profile` RPC 函数，自动从正确的 Schema 查询 profile
+  4. 修改前端 `getCurrentUserProfile` 函数，使用新的 RPC 函数
+- ✅ **架构说明**：
+  - **中央管理系统**：使用 `public` Schema，存储超级管理员
+  - **租户系统**：每个租户有独立的 Schema（`tenant_xxx`），存储租户的所有用户和数据
+  - **数据隔离**：租户用户的 profile 只存在于租户 Schema 中，不在 `public.profiles` 表中
+- ✅ **验证结果**：
+  - 租户用户的 profile 只在租户 Schema 中创建
+  - 前端自动从正确的 Schema 查询 profile
+  - 老板登录后显示正确的角色
 
 ### 修复28：修复角色定义，添加 boss 角色 ✅ 已完成
 - ✅ **问题原因**：`user_role` 枚举类型缺少 `boss`（老板）角色

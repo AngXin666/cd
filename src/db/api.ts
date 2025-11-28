@@ -94,8 +94,10 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
 
     console.log('[getCurrentUserProfile] 当前用户ID:', user.id)
     console.log('[getCurrentUserProfile] 当前用户手机号:', user.phone)
+    console.log('[getCurrentUserProfile] 用户元数据:', user.user_metadata)
 
-    const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    // 使用 RPC 函数从正确的 Schema 查询 profile
+    const {data, error} = await supabase.rpc('get_current_user_profile')
 
     if (error) {
       console.error('[getCurrentUserProfile] 查询用户档案失败:', error)
@@ -115,7 +117,7 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
       role: data.role
     })
 
-    return data
+    return data as Profile
   } catch (error) {
     console.error('[getCurrentUserProfile] 未预期的错误:', error)
     return null
