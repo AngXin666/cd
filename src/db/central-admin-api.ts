@@ -93,31 +93,41 @@ async function _generateTenantCode(): Promise<string> {
  *    - 创建老板账号
  *    - 在租户 Schema 中创建老板的 profile 记录
  *    - 更新租户记录，保存老板账号信息
+ *
+ * @param input - 租户创建输入
+ * @param accessToken - 可选的访问令牌，如果提供则使用此令牌，否则从 session 获取
  */
-export async function createTenant(input: CreateTenantInput): Promise<CreateTenantResult> {
+export async function createTenant(input: CreateTenantInput, accessToken?: string): Promise<CreateTenantResult> {
   try {
     console.log('🚀 开始创建租户:', input.company_name)
 
-    // 获取访问令牌
-    const sessionResult = await supabase.auth.getSession()
-    console.log('📋 Session 获取结果:', {
-      hasData: !!sessionResult.data,
-      hasSession: !!sessionResult.data?.session,
-      hasError: !!sessionResult.error
-    })
+    let token = accessToken
 
-    const {session} = sessionResult.data
+    // 如果没有提供 accessToken，则从 session 获取
+    if (!token) {
+      console.log('📋 未提供 accessToken，从 session 获取...')
+      const sessionResult = await supabase.auth.getSession()
+      console.log('📋 Session 获取结果:', {
+        hasData: !!sessionResult.data,
+        hasSession: !!sessionResult.data?.session,
+        hasError: !!sessionResult.error
+      })
 
-    if (!session) {
-      console.error('❌ 未登录 - session 为空')
-      console.error('Session 详情:', sessionResult)
-      return {
-        success: false,
-        error: '登录状态已过期，请重新登录'
+      const {session} = sessionResult.data
+
+      if (!session) {
+        console.error('❌ 未登录 - session 为空')
+        console.error('Session 详情:', sessionResult)
+        return {
+          success: false,
+          error: '登录状态已过期，请重新登录'
+        }
       }
+
+      token = session.access_token
     }
 
-    console.log('✅ Session 有效，准备调用 Edge Function')
+    console.log('✅ Token 有效，准备调用 Edge Function')
 
     // 使用 fetch 直接调用 Edge Function，以便获取详细错误信息
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
@@ -125,7 +135,7 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
+        Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(input)
     })

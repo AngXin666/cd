@@ -6,7 +6,15 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：增强登录状态检查，添加详细调试日志！✅
+**最新更新**：彻底解决登录状态问题，修复 session 重复获取导致的失败！✅
+
+### 修复21：彻底解决创建租户时 session 丢失问题 ✅ 已完成
+- ✅ **根本原因**：在 `handleSubmit` 和 `createTenant` 中重复调用 `getSession()` 导致 session 丢失
+- ✅ **解决方案**：修改 `createTenant` 函数接受 `accessToken` 参数
+- ✅ **优化调用**：在 `handleSubmit` 中获取 session 后直接传入 token
+- ✅ **避免重复**：不再在 `createTenant` 内部重复获取 session
+- ✅ **向后兼容**：`accessToken` 参数为可选，保持 API 兼容性
+- 📝 **日志增强**：添加 token 长度日志，便于调试
 
 ### 修复20：增强登录状态检查和调试 ✅ 已完成
 - ✅ **提交前检查**：在创建租户提交前再次检查登录状态

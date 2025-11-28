@@ -225,13 +225,14 @@ export default function TenantCreatePage() {
       return
     }
 
-    console.log('✅ 提交时登录状态有效')
+    console.log('✅ 提交时登录状态有效，access_token 长度:', session.access_token.length)
 
     setLoading(true)
     Taro.showLoading({title: '创建中...', mask: true})
 
     try {
-      const result = await createTenant(formData)
+      // 传入 accessToken，避免在 createTenant 内部再次获取 session
+      const result = await createTenant(formData, session.access_token)
 
       Taro.hideLoading()
 
