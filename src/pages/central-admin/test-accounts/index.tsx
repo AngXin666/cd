@@ -11,22 +11,20 @@ import {supabase} from '@/client/supabase'
 interface TestAccount {
   id: string
   name: string | null
-  phone: string
-  email: string
+  phone: string | null
+  email: string | null
   role: string
   role_name: string
-  tenant_id: string | null
-  tenant_name: string | null
+  company_name: string | null
 }
 
-interface TenantGroup {
-  tenant_id: string | null
-  tenant_name: string
+interface CompanyGroup {
+  company_name: string
   accounts: TestAccount[]
 }
 
 export default function TestAccountsPage() {
-  const [tenantGroups, setTenantGroups] = useState<TenantGroup[]>([])
+  const [companyGroups, setCompanyGroups] = useState<CompanyGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
@@ -52,69 +50,54 @@ export default function TestAccountsPage() {
     try {
       setLoading(true)
 
-      // 查询所有账号及其关联的租户信息
-      const {data: credentials, error: credError} = await supabase
-        .from('user_credentials')
-        .select(
-          `
-          id,
-          name,
-          phone,
-          email,
-          role,
-          tenant_id,
-          tenants:tenant_id (
-            id,
-            company_name
-          )
-        `
-        )
+      // 从 profiles 表查询所有账号
+      const {data: profiles, error: profileError} = await supabase
+        .from('profiles')
+        .select('id, name, phone, email, role, company_name')
         .order('created_at', {ascending: true})
 
-      if (credError) {
-        console.error('获取账号列表失败', credError)
+      if (profileError) {
+        console.error('获取账号列表失败', profileError)
         Taro.showToast({title: '获取账号列表失败', icon: 'none'})
         return
       }
 
       // 转换数据格式
-      const accounts: TestAccount[] = (credentials || []).map((cred: any) => ({
-        id: cred.id,
-        name: cred.name,
-        phone: cred.phone || '',
-        email: cred.email || '',
-        role: cred.role,
-        role_name: getRoleName(cred.role),
-        tenant_id: cred.tenant_id,
-        tenant_name: cred.tenants?.company_name || null
+      const accounts: TestAccount[] = (profiles || []).map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        phone: profile.phone,
+        email: profile.email,
+        role: profile.role,
+        role_name: getRoleName(profile.role),
+        company_name: profile.company_name
       }))
 
-      // 按租户分组
-      const groupMap = new Map<string, TenantGroup>()
+      // 按公司名称分组
+      const groupMap = new Map<string, CompanyGroup>()
 
       accounts.forEach((account) => {
-        const tenantKey = account.tenant_id || 'no-tenant'
-        const tenantName = account.tenant_name || '未分配租户'
+        const companyKey = account.company_name || 'no-company'
+        const companyName = account.company_name || '未分配公司'
 
-        if (!groupMap.has(tenantKey)) {
-          groupMap.set(tenantKey, {
-            tenant_id: account.tenant_id,
-            tenant_name: tenantName,
+        if (!groupMap.has(companyKey)) {
+          groupMap.set(companyKey, {
+            company_name: companyName,
             accounts: []
           })
         }
 
-        groupMap.get(tenantKey)?.accounts.push(account)
+        groupMap.get(companyKey)?.accounts.push(account)
       })
 
-      // 转换为数组并排序（有租户的在前，未分配的在后）
+      // 转换为数组并排序（有公司的在前，未分配的在后）
       const groups = Array.from(groupMap.values()).sort((a, b) => {
-        if (a.tenant_id === null) return 1
-        if (b.tenant_id === null) return -1
-        return a.tenant_name.localeCompare(b.tenant_name)
+        if (a.company_name === '未分配公司') return 1
+        if (b.company_name === '未分配公司') return -1
+        return a.company_name.localeCompare(b.company_name)
       })
 
-      setTenantGroups(groups)
+      setCompanyGroups(groups)
     } catch (error) {
       console.error('获取账号列表异常', error)
       Taro.showToast({title: '加载失败', icon: 'none'})
@@ -223,7 +206,7 @@ export default function TestAccountsPage() {
           {/* 页面标题 */}
           <View className="mb-4">
             <Text className="text-2xl font-bold text-primary">测试账号管理</Text>
-            <Text className="text-sm text-muted-foreground mt-1">按租户分组显示，方便测试数据隔离</Text>
+            <Text className="text-sm text-muted-foreground mt-1">按公司分组显示，方便测试数据隔离</Text>
           </View>
 
           {/* 当前登录状态 */}
@@ -251,20 +234,20 @@ export default function TestAccountsPage() {
           </View>
 
           {/* 加载状态 */}
-          {loading && tenantGroups.length === 0 && (
+          {loading && companyGroups.length === 0 && (
             <View className="text-center py-8">
               <Text className="text-muted-foreground">加载中...</Text>
             </View>
           )}
 
-          {/* 租户分组列表 */}
-          {tenantGroups.map((group) => (
-            <View key={group.tenant_id || 'no-tenant'} className="mb-6">
-              {/* 租户标题 */}
+          {/* 公司分组列表 */}
+          {companyGroups.map((group) => (
+            <View key={group.company_name} className="mb-6">
+              {/* 公司标题 */}
               <View className="mb-3">
                 <View className="flex items-center">
                   <View className="w-1 h-5 bg-primary rounded mr-2" />
-                  <Text className="text-lg font-bold text-foreground">{group.tenant_name}</Text>
+                  <Text className="text-lg font-bold text-foreground">{group.company_name}</Text>
                   <View className="ml-2 bg-muted px-2 py-0.5 rounded">
                     <Text className="text-xs text-muted-foreground">{group.accounts.length} 个账号</Text>
                   </View>
@@ -300,7 +283,7 @@ export default function TestAccountsPage() {
           ))}
 
           {/* 空状态 */}
-          {!loading && tenantGroups.length === 0 && (
+          {!loading && companyGroups.length === 0 && (
             <View className="text-center py-12">
               <View className="i-mdi-account-off text-6xl text-muted-foreground mb-4" />
               <Text className="text-muted-foreground">暂无测试账号</Text>
