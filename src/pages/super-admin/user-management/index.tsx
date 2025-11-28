@@ -422,6 +422,15 @@ const UserManagement: React.FC = () => {
         })
 
         if (authError || !authData.user) {
+          // 检查是否是重复用户错误
+          const errorMsg = authError?.message || ''
+          if (
+            errorMsg.includes('already') ||
+            errorMsg.includes('duplicate') ||
+            errorMsg.includes('User already registered')
+          ) {
+            throw new Error(`该手机号（${newUserPhone.trim()}）已被注册，请使用其他手机号`)
+          }
           throw new Error(authError?.message || '创建用户失败')
         }
 
@@ -533,11 +542,18 @@ const UserManagement: React.FC = () => {
         setAddingUser(false)
         showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
       }
-    } catch (error) {
+    } catch (error: any) {
       Taro.hideLoading()
       setAddingUser(false)
       console.error('添加用户失败', error)
-      showToast({title: '添加失败，请重试', icon: 'error'})
+
+      // 显示具体的错误信息
+      const errorMsg = error?.message || String(error)
+      if (errorMsg.includes('已被注册') || errorMsg.includes('already registered')) {
+        showToast({title: errorMsg, icon: 'error', duration: 3000})
+      } else {
+        showToast({title: errorMsg || '添加失败，请重试', icon: 'error'})
+      }
     }
   }
 

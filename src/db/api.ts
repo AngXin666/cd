@@ -4080,7 +4080,7 @@ export async function createUser(
 
     if (!user) {
       console.error('  ❌ 用户未登录')
-      return null
+      throw new Error('用户未登录')
     }
 
     // 从 user_metadata 获取租户信息
@@ -4111,20 +4111,39 @@ export async function createUser(
       if (authError || !rpcData || rpcData.success === false) {
         console.error('  ❌ 创建 auth.users 记录失败')
         console.error('  错误:', authError?.message || rpcData?.error)
-        return null
+
+        // 检查是否是重复用户错误
+        const errorMsg = authError?.message || rpcData?.error || ''
+        if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
+          throw new Error(`该手机号（${phone}）已被注册，请使用其他手机号`)
+        }
+
+        throw new Error(authError?.message || rpcData?.error || '创建用户失败')
       }
 
       userId = rpcData.user_id
       console.log('  ✅ auth.users 记录创建成功')
       console.log('  - 用户ID:', userId)
-    } catch (authError) {
+    } catch (authError: any) {
       console.error('  ❌ 创建 auth.users 记录异常:', authError)
-      return null
+
+      // 如果已经是我们自定义的错误，直接抛出
+      if (authError.message?.includes('已被注册')) {
+        throw authError
+      }
+
+      // 检查是否是重复用户错误
+      const errorMsg = authError?.message || String(authError)
+      if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
+        throw new Error(`该手机号（${phone}）已被注册，请使用其他手机号`)
+      }
+
+      throw new Error('创建用户失败，请稍后重试')
     }
 
     if (!userId) {
       console.error('  ❌ 未能获取用户ID')
-      return null
+      throw new Error('创建用户失败：未能获取用户ID')
     }
 
     console.log('')
