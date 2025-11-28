@@ -6,7 +6,33 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：彻底修复中央管理系统删除租户失败问题！✅
+**最新更新**：修复创建租户失败问题！✅
+
+### 修复36：修复 insert_tenant_profile 函数的角色类型问题 ✅ 已完成
+- ✅ **问题现象**：
+  - 创建租户时报错：`column "role" of relation "profiles" does not exist`
+  - Edge Function 返回 500 错误
+- ✅ **问题根源**：
+  - 租户 Schema 中的 `profiles` 表的 `role` 字段是 **TEXT** 类型
+  - 但 `insert_tenant_profile` 函数错误地尝试将其转换为 **user_role** 枚举类型
+  - 类型不匹配导致插入失败
+- ✅ **解决方案**：
+  1. **修改 insert_tenant_profile 函数**：
+     - 移除 `::user_role` 类型转换
+     - 直接使用 TEXT 类型插入 role 字段
+     - 租户 Schema 使用 TEXT + CHECK 约束来限制角色值
+  2. **更新迁移文件**：
+     - 修改 `00410_fix_insert_tenant_profile_role_type.sql`
+     - 更新函数注释，说明使用 TEXT 类型
+- ✅ **修改内容**：
+  1. 更新 `supabase/migrations/00410_fix_insert_tenant_profile_role_type.sql`：
+     - 移除类型转换逻辑
+     - 直接使用 TEXT 类型
+     - 更新函数注释
+- ✅ **预期效果**：
+  - 创建租户功能正常工作
+  - 老板账号和 profile 创建成功
+  - 租户 Schema 正确初始化
 
 ### 修复35：手动解析存储中的 Session 数据 ✅ 已完成
 - ✅ **问题根源**：
