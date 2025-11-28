@@ -1,4 +1,5 @@
 const pages = [
+  'pages/test-login/index',
   'pages/login/index',
   'pages/index/index',
   'pages/driver/index',
