@@ -5,9 +5,12 @@
 
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {createTenant} from '@/db/central-admin-api'
 import type {CreateTenantInput} from '@/db/types'
+
+// 草稿存储的 key
+const DRAFT_KEY = 'tenant_create_draft'
 
 export default function TenantCreatePage() {
   const [formData, setFormData] = useState<CreateTenantInput>({
@@ -19,10 +22,95 @@ export default function TenantCreatePage() {
   })
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [hasDraft, setHasDraft] = useState(false)
 
-  // 更新表单字段
+  // 页面加载时恢复草稿
+  useEffect(() => {
+    const loadDraft = () => {
+      try {
+        const draftStr = Taro.getStorageSync(DRAFT_KEY)
+        if (draftStr) {
+          const draft = JSON.parse(draftStr)
+          setFormData(draft.formData)
+          setConfirmPassword(draft.confirmPassword || '')
+          setHasDraft(true)
+
+          // 提示用户已恢复草稿
+          Taro.showToast({
+            title: '已恢复上次填写的内容',
+            icon: 'none',
+            duration: 2000
+          })
+        }
+      } catch (error) {
+        console.error('加载草稿失败:', error)
+      }
+    }
+
+    loadDraft()
+  }, [])
+
+  // 保存草稿到本地存储
+  const saveDraft = () => {
+    try {
+      const draft = {
+        formData,
+        confirmPassword,
+        savedAt: new Date().toISOString()
+      }
+      Taro.setStorageSync(DRAFT_KEY, JSON.stringify(draft))
+    } catch (error) {
+      console.error('保存草稿失败:', error)
+    }
+  }
+
+  // 清除草稿
+  const clearDraft = () => {
+    try {
+      Taro.removeStorageSync(DRAFT_KEY)
+      setHasDraft(false)
+    } catch (error) {
+      console.error('清除草稿失败:', error)
+    }
+  }
+
+  // 更新表单字段（同时保存草稿）
   const updateField = (field: keyof CreateTenantInput, value: string) => {
-    setFormData((prev) => ({...prev, [field]: value}))
+    setFormData((prev) => {
+      const newData = {...prev, [field]: value}
+      // 延迟保存草稿，避免频繁写入
+      setTimeout(() => {
+        try {
+          const draft = {
+            formData: newData,
+            confirmPassword,
+            savedAt: new Date().toISOString()
+          }
+          Taro.setStorageSync(DRAFT_KEY, JSON.stringify(draft))
+        } catch (error) {
+          console.error('保存草稿失败:', error)
+        }
+      }, 500)
+      return newData
+    })
+  }
+
+  // 更新确认密码（同时保存草稿）
+  const updateConfirmPassword = (value: string) => {
+    setConfirmPassword(value)
+    // 延迟保存草稿
+    setTimeout(() => {
+      try {
+        const draft = {
+          formData,
+          confirmPassword: value,
+          savedAt: new Date().toISOString()
+        }
+        Taro.setStorageSync(DRAFT_KEY, JSON.stringify(draft))
+      } catch (error) {
+        console.error('保存草稿失败:', error)
+      }
+    }, 500)
   }
 
   // 验证表单
@@ -95,6 +183,9 @@ export default function TenantCreatePage() {
       Taro.hideLoading()
 
       if (result.success) {
+        // 创建成功，清除草稿
+        clearDraft()
+
         Taro.showModal({
           title: '创建成功',
           content: `租户"${formData.company_name}"创建成功！\n\n登录账号：${formData.boss_account}\n密码：${formData.boss_password}\n手机号：${formData.boss_phone}\n\n请妥善保管账号信息。`,
@@ -104,16 +195,27 @@ export default function TenantCreatePage() {
           }
         })
       } else {
+        // 创建失败，保存草稿
+        saveDraft()
+
         Taro.showModal({
           title: '创建失败',
-          content: result.error || '未知错误',
+          content: `${result.error || '未知错误'}\n\n您填写的内容已自动保存为草稿，下次打开页面时会自动恢复。`,
           showCancel: false
         })
       }
     } catch (error) {
       Taro.hideLoading()
       console.error('创建租户失败:', error)
-      Taro.showToast({title: '创建失败', icon: 'error'})
+
+      // 异常情况也保存草稿
+      saveDraft()
+
+      Taro.showModal({
+        title: '创建失败',
+        content: '网络错误或服务异常\n\n您填写的内容已自动保存为草稿，下次打开页面时会自动恢复。',
+        showCancel: false
+      })
     } finally {
       setLoading(false)
     }
@@ -121,18 +223,83 @@ export default function TenantCreatePage() {
 
   // 取消创建
   const handleCancel = () => {
-    Taro.navigateBack()
+    // 如果有草稿，询问是否保留
+    if (hasDraft || formData.company_name || formData.boss_name || formData.boss_phone) {
+      Taro.showModal({
+        title: '提示',
+        content: '是否保留当前填写的内容？\n\n选择"保留"将在下次打开时自动恢复。',
+        confirmText: '保留',
+        cancelText: '清除',
+        success: (res) => {
+          if (res.confirm) {
+            // 保留草稿
+            saveDraft()
+          } else {
+            // 清除草稿
+            clearDraft()
+          }
+          Taro.navigateBack()
+        }
+      })
+    } else {
+      Taro.navigateBack()
+    }
+  }
+
+  // 手动清除草稿
+  const handleClearDraft = () => {
+    Taro.showModal({
+      title: '确认清除',
+      content: '确定要清除已保存的草稿吗？',
+      success: (res) => {
+        if (res.confirm) {
+          clearDraft()
+          setFormData({
+            company_name: '',
+            boss_name: '',
+            boss_phone: '',
+            boss_account: '',
+            boss_password: ''
+          })
+          setConfirmPassword('')
+          Taro.showToast({title: '草稿已清除', icon: 'success'})
+        }
+      }
+    })
   }
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* 头部 */}
       <View className="bg-primary text-white p-6 pb-8">
-        <Text className="text-2xl font-bold block mb-2">创建新租户</Text>
+        <View className="flex flex-row items-center justify-between mb-2">
+          <Text className="text-2xl font-bold">创建新租户</Text>
+          {hasDraft && (
+            <View className="bg-white/20 px-3 py-1 rounded-full">
+              <Text className="text-xs text-white">已恢复草稿</Text>
+            </View>
+          )}
+        </View>
         <Text className="text-sm opacity-90 block">填写租户信息，系统将自动完成部署</Text>
       </View>
 
       <ScrollView scrollY className="flex-1 px-4 pb-6 box-border" style={{marginTop: '-16px'}}>
+        {/* 草稿提示 */}
+        {hasDraft && (
+          <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 flex flex-row items-start">
+            <View className="i-mdi-information text-yellow-600 text-xl mr-2 flex-shrink-0" style={{marginTop: '2px'}} />
+            <View className="flex-1">
+              <Text className="text-sm text-yellow-800 block mb-2">已自动恢复上次填写的内容</Text>
+              <Button
+                className="bg-yellow-100 text-yellow-700 px-3 py-1 text-xs break-keep"
+                size="mini"
+                onClick={handleClearDraft}>
+                清除草稿
+              </Button>
+            </View>
+          </View>
+        )}
+
         {/* 基本信息 */}
         <View className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <Text className="text-lg font-bold text-gray-800 block mb-4">基本信息</Text>
@@ -228,7 +395,7 @@ export default function TenantCreatePage() {
                 placeholder="请再次输入密码"
                 password
                 value={confirmPassword}
-                onInput={(e) => setConfirmPassword(e.detail.value)}
+                onInput={(e) => updateConfirmPassword(e.detail.value)}
               />
             </View>
             <Text className="text-xs text-gray-400 block mt-1">请再次输入密码以确认</Text>
