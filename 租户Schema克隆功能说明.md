@@ -12,6 +12,20 @@
 
 - **模板租户**：系统中第一个创建的租户（按 `created_at` 排序）
 - 模板租户的 Schema 结构会被自动克隆到所有新创建的租户
+- **重要**：第一个租户是系统调试和开发的基准，后续租户必须与其保持完全一致
+
+### 2. 创建策略
+
+#### 2.1 第一个租户
+- 使用默认的 `create_tenant_schema` 函数创建
+- 创建标准的表结构、函数、触发器、RLS 策略
+- 作为后续所有租户的模板
+
+#### 2.2 后续租户
+- **必须**克隆第一个租户的完整架构
+- 如果克隆失败，**不会降级**使用默认创建方式
+- 克隆失败会直接报错并回滚，确保系统一致性
+- 这样可以保证所有租户的系统架构完全一致
 
 ### 2. 克隆内容
 
@@ -68,13 +82,18 @@
 创建新租户时，系统会自动执行以下步骤：
 
 1. 创建租户记录
-2. **尝试克隆模板租户的 Schema 结构** ✨
-   - 如果克隆成功，使用克隆的结构
-   - 如果克隆失败（如第一个租户），使用默认的 `create_tenant_schema` 创建
-3. 创建老板账号
-4. 创建老板 profile
-5. 创建默认仓库
-6. 更新租户记录
+2. **检查是否存在模板租户**
+   - 如果不存在（第一个租户）：使用默认的 `create_tenant_schema` 创建
+   - 如果存在（后续租户）：**必须**克隆模板租户的 Schema 结构
+3. **克隆验证** ✨
+   - 克隆成功：继续后续步骤
+   - 克隆失败：**直接报错并回滚**，不会降级使用默认创建方式
+4. 创建老板账号
+5. 创建老板 profile
+6. 创建默认仓库
+7. 更新租户记录
+
+**重要**：后续租户的创建必须保证与第一个租户的架构完全一致，不允许降级。
 
 ### 前端界面
 
@@ -199,21 +218,38 @@ RLS 策略的克隆包括：
 在 `create-tenant` Edge Function 中的实现：
 
 ```typescript
-// 尝试克隆模板租户的 Schema 结构
-const {data: cloneResult, error: cloneError} = await supabase.rpc(
-  'clone_tenant_schema_from_template',
-  {p_new_schema_name: schemaName}
-)
+// 检查是否存在模板租户
+const {data: templateCheck} = await supabase.rpc('get_template_schema_name')
 
-if (cloneError || !cloneResult?.success) {
-  // 如果克隆失败，使用默认的 create_tenant_schema
+if (!templateCheck) {
+  // 第一个租户：使用默认创建方式
   const {data: schemaResult, error: schemaError} = await supabase.rpc(
     'create_tenant_schema',
     {p_schema_name: schemaName}
   )
   // ... 错误处理
+} else {
+  // 后续租户：必须克隆成功
+  const {data: cloneResult, error: cloneError} = await supabase.rpc(
+    'clone_tenant_schema_from_template',
+    {p_new_schema_name: schemaName}
+  )
+  
+  if (cloneError || !cloneResult?.success) {
+    // 克隆失败，直接报错并回滚，不降级
+    await supabase.from('tenants').delete().eq('id', tenant.id)
+    return new Response(JSON.stringify({
+      success: false,
+      error: '克隆模板租户架构失败: ' + (cloneResult?.message || cloneError?.message)
+    }), {status: 500})
+  }
 }
 ```
+
+**关键点**：
+- 第一个租户使用默认创建方式
+- 后续租户必须克隆成功，失败则直接报错
+- 不允许降级使用默认创建方式，确保架构一致性
 
 ## 使用场景
 

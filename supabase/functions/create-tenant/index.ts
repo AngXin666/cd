@@ -120,15 +120,13 @@ Deno.serve(async (req) => {
 
     // 3. 克隆模板租户的 Schema 结构
     console.log('📋 开始克隆模板租户 Schema 结构')
-    const {data: cloneResult, error: cloneError} = await supabase.rpc('clone_tenant_schema_from_template', {
-      p_new_schema_name: schemaName
-    })
-
-    if (cloneError || !cloneResult?.success) {
-      console.error('❌ 克隆 Schema 失败:', cloneError || cloneResult?.message)
-      
-      // 如果克隆失败，尝试使用默认的 create_tenant_schema
-      console.log('⚠️ 尝试使用默认 Schema 创建方式')
+    
+    // 检查是否存在模板租户
+    const {data: templateCheck} = await supabase.rpc('get_template_schema_name')
+    
+    if (!templateCheck) {
+      // 如果没有模板租户（第一个租户），使用默认创建方式
+      console.log('ℹ️ 这是第一个租户，使用默认 Schema 创建方式')
       const {data: schemaResult, error: schemaError} = await supabase.rpc('create_tenant_schema', {
         p_schema_name: schemaName
       })
@@ -151,8 +149,32 @@ Deno.serve(async (req) => {
         )
       }
       
-      console.log('✅ 使用默认方式创建 Schema 成功')
+      console.log('✅ 第一个租户 Schema 创建成功')
     } else {
+      // 如果存在模板租户，必须克隆成功，不能降级
+      console.log('📋 检测到模板租户，开始克隆 Schema 结构')
+      const {data: cloneResult, error: cloneError} = await supabase.rpc('clone_tenant_schema_from_template', {
+        p_new_schema_name: schemaName
+      })
+
+      if (cloneError || !cloneResult?.success) {
+        console.error('❌ 克隆 Schema 失败:', cloneError || cloneResult?.message)
+        
+        // 回滚：删除租户记录
+        await supabase.from('tenants').delete().eq('id', tenant.id)
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: '克隆模板租户架构失败: ' + (cloneResult?.message || cloneError?.message || '未知错误')
+          }),
+          {
+            status: 500,
+            headers: {...corsHeaders, 'Content-Type': 'application/json'}
+          }
+        )
+      }
+      
       console.log('✅ Schema 克隆成功:', cloneResult)
     }
 
