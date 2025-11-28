@@ -50,11 +50,8 @@ export default function TestAccountsPage() {
     try {
       setLoading(true)
 
-      // 从 profiles 表查询所有账号
-      const {data: profiles, error: profileError} = await supabase
-        .from('profiles')
-        .select('id, name, phone, email, role, company_name')
-        .order('created_at', {ascending: true})
+      // 使用 RPC 函数获取所有测试账号（绕过 RLS 限制）
+      const {data: profiles, error: profileError} = await supabase.rpc('get_all_test_accounts')
 
       if (profileError) {
         console.error('获取账号列表失败', profileError)
