@@ -244,6 +244,21 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
   try {
     console.log('🗑️ 开始删除租户:', tenantId)
 
+    // 手动检查存储中的 session
+    const storageKey = `${process.env.TARO_APP_APP_ID}-auth-token`
+    console.log('🔍 检查存储 key:', storageKey)
+
+    try {
+      const storedData = await Taro.getStorage({key: storageKey})
+      console.log('📦 存储中的数据:', {
+        hasData: !!storedData.data,
+        dataLength: storedData.data?.length || 0,
+        dataPreview: storedData.data?.substring(0, 100) || 'empty'
+      })
+    } catch (error) {
+      console.error('❌ 读取存储失败:', error)
+    }
+
     // 先尝试刷新 session，确保 token 是最新的
     console.log('🔄 刷新 session...')
     const refreshResult = await supabase.auth.refreshSession()
