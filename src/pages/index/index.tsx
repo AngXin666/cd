@@ -210,6 +210,9 @@ const IndexPage: React.FC = () => {
           reLaunch({url: '/pages/manager/index'})
           break
         case 'super_admin':
+        case 'boss':
+        case 'peer_admin':
+          // 超级管理员、老板、平级管理员都跳转到超级管理员页面
           reLaunch({url: '/pages/super-admin/index'})
           break
         default:
