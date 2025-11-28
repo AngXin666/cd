@@ -46,7 +46,8 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
  */
 export function getRoleDisplayName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {
-    super_admin: '老板',
+    boss: '老板',
+    super_admin: '超级管理员',
     peer_admin: '平级管理员',
     manager: '车队长',
     driver: '司机',

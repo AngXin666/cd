@@ -28,7 +28,8 @@ const ProfilePage: React.FC = () => {
       } else if (data.role === 'manager') {
         const managerStats = await getManagerStats(user.id)
         setStats(managerStats)
-      } else if (data.role === 'super_admin') {
+      } else if (data.role === 'super_admin' || data.role === 'boss') {
+        // 超级管理员和老板都使用超级管理员统计
         const superAdminStats = await getSuperAdminStats()
         setStats(superAdminStats)
       }
@@ -64,7 +65,13 @@ const ProfilePage: React.FC = () => {
       case 'manager':
         return '车队长'
       case 'super_admin':
+        return '超级管理员'
+      case 'boss':
         return '老板'
+      case 'peer_admin':
+        return '平级账户'
+      case 'lease_admin':
+        return '租赁管理员'
       default:
         return '未知'
     }
@@ -77,7 +84,13 @@ const ProfilePage: React.FC = () => {
       case 'manager':
         return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
       case 'super_admin':
+        return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+      case 'boss':
         return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+      case 'peer_admin':
+        return 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+      case 'lease_admin':
+        return 'linear-gradient(135deg, #fa8bff 0%, #2bd2ff 90%, #2bff88 100%)'
       default:
         return 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
     }
@@ -136,6 +149,7 @@ const ProfilePage: React.FC = () => {
       case 'manager':
         return managerQuickActions
       case 'super_admin':
+      case 'boss':
         return superAdminQuickActions
       default:
         return []
@@ -197,8 +211,8 @@ const ProfilePage: React.FC = () => {
                 <View className="i-mdi-phone text-lg text-white mr-2 opacity-80" />
                 <Text className="text-sm text-white opacity-90">{maskPhone(profile?.phone)}</Text>
               </View>
-              {/* 车队长和老板显示编辑实名按钮 */}
-              {(profile?.role === 'manager' || profile?.role === 'super_admin') && (
+              {/* 车队长、老板和超级管理员显示编辑实名按钮 */}
+              {(profile?.role === 'manager' || profile?.role === 'super_admin' || profile?.role === 'boss') && (
                 <View
                   className="flex items-center px-3 py-1 rounded-full active:opacity-70"
                   style={{background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)'}}
@@ -305,8 +319,8 @@ const ProfilePage: React.FC = () => {
                   </View>
                 )}
 
-                {/* 老板端统计 */}
-                {profile?.role === 'super_admin' && (
+                {/* 老板和超级管理员统计 */}
+                {(profile?.role === 'super_admin' || profile?.role === 'boss') && (
                   <View className="grid grid-cols-3 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
                       <View className="flex items-center mb-2">

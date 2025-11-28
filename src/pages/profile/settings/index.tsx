@@ -29,8 +29,8 @@ const SettingsPage: React.FC = () => {
               <Text className="text-base font-bold text-gray-800">账户与安全</Text>
             </View>
 
-            {/* 账号管理 - 仅老板账号显示 */}
-            {profile?.role === 'super_admin' && (
+            {/* 账号管理 - 仅老板和超级管理员显示 */}
+            {(profile?.role === 'super_admin' || profile?.role === 'boss') && (
               <View
                 className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
                 onClick={() => navigateTo({url: '/pages/profile/account-management/index'})}>

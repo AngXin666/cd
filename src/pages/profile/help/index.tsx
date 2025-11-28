@@ -109,7 +109,7 @@ const HelpPage: React.FC = () => {
       roleFAQ = getDriverFAQ()
     } else if (profile?.role === 'manager') {
       roleFAQ = getManagerFAQ()
-    } else if (profile?.role === 'super_admin') {
+    } else if (profile?.role === 'super_admin' || profile?.role === 'boss') {
       roleFAQ = getSuperAdminFAQ()
     }
     return [...roleFAQ, ...getCommonFAQ()]
@@ -172,13 +172,17 @@ const HelpPage: React.FC = () => {
                   </View>
                 )}
 
-                {profile?.role === 'super_admin' && (
+                {(profile?.role === 'super_admin' || profile?.role === 'boss') && (
                   <View className="flex items-start">
                     <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
                     <View className="flex-1">
-                      <Text className="text-sm font-medium text-gray-800 block mb-1">老板功能</Text>
+                      <Text className="text-sm font-medium text-gray-800 block mb-1">
+                        {profile?.role === 'boss' ? '老板功能' : '超级管理员功能'}
+                      </Text>
                       <Text className="text-xs text-gray-600 block">
-                        老板拥有系统最高权限，可以管理仓库信息、分配司机和车队长、管理计件品类、查看所有数据统计。
+                        {profile?.role === 'boss'
+                          ? '老板拥有系统最高权限，可以管理仓库信息、分配司机和车队长、管理计件品类、查看所有数据统计。'
+                          : '超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和车队长、管理计件品类、查看所有数据统计。'}
                       </Text>
                     </View>
                   </View>

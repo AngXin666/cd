@@ -139,9 +139,9 @@ const WarehouseEdit: React.FC = () => {
   const loadManagers = useCallback(
     async (id?: string) => {
       try {
-        // 加载所有车队长和老板
+        // 加载所有车队长、老板和超级管理员
         const allUsers = await getAllUsers()
-        const managers = allUsers.filter((u) => u.role === 'manager' || u.role === 'super_admin')
+        const managers = allUsers.filter((u) => u.role === 'manager' || u.role === 'super_admin' || u.role === 'boss')
         console.log('加载到的车队长列表:', managers)
         setAllManagers(managers)
 
@@ -1035,7 +1035,11 @@ const WarehouseEdit: React.FC = () => {
                             )}
                           </View>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {manager.role === 'super_admin' ? '老板' : '车队长'}
+                            {manager.role === 'boss'
+                              ? '老板'
+                              : manager.role === 'super_admin'
+                                ? '超级管理员'
+                                : '车队长'}
                           </Text>
                         </View>
                       </View>
