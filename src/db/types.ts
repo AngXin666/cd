@@ -2,6 +2,25 @@ import type {NotificationType} from './notificationApi'
 
 export type UserRole = 'driver' | 'manager' | 'super_admin' | 'boss' | 'peer_admin'
 
+// 租户 Schema 中的角色类型
+export type TenantRole = 'boss' | 'peer' | 'fleet_leader' | 'driver'
+
+// 租户 Schema 中的用户档案类型
+export interface TenantProfile {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  role: TenantRole
+  permission_type: 'full' | 'readonly' | null
+  status: 'active' | 'inactive'
+  vehicle_plate: string | null
+  warehouse_ids: string[] | null
+  managed_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 // 司机类型（与数据库枚举值匹配）
 export type DriverType = 'pure' | 'with_vehicle'
 

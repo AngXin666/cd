@@ -48,6 +48,7 @@ import type {
   ResignationApplicationInput,
   ScheduledNotification,
   SenderRole,
+  TenantProfile,
   UserRole,
   Vehicle,
   VehicleInput,
@@ -62,6 +63,44 @@ import type {
 
 // 创建数据库操作日志记录器
 const logger = createLogger('DatabaseAPI')
+
+/**
+ * 将租户 Profile 转换为 Profile 类型
+ * 租户 Schema 中的 profiles 表结构与 public.profiles 不同
+ */
+function convertTenantProfileToProfile(tenantProfile: TenantProfile): Profile {
+  return {
+    id: tenantProfile.id,
+    phone: tenantProfile.phone,
+    email: tenantProfile.email,
+    name: tenantProfile.name,
+    // 角色映射：租户角色 -> 系统角色
+    role: tenantProfile.role === 'fleet_leader' ? 'manager' : (tenantProfile.role as UserRole),
+    driver_type: null,
+    avatar_url: null,
+    nickname: null,
+    address_province: null,
+    address_city: null,
+    address_district: null,
+    address_detail: null,
+    emergency_contact_name: null,
+    emergency_contact_phone: null,
+    login_account: null,
+    vehicle_plate: tenantProfile.vehicle_plate,
+    join_date: null,
+    status: tenantProfile.status,
+    company_name: null,
+    lease_start_date: null,
+    lease_end_date: null,
+    monthly_fee: null,
+    notes: null,
+    main_account_id: null,
+    peer_account_permission: tenantProfile.permission_type,
+    manager_permissions_enabled: null,
+    created_at: tenantProfile.created_at,
+    updated_at: tenantProfile.updated_at
+  }
+}
 
 /**
  * 获取本地日期字符串（YYYY-MM-DD格式）
@@ -361,19 +400,22 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
   return true
 }
 
+/**
+ * 获取租户 Schema 中的司机档案列表
+ * 使用 RPC 函数查询，确保数据隔离
+ */
 export async function getDriverProfiles(): Promise<Profile[]> {
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'driver')
-    .order('created_at', {ascending: false})
+  console.log('🔍 getDriverProfiles: 开始获取租户司机列表')
+  const {data, error} = await supabase.rpc('get_tenant_drivers')
 
   if (error) {
-    console.error('获取司机档案失败:', error)
+    console.error('❌ 获取租户司机档案失败:', error)
     return []
   }
 
-  return Array.isArray(data) ? data : []
+  console.log(`✅ getDriverProfiles: 获取到 ${data?.length || 0} 个司机`)
+  const tenantProfiles = Array.isArray(data) ? data : []
+  return tenantProfiles.map(convertTenantProfileToProfile)
 }
 
 export async function getManagerProfiles(): Promise<Profile[]> {
@@ -3542,13 +3584,13 @@ export async function getAllSuperAdmins(): Promise<Profile[]> {
 /**
  * 获取所有司机列表
  */
+/**
+ * 获取租户 Schema 中的所有司机
+ * 使用 RPC 函数查询，确保数据隔离
+ */
 export async function getAllDrivers(): Promise<Profile[]> {
-  console.log('🔍 getAllDrivers: 开始获取司机列表')
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'driver')
-    .order('created_at', {ascending: false})
+  console.log('🔍 getAllDrivers: 开始获取租户司机列表')
+  const {data, error} = await supabase.rpc('get_tenant_drivers')
 
   if (error) {
     console.error('❌ 获取司机列表失败:', error)
@@ -3556,7 +3598,8 @@ export async function getAllDrivers(): Promise<Profile[]> {
   }
 
   console.log(`✅ getAllDrivers: 获取到 ${data?.length || 0} 个司机`)
-  return Array.isArray(data) ? data : []
+  const tenantProfiles = Array.isArray(data) ? data : []
+  return tenantProfiles.map(convertTenantProfileToProfile)
 }
 
 /**
