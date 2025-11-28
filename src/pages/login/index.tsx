@@ -69,6 +69,7 @@ const Login: React.FC = () => {
 
   // 加载测试账号列表
   const loadTestAccounts = useCallback(async () => {
+    console.log('🔍 开始加载测试账号列表...')
     try {
       const {data, error} = await supabase
         .from('profiles')
@@ -77,9 +78,16 @@ const Login: React.FC = () => {
         .limit(20)
 
       if (error) {
-        console.error('获取测试账号列表失败', error)
+        console.error('❌ 获取测试账号列表失败:', error)
+        Taro.showToast({
+          title: '加载账号列表失败',
+          icon: 'none',
+          duration: 2000
+        })
         return
       }
+
+      console.log('✅ 获取到账号数据:', data?.length || 0, '个')
 
       const accountsWithRoleName = (data || []).map((account) => ({
         ...account,
@@ -87,8 +95,14 @@ const Login: React.FC = () => {
       }))
 
       setTestAccounts(accountsWithRoleName)
+      console.log('✅ 测试账号列表加载完成')
     } catch (error) {
-      console.error('获取测试账号列表异常', error)
+      console.error('❌ 获取测试账号列表异常:', error)
+      Taro.showToast({
+        title: '加载账号列表异常',
+        icon: 'none',
+        duration: 2000
+      })
     }
   }, [getRoleName])
 
@@ -486,8 +500,9 @@ const Login: React.FC = () => {
             <View
               className="flex flex-row items-center justify-between"
               onClick={() => {
-                setShowTestAccounts(!showTestAccounts)
-                if (!showTestAccounts && testAccounts.length === 0) {
+                const newShowState = !showTestAccounts
+                setShowTestAccounts(newShowState)
+                if (newShowState && testAccounts.length === 0) {
                   loadTestAccounts()
                 }
               }}>
@@ -497,8 +512,13 @@ const Login: React.FC = () => {
 
             {showTestAccounts && (
               <View className="mt-3">
-                {testAccounts.length === 0 ? (
-                  <Text className="text-xs text-blue-100 block text-center py-4">加载中...</Text>
+                {testLoading ? (
+                  <Text className="text-xs text-blue-100 block text-center py-4">登录中...</Text>
+                ) : testAccounts.length === 0 ? (
+                  <View>
+                    <Text className="text-xs text-blue-100 block text-center py-4">加载账号列表中...</Text>
+                    <Text className="text-xs text-blue-100 block text-center">如果一直加载，请检查数据库连接</Text>
+                  </View>
                 ) : (
                   <View>
                     {testAccounts.map((testAccount) => (
@@ -534,26 +554,6 @@ const Login: React.FC = () => {
           </View>
         </View>
 
-        {/* 测试账号提示 */}
-        <View className="mt-4">
-          <View className="bg-white bg-opacity-10 rounded-lg p-4">
-            <Text className="text-xs text-white block mb-3 font-bold">测试账号：</Text>
-            <View className="mb-2">
-              <Text className="text-xs text-blue-100 block">司机账号：admin1 / 123456</Text>
-            </View>
-            <View className="mb-2">
-              <Text className="text-xs text-blue-100 block">车队长账号：admin2 / 123456</Text>
-            </View>
-            <View className="mb-3">
-              <Text className="text-xs text-blue-100 block">老板账号：admin3 / 123456</Text>
-            </View>
-            <View className="pt-3 border-t border-white border-opacity-20">
-              <Text className="text-xs text-blue-100 block mb-2">中央管理员：13800000001 / hye19911206</Text>
-              <Text className="text-xs text-blue-100 block">或使用：admin / hye19911206</Text>
-            </View>
-          </View>
-        </View>
-
         {/* 功能说明 */}
         <View className="mt-4">
           <View className="bg-white bg-opacity-10 rounded-lg p-4">
@@ -561,8 +561,16 @@ const Login: React.FC = () => {
             <View className="mb-1">
               <Text className="text-xs text-blue-100 block">• 密码登录：支持手机号或账号名 + 密码</Text>
             </View>
-            <View>
+            <View className="mb-1">
               <Text className="text-xs text-blue-100 block">• 验证码登录：仅支持手机号 + 验证码</Text>
+            </View>
+            <View className="mt-2 pt-2 border-t border-white border-opacity-20">
+              <Text className="text-xs text-blue-100 block mb-1">测试账号（默认密码：123456）：</Text>
+              <Text className="text-xs text-blue-100 block">• 司机：admin1</Text>
+              <Text className="text-xs text-blue-100 block">• 车队长：admin2</Text>
+              <Text className="text-xs text-blue-100 block">• 老板：admin3</Text>
+              <Text className="text-xs text-blue-100 block mt-1">• 中央管理员：admin 或 13800000001</Text>
+              <Text className="text-xs text-blue-100 block"> 密码：hye19911206</Text>
             </View>
           </View>
         </View>
