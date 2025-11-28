@@ -160,9 +160,22 @@ export default defineConfig<'vite'>(async (merge, {command, mode}) => {
             })
           }
         }
-      ] as Plugin[]
+      ] as Plugin[],
+      // Vite 构建配置
+      viteBuildConfig: {
+        build: {
+          target: 'es2015',
+          minify: false
+        }
+      }
     },
     mini: {
+      compile: {
+        exclude: [
+          // 排除不需要编译的文件
+          (modulePath: string) => modulePath.indexOf('node_modules') >= 0 && modulePath.indexOf('@tarojs') < 0
+        ]
+      },
       postcss: {
         pxtransform: {
           enable: true,

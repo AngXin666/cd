@@ -5,10 +5,10 @@
   "appid": "wx3ac3f653002c2ab6",
   "setting": {
     "urlCheck": true,
-    "es6": false,
-    "enhance": false,
+    "es6": true,
+    "enhance": true,
     "compileHotReLoad": false,
-    "postcss": false,
+    "postcss": true,
     "minified": false,
     "babelSetting": {
       "ignore": [],
