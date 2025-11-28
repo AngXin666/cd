@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
       user_metadata: {
         name: input.boss_name,
         account: input.boss_account || input.boss_phone, // 登录账号，默认使用手机号
-        role: 'boss',
+        role: 'super_admin', // 老板使用 super_admin 角色
         tenant_id: tenant.id,
         schema_name: schemaName
       }
@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
       p_name: input.boss_name,
       p_phone: input.boss_phone,
       p_email: input.boss_email || null,
-      p_role: 'boss'
+      p_role: 'super_admin' // 老板使用 super_admin 角色
     })
 
     if (profileError || !profileResult?.success) {
