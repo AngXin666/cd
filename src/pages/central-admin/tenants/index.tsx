@@ -27,12 +27,21 @@ export default function TenantsPage() {
 
   // 检查登录状态
   const checkAuth = useCallback(async () => {
-    const {
-      data: {session}
-    } = await supabase.auth.getSession()
+    console.log('🔍 [租户列表] 检查登录状态...')
+    const sessionResult = await supabase.auth.getSession()
+
+    console.log('📋 [租户列表] Session 获取结果:', {
+      hasData: !!sessionResult.data,
+      hasSession: !!sessionResult.data?.session,
+      hasError: !!sessionResult.error,
+      userId: sessionResult.data?.session?.user?.id
+    })
+
+    const {session} = sessionResult.data
 
     if (!session) {
-      console.log('❌ 未登录，跳转到登录页面')
+      console.error('❌ [租户列表] 未登录，session 为空')
+      console.error('Session 详情:', sessionResult)
       Taro.showToast({
         title: '请先登录',
         icon: 'none',
@@ -44,7 +53,9 @@ export default function TenantsPage() {
       return false
     }
 
-    console.log('✅ 已登录，session 有效')
+    console.log('✅ [租户列表] 已登录，session 有效')
+    console.log('用户 ID:', session.user.id)
+    console.log('用户邮箱:', session.user.email)
     return true
   }, [])
 

@@ -203,6 +203,30 @@ export default function TenantCreatePage() {
   const handleSubmit = async () => {
     if (!validateForm()) return
 
+    // 提交前再次检查登录状态
+    console.log('🔍 提交前检查登录状态...')
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      console.error('❌ 提交时未登录，session 为空')
+      Taro.showModal({
+        title: '登录状态已过期',
+        content: '请重新登录。您填写的内容已自动保存为草稿，下次打开页面时会自动恢复。',
+        showCancel: false,
+        success: () => {
+          // 保存草稿
+          saveDraft()
+          // 跳转到登录页面
+          Taro.redirectTo({url: '/pages/login/index'})
+        }
+      })
+      return
+    }
+
+    console.log('✅ 提交时登录状态有效')
+
     setLoading(true)
     Taro.showLoading({title: '创建中...', mask: true})
 
