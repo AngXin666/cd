@@ -41,7 +41,7 @@
     "@tarojs/taro": "4.1.5",
     "immer": "^10.1.1",
     "miaoda-auth-taro": "0.0.8",
-    "miaoda-sc-plugin": "1.0.29",
+    "miaoda-sc-plugin": "1.0.31",
     "miaoda-taro-utils": "0.0.4",
     "pinyin-pro": "^3.27.0",
     "react": "^18.3.1",
