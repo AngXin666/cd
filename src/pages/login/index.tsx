@@ -1,8 +1,17 @@
 import {Button, Checkbox, Input, Text, View} from '@tarojs/components'
 import Taro, {getStorageSync, reLaunch, setStorageSync, showToast, switchTab} from '@tarojs/taro'
 import type React from 'react'
-import {useEffect, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+
+interface TestAccount {
+  id: string
+  name: string | null
+  phone: string
+  email: string
+  role: string
+  role_name: string
+}
 
 const Login: React.FC = () => {
   const [loginType, setLoginType] = useState<'otp' | 'password'>('password')
@@ -12,6 +21,9 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [rememberMe, setRememberMe] = useState(false)
+  const [showTestAccounts, setShowTestAccounts] = useState(false)
+  const [testAccounts, setTestAccounts] = useState<TestAccount[]>([])
+  const [testLoading, setTestLoading] = useState(false)
 
   // 页面加载时读取保存的账号密码
   useEffect(() => {
@@ -41,6 +53,110 @@ const Login: React.FC = () => {
     } catch (_e) {
       reLaunch({url: '/pages/index/index'})
     }
+  }
+
+  // 获取角色名称
+  const getRoleName = useCallback((role: string): string => {
+    const roleMap: Record<string, string> = {
+      super_admin: '老板',
+      manager: '车队长',
+      peer_admin: '平级账号',
+      lease_admin: '租赁管理员',
+      driver: '司机'
+    }
+    return roleMap[role] || role
+  }, [])
+
+  // 加载测试账号列表
+  const loadTestAccounts = useCallback(async () => {
+    try {
+      const {data, error} = await supabase
+        .from('profiles')
+        .select('id, name, phone, email, role')
+        .order('created_at', {ascending: true})
+        .limit(20)
+
+      if (error) {
+        console.error('获取测试账号列表失败', error)
+        return
+      }
+
+      const accountsWithRoleName = (data || []).map((account) => ({
+        ...account,
+        role_name: getRoleName(account.role)
+      }))
+
+      setTestAccounts(accountsWithRoleName)
+    } catch (error) {
+      console.error('获取测试账号列表异常', error)
+    }
+  }, [getRoleName])
+
+  // 测试账号快速登录
+  const handleTestLogin = async (testAccount: TestAccount) => {
+    if (testLoading) return
+
+    setTestLoading(true)
+
+    try {
+      // 使用手机号登录（默认密码：123456）
+      const {data, error} = await supabase.auth.signInWithPassword({
+        phone: testAccount.phone,
+        password: '123456'
+      })
+
+      if (error) {
+        console.error('登录失败', error)
+        Taro.showToast({
+          title: `登录失败：${error.message}`,
+          icon: 'none',
+          duration: 3000
+        })
+        setTestLoading(false)
+        return
+      }
+
+      if (data.user) {
+        // 设置登录来源页面为测试登录
+        Taro.setStorageSync('loginSourcePage', '/pages/login/index')
+
+        Taro.showToast({
+          title: `登录成功：${testAccount.role_name}`,
+          icon: 'success'
+        })
+
+        // 延迟跳转，让用户看到成功提示
+        setTimeout(() => {
+          // 根据角色跳转到对应的首页
+          if (testAccount.role === 'driver') {
+            Taro.switchTab({url: '/pages/driver/index'})
+          } else if (testAccount.role === 'manager') {
+            Taro.switchTab({url: '/pages/manager/index'})
+          } else if (testAccount.role === 'super_admin') {
+            Taro.switchTab({url: '/pages/super-admin/index'})
+          } else {
+            Taro.switchTab({url: '/pages/driver/index'})
+          }
+          setTestLoading(false)
+        }, 1000)
+      }
+    } catch (error) {
+      console.error('登录异常', error)
+      Taro.showToast({title: '登录异常', icon: 'none'})
+      setTestLoading(false)
+    }
+  }
+
+  // 获取角色颜色
+  const getRoleColor = (role: string): string => {
+    const colorMap: Record<string, string> = {
+      super_admin: '#EF4444',
+      manager: '#3B82F6',
+      peer_admin: '#A855F7',
+      lease_admin: '#10B981',
+      driver: '#6B7280'
+    }
+    return colorMap[role] || '#6B7280'
   }
 
   // 验证手机号格式
@@ -364,8 +480,62 @@ const Login: React.FC = () => {
           </View>
         </View>
 
-        {/* 测试账号提示 */}
+        {/* 测试账号快速登录（开发测试用） */}
         <View className="mt-8">
+          <View className="bg-white bg-opacity-10 rounded-lg p-4">
+            <View
+              className="flex flex-row items-center justify-between"
+              onClick={() => {
+                setShowTestAccounts(!showTestAccounts)
+                if (!showTestAccounts && testAccounts.length === 0) {
+                  loadTestAccounts()
+                }
+              }}>
+              <Text className="text-xs text-white font-bold">🧪 开发测试 - 快速登录</Text>
+              <Text className="text-xs text-white">{showTestAccounts ? '▲ 收起' : '▼ 展开'}</Text>
+            </View>
+
+            {showTestAccounts && (
+              <View className="mt-3">
+                {testAccounts.length === 0 ? (
+                  <Text className="text-xs text-blue-100 block text-center py-4">加载中...</Text>
+                ) : (
+                  <View>
+                    {testAccounts.map((testAccount) => (
+                      <View
+                        key={testAccount.id}
+                        className="mb-2 bg-white bg-opacity-20 rounded-lg p-3"
+                        onClick={() => handleTestLogin(testAccount)}>
+                        <View className="flex flex-row items-center justify-between">
+                          <View className="flex-1">
+                            <View className="flex flex-row items-center mb-1">
+                              <View
+                                className="px-2 py-1 rounded"
+                                style={{backgroundColor: getRoleColor(testAccount.role)}}>
+                                <Text className="text-xs text-white font-bold">{testAccount.role_name}</Text>
+                              </View>
+                              {testAccount.name && <Text className="text-xs text-white ml-2">{testAccount.name}</Text>}
+                            </View>
+                            <Text className="text-xs text-blue-100">{testAccount.phone}</Text>
+                          </View>
+                          <Text className="text-xs text-white">点击登录 →</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <View className="mt-3 pt-3 border-t border-white border-opacity-20">
+                  <Text className="text-xs text-blue-100 block text-center">
+                    ⚠️ 此功能仅用于开发测试，生产环境请删除
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* 测试账号提示 */}
+        <View className="mt-4">
           <View className="bg-white bg-opacity-10 rounded-lg p-4">
             <Text className="text-xs text-white block mb-3 font-bold">测试账号：</Text>
             <View className="mb-2">
