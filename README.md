@@ -6,7 +6,39 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：彻底修复创建租户失败问题！✅
+**最新更新**：修复租户用户登录失败问题！✅
+
+### 修复38：修复 get_current_user_profile 函数中的 schema_name 歧义问题 ✅ 已完成
+- ✅ **问题现象**：
+  - 租户用户登录后报错：`column reference "schema_name" is ambiguous`
+  - 错误详情：It could refer to either a PL/pgSQL variable or a table column
+  - 无法获取用户档案信息
+- ✅ **问题根源**：
+  - `get_current_user_profile` 函数中有一个变量叫 `schema_name`
+  - `information_schema.schemata` 表也有一个列叫 `schema_name`
+  - 在 WHERE 子句中使用 `WHERE schema_name = schema_name` 导致歧义
+  - PostgreSQL 无法判断是变量还是列
+- ✅ **解决方案**：
+  1. **重命名变量**：
+     - 将变量名从 `schema_name` 改为 `schema_name_var`
+     - 避免与表列名冲突
+  2. **使用表别名**：
+     - 给 `information_schema.schemata` 表添加别名 `s`
+     - 使用 `WHERE s.schema_name = schema_name_var` 明确指定列来源
+  3. **简化函数逻辑**：
+     - 直接从 `tenants` 表获取 `schema_name`
+     - 移除不必要的复杂查询
+     - 添加详细的日志记录
+- ✅ **修改内容**：
+  1. 创建并应用新迁移 `fix_get_current_user_profile_schema_name_ambiguity.sql`：
+     - 重新定义函数
+     - 重命名变量消除歧义
+     - 添加表别名
+     - 简化查询逻辑
+- ✅ **预期效果**：
+  - 租户用户可以正常登录
+  - 用户档案信息正确获取
+  - 不再出现歧义错误
 
 ### 修复37：给现有租户的 profiles 表添加 role 列 ✅ 已完成
 - ✅ **问题现象**：
