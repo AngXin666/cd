@@ -3883,9 +3883,10 @@ export async function getCurrentUserPermissions(): Promise<ManagerPermission | n
 }
 
 /**
- * 创建司机账号
+ * 创建司机账号（使用租户隔离）
  * @param phone 手机号
  * @param name 姓名
+ * @param driverType 司机类型（暂时保留参数，但租户 Schema 中不使用）
  * @returns 创建的司机资料，如果失败返回null
  */
 export async function createDriver(
@@ -3893,169 +3894,71 @@ export async function createDriver(
   name: string,
   driverType: 'pure' | 'with_vehicle' = 'pure'
 ): Promise<Profile | null> {
-  const timestamp = new Date().toISOString()
-  console.log(`\n${'='.repeat(80)}`)
-  console.log('🚀 [createDriver] 函数调用开始')
-  console.log('⏰ 时间戳:', timestamp)
-  console.log('📱 输入参数:')
-  console.log('  - 手机号:', phone)
-  console.log('  - 姓名:', name)
-  console.log('  - 司机类型:', driverType)
-  console.log(`${'='.repeat(80)}\n`)
+  console.log('🚀 [createDriver] 开始创建司机账号')
+  console.log('📱 手机号:', phone)
+  console.log('👤 姓名:', name)
+  console.log('🚗 司机类型:', driverType, '(注意：租户 Schema 中不使用此字段)')
 
   try {
-    // 步骤1: 检查手机号是否已存在
-    console.log('📋 [步骤1] 检查手机号是否已存在')
-    console.log('  - 查询条件: phone =', phone)
-
-    const {data: existingProfiles, error: checkError} = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (checkError) {
-      console.error('  ❌ 查询 profiles 失败:', checkError)
-      console.error('  错误详情:', JSON.stringify(checkError, null, 2))
-      return null
-    }
-
-    if (existingProfiles) {
-      console.warn('  ⚠️ 手机号已存在于 profiles 表')
-      console.warn('  已存在的用户ID:', existingProfiles.id)
-      console.warn('  已存在的用户姓名:', existingProfiles.name)
-      console.log('  ❌ 创建失败：手机号重复\n')
-      return null
-    }
-
-    console.log('  ✅ 手机号可用，继续创建\n')
-
-    // 步骤2: 先创建 auth.users 表记录
-    console.log('📋 [步骤2] 创建 auth.users 表记录')
-    const loginEmail = `${phone}@fleet.com`
-    console.log('  - 登录邮箱:', loginEmail)
-    console.log('  - 手机号:', phone)
-    console.log('  - 默认密码: 123456')
-    console.log('  - 使用函数: create_user_auth_account_first')
-
-    const {data: authResult, error: authError} = await supabase.rpc('create_user_auth_account_first', {
-      user_email: loginEmail,
-      user_phone: phone
+    // 调用 RPC 函数，在租户 Schema 中创建司机
+    const {data, error} = await supabase.rpc('create_driver_in_tenant', {
+      p_phone: phone,
+      p_name: name,
+      p_email: null,
+      p_password: null // 使用默认密码（手机号后6位）
     })
 
-    console.log('  - RPC 调用完成')
-    console.log('  - 返回数据:', authResult)
-    console.log('  - 错误信息:', authError)
-
-    if (authError) {
-      console.error('  ❌ 创建 auth.users 记录失败')
-      console.error('  错误代码:', authError.code)
-      console.error('  错误消息:', authError.message)
-      console.error('  错误详情:', JSON.stringify(authError, null, 2))
-      return null
-    }
-
-    if (!authResult || authResult.success === false) {
-      console.error('  ❌ 创建 auth.users 记录失败')
-      console.error('  错误:', authResult?.error)
-      console.error('  详情:', authResult?.details)
-      return null
-    }
-
-    const userId = authResult.user_id
-    console.log('  ✅ auth.users 记录创建成功')
-    console.log('  - 用户ID:', userId)
-    console.log('  - 邮箱:', authResult.email)
-    console.log('  - 手机号:', authResult.phone)
-    console.log('  - 默认密码:', authResult.default_password)
-    console.log('')
-
-    const {
-      data: {user: currentUser}
-    } = await supabase.auth.getUser()
-
-    if (!currentUser) {
-      console.error('  ❌ 无法获取当前登录用户')
-      return null
-    }
-
-    console.log('  - 当前用户ID:', currentUser.id)
-
-    const {data: currentUserProfile, error: profileError} = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', currentUser.id)
-      .maybeSingle()
-
-    if (profileError || !currentUserProfile) {
-      console.error('  ❌ 无法获取当前用户的 profile:', profileError)
-      return null
-    }
-
-    console.log('  - 当前用户角色:', currentUserProfile.role)
-
-    // 步骤4: 创建 profiles 表记录
-    console.log('📋 [步骤4] 创建 profiles 表记录')
-    const insertData = {
-      id: userId, // 使用 auth.users 的 ID
-      phone,
-      name,
-      role: 'driver' as UserRole,
-      email: loginEmail,
-      driver_type: driverType,
-      join_date: new Date().toISOString().split('T')[0] // 设置入职日期为今天
-    }
-    console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
-
-    const {data, error} = await supabase.from('profiles').insert(insertData).select().maybeSingle()
-
     if (error) {
-      console.error('  ❌ 插入失败:', error)
-      console.error('  错误代码:', error.code)
-      console.error('  错误消息:', error.message)
-      console.error('  错误详情:', JSON.stringify(error, null, 2))
+      console.error('❌ 创建司机失败:', error)
       return null
     }
 
-    if (!data) {
-      console.error('  ❌ 插入失败：返回数据为空')
+    if (!data || !data.success) {
+      console.error('❌ 创建司机失败:', data?.error || '未知错误')
       return null
     }
 
-    console.log('  ✅ profiles 表记录创建成功')
-    console.log('  - 用户ID:', data.id)
+    console.log('✅ 司机账号创建成功')
+    console.log('  - 用户ID:', data.user_id)
     console.log('  - 手机号:', data.phone)
-    console.log('  - 姓名:', data.name)
-    console.log('  - 角色:', data.role)
-    console.log('  - 邮箱:', data.email)
-    console.log('  - 司机类型:', data.driver_type)
-    console.log('  - 入职日期:', data.join_date)
-    console.log('  - 创建时间:', data.created_at)
-    console.log('  - 完整数据:', JSON.stringify(data, null, 2))
-    console.log('')
+    console.log('  - 登录邮箱:', data.email)
+    console.log('  - 默认密码:', data.default_password)
 
-    console.log('='.repeat(80))
-    console.log('✅ [createDriver] 函数执行完成')
-    console.log('📊 最终结果:')
-    console.log('  - auth.users 表: ✅ 创建成功')
-    console.log('  - profiles 表: ✅ 创建成功')
-    console.log('  💡 用户可以使用以下方式登录:')
-    console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
-    console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-    console.log('  - 返回数据:', JSON.stringify(data, null, 2))
-    console.log(`${'='.repeat(80)}\n`)
-
-    return data as Profile
-  } catch (error) {
-    console.error(`\n${'='.repeat(80)}`)
-    console.error('❌ [createDriver] 函数执行异常')
-    console.error('异常类型:', typeof error)
-    console.error('异常内容:', error)
-    if (error instanceof Error) {
-      console.error('异常消息:', error.message)
-      console.error('异常堆栈:', error.stack)
+    // 构造 Profile 对象返回
+    const profile: Profile = {
+      id: data.user_id,
+      phone: data.phone,
+      email: data.email,
+      name,
+      role: 'driver',
+      driver_type: driverType,
+      avatar_url: null,
+      nickname: null,
+      address_province: null,
+      address_city: null,
+      address_district: null,
+      address_detail: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      login_account: null,
+      vehicle_plate: null,
+      join_date: new Date().toISOString().split('T')[0],
+      status: 'active',
+      company_name: null,
+      lease_start_date: null,
+      lease_end_date: null,
+      monthly_fee: null,
+      notes: null,
+      main_account_id: null,
+      peer_account_permission: null,
+      manager_permissions_enabled: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
-    console.error(`${'='.repeat(80)}\n`)
+
+    return profile
+  } catch (error) {
+    console.error('❌ 创建司机异常:', error)
     return null
   }
 }
