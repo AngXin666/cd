@@ -274,15 +274,15 @@ const Login: React.FC = () => {
       const accountMapping: Record<string, string> = {
         admin: '13800000001', // 中央管理系统管理员
         // 租户1 测试账号
-        admin1: '13800000001',
-        admin11: '13800000011',
-        admin111: '13800000111',
-        admin1111: '13800001111',
+        admin1: '13900000001',
+        admin11: '13900000011',
+        admin111: '13900000111',
+        admin1111: '13900001111',
         // 租户2 测试账号
-        admin2: '13800000002',
-        admin22: '13800000022',
-        admin222: '13800000222',
-        admin2222: '13800002222',
+        admin2: '13900000002',
+        admin22: '13900000022',
+        admin222: '13900000222',
+        admin2222: '13900002222',
         // 其他测试账号
         admin3: '13800000003',
         admin888: 'admin888'
@@ -547,7 +547,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin1</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000001 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900000001 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -568,7 +568,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin11</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000011 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900000011 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -589,7 +589,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin111</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000111 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900000111 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -610,7 +610,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin1111</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800001111 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900001111 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -637,7 +637,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin2</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000002 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900000002 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -658,7 +658,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin22</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000022 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900000022 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -679,7 +679,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin222</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000222 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900000222 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
@@ -700,7 +700,7 @@ const Login: React.FC = () => {
                                 </View>
                                 <Text className="text-xs text-white ml-2">admin2222</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800002222 / 123456</Text>
+                              <Text className="text-xs text-blue-100">13900002222 / 123456</Text>
                             </View>
                             <Text className="text-xs text-white">点击填充 →</Text>
                           </View>

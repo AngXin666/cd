@@ -20,17 +20,17 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const supabaseUrl = process.env.TARO_APP_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.TARO_APP_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
+if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ 错误：缺少环境变量');
   console.error('请确保 .env 文件中包含：');
   console.error('  - TARO_APP_SUPABASE_URL');
-  console.error('  - SUPABASE_SERVICE_ROLE_KEY');
+  console.error('  - TARO_APP_SUPABASE_ANON_KEY');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -73,10 +73,10 @@ async function createTenant(tenantData) {
     // 调用 Edge Function 创建租户
     const { data, error } = await supabase.functions.invoke('create-tenant', {
       body: {
-        tenant_name: tenantData.name,
-        tenant_code: tenantData.code,
-        boss_phone: tenantData.users[0].phone,
+        company_name: tenantData.name,
         boss_name: tenantData.users[0].name,
+        boss_phone: tenantData.users[0].phone,
+        boss_account: tenantData.users[0].username,
         boss_password: password
       }
     });
@@ -86,12 +86,20 @@ async function createTenant(tenantData) {
       return null;
     }
 
+    if (!data || !data.success) {
+      console.error(`❌ 创建租户失败：${data?.error || '未知错误'}`);
+      return null;
+    }
+
     console.log(`✅ 租户创建成功`);
-    console.log(`   - 租户ID: ${data.tenant_id}`);
-    console.log(`   - Schema: ${data.schema_name}`);
-    console.log(`   - 老板账号: ${tenantData.users[0].phone} / ${password}`);
+    console.log(`   - 租户ID: ${data.tenant.id}`);
+    console.log(`   - Schema: ${data.tenant.schema_name}`);
+    console.log(`   - 老板账号: ${tenantData.users[0].username} / ${tenantData.users[0].phone} / ${password}`);
     
-    return data;
+    return {
+      tenant_id: data.tenant.id,
+      schema_name: data.tenant.schema_name
+    };
   } catch (err) {
     console.error(`❌ 创建租户异常：${err.message}`);
     return null;
@@ -111,13 +119,20 @@ async function createTenantUsers(tenantId, schemaName, users) {
     
     try {
       // 1. 创建 auth.users 账号
+      const accountEmail = `${user.username}@fleet.local`;
+      
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         phone: user.phone,
+        email: accountEmail,
         password: password,
         phone_confirm: true,
+        email_confirm: true,
         user_metadata: {
           name: user.name,
-          tenant_id: tenantId
+          account: user.username,
+          role: user.role,
+          tenant_id: tenantId,
+          schema_name: schemaName
         }
       });
 
@@ -128,26 +143,25 @@ async function createTenantUsers(tenantId, schemaName, users) {
 
       console.log(`   ✅ 认证账号创建成功：${authData.user.id}`);
 
-      // 2. 在租户 schema 中创建 profile
-      const { error: profileError } = await supabase
-        .from(`${schemaName}.profiles`)
-        .insert({
-          id: authData.user.id,
-          phone: user.phone,
-          name: user.name,
-          role: user.role,
-          tenant_id: tenantId
-        });
+      // 2. 在租户 schema 中创建 profile（使用 RPC 函数）
+      const { data: profileResult, error: profileError } = await supabase.rpc('insert_tenant_profile', {
+        p_schema_name: schemaName,
+        p_user_id: authData.user.id,
+        p_name: user.name,
+        p_phone: user.phone,
+        p_email: accountEmail,
+        p_role: user.role
+      });
 
-      if (profileError) {
-        console.error(`   ❌ 创建用户资料失败：${profileError.message}`);
+      if (profileError || !profileResult?.success) {
+        console.error(`   ❌ 创建用户资料失败：${profileError?.message || profileResult?.error}`);
         // 删除已创建的 auth 用户
         await supabase.auth.admin.deleteUser(authData.user.id);
         continue;
       }
 
       console.log(`   ✅ 用户资料创建成功`);
-      console.log(`   📱 登录账号：${user.phone} / ${password}`);
+      console.log(`   📱 登录账号：${user.username} / ${user.phone} / ${password}`);
       
     } catch (err) {
       console.error(`   ❌ 创建用户异常：${err.message}`);
