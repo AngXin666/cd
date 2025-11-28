@@ -6,7 +6,38 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：修复中央管理系统删除租户失败问题！✅
+**最新更新**：修复中央管理系统删除租户失败问题（增强版）！✅
+
+### 修复34：增强 Session 管理和存储日志 ✅ 已完成
+- ✅ **问题分析**：
+  - 从用户日志发现：租户列表页面能成功获取 session，但调用 `deleteTenant` 时 session 为空
+  - 这表明在异步操作（如 `showModal` 回调）中，session 的获取可能出现问题
+- ✅ **解决方案**：
+  1. **Session 刷新机制**：
+     - 在 `deleteTenant` 函数开始时，先调用 `refreshSession()` 刷新 token
+     - 如果刷新失败，再尝试 `getSession()` 获取现有 session
+     - 确保在任何情况下都能获取到有效的 session
+  2. **增强存储日志**：
+     - 在 `taroStorage` 的 `getItem`、`setItem`、`removeItem` 方法中添加详细日志
+     - 记录每次存储操作的 key、数据长度、成功/失败状态
+     - 帮助诊断 session 存储和读取问题
+  3. **详细的调试信息**：
+     - 记录 session 刷新结果
+     - 记录 session 获取结果
+     - 记录用户 ID 和 access token 前缀
+     - 帮助快速定位问题
+- ✅ **修改内容**：
+  1. 更新 `src/client/supabase.ts`：
+     - 在 `taroStorage` 的所有方法中添加详细日志
+     - 记录存储操作的成功/失败状态
+  2. 更新 `src/db/central-admin-api.ts` 的 `deleteTenant` 函数：
+     - 添加 `refreshSession()` 调用
+     - 实现双重 session 获取机制（刷新 + 获取）
+     - 添加更详细的日志输出
+- ✅ **预期效果**：
+  - Session 获取更加可靠，减少"未登录"错误
+  - 详细的日志帮助快速诊断问题
+  - 提升用户体验，减少操作失败
 
 ### 修复33：修复中央管理系统删除租户失败问题 ✅ 已完成
 - ✅ **问题现象**：

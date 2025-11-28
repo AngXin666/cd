@@ -244,10 +244,43 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
   try {
     console.log('🗑️ 开始删除租户:', tenantId)
 
-    // 获取访问令牌
-    const {
-      data: {session}
-    } = await supabase.auth.getSession()
+    // 先尝试刷新 session，确保 token 是最新的
+    console.log('🔄 刷新 session...')
+    const refreshResult = await supabase.auth.refreshSession()
+
+    console.log('📋 Session 刷新结果:', {
+      hasData: !!refreshResult.data,
+      hasSession: !!refreshResult.data?.session,
+      hasError: !!refreshResult.error,
+      errorMessage: refreshResult.error?.message
+    })
+
+    // 如果刷新失败，尝试直接获取 session
+    let session = refreshResult.data?.session
+
+    if (!session) {
+      console.log('⚠️ 刷新失败，尝试直接获取 session...')
+      const sessionResult = await supabase.auth.getSession()
+
+      console.log('📋 Session 获取结果:', {
+        hasData: !!sessionResult.data,
+        hasSession: !!sessionResult.data?.session,
+        hasError: !!sessionResult.error,
+        errorMessage: sessionResult.error?.message
+      })
+
+      if (sessionResult.error) {
+        console.error('❌ 获取 session 失败:', sessionResult.error)
+        Taro.showToast({
+          title: `获取登录状态失败: ${sessionResult.error.message}`,
+          icon: 'none',
+          duration: 2000
+        })
+        return false
+      }
+
+      session = sessionResult.data?.session
+    }
 
     if (!session) {
       console.error('❌ 未登录 - session 为空')
@@ -260,6 +293,8 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
     }
 
     console.log('✅ Token 有效，准备调用 Edge Function')
+    console.log('📋 User ID:', session.user?.id)
+    console.log('📋 Access Token 前缀:', `${session.access_token.substring(0, 20)}...`)
 
     // 使用 Taro.request 调用 Edge Function
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
