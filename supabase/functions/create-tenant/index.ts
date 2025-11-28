@@ -246,7 +246,22 @@ Deno.serve(async (req) => {
 
     console.log('✅ 默认仓库创建成功')
 
-    // 7. 更新租户记录
+    // 7. 复制模板租户配置（如果存在）
+    console.log('📋 开始复制模板租户配置')
+    const {data: copyResult, error: copyError} = await supabase.rpc('copy_template_to_new_tenant', {
+      p_new_tenant_code: tenantCode
+    })
+
+    if (copyError) {
+      console.error('⚠️ 复制模板配置失败（非致命错误）:', copyError)
+      // 不回滚，继续创建流程
+    } else if (copyResult?.success) {
+      console.log('✅ 模板配置复制成功:', copyResult)
+    } else {
+      console.log('ℹ️ 未复制模板配置:', copyResult?.message || '无模板租户')
+    }
+
+    // 8. 更新租户记录
     const {data: updatedTenant} = await supabase
       .from('tenants')
       .update({

@@ -6,13 +6,23 @@
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useState} from 'react'
-import {activateTenant, deleteTenant, getAllTenants, suspendTenant} from '@/db/central-admin-api'
+import {
+  activateTenant,
+  deleteTenant,
+  getAllTenants,
+  getTemplateTenantConfig,
+  suspendTenant
+} from '@/db/central-admin-api'
 import type {Tenant} from '@/db/types'
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
+  const [templateTenant, setTemplateTenant] = useState<{
+    tenant_code?: string
+    company_name?: string
+  } | null>(null)
 
   // 加载租户列表
   const loadTenants = useCallback(async () => {
@@ -28,9 +38,25 @@ export default function TenantsPage() {
     }
   }, [])
 
+  // 加载模板租户信息
+  const loadTemplateTenant = useCallback(async () => {
+    try {
+      const result = await getTemplateTenantConfig()
+      if (result.success) {
+        setTemplateTenant({
+          tenant_code: result.tenant_code,
+          company_name: result.company_name
+        })
+      }
+    } catch (error) {
+      console.error('加载模板租户信息失败:', error)
+    }
+  }, [])
+
   // 页面显示时加载数据
   useDidShow(() => {
     loadTenants()
+    loadTemplateTenant()
   })
 
   // 搜索过滤
@@ -176,6 +202,23 @@ export default function TenantsPage() {
           />
         </View>
       </View>
+
+      {/* 模板租户信息 */}
+      {templateTenant && (
+        <View className="px-4 mb-4">
+          <View className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+            <View className="flex items-center mb-2">
+              <View className="i-mdi-content-copy text-purple-500 text-xl mr-2" />
+              <Text className="text-base font-bold text-purple-700">模板租户</Text>
+            </View>
+            <Text className="text-sm text-gray-600 block mb-1">公司名称：{templateTenant.company_name}</Text>
+            <Text className="text-sm text-gray-600 block mb-2">租户代码：{templateTenant.tenant_code}</Text>
+            <Text className="text-xs text-purple-600 block">
+              💡 创建新租户时，将自动复制该租户的配置（仓库、车辆等）
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* 租户列表 */}
       <ScrollView scrollY className="flex-1 px-4 pb-6 box-border">

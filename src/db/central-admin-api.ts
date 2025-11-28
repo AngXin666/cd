@@ -279,3 +279,34 @@ export async function getTenantStats() {
     }
   }
 }
+
+/**
+ * 获取模板租户配置
+ */
+export async function getTemplateTenantConfig(): Promise<{
+  success: boolean
+  tenant_id?: string
+  tenant_code?: string
+  company_name?: string
+  message?: string
+}> {
+  try {
+    const {data, error} = await supabase.rpc('get_template_tenant_config')
+
+    if (error) {
+      console.error('❌ 获取模板租户配置失败:', error)
+      return {
+        success: false,
+        message: error.message
+      }
+    }
+
+    return data || {success: false, message: '未找到模板租户'}
+  } catch (error) {
+    console.error('❌ 获取模板租户配置异常:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '获取失败'
+    }
+  }
+}
