@@ -6,7 +6,42 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：修复租户删除不完整问题！✅
+**最新更新**：清理所有残留的租户数据！✅
+
+### 修复44：清理所有残留的租户数据 ✅ 已完成
+- ✅ **问题现象**：
+  - 租户已经在中央管理系统中删除
+  - 但是租户 Schema 和 auth.users 中的数据还存在
+  - public.profiles 表中还有旧系统的用户数据
+  - 导致数据残留，无法完全清理
+- ✅ **解决方案**：
+  1. **创建清理孤立租户数据的 RPC 函数**：
+     - 创建 `cleanup_orphaned_tenant_data()` RPC 函数
+     - 查找所有以 tenant_ 开头的 Schema
+     - 删除每个 Schema 中所有用户的 auth.users 记录
+     - 删除 Schema 本身（包括所有表和数据）
+     - 返回清理统计信息
+  2. **清理旧的 public.profiles 数据**：
+     - 删除 public.profiles 表中的所有非系统管理员用户
+     - 删除对应的 auth.users 记录
+     - 保留 system_admins 表中的系统管理员
+- ✅ **修改内容**：
+  1. 创建并应用迁移 `cleanup_orphaned_tenant_data.sql`：
+     - 创建 `cleanup_orphaned_tenant_data()` RPC 函数
+     - 自动执行清理操作
+  2. 创建并应用迁移 `cleanup_old_public_profiles.sql`：
+     - 删除所有旧系统的用户数据
+     - 保留系统管理员
+- ✅ **清理结果**：
+  - ✅ `remaining_profiles: 0` - public.profiles 表已清空
+  - ✅ `system_admins: 2` - 系统管理员保留
+  - ✅ `tenants: 0` - 没有租户记录
+  - ✅ `tenant_schemas: 0` - 没有租户 Schema
+  - ✅ 所有残留数据已完全清理
+- ⚠️ **注意事项**：
+  - 清理操作不可逆，请谨慎使用
+  - 系统管理员不会被删除
+  - 如果将来需要清理孤立的租户数据，可以调用 `SELECT * FROM cleanup_orphaned_tenant_data();`
 
 ### 修复43：修复租户删除不完整问题 ✅ 已完成
 - ✅ **问题现象**：
