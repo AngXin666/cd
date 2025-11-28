@@ -138,7 +138,7 @@ export default function TenantsPage() {
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* 头部 */}
       <View className="bg-primary text-white p-6 pb-8">
-        <View className="flex items-center justify-between">
+        <View className="flex items-center justify-between mb-4">
           <View>
             <Text className="text-2xl font-bold block mb-2">租户管理</Text>
             <Text className="text-sm opacity-90 block">共 {filteredTenants.length} 个租户</Text>
@@ -148,6 +148,19 @@ export default function TenantsPage() {
             size="default"
             onClick={handleCreate}>
             + 创建租户
+          </Button>
+        </View>
+
+        {/* 快捷功能按钮 */}
+        <View className="mt-4">
+          <Button
+            className="w-full bg-white bg-opacity-20 text-white border border-white border-opacity-30 py-3 rounded-lg font-medium break-keep text-base"
+            size="default"
+            onClick={() => Taro.navigateTo({url: '/pages/central-admin/test-accounts/index'})}>
+            <View className="flex items-center justify-center">
+              <View className="i-mdi-account-multiple text-xl mr-2" />
+              <Text>测试账号管理</Text>
+            </View>
           </Button>
         </View>
       </View>

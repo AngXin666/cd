@@ -7,6 +7,7 @@ const pages = [
   'pages/super-admin/index',
   'pages/central-admin/tenants/index',
   'pages/central-admin/tenant-create/index',
+  'pages/central-admin/test-accounts/index',
   'pages/profile/index',
   'pages/profile/settings/index',
   'pages/profile/account-management/index',

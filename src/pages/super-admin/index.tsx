@@ -541,14 +541,6 @@ const SuperAdminHome: React.FC = () => {
                 <View className="i-mdi-send text-3xl text-purple-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">发送通知</Text>
               </View>
-
-              {/* 测试登录 */}
-              <View
-                onClick={() => navigateTo({url: '/pages/test-login/index'})}
-                className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
-                <View className="i-mdi-account-switch text-3xl text-green-600 mb-2" />
-                <Text className="text-xs text-gray-700 font-medium">测试登录</Text>
-              </View>
             </View>
           </View>
 
