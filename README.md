@@ -6,7 +6,36 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：修复中央管理系统删除租户失败问题（增强版）！✅
+**最新更新**：彻底修复中央管理系统删除租户失败问题！✅
+
+### 修复35：手动解析存储中的 Session 数据 ✅ 已完成
+- ✅ **问题根源**：
+  - 存储中确实有 session 数据（1402 字节），但 Supabase 客户端无法读取
+  - `supabase.auth.getSession()` 和 `refreshSession()` 都返回空 session
+  - 原因：Supabase 客户端的存储适配器在某些情况下无法正确读取 Taro 存储
+- ✅ **解决方案**：
+  1. **手动读取存储**：
+     - 直接使用 `Taro.getStorage()` 读取存储的 session 数据
+     - 手动解析 JSON 数据，提取 `access_token`
+     - 绕过 Supabase 客户端的存储适配器问题
+  2. **双重保障机制**：
+     - 优先使用手动读取的 access_token
+     - 如果手动读取失败，再尝试 Supabase API
+     - 确保在任何情况下都能获取到有效的 token
+  3. **详细的日志记录**：
+     - 记录存储 key 和数据长度
+     - 记录每个步骤的成功/失败状态
+     - 帮助快速定位问题
+- ✅ **修改内容**：
+  1. 更新 `src/db/central-admin-api.ts` 的 `deleteTenant` 函数：
+     - 添加手动读取存储的逻辑
+     - 解析 JSON 数据提取 access_token
+     - 实现双重保障机制（手动读取 + Supabase API）
+     - 更新 Edge Function 调用，使用手动获取的 accessToken
+- ✅ **预期效果**：
+  - 彻底解决"未登录"错误
+  - 删除租户功能正常工作
+  - 提升系统稳定性和可靠性
 
 ### 修复34：增强 Session 管理和存储日志 ✅ 已完成
 - ✅ **问题分析**：

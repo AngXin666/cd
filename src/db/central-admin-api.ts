@@ -244,61 +244,69 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
   try {
     console.log('🗑️ 开始删除租户:', tenantId)
 
-    // 手动检查存储中的 session
+    // 手动从存储中读取 session
     const storageKey = `${process.env.TARO_APP_APP_ID}-auth-token`
     console.log('🔍 检查存储 key:', storageKey)
+
+    let accessToken: string | null = null
 
     try {
       const storedData = await Taro.getStorage({key: storageKey})
       console.log('📦 存储中的数据:', {
         hasData: !!storedData.data,
-        dataLength: storedData.data?.length || 0,
-        dataPreview: storedData.data?.substring(0, 100) || 'empty'
+        dataLength: storedData.data?.length || 0
       })
+
+      if (storedData.data) {
+        // 解析存储的 session 数据
+        const sessionData = JSON.parse(storedData.data)
+        accessToken = sessionData.access_token
+        console.log('✅ 成功从存储中解析 access_token')
+        console.log('📋 Access Token 前缀:', `${accessToken?.substring(0, 20)}...`)
+      }
     } catch (error) {
-      console.error('❌ 读取存储失败:', error)
+      console.error('❌ 读取或解析存储失败:', error)
     }
 
-    // 先尝试刷新 session，确保 token 是最新的
-    console.log('🔄 刷新 session...')
-    const refreshResult = await supabase.auth.refreshSession()
+    // 如果手动读取失败，尝试使用 Supabase API
+    if (!accessToken) {
+      console.log('⚠️ 手动读取失败，尝试使用 Supabase API...')
 
-    console.log('📋 Session 刷新结果:', {
-      hasData: !!refreshResult.data,
-      hasSession: !!refreshResult.data?.session,
-      hasError: !!refreshResult.error,
-      errorMessage: refreshResult.error?.message
-    })
+      // 先尝试刷新 session
+      console.log('🔄 刷新 session...')
+      const refreshResult = await supabase.auth.refreshSession()
 
-    // 如果刷新失败，尝试直接获取 session
-    let session = refreshResult.data?.session
-
-    if (!session) {
-      console.log('⚠️ 刷新失败，尝试直接获取 session...')
-      const sessionResult = await supabase.auth.getSession()
-
-      console.log('📋 Session 获取结果:', {
-        hasData: !!sessionResult.data,
-        hasSession: !!sessionResult.data?.session,
-        hasError: !!sessionResult.error,
-        errorMessage: sessionResult.error?.message
+      console.log('📋 Session 刷新结果:', {
+        hasData: !!refreshResult.data,
+        hasSession: !!refreshResult.data?.session,
+        hasError: !!refreshResult.error,
+        errorMessage: refreshResult.error?.message
       })
 
-      if (sessionResult.error) {
-        console.error('❌ 获取 session 失败:', sessionResult.error)
-        Taro.showToast({
-          title: `获取登录状态失败: ${sessionResult.error.message}`,
-          icon: 'none',
-          duration: 2000
+      let session = refreshResult.data?.session
+
+      if (!session) {
+        console.log('⚠️ 刷新失败，尝试直接获取 session...')
+        const sessionResult = await supabase.auth.getSession()
+
+        console.log('📋 Session 获取结果:', {
+          hasData: !!sessionResult.data,
+          hasSession: !!sessionResult.data?.session,
+          hasError: !!sessionResult.error,
+          errorMessage: sessionResult.error?.message
         })
-        return false
+
+        session = sessionResult.data?.session
       }
 
-      session = sessionResult.data?.session
+      if (session) {
+        accessToken = session.access_token
+        console.log('✅ 通过 Supabase API 获取到 access_token')
+      }
     }
 
-    if (!session) {
-      console.error('❌ 未登录 - session 为空')
+    if (!accessToken) {
+      console.error('❌ 未登录 - 无法获取 access_token')
       Taro.showToast({
         title: '登录状态已过期，请重新登录',
         icon: 'none',
@@ -308,8 +316,6 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
     }
 
     console.log('✅ Token 有效，准备调用 Edge Function')
-    console.log('📋 User ID:', session.user?.id)
-    console.log('📋 Access Token 前缀:', `${session.access_token.substring(0, 20)}...`)
 
     // 使用 Taro.request 调用 Edge Function
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
@@ -318,7 +324,7 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
       method: 'POST',
       header: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
+        Authorization: `Bearer ${accessToken}`
       },
       data: {tenantId}
     })
