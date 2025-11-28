@@ -71,13 +71,6 @@ const Login: React.FC = () => {
   const loadTestAccounts = useCallback(async () => {
     console.log('🔍 开始加载测试账号列表...')
 
-    // 先退出登录，确保使用 anon 角色
-    console.log('📌 退出当前登录状态，使用匿名角色...')
-    await supabase.auth.signOut()
-
-    // 等待一小段时间确保 session 清除
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
     // 检查当前用户状态
     const {
       data: {session}
