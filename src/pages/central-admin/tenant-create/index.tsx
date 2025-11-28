@@ -4,8 +4,9 @@
  */
 
 import {Button, Input, ScrollView, Text, View} from '@tarojs/components'
-import Taro from '@tarojs/taro'
-import {useEffect, useState} from 'react'
+import Taro, {useDidShow} from '@tarojs/taro'
+import {useCallback, useEffect, useState} from 'react'
+import {supabase} from '@/client/supabase'
 import {createTenant} from '@/db/central-admin-api'
 import type {CreateTenantInput} from '@/db/types'
 
@@ -23,6 +24,34 @@ export default function TenantCreatePage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasDraft, setHasDraft] = useState(false)
+
+  // 检查登录状态
+  const checkAuth = useCallback(async () => {
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      console.log('❌ 未登录，跳转到登录页面')
+      Taro.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        Taro.redirectTo({url: '/pages/login/index'})
+      }, 2000)
+      return false
+    }
+
+    console.log('✅ 已登录，session 有效')
+    return true
+  }, [])
+
+  // 页面显示时检查登录状态
+  useDidShow(() => {
+    checkAuth()
+  })
 
   // 页面加载时恢复草稿
   useEffect(() => {
