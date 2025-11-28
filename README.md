@@ -6,7 +6,16 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：彻底解决登录状态问题，修复 session 重复获取导致的失败！✅
+**最新更新**：修复租户 Schema 克隆问题，确保所有字段正确复制！✅
+
+### 修复22：修复租户 Schema 克隆字段缺失问题 ✅ 已完成
+- ✅ **问题根源**：CREATE TABLE LIKE 语法没有复制所有字段
+- ✅ **解决方案**：使用 INCLUDING ALL 选项确保完整复制
+- ✅ **修复内容**：
+  - 使用 `CREATE TABLE LIKE INCLUDING ALL` 语法
+  - 复制所有字段、默认值、约束、索引
+  - 排除外键约束（避免跨 Schema 引用问题）
+- ✅ **预期效果**：创建租户时不再出现 "column does not exist" 错误
 
 ### 修复21：彻底解决创建租户时 session 丢失问题 ✅ 已完成
 - ✅ **根本原因**：在 `handleSubmit` 和 `createTenant` 中重复调用 `getSession()` 导致 session 丢失
