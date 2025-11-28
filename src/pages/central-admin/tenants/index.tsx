@@ -204,19 +204,6 @@ export default function TenantsPage() {
             + 创建租户
           </Button>
         </View>
-
-        {/* 快捷功能按钮 */}
-        <View className="mt-4">
-          <Button
-            className="w-full bg-white bg-opacity-20 text-white border border-white border-opacity-30 py-3 rounded-lg font-medium break-keep text-base"
-            size="default"
-            onClick={() => Taro.navigateTo({url: '/pages/central-admin/test-accounts/index'})}>
-            <View className="flex items-center justify-center">
-              <View className="i-mdi-account-multiple text-xl mr-2" />
-              <Text>测试账号管理</Text>
-            </View>
-          </Button>
-        </View>
       </View>
 
       {/* 搜索框 */}
