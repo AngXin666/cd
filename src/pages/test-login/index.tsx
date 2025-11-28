@@ -100,6 +100,9 @@ export default function TestLogin() {
       }
 
       if (data.user) {
+        // 设置标记：表示用户是通过测试登录进入的
+        Taro.setStorageSync('isTestLogin', 'true')
+
         Taro.showToast({
           title: `登录成功：${account.role_name}`,
           icon: 'success'
@@ -113,7 +116,7 @@ export default function TestLogin() {
           } else if (account.role === 'manager') {
             Taro.switchTab({url: '/pages/manager/index'})
           } else if (account.role === 'super_admin') {
-            Taro.switchTab({url: '/pages/boss/index'})
+            Taro.switchTab({url: '/pages/super-admin/index'})
           } else {
             Taro.switchTab({url: '/pages/driver/index'})
           }

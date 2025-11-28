@@ -31,6 +31,9 @@ const Login: React.FC = () => {
   }, [])
 
   const handleLoginSuccess = async () => {
+    // 清除测试登录标记（表示用户是通过正常登录进入的）
+    Taro.removeStorageSync('isTestLogin')
+
     // 登录成功后跳转到工作台首页，由首页根据角色自动跳转
     try {
       switchTab({url: '/pages/index/index'})

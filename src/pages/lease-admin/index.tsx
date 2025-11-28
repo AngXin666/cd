@@ -3,9 +3,10 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'
 import {getLeaseStats} from '@/db/api'
+import {smartLogout} from '@/utils/auth'
 
 export default function LeaseAdminDashboard() {
-  const {logout} = useAuth()
+  useAuth()
   const [stats, setStats] = useState({
     totalTenants: 0,
     activeTenants: 0,
@@ -49,15 +50,11 @@ export default function LeaseAdminDashboard() {
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          logout()
-          Taro.showToast({
-            title: '已退出登录',
-            icon: 'success'
-          })
+          smartLogout()
         }
       }
     })
-  }, [logout])
+  }, [])
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">

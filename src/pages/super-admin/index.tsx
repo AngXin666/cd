@@ -14,9 +14,10 @@ import {
   useSuperAdminDashboard,
   useWarehousesSorted
 } from '@/hooks'
+import {smartLogout} from '@/utils/auth'
 
 const SuperAdminHome: React.FC = () => {
-  const {user, logout} = useAuth({guard: true})
+  const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [rawWarehouses, setRawWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
@@ -237,12 +238,7 @@ const SuperAdminHome: React.FC = () => {
     })
 
     if (res.confirm) {
-      logout()
-      Taro.showToast({
-        title: '已退出登录',
-        icon: 'success',
-        duration: 2000
-      })
+      smartLogout()
     }
   }
 

@@ -5,9 +5,10 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getCurrentUserProfile, getDriverLicense, getDriverStats, getManagerStats, getSuperAdminStats} from '@/db/api'
 import type {DriverLicense, Profile} from '@/db/types'
+import {smartLogout} from '@/utils/auth'
 
 const ProfilePage: React.FC = () => {
-  const {user, logout} = useAuth({guard: true})
+  const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
@@ -50,7 +51,7 @@ const ProfilePage: React.FC = () => {
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          logout()
+          smartLogout()
         }
       }
     })

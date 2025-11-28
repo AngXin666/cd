@@ -15,9 +15,10 @@ import {
   useWarehousesData,
   useWarehousesSorted
 } from '@/hooks'
+import {smartLogout} from '@/utils/auth'
 
 const ManagerHome: React.FC = () => {
-  const {user, logout} = useAuth({guard: true})
+  const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
@@ -253,12 +254,7 @@ const ManagerHome: React.FC = () => {
     })
 
     if (res.confirm) {
-      logout()
-      Taro.showToast({
-        title: '已退出登录',
-        icon: 'success',
-        duration: 2000
-      })
+      smartLogout()
     }
   }
 

@@ -17,9 +17,10 @@ import {
 } from '@/hooks'
 import type {AttendanceCheckResult} from '@/utils/attendance-check'
 import {checkTodayAttendance} from '@/utils/attendance-check'
+import {smartLogout} from '@/utils/auth'
 
 const DriverHome: React.FC = () => {
-  const {user, logout} = useAuth({guard: true})
+  const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
   const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
@@ -267,7 +268,7 @@ const DriverHome: React.FC = () => {
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          logout()
+          smartLogout()
         }
       }
     })
