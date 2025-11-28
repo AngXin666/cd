@@ -1,5 +1,4 @@
 const pages = [
-  'pages/test-login/index',
   'pages/login/index',
   'pages/index/index',
   'pages/driver/index',
@@ -70,7 +69,8 @@ const pages = [
   'pages/shared/notification-templates/index',
   'pages/shared/scheduled-notifications/index',
   'pages/shared/notification-records/index',
-  'pages/shared/auto-reminder-rules/index'
+  'pages/shared/auto-reminder-rules/index',
+  'pages/test-login/index'
 ]
 
 export default defineAppConfig({
