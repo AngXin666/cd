@@ -135,18 +135,6 @@ export async function isDriver(userId?: string): Promise<boolean> {
 }
 
 /**
- * 检查用户是否为租赁管理员
- *
- * @param {string} [userId] - 用户ID，默认为当前用户
- * @returns {Promise<boolean>} 是否为租赁管理员
- */
-export async function isLeaseAdmin(userId?: string): Promise<boolean> {
-  const uid = userId || (await getCurrentUserId())
-  const role = await getUserRoleCached(uid)
-  return role === 'lease_admin'
-}
-
-/**
  * 检查用户是否可以访问指定资源
  *
  * @param {string} resourceUserId - 资源所属用户ID

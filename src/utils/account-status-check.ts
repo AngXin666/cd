@@ -14,7 +14,7 @@ export interface AccountStatusResult {
   can_login: boolean
   status: 'active' | 'inactive' | 'expired' | 'not_found' | 'no_lease'
   message: string
-  role?: 'super_admin' | 'admin' | 'driver' | 'lease_admin'
+  role?: 'super_admin' | 'admin' | 'driver'
   is_main_account?: boolean
   lease_end_date?: string
 }

@@ -61,7 +61,6 @@ const Login: React.FC = () => {
       super_admin: '老板',
       manager: '车队长',
       peer_admin: '平级账号',
-      lease_admin: '租赁管理员',
       driver: '司机'
     }
     return roleMap[role] || role
@@ -175,7 +174,6 @@ const Login: React.FC = () => {
       super_admin: '#EF4444',
       manager: '#3B82F6',
       peer_admin: '#A855F7',
-      lease_admin: '#10B981',
       driver: '#6B7280'
     }
     return colorMap[role] || '#6B7280'

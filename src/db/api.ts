@@ -6226,7 +6226,7 @@ export async function createNotificationForAllManagers(notification: {
     const {data: managers, error: managersError} = await supabase
       .from('profiles')
       .select('id')
-      .in('role', ['manager', 'super_admin', 'lease_admin', 'peer_admin'])
+      .in('role', ['manager', 'super_admin', 'peer_admin'])
 
     if (managersError) {
       logger.error('获取管理员列表失败', managersError)
@@ -8101,12 +8101,6 @@ export async function checkUserLeaseStatus(
     // 司机不受租期限制
     if (user.role === 'driver') {
       console.log('[租期检测] 司机角色，不受租期限制')
-      return {status: 'ok'}
-    }
-
-    // 租赁管理员不受租期限制
-    if (user.role === 'lease_admin') {
-      console.log('[租期检测] 租赁管理员角色，不受租期限制')
       return {status: 'ok'}
     }
 

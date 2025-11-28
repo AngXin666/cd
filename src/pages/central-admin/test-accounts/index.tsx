@@ -33,7 +33,7 @@ export default function TestAccountsPage() {
       super_admin: '老板',
       manager: '车队长',
       peer_admin: '平级账号',
-      lease_admin: '租赁管理员',
+
       driver: '司机'
     }
     return roleMap[role] || role
@@ -119,7 +119,7 @@ export default function TestAccountsPage() {
       super_admin: 'bg-red-500',
       manager: 'bg-blue-500',
       peer_admin: 'bg-purple-500',
-      lease_admin: 'bg-green-500',
+
       driver: 'bg-gray-500'
     }
     return colorMap[role] || 'bg-gray-500'
@@ -166,7 +166,6 @@ export default function TestAccountsPage() {
             super_admin: '/pages/super-admin/index',
             manager: '/pages/manager/index',
             peer_admin: '/pages/super-admin/index',
-            lease_admin: '/pages/lease-admin/index',
             driver: '/pages/driver/index'
           }
 

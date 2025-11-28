@@ -73,8 +73,7 @@ export function getRoleDisplayName(role: UserRole): string {
     super_admin: '超级管理员',
     peer_admin: '平级管理员',
     manager: '车队长',
-    driver: '司机',
-    lease_admin: '租赁管理员'
+    driver: '司机'
   }
   return roleNames[role] || role
 }

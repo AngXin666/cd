@@ -974,8 +974,6 @@ const UserManagement: React.FC = () => {
         return '司机'
       case 'peer_admin':
         return '平级账户'
-      case 'lease_admin':
-        return '租赁管理员'
       default:
         return role
     }
@@ -994,8 +992,6 @@ const UserManagement: React.FC = () => {
         return 'bg-green-100 text-green-700'
       case 'peer_admin':
         return 'bg-purple-100 text-purple-700'
-      case 'lease_admin':
-        return 'bg-cyan-100 text-cyan-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }

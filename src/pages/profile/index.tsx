@@ -70,8 +70,6 @@ const ProfilePage: React.FC = () => {
         return '老板'
       case 'peer_admin':
         return '平级账户'
-      case 'lease_admin':
-        return '租赁管理员'
       default:
         return '未知'
     }
@@ -89,8 +87,6 @@ const ProfilePage: React.FC = () => {
         return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
       case 'peer_admin':
         return 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-      case 'lease_admin':
-        return 'linear-gradient(135deg, #fa8bff 0%, #2bd2ff 90%, #2bff88 100%)'
       default:
         return 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
     }
