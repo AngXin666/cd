@@ -100,8 +100,8 @@ export default function TestLogin() {
       }
 
       if (data.user) {
-        // 设置标记：表示用户是通过测试登录进入的
-        Taro.setStorageSync('isTestLogin', 'true')
+        // 设置登录来源页面为旧的测试登录页面
+        Taro.setStorageSync('loginSourcePage', '/pages/test-login/index')
 
         Taro.showToast({
           title: `登录成功：${account.role_name}`,

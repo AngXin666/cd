@@ -152,8 +152,8 @@ export default function TestAccountsPage() {
       }
 
       if (data.user) {
-        // 设置测试登录标记
-        Taro.setStorageSync('isTestLogin', 'true')
+        // 设置登录来源页面为中央管理系统的测试账号页面
+        Taro.setStorageSync('loginSourcePage', '/pages/central-admin/test-accounts/index')
 
         Taro.showToast({
           title: `登录成功：${account.role_name}`,
