@@ -3,6 +3,7 @@
  * 用于管理多租户系统的租户
  */
 
+import Taro from '@tarojs/taro'
 import {supabase} from './supabase'
 import type {CreateTenantInput, CreateTenantResult, Tenant, UpdateTenantInput} from './types'
 
@@ -129,40 +130,35 @@ export async function createTenant(input: CreateTenantInput, accessToken?: strin
 
     console.log('✅ Token 有效，准备调用 Edge Function')
 
-    // 使用 fetch 直接调用 Edge Function，以便获取详细错误信息
+    // 使用 Taro.request 调用 Edge Function，以便获取详细错误信息
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
-    const response = await fetch(`${supabaseUrl}/functions/v1/create-tenant`, {
+    const response = await Taro.request({
+      url: `${supabaseUrl}/functions/v1/create-tenant`,
       method: 'POST',
-      headers: {
+      header: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify(input)
+      data: input
     })
 
-    // 获取响应文本
-    const responseText = await response.text()
-    console.log('📥 Edge Function 响应状态:', response.status)
-    console.log('📥 Edge Function 响应内容:', responseText)
+    console.log('📥 Edge Function 响应状态:', response.statusCode)
+    console.log('📥 Edge Function 响应内容:', response.data)
 
-    // 尝试解析 JSON
-    let data: any
-    try {
-      data = JSON.parse(responseText)
-    } catch (e) {
-      console.error('❌ 无法解析响应 JSON:', e)
+    if (response.statusCode !== 200) {
+      console.error('❌ Edge Function 返回错误状态:', response.statusCode)
       return {
         success: false,
-        error: `服务器返回了无效的响应: ${responseText.substring(0, 200)}`
+        error: response.data?.error || `服务器错误 (${response.statusCode})`
       }
     }
 
-    if (!response.ok) {
-      console.error('❌ Edge Function 返回错误状态:', response.status)
-      return {
-        success: false,
-        error: data.error || `服务器错误 (${response.status})`
-      }
+    const data = response.data as {
+      success: boolean
+      error?: string
+      tenant?: any
+      bossCredentials?: any
+      message?: string
     }
 
     if (!data.success) {
@@ -254,29 +250,61 @@ export async function deleteTenant(tenantId: string): Promise<boolean> {
     } = await supabase.auth.getSession()
 
     if (!session) {
-      console.error('❌ 未登录')
+      console.error('❌ 未登录 - session 为空')
+      Taro.showToast({
+        title: '登录状态已过期，请重新登录',
+        icon: 'none',
+        duration: 2000
+      })
       return false
     }
 
-    // 调用 Edge Function 删除租户
+    console.log('✅ Token 有效，准备调用 Edge Function')
+
+    // 使用 Taro.request 调用 Edge Function
     const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
-    const response = await fetch(`${supabaseUrl}/functions/v1/delete-tenant`, {
+    const response = await Taro.request({
+      url: `${supabaseUrl}/functions/v1/delete-tenant`,
       method: 'POST',
-      headers: {
+      header: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({tenantId})
+      data: {tenantId}
     })
 
-    const result = await response.json()
+    console.log('📥 Edge Function 响应状态:', response.statusCode)
+    console.log('📥 Edge Function 响应内容:', response.data)
 
-    if (!response.ok || !result.success) {
+    if (response.statusCode !== 200) {
+      console.error('❌ 删除租户失败 - HTTP 状态码:', response.statusCode)
+      console.error('❌ 错误详情:', response.data)
+      Taro.showToast({
+        title: `删除失败: ${response.data?.error || '未知错误'}`,
+        icon: 'none',
+        duration: 2000
+      })
+      return false
+    }
+
+    const result = response.data as {success: boolean; error?: string}
+
+    if (!result.success) {
       console.error('❌ 删除租户失败:', result.error)
+      Taro.showToast({
+        title: `删除失败: ${result.error || '未知错误'}`,
+        icon: 'none',
+        duration: 2000
+      })
       return false
     }
 
     console.log('✅ 租户删除成功')
+    Taro.showToast({
+      title: '租户删除成功',
+      icon: 'success',
+      duration: 2000
+    })
     return true
   } catch (error) {
     console.error('❌ 删除租户失败:', error)

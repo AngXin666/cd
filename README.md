@@ -6,7 +6,42 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：实现安全的跨Schema访问机制！✅
+**最新更新**：修复中央管理系统删除租户失败问题！✅
+
+### 修复33：修复中央管理系统删除租户失败问题 ✅ 已完成
+- ✅ **问题现象**：
+  - 中央管理系统删除租户时出现"❌ 未登录"错误
+  - 控制台显示 session 为空，无法获取访问令牌
+- ✅ **问题根源**：
+  - `deleteTenant` 和 `createTenant` 函数使用了原生的 `fetch` API
+  - 在 Taro 小程序环境中，`fetch` API 可能不可用或行为不一致
+  - 导致无法正确调用 Edge Function
+- ✅ **解决方案**：
+  1. **替换 fetch 为 Taro.request**：
+     - 将 `deleteTenant` 函数中的 `fetch` 替换为 `Taro.request`
+     - 将 `createTenant` 函数中的 `fetch` 替换为 `Taro.request`
+     - 确保在 Taro 环境中正确调用 Edge Function
+  2. **改进错误处理**：
+     - 添加更详细的错误日志
+     - 使用 `Taro.showToast` 显示友好的错误提示
+     - 区分不同类型的错误（未登录、HTTP 错误、业务错误）
+  3. **统一 API 调用方式**：
+     - 所有 Edge Function 调用统一使用 `Taro.request`
+     - 确保跨平台兼容性（小程序、H5）
+- ✅ **修改内容**：
+  1. 在 `src/db/central-admin-api.ts` 中导入 `Taro`
+  2. 更新 `deleteTenant` 函数：
+     - 使用 `Taro.request` 替代 `fetch`
+     - 添加详细的错误日志和用户提示
+     - 正确处理响应状态码和数据
+  3. 更新 `createTenant` 函数：
+     - 使用 `Taro.request` 替代 `fetch`
+     - 简化响应处理逻辑
+     - 统一错误处理方式
+- ✅ **验证结果**：
+  - 代码检查通过，无语法错误
+  - API 调用方式统一，确保跨平台兼容
+  - 错误处理完善，用户体验改善
 
 ### 修复32：实现安全的跨Schema访问机制 ✅ 已完成
 - ✅ **背景说明**：
