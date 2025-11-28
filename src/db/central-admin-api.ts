@@ -98,35 +98,52 @@ export async function createTenant(input: CreateTenantInput): Promise<CreateTena
   try {
     console.log('🚀 开始创建租户:', input.company_name)
 
-    // 调用 Edge Function
-    const {data, error} = await supabase.functions.invoke('create-tenant', {
-      body: input
-    })
+    // 获取访问令牌
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
 
-    if (error) {
-      console.error('❌ 调用 Edge Function 失败:', error)
-      console.error('错误详情:', JSON.stringify(error, null, 2))
-
-      // 尝试从错误对象中提取更多信息
-      let errorMessage = error.message || '创建租户失败'
-
-      // 如果是 FunctionsHttpError，尝试获取响应体
-      if (error.context) {
-        console.error('错误上下文:', error.context)
-        errorMessage += `\n详情: ${JSON.stringify(error.context)}`
-      }
-
+    if (!session) {
+      console.error('❌ 未登录')
       return {
         success: false,
-        error: errorMessage
+        error: '未登录，请先登录'
       }
     }
 
-    if (!data) {
-      console.error('❌ Edge Function 返回空数据')
+    // 使用 fetch 直接调用 Edge Function，以便获取详细错误信息
+    const supabaseUrl = process.env.TARO_APP_SUPABASE_URL
+    const response = await fetch(`${supabaseUrl}/functions/v1/create-tenant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(input)
+    })
+
+    // 获取响应文本
+    const responseText = await response.text()
+    console.log('📥 Edge Function 响应状态:', response.status)
+    console.log('📥 Edge Function 响应内容:', responseText)
+
+    // 尝试解析 JSON
+    let data: any
+    try {
+      data = JSON.parse(responseText)
+    } catch (e) {
+      console.error('❌ 无法解析响应 JSON:', e)
       return {
         success: false,
-        error: 'Edge Function 返回空数据'
+        error: `服务器返回了无效的响应: ${responseText.substring(0, 200)}`
+      }
+    }
+
+    if (!response.ok) {
+      console.error('❌ Edge Function 返回错误状态:', response.status)
+      return {
+        success: false,
+        error: data.error || `服务器错误 (${response.status})`
       }
     }
 
