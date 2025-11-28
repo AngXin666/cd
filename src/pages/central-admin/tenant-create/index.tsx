@@ -239,9 +239,9 @@ export default function TenantCreatePage() {
         <View className="bg-blue-50 rounded-lg p-4 mb-4">
           <Text className="text-sm text-blue-600 block mb-2">📌 自动化部署说明</Text>
           <Text className="text-xs text-blue-500 block mb-1">• 系统将自动创建独立的数据库 Schema</Text>
-          <Text className="text-xs text-blue-500 block mb-1">• 自动初始化所有业务表结构</Text>
+          <Text className="text-xs text-blue-500 block mb-1">• 自动克隆第一个租户的系统架构（表、函数、策略等）</Text>
           <Text className="text-xs text-blue-500 block mb-1">• 自动创建老板账号并设置权限</Text>
-          <Text className="text-xs text-blue-500 block mb-1">• 自动复制第一个租户的配置（仓库、车辆等）</Text>
+          <Text className="text-xs text-blue-500 block mb-1">• 自动创建默认仓库</Text>
           <Text className="text-xs text-blue-500 block">• 整个过程约需 3-5 秒</Text>
         </View>
 

@@ -214,7 +214,7 @@ export default function TenantsPage() {
             <Text className="text-sm text-gray-600 block mb-1">公司名称：{templateTenant.company_name}</Text>
             <Text className="text-sm text-gray-600 block mb-2">租户代码：{templateTenant.tenant_code}</Text>
             <Text className="text-xs text-purple-600 block">
-              💡 创建新租户时，将自动复制该租户的配置（仓库、车辆等）
+              💡 创建新租户时，将自动克隆该租户的系统架构（表、函数、策略等），不包括用户数据
             </Text>
           </View>
         </View>

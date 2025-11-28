@@ -118,30 +118,43 @@ Deno.serve(async (req) => {
 
     console.log('✅ 租户记录创建成功:', tenant.id)
 
-    // 3. 创建 Schema
-    const {data: schemaResult, error: schemaError} = await supabase.rpc('create_tenant_schema', {
-      p_schema_name: schemaName
+    // 3. 克隆模板租户的 Schema 结构
+    console.log('📋 开始克隆模板租户 Schema 结构')
+    const {data: cloneResult, error: cloneError} = await supabase.rpc('clone_tenant_schema_from_template', {
+      p_new_schema_name: schemaName
     })
 
-    if (schemaError || !schemaResult?.success) {
-      console.error('❌ 创建 Schema 失败:', schemaError || schemaResult?.error)
+    if (cloneError || !cloneResult?.success) {
+      console.error('❌ 克隆 Schema 失败:', cloneError || cloneResult?.message)
       
-      // 回滚：删除租户记录
-      await supabase.from('tenants').delete().eq('id', tenant.id)
-      
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: schemaResult?.error || schemaError?.message || '创建 Schema 失败'
-        }),
-        {
-          status: 500,
-          headers: {...corsHeaders, 'Content-Type': 'application/json'}
-        }
-      )
-    }
+      // 如果克隆失败，尝试使用默认的 create_tenant_schema
+      console.log('⚠️ 尝试使用默认 Schema 创建方式')
+      const {data: schemaResult, error: schemaError} = await supabase.rpc('create_tenant_schema', {
+        p_schema_name: schemaName
+      })
 
-    console.log('✅ Schema 创建成功')
+      if (schemaError || !schemaResult?.success) {
+        console.error('❌ 创建 Schema 失败:', schemaError || schemaResult?.error)
+        
+        // 回滚：删除租户记录
+        await supabase.from('tenants').delete().eq('id', tenant.id)
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: schemaResult?.error || schemaError?.message || '创建 Schema 失败'
+          }),
+          {
+            status: 500,
+            headers: {...corsHeaders, 'Content-Type': 'application/json'}
+          }
+        )
+      }
+      
+      console.log('✅ 使用默认方式创建 Schema 成功')
+    } else {
+      console.log('✅ Schema 克隆成功:', cloneResult)
+    }
 
     // 4. 创建老板账号
     // 如果提供了账号名，将其作为 email（格式：account@fleet.local）
@@ -246,22 +259,7 @@ Deno.serve(async (req) => {
 
     console.log('✅ 默认仓库创建成功')
 
-    // 7. 复制模板租户配置（如果存在）
-    console.log('📋 开始复制模板租户配置')
-    const {data: copyResult, error: copyError} = await supabase.rpc('copy_template_to_new_tenant', {
-      p_new_tenant_code: tenantCode
-    })
-
-    if (copyError) {
-      console.error('⚠️ 复制模板配置失败（非致命错误）:', copyError)
-      // 不回滚，继续创建流程
-    } else if (copyResult?.success) {
-      console.log('✅ 模板配置复制成功:', copyResult)
-    } else {
-      console.log('ℹ️ 未复制模板配置:', copyResult?.message || '无模板租户')
-    }
-
-    // 8. 更新租户记录
+    // 7. 更新租户记录
     const {data: updatedTenant} = await supabase
       .from('tenants')
       .update({
