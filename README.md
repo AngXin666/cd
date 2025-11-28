@@ -6,7 +6,46 @@
 
 ## 🔔 系统修复完成 ⭐ 2025-11-28
 
-**最新更新**：删除租赁管理员角色，明确超级管理员权限！✅
+**最新更新**：实现安全的跨Schema访问机制！✅
+
+### 修复32：实现安全的跨Schema访问机制 ✅ 已完成
+- ✅ **背景说明**：
+  - 在共享库+独立Schema模式下，需要解决多租户跨Schema访问的安全问题
+  - 避免直接使用 `auth.uid()`，统一权限管理，确保租户数据隔离
+- ✅ **数据库层配置**：
+  1. **创建安全代理函数**：
+     - `current_user_id()`: 安全获取当前用户ID，使用 SECURITY DEFINER
+     - `current_tenant_id()`: 获取当前用户所属的租户ID
+     - 回收 PUBLIC 权限，仅授予 authenticated 角色执行权限
+  2. **动态 search_path 管理**：
+     - `set_tenant_search_path()`: 动态设置当前会话的 search_path 到租户 Schema
+     - 自动切换到正确的租户 Schema，实现数据隔离
+  3. **更新 RLS 策略**：
+     - 所有 RLS 策略统一使用 `public.current_user_id()` 替代 `auth.uid()`
+     - 确保权限链不断裂，防止租户越权
+  4. **审计日志系统**：
+     - 创建 `cross_schema_access_logs` 表记录跨 Schema 访问
+     - `log_cross_schema_access()` 函数记录访问日志
+     - 只有超级管理员可以查看审计日志
+- ✅ **应用层集成**：
+  1. **租户上下文管理**：
+     - 创建 `src/utils/tenant-context.ts` 工具模块
+     - 提供 `getCurrentUserId()`, `getCurrentTenantId()`, `getTenantSchema()` 等函数
+     - 提供 `initTenantContext()` 初始化函数
+  2. **安全访问封装**：
+     - 所有数据库访问通过安全代理函数
+     - 自动记录跨 Schema 访问日志
+     - 提供测试函数验证安全性
+- ✅ **关键安全措施**：
+  1. **代理函数使用 SECURITY DEFINER**：确保函数以定义者权限执行，权限链不断裂
+  2. **禁止客户端暴露 search_path**：防止租户越权访问
+  3. **统一使用安全代理函数**：避免直接使用 `auth.uid()`
+  4. **审计日志监控**：记录所有跨 Schema 访问，及时发现异常
+- ✅ **验证结果**：
+  - 安全代理函数创建成功，权限配置正确
+  - RLS 策略已更新，使用安全代理函数
+  - 审计日志系统运行正常
+  - 前端工具模块已创建，提供完整的租户上下文管理
 
 ### 修复31：删除租赁管理员角色，明确超级管理员权限 ✅ 已完成
 - ✅ **需求说明**：
