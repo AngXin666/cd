@@ -21,14 +21,19 @@
      - 移除 `::user_role` 类型转换
      - 直接使用 TEXT 类型插入 role 字段
      - 租户 Schema 使用 TEXT + CHECK 约束来限制角色值
-  2. **更新迁移文件**：
-     - 修改 `00410_fix_insert_tenant_profile_role_type.sql`
-     - 更新函数注释，说明使用 TEXT 类型
+  2. **应用数据库迁移**：
+     - 创建新迁移 `fix_insert_tenant_profile_remove_role_cast`
+     - 使用 `supabase_apply_migration` 应用到数据库
+     - 确保函数被正确更新
 - ✅ **修改内容**：
   1. 更新 `supabase/migrations/00410_fix_insert_tenant_profile_role_type.sql`：
      - 移除类型转换逻辑
      - 直接使用 TEXT 类型
      - 更新函数注释
+  2. 创建并应用新迁移 `fix_insert_tenant_profile_remove_role_cast.sql`：
+     - 重新定义函数
+     - 移除所有类型转换
+     - 授予执行权限
 - ✅ **预期效果**：
   - 创建租户功能正常工作
   - 老板账号和 profile 创建成功
