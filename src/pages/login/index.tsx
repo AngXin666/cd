@@ -70,6 +70,20 @@ const Login: React.FC = () => {
   // 加载测试账号列表
   const loadTestAccounts = useCallback(async () => {
     console.log('🔍 开始加载测试账号列表...')
+
+    // 先退出登录，确保使用 anon 角色
+    console.log('📌 退出当前登录状态，使用匿名角色...')
+    await supabase.auth.signOut()
+
+    // 等待一小段时间确保 session 清除
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // 检查当前用户状态
+    const {
+      data: {session}
+    } = await supabase.auth.getSession()
+    console.log('📌 当前登录状态:', session ? '已登录' : '未登录（匿名）')
+
     try {
       const {data, error} = await supabase
         .from('profiles')
@@ -79,10 +93,11 @@ const Login: React.FC = () => {
 
       if (error) {
         console.error('❌ 获取测试账号列表失败:', error)
+        console.error('❌ 错误详情:', JSON.stringify(error))
         Taro.showToast({
-          title: '加载账号列表失败',
+          title: `加载失败: ${error.message}`,
           icon: 'none',
-          duration: 2000
+          duration: 3000
         })
         return
       }
