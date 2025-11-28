@@ -22,7 +22,7 @@ const Login: React.FC = () => {
   const [countdown, setCountdown] = useState(0)
   const [rememberMe, setRememberMe] = useState(false)
   const [showTestAccounts, setShowTestAccounts] = useState(false)
-  const [testAccounts, setTestAccounts] = useState<TestAccount[]>([])
+  const [_testAccounts, setTestAccounts] = useState<TestAccount[]>([])
   const [testLoading, setTestLoading] = useState(false)
 
   // 页面加载时读取保存的账号密码
@@ -67,7 +67,7 @@ const Login: React.FC = () => {
   }, [])
 
   // 加载测试账号列表
-  const loadTestAccounts = useCallback(async () => {
+  const _loadTestAccounts = useCallback(async () => {
     console.log('🔍 开始加载测试账号列表...')
 
     // 检查当前用户状态
@@ -114,7 +114,7 @@ const Login: React.FC = () => {
   }, [getRoleName])
 
   // 测试账号快速登录
-  const handleTestLogin = async (testAccount: TestAccount) => {
+  const _handleTestLogin = async (testAccount: TestAccount) => {
     if (testLoading) return
 
     setTestLoading(true)
@@ -169,7 +169,7 @@ const Login: React.FC = () => {
   }
 
   // 获取角色颜色
-  const getRoleColor = (role: string): string => {
+  const _getRoleColor = (role: string): string => {
     const colorMap: Record<string, string> = {
       super_admin: '#EF4444',
       manager: '#3B82F6',
@@ -273,8 +273,17 @@ const Login: React.FC = () => {
       // 账号名到手机号的映射（系统管理员账号）
       const accountMapping: Record<string, string> = {
         admin: '13800000001', // 中央管理系统管理员
+        // 租户1 测试账号
         admin1: '13800000001',
+        admin11: '13800000011',
+        admin111: '13800000111',
+        admin1111: '13800001111',
+        // 租户2 测试账号
         admin2: '13800000002',
+        admin22: '13800000022',
+        admin222: '13800000222',
+        admin2222: '13800002222',
+        // 其他测试账号
         admin3: '13800000003',
         admin888: 'admin888'
       }
@@ -508,9 +517,6 @@ const Login: React.FC = () => {
               onClick={() => {
                 const newShowState = !showTestAccounts
                 setShowTestAccounts(newShowState)
-                if (newShowState && testAccounts.length === 0) {
-                  loadTestAccounts()
-                }
               }}>
               <Text className="text-xs text-white font-bold">🧪 开发测试 - 快速登录</Text>
               <Text className="text-xs text-white">{showTestAccounts ? '▲ 收起' : '▼ 展开'}</Text>
@@ -520,39 +526,195 @@ const Login: React.FC = () => {
               <View className="mt-3">
                 {testLoading ? (
                   <Text className="text-xs text-blue-100 block text-center py-4">登录中...</Text>
-                ) : testAccounts.length === 0 ? (
-                  <View>
-                    <Text className="text-xs text-blue-100 block text-center py-4">加载账号列表中...</Text>
-                    <Text className="text-xs text-blue-100 block text-center">如果一直加载，请检查数据库连接</Text>
-                  </View>
                 ) : (
                   <View>
-                    {testAccounts.map((testAccount) => (
-                      <View
-                        key={testAccount.id}
-                        className="mb-2 bg-white bg-opacity-20 rounded-lg p-3"
-                        onClick={() => handleTestLogin(testAccount)}>
-                        <View className="flex flex-row items-center justify-between">
-                          <View className="flex-1">
-                            <View className="flex flex-row items-center mb-1">
-                              <View
-                                className="px-2 py-1 rounded"
-                                style={{backgroundColor: getRoleColor(testAccount.role)}}>
-                                <Text className="text-xs text-white font-bold">{testAccount.role_name}</Text>
+                    {/* 租户1 测试账号 */}
+                    <View className="mb-4">
+                      <Text className="text-xs text-white font-bold mb-2">📦 租户1：测试租户1</Text>
+                      <View className="space-y-2">
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin1')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#EF4444'}}>
+                                  <Text className="text-xs text-white font-bold">老板</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin1</Text>
                               </View>
-                              {testAccount.name && <Text className="text-xs text-white ml-2">{testAccount.name}</Text>}
+                              <Text className="text-xs text-blue-100">13800000001 / 123456</Text>
                             </View>
-                            <Text className="text-xs text-blue-100">{testAccount.phone}</Text>
+                            <Text className="text-xs text-white">点击填充 →</Text>
                           </View>
-                          <Text className="text-xs text-white">点击登录 →</Text>
+                        </View>
+
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin11')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#A855F7'}}>
+                                  <Text className="text-xs text-white font-bold">平级管理员</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin11</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800000011 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+                        </View>
+
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin111')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#3B82F6'}}>
+                                  <Text className="text-xs text-white font-bold">车队长</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin111</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800000111 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+                        </View>
+
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin1111')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#6B7280'}}>
+                                  <Text className="text-xs text-white font-bold">司机</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin1111</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800001111 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
                         </View>
                       </View>
-                    ))}
+                    </View>
+
+                    {/* 租户2 测试账号 */}
+                    <View className="mb-4">
+                      <Text className="text-xs text-white font-bold mb-2">📦 租户2：测试租户2</Text>
+                      <View className="space-y-2">
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin2')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#EF4444'}}>
+                                  <Text className="text-xs text-white font-bold">老板</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin2</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800000002 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+                        </View>
+
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin22')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#A855F7'}}>
+                                  <Text className="text-xs text-white font-bold">平级管理员</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin22</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800000022 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+                        </View>
+
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin222')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#3B82F6'}}>
+                                  <Text className="text-xs text-white font-bold">车队长</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin222</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800000222 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+                        </View>
+
+                        <View
+                          className="bg-white bg-opacity-20 rounded-lg p-3"
+                          onClick={() => {
+                            setAccount('admin2222')
+                            setPassword('123456')
+                            setLoginType('password')
+                          }}>
+                          <View className="flex flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex flex-row items-center mb-1">
+                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#6B7280'}}>
+                                  <Text className="text-xs text-white font-bold">司机</Text>
+                                </View>
+                                <Text className="text-xs text-white ml-2">admin2222</Text>
+                              </View>
+                              <Text className="text-xs text-blue-100">13800002222 / 123456</Text>
+                            </View>
+                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
                   </View>
                 )}
                 <View className="mt-3 pt-3 border-t border-white border-opacity-20">
                   <Text className="text-xs text-blue-100 block text-center">
                     ⚠️ 此功能仅用于开发测试，生产环境请删除
+                  </Text>
+                  <Text className="text-xs text-blue-100 block text-center mt-1">
+                    点击账号卡片会自动填充账号密码，然后点击"密码登录"按钮登录
                   </Text>
                 </View>
               </View>
@@ -572,9 +734,12 @@ const Login: React.FC = () => {
             </View>
             <View className="mt-2 pt-2 border-t border-white border-opacity-20">
               <Text className="text-xs text-blue-100 block mb-1">测试账号（默认密码：123456）：</Text>
-              <Text className="text-xs text-blue-100 block">• 司机：admin1</Text>
-              <Text className="text-xs text-blue-100 block">• 车队长：admin2</Text>
-              <Text className="text-xs text-blue-100 block">• 老板：admin3</Text>
+              <Text className="text-xs text-blue-100 block">
+                租户1：admin1(老板) admin11(平级) admin111(车队长) admin1111(司机)
+              </Text>
+              <Text className="text-xs text-blue-100 block">
+                租户2：admin2(老板) admin22(平级) admin222(车队长) admin2222(司机)
+              </Text>
               <Text className="text-xs text-blue-100 block mt-1">• 中央管理员：admin 或 13800000001</Text>
               <Text className="text-xs text-blue-100 block"> 密码：hye19911206</Text>
             </View>
