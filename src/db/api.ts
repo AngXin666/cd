@@ -3465,9 +3465,9 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
       .select('quantity')
       .eq('warehouse_id', warehouseId)
       .gte('work_date', firstDayOfMonth),
-    // 司机基本信息（仅当有司机时查询）
+    // 司机基本信息（仅当有司机时查询）- 单用户架构：查询 users 表
     driverIds.length > 0
-      ? supabase.from('profiles').select('id, name, phone').in('id', driverIds)
+      ? supabase.from('users').select('id, name, phone').in('id', driverIds)
       : Promise.resolve({data: null}),
     // 所有司机的今日考勤记录（批量查询）
     driverIds.length > 0
@@ -3912,8 +3912,9 @@ export async function getManagerPermissionsEnabled(managerId: string): Promise<b
   try {
     console.log('[getManagerPermissionsEnabled] 开始获取车队长权限状态', {managerId})
 
+    // 单用户架构：从 users 表查询权限状态
     const {data, error} = await supabase
-      .from('profiles')
+      .from('users')
       .select('manager_permissions_enabled')
       .eq('id', managerId)
       .maybeSingle()
@@ -4569,13 +4570,13 @@ export async function getSuperAdminStats(): Promise<{
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
 
-    // 获取总司机数
-    const {data: driverData} = await supabase.from('profiles').select('id').eq('role', 'DRIVER')
+    // 获取总司机数 - 单用户架构：从 user_roles 表查询
+    const {data: driverData} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
 
     const totalDrivers = Array.isArray(driverData) ? driverData.length : 0
 
-    // 获取总管理员数
-    const {data: managerData} = await supabase.from('profiles').select('id').eq('role', 'MANAGER')
+    // 获取总管理员数 - 单用户架构：从 user_roles 表查询
+    const {data: managerData} = await supabase.from('user_roles').select('user_id').eq('role', 'MANAGER')
 
     const totalManagers = Array.isArray(managerData) ? managerData.length : 0
 
@@ -4601,8 +4602,8 @@ export async function getSuperAdminStats(): Promise<{
       ? pieceWorkData.reduce((sum, record) => sum + (record.total_amount || 0), 0)
       : 0
 
-    // 获取总用户数
-    const {data: userData} = await supabase.from('profiles').select('id')
+    // 获取总用户数 - 单用户架构：从 users 表查询
+    const {data: userData} = await supabase.from('users').select('id')
 
     const totalUsers = Array.isArray(userData) ? userData.length : 0
 
@@ -5143,10 +5144,10 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       vehicles: latestVehicles
     })
 
-    // 第三步：获取所有相关的司机信息和实名信息
+    // 第三步：获取所有相关的司机信息和实名信息 - 单用户架构：查询 users 表
     const userIds = latestVehicles.map((v: any) => v.user_id).filter(Boolean)
     const {data: profilesData, error: profilesError} = await supabase
-      .from('profiles')
+      .from('users')
       .select('id, name, phone, email')
       .in('id', userIds)
 
@@ -5248,15 +5249,26 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
       return null
     }
 
-    // 2. 获取司机基本信息（从profiles表）
-    const {data: profile, error: profileError} = await supabase
-      .from('profiles')
+    // 2. 获取司机基本信息 - 单用户架构：查询 users 表
+    const {data: user, error: userError} = await supabase
+      .from('users')
       .select('*')
       .eq('id', vehicle.user_id)
       .maybeSingle()
 
-    if (profileError) {
-      logger.error('获取司机基本信息失败', {error: profileError})
+    if (userError) {
+      logger.error('获取司机基本信息失败', {error: userError})
+    }
+
+    // 获取角色信息
+    let profile: Profile | null = null
+    if (user) {
+      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+
+      profile = {
+        ...user,
+        role: roleData?.role || 'DRIVER'
+      }
     }
 
     // 3. 获取司机证件信息（从driver_licenses表）
@@ -5543,9 +5555,9 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
 
       if (recordData?.driver_id) {
         driverId = recordData.driver_id
-        // 查询司机信息
+        // 查询司机信息 - 单用户架构：查询 users 表
         const {data: driverData} = await supabase
-          .from('profiles')
+          .from('users')
           .select('id, name, phone, email')
           .eq('id', driverId)
           .maybeSingle()
@@ -6301,13 +6313,14 @@ export async function createNotification(notification: {
     let senderName = '系统'
     let senderRole = 'system'
 
-    // 如果有当前用户，获取其 profile 信息
+    // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
-      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+      const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
 
-      if (senderProfile) {
-        senderName = senderProfile.name || '系统'
-        senderRole = senderProfile.role || 'system'
+      if (senderUser) {
+        senderName = senderUser.name || '系统'
+        senderRole = roleData?.role || 'system'
       }
     }
 
@@ -6382,22 +6395,23 @@ export async function createNotificationForAllManagers(notification: {
     let senderName = '系统'
     let senderRole = 'system'
 
-    // 如果有当前用户，获取其 profile 信息
+    // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
-      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+      const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
 
-      if (senderProfile) {
-        senderName = senderProfile.name || '系统'
-        senderRole = senderProfile.role || 'system'
+      if (senderUser) {
+        senderName = senderUser.name || '系统'
+        senderRole = roleData?.role || 'system'
       }
     }
 
     logger.info('发送者信息', {senderId, senderName, senderRole})
 
-    // 获取所有车队长、老板和平级账号
+    // 获取所有车队长、老板和平级账号 - 单用户架构：查询 user_roles 表
     const {data: managers, error: managersError} = await supabase
-      .from('profiles')
-      .select('id')
+      .from('user_roles')
+      .select('user_id')
       .in('role', ['MANAGER', 'BOSS', 'PEER_ADMIN'])
 
     if (managersError) {
@@ -6414,7 +6428,7 @@ export async function createNotificationForAllManagers(notification: {
 
     // 为每个管理员创建通知
     const notifications = managers.map((manager) => ({
-      user_id: manager.id,
+      user_id: manager.user_id,
       sender_id: senderId,
       sender_name: senderName,
       sender_role: senderRole,
@@ -6469,20 +6483,24 @@ export async function createNotificationForAllSuperAdmins(notification: {
     let senderName = '系统'
     let senderRole = 'system'
 
-    // 如果有当前用户，获取其 profile 信息
+    // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
-      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+      const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
 
-      if (senderProfile) {
-        senderName = senderProfile.name || '系统'
-        senderRole = senderProfile.role || 'system'
+      if (senderUser) {
+        senderName = senderUser.name || '系统'
+        senderRole = roleData?.role || 'system'
       }
     }
 
     logger.info('发送者信息', {senderId, senderName, senderRole})
 
-    // 获取所有老板
-    const {data: superAdmins, error: superAdminsError} = await supabase.from('profiles').select('id').eq('role', 'BOSS')
+    // 获取所有老板 - 单用户架构：查询 user_roles 表
+    const {data: superAdmins, error: superAdminsError} = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'BOSS')
 
     if (superAdminsError) {
       logger.error('获取老板列表失败', superAdminsError)
@@ -6498,7 +6516,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
     // 为每个老板创建通知
     const notifications = superAdmins.map((admin) => ({
-      user_id: admin.id,
+      user_id: admin.user_id,
       sender_id: senderId,
       sender_name: senderName,
       sender_role: senderRole,
@@ -6585,7 +6603,8 @@ export async function getDriverDisplayName(userId: string): Promise<string> {
  */
 export async function getDriverName(userId: string): Promise<string> {
   try {
-    const {data, error} = await supabase.from('profiles').select('name').eq('id', userId).maybeSingle()
+    // 单用户架构：从 users 表查询
+    const {data, error} = await supabase.from('users').select('name').eq('id', userId).maybeSingle()
 
     if (error || !data) {
       logger.error('获取司机姓名失败', {userId, error})

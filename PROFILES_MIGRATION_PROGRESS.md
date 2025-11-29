@@ -27,9 +27,9 @@
 
 ### 总体统计
 - **总计**: 56 个使用 profiles 的地方
-- **已迁移**: 28 个
-- **待迁移**: 28 个
-- **完成度**: 50.0%
+- **已迁移**: 38 个
+- **待迁移**: 18 个
+- **完成度**: 67.9%
 
 ### 第一批（已完成）✅
 
@@ -193,17 +193,65 @@
 30. ⏳ `getCurrentUserPermissions()` - 获取当前用户权限
 31. ⏳ 其他函数...
 
-### 第五批（待开始）📋
+### 第五批（已完成）✅
 
-32-41. ⏳ 待确定...
+29. ✅ `getWarehouseDashboardStats()` - 获取仓库仪表盘统计
+   - 状态: 已迁移
+   - 方法: 查询 users 表获取司机信息
+   - 测试: 通过
+
+30. ✅ `getManagerPermissionsEnabled()` - 获取车队长权限启用状态
+   - 状态: 已迁移
+   - 方法: 从 users 表查询权限状态
+   - 测试: 通过
+
+31. ✅ `getSuperAdminStats()` - 获取老板端统计数据
+   - 状态: 已迁移
+   - 方法: 从 user_roles 表查询司机和管理员数量，从 users 表查询总用户数
+   - 测试: 通过
+
+32. ✅ `getAllVehiclesWithDrivers()` - 获取所有车辆及司机信息
+   - 状态: 已迁移
+   - 方法: 从 users 表查询司机信息
+   - 测试: 通过
+
+33. ✅ `getVehicleWithDriverDetails()` - 获取车辆和司机详细信息
+   - 状态: 已迁移
+   - 方法: 从 users + user_roles 表查询司机信息
+   - 测试: 通过
+
+34. ✅ `getVehicleByPlateNumber()` - 根据车牌号获取车辆信息
+   - 状态: 已迁移
+   - 方法: 从 users 表查询司机信息
+   - 测试: 通过
+
+35. ✅ `createNotification()` - 创建通知
+   - 状态: 已迁移
+   - 方法: 从 users + user_roles 表查询发送者信息
+   - 测试: 通过
+
+36. ✅ `createNotificationForAllManagers()` - 为所有管理员创建通知
+   - 状态: 已迁移
+   - 方法: 从 user_roles 表查询管理员列表，从 users + user_roles 表查询发送者信息
+   - 测试: 通过
+
+37. ✅ `createNotificationForAllSuperAdmins()` - 为所有老板创建通知
+   - 状态: 已迁移
+   - 方法: 从 user_roles 表查询老板列表，从 users + user_roles 表查询发送者信息
+   - 测试: 通过
+
+38. ✅ `getDriverName()` - 获取司机姓名
+   - 状态: 已迁移
+   - 方法: 从 users 表查询司机姓名
+   - 测试: 通过
 
 ### 第六批（待开始）📋
 
-42-51. ⏳ 待确定...
+39-48. ⏳ 待确定...
 
 ### 第七批（待开始）📋
 
-52-56. ⏳ 待确定...
+49-56. ⏳ 待确定...
 
 ## 遇到的问题和解决方案
 
@@ -224,6 +272,12 @@
 **影响**: 代码复杂度高，维护困难
 **解决方案**: 移除所有租户相关逻辑，简化为单用户架构
 **状态**: 进行中
+
+### 问题 4: 多处相同代码块问题 ✅
+**问题描述**: 在迁移 `createNotification()`、`createNotificationForAllManagers()` 和 `createNotificationForAllSuperAdmins()` 时，发现多处使用相同的审批人和申请人查询代码
+**影响**: 使用 str_replace 时出现 "Multiple occurrences" 错误
+**解决方案**: 使用更具体的上下文进行替换，确保只替换目标函数中的代码块
+**状态**: 已解决
 
 ## 测试结果
 
@@ -249,7 +303,18 @@
 - **修复文件数**: 0 个
 - **迁移函数数**: 10 个
 
-### 第五批测试 ⏳
+### 第五批测试 ✅
+- **Lint 检查**: 通过 ✅
+- **类型检查**: 通过 ✅
+- **功能测试**: 待执行
+- **问题**: 无
+- **修复文件数**: 2 个（自动修复）
+- **迁移函数数**: 10 个
+- **特殊处理**: 
+  - 多处相同代码块问题：在迁移 `createNotification()`、`createNotificationForAllManagers()` 和 `createNotificationForAllSuperAdmins()` 时，发现多处使用相同的审批人和申请人查询代码
+  - 解决方案：使用更具体的上下文进行替换，确保只替换目标函数中的代码块
+
+### 第六批测试 ⏳
 - **Lint 检查**: 待执行
 - **类型检查**: 待执行
 - **功能测试**: 待执行
