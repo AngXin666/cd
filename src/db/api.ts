@@ -2175,37 +2175,60 @@ export async function removeManagerWarehouse(managerId: string, warehouseId: str
 /**
  * 创建请假申请
  */
+/**
+ * 创建请假申请
+ * 支持多租户架构：根据当前用户角色插入到对应的 Schema
+ */
 export async function createLeaveApplication(input: LeaveApplicationInput): Promise<LeaveApplication | null> {
-  // 1. 获取当前用户
-  const {
-    data: {user}
-  } = await supabase.auth.getUser()
+  try {
+    // 1. 获取当前用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    console.error('创建请假申请失败: 用户未登录')
+    if (!user) {
+      console.error('创建请假申请失败: 用户未登录')
+      return null
+    }
+
+    // 2. 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 3. 根据角色选择插入的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户创建请假申请，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户创建请假申请，使用 Schema: public')
+    }
+
+    // 4. 插入请假申请
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('leave_applications')
+      .insert({
+        user_id: input.user_id,
+        warehouse_id: input.warehouse_id,
+        leave_type: input.leave_type,
+        start_date: input.start_date,
+        end_date: input.end_date,
+        reason: input.reason,
+        status: 'pending'
+      })
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      console.error('创建请假申请失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建请假申请异常:', error)
     return null
   }
-
-  const {data, error} = await supabase
-    .from('leave_applications')
-    .insert({
-      user_id: input.user_id,
-      warehouse_id: input.warehouse_id,
-      leave_type: input.leave_type,
-      start_date: input.start_date,
-      end_date: input.end_date,
-      reason: input.reason,
-      status: 'pending'
-    })
-    .select()
-    .maybeSingle()
-
-  if (error) {
-    console.error('创建请假申请失败:', error)
-    return null
-  }
-
-  return data
 }
 
 /**
@@ -6593,11 +6616,26 @@ export async function createNotificationForAllSuperAdmins(notification: {
  * 获取司机的显示名称（包含司机类型和姓名）
  * @param userId 用户ID
  * @returns 格式化的司机名称，例如："纯司机 张三" 或 "带车司机 李四"
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getDriverDisplayName(userId: string): Promise<string> {
   try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+    }
+
     // 获取司机的基本信息
-    const {data, error} = await supabase.from('profiles').select('name, driver_type').eq('id', userId).maybeSingle()
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('name, driver_type')
+      .eq('id', userId)
+      .maybeSingle()
 
     if (error || !data) {
       logger.error('获取司机信息失败', {userId, error})
