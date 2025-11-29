@@ -146,7 +146,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   // 启用实时通知
   useRealtimeNotifications({
     userId: user?.id || '',
-    userRole: 'SUPER_ADMIN',
+    userRole: 'BOSS',
     onLeaveApplicationChange: loadData,
     onResignationApplicationChange: loadData,
     onAttendanceChange: loadData

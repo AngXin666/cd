@@ -5,8 +5,14 @@ export type {NotificationType}
 
 // ==================== 用户相关类型 ====================
 
-// 单用户系统角色类型
-export type UserRole = 'SUPER_ADMIN' | 'MANAGER' | 'DRIVER'
+/**
+ * 系统角色类型
+ * - BOSS: 老板，拥有最高权限
+ * - PEER_ADMIN: 平级账户，与老板同级的管理员
+ * - MANAGER: 车队长，管理司机和车辆
+ * - DRIVER: 司机，基础用户
+ */
+export type UserRole = 'BOSS' | 'PEER_ADMIN' | 'MANAGER' | 'DRIVER'
 
 // 用户信息接口
 export interface User {
@@ -985,7 +991,7 @@ export interface LockedPhotos {
 // ==================== 通知模板和定时通知（已废弃 - 多租户相关）====================
 
 // 发送者角色类型
-export type SenderRole = 'system' | 'admin' | 'manager' | 'MANAGER' | 'SUPER_ADMIN'
+export type SenderRole = 'system' | 'admin' | 'manager' | 'MANAGER' | 'BOSS'
 
 // 通知模板接口（保留用于兼容性）
 export interface NotificationTemplate {

@@ -25,7 +25,7 @@ import type {Notification} from './useNotifications'
 
 interface NotificationOptions {
   userId: string
-  userRole: 'DRIVER' | 'MANAGER' | 'SUPER_ADMIN'
+  userRole: 'DRIVER' | 'MANAGER' | 'BOSS'
   onLeaveApplicationChange?: () => void
   onResignationApplicationChange?: () => void
   onAttendanceChange?: () => void
@@ -120,7 +120,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     console.log('📡 创建新的订阅通道:', `notifications_${userId}`)
 
     // 车队长和老板：监听新的请假申请
-    if (userRole === 'MANAGER' || userRole === 'SUPER_ADMIN') {
+    if (userRole === 'MANAGER' || userRole === 'BOSS') {
       console.log('👔 设置车队长/老板监听')
 
       channel.on(

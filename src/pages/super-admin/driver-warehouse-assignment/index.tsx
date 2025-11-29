@@ -202,7 +202,7 @@ const DriverWarehouseAssignment: React.FC = () => {
               relatedId: driver.id
             })
           }
-        } else if (operatorProfile.role === 'SUPER_ADMIN') {
+        } else if (operatorProfile.role === 'BOSS') {
           // 老板操作 → 通知相关仓库的车队长
           console.log('👤 [通知系统] 操作者是老板，准备通知相关仓库的车队长')
 

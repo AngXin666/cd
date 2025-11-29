@@ -28,8 +28,8 @@ const ProfilePage: React.FC = () => {
       } else if (data.role === 'MANAGER') {
         const managerStats = await getManagerStats(user.id)
         setStats(managerStats)
-      } else if (data.role === 'SUPER_ADMIN' || data.role === 'SUPER_ADMIN') {
-        // 超级管理员和老板都使用超级管理员统计
+      } else if (data.role === 'BOSS' || data.role === 'PEER_ADMIN') {
+        // 老板和平级管理员都使用超级管理员统计
         const superAdminStats = await getSuperAdminStats()
         setStats(superAdminStats)
       }
@@ -64,7 +64,7 @@ const ProfilePage: React.FC = () => {
         return '司机'
       case 'MANAGER':
         return '车队长'
-      case 'SUPER_ADMIN':
+      case 'BOSS':
         return '超级管理员'
       default:
         return '未知'
@@ -77,7 +77,7 @@ const ProfilePage: React.FC = () => {
         return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       case 'MANAGER':
         return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-      case 'SUPER_ADMIN':
+      case 'BOSS':
         return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
       default:
         return 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
@@ -136,7 +136,7 @@ const ProfilePage: React.FC = () => {
         return driverQuickActions
       case 'MANAGER':
         return managerQuickActions
-      case 'SUPER_ADMIN':
+      case 'BOSS':
         return superAdminQuickActions
       default:
         return []
@@ -199,7 +199,7 @@ const ProfilePage: React.FC = () => {
                 <Text className="text-sm text-white opacity-90">{maskPhone(profile?.phone)}</Text>
               </View>
               {/* 车队长、老板和超级管理员显示编辑实名按钮 */}
-              {(profile?.role === 'MANAGER' || profile?.role === 'SUPER_ADMIN') && (
+              {(profile?.role === 'MANAGER' || profile?.role === 'BOSS') && (
                 <View
                   className="flex items-center px-3 py-1 rounded-full active:opacity-70"
                   style={{background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)'}}
@@ -307,7 +307,7 @@ const ProfilePage: React.FC = () => {
                 )}
 
                 {/* 老板和超级管理员统计 */}
-                {profile?.role === 'SUPER_ADMIN' && (
+                {profile?.role === 'BOSS' && (
                   <View className="grid grid-cols-3 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
                       <View className="flex items-center mb-2">

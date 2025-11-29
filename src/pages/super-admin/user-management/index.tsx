@@ -42,7 +42,7 @@ interface UserWithRealName extends Profile {
 
 // 辅助函数：判断是否是管理员角色（boss 或 super_admin）
 const isAdminRole = (role: string | undefined) => {
-  return role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN'
+  return role === 'BOSS' || role === 'BOSS'
 }
 
 const UserManagement: React.FC = () => {
@@ -79,7 +79,7 @@ const UserManagement: React.FC = () => {
   const [showAddUser, setShowAddUser] = useState(false)
   const [newUserPhone, setNewUserPhone] = useState('')
   const [newUserName, setNewUserName] = useState('')
-  const [newUserRole, setNewUserRole] = useState<'DRIVER' | 'MANAGER' | 'SUPER_ADMIN'>('DRIVER')
+  const [newUserRole, setNewUserRole] = useState<'DRIVER' | 'MANAGER' | 'BOSS'>('DRIVER')
   const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure')
   const [newUserWarehouseIds, setNewUserWarehouseIds] = useState<string[]>([]) // 新用户的仓库分配
   const [addingUser, setAddingUser] = useState(false)
@@ -397,7 +397,7 @@ const UserManagement: React.FC = () => {
     }
 
     // 验证仓库选择（司机和管理员需要，老板不需要）
-    if (newUserRole !== 'SUPER_ADMIN' && newUserWarehouseIds.length === 0) {
+    if (newUserRole !== 'BOSS' && newUserWarehouseIds.length === 0) {
       const roleText = newUserRole === 'DRIVER' ? '司机' : '管理员'
       showToast({title: `请为${roleText}至少选择一个仓库`, icon: 'none'})
       return
@@ -409,7 +409,7 @@ const UserManagement: React.FC = () => {
     try {
       // 如果是添加老板角色，需要特殊处理
       let newUser
-      if (newUserRole === 'SUPER_ADMIN') {
+      if (newUserRole === 'BOSS') {
         // 创建平级老板账号
         // 1. 先在 Supabase Auth 中创建用户
         const {data: authData, error: authError} = await supabase.auth.signUp({
@@ -442,7 +442,7 @@ const UserManagement: React.FC = () => {
             id: authData.user.id,
             name: newUserName.trim(),
             phone: newUserPhone.trim(),
-            role: 'SUPER_ADMIN', // 老板角色在数据库中是 super_admin
+            role: 'BOSS', // 老板角色在数据库中是 super_admin
             permission_type: 'full',
             status: 'active',
             main_account_id: user?.id // 设置主账号ID，标记为平级账号
@@ -467,7 +467,7 @@ const UserManagement: React.FC = () => {
 
       if (newUser) {
         // 分配仓库（老板不需要分配仓库）
-        if (newUserRole !== 'SUPER_ADMIN') {
+        if (newUserRole !== 'BOSS') {
           console.log('开始为新用户分配仓库', {
             userId: newUser.id,
             role: newUserRole,
@@ -482,7 +482,7 @@ const UserManagement: React.FC = () => {
                 warehouse_id: warehouseId
               })
             }
-          } else if (newUserRole === 'MANAGER' || newUserRole === 'SUPER_ADMIN' || newUserRole === 'SUPER_ADMIN') {
+          } else if (newUserRole === 'MANAGER' || newUserRole === 'BOSS' || newUserRole === 'BOSS') {
             // 为管理员、老板和车队长分配仓库（使用 manager_warehouses 表）
             for (const warehouseId of newUserWarehouseIds) {
               await insertManagerWarehouseAssignment({
@@ -510,7 +510,7 @@ const UserManagement: React.FC = () => {
           content += `司机类型：${driverTypeText}\n`
         }
 
-        if (newUserRole !== 'SUPER_ADMIN') {
+        if (newUserRole !== 'BOSS') {
           const warehouseNames = warehouses
             .filter((w) => newUserWarehouseIds.includes(w.id))
             .map((w) => w.name)
@@ -620,10 +620,10 @@ const UserManagement: React.FC = () => {
             const operatorUserName = currentUserProfile.name
 
             // 智能构建操作人显示文本
-            let operatorText = currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'
+            let operatorText = currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'
             if (operatorRealName) {
               // 如果有真实姓名，显示：老板【张三】
-              operatorText = `${currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'}【${operatorRealName}】`
+              operatorText = `${currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'}【${operatorRealName}】`
             } else if (
               operatorUserName &&
               operatorUserName !== '老板' &&
@@ -859,10 +859,10 @@ const UserManagement: React.FC = () => {
           const operatorUserName = currentUserProfile.name
 
           // 智能构建操作人显示文本
-          let operatorText = currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'
+          let operatorText = currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'
           if (operatorRealName) {
             // 如果有真实姓名，显示：老板【张三】
-            operatorText = `${currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'}【${operatorRealName}】`
+            operatorText = `${currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'}【${operatorRealName}】`
           } else if (
             operatorUserName &&
             operatorUserName !== '老板' &&
@@ -870,7 +870,7 @@ const UserManagement: React.FC = () => {
             operatorUserName !== '超级管理员'
           ) {
             // 如果有用户名且不是角色名称，显示：老板【admin】
-            operatorText = `${currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'}【${operatorUserName}】`
+            operatorText = `${currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'}【${operatorUserName}】`
           }
           // 否则只显示：老板
 
@@ -981,7 +981,7 @@ const UserManagement: React.FC = () => {
   // 获取角色显示文本
   const getRoleText = (role: UserRole) => {
     switch (role) {
-      case 'SUPER_ADMIN':
+      case 'BOSS':
         return '超级管理员'
       case 'MANAGER':
         return '车队长'
@@ -995,7 +995,7 @@ const UserManagement: React.FC = () => {
   // 获取角色颜色
   const getRoleColor = (role: UserRole) => {
     switch (role) {
-      case 'SUPER_ADMIN':
+      case 'BOSS':
         return 'bg-red-100 text-red-700'
       case 'MANAGER':
         return 'bg-blue-100 text-blue-700'
@@ -1199,19 +1199,18 @@ const UserManagement: React.FC = () => {
                     </Text>
                   </View>
                   <View
-                    onClick={() => setNewUserRole('SUPER_ADMIN')}
+                    onClick={() => setNewUserRole('BOSS')}
                     className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
-                      newUserRole === 'SUPER_ADMIN'
+                      newUserRole === 'BOSS'
                         ? 'bg-blue-600 border-blue-600'
                         : 'bg-white border-gray-300 active:bg-gray-50'
                     }`}>
                     <View
                       className={`i-mdi-account-star text-base mr-1.5 ${
-                        newUserRole === 'SUPER_ADMIN' ? 'text-white' : 'text-gray-600'
+                        newUserRole === 'BOSS' ? 'text-white' : 'text-gray-600'
                       }`}
                     />
-                    <Text
-                      className={`text-sm font-medium ${newUserRole === 'SUPER_ADMIN' ? 'text-white' : 'text-gray-700'}`}>
+                    <Text className={`text-sm font-medium ${newUserRole === 'BOSS' ? 'text-white' : 'text-gray-700'}`}>
                       老板
                     </Text>
                   </View>
@@ -1264,7 +1263,7 @@ const UserManagement: React.FC = () => {
               )}
 
               {/* 仓库分配（老板角色不需要） */}
-              {newUserRole !== 'SUPER_ADMIN' && (
+              {newUserRole !== 'BOSS' && (
                 <View className="mb-3">
                   <Text className="text-gray-700 text-sm block mb-2">
                     分配仓库 <Text className="text-red-500">*</Text>

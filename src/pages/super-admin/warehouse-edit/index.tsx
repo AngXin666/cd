@@ -141,7 +141,7 @@ const WarehouseEdit: React.FC = () => {
       try {
         // 加载所有车队长、老板和超级管理员
         const allUsers = await getAllUsers()
-        const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'SUPER_ADMIN')
+        const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'BOSS')
         console.log('加载到的车队长列表:', managers)
         setAllManagers(managers)
 
@@ -1041,7 +1041,7 @@ const WarehouseEdit: React.FC = () => {
                             )}
                           </View>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {manager.role === 'SUPER_ADMIN' ? '超级管理员' : '车队长'}
+                            {manager.role === 'BOSS' ? '超级管理员' : '车队长'}
                           </Text>
                         </View>
                       </View>

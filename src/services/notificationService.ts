@@ -34,7 +34,7 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
 
     // 根据角色选择查询的 Schema
     let schemaName = 'public'
-    if (tenant_id && role !== 'SUPER_ADMIN') {
+    if (tenant_id && role !== 'BOSS') {
       schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
       logger.info(`租户用户查询主账号，使用 Schema: ${schemaName}`)
     } else {
@@ -86,7 +86,7 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
 
     // 根据角色选择查询的 Schema
     let schemaName = 'public'
-    if (tenant_id && role !== 'SUPER_ADMIN') {
+    if (tenant_id && role !== 'BOSS') {
       schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
       logger.info(`租户用户查询平级账号，使用 Schema: ${schemaName}`)
     } else {
@@ -138,7 +138,7 @@ async function _getAllAdmins(): Promise<NotificationRecipient[]> {
 
     // 根据角色选择查询的 Schema
     let schemaName = 'public'
-    if (tenant_id && role !== 'SUPER_ADMIN') {
+    if (tenant_id && role !== 'BOSS') {
       schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
       logger.info(`租户用户查询管理员，使用 Schema: ${schemaName}`)
     } else {
@@ -243,7 +243,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     // 根据角色选择查询的 Schema
     let schemaName = 'public'
-    if (tenant_id && role !== 'SUPER_ADMIN') {
+    if (tenant_id && role !== 'BOSS') {
       schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
       logger.info(`租户用户查询车队长，使用 Schema: ${schemaName}`)
     } else {

@@ -146,7 +146,7 @@ export const sendWarehouseAssignmentNotifications = async (
             relatedId: driver.id
           })
         }
-      } else if (operatorProfile.role === 'SUPER_ADMIN') {
+      } else if (operatorProfile.role === 'BOSS') {
         // 超级管理员操作 → 通知相关仓库的普通管理员
         console.log('👤 [通知系统] 操作者是超级管理员，准备通知相关仓库的管理员')
 

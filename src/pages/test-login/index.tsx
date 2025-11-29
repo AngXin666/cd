@@ -115,7 +115,7 @@ export default function TestLogin() {
             Taro.switchTab({url: '/pages/driver/index'})
           } else if (account.role === 'MANAGER') {
             Taro.switchTab({url: '/pages/manager/index'})
-          } else if (account.role === 'SUPER_ADMIN') {
+          } else if (account.role === 'BOSS') {
             Taro.switchTab({url: '/pages/super-admin/index'})
           } else {
             Taro.switchTab({url: '/pages/driver/index'})

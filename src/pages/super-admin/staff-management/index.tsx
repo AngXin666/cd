@@ -363,7 +363,7 @@ const StaffManagement: React.FC = () => {
           driver.id,
           user.id,
           currentUser.real_name || currentUser.name || '老板',
-          'SUPER_ADMIN'
+          'BOSS'
         )
 
         if (success) {

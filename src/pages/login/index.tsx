@@ -153,7 +153,7 @@ const Login: React.FC = () => {
             Taro.switchTab({url: '/pages/driver/index'})
           } else if (testAccount.role === 'MANAGER') {
             Taro.switchTab({url: '/pages/manager/index'})
-          } else if (testAccount.role === 'SUPER_ADMIN') {
+          } else if (testAccount.role === 'BOSS') {
             Taro.switchTab({url: '/pages/super-admin/index'})
           } else {
             Taro.switchTab({url: '/pages/driver/index'})
