@@ -109,6 +109,33 @@ await supabase.rpc('create_tenant_user', {
 - 前端 `manager` → 租户 Schema `fleet_leader`（车队长）
 - 前端 `driver` → 租户 Schema `driver`（司机）
 
+### 4. 修复 `create_user_auth_account_first` 函数的权限检查
+
+**迁移文件**：`supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`
+
+**问题**：
+```sql
+-- 错误的代码
+IF current_user_role NOT IN ('lease_admin', 'super_admin', 'manager') THEN
+  RAISE EXCEPTION '权限不足：只有管理员可以创建用户';
+END IF;
+```
+
+当 PostgreSQL 尝试将 `current_user_role`（枚举类型）与字符串 `'lease_admin'` 比较时，会尝试将字符串转换为枚举类型，但 `'lease_admin'` 已从枚举中删除，导致错误。
+
+**解决方案**：
+```sql
+-- 修复后的代码
+IF current_user_role NOT IN ('super_admin', 'peer_admin', 'manager', 'boss') THEN
+  RAISE EXCEPTION '权限不足：只有管理员可以创建用户';
+END IF;
+```
+
+**修复内容**：
+- 移除对 `'lease_admin'` 的引用
+- 使用当前系统中存在的角色：`super_admin`、`peer_admin`、`manager`、`boss`
+- 同时修复 `cleanup_orphaned_auth_users` 函数
+
 ## 当前有效的角色
 
 ### Public Schema（`public.profiles`）
@@ -215,6 +242,7 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
 - `supabase/migrations/00432_recreate_insert_tenant_profile_function.sql`：旧的（有问题的）函数
 - `supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`：修复后的 insert_tenant_profile 函数
 - `supabase/migrations/00444_remove_lease_admin_functions_and_policies.sql`：删除废弃的函数和策略
+- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`：修复 create_user_auth_account_first 函数
 
 ### 代码文件
 - `src/db/types.ts`：TypeScript 类型定义
@@ -252,15 +280,17 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
 
 ## 总结
 
-通过以下三个关键修复，彻底解决了 `lease_admin` 错误：
+通过以下四个关键修复，彻底解决了 `lease_admin` 错误：
 
 1. ✅ 修复 `insert_tenant_profile` 函数，移除错误的枚举类型转换
 2. ✅ 删除所有引用已删除 `lease_admin` 角色的函数和策略
 3. ✅ 修复 `createUser` 函数的角色映射，确保前端角色正确映射到租户 Schema 角色
+4. ✅ 修复 `create_user_auth_account_first` 函数的权限检查，移除对 `lease_admin` 的引用
 
 现在系统可以正常添加新用户，并且角色系统清晰明确：
 - **中央管理系统**：使用 `super_admin` 和 `boss` 角色
 - **租户系统**：使用 `boss`、`peer`、`fleet_leader` 和 `driver` 角色
 - **角色映射**：前端 `manager` 自动映射为租户 Schema 的 `fleet_leader`
+- **权限检查**：只使用当前系统中存在的角色进行权限验证
 
 如果问题仍然存在，请清除浏览器缓存并重新登录。
