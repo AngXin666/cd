@@ -288,7 +288,7 @@ const DriverManagement: React.FC = () => {
         driver.id,
         user.id,
         currentUser.real_name || currentUser.name || '管理员',
-        'manager'
+        'MANAGER'
       )
 
       if (success) {
@@ -474,7 +474,7 @@ const DriverManagement: React.FC = () => {
           const currentUserProfile = await getCurrentUserWithRealName()
 
           if (currentUserProfile) {
-            if (currentUserProfile.role === 'manager') {
+            if (currentUserProfile.role === 'MANAGER') {
               // 获取操作人的显示名称（优先使用真实姓名）
               const operatorRealName = currentUserProfile.real_name
               const operatorUserName = currentUserProfile.name

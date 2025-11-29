@@ -105,11 +105,11 @@ const HelpPage: React.FC = () => {
   // 根据角色获取FAQ列表
   const getFAQList = () => {
     let roleFAQ: Array<{question: string; answer: string}> = []
-    if (profile?.role === 'driver') {
+    if (profile?.role === 'DRIVER') {
       roleFAQ = getDriverFAQ()
-    } else if (profile?.role === 'manager') {
+    } else if (profile?.role === 'MANAGER') {
       roleFAQ = getManagerFAQ()
-    } else if (profile?.role === 'super_admin' || profile?.role === 'boss') {
+    } else if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') {
       roleFAQ = getSuperAdminFAQ()
     }
     return [...roleFAQ, ...getCommonFAQ()]
@@ -148,7 +148,7 @@ const HelpPage: React.FC = () => {
               <Text className="text-base font-bold text-gray-800 block mb-4">使用说明</Text>
 
               <View className="mb-4">
-                {profile?.role === 'driver' && (
+                {profile?.role === 'DRIVER' && (
                   <View className="flex items-start mb-3">
                     <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
                     <View className="flex-1">
@@ -160,7 +160,7 @@ const HelpPage: React.FC = () => {
                   </View>
                 )}
 
-                {profile?.role === 'manager' && (
+                {profile?.role === 'MANAGER' && (
                   <View className="flex items-start mb-3">
                     <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
                     <View className="flex-1">
@@ -172,15 +172,15 @@ const HelpPage: React.FC = () => {
                   </View>
                 )}
 
-                {(profile?.role === 'super_admin' || profile?.role === 'boss') && (
+                {(profile?.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && (
                   <View className="flex items-start">
                     <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
                     <View className="flex-1">
                       <Text className="text-sm font-medium text-gray-800 block mb-1">
-                        {profile?.role === 'boss' ? '老板功能' : '超级管理员功能'}
+                        {profile?.role === 'SUPER_ADMIN' ? '老板功能' : '超级管理员功能'}
                       </Text>
                       <Text className="text-xs text-gray-600 block">
-                        {profile?.role === 'boss'
+                        {profile?.role === 'SUPER_ADMIN'
                           ? '老板拥有系统最高权限，可以管理仓库信息、分配司机和车队长、管理计件品类、查看所有数据统计。'
                           : '超级管理员拥有系统最高权限，可以管理仓库信息、分配司机和车队长、管理计件品类、查看所有数据统计。'}
                       </Text>

@@ -18,7 +18,7 @@ import {matchWithPinyin} from '@/utils/pinyin'
 
 const StaffManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [currentTab, setCurrentTab] = useState<'driver' | 'assignment'>('driver')
+  const [currentTab, setCurrentTab] = useState<'DRIVER' | 'assignment'>('DRIVER')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [drivers, setDrivers] = useState<Profile[]>([])
@@ -89,7 +89,7 @@ const StaffManagement: React.FC = () => {
         })
       }
 
-      if (currentTab === 'driver') {
+      if (currentTab === 'DRIVER') {
         setFilteredDrivers(filtered)
       } else {
         setFilteredAllDrivers(filtered)
@@ -144,7 +144,7 @@ const StaffManagement: React.FC = () => {
     (e: any) => {
       const keyword = e.detail.value
       setSearchKeyword(keyword)
-      if (currentTab === 'driver') {
+      if (currentTab === 'DRIVER') {
         filterDrivers(drivers, keyword, driverTypeFilter)
       } else {
         filterDrivers(allDrivers, keyword, driverTypeFilter)
@@ -159,7 +159,7 @@ const StaffManagement: React.FC = () => {
       const selectedIndex = e.detail.value
       const selectedType = driverTypeOptions[selectedIndex].value as 'all' | 'pure' | 'with_vehicle'
       setDriverTypeFilter(selectedType)
-      if (currentTab === 'driver') {
+      if (currentTab === 'DRIVER') {
         filterDrivers(drivers, searchKeyword, selectedType)
       } else {
         filterDrivers(allDrivers, searchKeyword, selectedType)
@@ -244,7 +244,7 @@ const StaffManagement: React.FC = () => {
         Taro.showToast({title: '保存成功', icon: 'success'})
         handleCancelEdit()
         // 刷新司机列表
-        if (currentTab === 'driver' && warehouses.length > 0) {
+        if (currentTab === 'DRIVER' && warehouses.length > 0) {
           loadDriversByWarehouse(warehouses[currentWarehouseIndex].id)
         } else if (currentTab === 'assignment') {
           loadAllDrivers()
@@ -373,7 +373,7 @@ const StaffManagement: React.FC = () => {
   )
 
   // 标签切换
-  const handleTabChange = useCallback((tab: 'driver' | 'assignment') => {
+  const handleTabChange = useCallback((tab: 'DRIVER' | 'assignment') => {
     setCurrentTab(tab)
     setSearchKeyword('')
   }, [])
@@ -386,7 +386,7 @@ const StaffManagement: React.FC = () => {
 
   // 仓库列表加载完成后，加载第一个仓库的司机
   useEffect(() => {
-    if (warehouses.length > 0 && currentTab === 'driver') {
+    if (warehouses.length > 0 && currentTab === 'DRIVER') {
       loadDriversByWarehouse(warehouses[currentWarehouseIndex].id)
     }
   }, [warehouses, currentWarehouseIndex, currentTab, loadDriversByWarehouse])
@@ -405,7 +405,7 @@ const StaffManagement: React.FC = () => {
 
   // 下拉刷新
   usePullDownRefresh(() => {
-    if (currentTab === 'driver') {
+    if (currentTab === 'DRIVER') {
       if (warehouses[currentWarehouseIndex]) {
         loadDriversByWarehouse(warehouses[currentWarehouseIndex].id).finally(() => {
           Taro.stopPullDownRefresh()
@@ -421,7 +421,7 @@ const StaffManagement: React.FC = () => {
   // 获取司机类型文本
   const getDriverTypeText = (driverType: string | null) => {
     if (driverType === 'driver_with_vehicle') return '带车司机'
-    if (driverType === 'driver') return '纯司机'
+    if (driverType === 'DRIVER') return '纯司机'
     return '未设置'
   }
 
@@ -738,9 +738,9 @@ const StaffManagement: React.FC = () => {
         </View>
         <View className="flex items-center justify-around border-t border-gray-100">
           <View
-            onClick={() => handleTabChange('driver')}
-            className={`flex-1 text-center py-3 ${currentTab === 'driver' ? 'border-b-2 border-blue-600' : ''}`}>
-            <Text className={`text-sm ${currentTab === 'driver' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}>
+            onClick={() => handleTabChange('DRIVER')}
+            className={`flex-1 text-center py-3 ${currentTab === 'DRIVER' ? 'border-b-2 border-blue-600' : ''}`}>
+            <Text className={`text-sm ${currentTab === 'DRIVER' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}>
               司机管理
             </Text>
           </View>
@@ -756,7 +756,7 @@ const StaffManagement: React.FC = () => {
 
       {/* 内容区域 */}
       <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 120px)', background: 'transparent'}}>
-        <View className="p-4">{currentTab === 'driver' ? renderDriverManagement() : renderDriverAssignment()}</View>
+        <View className="p-4">{currentTab === 'DRIVER' ? renderDriverManagement() : renderDriverAssignment()}</View>
       </ScrollView>
 
       {/* 编辑司机信息对话框 */}

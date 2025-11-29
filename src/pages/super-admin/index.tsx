@@ -167,7 +167,7 @@ const SuperAdminHome: React.FC = () => {
   // 启用轮询通知（代替 Realtime）
   usePollingNotifications({
     userId: user?.id || '',
-    userRole: 'super_admin',
+    userRole: 'SUPER_ADMIN',
     onLeaveApplicationChange: () => {
       refreshDashboard()
     },

@@ -33,7 +33,7 @@ const DriverWarehouseAssignment: React.FC = () => {
   // 加载司机列表
   const loadDrivers = useCallback(async () => {
     const profiles = await getAllProfiles()
-    const driverList = profiles.filter((p) => p.role === 'driver')
+    const driverList = profiles.filter((p) => p.role === 'DRIVER')
     setDrivers(driverList)
 
     // 同时获取当前用户的profile信息
@@ -157,7 +157,7 @@ const DriverWarehouseAssignment: React.FC = () => {
 
       // 3. 通知相关管理员
       if (operatorProfile) {
-        if (operatorProfile.role === 'manager') {
+        if (operatorProfile.role === 'MANAGER') {
           // 车队长操作 → 通知所有老板
           console.log('👤 [通知系统] 操作者是车队长，准备通知所有老板')
 
@@ -202,7 +202,7 @@ const DriverWarehouseAssignment: React.FC = () => {
               relatedId: driver.id
             })
           }
-        } else if (operatorProfile.role === 'super_admin') {
+        } else if (operatorProfile.role === 'SUPER_ADMIN') {
           // 老板操作 → 通知相关仓库的车队长
           console.log('👤 [通知系统] 操作者是老板，准备通知相关仓库的车队长')
 

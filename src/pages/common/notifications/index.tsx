@@ -288,7 +288,7 @@ const NotificationsPage: React.FC = () => {
         case 'resignation_application_submitted': {
           // 获取用户角色，根据角色跳转到不同的审批页面
           const userRole = await getCurrentUserRole()
-          const pathPrefix = userRole === 'super_admin' ? '/pages/super-admin' : '/pages/manager'
+          const pathPrefix = userRole === 'SUPER_ADMIN' ? '/pages/super-admin' : '/pages/manager'
 
           // 根据通知类型确定要查询的表
           const isLeaveNotification = notification.type === 'leave_application_submitted'

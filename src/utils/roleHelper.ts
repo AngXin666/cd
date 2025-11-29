@@ -6,7 +6,7 @@ import type {UserRole} from '@/db/types'
  * @returns 是否为超级管理员
  */
 export function isSuperAdmin(role: UserRole | undefined | null): boolean {
-  return role === 'super_admin'
+  return role === 'SUPER_ADMIN'
 }
 
 /**
@@ -15,7 +15,7 @@ export function isSuperAdmin(role: UserRole | undefined | null): boolean {
  * @returns 是否为老板
  */
 export function isBoss(role: UserRole | undefined | null): boolean {
-  return role === 'boss'
+  return role === 'SUPER_ADMIN'
 }
 
 /**
@@ -24,7 +24,7 @@ export function isBoss(role: UserRole | undefined | null): boolean {
  * @returns 是否为租户管理员
  */
 export function isTenantAdmin(role: UserRole | undefined | null): boolean {
-  return role === 'boss' || role === 'peer_admin'
+  return role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN'
 }
 
 /**
@@ -33,7 +33,7 @@ export function isTenantAdmin(role: UserRole | undefined | null): boolean {
  * @returns 是否为管理员
  */
 export function isManager(role: UserRole | undefined | null): boolean {
-  return role === 'super_admin' || role === 'boss' || role === 'peer_admin' || role === 'manager'
+  return role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN' || role === 'MANAGER'
 }
 
 /**
@@ -46,16 +46,16 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
   if (!managerRole) return false
 
   // super_admin（中央管理系统）可以管理所有角色
-  if (managerRole === 'super_admin') return true
+  if (managerRole === 'SUPER_ADMIN') return true
 
   // boss（租户老板）可以管理租户内的所有角色（peer_admin, manager, driver）
-  if (managerRole === 'boss') {
-    return targetRole === 'peer_admin' || targetRole === 'manager' || targetRole === 'driver'
+  if (managerRole === 'SUPER_ADMIN') {
+    return targetRole === 'SUPER_ADMIN' || targetRole === 'MANAGER' || targetRole === 'DRIVER'
   }
 
   // peer_admin（平级管理员）可以管理 driver 和 manager，但不能管理 boss 和其他 peer_admin
-  if (managerRole === 'peer_admin') {
-    return targetRole === 'driver' || targetRole === 'manager'
+  if (managerRole === 'SUPER_ADMIN') {
+    return targetRole === 'DRIVER' || targetRole === 'MANAGER'
   }
 
   // manager（车队长）只能查看，不能管理

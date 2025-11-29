@@ -3,7 +3,7 @@ import type {NotificationType} from './notificationApi'
 // ==================== 用户相关类型 ====================
 
 // 单用户系统角色类型
-export type UserRole = 'BOSS' | 'DISPATCHER' | 'DRIVER'
+export type UserRole = 'SUPER_ADMIN' | 'MANAGER' | 'DRIVER'
 
 // 用户信息接口
 export interface User {
@@ -51,6 +51,8 @@ export interface Profile {
   lease_end_date?: string | null
   monthly_fee?: number | null
   notes?: string | null
+  main_account_id?: string | null
+  is_active?: boolean
 }
 
 export interface ProfileUpdate {
@@ -63,6 +65,7 @@ export interface ProfileUpdate {
   vehicle_plate?: string
   warehouse_ids?: string[]
   status?: string
+  driver_type?: string
 }
 
 // ==================== 部门相关类型 ====================
@@ -110,6 +113,8 @@ export interface Warehouse {
   contact_phone: string | null
   created_at: string
   updated_at: string
+  // 兼容旧代码的可选字段
+  is_active?: boolean
 }
 
 // 创建仓库的输入接口
@@ -483,6 +488,13 @@ export interface DriverLicense {
   driving_license_photo?: string | null
   id_card_birth_date?: string | null
   first_issue_date?: string | null
+  id_card_name?: string | null
+  id_card_number?: string | null
+  id_card_address?: string | null
+  license_class?: string | null
+  valid_from?: string | null
+  valid_to?: string | null
+  issue_authority?: string | null
 }
 
 // 创建驾照信息的输入接口

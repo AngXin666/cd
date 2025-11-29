@@ -19,16 +19,16 @@ const ProfilePage: React.FC = () => {
 
     // 根据角色加载统计数据
     if (data && user) {
-      if (data.role === 'driver') {
+      if (data.role === 'DRIVER') {
         const driverStats = await getDriverStats(user.id)
         setStats(driverStats)
         // 加载司机的驾驶证信息以获取真实姓名
         const license = await getDriverLicense(user.id)
         setDriverLicense(license)
-      } else if (data.role === 'manager') {
+      } else if (data.role === 'MANAGER') {
         const managerStats = await getManagerStats(user.id)
         setStats(managerStats)
-      } else if (data.role === 'super_admin' || data.role === 'boss') {
+      } else if (data.role === 'SUPER_ADMIN' || data.role === 'SUPER_ADMIN') {
         // 超级管理员和老板都使用超级管理员统计
         const superAdminStats = await getSuperAdminStats()
         setStats(superAdminStats)
@@ -60,16 +60,12 @@ const ProfilePage: React.FC = () => {
 
   const getRoleText = (role: string) => {
     switch (role) {
-      case 'driver':
+      case 'DRIVER':
         return '司机'
-      case 'manager':
+      case 'MANAGER':
         return '车队长'
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return '超级管理员'
-      case 'boss':
-        return '老板'
-      case 'peer_admin':
-        return '平级账户'
       default:
         return '未知'
     }
@@ -77,16 +73,12 @@ const ProfilePage: React.FC = () => {
 
   const getRoleBgGradient = (role: string) => {
     switch (role) {
-      case 'driver':
+      case 'DRIVER':
         return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      case 'manager':
+      case 'MANAGER':
         return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-      case 'boss':
-        return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-      case 'peer_admin':
-        return 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
       default:
         return 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
     }
@@ -101,7 +93,7 @@ const ProfilePage: React.FC = () => {
   // 获取显示名称（司机优先显示真实姓名）
   const getDisplayName = () => {
     // 如果是司机角色，优先显示驾驶证上的真实姓名
-    if (profile?.role === 'driver' && driverLicense?.id_card_name) {
+    if (profile?.role === 'DRIVER' && driverLicense?.id_card_name) {
       return driverLicense.id_card_name
     }
     // 其他角色或未录入驾驶证信息时，显示profile中的姓名
@@ -140,12 +132,11 @@ const ProfilePage: React.FC = () => {
   const getQuickActions = () => {
     if (!profile) return []
     switch (profile.role) {
-      case 'driver':
+      case 'DRIVER':
         return driverQuickActions
-      case 'manager':
+      case 'MANAGER':
         return managerQuickActions
-      case 'super_admin':
-      case 'boss':
+      case 'SUPER_ADMIN':
         return superAdminQuickActions
       default:
         return []
@@ -208,7 +199,7 @@ const ProfilePage: React.FC = () => {
                 <Text className="text-sm text-white opacity-90">{maskPhone(profile?.phone)}</Text>
               </View>
               {/* 车队长、老板和超级管理员显示编辑实名按钮 */}
-              {(profile?.role === 'manager' || profile?.role === 'super_admin' || profile?.role === 'boss') && (
+              {(profile?.role === 'MANAGER' || profile?.role === 'SUPER_ADMIN') && (
                 <View
                   className="flex items-center px-3 py-1 rounded-full active:opacity-70"
                   style={{background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)'}}
@@ -230,7 +221,7 @@ const ProfilePage: React.FC = () => {
                 </View>
 
                 {/* 司机端统计 */}
-                {profile?.role === 'driver' && (
+                {profile?.role === 'DRIVER' && (
                   <View className="grid grid-cols-2 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
                       <View className="flex items-center mb-2">
@@ -273,7 +264,7 @@ const ProfilePage: React.FC = () => {
                 )}
 
                 {/* 车队长端统计 */}
-                {profile?.role === 'manager' && (
+                {profile?.role === 'MANAGER' && (
                   <View className="grid grid-cols-2 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
                       <View className="flex items-center mb-2">
@@ -316,7 +307,7 @@ const ProfilePage: React.FC = () => {
                 )}
 
                 {/* 老板和超级管理员统计 */}
-                {(profile?.role === 'super_admin' || profile?.role === 'boss') && (
+                {profile?.role === 'SUPER_ADMIN' && (
                   <View className="grid grid-cols-3 gap-3">
                     <View className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3">
                       <View className="flex items-center mb-2">
@@ -405,7 +396,7 @@ const ProfilePage: React.FC = () => {
             {/* 个人设置菜单 */}
             <View className="bg-white rounded-xl mb-4 shadow overflow-hidden">
               {/* 个人信息 - 仅司机角色显示 */}
-              {profile?.role === 'driver' && (
+              {profile?.role === 'DRIVER' && (
                 <View
                   className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
                   onClick={() => navigateTo({url: '/pages/driver/profile/index'})}>

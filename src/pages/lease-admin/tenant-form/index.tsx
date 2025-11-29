@@ -114,7 +114,7 @@ export default function TenantForm() {
             name: formData.name,
             phone: formData.phone,
             email: null,
-            role: 'super_admin',
+            role: 'SUPER_ADMIN',
             driver_type: null,
             avatar_url: null,
             nickname: null,

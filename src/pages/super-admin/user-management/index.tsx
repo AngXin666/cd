@@ -37,11 +37,12 @@ type DriverDetailInfo = Awaited<ReturnType<typeof getDriverDetailInfo>>
 // 扩展用户类型，包含真实姓名
 interface UserWithRealName extends Profile {
   real_name?: string
+  login_account?: string
 }
 
 // 辅助函数：判断是否是管理员角色（boss 或 super_admin）
 const isAdminRole = (role: string | undefined) => {
-  return role === 'boss' || role === 'super_admin'
+  return role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN'
 }
 
 const UserManagement: React.FC = () => {
@@ -52,12 +53,12 @@ const UserManagement: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [showSearch, setShowSearch] = useState(false) // 搜索框展开状态
   // 默认角色过滤：如果是老板或超级管理员登录，显示车队长；否则显示司机
-  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>(isAdminRole(user?.role) ? 'manager' : 'driver')
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>(isAdminRole(user?.role) ? 'MANAGER' : 'DRIVER')
   const [loading, setLoading] = useState(false)
 
-  // 标签页状态：'driver' 或 'manager'
+  // 标签页状态：'DRIVER' 或 'MANAGER'
   // 默认值：如果是老板或超级管理员登录，显示管理员标签页；否则显示司机标签页
-  const [activeTab, setActiveTab] = useState<'driver' | 'manager'>(isAdminRole(user?.role) ? 'manager' : 'driver')
+  const [activeTab, setActiveTab] = useState<'DRIVER' | 'MANAGER'>(isAdminRole(user?.role) ? 'MANAGER' : 'DRIVER')
 
   // 用户详细信息展开状态
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
@@ -78,15 +79,15 @@ const UserManagement: React.FC = () => {
   const [showAddUser, setShowAddUser] = useState(false)
   const [newUserPhone, setNewUserPhone] = useState('')
   const [newUserName, setNewUserName] = useState('')
-  const [newUserRole, setNewUserRole] = useState<'driver' | 'manager' | 'boss'>('driver')
+  const [newUserRole, setNewUserRole] = useState<'DRIVER' | 'MANAGER' | 'SUPER_ADMIN'>('DRIVER')
   const [newDriverType, setNewDriverType] = useState<'pure' | 'with_vehicle'>('pure')
   const [newUserWarehouseIds, setNewUserWarehouseIds] = useState<string[]>([]) // 新用户的仓库分配
   const [addingUser, setAddingUser] = useState(false)
 
   // 标签页选项
   const tabs = [
-    {key: 'driver' as const, label: '司机管理', icon: 'i-mdi-account-hard-hat'},
-    {key: 'manager' as const, label: '管理员管理', icon: 'i-mdi-account-tie'}
+    {key: 'DRIVER' as const, label: '司机管理', icon: 'i-mdi-account-hard-hat'},
+    {key: 'MANAGER' as const, label: '管理员管理', icon: 'i-mdi-account-tie'}
   ]
 
   // 过滤用户
@@ -97,7 +98,7 @@ const UserManagement: React.FC = () => {
       // 角色过滤
       if (role !== 'all') {
         // 特殊处理：当角色为 manager 时，根据当前登录用户类型决定显示内容
-        if (role === 'manager') {
+        if (role === 'MANAGER') {
           // 判断当前登录用户是主账号还是平级账号
           const isMainAccount = currentUserProfile?.main_account_id === null
           const isPeerAccount = currentUserProfile?.main_account_id !== null
@@ -106,17 +107,17 @@ const UserManagement: React.FC = () => {
             // 主账号登录：显示车队长 + 平级账号（不显示自己）
             filtered = filtered.filter((u) => {
               // 显示车队长
-              if (u.role === 'manager') return true
+              if (u.role === 'MANAGER') return true
               // 显示平级账号（但不显示自己）
               if (isAdminRole(u.role) && u.main_account_id !== null && u.id !== user?.id) return true
               return false
             })
           } else if (isPeerAccount) {
             // 平级账号登录：只显示车队长
-            filtered = filtered.filter((u) => u.role === 'manager')
+            filtered = filtered.filter((u) => u.role === 'MANAGER')
           } else {
             // 其他情况（理论上不应该出现）：只显示车队长
-            filtered = filtered.filter((u) => u.role === 'manager')
+            filtered = filtered.filter((u) => u.role === 'MANAGER')
           }
         } else {
           filtered = filtered.filter((u) => u.role === role)
@@ -222,15 +223,15 @@ const UserManagement: React.FC = () => {
           let assignments: {warehouse_id: string}[] = []
 
           // 根据角色加载不同的仓库分配
-          if (u.role === 'driver') {
+          if (u.role === 'DRIVER') {
             assignments = await getWarehouseAssignmentsByDriver(u.id)
-          } else if (u.role === 'manager' || isAdminRole(u.role)) {
+          } else if (u.role === 'MANAGER' || isAdminRole(u.role)) {
             assignments = await getWarehouseAssignmentsByManager(u.id)
           }
 
           const [license, detail] = await Promise.all([
-            u.role === 'driver' ? getDriverLicense(u.id) : Promise.resolve(null),
-            u.role === 'driver' ? getDriverDetailInfo(u.id) : Promise.resolve(null)
+            u.role === 'DRIVER' ? getDriverLicense(u.id) : Promise.resolve(null),
+            u.role === 'DRIVER' ? getDriverDetailInfo(u.id) : Promise.resolve(null)
           ])
 
           return {
@@ -303,11 +304,11 @@ const UserManagement: React.FC = () => {
 
   // 标签页切换
   const handleTabChange = useCallback(
-    (tab: 'driver' | 'manager') => {
+    (tab: 'DRIVER' | 'MANAGER') => {
       setActiveTab(tab)
       // 切换标签时自动设置角色筛选
       // 管理员标签页显示车队长（manager），不显示老板账号（super_admin）
-      const role: UserRole = tab === 'driver' ? 'driver' : 'manager'
+      const role: UserRole = tab === 'DRIVER' ? 'DRIVER' : 'MANAGER'
       setRoleFilter(role)
       filterUsers(users, searchKeyword, role, currentWarehouseIndex)
       // 收起所有展开的详情
@@ -361,7 +362,7 @@ const UserManagement: React.FC = () => {
       // 重置表单
       setNewUserPhone('')
       setNewUserName('')
-      setNewUserRole('driver')
+      setNewUserRole('DRIVER')
       setNewDriverType('pure')
       setNewUserWarehouseIds([]) // 重置仓库选择
     }
@@ -396,8 +397,8 @@ const UserManagement: React.FC = () => {
     }
 
     // 验证仓库选择（司机和管理员需要，老板不需要）
-    if (newUserRole !== 'boss' && newUserWarehouseIds.length === 0) {
-      const roleText = newUserRole === 'driver' ? '司机' : '管理员'
+    if (newUserRole !== 'SUPER_ADMIN' && newUserWarehouseIds.length === 0) {
+      const roleText = newUserRole === 'DRIVER' ? '司机' : '管理员'
       showToast({title: `请为${roleText}至少选择一个仓库`, icon: 'none'})
       return
     }
@@ -408,7 +409,7 @@ const UserManagement: React.FC = () => {
     try {
       // 如果是添加老板角色，需要特殊处理
       let newUser
-      if (newUserRole === 'boss') {
+      if (newUserRole === 'SUPER_ADMIN') {
         // 创建平级老板账号
         // 1. 先在 Supabase Auth 中创建用户
         const {data: authData, error: authError} = await supabase.auth.signUp({
@@ -441,7 +442,7 @@ const UserManagement: React.FC = () => {
             id: authData.user.id,
             name: newUserName.trim(),
             phone: newUserPhone.trim(),
-            role: 'super_admin', // 老板角色在数据库中是 super_admin
+            role: 'SUPER_ADMIN', // 老板角色在数据库中是 super_admin
             permission_type: 'full',
             status: 'active',
             main_account_id: user?.id // 设置主账号ID，标记为平级账号
@@ -460,20 +461,20 @@ const UserManagement: React.FC = () => {
           newUserPhone.trim(),
           newUserName.trim(),
           newUserRole,
-          newUserRole === 'driver' ? newDriverType : undefined
+          newUserRole === 'DRIVER' ? newDriverType : undefined
         )
       }
 
       if (newUser) {
         // 分配仓库（老板不需要分配仓库）
-        if (newUserRole !== 'boss') {
+        if (newUserRole !== 'SUPER_ADMIN') {
           console.log('开始为新用户分配仓库', {
             userId: newUser.id,
             role: newUserRole,
             warehouseIds: newUserWarehouseIds
           })
 
-          if (newUserRole === 'driver') {
+          if (newUserRole === 'DRIVER') {
             // 为司机分配仓库（使用 driver_warehouses 表）
             for (const warehouseId of newUserWarehouseIds) {
               await insertWarehouseAssignment({
@@ -481,7 +482,7 @@ const UserManagement: React.FC = () => {
                 warehouse_id: warehouseId
               })
             }
-          } else if (newUserRole === 'manager' || newUserRole === 'boss' || newUserRole === 'super_admin') {
+          } else if (newUserRole === 'MANAGER' || newUserRole === 'SUPER_ADMIN' || newUserRole === 'SUPER_ADMIN') {
             // 为管理员、老板和车队长分配仓库（使用 manager_warehouses 表）
             for (const warehouseId of newUserWarehouseIds) {
               await insertManagerWarehouseAssignment({
@@ -499,17 +500,17 @@ const UserManagement: React.FC = () => {
 
         // 显示详细的创建成功信息
         const loginAccount = `${newUserPhone.trim()}@fleet.com`
-        const roleText = newUserRole === 'driver' ? '司机' : newUserRole === 'manager' ? '管理员' : '老板（平级账号）'
+        const roleText = newUserRole === 'DRIVER' ? '司机' : newUserRole === 'MANAGER' ? '管理员' : '老板（平级账号）'
         const driverTypeText = newDriverType === 'with_vehicle' ? '带车司机' : '纯司机'
         const defaultPassword = '123456'
 
         let content = `姓名：${newUserName.trim()}\n手机号码：${newUserPhone.trim()}\n用户角色：${roleText}\n`
 
-        if (newUserRole === 'driver') {
+        if (newUserRole === 'DRIVER') {
           content += `司机类型：${driverTypeText}\n`
         }
 
-        if (newUserRole !== 'boss') {
+        if (newUserRole !== 'SUPER_ADMIN') {
           const warehouseNames = warehouses
             .filter((w) => newUserWarehouseIds.includes(w.id))
             .map((w) => w.name)
@@ -528,7 +529,7 @@ const UserManagement: React.FC = () => {
             // 重置表单
             setNewUserPhone('')
             setNewUserName('')
-            setNewUserRole('driver')
+            setNewUserRole('DRIVER')
             setNewDriverType('pure')
             setNewUserWarehouseIds([])
             setShowAddUser(false)
@@ -560,7 +561,7 @@ const UserManagement: React.FC = () => {
   // 切换用户类型（仅司机）
   const handleToggleUserType = useCallback(
     async (targetUser: UserWithRealName) => {
-      if (targetUser.role !== 'driver') {
+      if (targetUser.role !== 'DRIVER') {
         showToast({title: '只能切换司机类型', icon: 'none'})
         return
       }
@@ -619,10 +620,10 @@ const UserManagement: React.FC = () => {
             const operatorUserName = currentUserProfile.name
 
             // 智能构建操作人显示文本
-            let operatorText = currentUserProfile.role === 'boss' ? '老板' : '超级管理员'
+            let operatorText = currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'
             if (operatorRealName) {
               // 如果有真实姓名，显示：老板【张三】
-              operatorText = `${currentUserProfile.role === 'boss' ? '老板' : '超级管理员'}【${operatorRealName}】`
+              operatorText = `${currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'}【${operatorRealName}】`
             } else if (
               operatorUserName &&
               operatorUserName !== '老板' &&
@@ -696,9 +697,9 @@ const UserManagement: React.FC = () => {
         showLoading({title: '加载中...'})
 
         let assignments: Array<{warehouse_id: string}> = []
-        if (targetUser.role === 'driver') {
+        if (targetUser.role === 'DRIVER') {
           assignments = await getWarehouseAssignmentsByDriver(targetUser.id)
-        } else if (targetUser.role === 'manager' || isAdminRole(targetUser.role)) {
+        } else if (targetUser.role === 'MANAGER' || isAdminRole(targetUser.role)) {
           assignments = await getWarehouseAssignmentsByManager(targetUser.id)
         }
 
@@ -741,29 +742,29 @@ const UserManagement: React.FC = () => {
 
       // 获取之前的仓库分配（用于对比变更）
       let previousAssignments: Array<{warehouse_id: string}> = []
-      if (userRole === 'driver') {
+      if (userRole === 'DRIVER') {
         previousAssignments = await getWarehouseAssignmentsByDriver(userId)
-      } else if (userRole === 'manager' || isAdminRole(userRole)) {
+      } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
         previousAssignments = await getWarehouseAssignmentsByManager(userId)
       }
       const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
 
       // 先删除该用户的所有仓库分配
-      if (userRole === 'driver') {
+      if (userRole === 'DRIVER') {
         await deleteWarehouseAssignmentsByDriver(userId)
-      } else if (userRole === 'manager' || isAdminRole(userRole)) {
+      } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
         // 删除管理员/车队长的仓库分配
         await supabase.from('manager_warehouses').delete().eq('manager_id', userId)
       }
 
       // 添加新的仓库分配
       for (const warehouseId of selectedWarehouseIds) {
-        if (userRole === 'driver') {
+        if (userRole === 'DRIVER') {
           await insertWarehouseAssignment({
             driver_id: userId,
             warehouse_id: warehouseId
           })
-        } else if (userRole === 'manager' || isAdminRole(userRole)) {
+        } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
           await insertManagerWarehouseAssignment({
             manager_id: userId,
             warehouse_id: warehouseId
@@ -858,10 +859,10 @@ const UserManagement: React.FC = () => {
           const operatorUserName = currentUserProfile.name
 
           // 智能构建操作人显示文本
-          let operatorText = currentUserProfile.role === 'boss' ? '老板' : '超级管理员'
+          let operatorText = currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'
           if (operatorRealName) {
             // 如果有真实姓名，显示：老板【张三】
-            operatorText = `${currentUserProfile.role === 'boss' ? '老板' : '超级管理员'}【${operatorRealName}】`
+            operatorText = `${currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'}【${operatorRealName}】`
           } else if (
             operatorUserName &&
             operatorUserName !== '老板' &&
@@ -869,7 +870,7 @@ const UserManagement: React.FC = () => {
             operatorUserName !== '超级管理员'
           ) {
             // 如果有用户名且不是角色名称，显示：老板【admin】
-            operatorText = `${currentUserProfile.role === 'boss' ? '老板' : '超级管理员'}【${operatorUserName}】`
+            operatorText = `${currentUserProfile.role === 'SUPER_ADMIN' ? '老板' : '超级管理员'}【${operatorUserName}】`
           }
           // 否则只显示：老板
 
@@ -980,16 +981,12 @@ const UserManagement: React.FC = () => {
   // 获取角色显示文本
   const getRoleText = (role: UserRole) => {
     switch (role) {
-      case 'boss':
-        return '老板'
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return '超级管理员'
-      case 'manager':
+      case 'MANAGER':
         return '车队长'
-      case 'driver':
+      case 'DRIVER':
         return '司机'
-      case 'peer_admin':
-        return '平级账户'
       default:
         return role
     }
@@ -998,16 +995,12 @@ const UserManagement: React.FC = () => {
   // 获取角色颜色
   const getRoleColor = (role: UserRole) => {
     switch (role) {
-      case 'boss':
+      case 'SUPER_ADMIN':
         return 'bg-red-100 text-red-700'
-      case 'super_admin':
-        return 'bg-orange-100 text-orange-700'
-      case 'manager':
+      case 'MANAGER':
         return 'bg-blue-100 text-blue-700'
-      case 'driver':
+      case 'DRIVER':
         return 'bg-green-100 text-green-700'
-      case 'peer_admin':
-        return 'bg-purple-100 text-purple-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }
@@ -1015,7 +1008,7 @@ const UserManagement: React.FC = () => {
 
   // 获取司机类型
   const getDriverType = (targetUser: UserWithRealName) => {
-    if (targetUser.role !== 'driver') return null
+    if (targetUser.role !== 'DRIVER') return null
     return targetUser.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
   }
 
@@ -1057,7 +1050,7 @@ const UserManagement: React.FC = () => {
               className="flex items-center justify-center bg-white rounded-lg py-3 px-4 shadow-sm border border-gray-200 active:scale-98 transition-all">
               <View className={`${showSearch ? 'i-mdi-close' : 'i-mdi-magnify'} text-blue-600 text-lg mr-2`} />
               <Text className="text-blue-600 text-sm font-medium">
-                {showSearch ? '收起搜索' : `搜索${activeTab === 'driver' ? '司机' : '管理员'}`}
+                {showSearch ? '收起搜索' : `搜索${activeTab === 'DRIVER' ? '司机' : '管理员'}`}
               </Text>
             </View>
           </View>
@@ -1065,11 +1058,11 @@ const UserManagement: React.FC = () => {
           {/* 搜索框（可展开/收起） */}
           {showSearch && (
             <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
-              <Text className="text-sm text-gray-600 mb-2 block">搜索{activeTab === 'driver' ? '司机' : '管理员'}</Text>
+              <Text className="text-sm text-gray-600 mb-2 block">搜索{activeTab === 'DRIVER' ? '司机' : '管理员'}</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                  placeholder={`输入${activeTab === 'driver' ? '司机' : '管理员'}姓名、手机号或邮箱`}
+                  placeholder={`输入${activeTab === 'DRIVER' ? '司机' : '管理员'}姓名、手机号或邮箱`}
                   value={searchKeyword}
                   onInput={handleSearchChange}
                 />
@@ -1087,7 +1080,7 @@ const UserManagement: React.FC = () => {
                   ({currentWarehouseIndex + 1}/{warehouses.length})
                 </Text>
                 <Text className="text-xs text-gray-400 ml-auto">
-                  {filteredUsers.length} 名{activeTab === 'driver' ? '司机' : '管理员'}
+                  {filteredUsers.length} 名{activeTab === 'DRIVER' ? '司机' : '管理员'}
                 </Text>
               </View>
               <View className="bg-white rounded-xl shadow-md overflow-hidden">
@@ -1103,10 +1096,10 @@ const UserManagement: React.FC = () => {
                     // 只显示分配到该仓库的用户
                     const warehouseUserCount = users.filter((u) => {
                       // 根据当前标签页过滤角色
-                      if (activeTab === 'driver') {
-                        if (u.role !== 'driver') return false
+                      if (activeTab === 'DRIVER') {
+                        if (u.role !== 'DRIVER') return false
                       } else {
-                        if (u.role !== 'manager' && !isAdminRole(u.role)) return false
+                        if (u.role !== 'MANAGER' && !isAdminRole(u.role)) return false
                       }
                       const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
                       return userWarehouseIds.includes(warehouse.id)
@@ -1128,7 +1121,7 @@ const UserManagement: React.FC = () => {
           )}
 
           {/* 添加用户按钮（仅在司机管理标签页显示） */}
-          {activeTab === 'driver' && (
+          {activeTab === 'DRIVER' && (
             <View className="mb-4">
               <View
                 onClick={toggleAddUser}
@@ -1140,7 +1133,7 @@ const UserManagement: React.FC = () => {
           )}
 
           {/* 添加用户表单（仅在司机管理标签页显示） */}
-          {activeTab === 'driver' && showAddUser && (
+          {activeTab === 'DRIVER' && showAddUser && (
             <View className="bg-blue-50 rounded-lg p-4 mb-3 border-2 border-blue-200">
               {/* 手机号 */}
               <View className="mb-3">
@@ -1160,7 +1153,7 @@ const UserManagement: React.FC = () => {
                 <Text className="text-gray-700 text-sm block mb-2">姓名</Text>
                 <Input
                   type="text"
-                  placeholder={`请输入${newUserRole === 'driver' ? '司机' : '管理员'}姓名`}
+                  placeholder={`请输入${newUserRole === 'DRIVER' ? '司机' : '管理员'}姓名`}
                   value={newUserName}
                   onInput={(e) => setNewUserName(e.detail.value)}
                   className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
@@ -1172,52 +1165,53 @@ const UserManagement: React.FC = () => {
                 <Text className="text-gray-700 text-sm block mb-2">用户角色</Text>
                 <View className="flex gap-2">
                   <View
-                    onClick={() => setNewUserRole('driver')}
+                    onClick={() => setNewUserRole('DRIVER')}
                     className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
-                      newUserRole === 'driver'
+                      newUserRole === 'DRIVER'
                         ? 'bg-blue-600 border-blue-600'
                         : 'bg-white border-gray-300 active:bg-gray-50'
                     }`}>
                     <View
                       className={`i-mdi-account-hard-hat text-base mr-1.5 ${
-                        newUserRole === 'driver' ? 'text-white' : 'text-gray-600'
+                        newUserRole === 'DRIVER' ? 'text-white' : 'text-gray-600'
                       }`}
                     />
                     <Text
-                      className={`text-sm font-medium ${newUserRole === 'driver' ? 'text-white' : 'text-gray-700'}`}>
+                      className={`text-sm font-medium ${newUserRole === 'DRIVER' ? 'text-white' : 'text-gray-700'}`}>
                       司机
                     </Text>
                   </View>
                   <View
-                    onClick={() => setNewUserRole('manager')}
+                    onClick={() => setNewUserRole('MANAGER')}
                     className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
-                      newUserRole === 'manager'
+                      newUserRole === 'MANAGER'
                         ? 'bg-blue-600 border-blue-600'
                         : 'bg-white border-gray-300 active:bg-gray-50'
                     }`}>
                     <View
                       className={`i-mdi-account-tie text-base mr-1.5 ${
-                        newUserRole === 'manager' ? 'text-white' : 'text-gray-600'
+                        newUserRole === 'MANAGER' ? 'text-white' : 'text-gray-600'
                       }`}
                     />
                     <Text
-                      className={`text-sm font-medium ${newUserRole === 'manager' ? 'text-white' : 'text-gray-700'}`}>
+                      className={`text-sm font-medium ${newUserRole === 'MANAGER' ? 'text-white' : 'text-gray-700'}`}>
                       管理员
                     </Text>
                   </View>
                   <View
-                    onClick={() => setNewUserRole('boss')}
+                    onClick={() => setNewUserRole('SUPER_ADMIN')}
                     className={`flex-1 flex items-center justify-center rounded-lg py-2.5 border-2 transition-all ${
-                      newUserRole === 'boss'
+                      newUserRole === 'SUPER_ADMIN'
                         ? 'bg-blue-600 border-blue-600'
                         : 'bg-white border-gray-300 active:bg-gray-50'
                     }`}>
                     <View
                       className={`i-mdi-account-star text-base mr-1.5 ${
-                        newUserRole === 'boss' ? 'text-white' : 'text-gray-600'
+                        newUserRole === 'SUPER_ADMIN' ? 'text-white' : 'text-gray-600'
                       }`}
                     />
-                    <Text className={`text-sm font-medium ${newUserRole === 'boss' ? 'text-white' : 'text-gray-700'}`}>
+                    <Text
+                      className={`text-sm font-medium ${newUserRole === 'SUPER_ADMIN' ? 'text-white' : 'text-gray-700'}`}>
                       老板
                     </Text>
                   </View>
@@ -1225,7 +1219,7 @@ const UserManagement: React.FC = () => {
               </View>
 
               {/* 司机类型选择（仅当选择司机角色时显示） */}
-              {newUserRole === 'driver' && (
+              {newUserRole === 'DRIVER' && (
                 <View className="mb-3">
                   <Text className="text-gray-700 text-sm block mb-2">司机类型</Text>
                   <View className="flex gap-2">
@@ -1270,7 +1264,7 @@ const UserManagement: React.FC = () => {
               )}
 
               {/* 仓库分配（老板角色不需要） */}
-              {newUserRole !== 'boss' && (
+              {newUserRole !== 'SUPER_ADMIN' && (
                 <View className="mb-3">
                   <Text className="text-gray-700 text-sm block mb-2">
                     分配仓库 <Text className="text-red-500">*</Text>
@@ -1337,18 +1331,18 @@ const UserManagement: React.FC = () => {
           ) : filteredUsers.length === 0 ? (
             <View className="bg-white rounded-lg p-8 text-center shadow-sm">
               <View className="i-mdi-account-off text-6xl text-gray-300 mx-auto mb-3" />
-              <Text className="text-gray-500 block mb-4">暂无{activeTab === 'driver' ? '司机' : '管理员'}数据</Text>
+              <Text className="text-gray-500 block mb-4">暂无{activeTab === 'DRIVER' ? '司机' : '管理员'}数据</Text>
 
               {/* 调试信息 */}
               <View className="bg-gray-50 rounded-lg p-4 text-left">
                 <Text className="text-xs text-gray-700 font-bold block mb-2">调试信息：</Text>
                 <Text className="text-xs text-gray-600 block mb-1">
-                  当前标签: {activeTab === 'driver' ? '司机管理' : '管理员管理'}
+                  当前标签: {activeTab === 'DRIVER' ? '司机管理' : '管理员管理'}
                 </Text>
                 <Text className="text-xs text-gray-600 block mb-1">总用户数: {users.length}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">过滤后用户数: {filteredUsers.length}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">
-                  当前角色筛选: {activeTab === 'manager' ? '车队长 + 老板' : getRoleText(roleFilter as UserRole)}
+                  当前角色筛选: {activeTab === 'MANAGER' ? '车队长 + 老板' : getRoleText(roleFilter as UserRole)}
                 </Text>
                 <Text className="text-xs text-gray-600 block mb-1">搜索关键词: {searchKeyword || '无'}</Text>
                 <Text className="text-xs text-gray-600 block mb-1">当前用户ID: {user?.id || '未登录'}</Text>
@@ -1380,7 +1374,7 @@ const UserManagement: React.FC = () => {
                             </View>
                           )}
                           {/* 角色标签：如果是司机且有详细信息，显示具体司机类型；否则显示角色 */}
-                          {u.role === 'driver' && detail && getDriverType(u) ? (
+                          {u.role === 'DRIVER' && detail && getDriverType(u) ? (
                             <View
                               className={`px-2 py-0.5 rounded-full ${
                                 getDriverType(u) === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
@@ -1404,7 +1398,7 @@ const UserManagement: React.FC = () => {
                   </View>
 
                   {/* 用户详细信息 */}
-                  {u.role === 'driver' && detail && (
+                  {u.role === 'DRIVER' && detail && (
                     <View className="px-4 pb-3 border-t border-gray-100">
                       <View className="grid grid-cols-2 gap-2 mt-3">
                         {/* 年龄 */}
@@ -1520,7 +1514,7 @@ const UserManagement: React.FC = () => {
                   )}
 
                   {/* 管理员详细信息 */}
-                  {u.role !== 'driver' && (
+                  {u.role !== 'DRIVER' && (
                     <View className="px-4 pb-3 border-t border-gray-100">
                       <View className="mt-3 space-y-2">
                         {u.login_account && (
@@ -1539,7 +1533,7 @@ const UserManagement: React.FC = () => {
                   {/* 操作按钮 */}
                   <View className="grid grid-cols-2 gap-2 p-3 bg-gray-50 border-t border-gray-100">
                     {/* 查看个人信息按钮（仅司机） */}
-                    {u.role === 'driver' && (
+                    {u.role === 'DRIVER' && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1552,7 +1546,7 @@ const UserManagement: React.FC = () => {
                     )}
 
                     {/* 车辆管理按钮（仅司机） */}
-                    {u.role === 'driver' && (
+                    {u.role === 'DRIVER' && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1565,7 +1559,7 @@ const UserManagement: React.FC = () => {
                     )}
 
                     {/* 仓库分配按钮（司机、管理员、老板） */}
-                    {(u.role === 'driver' || u.role === 'manager' || isAdminRole(u.role)) && (
+                    {(u.role === 'DRIVER' || u.role === 'MANAGER' || isAdminRole(u.role)) && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1578,7 +1572,7 @@ const UserManagement: React.FC = () => {
                     )}
 
                     {/* 司机类型切换按钮（仅司机） */}
-                    {u.role === 'driver' && (
+                    {u.role === 'DRIVER' && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1593,7 +1587,7 @@ const UserManagement: React.FC = () => {
                     )}
 
                     {/* 配置权限按钮（仅管理员） */}
-                    {u.role === 'manager' && (
+                    {u.role === 'MANAGER' && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1607,7 +1601,7 @@ const UserManagement: React.FC = () => {
                   </View>
 
                   {/* 仓库分配面板（展开时显示 - 司机、管理员、老板） */}
-                  {(u.role === 'driver' || u.role === 'manager' || isAdminRole(u.role)) && isWarehouseExpanded && (
+                  {(u.role === 'DRIVER' || u.role === 'MANAGER' || isAdminRole(u.role)) && isWarehouseExpanded && (
                     <View className="px-4 pb-4 bg-gray-50 border-t border-gray-200">
                       <View className="pt-4">
                         <Text className="text-sm font-medium text-gray-700 mb-3 block">选择仓库</Text>

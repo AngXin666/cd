@@ -92,7 +92,7 @@ const EditNamePage: React.FC = () => {
 
       if (success) {
         // 如果是车队长，通知所有老板
-        if (profile.role === 'manager') {
+        if (profile.role === 'MANAGER') {
           await createNotificationForAllSuperAdmins({
             type: 'system_notice',
             title: '车队长信息更新',
@@ -135,7 +135,7 @@ const EditNamePage: React.FC = () => {
             <View className="flex-1">
               <Text className="text-sm text-blue-900 block mb-1 font-medium">温馨提示</Text>
               <Text className="text-xs text-blue-700 block">请填写真实姓名和手机号，以便系统管理和联系。</Text>
-              {profile?.role === 'manager' && (
+              {profile?.role === 'MANAGER' && (
                 <Text className="text-xs text-blue-700 block mt-1">修改后将通知老板审核。</Text>
               )}
             </View>

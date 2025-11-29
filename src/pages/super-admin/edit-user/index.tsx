@@ -22,9 +22,9 @@ const EditUser: React.FC = () => {
 
   // 角色选项（根据需求限定为三种）
   const roleOptions = [
-    {label: '纯司机', value: 'driver' as UserRole, description: '不带车的司机'},
-    {label: '带车司机', value: 'driver' as UserRole, description: '自带车辆的司机'},
-    {label: '管理员', value: 'manager' as UserRole, description: '仓库管理员'}
+    {label: '纯司机', value: 'DRIVER' as UserRole, description: '不带车的司机'},
+    {label: '带车司机', value: 'DRIVER' as UserRole, description: '自带车辆的司机'},
+    {label: '管理员', value: 'MANAGER' as UserRole, description: '仓库管理员'}
   ]
 
   // 加载用户信息
@@ -55,7 +55,7 @@ const EditUser: React.FC = () => {
         let roleIndex = 0
         let roleLabel = ''
 
-        if (data.role === 'driver') {
+        if (data.role === 'DRIVER') {
           // 司机角色：根据 driver_type 来区分
           if (data.driver_type === 'with_vehicle') {
             // 带车司机（索引1）
@@ -66,7 +66,7 @@ const EditUser: React.FC = () => {
             roleIndex = 0
             roleLabel = '纯司机'
           }
-        } else if (data.role === 'manager') {
+        } else if (data.role === 'MANAGER') {
           // 管理员（索引2）
           roleIndex = 2
           roleLabel = '管理员'

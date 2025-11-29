@@ -14,7 +14,7 @@ export interface AccountStatusResult {
   can_login: boolean
   status: 'active' | 'inactive' | 'expired' | 'not_found' | 'no_lease'
   message: string
-  role?: 'super_admin' | 'admin' | 'driver'
+  role?: 'SUPER_ADMIN' | 'admin' | 'DRIVER'
   is_main_account?: boolean
   lease_end_date?: string
 }
@@ -120,10 +120,10 @@ export async function checkLoginStatus(): Promise<boolean> {
 export function showExpiredMessage(role: string, isMainAccount: boolean = false) {
   let message = ''
 
-  if (role === 'super_admin' && isMainAccount) {
+  if (role === 'SUPER_ADMIN' && isMainAccount) {
     // 主账号（老板）
     message = '您的账号已过期，请续费使用'
-  } else if (role === 'super_admin' || role === 'admin') {
+  } else if (role === 'SUPER_ADMIN' || role === 'admin') {
     // 平级账号或车队长
     message = '您的账号已过期，请联系老板续费使用'
   } else {

@@ -149,11 +149,11 @@ const Login: React.FC = () => {
         // 延迟跳转，让用户看到成功提示
         setTimeout(() => {
           // 根据角色跳转到对应的首页
-          if (testAccount.role === 'driver') {
+          if (testAccount.role === 'DRIVER') {
             Taro.switchTab({url: '/pages/driver/index'})
-          } else if (testAccount.role === 'manager') {
+          } else if (testAccount.role === 'MANAGER') {
             Taro.switchTab({url: '/pages/manager/index'})
-          } else if (testAccount.role === 'super_admin') {
+          } else if (testAccount.role === 'SUPER_ADMIN') {
             Taro.switchTab({url: '/pages/super-admin/index'})
           } else {
             Taro.switchTab({url: '/pages/driver/index'})

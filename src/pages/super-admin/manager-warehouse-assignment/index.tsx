@@ -17,7 +17,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
   // 加载管理员列表
   const loadManagers = useCallback(async () => {
     const allProfiles = await getAllProfiles()
-    const managerList = allProfiles.filter((p) => p.role === 'manager')
+    const managerList = allProfiles.filter((p) => p.role === 'MANAGER')
     setManagers(managerList)
   }, [])
 

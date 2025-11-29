@@ -158,7 +158,7 @@ const UserDetail: React.FC = () => {
         logger.info('用户信息加载成功', {userId, name: data.name})
 
         // 如果是司机，加载车辆信息和仓库信息
-        if (data.role === 'driver') {
+        if (data.role === 'DRIVER') {
           const vehicleData = await getDriverVehicles(userId)
           setVehicles(vehicleData)
           logger.info('司机车辆信息加载成功', {userId, vehicleCount: vehicleData.length})
@@ -211,11 +211,11 @@ const UserDetail: React.FC = () => {
   // 获取角色显示文本
   const _getRoleText = (role: string) => {
     switch (role) {
-      case 'driver':
+      case 'DRIVER':
         return '司机'
-      case 'manager':
+      case 'MANAGER':
         return '车队长'
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return '老板'
       default:
         return '未知'
@@ -225,9 +225,9 @@ const UserDetail: React.FC = () => {
   // 获取角色颜色
   const _getRoleColor = (role: string) => {
     switch (role) {
-      case 'driver':
+      case 'DRIVER':
         return {bg: 'bg-blue-100', text: 'text-blue-700', icon: 'i-mdi-steering'}
-      case 'manager':
+      case 'MANAGER':
         return {bg: 'bg-purple-100', text: 'text-purple-700', icon: 'i-mdi-account-tie'}
       case 'admin':
         return {bg: 'bg-red-100', text: 'text-red-700', icon: 'i-mdi-shield-crown'}
@@ -349,7 +349,7 @@ const UserDetail: React.FC = () => {
     <ScrollView scrollY className="min-h-screen bg-gray-50">
       <View className="p-4 pb-8">
         {/* 司机头部信息卡片 */}
-        {userInfo.role === 'driver' && driverLicense && (
+        {userInfo.role === 'DRIVER' && driverLicense && (
           <View className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 mb-4 shadow-lg">
             <View className="flex items-center">
               <View className="bg-white bg-opacity-20 rounded-full p-4 mr-4">
@@ -380,7 +380,7 @@ const UserDetail: React.FC = () => {
         )}
 
         {/* 身份证信息卡片 */}
-        {userInfo.role === 'driver' && driverLicense && (
+        {userInfo.role === 'DRIVER' && driverLicense && (
           <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
             <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
               <View className="bg-blue-50 rounded-full p-2.5 mr-3">
@@ -511,7 +511,7 @@ const UserDetail: React.FC = () => {
         )}
 
         {/* 驾驶证信息卡片 */}
-        {userInfo.role === 'driver' && driverLicense && (
+        {userInfo.role === 'DRIVER' && driverLicense && (
           <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
             <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
               <View className="bg-green-50 rounded-full p-2.5 mr-3">
@@ -609,7 +609,7 @@ const UserDetail: React.FC = () => {
         )}
 
         {/* 如果司机没有实名认证信息 */}
-        {userInfo.role === 'driver' && !driverLicense && (
+        {userInfo.role === 'DRIVER' && !driverLicense && (
           <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100 mb-4">
             <View className="i-mdi-alert-circle text-7xl text-gray-300 mx-auto mb-4" />
             <Text className="text-gray-800 text-xl font-bold block mb-2">暂无实名认证信息</Text>
@@ -618,7 +618,7 @@ const UserDetail: React.FC = () => {
         )}
 
         {/* 用户车辆信息 */}
-        {userInfo.role === 'driver' && _vehicles.length > 0 && (
+        {userInfo.role === 'DRIVER' && _vehicles.length > 0 && (
           <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
             <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
               <View className="bg-purple-50 rounded-full p-2.5 mr-3">
@@ -644,7 +644,7 @@ const UserDetail: React.FC = () => {
         )}
 
         {/* 用户仓库信息 */}
-        {userInfo.role === 'manager' && _warehouses.length > 0 && (
+        {userInfo.role === 'MANAGER' && _warehouses.length > 0 && (
           <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
             <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
               <View className="bg-orange-50 rounded-full p-2.5 mr-3">

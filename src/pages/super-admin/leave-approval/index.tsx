@@ -146,7 +146,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
   // 启用实时通知
   useRealtimeNotifications({
     userId: user?.id || '',
-    userRole: 'super_admin',
+    userRole: 'SUPER_ADMIN',
     onLeaveApplicationChange: loadData,
     onResignationApplicationChange: loadData,
     onAttendanceChange: loadData
@@ -293,7 +293,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
     const {visibleLeave, visibleResignation} = getVisibleApplications()
 
     // 获取所有司机（role为driver的用户）
-    const drivers = profiles.filter((p) => p.role === 'driver')
+    const drivers = profiles.filter((p) => p.role === 'DRIVER')
 
     // 计算当前月份
     const currentMonth = filterMonth || initCurrentMonth()

@@ -58,11 +58,11 @@ const DataSummary: React.FC = () => {
     setDrivers(driverList)
 
     // 根据角色加载仓库
-    if (profileData?.role === 'super_admin') {
+    if (profileData?.role === 'SUPER_ADMIN') {
       // 老板可以看到所有仓库
       const allWarehouses = await getAllWarehouses()
       setWarehouses(allWarehouses)
-    } else if (profileData?.role === 'manager') {
+    } else if (profileData?.role === 'MANAGER') {
       // 车队长只能看到管辖的仓库
       const managerWarehouses = await getManagerWarehouses(user.id)
       setWarehouses(managerWarehouses)

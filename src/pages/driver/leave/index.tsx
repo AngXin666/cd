@@ -132,7 +132,7 @@ const DriverLeave: React.FC = () => {
   // 启用实时通知
   useRealtimeNotifications({
     userId: user?.id || '',
-    userRole: 'driver',
+    userRole: 'DRIVER',
     onLeaveApplicationChange: loadData,
     onResignationApplicationChange: loadData
   })

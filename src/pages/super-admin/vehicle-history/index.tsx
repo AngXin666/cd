@@ -22,7 +22,7 @@ const VehicleHistory: React.FC = () => {
 
   const [vehicle, setVehicle] = useState<VehicleWithDriver | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'pickup' | 'return' | 'driver'>('pickup')
+  const [activeTab, setActiveTab] = useState<'pickup' | 'return' | 'DRIVER'>('pickup')
 
   const loadVehicleInfo = useCallback(async () => {
     if (!plateNumber) {
@@ -244,10 +244,10 @@ const VehicleHistory: React.FC = () => {
                   </Text>
                 </View>
                 <View
-                  className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'driver' ? 'bg-orange-500' : 'bg-gray-100'}`}
-                  onClick={() => setActiveTab('driver')}>
+                  className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'DRIVER' ? 'bg-orange-500' : 'bg-gray-100'}`}
+                  onClick={() => setActiveTab('DRIVER')}>
                   <Text
-                    className={`text-center text-sm font-bold ${activeTab === 'driver' ? 'text-white' : 'text-gray-600'}`}>
+                    className={`text-center text-sm font-bold ${activeTab === 'DRIVER' ? 'text-white' : 'text-gray-600'}`}>
                     实名信息
                   </Text>
                 </View>
@@ -355,7 +355,7 @@ const VehicleHistory: React.FC = () => {
               )}
 
               {/* 实名信息 */}
-              {activeTab === 'driver' && (
+              {activeTab === 'DRIVER' && (
                 <View className="space-y-4">
                   {/* 司机实名信息（合并基本信息和身份证信息） */}
                   <View className="bg-card rounded-lg p-4 shadow-sm">

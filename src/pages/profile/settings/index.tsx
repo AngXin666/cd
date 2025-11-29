@@ -30,7 +30,7 @@ const SettingsPage: React.FC = () => {
             </View>
 
             {/* 账号管理 - 仅老板和超级管理员显示 */}
-            {(profile?.role === 'super_admin' || profile?.role === 'boss') && (
+            {(profile?.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && (
               <View
                 className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
                 onClick={() => navigateTo({url: '/pages/profile/account-management/index'})}>
