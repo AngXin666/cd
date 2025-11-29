@@ -246,9 +246,9 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
   /**
    * 计算派生状态
    */
-  const isSuperAdmin = profile?.role === 'super_admin'
-  const isManager = profile?.role === 'manager'
-  const isDriver = profile?.role === 'driver'
+  const isSuperAdmin = isBossRole(profile?.role || null)
+  const isManager = isDispatcherRole(profile?.role || null)
+  const isDriver = isDriverRole(profile?.role || null)
 
   /**
    * 上下文值
