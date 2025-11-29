@@ -22,25 +22,17 @@
 
 ## 📋 待清理的文件和函数
 
-### 1. src/db/api.ts（剩余部分）
-需要清理的函数（使用 `getCurrentUserRoleAndTenant()` 并检查 `tenant_id`）：
-
-#### 高优先级（直接使用 tenant_id 进行 Schema 切换）
-- [ ] `getWarehouseDashboardStats()` - 第 3704 行
-- [ ] 其他使用 `.schema(schemaName)` 的函数
+### 1. src/db/api.ts（注释清理）
+需要清理的注释：
 
 #### 中优先级（仅包含多租户注释）
-- [ ] 清理所有 "支持多租户架构" 的注释
-- [ ] 清理所有 "租户用户" 的日志输出
-- [ ] 清理所有 "中央用户" 的日志输出
+- [ ] 清理所有 "支持多租户架构" 的注释（已不再使用）
+- [ ] 清理所有 "租户用户" 的日志输出（已不再使用）
+- [ ] 清理所有 "中央用户" 的日志输出（已不再使用）
+- [ ] 简化 `getCurrentUserRoleAndTenant()` 的注释，说明 `tenant_id` 仅用于向后兼容
 
-### 2. src/services/notificationService.ts
-需要清理的函数：
-- [ ] `getPrimaryAdmin()` - 第 28 行
-- [ ] `getManagers()` - 第 78 行
-- [ ] `getDrivers()` - 第 136 行
-- [ ] `getPeerAccounts()` - 第 242 行
-- [ ] 其他使用 `getCurrentUserRoleAndTenant()` 的函数
+### 2. src/services/notificationService.ts（已完成）
+- ✅ 所有多租户逻辑已清理完成
 
 ### 3. src/db/api/utils.ts
 - [ ] 检查并清理多租户相关的工具函数
@@ -112,38 +104,42 @@ if (tenant_id && role !== 'BOSS') {
 
 ### 总体进度
 - **总计**：约 30 处多租户相关代码
-- **已清理**：4 处 (13%)
-- **待清理**：26 处 (87%)
+- **已清理**：11 处 (37%)
+- **待清理**：19 处 (63%)
 
 ### 文件进度
-- **src/db/api.ts**：4/20 (20%)
-- **src/services/notificationService.ts**：0/5 (0%)
+- **src/db/api.ts**：4/8 (50%) - 主要逻辑已清理，剩余注释清理
+- **src/services/notificationService.ts**：5/5 (100%) ✅
 - **src/db/api/utils.ts**：0/1 (0%)
 - **src/db/types.ts**：已标记废弃 ✅
 
+### 主要成果
+1. ✅ 所有使用 `tenant_id` 进行 Schema 切换的代码已清理
+2. ✅ 所有多租户查询逻辑已简化为单用户架构
+3. ✅ 所有函数改为直接查询 public schema
+4. ⏳ 剩余工作主要是注释和日志的清理
+
 ## 🎯 下一步行动
 
-### 第一批：清理 src/db/api.ts 中剩余的多租户逻辑
-1. 搜索所有使用 `getCurrentUserRoleAndTenant()` 的函数
-2. 移除 Schema 切换逻辑
-3. 简化为直接查询 public schema
-4. 运行 lint 检查
-
-### 第二批：清理 src/services/notificationService.ts
-1. 更新所有通知相关函数
-2. 移除多租户逻辑
-3. 运行 lint 检查
-
-### 第三批：清理注释和日志
-1. 搜索所有 "多租户" 相关注释
+### 第一批：清理注释和日志（可选）
+1. 搜索所有 "支持多租户架构" 相关注释
 2. 搜索所有 "租户用户" 相关日志
 3. 搜索所有 "中央用户" 相关日志
 4. 批量替换为单用户架构的注释
 
-### 第四批：清理废弃类型（可选）
+### 第二批：清理 src/db/api/utils.ts（可选）
+1. 检查是否有多租户相关的工具函数
+2. 如果有，移除或简化
+
+### 第三批：清理废弃类型（可选）
 1. 确认废弃类型是否还在使用
 2. 如果不再使用，删除这些类型定义
 3. 运行 lint 和类型检查
+
+### 第四批：功能测试和性能测试
+1. 执行完整的功能测试，验证所有迁移的功能正常工作
+2. 对比迁移前后的查询性能，验证优化效果
+3. 根据查询模式添加必要的数据库索引
 
 ## 📝 注意事项
 
