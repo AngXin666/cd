@@ -112,8 +112,9 @@ await supabase.rpc('create_tenant_user', {
 ### 4. 修复 `create_user_auth_account_first` 函数的权限检查
 
 **迁移文件**：
-- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`（第一次修复，使用了错误的角色）
-- `supabase/migrations/00446_fix_create_user_auth_correct_roles.sql`（最终修复，使用正确的角色）
+- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`（第一次修复，移除 lease_admin 引用）
+- `supabase/migrations/00446_fix_create_user_auth_correct_roles.sql`（第二次修复，使用正确的 public 角色）
+- `supabase/migrations/00447_allow_tenant_admins_create_users.sql`（最终修复，允许租户管理员创建用户）
 
 **问题 1**：引用已删除的 `lease_admin` 角色
 ```sql
@@ -132,22 +133,60 @@ END IF;
 ```
 - 使用了 `peer_admin`，但正确的角色是 `peer`
 - 使用了 `manager`，但正确的角色是 `fleet_leader`
-- 包含了租户 Schema 的角色，但这个函数检查的是 `public.profiles`
+- 包含了租户 Schema 的角色，但这个函数只检查 `public.profiles`
 
-**最终解决方案**：
+**问题 3**：只检查 public.profiles，无法支持租户管理员
 ```sql
--- 正确的代码
+-- 第二次修复（功能不完整）
 IF current_user_role NOT IN ('super_admin', 'boss') THEN
   RAISE EXCEPTION '权限不足：只有超级管理员和老板可以创建用户';
 END IF;
 ```
+- 只检查 `public.profiles` 中的角色
+- 租户系统中的 `peer`（平级账号）和 `fleet_leader`（车队长）无法创建用户
+- 但这些角色在完整权限的情况下也应该可以创建用户
+
+**最终解决方案**（迁移 00447）：
+
+实现两级权限检查：
+
+1. **第一级**：检查 `public.profiles` 中的角色
+   - 如果用户在 `public.profiles` 中且角色是 `super_admin` 或 `boss`，允许创建
+
+2. **第二级**：检查租户 Schema 中的角色
+   - 如果用户不在 `public.profiles` 中，遍历所有租户 Schema
+   - 查找用户在租户 Schema 中的角色
+   - 如果角色是 `boss`、`peer` 或 `fleet_leader`，允许创建
+
+**核心代码逻辑**：
+```sql
+-- 第一步：检查 public.profiles
+SELECT role INTO current_user_role FROM profiles WHERE id = current_user_id;
+
+IF current_user_role IS NOT NULL THEN
+  -- 用户在 public.profiles 中
+  IF current_user_role IN ('super_admin', 'boss') THEN
+    has_permission := true;
+  END IF;
+ELSE
+  -- 第二步：检查租户 Schema
+  FOR tenant_record IN SELECT schema_name FROM tenants LOOP
+    EXECUTE format('SELECT role FROM %I.profiles WHERE id = $1', tenant_record.schema_name)
+    INTO tenant_role USING current_user_id;
+    
+    IF tenant_role IN ('boss', 'peer', 'fleet_leader') THEN
+      has_permission := true;
+      EXIT;
+    END IF;
+  END LOOP;
+END IF;
+```
 
 **修复说明**：
-- `create_user_auth_account_first` 函数在 public Schema 中定义
-- 它检查 `public.profiles` 表中的当前用户角色
-- 只有在 `public.profiles` 中有记录的用户才能调用
-- 因此只需要检查：`super_admin`（超级管理员）和 `boss`（老板）
-- 车队长和平级账号只存在于租户 Schema 中，不能直接调用此函数
+- 使用动态 SQL 查询租户 Schema
+- 支持多租户架构，每个租户有独立的 Schema
+- 允许租户管理员（boss、peer、fleet_leader）创建用户
+- 添加详细的日志记录，便于调试
 
 ## 当前有效的角色
 
@@ -252,8 +291,9 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
 - `supabase/migrations/00432_recreate_insert_tenant_profile_function.sql`：旧的（有问题的）函数
 - `supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`：修复后的 insert_tenant_profile 函数
 - `supabase/migrations/00444_remove_lease_admin_functions_and_policies.sql`：删除废弃的函数和策略
-- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`：第一次修复 create_user_auth_account_first 函数（使用了错误的角色）
-- `supabase/migrations/00446_fix_create_user_auth_correct_roles.sql`：最终修复 create_user_auth_account_first 函数（使用正确的角色）
+- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`：第一次修复 create_user_auth_account_first 函数（移除 lease_admin 引用）
+- `supabase/migrations/00446_fix_create_user_auth_correct_roles.sql`：第二次修复 create_user_auth_account_first 函数（使用正确的 public 角色）
+- `supabase/migrations/00447_allow_tenant_admins_create_users.sql`：最终修复 create_user_auth_account_first 函数（允许租户管理员创建用户）
 
 ### 代码文件
 - `src/db/types.ts`：TypeScript 类型定义

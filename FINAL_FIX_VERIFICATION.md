@@ -8,8 +8,9 @@
 2. ✅ 删除废弃的 lease_admin 函数和策略（迁移 00444）
 3. ✅ 修复 `createUser` 函数的角色映射（src/db/api.ts）
 4. ✅ 修复 `create_user_auth_account_first` 函数的权限检查
-   - 迁移 00445：移除 lease_admin 引用（但使用了错误的角色）
-   - 迁移 00446：使用正确的角色（super_admin 和 boss）
+   - 迁移 00445：移除 lease_admin 引用
+   - 迁移 00446：使用正确的 public 角色（super_admin 和 boss）
+   - 迁移 00447：允许租户管理员创建用户（boss、peer、fleet_leader）
 
 ## 验证步骤
 
@@ -152,9 +153,12 @@ driver → 司机
 ```
 
 **权限说明**：
-- `create_user_auth_account_first` 函数检查 `public.profiles` 中的角色
-- 只有 `super_admin` 和 `boss` 可以调用此函数
-- 车队长和平级账号只存在于租户 Schema 中，不能直接调用此函数
+- `create_user_auth_account_first` 函数实现两级权限检查
+- **第一级**：检查 `public.profiles` 中的角色
+  - 允许 `super_admin`（超级管理员）和 `boss`（老板）创建用户
+- **第二级**：检查租户 Schema 中的角色
+  - 允许 `boss`（老板）、`peer`（平级账号）和 `fleet_leader`（车队长）创建用户
+  - 不允许 `driver`（司机）创建用户
 
 ## 成功标准
 
