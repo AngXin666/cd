@@ -187,44 +187,66 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
 
     console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
 
-    // 查询用户档案，并 LEFT JOIN driver_licenses 表获取真实姓名
-    // 必须明确指定使用 driver_id 关系，否则 Supabase 会报错
-    const {data, error} = await supabase
-      .from('profiles')
-      .select(
-        `
-        *,
-        driver_licenses!driver_licenses_driver_id_fkey (
-          id_card_name
-        )
-      `
-      )
-      .eq('id', user.id)
+    // 获取用户的角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    console.log('[getCurrentUserWithRealName] 用户角色和租户:', {role, tenant_id})
+
+    let profileData: any = null
+    let realName: string | null = null
+
+    // 如果是租户用户，从租户 Schema 中获取档案
+    if (tenant_id) {
+      console.log('[getCurrentUserWithRealName] 从租户 Schema 获取用户档案')
+      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
+        user_id: user.id
+      })
+
+      if (tenantProfile && tenantProfile.length > 0) {
+        profileData = tenantProfile[0]
+        console.log('[getCurrentUserWithRealName] 租户用户档案:', profileData)
+      } else {
+        console.warn('[getCurrentUserWithRealName] 租户用户档案不存在，用户ID:', user.id)
+        return null
+      }
+    } else {
+      // 如果是中央用户，从 public.profiles 中获取档案
+      console.log('[getCurrentUserWithRealName] 从 public.profiles 获取用户档案')
+      const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+
+      if (error) {
+        console.error('[getCurrentUserWithRealName] 查询用户档案失败:', error)
+        return null
+      }
+
+      if (!data) {
+        console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
+        return null
+      }
+
+      profileData = data
+      console.log('[getCurrentUserWithRealName] 中央用户档案:', profileData)
+    }
+
+    // 查询驾驶证信息获取真实姓名（driver_licenses 表是共享的，包含所有租户的数据）
+    const {data: licenseData} = await supabase
+      .from('driver_licenses')
+      .select('id_card_name')
+      .eq('driver_id', user.id)
       .maybeSingle()
 
-    if (error) {
-      console.error('[getCurrentUserWithRealName] 查询用户档案失败:', error)
-      return null
-    }
-
-    if (!data) {
-      console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
-      return null
-    }
-
-    // 提取真实姓名
-    const realName = (data.driver_licenses as any)?.id_card_name || null
+    realName = licenseData?.id_card_name || null
+    console.log('[getCurrentUserWithRealName] 驾驶证真实姓名:', realName)
 
     console.log('[getCurrentUserWithRealName] 成功获取用户档案:', {
-      id: data.id,
-      name: data.name,
+      id: profileData.id,
+      name: profileData.name,
       real_name: realName,
-      role: data.role
+      role: profileData.role
     })
 
     // 返回包含真实姓名的用户信息
     return {
-      ...data,
+      ...profileData,
       real_name: realName
     }
   } catch (error) {
