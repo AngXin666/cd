@@ -340,76 +340,48 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
 
-    // 1. 先从 public.profiles 查询用户信息
+    // 从 public.profiles 查询用户信息
     const {data: profile, error: profileError} = await supabase
       .schema('public')
       .from('profiles')
-      .select('role')
+      .select('role, main_account_id')
       .eq('id', user.id)
       .maybeSingle()
 
-    // 注意：如果用户不在 public.profiles 中，profileError 为 null，profile 为 null
-    // 只有在真正出错时，profileError 才不为 null
     if (profileError) {
       console.error('[getCurrentUserRoleAndTenant] 查询 public.profiles 出错:', profileError)
-      // 查询出错，但不要直接返回默认值，继续查询租户 Schema
+      throw new Error('查询用户信息失败')
     }
 
-    if (profile) {
-      console.log('[getCurrentUserRoleAndTenant] 在 public.profiles 中找到用户，角色:', profile.role)
-      // 如果用户在 public.profiles 中，说明是中央用户（super_admin、peer_admin）
-      return {role: profile.role as UserRole, tenant_id: null}
+    if (!profile) {
+      console.error('[getCurrentUserRoleAndTenant] 用户不存在')
+      throw new Error('用户不存在')
     }
 
-    // 2. 如果在 public.profiles 中没有找到，说明是租户用户
-    console.log('[getCurrentUserRoleAndTenant] 在 public.profiles 中未找到用户，查询租户信息')
+    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', profile.role, '主账号ID:', profile.main_account_id)
 
-    // 查询所有租户
-    const {data: tenants, error: tenantsError} = await supabase.schema('public').from('tenants').select('id')
+    // 判断租户ID
+    let tenant_id: string | null = null
 
-    if (tenantsError) {
-      console.error('[getCurrentUserRoleAndTenant] 查询租户列表失败:', tenantsError)
-      throw new Error('查询租户列表失败')
-    }
-
-    if (!tenants || tenants.length === 0) {
-      console.warn('[getCurrentUserRoleAndTenant] 没有找到任何租户')
-      throw new Error('没有找到任何租户')
-    }
-
-    console.log('[getCurrentUserRoleAndTenant] 找到租户列表，数量:', tenants.length)
-
-    // 3. 遍历所有租户，查找包含该用户的租户
-    for (const tenant of tenants) {
-      // 生成 Schema 名称：tenant_{tenant_id}，将 UUID 中的 - 替换为 _
-      const schemaName = `tenant_${tenant.id.replace(/-/g, '_')}`
-      console.log(`[getCurrentUserRoleAndTenant] 查询租户 Schema: ${schemaName}`)
-
-      try {
-        const {data: tenantProfile, error: tenantProfileError} = await supabase
-          .schema(schemaName)
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        if (tenantProfileError) {
-          console.warn(`[getCurrentUserRoleAndTenant] 查询租户 ${schemaName} 失败:`, tenantProfileError)
-          continue
-        }
-
-        if (tenantProfile) {
-          console.log(`[getCurrentUserRoleAndTenant] 在租户 ${schemaName} 中找到用户，角色:`, tenantProfile.role)
-          return {role: tenantProfile.role as UserRole, tenant_id: tenant.id}
-        }
-      } catch (error) {
-        console.warn(`[getCurrentUserRoleAndTenant] 查询租户 ${schemaName} 异常:`, error)
+    // 如果用户有 main_account_id，说明是子账号，属于某个租户
+    if (profile.main_account_id) {
+      tenant_id = profile.main_account_id
+      console.log('[getCurrentUserRoleAndTenant] 用户是子账号，租户ID:', tenant_id)
+    } else {
+      // 如果用户没有 main_account_id，说明是主账号
+      // 如果角色是 boss，则租户ID是用户自己的ID
+      if (profile.role === 'boss') {
+        tenant_id = user.id
+        console.log('[getCurrentUserRoleAndTenant] 用户是老板，租户ID:', tenant_id)
+      } else {
+        // 如果角色是 super_admin 或 peer_admin，则没有租户ID
+        tenant_id = null
+        console.log('[getCurrentUserRoleAndTenant] 用户是中央用户，没有租户ID')
       }
     }
 
-    // 4. 如果在所有租户中都没有找到，抛出错误
-    console.error('[getCurrentUserRoleAndTenant] 在所有 Schema 中都未找到用户')
-    throw new Error('在所有 Schema 中都未找到用户')
+    console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: profile.role, tenant_id})
+    return {role: profile.role as UserRole, tenant_id}
   } catch (error) {
     console.error('[getCurrentUserRoleAndTenant] 发生错误:', error)
     // 返回默认值，避免应用崩溃
