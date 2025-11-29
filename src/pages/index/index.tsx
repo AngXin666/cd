@@ -1,9 +1,8 @@
 import {Text, View} from '@tarojs/components'
-import Taro, {reLaunch, switchTab} from '@tarojs/taro'
+import Taro, {switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
-import {checkUserLeaseStatus, getCurrentUserRoleAndTenant} from '@/db/api'
 import {supabase} from '@/db/supabase'
 import type {UserRole} from '@/db/types'
 
@@ -12,34 +11,11 @@ const IndexPage: React.FC = () => {
   const [role, setRole] = useState<UserRole | null>(null)
   const [loadingStatus, setLoadingStatus] = useState<string>('正在验证身份...')
   const [error, setError] = useState<string | null>(null)
-  const [isSystemAdmin, setIsSystemAdmin] = useState(false)
   const hasRedirected = useRef(false) // 防止重复跳转
   const loadAttempts = useRef(0) // 加载尝试次数
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 检查是否是系统管理员
-  const checkSystemAdmin = useCallback(async (userId: string): Promise<boolean> => {
-    try {
-      const {data, error} = await supabase
-        .from('system_admins')
-        .select('id')
-        .eq('id', userId)
-        .eq('status', 'active')
-        .maybeSingle()
-
-      if (error) {
-        console.error('[IndexPage] 检查系统管理员失败:', error)
-        return false
-      }
-
-      return !!data
-    } catch (error) {
-      console.error('[IndexPage] 检查系统管理员异常:', error)
-      return false
-    }
-  }, [])
-
-  // 快速获取用户角色（只查询 role 字段，不获取完整档案）
+  // 获取用户角色
   const loadRole = useCallback(async () => {
     if (!user) {
       setLoadingStatus('等待用户认证...')
@@ -65,20 +41,19 @@ const IndexPage: React.FC = () => {
     try {
       console.log('[IndexPage] 开始获取用户角色，用户ID:', user.id)
 
-      // 1. 先检查是否是系统管理员
-      const isSysAdmin = await checkSystemAdmin(user.id)
-      if (isSysAdmin) {
-        console.log('[IndexPage] 用户是系统管理员')
-        setIsSystemAdmin(true)
-        setRole('super_admin') // 设置一个角色以触发跳转
-        setError(null)
-        return
+      // 查询用户角色
+      const {data: userRoles, error: roleError} = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (roleError) {
+        console.error('[IndexPage] 查询用户角色失败:', roleError)
+        throw roleError
       }
 
-      // 2. 不是系统管理员，获取租户用户角色
-      const userInfo = await getCurrentUserRoleAndTenant()
-
-      if (!userInfo) {
+      if (!userRoles) {
         console.error('[IndexPage] 用户角色不存在')
         setError('用户角色不存在，请联系管理员')
         setTimeout(() => {
@@ -90,42 +65,8 @@ const IndexPage: React.FC = () => {
         return
       }
 
-      const {role: userRole, tenant_id} = userInfo
-      console.log('[IndexPage] 用户角色获取成功:', userRole, '租户ID:', tenant_id)
-
-      // 检查租期状态
-      // 只对租户内的账号进行检查（tenant_id 不为 NULL）
-      // 系统超级管理员（tenant_id 为 NULL）、租赁管理员、司机不需要检查
-      const needLeaseCheck = tenant_id !== null && (userRole === 'super_admin' || userRole === 'manager')
-
-      if (needLeaseCheck) {
-        console.log('[IndexPage] 需要检查租期状态')
-        setLoadingStatus('正在检查租期状态...')
-        const leaseStatus = await checkUserLeaseStatus(user.id)
-
-        if (leaseStatus.status !== 'ok') {
-          console.log('[IndexPage] 租期检查失败:', leaseStatus)
-          setError(leaseStatus.message || '账户已过期')
-
-          // 显示提示后阻止跳转
-          Taro.showModal({
-            title: '账户已过期',
-            content: leaseStatus.message || '账户已过期',
-            showCancel: false,
-            confirmText: '我知道了',
-            success: () => {
-              // 跳转到个人中心，让用户查看详情或联系管理员
-              if (!hasRedirected.current) {
-                hasRedirected.current = true
-                switchTab({url: '/pages/profile/index'})
-              }
-            }
-          })
-          return
-        }
-      } else {
-        console.log('[IndexPage] 无需检查租期状态，角色:', userRole, '租户ID:', tenant_id)
-      }
+      const userRole = userRoles.role
+      console.log('[IndexPage] 用户角色获取成功:', userRole)
 
       setRole(userRole)
       setError(null)
@@ -138,7 +79,7 @@ const IndexPage: React.FC = () => {
         loadRole()
       }, 1000)
     }
-  }, [user, checkSystemAdmin])
+  }, [user])
 
   // 设置超时处理（8秒，比之前的10秒更快）
   useEffect(() => {
@@ -182,28 +123,18 @@ const IndexPage: React.FC = () => {
       }
 
       // 根据用户角色跳转到对应的工作台
-      // 使用 reLaunch 清空页面栈，避免循环跳转
-      console.log('[IndexPage] 根据角色快速跳转:', role, '是否系统管理员:', isSystemAdmin)
+      console.log('[IndexPage] 根据角色快速跳转:', role)
 
-      // 系统管理员跳转到中央管理系统
-      if (isSystemAdmin) {
-        reLaunch({url: '/pages/central-admin/tenants/index'})
-        return
-      }
-
-      // 租户用户根据角色跳转
+      // 根据角色跳转
       switch (role) {
-        case 'driver':
-          reLaunch({url: '/pages/driver/index'})
+        case 'DRIVER':
+          switchTab({url: '/pages/driver/index'})
           break
-        case 'manager':
-          reLaunch({url: '/pages/manager/index'})
+        case 'DISPATCHER':
+          switchTab({url: '/pages/manager/index'})
           break
-        case 'super_admin':
-        case 'boss':
-        case 'peer_admin':
-          // 超级管理员、老板、平级管理员都跳转到超级管理员页面
-          reLaunch({url: '/pages/super-admin/index'})
+        case 'BOSS':
+          switchTab({url: '/pages/super-admin/index'})
           break
         default:
           console.warn('[IndexPage] 未知角色:', role)
@@ -211,7 +142,7 @@ const IndexPage: React.FC = () => {
           switchTab({url: '/pages/profile/index'})
       }
     }
-  }, [role, isSystemAdmin])
+  }, [role])
 
   return (
     <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>

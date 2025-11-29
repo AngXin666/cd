@@ -3,62 +3,30 @@ import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/
 import {formatLeaveDate} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
 import type {
-  ApplicationReviewInput,
+  // ApplicationReviewInput, // 已删除 - 多租户相关
   AttendanceRecord,
   AttendanceRecordInput,
   AttendanceRecordUpdate,
-  AttendanceRule,
-  AttendanceRuleInput,
-  AttendanceRuleUpdate,
-  AutoReminderRule,
-  AutoReminderRuleWithWarehouse,
-  CategoryPrice,
-  CategoryPriceInput,
-  CreateLeaseInput,
-  CreateNotificationInput,
-  DriverLicense,
-  DriverLicenseInput,
-  DriverLicenseUpdate,
-  DriverType,
-  DriverWarehouse,
-  DriverWarehouseInput,
-  Feedback,
-  FeedbackInput,
-  FeedbackStatus,
-  Lease,
-  LeaseBill,
-  LeaseWithTenant,
-  LeaveApplication,
-  LeaveApplicationInput,
-  LockedPhotos,
-  ManagerPermission,
-  ManagerPermissionInput,
+  // LockedPhotos, // 已删除 - 多租户相关
+  // ManagerPermission, // 已删除 - 多租户相关
+  // ManagerPermissionInput, // 已删除 - 多租户相关
   Notification,
-  NotificationSendRecord,
-  NotificationSendRecordWithSender,
-  NotificationTemplate,
-  PieceWorkCategory,
-  PieceWorkCategoryInput,
-  PieceWorkRecord,
-  PieceWorkRecordInput,
-  PieceWorkStats,
-  Profile,
-  ProfileUpdate,
-  ResignationApplication,
-  ResignationApplicationInput,
-  ScheduledNotification,
-  SenderRole,
-  TenantProfile,
+  // ProfileUpdate, // 已删除 - 多租户相关
+  // ResignationApplication, // 已删除 - 多租户相关
+  // ResignationApplicationInput, // 已删除 - 多租户相关
+  // ScheduledNotification, // 已删除 - 多租户相关
+  // SenderRole, // 已删除 - 多租户相关
+  // TenantProfile, // 已删除 - 多租户相关
   UserRole,
   Vehicle,
   VehicleInput,
   VehicleUpdate,
-  VehicleWithDriver,
-  VehicleWithDriverDetails,
+  // VehicleWithDriver, // 已删除 - 多租户相关
+  // VehicleWithDriverDetails, // 已删除 - 多租户相关
   Warehouse,
   WarehouseInput,
-  WarehouseUpdate,
-  WarehouseWithRule
+  WarehouseUpdate
+  // WarehouseWithRule // 已删除 - 多租户相关
 } from './types'
 
 // 创建数据库操作日志记录器
