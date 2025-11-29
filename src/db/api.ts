@@ -52,6 +52,7 @@ import type {
   ScheduledNotification,
   SenderRole,
   UserRole,
+  UserWithRole,
   Vehicle,
   VehicleInput,
   VehicleUpdate,
@@ -6555,26 +6556,11 @@ export async function createNotificationForAllSuperAdmins(notification: {
  * 获取司机的显示名称（包含司机类型和姓名）
  * @param userId 用户ID
  * @returns 格式化的司机名称，例如："纯司机 张三" 或 "带车司机 李四"
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getDriverDisplayName(userId: string): Promise<string> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-    }
-
-    // 获取司机的基本信息
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('name, driver_type')
-      .eq('id', userId)
-      .maybeSingle()
+    // 单用户架构：从 users 表查询司机信息
+    const {data, error} = await supabase.from('users').select('name, driver_type').eq('id', userId).maybeSingle()
 
     if (error || !data) {
       logger.error('获取司机信息失败', {userId, error})
@@ -7061,18 +7047,19 @@ export async function getDriverIdsByWarehouse(warehouseId: string): Promise<stri
  */
 export async function getAllDriverIds(): Promise<string[]> {
   try {
+    // 单用户架构：从 user_roles 表查询所有司机
     const {data, error} = await supabase
-      .from('profiles')
-      .select('id')
+      .from('user_roles')
+      .select('user_id')
       .eq('role', 'DRIVER')
-      .order('id', {ascending: true})
+      .order('user_id', {ascending: true})
 
     if (error) {
       console.error('获取所有司机失败:', error)
       return []
     }
 
-    return Array.isArray(data) ? data.map((item) => item.id) : []
+    return Array.isArray(data) ? data.map((item) => item.user_id) : []
   } catch (error) {
     console.error('获取所有司机异常:', error)
     return []
@@ -7199,9 +7186,9 @@ export async function createPeerAccount(
  */
 export async function getPeerAccounts(accountId: string): Promise<Profile[]> {
   try {
-    // 1. 获取当前账号信息
+    // 1. 获取当前账号信息 - 单用户架构：从 users 表查询
     const {data: currentAccount, error: currentError} = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('id', accountId)
       .maybeSingle()
@@ -7214,9 +7201,9 @@ export async function getPeerAccounts(accountId: string): Promise<Profile[]> {
     // 2. 确定主账号ID
     const primaryAccountId = currentAccount.main_account_id || currentAccount.id
 
-    // 3. 查询主账号和所有平级账号
-    const {data, error} = await supabase
-      .from('profiles')
+    // 3. 查询主账号和所有平级账号 - 单用户架构：从 users 表查询
+    const {data: usersData, error} = await supabase
+      .from('users')
       .select('*')
       .or(`id.eq.${primaryAccountId},main_account_id.eq.${primaryAccountId}`)
       .order('created_at', {ascending: true})
@@ -7226,7 +7213,30 @@ export async function getPeerAccounts(accountId: string): Promise<Profile[]> {
       return []
     }
 
-    return Array.isArray(data) ? data : []
+    if (!usersData || usersData.length === 0) {
+      return []
+    }
+
+    // 4. 批量查询角色信息
+    const userIds = usersData.map((u) => u.id)
+    const {data: rolesData} = await supabase.from('user_roles').select('user_id, role').in('user_id', userIds)
+
+    // 创建角色映射
+    const roleMap = new Map<string, UserRole>()
+    if (rolesData) {
+      for (const roleItem of rolesData) {
+        roleMap.set(roleItem.user_id, roleItem.role)
+      }
+    }
+
+    // 5. 合并用户和角色信息
+    const usersWithRole: UserWithRole[] = usersData.map((user) => ({
+      ...user,
+      role: roleMap.get(user.id) || null
+    }))
+
+    // 6. 转换为 Profile 类型
+    return convertUsersToProfiles(usersWithRole)
   } catch (error) {
     console.error('获取平级账号列表异常:', error)
     return []
@@ -7238,7 +7248,8 @@ export async function getPeerAccounts(accountId: string): Promise<Profile[]> {
  */
 export async function isPrimaryAccount(accountId: string): Promise<boolean> {
   try {
-    const {data, error} = await supabase.from('profiles').select('main_account_id').eq('id', accountId).maybeSingle()
+    // 单用户架构：从 users 表查询 main_account_id
+    const {data, error} = await supabase.from('users').select('main_account_id').eq('id', accountId).maybeSingle()
 
     if (error || !data) {
       return false
