@@ -228,6 +228,7 @@ export interface AttendanceRecordInput {
   warehouse_id?: string
   status?: AttendanceStatus
   notes?: string
+  work_date?: string
 }
 
 // 更新考勤记录的输入接口
@@ -235,6 +236,7 @@ export interface AttendanceRecordUpdate {
   clock_out_time?: string
   status?: AttendanceStatus
   notes?: string
+  work_hours?: number
 }
 
 // ==================== 请假相关类型 ====================
@@ -300,6 +302,9 @@ export interface PieceworkRecord {
   need_upstairs?: boolean
   upstairs_price?: number | null
   work_date?: string
+  need_sorting?: boolean
+  sorting_quantity?: number | null
+  sorting_unit_price?: number | null
 }
 
 // 创建计件记录的输入接口

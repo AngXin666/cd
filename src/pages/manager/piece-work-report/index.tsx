@@ -393,7 +393,7 @@ const ManagerPieceWorkReport: React.FC = () => {
         driverId: driver.id,
         driverName: driver.name || '',
         driverPhone: driver.phone || '',
-        driverType: driver.driver_type || null,
+        driverType: (driver.driver_type as 'pure' | 'with_vehicle') || null,
         totalQuantity: 0,
         totalAmount: 0,
         warehouses: new Set<string>(),

@@ -220,6 +220,7 @@ const ClockIn: React.FC = () => {
       // 创建打卡记录
       const record = await createClockIn({
         user_id: user.id,
+        date: getLocalDateString(now),
         warehouse_id: selectedWarehouse.id,
         work_date: getLocalDateString(now),
         clock_in_time: now.toISOString(),
