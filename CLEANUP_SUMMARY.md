@@ -49,15 +49,33 @@
 
 **原因**：这些页面已从路由配置中移除，不再使用。
 
-#### 2.2 保留的函数
-虽然识别出了许多租赁相关的函数，但考虑到数据库表结构仍然存在，这些函数暂时保留在 `src/db/api.ts` 中以备将来使用。
+#### 2.2 删除的数据库函数（新增）
+- **租赁系统相关函数（26个）**
+  - 租户管理：9个函数
+  - 租赁账单：9个函数
+  - 租期管理：8个函数
 
-**正在使用的函数**：
+**删除统计**：
+- 删除代码行数：约 1300 行
+- 文件大小减少：14.4%
+- 函数数量减少：26个
+
+**详细列表**：
+- 租户管理：`getAllTenants`, `getManagersByTenantId`, `getPeerAccountsByMainId`, `getTenantById`, `createTenant`, `updateTenant`, `suspendTenant`, `activateTenant`, `deleteTenant`
+- 租赁账单：`getLeaseStats`, `getAllLeaseBills`, `getPendingLeaseBills`, `getLeaseBillsByTenantId`, `createLeaseBill`, `verifyLeaseBill`, `cancelLeaseBillVerification`, `deleteLeaseBill`, `sendVerificationReminder`
+- 租期管理：`getAllLeases`, `getLeasesByTenantId`, `createLease`, `deleteLease`, `reduceLease`, `handleLeaseExpiration`, `checkAndHandleExpiredLeases`, `checkUserLeaseStatus`
+
+**原因**：这些函数未被任何页面使用，属于废弃代码。
+
+#### 2.3 保留的函数
+**平级账号管理函数（3个）**：
 - `createPeerAccount()` - 创建平级账号
 - `getPeerAccounts()` - 获取平级账号列表
 - `isPrimaryAccount()` - 检查是否为主账号
 
 **使用位置**：`src/pages/profile/account-management/index.tsx`
+
+**原因**：这些函数正在被平级账号管理功能使用，是核心功能的一部分。
 
 ### 3. 代码质量提升 ✅
 
@@ -126,11 +144,16 @@ pnpm run lint
    - 记录了代码清理的过程和结果
    - 包含删除的页面和保留的函数列表
 
-3. **CORE_FUNCTIONALITY_TEST.md**
+3. **DATABASE_FUNCTION_CLEANUP_REPORT.md**（新增）
+   - 详细记录了数据库函数清理的过程
+   - 包含删除的26个函数的完整列表
+   - 包含代码统计和影响分析
+
+4. **CORE_FUNCTIONALITY_TEST.md**
    - 核心功能测试清单
    - 包含所有功能模块的验证结果
 
-4. **TODO.md**
+5. **TODO.md**
    - 任务进度跟踪
    - 记录了所有已完成和待完成的任务
 
@@ -144,6 +167,8 @@ pnpm run lint
 | 核心功能 | ✅ 完整 | 12 个核心模块全部正常 |
 | 角色系统 | ✅ 清晰 | 4 个明确角色 |
 | 路由配置 | ✅ 正确 | 所有页面路由已注册 |
+| 代码行数 | ✅ 优化 | api.ts 从 ~9000 行减少到 7693 行 |
+| 未使用函数 | ✅ 清理 | 删除了 26 个未使用的函数 |
 
 ### 角色权限矩阵
 
@@ -163,12 +188,13 @@ pnpm run lint
 ## 技术债务和改进建议
 
 ### 短期建议
-1. **数据库函数清理**
-   - 如果确认租赁系统功能不再需要，可以删除相关的数据库函数
-   - 建议在下一个版本中进行
+1. ✅ **数据库函数清理**（已完成）
+   - 已删除 26 个未使用的租赁系统函数
+   - 代码行数减少 14.4%
+   - 保留了 3 个正在使用的平级账号管理函数
 
 2. **API 文件重构**
-   - `src/db/api.ts` 文件过大（8000+ 行）
+   - `src/db/api.ts` 文件仍然较大（7693 行）
    - 建议按功能模块拆分为多个文件：
      - `api/users.ts` - 用户管理
      - `api/vehicles.ts` - 车辆管理
@@ -201,15 +227,25 @@ pnpm run lint
 ✅ **角色系统**：明确定义了 4 个角色，删除了其他角色定义
 ✅ **代码质量**：修复了所有类型错误，代码风格完全符合规范
 ✅ **核心功能**：验证了 12 个核心功能模块，全部正常工作
-✅ **废弃代码**：删除了 lease-admin 页面，清理了废弃代码
+✅ **废弃代码**：删除了 lease-admin 页面和 26 个未使用的数据库函数
+✅ **代码优化**：api.ts 文件减少了 1307 行代码（14.4%）
 ✅ **文档完善**：生成了详细的报告和测试清单
 
-系统现在处于良好状态，代码质量优秀，核心功能完整，为后续开发奠定了坚实基础。
+**清理成果统计**：
+- 删除页面：4 个（lease-admin 及其子页面）
+- 删除函数：26 个（租赁系统相关）
+- 减少代码：约 1300 行
+- 保留函数：3 个（平级账号管理）
+- Lint 错误：0 个
+- 类型错误：0 个
+
+系统现在处于良好状态，代码质量优秀，核心功能完整，代码库更加精简高效，为后续开发奠定了坚实基础。
 
 ## 附录
 
 ### 相关文件
 - `src/db/types.ts` - 类型定义
+- `src/db/api.ts` - 数据库 API（已优化，减少 1307 行）
 - `src/utils/roleHelper.ts` - 角色辅助函数
 - `src/pages/index/index.tsx` - 路由逻辑
 - `supabase/migrations/00488_update_user_role_to_four_roles.sql` - 数据库迁移
@@ -217,6 +253,7 @@ pnpm run lint
 ### 相关文档
 - `ROLE_UPDATE_REPORT.md` - 角色更新报告
 - `CODE_CLEANUP_REPORT.md` - 代码清理报告
+- `DATABASE_FUNCTION_CLEANUP_REPORT.md` - 数据库函数清理报告（新增）
 - `CORE_FUNCTIONALITY_TEST.md` - 功能测试清单
 - `TODO.md` - 任务进度跟踪
 
