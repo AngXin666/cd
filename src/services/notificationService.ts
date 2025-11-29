@@ -41,19 +41,19 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
       logger.info('中央用户查询主账号，使用 Schema: public')
     }
 
-    // 直接查询 profiles 表，RLS 策略已修复，不会因为 auth.uid() 返回 "anon" 而报错
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('id, name, role')
-      .eq('role', 'super_admin')
-      .is('main_account_id', null)
-      .maybeSingle()
+    // 单用户架构：从 users 和 user_roles 表查询
+    const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
+      supabase.schema(schemaName).from('users').select('id, name').is('main_account_id', null).maybeSingle(),
+      supabase.schema(schemaName).from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN').maybeSingle()
+    ])
 
-    if (error) {
-      logger.error('获取主账号失败', {error})
+    if (userError) {
+      logger.error('获取主账号失败', {error: userError})
       return null
     }
+
+    // 合并用户和角色数据
+    const data = userData && roleData && userData.id === roleData.user_id ? {...userData, role: roleData.role} : null
 
     if (!data) {
       logger.warn('未找到主账号')
@@ -93,18 +93,24 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
       logger.info('中央用户查询平级账号，使用 Schema: public')
     }
 
-    // 直接查询 profiles 表，RLS 策略已修复，不会因为 auth.uid() 返回 "anon" 而报错
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('id, name, role')
-      .eq('role', 'super_admin')
-      .not('main_account_id', 'is', null)
+    // 单用户架构：从 users 和 user_roles 表查询
+    const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
+      supabase.schema(schemaName).from('users').select('id, name').not('main_account_id', 'is', null),
+      supabase.schema(schemaName).from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
+    ])
 
-    if (error) {
-      logger.error('获取平级账号失败', {error})
+    if (usersError) {
+      logger.error('获取平级账号失败', {error: usersError})
       return []
     }
+
+    // 合并用户和角色数据
+    const data = users
+      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
+      .map((user) => ({
+        ...user,
+        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+      }))
 
     if (!data || data.length === 0) {
       logger.info('未找到平级账号')
@@ -145,17 +151,24 @@ async function _getAllAdmins(): Promise<NotificationRecipient[]> {
       logger.info('中央用户查询管理员，使用 Schema: public')
     }
 
-    // 查询所有 super_admin 角色的用户（包括主账号和平级账号）
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('id, name, role')
-      .eq('role', 'super_admin')
+    // 单用户架构：从 users 和 user_roles 表查询所有 SUPER_ADMIN 角色的用户
+    const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
+      supabase.schema(schemaName).from('users').select('id, name'),
+      supabase.schema(schemaName).from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
+    ])
 
-    if (error) {
-      logger.error('获取管理员信息失败', error)
+    if (usersError) {
+      logger.error('获取管理员信息失败', usersError)
       return []
     }
+
+    // 合并用户和角色数据
+    const data = users
+      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
+      .map((user) => ({
+        ...user,
+        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+      }))
 
     if (!data || data.length === 0) {
       logger.warn('未找到任何管理员')
@@ -291,18 +304,29 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
     const managerIds = [...new Set(managerWarehouses.map((mw) => mw.manager_id))]
     logger.info('找到车队长ID列表', {managerIds})
 
-    // 步骤3：获取车队长的详细信息
-    const {data: managers, error: profileError} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('id, name, role')
-      .in('id', managerIds)
-      .eq('role', 'manager')
+    // 步骤3：获取车队长的详细信息（单用户架构：从 users 和 user_roles 表查询）
+    const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
+      supabase.schema(schemaName).from('users').select('id, name').in('id', managerIds),
+      supabase
+        .schema(schemaName)
+        .from('user_roles')
+        .select('user_id, role')
+        .eq('role', 'MANAGER')
+        .in('user_id', managerIds)
+    ])
 
-    if (profileError) {
-      logger.error('获取车队长信息失败', {error: profileError, managerIds})
+    if (usersError) {
+      logger.error('获取车队长信息失败', {error: usersError, managerIds})
       return []
     }
+
+    // 合并用户和角色数据
+    const managers = users
+      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
+      .map((user) => ({
+        ...user,
+        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+      }))
 
     if (!managers || managers.length === 0) {
       logger.warn('未找到车队长信息', {managerIds})

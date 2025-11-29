@@ -451,9 +451,9 @@ export async function createNotification(
       })
       senderName = tenantProfile?.[0]?.name || '系统'
     } else {
-      // 如果是中央用户，从 public.profiles 中获取姓名
-      const {data: publicProfile} = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
-      senderName = publicProfile?.name || '系统'
+      // 单用户架构：从 users 表中获取姓名
+      const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+      senderName = userData?.name || '系统'
     }
 
     // 自动确定分类
@@ -528,9 +528,9 @@ export async function createNotifications(
       })
       senderName = tenantProfile?.[0]?.name || '系统'
     } else {
-      // 如果是中央用户，从 public.profiles 中获取姓名
-      const {data: publicProfile} = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
-      senderName = publicProfile?.name || '系统'
+      // 单用户架构：从 users 表中获取姓名
+      const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+      senderName = userData?.name || '系统'
     }
 
     logger.info('👤 发送者信息', {senderName, senderRole, tenant_id})

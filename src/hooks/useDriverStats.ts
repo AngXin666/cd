@@ -66,8 +66,11 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
 
       const today = new Date().toISOString().split('T')[0]
 
-      // 1. 获取总司机数（按仓库过滤）
-      let totalDriversQuery = supabase.from('profiles').select('id', {count: 'exact', head: true}).eq('role', 'driver')
+      // 1. 获取总司机数（按仓库过滤）- 单用户架构：从 user_roles 表查询
+      let totalDriversQuery = supabase
+        .from('user_roles')
+        .select('user_id', {count: 'exact', head: true})
+        .eq('role', 'DRIVER')
 
       if (warehouseId) {
         // 如果指定了仓库，需要通过 driver_warehouses 表过滤

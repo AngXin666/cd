@@ -162,9 +162,17 @@ const UserManagement: React.FC = () => {
       // 先加载当前登录用户的完整信息（包括 main_account_id）
       if (!currentUserProfile && user) {
         try {
-          const {data: profile, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+          // 单用户架构：从 users 和 user_roles 表查询
+          const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
+            supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
+            supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+          ])
 
-          if (!error && profile) {
+          if (!userError && userData) {
+            const profile = {
+              ...userData,
+              role: roleData?.role || 'DRIVER'
+            }
             setCurrentUserProfile(profile)
             console.log('✅ 当前用户信息:', profile)
             console.log('是否为主账号:', profile.main_account_id === null)
@@ -423,23 +431,37 @@ const UserManagement: React.FC = () => {
           throw new Error(authError?.message || '创建用户失败')
         }
 
-        // 2. 在 profiles 表中创建记录，设置为平级账号
-        const {data: profile, error: profileError} = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            name: newUserName.trim(),
-            phone: newUserPhone.trim(),
-            role: 'BOSS', // 老板角色在数据库中是 super_admin
-            permission_type: 'full',
-            status: 'active',
-            main_account_id: user?.id // 设置主账号ID，标记为平级账号
+        // 2. 单用户架构：在 users 和 user_roles 表中创建记录
+        const [{data: userData, error: userError}, {error: roleError}] = await Promise.all([
+          supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              name: newUserName.trim(),
+              phone: newUserPhone.trim(),
+              permission_type: 'full',
+              status: 'active',
+              main_account_id: user?.id // 设置主账号ID，标记为平级账号
+            })
+            .select()
+            .maybeSingle(),
+          supabase.from('user_roles').insert({
+            user_id: authData.user.id,
+            role: 'BOSS' // 老板角色在数据库中是 super_admin
           })
-          .select()
-          .maybeSingle()
+        ])
 
-        if (profileError || !profile) {
-          throw new Error(profileError?.message || '创建用户档案失败')
+        if (userError || !userData) {
+          throw new Error(userError?.message || '创建用户档案失败')
+        }
+
+        if (roleError) {
+          throw new Error(roleError?.message || '创建用户角色失败')
+        }
+
+        const profile = {
+          ...userData,
+          role: 'BOSS'
         }
 
         newUser = profile

@@ -449,7 +449,8 @@ const DriverProfileView: React.FC = () => {
                     Taro.showLoading({title: '处理中...'})
                     logger.userAction('提升为管理员', {driverId, operatorId: user?.id})
 
-                    const {error} = await supabase.from('profiles').update({role: 'MANAGER'}).eq('id', driverId)
+                    // 单用户架构：更新 user_roles 表
+                    const {error} = await supabase.from('user_roles').update({role: 'MANAGER'}).eq('user_id', driverId)
 
                     Taro.hideLoading()
 

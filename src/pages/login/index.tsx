@@ -77,22 +77,33 @@ const Login: React.FC = () => {
     console.log('📌 当前登录状态:', session ? '已登录' : '未登录（匿名）')
 
     try {
-      const {data, error} = await supabase
-        .from('profiles')
-        .select('id, name, phone, email, role')
+      // 单用户架构：从 users 和 user_roles 表查询
+      const {data: users, error: usersError} = await supabase
+        .from('users')
+        .select('id, name, phone, email')
         .order('created_at', {ascending: true})
         .limit(20)
 
-      if (error) {
-        console.error('❌ 获取测试账号列表失败:', error)
-        console.error('❌ 错误详情:', JSON.stringify(error))
+      if (usersError) {
+        console.error('❌ 获取测试账号列表失败:', usersError)
+        console.error('❌ 错误详情:', JSON.stringify(usersError))
         Taro.showToast({
-          title: `加载失败: ${error.message}`,
+          title: `加载失败: ${usersError.message}`,
           icon: 'none',
           duration: 3000
         })
         return
       }
+
+      // 获取用户角色
+      const userIds = users?.map((u) => u.id) || []
+      const {data: roles} = await supabase.from('user_roles').select('user_id, role').in('user_id', userIds)
+
+      // 合并用户和角色数据
+      const data = users?.map((user) => ({
+        ...user,
+        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+      }))
 
       console.log('✅ 获取到账号数据:', data?.length || 0, '个')
 

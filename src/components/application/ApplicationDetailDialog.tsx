@@ -59,9 +59,9 @@ const ApplicationDetailDialog: React.FC<ApplicationDetailDialogProps> = ({
           return
         }
 
-        // 获取申请人信息
+        // 获取申请人信息（单用户架构：从 users 表查询）
         const {data: applicant, error: applicantError} = await supabase
-          .from('profiles')
+          .from('users')
           .select('name, phone')
           .eq('id', application.user_id)
           .maybeSingle()
@@ -70,7 +70,7 @@ const ApplicationDetailDialog: React.FC<ApplicationDetailDialogProps> = ({
         let reviewerName = ''
         if (application.reviewed_by) {
           const {data: reviewer} = await supabase
-            .from('profiles')
+            .from('users')
             .select('name')
             .eq('id', application.reviewed_by)
             .maybeSingle()
@@ -106,9 +106,9 @@ const ApplicationDetailDialog: React.FC<ApplicationDetailDialogProps> = ({
           return
         }
 
-        // 获取申请人信息
+        // 获取申请人信息（单用户架构：从 users 表查询）
         const {data: applicant} = await supabase
-          .from('profiles')
+          .from('users')
           .select('name, phone')
           .eq('id', application.user_id)
           .maybeSingle()
@@ -117,7 +117,7 @@ const ApplicationDetailDialog: React.FC<ApplicationDetailDialogProps> = ({
         let reviewerName = ''
         if (application.reviewed_by) {
           const {data: reviewer} = await supabase
-            .from('profiles')
+            .from('users')
             .select('name')
             .eq('id', application.reviewed_by)
             .maybeSingle()

@@ -37,17 +37,23 @@ export default function TestLogin() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const {data, error} = await supabase
-        .from('profiles')
-        .select('id, name, phone, email, role')
-        .order('created_at', {ascending: true})
-        .limit(20)
+      // 单用户架构：从 users 和 user_roles 表查询
+      const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
+        supabase.from('users').select('id, name, phone, email').order('created_at', {ascending: true}).limit(20),
+        supabase.from('user_roles').select('user_id, role')
+      ])
 
-      if (error) {
-        console.error('获取账号列表失败', error)
+      if (usersError) {
+        console.error('获取账号列表失败', usersError)
         Taro.showToast({title: '获取账号列表失败', icon: 'none'})
         return
       }
+
+      // 合并用户和角色数据
+      const data = users?.map((user) => ({
+        ...user,
+        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+      }))
 
       const accountsWithRoleName = (data || []).map((account) => ({
         ...account,
