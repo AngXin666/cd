@@ -303,10 +303,6 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
 /**
  * 获取当前用户的角色和租户信息
- * 用于判断是否需要检查租期
- */
-/**
- * 获取当前用户的角色和租户信息
  *
  * 实现逻辑：
  * 1. 从 public.profiles 查询用户信息（包括 role 和 main_account_id）
