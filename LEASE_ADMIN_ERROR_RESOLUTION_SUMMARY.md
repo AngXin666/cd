@@ -2,21 +2,42 @@
 
 ## 问题描述
 
-老板添加新的司机时失败，出现以下错误：
+老板在老板端添加新的司机或管理员时失败，出现以下错误：
 
 ```
 ❌ 创建 auth.users 记录失败
 错误: invalid input value for enum user_role: "lease_admin"
 ```
 
+## 系统架构说明
+
+### 中央管理系统（public.profiles）
+
+用于存储中央管理员和租户（老板）的基本信息：
+
+- `super_admin`：超级管理员（中央管理员）
+- `boss`：老板（租户信息）
+
+### 租户系统（tenant_xxx.profiles）
+
+用于存储租户内部的员工信息：
+
+- `boss`：老板
+- `peer`：平级账号
+- `fleet_leader`：车队长
+- `driver`：司机
+
+**重要**：当老板在老板端添加司机/管理员/平级账号时，这些用户应该被添加到租户 Schema 中，而不是 public.profiles 中。
+
 ## 根本原因
 
-虽然 `lease_admin` 角色已在迁移 `00416_remove_lease_admin_role.sql` 中从 `user_role` 枚举类型中移除，但系统中仍有多处引用了这个已删除的角色：
+虽然 `lease_admin` 角色已在迁移 `00416_remove_lease_admin_role.sql` 中从 `user_role` 枚举类型中移除，但系统中仍有多处问题：
 
 1. **`insert_tenant_profile` 函数**：尝试将角色转换为租户 Schema 中不存在的 `user_role` 枚举类型
 2. **`init_lease_admin_profile` 函数**：尝试使用 `'lease_admin'::user_role` 创建用户
 3. **`is_lease_admin_user` 函数**：检查用户是否为 lease_admin
 4. **相关 RLS 策略**：引用了 lease_admin 角色
+5. **角色映射问题**：`createUser` 函数没有将前端的 `manager` 角色映射为租户 Schema 的 `fleet_leader` 角色
 
 ## 修复方案
 
