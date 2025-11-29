@@ -5,11 +5,20 @@
 
 ## ✅ 已完成的清理
 
-### 1. src/db/api.ts（部分完成）
+### 1. src/db/api.ts（已完成）
 - ✅ 删除 `_convertTenantProfileToProfile()` 函数
 - ✅ 更新 `getDriversByWarehouse()` - 移除多租户逻辑
 - ✅ 更新 `createLeaveApplication()` - 移除多租户逻辑
 - ✅ 更新 `getWarehouseManager()` - 移除多租户逻辑
+- ✅ 所有函数已不再使用 `getCurrentUserRoleAndTenant()` 的 `tenant_id`
+
+### 2. src/services/notificationService.ts（已完成）
+- ✅ 移除 `getCurrentUserRoleAndTenant` 的导入
+- ✅ 更新 `getPrimaryAdmin()` - 移除 Schema 切换逻辑
+- ✅ 更新 `getPeerAccounts()` - 移除 Schema 切换逻辑
+- ✅ 更新 `_getAllAdmins()` - 移除 Schema 切换逻辑
+- ✅ 更新 `getManagersWithJurisdiction()` - 移除 Schema 切换逻辑
+- ✅ 所有函数改为直接查询 public schema
 
 ## 📋 待清理的文件和函数
 
