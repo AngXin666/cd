@@ -58,6 +58,16 @@ export interface Profile {
   is_active?: boolean
   vehicle_plate?: string | null
   manager_permissions_enabled?: boolean
+  address_province?: string | null
+  address_city?: string | null
+  address_district?: string | null
+  address_detail?: string | null
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
+  emergency_contact_relationship?: string | null
+  login_account?: string | null
+  status?: string | null
+  peer_account_permission?: boolean | null
 }
 
 export interface ProfileUpdate {
@@ -71,6 +81,16 @@ export interface ProfileUpdate {
   warehouse_ids?: string[]
   status?: string
   driver_type?: string
+  nickname?: string
+  login_account?: string
+  join_date?: string
+  address_province?: string
+  address_city?: string
+  address_district?: string
+  address_detail?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  emergency_contact_relationship?: string
 }
 
 // ==================== 部门相关类型 ====================
@@ -223,6 +243,7 @@ export interface VehicleInput {
   model?: string
   driver_id?: string
   status?: string
+  review_status?: string
   color?: string
   vin?: string
   engine_number?: string
@@ -779,7 +800,7 @@ export interface VehicleWithDriverDetails extends Vehicle {
 // ==================== 司机类型和驾照（已废弃 - 多租户相关）====================
 
 // 司机类型
-export type DriverType = 'full_time' | 'part_time' | 'temporary'
+export type DriverType = 'full_time' | 'part_time' | 'temporary' | 'pure' | 'with_vehicle'
 
 // 驾照信息接口（保留用于兼容性）
 export interface DriverLicense {
@@ -838,6 +859,9 @@ export interface DriverLicenseUpdate {
 
 // ==================== 租赁管理（已废弃 - 多租户相关）====================
 
+// 租赁到期操作类型
+export type ExpireActionType = 'auto_renew' | 'notify' | 'terminate'
+
 // 租赁信息接口（保留用于兼容性）
 export interface Lease {
   id: string
@@ -849,6 +873,7 @@ export interface Lease {
   status: string
   created_at: string
   updated_at: string
+  expire_action?: ExpireActionType
 }
 
 // 创建租赁的输入接口
@@ -871,6 +896,9 @@ export interface LeaseBill {
   amount: number
   status: string
   created_at: string
+  verified_at?: string | null
+  notes?: string | null
+  bill_month?: string
 }
 
 // 租赁与租户信息接口（保留用于兼容性）
@@ -926,6 +954,7 @@ export interface ManagerPermission {
   manager_id: string
   permission_type: string
   created_at: string
+  updated_at?: string
   // 兼容旧代码的可选字段
   can_edit_user_info?: boolean
   can_edit_piece_work?: boolean
@@ -956,7 +985,7 @@ export interface LockedPhotos {
 // ==================== 通知模板和定时通知（已废弃 - 多租户相关）====================
 
 // 发送者角色类型
-export type SenderRole = 'system' | 'admin' | 'manager'
+export type SenderRole = 'system' | 'admin' | 'manager' | 'MANAGER' | 'SUPER_ADMIN'
 
 // 通知模板接口（保留用于兼容性）
 export interface NotificationTemplate {
@@ -1033,6 +1062,11 @@ export interface AutoReminderRule {
   is_active: boolean
   created_at: string
   updated_at: string
+  rule_name?: string
+  rule_type?: string
+  check_time?: string
+  reminder_content?: string
+  created_by?: string
 }
 
 // 自动提醒规则与仓库信息接口（保留用于兼容性）
@@ -1041,6 +1075,9 @@ export interface AutoReminderRuleWithWarehouse extends AutoReminderRule {
 }
 
 // ==================== 反馈管理（已废弃 - 多租户相关）====================
+
+// 反馈类型
+export type FeedbackType = 'bug' | 'feature' | 'question' | 'other' | 'suggestion' | 'complaint'
 
 // 反馈状态类型
 export type FeedbackStatus = 'pending' | 'processing' | 'resolved' | 'closed'
@@ -1055,14 +1092,68 @@ export interface Feedback {
   response: string | null
   created_at: string
   updated_at: string
+  type?: FeedbackType
+  contact?: string | null
 }
 
 // 创建反馈的输入接口
 export interface FeedbackInput {
   user_id: string
-  title: string
+  title?: string
   content: string
   // 兼容旧代码的可选字段
   type?: string
   contact?: string
+}
+
+// ==================== 租户管理（已废弃 - 多租户相关）====================
+
+// 租户接口（保留用于兼容性）
+export interface Tenant {
+  id: string
+  name: string
+  code: string
+  status: string
+  created_at: string
+  updated_at: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  expired_at?: string
+  company_name?: string
+  tenant_code?: string
+  boss_name?: string
+  boss_phone?: string
+}
+
+// 创建租户的输入接口
+export interface CreateTenantInput {
+  name: string
+  code: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  company_name?: string
+  boss_name?: string
+  boss_phone?: string
+  boss_password?: string
+  boss_account?: string
+}
+
+// 创建租户的结果接口
+export interface CreateTenantResult {
+  success: boolean
+  tenant?: Tenant
+  error?: string
+  message?: string
+}
+
+// 更新租户的输入接口
+export interface UpdateTenantInput {
+  name?: string
+  status?: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  expired_at?: string
 }

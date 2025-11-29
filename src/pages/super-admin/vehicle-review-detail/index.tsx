@@ -19,10 +19,13 @@ import {
   requireSupplement,
   unlockPhoto
 } from '@/db/api'
-import type {LockedPhotos, VehicleWithDriverDetails} from '@/db/types'
+import type {VehicleWithDriverDetails} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('VehicleReviewDetail')
+
+// 锁定照片的类型
+type LockedPhotosMap = Record<string, number[]>
 
 // 图片字段配置
 interface PhotoFieldConfig {
@@ -69,7 +72,7 @@ const VehicleReviewDetail: React.FC = () => {
   const [vehicle, setVehicle] = useState<VehicleWithDriverDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [reviewNotes, setReviewNotes] = useState('')
-  const [lockedPhotos, setLockedPhotos] = useState<LockedPhotos>({})
+  const [lockedPhotos, setLockedPhotos] = useState<LockedPhotosMap>({})
   const [requiredPhotos, setRequiredPhotos] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [fromHistory, setFromHistory] = useState(false) // 是否从历史记录页面跳转过来
@@ -278,7 +281,7 @@ const VehicleReviewDetail: React.FC = () => {
     }
 
     // 计算需要锁定的照片（所有未标记需要补录的照片）
-    const lockedPhotosData: LockedPhotos = {}
+    const lockedPhotosData: LockedPhotosMap = {}
     let totalLockedCount = 0
 
     PHOTO_FIELDS.forEach(({field}) => {

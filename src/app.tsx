@@ -7,9 +7,7 @@ import type React from 'react'
 import type {PropsWithChildren} from 'react'
 import {useEffect} from 'react'
 import {supabase} from '@/client/supabase'
-import {TenantProvider} from '@/contexts/TenantContext'
 import {UserContextProvider} from '@/contexts/UserContext'
-import {clearAllRoleCache} from '@/db/tenant-utils'
 import {logger, setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
 import './app.scss'
 
@@ -29,8 +27,6 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
         logger.info('用户登录', {userId})
       } else if (event === 'SIGNED_OUT') {
         logger.info('用户登出')
-        // 清除角色缓存
-        clearAllRoleCache()
       }
     })
 
@@ -42,9 +38,7 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
 
   return (
     <AuthProvider client={supabase} loginPath="/pages/login/index">
-      <UserContextProvider>
-        <TenantProvider>{children}</TenantProvider>
-      </UserContextProvider>
+      <UserContextProvider>{children}</UserContextProvider>
     </AuthProvider>
   )
 }

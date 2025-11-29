@@ -365,13 +365,13 @@ const AddVehicle: React.FC = () => {
         setFormData((prev) => ({
           ...prev,
           archive_number: result.archive_number || prev.archive_number,
-          total_mass: result.total_mass || prev.total_mass,
-          approved_passengers: result.approved_passengers || prev.approved_passengers,
-          curb_weight: result.curb_weight || prev.curb_weight,
-          approved_load: result.approved_load || prev.approved_load,
-          overall_dimension_length: result.overall_dimension_length || prev.overall_dimension_length,
-          overall_dimension_width: result.overall_dimension_width || prev.overall_dimension_width,
-          overall_dimension_height: result.overall_dimension_height || prev.overall_dimension_height,
+          total_mass: String(result.total_mass || prev.total_mass || ''),
+          approved_passengers: String(result.approved_passengers || prev.approved_passengers || ''),
+          curb_weight: String(result.curb_weight || prev.curb_weight || ''),
+          approved_load: String(result.approved_load || prev.approved_load || ''),
+          overall_dimension_length: String(result.overall_dimension_length || prev.overall_dimension_length || ''),
+          overall_dimension_width: String(result.overall_dimension_width || prev.overall_dimension_width || ''),
+          overall_dimension_height: String(result.overall_dimension_height || prev.overall_dimension_height || ''),
           inspection_valid_until: result.inspection_valid_until || prev.inspection_valid_until
         }))
         Taro.showToast({title: '副页识别成功', icon: 'success'})

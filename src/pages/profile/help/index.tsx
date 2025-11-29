@@ -172,7 +172,7 @@ const HelpPage: React.FC = () => {
                   </View>
                 )}
 
-                {(profile?.role === 'SUPER_ADMIN' || profile?.role === 'SUPER_ADMIN') && (
+                {(profile?.role === 'SUPER_ADMIN' || profile?.role === 'MANAGER') && (
                   <View className="flex items-start">
                     <View className="i-mdi-numeric-1-circle text-2xl text-blue-900 mr-3 mt-0.5" />
                     <View className="flex-1">

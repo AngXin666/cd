@@ -171,7 +171,7 @@ const ManagerHome: React.FC = () => {
   // 启用轮询通知（代替 Realtime）
   usePollingNotifications({
     userId: user?.id || '',
-    userRole: 'MANAGER',
+    userRole: 'manager',
     onLeaveApplicationChange: () => {
       refreshDashboard()
     },

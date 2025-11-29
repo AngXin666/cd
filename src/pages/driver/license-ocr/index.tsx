@@ -274,13 +274,18 @@ const LicenseOCR: React.FC = () => {
       // 准备驾驶证数据
       const driverLicenseInput: DriverLicenseInput = {
         driver_id: user.id,
+        license_number: ocrData.driverLicense?.license_number || '',
+        license_type: 'C1', // 默认值
+        issue_date: ocrData.driverLicense?.first_issue_date || new Date().toISOString().split('T')[0],
+        expiry_date:
+          ocrData.driverLicense?.valid_until ||
+          new Date(Date.now() + 6 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         id_card_name: ocrData.idCardFront?.name || '',
         id_card_number: ocrData.idCardFront?.id_number || '',
         id_card_address: ocrData.idCardFront?.address || '',
         id_card_birth_date: ocrData.idCardFront?.birth_date || null,
         id_card_photo_front: idCardFrontPath,
         id_card_photo_back: idCardBackPath,
-        license_number: ocrData.driverLicense?.license_number || '',
         license_class: ocrData.driverLicense?.license_class || '',
         first_issue_date: ocrData.driverLicense?.first_issue_date || null,
         valid_from: ocrData.driverLicense?.valid_from || '',

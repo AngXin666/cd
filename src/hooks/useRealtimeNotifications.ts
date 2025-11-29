@@ -120,7 +120,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     console.log('📡 创建新的订阅通道:', `notifications_${userId}`)
 
     // 车队长和老板：监听新的请假申请
-    if (userRole === 'manager' || userRole === 'super_admin') {
+    if (userRole === 'MANAGER' || userRole === 'SUPER_ADMIN') {
       console.log('👔 设置车队长/老板监听')
 
       channel.on(
@@ -203,7 +203,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     }
 
     // 司机：监听自己的申请状态变化
-    if (userRole === 'driver') {
+    if (userRole === 'DRIVER') {
       console.log('🚗 设置司机监听，userId:', userId)
 
       channel.on(

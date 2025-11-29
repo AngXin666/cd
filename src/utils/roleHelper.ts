@@ -24,7 +24,7 @@ export function isBoss(role: UserRole | undefined | null): boolean {
  * @returns 是否为租户管理员
  */
 export function isTenantAdmin(role: UserRole | undefined | null): boolean {
-  return role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN'
+  return role === 'SUPER_ADMIN' || role === 'MANAGER'
 }
 
 /**
@@ -33,7 +33,7 @@ export function isTenantAdmin(role: UserRole | undefined | null): boolean {
  * @returns 是否为管理员
  */
 export function isManager(role: UserRole | undefined | null): boolean {
-  return role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN' || role === 'MANAGER'
+  return role === 'SUPER_ADMIN' || role === 'MANAGER'
 }
 
 /**
@@ -48,17 +48,12 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
   // super_admin（中央管理系统）可以管理所有角色
   if (managerRole === 'SUPER_ADMIN') return true
 
-  // boss（租户老板）可以管理租户内的所有角色（peer_admin, manager, driver）
-  if (managerRole === 'SUPER_ADMIN') {
-    return targetRole === 'SUPER_ADMIN' || targetRole === 'MANAGER' || targetRole === 'DRIVER'
+  // manager 可以管理 driver
+  if (managerRole === 'MANAGER') {
+    return targetRole === 'DRIVER'
   }
 
-  // peer_admin（平级管理员）可以管理 driver 和 manager，但不能管理 boss 和其他 peer_admin
-  if (managerRole === 'SUPER_ADMIN') {
-    return targetRole === 'DRIVER' || targetRole === 'MANAGER'
-  }
-
-  // manager（车队长）只能查看，不能管理
+  // 其他角色不能管理
   return false
 }
 
@@ -69,11 +64,9 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
  */
 export function getRoleDisplayName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {
-    boss: '老板',
-    super_admin: '超级管理员',
-    peer_admin: '平级管理员',
-    manager: '车队长',
-    driver: '司机'
+    SUPER_ADMIN: '超级管理员',
+    MANAGER: '车队长',
+    DRIVER: '司机'
   }
   return roleNames[role] || role
 }

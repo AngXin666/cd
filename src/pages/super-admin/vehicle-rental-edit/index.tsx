@@ -67,7 +67,7 @@ const VehicleRentalEdit: React.FC = () => {
       setVehicle(data)
 
       // 填充表单数据
-      setOwnershipType(data.ownership_type || '')
+      setOwnershipType((data.ownership_type as OwnershipType) || '')
       setLessorName(data.lessor_name || '')
       setLessorContact(data.lessor_contact || '')
       setLesseeName(data.lessee_name || '')

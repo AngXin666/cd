@@ -25,7 +25,7 @@ const AutoReminderRules: React.FC = () => {
 
   // 表单数据
   const [ruleName, setRuleName] = useState('')
-  const [ruleType, setRuleType] = useState<'attendance' | 'piece_work'>('attendance')
+  const [ruleType, setRuleType] = useState<string>('attendance')
   const [checkTime, setCheckTime] = useState('09:00')
   const [reminderContent, setReminderContent] = useState('')
   const [warehouseId, setWarehouseId] = useState<string | null>(null)
@@ -114,6 +114,8 @@ const AutoReminderRules: React.FC = () => {
           rule_type: ruleType,
           check_time: checkTime,
           reminder_content: reminderContent,
+          reminder_time: checkTime, // 使用 check_time 作为 reminder_time
+          message: reminderContent, // 使用 reminder_content 作为 message
           warehouse_id: warehouseId,
           is_active: isActive,
           created_by: user?.id

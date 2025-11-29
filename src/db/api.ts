@@ -278,28 +278,21 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 }
 
 /**
- * 获取当前用户的角色和租户信息
- *
- * 实现逻辑：
- * 1. 从 public.profiles 查询用户信息（包括 role 和 main_account_id）
- * 2. 如果用户有 main_account_id，说明是子账号，租户ID为 main_account_id
- * 3. 如果用户没有 main_account_id：
- *    - 角色是 boss：租户ID为用户自己的ID
- *    - 角色是 super_admin 或 peer_admin：没有租户ID（中央用户）
- * 4. 返回 {role: 用户角色, tenant_id: 租户ID}
+ * 获取当前用户的角色
  *
  * 注意：
- * - 当前系统中，所有用户都在 public.profiles 中
- * - 不使用租户 Schema，通过 main_account_id 字段判断租户关系
+ * - 当前系统为单用户架构，不再使用租户概念
+ * - 所有用户都在 public.profiles 中
+ * - tenant_id 已废弃，始终返回 null（保留用于兼容性）
  *
- * @returns {role, tenant_id}
+ * @returns {role, tenant_id} tenant_id 始终为 null
  */
 export async function getCurrentUserRoleAndTenant(): Promise<{
   role: UserRole
   tenant_id: string | null
 }> {
   try {
-    console.log('[getCurrentUserRoleAndTenant] 开始获取用户角色和租户信息')
+    console.log('[getCurrentUserRoleAndTenant] 开始获取用户角色')
     const {
       data: {user},
       error: authError
@@ -321,7 +314,7 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
     const {data: profile, error: profileError} = await supabase
       .schema('public')
       .from('profiles')
-      .select('role, main_account_id')
+      .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -335,27 +328,10 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
       throw new Error('用户不存在')
     }
 
-    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', profile.role, '主账号ID:', profile.main_account_id)
+    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', profile.role)
 
-    // 判断租户ID
-    let tenant_id: string | null = null
-
-    // 如果用户有 main_account_id，说明是子账号，属于某个租户
-    if (profile.main_account_id) {
-      tenant_id = profile.main_account_id
-      console.log('[getCurrentUserRoleAndTenant] 用户是子账号，租户ID:', tenant_id)
-    } else {
-      // 如果用户没有 main_account_id，说明是主账号
-      // 如果角色是 boss，则租户ID是用户自己的ID
-      if (profile.role === 'SUPER_ADMIN') {
-        tenant_id = user.id
-        console.log('[getCurrentUserRoleAndTenant] 用户是老板，租户ID:', tenant_id)
-      } else {
-        // 如果角色是 super_admin 或 peer_admin，则没有租户ID
-        tenant_id = null
-        console.log('[getCurrentUserRoleAndTenant] 用户是中央用户，没有租户ID')
-      }
-    }
+    // 单用户系统不再使用租户概念，tenant_id 始终返回 null
+    const tenant_id = null
 
     console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: profile.role, tenant_id})
     return {role: profile.role as UserRole, tenant_id}
@@ -368,24 +344,12 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
 /**
  * 获取所有用户档案
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接从 public.profiles 查询
  */
 export async function getAllProfiles(): Promise<Profile[]> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'SUPER_ADMIN') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询用户列表，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询用户列表，使用 Schema: public')
-    }
-
     const {data, error} = await supabase
-      .schema(schemaName)
+      .schema('public')
       .from('profiles')
       .select('*')
       .order('created_at', {ascending: false})
@@ -405,24 +369,13 @@ export async function getAllProfiles(): Promise<Profile[]> {
 /**
  * 获取所有司机档案（包含实名信息）
  * 通过LEFT JOIN driver_licenses表获取身份证姓名
+ * 单用户架构：直接从 public.profiles 查询
  */
 export async function getAllDriversWithRealName(): Promise<Array<Profile & {real_name: string | null}>> {
   logger.db('查询', 'profiles + driver_licenses', {role: 'DRIVER'})
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'SUPER_ADMIN') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      logger.info(`租户用户查询司机列表，使用 Schema: ${schemaName}`)
-    } else {
-      logger.info('中央用户查询司机列表，使用 Schema: public')
-    }
-
     const {data, error} = await supabase
-      .schema(schemaName)
+      .schema('public')
       .from('profiles')
       .select(
         `
@@ -430,7 +383,7 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
         driver_licenses!driver_licenses_driver_id_fkey(id_card_name)
       `
       )
-      .eq('role', 'DRIVER')
+      .eq('role', 'driver')
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -3934,6 +3887,7 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
     return {
       id: managerId, // 使用 managerId 作为 id
       manager_id: managerId,
+      permission_type: 'full',
       can_edit_user_info: true,
       can_edit_piece_work: true,
       can_manage_attendance_rules: true,
@@ -3949,6 +3903,7 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
     return {
       id: managerId, // 使用 managerId 作为 id
       manager_id: managerId,
+      permission_type: 'default',
       can_edit_user_info: true,
       can_edit_piece_work: true,
       can_manage_attendance_rules: false,
@@ -5323,7 +5278,7 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
     // 2. 获取司机基本信息（从profiles表）
     const {data: profile, error: profileError} = await supabase
       .from('profiles')
-      .select('name, phone, email')
+      .select('*')
       .eq('id', vehicle.user_id)
       .maybeSingle()
 
@@ -5334,9 +5289,7 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
     // 3. 获取司机证件信息（从driver_licenses表）
     const {data: driverLicense, error: licenseError} = await supabase
       .from('driver_licenses')
-      .select(
-        'id_card_name, id_card_number, id_card_address, id_card_birth_date, id_card_photo_front, id_card_photo_back, license_number, license_class, first_issue_date, valid_from, valid_to, issue_authority, driving_license_photo'
-      )
+      .select('*')
       .eq('driver_id', vehicle.user_id)
       .maybeSingle()
 
@@ -5347,30 +5300,8 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
     // 4. 组合数据
     const result: VehicleWithDriverDetails = {
       ...vehicle,
-      driver_profile: profile
-        ? {
-            name: profile.name || null,
-            phone: profile.phone || null,
-            email: profile.email || null
-          }
-        : null,
-      driver_license: driverLicense
-        ? {
-            id_card_name: driverLicense.id_card_name || null,
-            id_card_number: driverLicense.id_card_number || null,
-            id_card_address: driverLicense.id_card_address || null,
-            id_card_birth_date: driverLicense.id_card_birth_date || null,
-            id_card_photo_front: driverLicense.id_card_photo_front || null,
-            id_card_photo_back: driverLicense.id_card_photo_back || null,
-            license_number: driverLicense.license_number || null,
-            license_class: driverLicense.license_class || null,
-            first_issue_date: driverLicense.first_issue_date || null,
-            valid_from: driverLicense.valid_from || null,
-            valid_to: driverLicense.valid_to || null,
-            issue_authority: driverLicense.issue_authority || null,
-            driving_license_photo: driverLicense.driving_license_photo || null
-          }
-        : null
+      driver_profile: profile || null,
+      driver_license: driverLicense || null
     }
 
     logger.info('成功获取车辆和司机详细信息', {vehicleId, hasProfile: !!profile, hasLicense: !!driverLicense})
