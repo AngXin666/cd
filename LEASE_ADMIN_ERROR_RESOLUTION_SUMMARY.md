@@ -344,4 +344,30 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
 - **角色映射**：前端 `manager` 自动映射为租户 Schema 的 `fleet_leader`
 - **权限检查**：只使用当前系统中存在的角色进行权限验证
 
+## 修复5：老板权限问题（2025-11-29）
+
+### 问题描述
+用户报告：老板没有权限创建用户，错误显示 `public.profiles` 中的角色 `driver` 无权创建用户。
+
+### 根本原因
+**租户用户不应该在 `public.profiles` 中有记录！**
+
+问题出在 `handle_new_user` 触发器上：
+1. Edge Function 创建租户时，调用 `supabase.auth.admin.createUser` 创建老板账号
+2. `supabase.auth.admin.createUser` 在内部可能进行多次操作，第一次 UPDATE 时 `user_metadata` 可能还没有完全设置
+3. 触发器检查失败，在 `public.profiles` 中创建了记录，角色为 `driver`
+4. 权限检查时，先检查 `public.profiles`，发现角色是 `driver`，拒绝创建用户
+
+### 解决方案
+1. **删除租户用户在 `public.profiles` 中的记录**
+2. **优化 `handle_new_user` 触发器**，在 INSERT 和 UPDATE 时都检查 `user_metadata`
+3. **更新触发器**，同时在 INSERT 和 UPDATE 时触发
+
+详细信息请参考：`BOSS_PERMISSION_FIX_SUMMARY.md`
+
+### 修复结果
+- ✅ 所有租户用户在 `public.profiles` 中的记录已被删除
+- ✅ 租户用户只在租户 Schema 中有记录
+- ✅ 老板、平级账号、车队长都可以正常创建用户
+
 如果问题仍然存在，请清除浏览器缓存并重新登录。
