@@ -38,6 +38,7 @@
 3. **`is_lease_admin_user` 函数**：检查用户是否为 lease_admin
 4. **相关 RLS 策略**：引用了 lease_admin 角色
 5. **角色映射问题**：`createUser` 函数没有将前端的 `manager` 角色映射为租户 Schema 的 `fleet_leader` 角色
+6. **`create_user_auth_account_first` 函数**：权限检查时引用了 `'lease_admin'` 角色，导致 PostgreSQL 尝试将字符串转换为枚举类型时失败
 
 ## 修复方案
 
