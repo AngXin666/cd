@@ -330,12 +330,12 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     if (authError) {
       console.error('[getCurrentUserRoleAndTenant] 获取认证用户失败:', authError)
-      return {role: 'driver', tenant_id: null}
+      throw new Error('获取认证用户失败')
     }
 
     if (!user) {
       console.warn('[getCurrentUserRoleAndTenant] 用户未登录')
-      return {role: 'driver', tenant_id: null}
+      throw new Error('用户未登录')
     }
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
@@ -348,14 +348,16 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
       .eq('id', user.id)
       .maybeSingle()
 
+    // 注意：如果用户不在 public.profiles 中，profileError 为 null，profile 为 null
+    // 只有在真正出错时，profileError 才不为 null
     if (profileError) {
-      console.error('[getCurrentUserRoleAndTenant] 查询 public.profiles 失败:', profileError)
-      return {role: 'driver', tenant_id: null}
+      console.error('[getCurrentUserRoleAndTenant] 查询 public.profiles 出错:', profileError)
+      // 查询出错，但不要直接返回默认值，继续查询租户 Schema
     }
 
     if (profile) {
       console.log('[getCurrentUserRoleAndTenant] 在 public.profiles 中找到用户，角色:', profile.role)
-      // 如果用户在 public.profiles 中，说明是中央用户（super_admin）
+      // 如果用户在 public.profiles 中，说明是中央用户（super_admin、peer_admin）
       return {role: profile.role as UserRole, tenant_id: null}
     }
 
@@ -367,12 +369,12 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     if (tenantsError) {
       console.error('[getCurrentUserRoleAndTenant] 查询租户列表失败:', tenantsError)
-      return {role: 'driver', tenant_id: null}
+      throw new Error('查询租户列表失败')
     }
 
     if (!tenants || tenants.length === 0) {
       console.warn('[getCurrentUserRoleAndTenant] 没有找到任何租户')
-      return {role: 'driver', tenant_id: null}
+      throw new Error('没有找到任何租户')
     }
 
     console.log('[getCurrentUserRoleAndTenant] 找到租户列表，数量:', tenants.length)
@@ -405,11 +407,12 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
       }
     }
 
-    // 4. 如果在所有租户中都没有找到，返回默认值
-    console.warn('[getCurrentUserRoleAndTenant] 在所有租户中都未找到用户')
-    return {role: 'driver', tenant_id: null}
+    // 4. 如果在所有租户中都没有找到，抛出错误
+    console.error('[getCurrentUserRoleAndTenant] 在所有 Schema 中都未找到用户')
+    throw new Error('在所有 Schema 中都未找到用户')
   } catch (error) {
-    console.error('[getCurrentUserRoleAndTenant] 未预期的错误:', error)
+    console.error('[getCurrentUserRoleAndTenant] 发生错误:', error)
+    // 返回默认值，避免应用崩溃
     return {role: 'driver', tenant_id: null}
   }
 }
