@@ -11,6 +11,19 @@ import prodConfig from './prod'
 const base = String(process.argv[process.argv.length - 1])
 const publicPath = /^http/.test(base) ? base : '/'
 
+// 递归展平数组并过滤 null/undefined
+function flattenPlugins(plugins: any[]): Plugin[] {
+  const result: Plugin[] = []
+  for (const plugin of plugins) {
+    if (Array.isArray(plugin)) {
+      result.push(...flattenPlugins(plugin))
+    } else if (plugin != null) {
+      result.push(plugin)
+    }
+  }
+  return result
+}
+
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async (merge, {command, mode}) => {
   const baseConfig: UserConfigExport<'vite'> = {
@@ -39,7 +52,7 @@ export default defineConfig<'vite'>(async (merge, {command, mode}) => {
     framework: 'react',
     compiler: {
       type: 'vite',
-      vitePlugins: [
+      vitePlugins: flattenPlugins([
         miaodaDevPlugin({appType: 'miniapp', cdnBase: publicPath}),
 
         {
@@ -138,15 +151,16 @@ export default defineConfig<'vite'>(async (merge, {command, mode}) => {
             }
           }
         },
-        uvtw({
-          // rem转rpx
-          rem2rpx: true,
-          // 除了小程序这些，其他平台都 disable
-          disabled:
-            process.env.TARO_ENV === 'h5' || process.env.TARO_ENV === 'harmony' || process.env.TARO_ENV === 'rn',
-          // 由于 taro vite 默认会移除所有的 tailwindcss css 变量，所以一定要开启这个配置，进行css 变量的重新注入
-          injectAdditionalCssVarScope: true
-        }),
+        ...(process.env.TARO_ENV !== 'h5' && process.env.TARO_ENV !== 'harmony' && process.env.TARO_ENV !== 'rn'
+          ? [
+              uvtw({
+                // rem转rpx
+                rem2rpx: true,
+                // 由于 taro vite 默认会移除所有的 tailwindcss css 变量，所以一定要开启这个配置，进行css 变量的重新注入
+                injectAdditionalCssVarScope: true
+              })
+            ]
+          : []),
         {
           name: 'taro-app-config-watcher',
           configureServer(server) {
@@ -160,14 +174,7 @@ export default defineConfig<'vite'>(async (merge, {command, mode}) => {
             })
           }
         }
-      ] as Plugin[],
-      // Vite 构建配置
-      viteBuildConfig: {
-        build: {
-          target: 'es2015',
-          minify: false
-        }
-      }
+      ])
     },
     mini: {
       compile: {

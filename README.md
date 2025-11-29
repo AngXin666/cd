@@ -4,6 +4,35 @@
 
 ---
 
+## 🚀 快速开始
+
+### 开发环境启动
+
+```bash
+# H5 开发模式（浏览器预览）
+pnpm run dev:h5
+# 访问 http://localhost:10086/
+
+# 小程序开发模式
+pnpm run dev:weapp
+# 使用微信开发者工具打开 dist/weapp 目录
+
+# 生产构建
+pnpm run build:h5      # H5 构建
+pnpm run build:weapp   # 小程序构建
+
+# 代码检查
+pnpm run lint
+```
+
+### 最近修复
+- ✅ **2025-11-29**：修复 Taro 配置验证问题，开发服务器现已可以正常启动
+  - 修复了 vitePlugins 数组中的 null 值问题
+  - 移除了不支持的 viteBuildConfig 配置项
+  - 详见：[预览启动修复总结.md](./预览启动修复总结.md)
+
+---
+
 ## 🔔 系统更新 ⭐ 2025-11-29
 
 **最新更新**：添加测试租户和快捷登录功能！✅
