@@ -1,5 +1,8 @@
 import type {NotificationType} from './notificationApi'
 
+// 重新导出 NotificationType 以便其他模块使用
+export type {NotificationType}
+
 // ==================== 用户相关类型 ====================
 
 // 单用户系统角色类型
@@ -962,7 +965,10 @@ export interface NotificationTemplate {
   content: string
   type: NotificationType
   created_at: string
+  updated_at?: string
   category?: string
+  is_favorite?: boolean
+  created_by?: string
 }
 
 // 定时通知接口（保留用于兼容性）
@@ -972,6 +978,13 @@ export interface ScheduledNotification {
   scheduled_time: string
   status: string
   created_at: string
+  sent_at?: string | null
+  title?: string
+  content?: string
+  target_type?: string
+  send_time?: string
+  target_ids?: string[]
+  created_by?: string
 }
 
 // 通知发送记录接口（保留用于兼容性）
@@ -981,6 +994,14 @@ export interface NotificationSendRecord {
   recipient_id: string
   sent_at: string
   is_read: boolean
+  notification_type?: string
+  title?: string
+  content?: string
+  recipient_count?: number
+  target_type?: string
+  target_ids?: string[]
+  sent_by?: string
+  related_notification_id?: string
 }
 
 // 通知发送记录与发送者信息接口（保留用于兼容性）

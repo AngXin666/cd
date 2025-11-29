@@ -151,6 +151,9 @@ const DriverNotification: React.FC = () => {
         if (success) {
           // 记录发送记录
           await createNotificationSendRecord({
+            notification_id: crypto.randomUUID(),
+            recipient_id: driverIds[0] || '',
+            is_read: false,
             notification_type: 'manual',
             title,
             content,
@@ -183,6 +186,8 @@ const DriverNotification: React.FC = () => {
         }
 
         const result = await createScheduledNotification({
+          template_id: crypto.randomUUID(),
+          scheduled_time: sendTime,
           title,
           content,
           send_time: sendTime,

@@ -9,7 +9,7 @@ import {
   getNotificationTemplates,
   updateNotificationTemplate
 } from '@/db/api'
-import type {NotificationTemplate} from '@/db/types'
+import type {NotificationTemplate, NotificationType} from '@/db/types'
 
 /**
  * 通知模板管理页面
@@ -100,6 +100,7 @@ const NotificationTemplates: React.FC = () => {
         const result = await createNotificationTemplate({
           title,
           content,
+          type: 'system' as NotificationType,
           category,
           is_favorite: isFavorite,
           created_by: user?.id
