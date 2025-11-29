@@ -2,11 +2,9 @@
  * 通知服务模块
  * 负责处理系统中各类业务操作的通知发送
  *
- * 物理隔离架构：每个老板拥有独立数据库，不需要 boss_id 过滤
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 users 和 user_roles 表
  */
 
-import {getCurrentUserRoleAndTenant} from '@/db/api'
 import {createNotifications, type NotificationType} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import {logger} from '@/utils/logger'
@@ -23,28 +21,16 @@ interface NotificationRecipient {
 /**
  * 获取主账号（老板）
  * 注意：主账号的 main_account_id 为 NULL
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 users 和 user_roles 表
  */
 async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
   try {
     logger.info('查询主账号（老板）')
 
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      logger.info(`租户用户查询主账号，使用 Schema: ${schemaName}`)
-    } else {
-      logger.info('中央用户查询主账号，使用 Schema: public')
-    }
-
     // 单用户架构：从 users 和 user_roles 表查询
     const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
-      supabase.schema(schemaName).from('users').select('id, name').is('main_account_id', null).maybeSingle(),
-      supabase.schema(schemaName).from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN').maybeSingle()
+      supabase.from('users').select('id, name').is('main_account_id', null).maybeSingle(),
+      supabase.from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN').maybeSingle()
     ])
 
     if (userError) {
@@ -75,28 +61,16 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
 /**
  * 获取所有平级账号
  * 注意：平级账号的 main_account_id 不为 NULL
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 users 和 user_roles 表
  */
 async function getPeerAccounts(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询平级账号')
 
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      logger.info(`租户用户查询平级账号，使用 Schema: ${schemaName}`)
-    } else {
-      logger.info('中央用户查询平级账号，使用 Schema: public')
-    }
-
     // 单用户架构：从 users 和 user_roles 表查询
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
-      supabase.schema(schemaName).from('users').select('id, name').not('main_account_id', 'is', null),
-      supabase.schema(schemaName).from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
+      supabase.from('users').select('id, name').not('main_account_id', 'is', null),
+      supabase.from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
     ])
 
     if (usersError) {
@@ -133,28 +107,16 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
  * 获取所有管理员（老板 + 平级账号）
  * 注意：数据库中的 user_role 枚举只包含 'driver', 'manager', 'super_admin'
  * 平级账号通过 main_account_id 字段标识（main_account_id IS NOT NULL）
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 users 和 user_roles 表
  */
 async function _getAllAdmins(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询所有管理员账号')
 
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      logger.info(`租户用户查询管理员，使用 Schema: ${schemaName}`)
-    } else {
-      logger.info('中央用户查询管理员，使用 Schema: public')
-    }
-
     // 单用户架构：从 users 和 user_roles 表查询所有 SUPER_ADMIN 角色的用户
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
-      supabase.schema(schemaName).from('users').select('id, name'),
-      supabase.schema(schemaName).from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
+      supabase.from('users').select('id, name'),
+      supabase.from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
     ])
 
     if (usersError) {
@@ -239,7 +201,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
  * 获取对司机有管辖权的车队长
  * @param driverId 司机ID
  * @returns 有管辖权的车队长列表
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 driver_warehouses + manager_warehouses + users + user_roles
  */
 async function getManagersWithJurisdiction(driverId: string): Promise<NotificationRecipient[]> {
   try {
@@ -251,22 +213,8 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       return []
     }
 
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      logger.info(`租户用户查询车队长，使用 Schema: ${schemaName}`)
-    } else {
-      logger.info('中央用户查询车队长，使用 Schema: public')
-    }
-
-    // 直接查询数据库，RLS 策略已修复，不会因为 auth.uid() 返回 "anon" 而报错
     // 步骤1：获取司机所在的仓库
     const {data: driverWarehouses, error: dwError} = await supabase
-      .schema(schemaName)
       .from('driver_warehouses')
       .select('warehouse_id')
       .eq('driver_id', driverId)
@@ -286,7 +234,6 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     // 步骤2：获取管理这些仓库的车队长
     const {data: managerWarehouses, error: mwError} = await supabase
-      .schema(schemaName)
       .from('manager_warehouses')
       .select('manager_id')
       .in('warehouse_id', driverWarehouseIds)
@@ -306,13 +253,8 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     // 步骤3：获取车队长的详细信息（单用户架构：从 users 和 user_roles 表查询）
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
-      supabase.schema(schemaName).from('users').select('id, name').in('id', managerIds),
-      supabase
-        .schema(schemaName)
-        .from('user_roles')
-        .select('user_id, role')
-        .eq('role', 'MANAGER')
-        .in('user_id', managerIds)
+      supabase.from('users').select('id, name').in('id', managerIds),
+      supabase.from('user_roles').select('user_id, role').eq('role', 'MANAGER').in('user_id', managerIds)
     ])
 
     if (usersError) {
