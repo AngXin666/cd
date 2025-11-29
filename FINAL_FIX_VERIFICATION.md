@@ -133,11 +133,8 @@ PostgreSQL 会尝试将字符串 `'lease_admin'` 转换为 `user_role` 枚举类
 
 **中央管理系统（public.profiles）**：
 ```
-super_admin → 超级管理员（中央管理员）
-boss → 老板（租户信息）
-peer_admin → 平级账号
-manager → 车队长
-driver → 司机
+super_admin → 超级管理员
+boss → 老板
 ```
 
 **租户系统（tenant_xxx.profiles）**：
@@ -153,6 +150,11 @@ driver → 司机
 前端 manager → 租户 Schema fleet_leader
 前端 driver → 租户 Schema driver
 ```
+
+**权限说明**：
+- `create_user_auth_account_first` 函数检查 `public.profiles` 中的角色
+- 只有 `super_admin` 和 `boss` 可以调用此函数
+- 车队长和平级账号只存在于租户 Schema 中，不能直接调用此函数
 
 ## 成功标准
 
