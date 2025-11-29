@@ -346,15 +346,40 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
   }
 }
 
+/**
+ * 获取所有用户档案
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
 export async function getAllProfiles(): Promise<Profile[]> {
-  const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取所有用户档案失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询用户列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询用户列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取所有用户档案失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取所有用户档案异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 /**
@@ -364,7 +389,20 @@ export async function getAllProfiles(): Promise<Profile[]> {
 export async function getAllDriversWithRealName(): Promise<Array<Profile & {real_name: string | null}>> {
   logger.db('查询', 'profiles + driver_licenses', {role: 'driver'})
   try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      logger.info(`租户用户查询司机列表，使用 Schema: ${schemaName}`)
+    } else {
+      logger.info('中央用户查询司机列表，使用 Schema: public')
+    }
+
     const {data, error} = await supabase
+      .schema(schemaName)
       .from('profiles')
       .select(
         `
@@ -399,16 +437,42 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
 
 /**
  * 根据ID获取用户档案
+ * 支持多租户架构：先尝试从租户 Schema 查询，如果没有则从 public Schema 查询
  */
 export async function getProfileById(id: string): Promise<Profile | null> {
-  const {data, error} = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取用户档案失败:', error)
+    // 如果是租户用户，先尝试从租户 Schema 查询
+    if (tenant_id && role !== 'super_admin') {
+      const schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      const {data: tenantData, error: tenantError} = await supabase
+        .schema(schemaName)
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+
+      if (!tenantError && tenantData) {
+        console.log(`从租户 Schema ${schemaName} 获取用户档案成功`)
+        return tenantData
+      }
+    }
+
+    // 从 public Schema 查询
+    const {data, error} = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+
+    if (error) {
+      console.error('获取用户档案失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('获取用户档案异常:', error)
     return null
   }
-
-  return data
 }
 
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
@@ -482,36 +546,79 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
 }
 
 /**
- * 获取租户 Schema 中的司机档案列表
- * 使用 RPC 函数查询，确保数据隔离
+ * 获取司机档案列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getDriverProfiles(): Promise<Profile[]> {
-  console.log('🔍 getDriverProfiles: 开始获取租户司机列表')
-  const {data, error} = await supabase.rpc('get_tenant_drivers')
+  console.log('🔍 getDriverProfiles: 开始获取司机列表')
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('❌ 获取租户司机档案失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询司机列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询司机列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .eq('role', 'driver')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('❌ 获取司机档案失败:', error)
+      return []
+    }
+
+    console.log(`✅ getDriverProfiles: 获取到 ${data?.length || 0} 个司机`)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('❌ 获取司机档案异常:', error)
     return []
   }
-
-  console.log(`✅ getDriverProfiles: 获取到 ${data?.length || 0} 个司机`)
-  const tenantProfiles = Array.isArray(data) ? data : []
-  return tenantProfiles.map(convertTenantProfileToProfile)
 }
 
+/**
+ * 获取管理员档案列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
 export async function getManagerProfiles(): Promise<Profile[]> {
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .in('role', ['manager', 'super_admin'])
-    .order('created_at', {ascending: false})
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取管理员档案失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询管理员列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询管理员列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .in('role', ['manager', 'super_admin'])
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取管理员档案失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取管理员档案异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 // ==================== 考勤打卡相关API ====================
@@ -1092,23 +1199,42 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
 
 /**
  * 获取仓库的司机列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
-  // 必须明确指定使用 driver_id 关系
-  const {data, error} = await supabase
-    .from('driver_warehouses')
-    .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
-    .eq('warehouse_id', warehouseId)
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取仓库司机失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询仓库司机，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询仓库司机，使用 Schema: public')
+    }
+
+    // 必须明确指定使用 driver_id 关系
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('driver_warehouses')
+      .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
+      .eq('warehouse_id', warehouseId)
+
+    if (error) {
+      console.error('获取仓库司机失败:', error)
+      return []
+    }
+
+    if (!data) return []
+
+    // 提取司机信息
+    return data.map((item: any) => item.profiles).filter(Boolean)
+  } catch (error) {
+    console.error('获取仓库司机异常:', error)
     return []
   }
-
-  if (!data) return []
-
-  // 提取司机信息
-  return data.map((item: any) => item.profiles).filter(Boolean)
 }
 
 /**
@@ -1960,32 +2086,57 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
   return result
 }
 
-// 获取仓库的管理员列表
+/**
+ * 获取仓库的管理员列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
 export async function getWarehouseManagers(warehouseId: string): Promise<Profile[]> {
-  const {data, error} = await supabase.from('manager_warehouses').select('manager_id').eq('warehouse_id', warehouseId)
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取仓库管理员失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询仓库管理员，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询仓库管理员，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('manager_warehouses')
+      .select('manager_id')
+      .eq('warehouse_id', warehouseId)
+
+    if (error) {
+      console.error('获取仓库管理员失败:', error)
+      return []
+    }
+
+    if (!data || data.length === 0) {
+      return []
+    }
+
+    const managerIds = data.map((item) => item.manager_id)
+    const {data: managers, error: managerError} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .in('id', managerIds)
+      .order('name', {ascending: true})
+
+    if (managerError) {
+      console.error('获取管理员信息失败:', managerError)
+      return []
+    }
+
+    return Array.isArray(managers) ? managers : []
+  } catch (error) {
+    console.error('获取仓库管理员异常:', error)
     return []
   }
-
-  if (!data || data.length === 0) {
-    return []
-  }
-
-  const managerIds = data.map((item) => item.manager_id)
-  const {data: managers, error: managerError} = await supabase
-    .from('profiles')
-    .select('*')
-    .in('id', managerIds)
-    .order('name', {ascending: true})
-
-  if (managerError) {
-    console.error('获取管理员信息失败:', managerError)
-    return []
-  }
-
-  return Array.isArray(managers) ? managers : []
 }
 
 // 添加管理员仓库关联
@@ -2803,38 +2954,57 @@ export async function getWarehouseDriverCount(warehouseId: string): Promise<numb
 }
 
 /**
- * 获取仓库的主要管理员信息
+ * 获取仓库的管理员（单个）
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getWarehouseManager(warehouseId: string): Promise<Profile | null> {
-  const {data, error} = await supabase
-    .from('manager_warehouses')
-    .select(
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询仓库管理员，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询仓库管理员，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('manager_warehouses')
+      .select(
+        `
+        profile:profiles (
+          id,
+          name,
+          phone,
+          email,
+          role,
+          created_at
+        )
       `
-      profile:profiles (
-        id,
-        name,
-        phone,
-        email,
-        role,
-        created_at
       )
-    `
-    )
-    .eq('warehouse_id', warehouseId)
-    .order('created_at', {ascending: true})
-    .limit(1)
-    .maybeSingle()
+      .eq('warehouse_id', warehouseId)
+      .order('created_at', {ascending: true})
+      .limit(1)
+      .maybeSingle()
 
-  if (error) {
-    console.error('获取仓库管理员失败:', error)
+    if (error) {
+      console.error('获取仓库管理员失败:', error)
+      return null
+    }
+
+    if (!data || !data.profile) {
+      return null
+    }
+
+    return data.profile as unknown as Profile
+  } catch (error) {
+    console.error('获取仓库管理员异常:', error)
     return null
   }
-
-  if (!data || !data.profile) {
-    return null
-  }
-
-  return data.profile as unknown as Profile
 }
 
 /**
@@ -3559,112 +3729,80 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
  */
 
 /**
- * 获取所有用户列表（老板）
+ * 获取所有用户
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getAllUsers(): Promise<Profile[]> {
   console.log('🔍 getAllUsers: 开始从数据库获取用户列表')
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  // 获取当前登录用户
-  const {
-    data: {user}
-  } = await supabase.auth.getUser()
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询用户列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询用户列表，使用 Schema: public')
+    }
 
-  if (!user) {
-    console.error('❌ 未登录，无法获取用户列表')
-    return []
-  }
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .order('created_at', {ascending: false})
 
-  // 从 user_metadata 获取租户信息
-  const tenantId = user.user_metadata?.tenant_id
-  const userRole = user.user_metadata?.role
-
-  console.log('👤 当前登录用户:', {
-    id: user.id,
-    phone: user.phone,
-    role: userRole,
-    tenant_id: tenantId
-  })
-
-  // 如果有租户 ID，说明是租户用户，从租户 Schema 查询
-  if (tenantId) {
-    console.log(`🏢 租户用户登录，从租户 Schema 查询用户列表`)
-    console.log(`   租户 ID: ${tenantId}`)
-
-    try {
-      // 调用 RPC 函数从租户 Schema 查询
-      const {data: tenantUsers, error} = await supabase.rpc('get_tenant_users', {
-        p_tenant_id: tenantId
-      })
-
-      if (error) {
-        console.error('❌ 从租户 Schema 获取用户列表失败:', error)
-        return []
-      }
-
-      if (!tenantUsers || !Array.isArray(tenantUsers)) {
-        console.log('📦 租户 Schema 中没有用户数据')
-        return []
-      }
-
-      console.log('📦 getAllUsers: 从租户 Schema 获取到的数据:')
-      console.log(`   总数: ${tenantUsers.length}`)
-
-      // 转换租户 Profile 为标准 Profile 格式
-      const profiles: Profile[] = tenantUsers.map((tp: TenantProfile) => convertTenantProfileToProfile(tp))
-
-      console.log('✅ 转换后的用户列表:')
-      profiles.forEach((p, index) => {
-        console.log(`   ${index + 1}. ${p.name}:`)
-        console.log(`      - id: ${p.id}`)
-        console.log(`      - role: ${p.role}`)
-        console.log(`      - phone: ${p.phone}`)
-      })
-
-      return profiles
-    } catch (err) {
-      console.error('❌ 查询租户用户异常:', err)
+    if (error) {
+      console.error('❌ 获取用户列表失败:', error)
       return []
     }
-  }
 
-  // 否则是中央管理员，从 public.profiles 查询
-  console.log('🔐 中央管理员登录，从 public.profiles 查询')
-
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'super_admin')
-    .order('created_at', {ascending: false})
-
-  if (error) {
-    console.error('❌ 获取用户列表失败:', error)
+    console.log(`✅ getAllUsers: 获取到 ${data?.length || 0} 个用户`)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('❌ 获取用户列表异常:', error)
     return []
   }
-
-  console.log('📦 getAllUsers: 从 public.profiles 获取到的数据:')
-  console.log(`   总数: ${data?.length || 0}`)
-
-  return Array.isArray(data) ? data : []
 }
 
 /**
  * 获取所有管理员用户
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getAllManagers(): Promise<Profile[]> {
   console.log('🔍 getAllManagers: 开始获取管理员列表')
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'manager')
-    .order('created_at', {ascending: false})
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('❌ 获取管理员列表失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询管理员列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询管理员列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .eq('role', 'manager')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('❌ 获取管理员列表失败:', error)
+      return []
+    }
+
+    console.log(`✅ getAllManagers: 获取到 ${data?.length || 0} 个管理员`)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('❌ 获取管理员列表异常:', error)
     return []
   }
-
-  console.log(`✅ getAllManagers: 获取到 ${data?.length || 0} 个管理员`)
-  return Array.isArray(data) ? data : []
 }
 
 /**
