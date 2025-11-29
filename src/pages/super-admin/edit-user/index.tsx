@@ -3,7 +3,8 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getUserById, updateUserInfo} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Profile, UserRole} from '@/db/types'
 
 const EditUser: React.FC = () => {
@@ -40,7 +41,7 @@ const EditUser: React.FC = () => {
       console.log('🔍 开始加载用户信息，用户ID:', userId)
       console.log('========================================')
 
-      const data = await getUserById(userId)
+      const data = await UsersAPI.getUserById(userId)
       console.log('📦 从数据库获取的用户数据:', JSON.stringify(data, null, 2))
 
       if (data) {
@@ -182,7 +183,7 @@ const EditUser: React.FC = () => {
       }
       console.log('准备更新的数据:', updateData)
 
-      const success = await updateUserInfo(userId, updateData)
+      const success = await UsersAPI.updateUserInfo(userId, updateData)
       console.log('updateUserInfo 返回结果:', success)
 
       if (success) {

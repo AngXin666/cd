@@ -3,7 +3,9 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getAllProfiles, getAllWarehouses, getManagerWarehouses, setManagerWarehouses} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {Profile, Warehouse} from '@/db/types'
 
 const ManagerWarehouseAssignment: React.FC = () => {
@@ -16,20 +18,20 @@ const ManagerWarehouseAssignment: React.FC = () => {
 
   // 加载管理员列表
   const loadManagers = useCallback(async () => {
-    const allProfiles = await getAllProfiles()
+    const allProfiles = await UsersAPI.getAllProfiles()
     const managerList = allProfiles.filter((p) => p.role === 'MANAGER')
     setManagers(managerList)
   }, [])
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
-    const data = await getAllWarehouses()
+    const data = await WarehousesAPI.getAllWarehouses()
     setWarehouses(data)
   }, [])
 
   // 加载管理员的仓库分配
   const loadManagerWarehouses = useCallback(async (managerId: string) => {
-    const data = await getManagerWarehouses(managerId)
+    const data = await WarehousesAPI.getManagerWarehouses(managerId)
     setSelectedWarehouseIds(data.map((w) => w.id))
   }, [])
 
@@ -71,7 +73,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
     }
 
     setLoading(true)
-    const success = await setManagerWarehouses(selectedManager.id, selectedWarehouseIds)
+    const success = await UsersAPI.setManagerWarehouses(selectedManager.id, selectedWarehouseIds)
     setLoading(false)
 
     if (success) {

@@ -8,7 +8,8 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getVehicleById, updateVehicle} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {OwnershipType, Vehicle} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -51,7 +52,7 @@ const VehicleRentalEdit: React.FC = () => {
     logger.info('开始加载车辆信息', {vehicleId: id})
     setLoading(true)
     try {
-      const data = await getVehicleById(id)
+      const data = await VehiclesAPI.getVehicleById(id)
       if (!data) {
         Taro.showToast({
           title: '车辆不存在',
@@ -144,7 +145,7 @@ const VehicleRentalEdit: React.FC = () => {
       }
 
       // 更新车辆信息
-      await updateVehicle(vehicle.id, {
+      await VehiclesAPI.updateVehicle(vehicle.id, {
         ownership_type: ownershipType || null,
         lessor_name: lessorName || null,
         lessor_contact: lessorContact || null,

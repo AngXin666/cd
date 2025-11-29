@@ -21,6 +21,7 @@ export {
   getAllDriverWarehouses,
   getAllWarehouses,
   getAllWarehousesWithRules,
+  getDriverIdsByWarehouse,
   getDriversByWarehouse,
   getDriverWarehouseIds,
   // 仓库与驾驶员关联
@@ -30,6 +31,9 @@ export {
   getWarehouseAssignmentsByDriver,
   getWarehouseAssignmentsByManager,
   getWarehouseById,
+  // 仓库品类
+  getWarehouseCategories,
+  getWarehouseCategoriesWithDetails,
   getWarehouseDriverCount,
   getWarehouseManager,
   getWarehouseManagers,
@@ -43,6 +47,8 @@ export {
   removeManagerWarehouse,
   removeWarehouseFromDriver,
   setDriverWarehouses,
+  setManagerWarehouses,
+  setWarehouseCategories,
   updateWarehouse,
   updateWarehouseSettings
 } from '../api'

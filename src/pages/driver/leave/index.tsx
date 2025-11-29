@@ -4,17 +4,11 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
-import {
-  deleteDraftLeaveApplication,
-  deleteDraftResignationApplication,
-  getCurrentUserProfile,
-  getDraftLeaveApplications,
-  getDraftResignationApplications,
-  getDriverAttendanceStats,
-  getDriverWarehouses,
-  getLeaveApplicationsByUser,
-  getResignationApplicationsByUser
-} from '@/db/api'
+import * as DashboardAPI from '@/db/api/dashboard'
+import * as LeaveAPI from '@/db/api/leave'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {LeaveApplication, Profile, ResignationApplication} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 
@@ -48,19 +42,19 @@ const DriverLeave: React.FC = () => {
   const loadData = useCallback(async () => {
     if (!user) return
 
-    const profileData = await getCurrentUserProfile()
+    const profileData = await UsersAPI.getCurrentUserProfile()
     setProfile(profileData)
 
-    const leaveData = await getLeaveApplicationsByUser(user.id)
+    const leaveData = await LeaveAPI.getLeaveApplicationsByUser(user.id)
     setLeaveApplications(leaveData)
 
-    const resignationData = await getResignationApplicationsByUser(user.id)
+    const resignationData = await LeaveAPI.getResignationApplicationsByUser(user.id)
     setResignationApplications(resignationData)
 
-    const leaveDraftData = await getDraftLeaveApplications(user.id)
+    const leaveDraftData = await LeaveAPI.getDraftLeaveApplications(user.id)
     setLeaveDrafts(leaveDraftData)
 
-    const resignationDraftData = await getDraftResignationApplications(user.id)
+    const resignationDraftData = await LeaveAPI.getDraftResignationApplications(user.id)
     setResignationDrafts(resignationDraftData)
 
     // 检查是否有审核中的请假申请
@@ -88,10 +82,10 @@ const DriverLeave: React.FC = () => {
       const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
 
       // 获取本月考勤数据
-      const attendanceData = await getDriverAttendanceStats(user.id, firstDay, lastDayStr)
+      const attendanceData = await DashboardAPI.getDriverAttendanceStats(user.id, firstDay, lastDayStr)
 
       // 获取司机的仓库信息（用于获取月度请假上限）
-      const warehouses = await getDriverWarehouses(user.id)
+      const warehouses = await WarehousesAPI.getDriverWarehouses(user.id)
       let monthlyLimit = 0
       if (warehouses.length > 0) {
         // 使用第一个仓库的月度请假上限
@@ -248,9 +242,9 @@ const DriverLeave: React.FC = () => {
     if (result.confirm) {
       let success = false
       if (type === 'leave') {
-        success = await deleteDraftLeaveApplication(draftId)
+        success = await LeaveAPI.deleteDraftLeaveApplication(draftId)
       } else {
-        success = await deleteDraftResignationApplication(draftId)
+        success = await LeaveAPI.deleteDraftResignationApplication(draftId)
       }
 
       if (success) {

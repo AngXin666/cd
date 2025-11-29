@@ -12,7 +12,9 @@ import Taro, {showLoading, showModal, showToast, useDidShow, usePullDownRefresh}
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {createPeerAccount, getCurrentUserProfile, getPeerAccounts} from '@/db/api'
+import * as PeerAccountsAPI from '@/db/api/peer-accounts'
+import * as UsersAPI from '@/db/api/users'
+
 import {supabase} from '@/db/supabase'
 import type {Profile} from '@/db/types'
 
@@ -39,11 +41,11 @@ const AccountManagement: React.FC = () => {
     setLoading(true)
     try {
       // 获取当前用户信息
-      const currentProfile = await getCurrentUserProfile()
+      const currentProfile = await UsersAPI.getCurrentUserProfile()
       setProfile(currentProfile)
 
       // 获取所有平级账号（包括主账号）
-      const allAccounts = await getPeerAccounts(user.id)
+      const allAccounts = await PeerAccountsAPI.getPeerAccounts(user.id)
       setAccounts(allAccounts)
 
       // 分离主账号和平级账号
@@ -137,7 +139,7 @@ const AccountManagement: React.FC = () => {
       }
 
       // 创建平级账号
-      const result = await createPeerAccount(
+      const result = await PeerAccountsAPI.createPeerAccount(
         primaryAccountId,
         {
           name: newAccountName.trim(),

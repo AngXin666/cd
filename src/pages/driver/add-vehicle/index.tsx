@@ -10,7 +10,8 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import StepIndicator from '@/components/StepIndicator'
-import {insertVehicle, upsertDriverLicense} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {DriverLicenseInput, VehicleInput} from '@/db/types'
 import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
@@ -1092,7 +1093,7 @@ const AddVehicle: React.FC = () => {
 
       // 插入车辆信息
       console.log('准备插入车辆数据:', vehicleData)
-      const insertedVehicle = await insertVehicle(vehicleData)
+      const insertedVehicle = await VehiclesAPI.insertVehicle(vehicleData)
 
       if (!insertedVehicle) {
         throw new Error('车辆信息保存失败')
@@ -1123,7 +1124,7 @@ const AddVehicle: React.FC = () => {
         }
 
         console.log('准备插入驾驶员证件数据:', driverLicenseInput)
-        const insertedLicense = await upsertDriverLicense(driverLicenseInput)
+        const insertedLicense = await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
         console.log('驾驶员证件保存结果:', insertedLicense)
       }
 

@@ -3,21 +3,10 @@ import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  addManagerWarehouse,
-  getAllManagers,
-  getAllWarehouses,
-  getCurrentUserWithRealName,
-  getDriversByWarehouse,
-  getManagerPermission,
-  getManagerWarehouses,
-  removeManagerWarehouse,
-  resetUserPassword,
-  sendVerificationReminder,
-  updateProfile,
-  updateUserRole,
-  upsertManagerPermission
-} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {ManagerPermission, Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
@@ -57,7 +46,7 @@ const StaffManagement: React.FC = () => {
   // 加载所有仓库列表（老板可以看到所有仓库）
   const loadWarehouses = useCallback(async () => {
     try {
-      const data = await getAllWarehouses()
+      const data = await WarehousesAPI.getAllWarehouses()
       const enabledWarehouses = data.filter((w) => w.is_active)
       setWarehouses(enabledWarehouses)
     } catch (error) {
@@ -70,7 +59,7 @@ const StaffManagement: React.FC = () => {
   const loadManagers = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getAllManagers()
+      const data = await UsersAPI.getAllManagers()
       setManagers(data)
       setFilteredManagers(data)
 
@@ -79,10 +68,10 @@ const StaffManagement: React.FC = () => {
       const permissionMap = new Map<string, ManagerPermission>()
       await Promise.all(
         data.map(async (manager) => {
-          const warehouses = await getManagerWarehouses(manager.id)
+          const warehouses = await WarehousesAPI.getManagerWarehouses(manager.id)
           warehouseMap.set(manager.id, warehouses)
 
-          const permission = await getManagerPermission(manager.id)
+          const permission = await UsersAPI.getManagerPermission(manager.id)
           if (permission) {
             permissionMap.set(manager.id, permission)
           }
@@ -155,7 +144,7 @@ const StaffManagement: React.FC = () => {
     async (warehouseId: string) => {
       setLoading(true)
       try {
-        const data = await getDriversByWarehouse(warehouseId)
+        const data = await WarehousesAPI.getDriversByWarehouse(warehouseId)
         setDrivers(data)
         filterDrivers(data, searchKeyword, driverTypeFilter)
       } catch (error) {
@@ -206,7 +195,7 @@ const StaffManagement: React.FC = () => {
     if (result.confirm) {
       Taro.showLoading({title: '重置中...'})
       try {
-        const success = await resetUserPassword(userId)
+        const success = await UsersAPI.resetUserPassword(userId)
         if (success) {
           Taro.showToast({title: '密码已重置', icon: 'success'})
         } else {
@@ -239,7 +228,7 @@ const StaffManagement: React.FC = () => {
       if (result.confirm) {
         Taro.showLoading({title: '变更中...'})
         try {
-          const success = await updateUserRole(userId, newRole)
+          const success = await UsersAPI.updateUserRole(userId, newRole)
           if (success) {
             Taro.showToast({title: '角色变更成功', icon: 'success'})
             // 刷新管理员列表
@@ -284,7 +273,7 @@ const StaffManagement: React.FC = () => {
 
     Taro.showLoading({title: '保存中...'})
     try {
-      const success = await upsertManagerPermission({
+      const success = await UsersAPI.upsertManagerPermission({
         manager_id: settingPermissionsManager.id,
         ...selectedPermissions
       })
@@ -349,7 +338,7 @@ const StaffManagement: React.FC = () => {
 
       try {
         // 获取当前用户信息
-        const currentUser = await getCurrentUserWithRealName()
+        const currentUser = await UsersAPI.getCurrentUserWithRealName()
         if (!currentUser) {
           Taro.showToast({
             title: '获取用户信息失败',
@@ -359,7 +348,7 @@ const StaffManagement: React.FC = () => {
         }
 
         // 发送通知
-        const success = await sendVerificationReminder(
+        const success = await NotificationsAPI.sendVerificationReminder(
           driver.id,
           user.id,
           currentUser.real_name || currentUser.name || '老板',
@@ -401,7 +390,7 @@ const StaffManagement: React.FC = () => {
 
     Taro.showLoading({title: '保存中...'})
     try {
-      const success = await updateProfile(editingManager.id, {
+      const success = await UsersAPI.updateProfile(editingManager.id, {
         name: editForm.name.trim(),
         phone: editForm.phone.trim() || null,
         email: editForm.email.trim() || null
@@ -465,7 +454,7 @@ const StaffManagement: React.FC = () => {
 
       // 添加新仓库
       for (const warehouseId of toAdd) {
-        const success = await addManagerWarehouse(managerId, warehouseId)
+        const success = await WarehousesAPI.addManagerWarehouse(managerId, warehouseId)
         if (!success) {
           hasError = true
           break
@@ -474,7 +463,7 @@ const StaffManagement: React.FC = () => {
 
       // 移除仓库
       for (const warehouseId of toRemove) {
-        const success = await removeManagerWarehouse(managerId, warehouseId)
+        const success = await WarehousesAPI.removeManagerWarehouse(managerId, warehouseId)
         if (!success) {
           hasError = true
           break

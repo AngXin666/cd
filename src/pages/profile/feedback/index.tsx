@@ -3,7 +3,8 @@ import {showLoading, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getUserFeedbackList, submitFeedback} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Feedback, FeedbackType} from '@/db/types'
 
 const FeedbackPage: React.FC = () => {
@@ -29,7 +30,7 @@ const FeedbackPage: React.FC = () => {
 
   const loadFeedbackList = useCallback(async () => {
     if (!user?.id) return
-    const list = await getUserFeedbackList(user.id)
+    const list = await UsersAPI.getUserFeedbackList(user.id)
     setFeedbackList(list)
   }, [user?.id])
 
@@ -57,7 +58,7 @@ const FeedbackPage: React.FC = () => {
     setLoading(true)
     showLoading({title: '提交中...'})
 
-    const result = await submitFeedback({
+    const result = await UsersAPI.submitFeedback({
       user_id: user.id,
       type: feedbackTypes[typeIndex].value,
       content: content.trim(),

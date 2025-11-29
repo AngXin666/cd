@@ -3,12 +3,8 @@ import {showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {
-  createNotificationTemplate,
-  deleteNotificationTemplate,
-  getNotificationTemplates,
-  updateNotificationTemplate
-} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+
 import type {NotificationTemplate, NotificationType} from '@/db/types'
 
 /**
@@ -37,7 +33,7 @@ const NotificationTemplates: React.FC = () => {
 
   // 加载模板
   const loadTemplates = useCallback(async () => {
-    const data = await getNotificationTemplates()
+    const data = await NotificationsAPI.getNotificationTemplates()
     setTemplates(data)
   }, [])
 
@@ -81,7 +77,7 @@ const NotificationTemplates: React.FC = () => {
     try {
       if (editingTemplate) {
         // 更新
-        const success = await updateNotificationTemplate(editingTemplate.id, {
+        const success = await NotificationsAPI.updateNotificationTemplate(editingTemplate.id, {
           title,
           content,
           category,
@@ -97,7 +93,7 @@ const NotificationTemplates: React.FC = () => {
         }
       } else {
         // 创建
-        const result = await createNotificationTemplate({
+        const result = await NotificationsAPI.createNotificationTemplate({
           title,
           content,
           type: 'system' as NotificationType,
@@ -128,7 +124,7 @@ const NotificationTemplates: React.FC = () => {
     })
 
     if (res.confirm) {
-      const success = await deleteNotificationTemplate(template.id)
+      const success = await NotificationsAPI.deleteNotificationTemplate(template.id)
       if (success) {
         showToast({title: '删除成功', icon: 'success'})
         loadTemplates()
@@ -140,7 +136,7 @@ const NotificationTemplates: React.FC = () => {
 
   // 切换收藏
   const handleToggleFavorite = async (template: NotificationTemplate) => {
-    const success = await updateNotificationTemplate(template.id, {
+    const success = await NotificationsAPI.updateNotificationTemplate(template.id, {
       is_favorite: !template.is_favorite
     })
 

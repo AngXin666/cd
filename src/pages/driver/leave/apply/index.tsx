@@ -4,17 +4,11 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {
-  createLeaveApplication,
-  getDriverDisplayName,
-  getDriverWarehouses,
-  getMonthlyLeaveCount,
-  getMonthlyPendingLeaveCount,
-  getWarehouseSettings,
-  saveDraftLeaveApplication,
-  updateDraftLeaveApplication,
-  validateLeaveApplication
-} from '@/db/api'
+import * as DashboardAPI from '@/db/api/dashboard'
+import * as LeaveAPI from '@/db/api/leave'
+import * as VehiclesAPI from '@/db/api/vehicles'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {LeaveType} from '@/db/types'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import {
@@ -122,7 +116,7 @@ const ApplyLeave: React.FC = () => {
     if (isEditMode) return
 
     // 获取司机的仓库（只获取启用的仓库）
-    const allWarehouses = await getDriverWarehouses(user.id)
+    const allWarehouses = await WarehousesAPI.getDriverWarehouses(user.id)
     const activeWarehouses = allWarehouses.filter((w) => w.is_active)
 
     if (activeWarehouses.length === 0) {
@@ -143,7 +137,7 @@ const ApplyLeave: React.FC = () => {
       setWarehouseId(warehouseId)
 
       // 获取仓库设置
-      const settings = await getWarehouseSettings(warehouseId)
+      const settings = await WarehousesAPI.getWarehouseSettings(warehouseId)
       if (settings) {
         setMaxLeaveDays(settings.max_leave_days)
         setMonthlyLimit(settings.max_leave_days)
@@ -159,7 +153,7 @@ const ApplyLeave: React.FC = () => {
             setWarehouseId(lastWarehouseId)
 
             // 获取仓库设置
-            const settings = await getWarehouseSettings(lastWarehouseId)
+            const settings = await WarehousesAPI.getWarehouseSettings(lastWarehouseId)
             if (settings) {
               setMaxLeaveDays(settings.max_leave_days)
               setMonthlyLimit(settings.max_leave_days)
@@ -176,8 +170,8 @@ const ApplyLeave: React.FC = () => {
     const year = now.getFullYear()
     const month = now.getMonth() + 1
 
-    const approvedDays = await getMonthlyLeaveCount(user.id, year, month)
-    const pendingDays = await getMonthlyPendingLeaveCount(user.id, year, month)
+    const approvedDays = await DashboardAPI.getMonthlyLeaveCount(user.id, year, month)
+    const pendingDays = await DashboardAPI.getMonthlyPendingLeaveCount(user.id, year, month)
 
     setMonthlyApprovedDays(approvedDays)
     setMonthlyPendingDays(pendingDays)
@@ -236,7 +230,7 @@ const ApplyLeave: React.FC = () => {
         return
       }
 
-      const result = await validateLeaveApplication(warehouseId, leaveDays)
+      const result = await LeaveAPI.validateLeaveApplication(warehouseId, leaveDays)
       if (!result.valid && result.message) {
         setValidationMessage(result.message)
       } else {
@@ -252,7 +246,7 @@ const ApplyLeave: React.FC = () => {
     const updateWarehouseSettings = async () => {
       if (!warehouseId) return
 
-      const settings = await getWarehouseSettings(warehouseId)
+      const settings = await WarehousesAPI.getWarehouseSettings(warehouseId)
       if (settings) {
         setMaxLeaveDays(settings.max_leave_days)
         setMonthlyLimit(settings.max_leave_days)
@@ -339,14 +333,14 @@ const ApplyLeave: React.FC = () => {
 
     let success = false
     if (isEditMode && draftId) {
-      success = await updateDraftLeaveApplication(draftId, {
+      success = await LeaveAPI.updateDraftLeaveApplication(draftId, {
         leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
         reason: reason.trim()
       })
     } else {
-      const result = await saveDraftLeaveApplication({
+      const result = await LeaveAPI.saveDraftLeaveApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
         leave_type: leaveType,
@@ -436,7 +430,7 @@ const ApplyLeave: React.FC = () => {
     let applicationId: string | null = null
 
     if (isEditMode && draftId) {
-      await updateDraftLeaveApplication(draftId, {
+      await LeaveAPI.updateDraftLeaveApplication(draftId, {
         leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
@@ -446,7 +440,7 @@ const ApplyLeave: React.FC = () => {
       success = true
       applicationId = draftId
     } else {
-      const result = await createLeaveApplication({
+      const result = await LeaveAPI.createLeaveApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
         leave_type: leaveType,
@@ -462,7 +456,7 @@ const ApplyLeave: React.FC = () => {
 
     if (success && applicationId) {
       // 获取司机显示名称（包含司机类型和姓名）
-      const driverDisplayName = await getDriverDisplayName(user.id)
+      const driverDisplayName = await VehiclesAPI.getDriverDisplayName(user.id)
 
       // 获取请假类型中文名称
       const leaveTypeLabel = leaveTypes.find((t) => t.value === leaveType)?.label || '请假'

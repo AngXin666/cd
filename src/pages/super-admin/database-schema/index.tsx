@@ -9,7 +9,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import type {DatabaseColumn, DatabaseConstraint, DatabaseTable} from '@/db/api'
-import {getDatabaseTables, getTableColumns, getTableConstraints} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
 
 const DatabaseSchema: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -26,7 +26,7 @@ const DatabaseSchema: React.FC = () => {
   const loadTables = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getDatabaseTables()
+      const data = await UsersAPI.getDatabaseTables()
       setTables(data)
       console.log('✅ 加载数据库表列表成功，共', data.length, '个表')
     } catch (error) {
@@ -42,8 +42,8 @@ const DatabaseSchema: React.FC = () => {
     showLoading({title: '加载中...'})
     try {
       const [columnsData, constraintsData] = await Promise.all([
-        getTableColumns(tableName),
-        getTableConstraints(tableName)
+        UsersAPI.getTableColumns(tableName),
+        UsersAPI.getTableConstraints(tableName)
       ])
       setColumns(columnsData)
       setConstraints(constraintsData)

@@ -3,16 +3,11 @@ import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tar
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import {
-  getAllAttendanceRecords,
-  getAllLeaveApplications,
-  getAllProfiles,
-  getAllResignationApplications,
-  getAllWarehouses,
-  getCurrentUserWithRealName,
-  reviewLeaveApplication,
-  reviewResignationApplication
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as LeaveAPI from '@/db/api/leave'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import {createNotification} from '@/db/notificationApi'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
@@ -79,25 +74,25 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
     try {
       // 获取所有仓库信息
-      const allWarehouses = await getAllWarehouses()
+      const allWarehouses = await WarehousesAPI.getAllWarehouses()
       setWarehouses(allWarehouses)
 
       // 获取所有用户信息
-      const allProfiles = await getAllProfiles()
+      const allProfiles = await UsersAPI.getAllProfiles()
       setProfiles(allProfiles)
 
       // 获取所有请假申请（包括历史数据）
-      const allLeaveApps = await getAllLeaveApplications()
+      const allLeaveApps = await LeaveAPI.getAllLeaveApplications()
       setLeaveApplications(allLeaveApps)
 
       // 获取所有离职申请（包括历史数据）
-      const allResignationApps = await getAllResignationApplications()
+      const allResignationApps = await LeaveAPI.getAllResignationApplications()
       setResignationApplications(allResignationApps)
 
       // 始终加载打卡记录（进入页面时加载全部数据）
       const currentMonth = filterMonth || initCurrentMonth()
       const [year, month] = currentMonth.split('-').map(Number)
-      const records = await getAllAttendanceRecords(year, month)
+      const records = await AttendanceAPI.getAllAttendanceRecords(year, month)
 
       // 老板可以看到所有记录，不需要过滤
       setAttendanceRecords(records)
@@ -506,7 +501,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       }
 
       // 2. 审批请假申请
-      const success = await reviewLeaveApplication(applicationId, {
+      const success = await LeaveAPI.reviewLeaveApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString()
@@ -516,7 +511,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
         // 3. 发送通知给申请人
         try {
           // 获取当前审批人信息
-          const currentUserProfile = await getCurrentUserWithRealName()
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
           // 构建审批人显示文本
           let reviewerText = '老板'
@@ -589,7 +584,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
     try {
       showLoading({title: approved ? '批准中...' : '拒绝中...'})
 
-      const success = await reviewResignationApplication(applicationId, {
+      const success = await LeaveAPI.reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString()

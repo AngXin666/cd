@@ -3,13 +3,10 @@ import Taro, {navigateTo, showModal, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  deletePieceWorkRecord,
-  getActiveCategories,
-  getAllWarehouses,
-  getDriverProfiles,
-  getPieceWorkRecordsByWarehouse
-} from '@/db/api'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
@@ -42,15 +39,15 @@ const SuperAdminPieceWork: React.FC = () => {
 
     try {
       // 加载所有仓库
-      const warehousesData = await getAllWarehouses()
+      const warehousesData = await WarehousesAPI.getAllWarehouses()
       setWarehouses(warehousesData)
 
       // 加载所有司机
-      const driversData = await getDriverProfiles()
+      const driversData = await UsersAPI.getDriverProfiles()
       setDrivers(driversData)
 
       // 加载所有品类
-      const categoriesData = await getActiveCategories()
+      const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
     } catch (error) {
       console.error('加载数据失败:', error)
@@ -84,13 +81,13 @@ const SuperAdminPieceWork: React.FC = () => {
       if (selectedWarehouseIndex === 0) {
         // 加载所有仓库的记录
         const allRecords = await Promise.all(
-          warehouses.map((w) => getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
+          warehouses.map((w) => PieceworkAPI.getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
         )
         data = allRecords.flat()
       } else {
         // 加载特定仓库的记录
         const warehouse = warehouses[selectedWarehouseIndex - 1]
-        data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+        data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
       }
 
       // 司机筛选
@@ -196,7 +193,7 @@ const SuperAdminPieceWork: React.FC = () => {
 
     if (result.confirm) {
       try {
-        await deletePieceWorkRecord(record.id)
+        await PieceworkAPI.deletePieceWorkRecord(record.id)
         Taro.showToast({
           title: '删除成功',
           icon: 'success',

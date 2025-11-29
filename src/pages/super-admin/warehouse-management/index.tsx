@@ -4,15 +4,9 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import PasswordVerifyModal from '@/components/common/PasswordVerifyModal'
-import {
-  createAttendanceRule,
-  createWarehouse,
-  deleteWarehouse,
-  getAllWarehousesWithRules,
-  updateAttendanceRule,
-  updateWarehouse,
-  updateWarehouseSettings
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 
@@ -48,7 +42,7 @@ const WarehouseManagement: React.FC = () => {
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     showLoading({title: '加载中...'})
-    const data = await getAllWarehousesWithRules()
+    const data = await WarehousesAPI.getAllWarehousesWithRules()
     setWarehouses(data)
     Taro.hideLoading()
   }, [])
@@ -83,13 +77,13 @@ const WarehouseManagement: React.FC = () => {
     try {
       showLoading({title: '创建中...'})
 
-      const warehouse = await createWarehouse({
+      const warehouse = await WarehousesAPI.createWarehouse({
         name: newWarehouseName.trim()
       })
 
       if (warehouse) {
         // 为新仓库创建默认考勤规则
-        await createAttendanceRule({
+        await AttendanceAPI.createAttendanceRule({
           warehouse_id: warehouse.id,
           clock_in_time: '09:00:00',
           clock_out_time: '18:00:00',
@@ -219,7 +213,7 @@ const WarehouseManagement: React.FC = () => {
         showLoading({title: '保存中...'})
 
         // 1. 更新仓库基本信息
-        const success = await updateWarehouse(currentWarehouse.id, {
+        const success = await WarehousesAPI.updateWarehouse(currentWarehouse.id, {
           name: editWarehouseName.trim(),
           is_active: editWarehouseActive
         })
@@ -229,7 +223,7 @@ const WarehouseManagement: React.FC = () => {
         }
 
         // 2. 更新请假和离职设置
-        await updateWarehouseSettings(currentWarehouse.id, {
+        await WarehousesAPI.updateWarehouseSettings(currentWarehouse.id, {
           max_leave_days: maxLeaveDays,
           resignation_notice_days: resignationNoticeDays
         })
@@ -237,7 +231,7 @@ const WarehouseManagement: React.FC = () => {
         // 3. 更新或创建考勤规则
         if (currentRule) {
           // 更新现有规则
-          await updateAttendanceRule(currentRule.id, {
+          await AttendanceAPI.updateAttendanceRule(currentRule.id, {
             clock_in_time: ruleStartTime,
             clock_out_time: ruleEndTime,
             work_start_time: ruleStartTime,
@@ -249,7 +243,7 @@ const WarehouseManagement: React.FC = () => {
           })
         } else {
           // 创建新规则
-          await createAttendanceRule({
+          await AttendanceAPI.createAttendanceRule({
             warehouse_id: currentWarehouse.id,
             clock_in_time: ruleStartTime,
             clock_out_time: ruleEndTime,
@@ -306,7 +300,7 @@ const WarehouseManagement: React.FC = () => {
       try {
         showLoading({title: '删除中...'})
 
-        const success = await deleteWarehouse(warehouse.id)
+        const success = await WarehousesAPI.deleteWarehouse(warehouse.id)
 
         if (success) {
           showToast({

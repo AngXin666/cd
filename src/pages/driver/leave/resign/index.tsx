@@ -4,16 +4,11 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {
-  createNotificationForAllManagers,
-  createResignationApplication,
-  getDriverDisplayName,
-  getDriverWarehouses,
-  getWarehouseSettings,
-  saveDraftResignationApplication,
-  updateDraftResignationApplication,
-  validateResignationDate
-} from '@/db/api'
+import * as LeaveAPI from '@/db/api/leave'
+import * as NotificationsAPI from '@/db/api/notifications'
+import * as VehiclesAPI from '@/db/api/vehicles'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import {getLocalDateString} from '@/utils/date'
 
 const ApplyResignation: React.FC = () => {
@@ -56,7 +51,7 @@ const ApplyResignation: React.FC = () => {
     if (isEditMode) return
 
     // 获取司机的仓库（只获取启用的仓库）
-    const allWarehouses = await getDriverWarehouses(user.id)
+    const allWarehouses = await WarehousesAPI.getDriverWarehouses(user.id)
     const activeWarehouses = allWarehouses.filter((w) => w.is_active)
 
     if (activeWarehouses.length === 0) {
@@ -77,7 +72,7 @@ const ApplyResignation: React.FC = () => {
       setWarehouseId(warehouseId)
 
       // 获取仓库设置
-      const settings = await getWarehouseSettings(warehouseId)
+      const settings = await WarehousesAPI.getWarehouseSettings(warehouseId)
       if (settings) {
         setNoticeDays(settings.resignation_notice_days)
 
@@ -98,7 +93,7 @@ const ApplyResignation: React.FC = () => {
             setWarehouseId(lastWarehouseId)
 
             // 获取仓库设置
-            const settings = await getWarehouseSettings(lastWarehouseId)
+            const settings = await WarehousesAPI.getWarehouseSettings(lastWarehouseId)
             if (settings) {
               setNoticeDays(settings.resignation_notice_days)
 
@@ -125,7 +120,7 @@ const ApplyResignation: React.FC = () => {
     const updateWarehouseSettings = async () => {
       if (!warehouseId) return
 
-      const settings = await getWarehouseSettings(warehouseId)
+      const settings = await WarehousesAPI.getWarehouseSettings(warehouseId)
       if (settings) {
         setNoticeDays(settings.resignation_notice_days)
 
@@ -148,7 +143,7 @@ const ApplyResignation: React.FC = () => {
         return
       }
 
-      const result = await validateResignationDate(warehouseId, expectedDate)
+      const result = await LeaveAPI.validateResignationDate(warehouseId, expectedDate)
       if (!result.valid && result.message) {
         setValidationMessage(result.message)
       } else {
@@ -193,12 +188,12 @@ const ApplyResignation: React.FC = () => {
 
     let success = false
     if (isEditMode && draftId) {
-      success = await updateDraftResignationApplication(draftId, {
+      success = await LeaveAPI.updateDraftResignationApplication(draftId, {
         resignation_date: expectedDate,
         reason: reason.trim()
       })
     } else {
-      const result = await saveDraftResignationApplication({
+      const result = await LeaveAPI.saveDraftResignationApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
         resignation_date: expectedDate,
@@ -242,7 +237,7 @@ const ApplyResignation: React.FC = () => {
 
     // 验证日期
     if (warehouseId) {
-      const result = await validateResignationDate(warehouseId, expectedDate)
+      const result = await LeaveAPI.validateResignationDate(warehouseId, expectedDate)
       if (!result.valid) {
         showToast({title: result.message || '离职日期不符合要求', icon: 'none', duration: 3000})
         return
@@ -255,7 +250,7 @@ const ApplyResignation: React.FC = () => {
     let applicationId: string | null = null
 
     if (isEditMode && draftId) {
-      await updateDraftResignationApplication(draftId, {
+      await LeaveAPI.updateDraftResignationApplication(draftId, {
         resignation_date: expectedDate,
         reason: reason.trim()
       })
@@ -263,7 +258,7 @@ const ApplyResignation: React.FC = () => {
       success = true
       applicationId = draftId
     } else {
-      const result = await createResignationApplication({
+      const result = await LeaveAPI.createResignationApplication({
         user_id: user.id,
         warehouse_id: warehouseId,
         resignation_date: expectedDate,
@@ -277,10 +272,10 @@ const ApplyResignation: React.FC = () => {
 
     if (success && applicationId) {
       // 获取司机显示名称（包含司机类型和姓名）
-      const driverDisplayName = await getDriverDisplayName(user.id)
+      const driverDisplayName = await VehiclesAPI.getDriverDisplayName(user.id)
 
       // 为所有管理员创建通知
-      const notificationCount = await createNotificationForAllManagers({
+      const notificationCount = await NotificationsAPI.createNotificationForAllManagers({
         type: 'resignation_application_submitted',
         title: '新的离职申请',
         message: `${driverDisplayName} 提交了离职申请，期望离职日期：${expectedDate}，离职原因：${reason.trim()}`,

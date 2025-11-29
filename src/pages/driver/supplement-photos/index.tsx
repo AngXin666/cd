@@ -9,7 +9,8 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getRequiredPhotos, getVehicleById, submitVehicleForReview, supplementPhoto} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {Vehicle} from '@/db/types'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
@@ -45,7 +46,7 @@ const SupplementPhotos: React.FC = () => {
     logger.info('加载车辆信息', {vehicleId})
 
     try {
-      const data = await getVehicleById(vehicleId)
+      const data = await VehiclesAPI.getVehicleById(vehicleId)
       if (!data) {
         throw new Error('车辆不存在')
       }
@@ -53,7 +54,7 @@ const SupplementPhotos: React.FC = () => {
       setVehicle(data)
 
       // 获取需要补录的图片列表
-      const required = await getRequiredPhotos(vehicleId)
+      const required = await VehiclesAPI.getRequiredPhotos(vehicleId)
       setRequiredPhotos(required)
 
       logger.info('加载车辆信息成功', {vehicleId, requiredCount: required.length})
@@ -170,7 +171,7 @@ const SupplementPhotos: React.FC = () => {
               logger.info('图片上传成功，准备更新数据库', {photoKey, uploadedPath})
 
               // 更新数据库
-              const success = await supplementPhoto(vehicle.id, field, index, uploadedPath)
+              const success = await VehiclesAPI.supplementPhoto(vehicle.id, field, index, uploadedPath)
               if (!success) {
                 throw new Error(`更新图片失败: ${photoKey}`)
               }
@@ -179,7 +180,7 @@ const SupplementPhotos: React.FC = () => {
             }
 
             // 提交审核
-            const success = await submitVehicleForReview(vehicle.id)
+            const success = await VehiclesAPI.submitVehicleForReview(vehicle.id)
             if (!success) {
               throw new Error('提交审核失败')
             }

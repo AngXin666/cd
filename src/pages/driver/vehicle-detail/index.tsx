@@ -11,7 +11,8 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {getVehicleById} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {Vehicle} from '@/db/types'
 import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
@@ -36,7 +37,7 @@ const VehicleDetail: React.FC = () => {
   const loadVehicleDetail = async (vehicleId: string) => {
     setLoading(true)
     try {
-      const vehicleData = await getVehicleById(vehicleId)
+      const vehicleData = await VehiclesAPI.getVehicleById(vehicleId)
       setVehicle(vehicleData)
     } catch (error) {
       console.error('加载车辆详情失败:', error)

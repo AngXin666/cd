@@ -3,7 +3,8 @@ import {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getNotificationSendRecords} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+
 import type {NotificationSendRecordWithSender} from '@/db/types'
 
 /**
@@ -17,7 +18,7 @@ const NotificationRecords: React.FC = () => {
 
   // 加载发送记录
   const loadRecords = useCallback(async () => {
-    const data = await getNotificationSendRecords()
+    const data = await NotificationsAPI.getNotificationSendRecords()
     setRecords(data)
   }, [])
 

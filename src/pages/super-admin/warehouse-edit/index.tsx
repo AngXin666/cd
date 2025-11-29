@@ -3,21 +3,11 @@ import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  addManagerWarehouse,
-  createAttendanceRule,
-  getAllCategories,
-  getAllUsers,
-  getAllWarehouses,
-  getAttendanceRuleByWarehouseId,
-  getCategoryPricesByWarehouse,
-  getWarehouseById,
-  getWarehouseManagers,
-  removeManagerWarehouse,
-  updateAttendanceRule,
-  updateWarehouse,
-  upsertCategoryPrice
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRule, PieceWorkCategory, Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 
@@ -73,7 +63,7 @@ const WarehouseEdit: React.FC = () => {
   const loadWarehouse = useCallback(async (id: string) => {
     showLoading({title: '加载中...'})
     try {
-      const warehouseData = await getWarehouseById(id)
+      const warehouseData = await WarehousesAPI.getWarehouseById(id)
       console.log('加载的仓库数据:', warehouseData)
       if (warehouseData) {
         setWarehouse(warehouseData)
@@ -102,12 +92,12 @@ const WarehouseEdit: React.FC = () => {
   const loadCategoriesAndPrices = useCallback(async (id: string) => {
     try {
       // 加载所有品类
-      const categories = await getAllCategories()
+      const categories = await PieceworkAPI.getAllCategories()
       console.log('所有品类:', categories)
       setAllCategories(categories)
 
       // 加载该仓库的品类价格
-      const prices = await getCategoryPricesByWarehouse(id)
+      const prices = await PieceworkAPI.getCategoryPricesByWarehouse(id)
       console.log('仓库品类价格:', prices)
       const driverPriceMap = new Map<string, string>()
       const vehiclePriceMap = new Map<string, string>()
@@ -140,7 +130,7 @@ const WarehouseEdit: React.FC = () => {
     async (id?: string) => {
       try {
         // 加载所有车队长、老板和超级管理员
-        const allUsers = await getAllUsers()
+        const allUsers = await UsersAPI.getAllUsers()
         const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'BOSS')
         console.log('加载到的车队长列表:', managers)
         setAllManagers(managers)
@@ -153,7 +143,7 @@ const WarehouseEdit: React.FC = () => {
 
         // 如果有仓库ID，加载该仓库的管理员
         if (id) {
-          const warehouseManagers = await getWarehouseManagers(id)
+          const warehouseManagers = await WarehousesAPI.getWarehouseManagers(id)
           console.log('仓库已分配的管理员:', warehouseManagers)
           const managerSet = new Set<string>()
           for (const manager of warehouseManagers) {
@@ -171,7 +161,7 @@ const WarehouseEdit: React.FC = () => {
   // 加载考勤规则
   const loadAttendanceRule = useCallback(async (id: string) => {
     try {
-      const rule = await getAttendanceRuleByWarehouseId(id)
+      const rule = await AttendanceAPI.getAttendanceRuleByWarehouseId(id)
       console.log('加载的考勤规则:', rule)
       if (rule) {
         setCurrentRule(rule)
@@ -198,7 +188,7 @@ const WarehouseEdit: React.FC = () => {
   // 加载所有仓库（用于复制配置）
   const loadAllWarehouses = useCallback(async () => {
     try {
-      const warehouses = await getAllWarehouses()
+      const warehouses = await WarehousesAPI.getAllWarehouses()
       console.log('所有仓库列表:', warehouses)
       console.log('当前仓库ID:', warehouseId)
       // 排除当前仓库
@@ -350,7 +340,7 @@ const WarehouseEdit: React.FC = () => {
     showLoading({title: '复制中...'})
     try {
       // 复制品类价格
-      const prices = await getCategoryPricesByWarehouse(sourceWarehouseId)
+      const prices = await PieceworkAPI.getCategoryPricesByWarehouse(sourceWarehouseId)
       const driverPriceMap = new Map<string, string>()
       const vehiclePriceMap = new Map<string, string>()
       const sortingPriceMap = new Map<string, string>()
@@ -369,7 +359,7 @@ const WarehouseEdit: React.FC = () => {
       setSelectedCategories(selectedSet)
 
       // 复制考勤规则
-      const rule = await getAttendanceRuleByWarehouseId(sourceWarehouseId)
+      const rule = await AttendanceAPI.getAttendanceRuleByWarehouseId(sourceWarehouseId)
       if (rule) {
         setRuleStartTime(rule.work_start_time)
         setRuleEndTime(rule.work_end_time)
@@ -421,7 +411,7 @@ const WarehouseEdit: React.FC = () => {
         effective_date: new Date().toISOString().split('T')[0]
       }
 
-      const success = await upsertCategoryPrice(priceInput)
+      const success = await PieceworkAPI.upsertCategoryPrice(priceInput)
 
       if (success) {
         // 刷新品类列表
@@ -466,7 +456,7 @@ const WarehouseEdit: React.FC = () => {
 
     try {
       // 重新加载仓库列表以确保数据最新
-      const warehouses = await getAllWarehouses()
+      const warehouses = await WarehousesAPI.getAllWarehouses()
       console.log('所有仓库:', warehouses)
 
       // 排除当前仓库
@@ -498,7 +488,7 @@ const WarehouseEdit: React.FC = () => {
     showLoading({title: '导入中...'})
     try {
       // 获取选中仓库的品类价格
-      const prices = await getCategoryPricesByWarehouse(selectedWarehouseForImport)
+      const prices = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouseForImport)
 
       console.log('导入品类数据:', prices)
 
@@ -524,7 +514,7 @@ const WarehouseEdit: React.FC = () => {
       setSelectedCategories(newSelected)
 
       // 重新加载品类列表以确保所有品类都能显示
-      const categories = await getAllCategories()
+      const categories = await PieceworkAPI.getAllCategories()
       setAllCategories(categories)
 
       showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
@@ -579,7 +569,7 @@ const WarehouseEdit: React.FC = () => {
     showLoading({title: '保存中...'})
     try {
       // 1. 更新仓库基本信息
-      const success = await updateWarehouse(warehouseId, {
+      const success = await WarehousesAPI.updateWarehouse(warehouseId, {
         name: name.trim(),
         is_active: isActive,
         max_leave_days: Number(maxLeaveDays),
@@ -606,7 +596,7 @@ const WarehouseEdit: React.FC = () => {
           effective_date: new Date().toISOString().split('T')[0]
         }
 
-        const priceSuccess = await upsertCategoryPrice(priceInput)
+        const priceSuccess = await PieceworkAPI.upsertCategoryPrice(priceInput)
         if (!priceSuccess) {
           console.warn(`更新品类 ${categoryName} 价格失败`)
         }
@@ -614,7 +604,7 @@ const WarehouseEdit: React.FC = () => {
 
       // 3. 更新管理员
       // 获取原有管理员
-      const oldManagers = await getWarehouseManagers(warehouseId)
+      const oldManagers = await WarehousesAPI.getWarehouseManagers(warehouseId)
       const oldManagerIds = new Set(oldManagers.map((m) => m.id))
 
       // 找出需要添加和删除的管理员
@@ -623,12 +613,12 @@ const WarehouseEdit: React.FC = () => {
 
       // 添加新管理员
       for (const managerId of toAdd) {
-        await addManagerWarehouse(managerId, warehouseId)
+        await WarehousesAPI.addManagerWarehouse(managerId, warehouseId)
       }
 
       // 删除旧管理员
       for (const managerId of toRemove) {
-        await removeManagerWarehouse(managerId, warehouseId)
+        await WarehousesAPI.removeManagerWarehouse(managerId, warehouseId)
       }
 
       // 4. 更新考勤规则
@@ -646,13 +636,13 @@ const WarehouseEdit: React.FC = () => {
 
       if (currentRule) {
         // 更新现有规则
-        const ruleSuccess = await updateAttendanceRule(currentRule.id, ruleInput)
+        const ruleSuccess = await AttendanceAPI.updateAttendanceRule(currentRule.id, ruleInput)
         if (!ruleSuccess) {
           console.warn('更新考勤规则失败')
         }
       } else {
         // 创建新规则
-        const newRule = await createAttendanceRule(ruleInput)
+        const newRule = await AttendanceAPI.createAttendanceRule(ruleInput)
         if (newRule) {
           setCurrentRule(newRule)
         } else {

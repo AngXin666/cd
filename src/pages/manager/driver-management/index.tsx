@@ -3,20 +3,11 @@ import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tar
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import {
-  createDriver,
-  deleteWarehouseAssignmentsByDriver,
-  getAllDriversWithRealName,
-  getAllSuperAdmins,
-  getCurrentUserWithRealName,
-  getDriverDetailInfo,
-  getDriverWarehouseIds,
-  getManagerWarehouses,
-  getWarehouseAssignmentsByDriver,
-  insertWarehouseAssignment,
-  sendVerificationReminder,
-  updateProfile
-} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
@@ -121,7 +112,7 @@ const DriverManagement: React.FC = () => {
 
     // 从数据库加载
     try {
-      const driverList = await getAllDriversWithRealName()
+      const driverList = await UsersAPI.getAllDriversWithRealName()
       setDrivers(driverList)
       logger.info(`成功加载司机列表，共 ${driverList.length} 名司机`, {
         withRealName: driverList.filter((d) => d.real_name).length
@@ -129,8 +120,8 @@ const DriverManagement: React.FC = () => {
 
       // 批量并行加载所有司机的详细信息和仓库分配（优化性能）
       logger.info('开始批量加载司机详细信息和仓库分配')
-      const detailsPromises = driverList.map((driver) => getDriverDetailInfo(driver.id))
-      const warehousePromises = driverList.map((driver) => getDriverWarehouseIds(driver.id))
+      const detailsPromises = driverList.map((driver) => VehiclesAPI.getDriverDetailInfo(driver.id))
+      const warehousePromises = driverList.map((driver) => WarehousesAPI.getDriverWarehouseIds(driver.id))
       const [detailsResults, warehouseResults] = await Promise.all([
         Promise.all(detailsPromises),
         Promise.all(warehousePromises)
@@ -171,7 +162,7 @@ const DriverManagement: React.FC = () => {
     if (!user?.id) return
     logger.info('开始加载管理员仓库列表', {managerId: user.id})
     try {
-      const data = await getManagerWarehouses(user.id)
+      const data = await WarehousesAPI.getManagerWarehouses(user.id)
       const enabledWarehouses = data.filter((w) => w.is_active)
       setWarehouses(enabledWarehouses)
       logger.info(`成功加载仓库列表，共 ${enabledWarehouses.length} 个启用仓库`)
@@ -185,7 +176,7 @@ const DriverManagement: React.FC = () => {
     async (driverId: string) => {
       logger.info('开始加载司机仓库分配', {driverId})
       try {
-        const warehouseIds = await getDriverWarehouseIds(driverId)
+        const warehouseIds = await WarehousesAPI.getDriverWarehouseIds(driverId)
         // 只显示管理员负责的且启用的仓库
         const managerWarehouseIds = warehouses.map((w) => w.id)
         const filteredIds = warehouseIds.filter((id) => managerWarehouseIds.includes(id))
@@ -203,7 +194,7 @@ const DriverManagement: React.FC = () => {
     if (!user?.id) return
     logger.info('开始加载车队长权限状态', {managerId: user.id})
     try {
-      const currentUser = await getCurrentUserWithRealName()
+      const currentUser = await UsersAPI.getCurrentUserWithRealName()
       if (currentUser) {
         const enabled = currentUser.manager_permissions_enabled ?? true // 默认为true
         setManagerPermissionsEnabled(enabled)
@@ -274,7 +265,7 @@ const DriverManagement: React.FC = () => {
 
     try {
       // 获取当前用户信息
-      const currentUser = await getCurrentUserWithRealName()
+      const currentUser = await UsersAPI.getCurrentUserWithRealName()
       if (!currentUser) {
         Taro.showToast({
           title: '获取用户信息失败',
@@ -284,7 +275,7 @@ const DriverManagement: React.FC = () => {
       }
 
       // 发送通知
-      const success = await sendVerificationReminder(
+      const success = await NotificationsAPI.sendVerificationReminder(
         driver.id,
         user.id,
         currentUser.real_name || currentUser.name || '管理员',
@@ -366,13 +357,13 @@ const DriverManagement: React.FC = () => {
 
     try {
       // 传递司机类型参数
-      const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim(), newDriverType)
+      const newDriver = await UsersAPI.createDriver(newDriverPhone.trim(), newDriverName.trim(), newDriverType)
 
       if (newDriver) {
         // 分配仓库
         logger.info('开始为新司机分配仓库', {driverId: newDriver.id, warehouseIds: newDriverWarehouseIds})
         for (const warehouseId of newDriverWarehouseIds) {
-          await insertWarehouseAssignment({
+          await WarehousesAPI.insertWarehouseAssignment({
             driver_id: newDriver.id,
             warehouse_id: warehouseId
           })
@@ -444,7 +435,7 @@ const DriverManagement: React.FC = () => {
 
       showLoading({title: '切换中...'})
 
-      const success = await updateProfile(driver.id, {driver_type: newType})
+      const success = await UsersAPI.updateProfile(driver.id, {driver_type: newType})
 
       Taro.hideLoading()
 
@@ -471,7 +462,7 @@ const DriverManagement: React.FC = () => {
           })
 
           // 2. 获取当前操作者信息
-          const currentUserProfile = await getCurrentUserWithRealName()
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
           if (currentUserProfile) {
             if (currentUserProfile.role === 'MANAGER') {
@@ -491,7 +482,7 @@ const DriverManagement: React.FC = () => {
               // 否则只显示：车队长
 
               // 车队长操作 → 通知所有老板
-              const superAdmins = await getAllSuperAdmins()
+              const superAdmins = await UsersAPI.getAllSuperAdmins()
               for (const admin of superAdmins) {
                 notifications.push({
                   userId: admin.id,
@@ -517,7 +508,7 @@ const DriverManagement: React.FC = () => {
         onDataUpdated([CACHE_KEYS.MANAGER_DRIVERS, CACHE_KEYS.MANAGER_DRIVER_DETAILS])
         await loadDrivers(true)
         // 重新加载该司机的详细信息
-        const detail = await getDriverDetailInfo(driver.id)
+        const detail = await VehiclesAPI.getDriverDetailInfo(driver.id)
         if (detail) {
           setDriverDetails((prev) => new Map(prev).set(driver.id, detail))
         }
@@ -540,7 +531,7 @@ const DriverManagement: React.FC = () => {
         setWarehouseAssignExpanded(driver.id)
         // 加载该司机已分配的仓库
         showLoading({title: '加载中...'})
-        const assignments = await getWarehouseAssignmentsByDriver(driver.id)
+        const assignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(driver.id)
         Taro.hideLoading()
         setSelectedWarehouseIds(assignments.map((a) => a.warehouse_id))
       }
@@ -578,15 +569,15 @@ const DriverManagement: React.FC = () => {
       showLoading({title: '保存中...'})
 
       // 获取之前的仓库分配（用于对比变更）
-      const previousAssignments = await getWarehouseAssignmentsByDriver(driverId)
+      const previousAssignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(driverId)
       const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
 
       // 先删除该司机的所有仓库分配
-      await deleteWarehouseAssignmentsByDriver(driverId)
+      await WarehousesAPI.deleteWarehouseAssignmentsByDriver(driverId)
 
       // 添加新的仓库分配
       for (const warehouseId of selectedWarehouseIds) {
-        await insertWarehouseAssignment({
+        await WarehousesAPI.insertWarehouseAssignment({
           driver_id: driverId,
           warehouse_id: warehouseId
         })

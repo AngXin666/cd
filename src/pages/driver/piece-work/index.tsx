@@ -3,13 +3,9 @@ import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  deletePieceWorkRecord,
-  getActiveCategories,
-  getDriverWarehouses,
-  getPieceWorkRecordsByUser,
-  updatePieceWorkRecord
-} from '@/db/api'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecord, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString} from '@/utils/date'
@@ -77,11 +73,11 @@ const DriverPieceWork: React.FC = () => {
     if (!user?.id) return
 
     // 加载司机的仓库
-    const driverWarehouses = await getDriverWarehouses(user.id)
+    const driverWarehouses = await WarehousesAPI.getDriverWarehouses(user.id)
     setWarehouses(driverWarehouses)
 
     // 加载品类
-    const categoriesData = await getActiveCategories()
+    const categoriesData = await PieceworkAPI.getActiveCategories()
     setCategories(categoriesData)
   }, [user?.id])
 
@@ -89,7 +85,7 @@ const DriverPieceWork: React.FC = () => {
   const loadRecords = useCallback(async () => {
     if (!user?.id || !startDate || !endDate) return
 
-    let data = await getPieceWorkRecordsByUser(user.id, startDate, endDate)
+    let data = await PieceworkAPI.getPieceWorkRecordsByUser(user.id, startDate, endDate)
 
     // 如果选择了仓库，进行筛选
     if (selectedWarehouseIndex > 0) {
@@ -380,7 +376,7 @@ const DriverPieceWork: React.FC = () => {
     const totalAmount = baseAmount + upstairsAmount + sortingAmount
 
     // 更新记录
-    const success = await updatePieceWorkRecord(editingRecord.id, {
+    const success = await PieceworkAPI.updatePieceWorkRecord(editingRecord.id, {
       user_id: editingRecord.user_id,
       warehouse_id: editingRecord.warehouse_id,
       work_date: editingRecord.work_date,
@@ -422,7 +418,7 @@ const DriverPieceWork: React.FC = () => {
     )
 
     if (confirmed) {
-      const success = await deletePieceWorkRecord(record.id)
+      const success = await PieceworkAPI.deletePieceWorkRecord(record.id)
       if (success) {
         Taro.showToast({
           title: '删除成功',

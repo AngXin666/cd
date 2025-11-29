@@ -8,7 +8,8 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getCurrentUserProfile, updateProfile} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Profile} from '@/db/types'
 
 const ChangePhonePage: React.FC = () => {
@@ -20,7 +21,7 @@ const ChangePhonePage: React.FC = () => {
   // 加载个人资料
   const loadProfile = useCallback(async () => {
     try {
-      const data = await getCurrentUserProfile()
+      const data = await UsersAPI.getCurrentUserProfile()
       setProfile(data)
     } catch (error) {
       console.error('加载个人资料失败:', error)
@@ -75,7 +76,7 @@ const ChangePhonePage: React.FC = () => {
     setLoading(true)
     Taro.showLoading({title: '保存中...'})
     try {
-      await updateProfile(user.id, {phone: newPhone})
+      await UsersAPI.updateProfile(user.id, {phone: newPhone})
       Taro.showToast({
         title: '修改成功',
         icon: 'success',

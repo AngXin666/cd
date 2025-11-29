@@ -5,7 +5,9 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
-import {getAllWarehouses, getCurrentUserProfile} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {Profile, Warehouse} from '@/db/types'
 import {
   useDriverStats,
@@ -75,7 +77,7 @@ const SuperAdminHome: React.FC = () => {
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     try {
-      const warehousesData = await getAllWarehouses()
+      const warehousesData = await WarehousesAPI.getAllWarehouses()
       setRawWarehouses(warehousesData)
     } catch (error) {
       console.error('[SuperAdminHome] 加载仓库列表失败:', error)
@@ -85,7 +87,7 @@ const SuperAdminHome: React.FC = () => {
   // 加载个人信息
   const loadData = useCallback(async () => {
     try {
-      const profileData = await getCurrentUserProfile()
+      const profileData = await UsersAPI.getCurrentUserProfile()
       setProfile(profileData)
     } catch (error) {
       console.error('[SuperAdminHome] 加载数据失败:', error)

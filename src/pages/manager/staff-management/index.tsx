@@ -3,16 +3,9 @@ import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  setDriverWarehouses as assignDriverWarehouses,
-  getAllDrivers,
-  getCurrentUserPermissions,
-  getDriversByWarehouse,
-  getDriverWarehouses,
-  getManagerWarehouses,
-  resetUserPassword,
-  updateProfile
-} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {ManagerPermission, Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
@@ -46,7 +39,7 @@ const StaffManagement: React.FC = () => {
   const loadWarehouses = useCallback(async () => {
     if (!user?.id) return
     try {
-      const data = await getManagerWarehouses(user.id)
+      const data = await WarehousesAPI.getManagerWarehouses(user.id)
       const enabledWarehouses = data.filter((w) => w.is_active)
       setWarehouses(enabledWarehouses)
     } catch (error) {
@@ -58,7 +51,7 @@ const StaffManagement: React.FC = () => {
   // 加载当前管理员的权限
   const loadPermissions = useCallback(async () => {
     try {
-      const data = await getCurrentUserPermissions()
+      const data = await UsersAPI.getCurrentUserPermissions()
       setPermissions(data)
     } catch (error) {
       console.error('加载权限失败:', error)
@@ -103,7 +96,7 @@ const StaffManagement: React.FC = () => {
     async (warehouseId: string) => {
       setLoading(true)
       try {
-        const data = await getDriversByWarehouse(warehouseId)
+        const data = await WarehousesAPI.getDriversByWarehouse(warehouseId)
         setDrivers(data)
         filterDrivers(data, searchKeyword, driverTypeFilter)
       } catch (error) {
@@ -120,14 +113,14 @@ const StaffManagement: React.FC = () => {
   const loadAllDrivers = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getAllDrivers()
+      const data = await UsersAPI.getAllDrivers()
       setAllDrivers(data)
       filterDrivers(data, searchKeyword, driverTypeFilter)
 
       // 加载每个司机的仓库分配
       const warehousesMap = new Map<string, Warehouse[]>()
       for (const driver of data) {
-        const driverWarehouseList = await getDriverWarehouses(driver.id)
+        const driverWarehouseList = await WarehousesAPI.getDriverWarehouses(driver.id)
         warehousesMap.set(driver.id, driverWarehouseList)
       }
       setDriverWarehouses(warehousesMap)
@@ -185,7 +178,7 @@ const StaffManagement: React.FC = () => {
     if (result.confirm) {
       Taro.showLoading({title: '重置中...'})
       try {
-        const success = await resetUserPassword(userId)
+        const success = await UsersAPI.resetUserPassword(userId)
         if (success) {
           Taro.showToast({title: '密码已重置', icon: 'success'})
         } else {
@@ -234,7 +227,7 @@ const StaffManagement: React.FC = () => {
 
     Taro.showLoading({title: '保存中...'})
     try {
-      const success = await updateProfile(editingDriver.id, {
+      const success = await UsersAPI.updateProfile(editingDriver.id, {
         name: editForm.name.trim(),
         phone: editForm.phone.trim() || null,
         vehicle_plate: editForm.vehicle_plate.trim() || null
@@ -311,7 +304,7 @@ const StaffManagement: React.FC = () => {
 
     Taro.showLoading({title: '保存中...'})
     try {
-      const result = await assignDriverWarehouses(driverId, selectedWarehouseIds)
+      const result = await WarehousesAPI.setDriverWarehouses(driverId, selectedWarehouseIds)
       if (result.success) {
         // 显示详细的成功提示
         const warehouseNames = warehouses

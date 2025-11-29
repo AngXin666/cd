@@ -3,13 +3,9 @@ import Taro, {showLoading, showModal, showToast, useDidShow, usePullDownRefresh}
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  createClockIn,
-  getAttendanceRuleByWarehouseId,
-  getDriverWarehouses,
-  getTodayAttendance,
-  updateClockOut
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
 import {canClockIn} from '@/utils/attendance-check'
 
@@ -43,7 +39,7 @@ const ClockIn: React.FC = () => {
   // 加载仓库列表（只加载司机被分配的仓库）
   const loadWarehouses = useCallback(async () => {
     if (!user?.id) return
-    const data = await getDriverWarehouses(user.id)
+    const data = await WarehousesAPI.getDriverWarehouses(user.id)
     // 只显示启用的仓库
     setWarehouses(data.filter((w) => w.is_active))
   }, [user?.id])
@@ -51,7 +47,7 @@ const ClockIn: React.FC = () => {
   // 加载今天打卡记录
   const loadTodayRecord = useCallback(async () => {
     if (!user?.id) return
-    const record = await getTodayAttendance(user.id)
+    const record = await AttendanceAPI.getTodayAttendance(user.id)
     setTodayRecord(record)
     // 如果已有打卡记录，自动选中对应的仓库
     if (record?.warehouse_id) {
@@ -69,7 +65,7 @@ const ClockIn: React.FC = () => {
       setCurrentRule(null)
       return
     }
-    const rule = await getAttendanceRuleByWarehouseId(selectedWarehouseId)
+    const rule = await AttendanceAPI.getAttendanceRuleByWarehouseId(selectedWarehouseId)
     setCurrentRule(rule)
   }, [selectedWarehouseId])
 
@@ -188,7 +184,7 @@ const ClockIn: React.FC = () => {
       showLoading({title: '打卡中...'})
 
       // 再次检查今日是否已打卡（防止并发）
-      const existingRecord = await getTodayAttendance(user.id)
+      const existingRecord = await AttendanceAPI.getTodayAttendance(user.id)
       if (existingRecord?.clock_in_time) {
         Taro.hideLoading()
         setTodayRecord(existingRecord)
@@ -201,7 +197,7 @@ const ClockIn: React.FC = () => {
       }
 
       // 获取考勤规则
-      const rule = await getAttendanceRuleByWarehouseId(selectedWarehouse.id)
+      const rule = await AttendanceAPI.getAttendanceRuleByWarehouseId(selectedWarehouse.id)
       if (!rule) {
         throw new Error('未找到考勤规则')
       }
@@ -218,7 +214,7 @@ const ClockIn: React.FC = () => {
       )
 
       // 创建打卡记录
-      const record = await createClockIn({
+      const record = await AttendanceAPI.createClockIn({
         user_id: user.id,
         date: getLocalDateString(now),
         warehouse_id: selectedWarehouse.id,
@@ -297,7 +293,7 @@ const ClockIn: React.FC = () => {
     }
 
     // 检查是否需要打下班卡
-    const warehouseRule = await getAttendanceRuleByWarehouseId(todayRecord.warehouse_id!)
+    const warehouseRule = await AttendanceAPI.getAttendanceRuleByWarehouseId(todayRecord.warehouse_id!)
     if (!warehouseRule?.require_clock_out) {
       showToast({
         title: '该仓库不需要打下班卡',
@@ -312,7 +308,7 @@ const ClockIn: React.FC = () => {
       showLoading({title: '打卡中...'})
 
       // 获取考勤规则
-      const rule = await getAttendanceRuleByWarehouseId(todayRecord.warehouse_id!)
+      const rule = await AttendanceAPI.getAttendanceRuleByWarehouseId(todayRecord.warehouse_id!)
       if (!rule) {
         throw new Error('未找到考勤规则')
       }
@@ -333,7 +329,7 @@ const ClockIn: React.FC = () => {
       const workHours = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60)
 
       // 更新打卡记录
-      const success = await updateClockOut(todayRecord.id, {
+      const success = await AttendanceAPI.updateClockOut(todayRecord.id, {
         clock_out_time: now.toISOString(),
         work_hours: Number.parseFloat(workHours.toFixed(2)),
         status: todayRecord.status === 'late' ? 'late' : status // 如果上班迟到，保持迟到状态

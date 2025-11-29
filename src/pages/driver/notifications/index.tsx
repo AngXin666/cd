@@ -21,7 +21,8 @@ import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
-import {getCurrentUserRole} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import {
   deleteNotification,
   deleteReadNotifications,
@@ -287,7 +288,7 @@ const NotificationsPage: React.FC = () => {
         case 'leave_application_submitted':
         case 'resignation_application_submitted': {
           // 获取用户角色，根据角色跳转到不同的审批页面
-          const userRole = await getCurrentUserRole()
+          const userRole = await UsersAPI.getCurrentUserRole()
           const pathPrefix = userRole === 'BOSS' ? '/pages/super-admin' : '/pages/manager'
 
           // 根据通知类型确定要查询的表

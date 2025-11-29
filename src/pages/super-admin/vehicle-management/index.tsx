@@ -9,7 +9,8 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getAllVehiclesWithDrivers} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {VehicleWithDriver} from '@/db/types'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
@@ -42,7 +43,7 @@ const VehicleManagement: React.FC = () => {
         data = cached
       } else {
         logger.info('🔄 从数据库加载车辆列表')
-        data = await getAllVehiclesWithDrivers()
+        data = await VehiclesAPI.getAllVehiclesWithDrivers()
         logger.info('📊 API返回的原始数据', {
           dataLength: data.length,
           data: data

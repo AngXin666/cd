@@ -3,15 +3,10 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  getActiveCategories,
-  getAllWarehouses,
-  getCurrentUserProfile,
-  getDriverProfiles,
-  getManagerWarehouses,
-  getPieceWorkRecordsByUser,
-  getPieceWorkRecordsByWarehouse
-} from '@/db/api'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
@@ -46,25 +41,25 @@ const DataSummary: React.FC = () => {
     if (!user?.id) return
 
     // 加载当前用户信息
-    const profileData = await getCurrentUserProfile()
+    const profileData = await UsersAPI.getCurrentUserProfile()
     setProfile(profileData)
 
     // 加载品类
-    const categoriesData = await getActiveCategories()
+    const categoriesData = await PieceworkAPI.getActiveCategories()
     setCategories(categoriesData)
 
     // 加载司机列表
-    const driverList = await getDriverProfiles()
+    const driverList = await UsersAPI.getDriverProfiles()
     setDrivers(driverList)
 
     // 根据角色加载仓库
     if (profileData?.role === 'BOSS') {
       // 老板可以看到所有仓库
-      const allWarehouses = await getAllWarehouses()
+      const allWarehouses = await WarehousesAPI.getAllWarehouses()
       setWarehouses(allWarehouses)
     } else if (profileData?.role === 'MANAGER') {
       // 车队长只能看到管辖的仓库
-      const managerWarehouses = await getManagerWarehouses(user.id)
+      const managerWarehouses = await WarehousesAPI.getManagerWarehouses(user.id)
       setWarehouses(managerWarehouses)
     }
   }, [user?.id])
@@ -93,12 +88,12 @@ const DataSummary: React.FC = () => {
       if (!selectedDriverId) {
         // 获取所有管辖仓库的所有司机的计件记录
         const allRecords = await Promise.all(
-          warehouses.map((w) => getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
+          warehouses.map((w) => PieceworkAPI.getPieceWorkRecordsByWarehouse(w.id, startDate, endDate))
         )
         data = allRecords.flat()
       } else {
         // 获取指定司机在所有管辖仓库的计件记录
-        data = await getPieceWorkRecordsByUser(selectedDriverId, startDate, endDate)
+        data = await PieceworkAPI.getPieceWorkRecordsByUser(selectedDriverId, startDate, endDate)
         // 筛选出管辖仓库的记录
         const warehouseIds = warehouses.map((w) => w.id)
         data = data.filter((r) => warehouseIds.includes(r.warehouse_id))
@@ -109,10 +104,10 @@ const DataSummary: React.FC = () => {
       if (warehouse) {
         if (!selectedDriverId) {
           // 获取该仓库所有司机的计件记录
-          data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+          data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
         } else {
           // 获取指定司机在该仓库的计件记录
-          const allRecords = await getPieceWorkRecordsByUser(selectedDriverId, startDate, endDate)
+          const allRecords = await PieceworkAPI.getPieceWorkRecordsByUser(selectedDriverId, startDate, endDate)
           data = allRecords.filter((r) => r.warehouse_id === warehouse.id)
         }
       }

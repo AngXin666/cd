@@ -3,14 +3,10 @@ import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  createPieceWorkRecord,
-  getActiveCategories,
-  getAllWarehouses,
-  getDriverProfiles,
-  getPieceWorkRecordsByWarehouse,
-  updatePieceWorkRecord
-} from '@/db/api'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 
@@ -45,7 +41,9 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     async (id: string, warehousesData: Warehouse[], driversData: Profile[], categoriesData: PieceWorkCategory[]) => {
       try {
         // 获取所有仓库的记录
-        const allRecords = await Promise.all(warehousesData.map((w) => getPieceWorkRecordsByWarehouse(w.id, '', '')))
+        const allRecords = await Promise.all(
+          warehousesData.map((w) => PieceworkAPI.getPieceWorkRecordsByWarehouse(w.id, '', ''))
+        )
         const records = allRecords.flat()
         const record = records.find((r) => r.id === id)
 
@@ -97,7 +95,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
 
     try {
       // 加载所有仓库
-      const warehousesData = await getAllWarehouses()
+      const warehousesData = await WarehousesAPI.getAllWarehouses()
       setWarehouses(warehousesData)
 
       // 如果有默认仓库ID，设置选中
@@ -109,11 +107,11 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
       }
 
       // 加载所有司机
-      const driversData = await getDriverProfiles()
+      const driversData = await UsersAPI.getDriverProfiles()
       setDrivers(driversData)
 
       // 加载所有品类
-      const categoriesData = await getActiveCategories()
+      const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
 
       // 如果是编辑模式，加载记录详情
@@ -251,14 +249,14 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
       }
 
       if (mode === 'add') {
-        await createPieceWorkRecord(recordData)
+        await PieceworkAPI.createPieceWorkRecord(recordData)
         Taro.showToast({
           title: '添加成功',
           icon: 'success',
           duration: 2000
         })
       } else {
-        await updatePieceWorkRecord(recordId, recordData)
+        await PieceworkAPI.updatePieceWorkRecord(recordId, recordData)
         Taro.showToast({
           title: '更新成功',
           icon: 'success',

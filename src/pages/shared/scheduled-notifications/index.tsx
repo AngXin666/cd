@@ -3,7 +3,8 @@ import {showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getScheduledNotifications, updateScheduledNotificationStatus} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+
 import type {ScheduledNotification} from '@/db/types'
 
 /**
@@ -17,7 +18,7 @@ const ScheduledNotifications: React.FC = () => {
 
   // 加载定时通知
   const loadNotifications = useCallback(async () => {
-    const data = await getScheduledNotifications()
+    const data = await NotificationsAPI.getScheduledNotifications()
     setNotifications(data)
   }, [])
 
@@ -33,7 +34,7 @@ const ScheduledNotifications: React.FC = () => {
     })
 
     if (res.confirm) {
-      const success = await updateScheduledNotificationStatus(notification.id, 'cancelled')
+      const success = await NotificationsAPI.updateScheduledNotificationStatus(notification.id, 'cancelled')
       if (success) {
         showToast({title: '已取消', icon: 'success'})
         loadNotifications()

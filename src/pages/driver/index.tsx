@@ -6,7 +6,9 @@ import {useCallback, useEffect, useRef, useState} from 'react'
 import {ClockInReminderModal} from '@/components/attendance'
 import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
-import {getCurrentUserProfile, getDriverLicense} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {DriverLicense, Profile} from '@/db/types'
 import {
   useDriverDashboard,
@@ -40,8 +42,8 @@ const DriverHome: React.FC = () => {
     try {
       // 批量并行加载用户资料和驾驶证信息
       const [profileData, licenseData] = await Promise.all([
-        getCurrentUserProfile(),
-        user?.id ? getDriverLicense(user.id) : Promise.resolve(null)
+        UsersAPI.getCurrentUserProfile(),
+        user?.id ? VehiclesAPI.getDriverLicense(user.id) : Promise.resolve(null)
       ])
       setProfile(profileData)
       setDriverLicense(licenseData)

@@ -3,13 +3,10 @@ import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  calculatePieceWorkStats,
-  getActiveCategories,
-  getAttendanceRecordsByUserAndWarehouse,
-  getPieceWorkRecordsByUserAndWarehouse,
-  getWarehouseById
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRecord, PieceWorkCategory, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
 import {getDaysAgoDateString, getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
@@ -45,25 +42,35 @@ const WarehouseStats: React.FC = () => {
     if (!user?.id || !warehouseId) return
 
     // 加载仓库信息
-    const warehouseData = await getWarehouseById(warehouseId)
+    const warehouseData = await WarehousesAPI.getWarehouseById(warehouseId)
     setWarehouse(warehouseData)
 
     // 加载品类数据
-    const categoriesData = await getActiveCategories()
+    const categoriesData = await PieceworkAPI.getActiveCategories()
     setCategories(categoriesData)
 
     const {startDate, endDate} = getDateRange()
 
     // 加载考勤记录
-    const attendanceData = await getAttendanceRecordsByUserAndWarehouse(user.id, warehouseId, startDate, endDate)
+    const attendanceData = await AttendanceAPI.getAttendanceRecordsByUserAndWarehouse(
+      user.id,
+      warehouseId,
+      startDate,
+      endDate
+    )
     setAttendanceRecords(attendanceData)
 
     // 加载计件记录
-    const pieceWorkData = await getPieceWorkRecordsByUserAndWarehouse(user.id, warehouseId, startDate, endDate)
+    const pieceWorkData = await PieceworkAPI.getPieceWorkRecordsByUserAndWarehouse(
+      user.id,
+      warehouseId,
+      startDate,
+      endDate
+    )
     setPieceWorkRecords(pieceWorkData)
 
     // 计算计件统计
-    const stats = await calculatePieceWorkStats(user.id, warehouseId, startDate, endDate)
+    const stats = await PieceworkAPI.calculatePieceWorkStats(user.id, warehouseId, startDate, endDate)
     setPieceWorkStats(stats)
   }, [user?.id, warehouseId, getDateRange])
 

@@ -9,22 +9,10 @@ import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {
-  createUser,
-  deleteWarehouseAssignmentsByDriver,
-  getAllUsers,
-  getAllWarehouses,
-  getCurrentUserWithRealName,
-  getDriverDetailInfo,
-  getDriverLicense,
-  getDriverWarehouseIds,
-  getWarehouseAssignmentsByDriver,
-  getWarehouseAssignmentsByManager,
-  getWarehouseManagers,
-  insertManagerWarehouseAssignment,
-  insertWarehouseAssignment,
-  updateProfile
-} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
@@ -32,7 +20,7 @@ import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@
 import {matchWithPinyin} from '@/utils/pinyin'
 
 // 司机详细信息类型
-type DriverDetailInfo = Awaited<ReturnType<typeof getDriverDetailInfo>>
+type DriverDetailInfo = Awaited<ReturnType<typeof VehiclesAPI.getDriverDetailInfo>>
 
 // 扩展用户类型，包含真实姓名
 interface UserWithRealName extends Profile {
@@ -157,7 +145,7 @@ const UserManagement: React.FC = () => {
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
-    const data = await getAllWarehouses()
+    const data = await WarehousesAPI.getAllWarehouses()
     // 只显示激活的仓库，不添加"所有仓库"选项
     setWarehouses(data.filter((w) => w.is_active))
   }, [])
@@ -209,14 +197,14 @@ const UserManagement: React.FC = () => {
       // 从数据库加载
       setLoading(true)
       try {
-        const data = await getAllUsers()
+        const data = await UsersAPI.getAllUsers()
 
         console.log('✅ 成功获取用户数据，数量:', data.length)
         console.log('用户列表:', data)
 
         // 批量并行加载：真实姓名、详细信息、仓库分配（优化性能）
         console.log('🚀 开始批量并行加载用户详细信息')
-        const allWarehouses = await getAllWarehouses()
+        const allWarehouses = await WarehousesAPI.getAllWarehouses()
 
         const userDataPromises = data.map(async (u) => {
           // 并行加载每个用户的所有信息
@@ -224,14 +212,14 @@ const UserManagement: React.FC = () => {
 
           // 根据角色加载不同的仓库分配
           if (u.role === 'DRIVER') {
-            assignments = await getWarehouseAssignmentsByDriver(u.id)
+            assignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(u.id)
           } else if (u.role === 'MANAGER' || isAdminRole(u.role)) {
-            assignments = await getWarehouseAssignmentsByManager(u.id)
+            assignments = await WarehousesAPI.getWarehouseAssignmentsByManager(u.id)
           }
 
           const [license, detail] = await Promise.all([
-            u.role === 'DRIVER' ? getDriverLicense(u.id) : Promise.resolve(null),
-            u.role === 'DRIVER' ? getDriverDetailInfo(u.id) : Promise.resolve(null)
+            u.role === 'DRIVER' ? VehiclesAPI.getDriverLicense(u.id) : Promise.resolve(null),
+            u.role === 'DRIVER' ? VehiclesAPI.getDriverDetailInfo(u.id) : Promise.resolve(null)
           ])
 
           return {
@@ -330,7 +318,7 @@ const UserManagement: React.FC = () => {
         // 如果还没有加载详细信息，则加载
         if (!userDetails.has(userId)) {
           showLoading({title: '加载中...'})
-          const detail = await getDriverDetailInfo(userId)
+          const detail = await VehiclesAPI.getDriverDetailInfo(userId)
           Taro.hideLoading()
           if (detail) {
             setUserDetails((prev) => new Map(prev).set(userId, detail))
@@ -457,7 +445,7 @@ const UserManagement: React.FC = () => {
         newUser = profile
       } else {
         // 调用创建用户函数（司机或管理员）
-        newUser = await createUser(
+        newUser = await UsersAPI.createUser(
           newUserPhone.trim(),
           newUserName.trim(),
           newUserRole,
@@ -477,7 +465,7 @@ const UserManagement: React.FC = () => {
           if (newUserRole === 'DRIVER') {
             // 为司机分配仓库（使用 driver_warehouses 表）
             for (const warehouseId of newUserWarehouseIds) {
-              await insertWarehouseAssignment({
+              await WarehousesAPI.insertWarehouseAssignment({
                 driver_id: newUser.id,
                 warehouse_id: warehouseId
               })
@@ -485,7 +473,7 @@ const UserManagement: React.FC = () => {
           } else if (newUserRole === 'MANAGER' || newUserRole === 'BOSS' || newUserRole === 'BOSS') {
             // 为管理员、老板和车队长分配仓库（使用 manager_warehouses 表）
             for (const warehouseId of newUserWarehouseIds) {
-              await insertManagerWarehouseAssignment({
+              await WarehousesAPI.insertManagerWarehouseAssignment({
                 manager_id: newUser.id,
                 warehouse_id: warehouseId
               })
@@ -585,7 +573,7 @@ const UserManagement: React.FC = () => {
 
       showLoading({title: '切换中...'})
 
-      const success = await updateProfile(targetUser.id, {driver_type: newType})
+      const success = await UsersAPI.updateProfile(targetUser.id, {driver_type: newType})
 
       Taro.hideLoading()
 
@@ -612,7 +600,7 @@ const UserManagement: React.FC = () => {
           })
 
           // 2. 老板或超级管理员操作 → 通知该司机所属仓库的车队长
-          const currentUserProfile = await getCurrentUserWithRealName()
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
           if (currentUserProfile && isAdminRole(currentUserProfile.role)) {
             // 获取操作人的显示名称（优先使用真实姓名）
@@ -636,12 +624,12 @@ const UserManagement: React.FC = () => {
             // 否则只显示：老板
 
             // 获取司机所属的仓库
-            const driverWarehouseIds = await getDriverWarehouseIds(targetUser.id)
+            const driverWarehouseIds = await WarehousesAPI.getDriverWarehouseIds(targetUser.id)
             const managersSet = new Set<string>()
 
             // 获取这些仓库的管理员
             for (const warehouseId of driverWarehouseIds) {
-              const managers = await getWarehouseManagers(warehouseId)
+              const managers = await WarehousesAPI.getWarehouseManagers(warehouseId)
               for (const m of managers) {
                 managersSet.add(m.id)
               }
@@ -672,7 +660,7 @@ const UserManagement: React.FC = () => {
         onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
         await loadUsers(true)
         // 重新加载该用户的详细信息
-        const detail = await getDriverDetailInfo(targetUser.id)
+        const detail = await VehiclesAPI.getDriverDetailInfo(targetUser.id)
         if (detail) {
           setUserDetails((prev) => new Map(prev).set(targetUser.id, detail))
         }
@@ -698,9 +686,9 @@ const UserManagement: React.FC = () => {
 
         let assignments: Array<{warehouse_id: string}> = []
         if (targetUser.role === 'DRIVER') {
-          assignments = await getWarehouseAssignmentsByDriver(targetUser.id)
+          assignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(targetUser.id)
         } else if (targetUser.role === 'MANAGER' || isAdminRole(targetUser.role)) {
-          assignments = await getWarehouseAssignmentsByManager(targetUser.id)
+          assignments = await WarehousesAPI.getWarehouseAssignmentsByManager(targetUser.id)
         }
 
         Taro.hideLoading()
@@ -743,15 +731,15 @@ const UserManagement: React.FC = () => {
       // 获取之前的仓库分配（用于对比变更）
       let previousAssignments: Array<{warehouse_id: string}> = []
       if (userRole === 'DRIVER') {
-        previousAssignments = await getWarehouseAssignmentsByDriver(userId)
+        previousAssignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(userId)
       } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
-        previousAssignments = await getWarehouseAssignmentsByManager(userId)
+        previousAssignments = await WarehousesAPI.getWarehouseAssignmentsByManager(userId)
       }
       const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
 
       // 先删除该用户的所有仓库分配
       if (userRole === 'DRIVER') {
-        await deleteWarehouseAssignmentsByDriver(userId)
+        await WarehousesAPI.deleteWarehouseAssignmentsByDriver(userId)
       } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
         // 删除管理员/车队长的仓库分配
         await supabase.from('manager_warehouses').delete().eq('manager_id', userId)
@@ -760,12 +748,12 @@ const UserManagement: React.FC = () => {
       // 添加新的仓库分配
       for (const warehouseId of selectedWarehouseIds) {
         if (userRole === 'DRIVER') {
-          await insertWarehouseAssignment({
+          await WarehousesAPI.insertWarehouseAssignment({
             driver_id: userId,
             warehouse_id: warehouseId
           })
         } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
-          await insertManagerWarehouseAssignment({
+          await WarehousesAPI.insertManagerWarehouseAssignment({
             manager_id: userId,
             warehouse_id: warehouseId
           })
@@ -843,7 +831,7 @@ const UserManagement: React.FC = () => {
         }
 
         // 2. 如果是老板操作 → 通知相关仓库的车队长
-        const currentUserProfile = await getCurrentUserWithRealName()
+        const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
         console.log('👤 [仓库分配] 当前用户信息:', {
           用户ID: currentUserProfile?.id,
           角色: currentUserProfile?.role,
@@ -884,7 +872,7 @@ const UserManagement: React.FC = () => {
 
           // 获取这些仓库的管理员
           for (const warehouseId of affectedWarehouseIds) {
-            const managers = await getWarehouseManagers(warehouseId)
+            const managers = await WarehousesAPI.getWarehouseManagers(warehouseId)
             console.log(
               `👥 [仓库分配] 仓库 ${warehouseId} 的管理员:`,
               managers.map((m) => m.name)

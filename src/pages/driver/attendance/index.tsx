@@ -3,7 +3,8 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getMonthlyAttendance} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+
 import type {AttendanceRecord} from '@/db/types'
 
 const Attendance: React.FC = () => {
@@ -27,7 +28,7 @@ const Attendance: React.FC = () => {
   // 加载考勤记录
   const loadRecords = useCallback(async () => {
     if (!user?.id) return
-    const data = await getMonthlyAttendance(user.id, selectedYear, selectedMonth)
+    const data = await AttendanceAPI.getMonthlyAttendance(user.id, selectedYear, selectedMonth)
     setRecords(data)
   }, [user?.id, selectedYear, selectedMonth])
 

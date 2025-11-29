@@ -3,15 +3,11 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  getAllAttendanceRecords,
-  getAllLeaveApplications,
-  getAllProfiles,
-  getAllResignationApplications,
-  getAllWarehouses,
-  reviewLeaveApplication,
-  reviewResignationApplication
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as LeaveAPI from '@/db/api/leave'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 
 const DriverLeaveDetail: React.FC = () => {
@@ -40,11 +36,11 @@ const DriverLeaveDetail: React.FC = () => {
     if (!driverId) return
 
     // 获取所有仓库信息
-    const allWarehouses = await getAllWarehouses()
+    const allWarehouses = await WarehousesAPI.getAllWarehouses()
     setWarehouses(allWarehouses)
 
     // 获取所有用户信息
-    const allProfiles = await getAllProfiles()
+    const allProfiles = await UsersAPI.getAllProfiles()
     setProfiles(allProfiles)
 
     // 找到当前司机
@@ -52,17 +48,17 @@ const DriverLeaveDetail: React.FC = () => {
     setDriver(currentDriver || null)
 
     // 获取该司机的所有请假申请
-    const allLeaveApps = await getAllLeaveApplications()
+    const allLeaveApps = await LeaveAPI.getAllLeaveApplications()
     const driverLeaveApps = allLeaveApps.filter((app) => app.user_id === driverId)
     setLeaveApplications(driverLeaveApps)
 
     // 获取该司机的所有离职申请
-    const allResignationApps = await getAllResignationApplications()
+    const allResignationApps = await LeaveAPI.getAllResignationApplications()
     const driverResignationApps = allResignationApps.filter((app) => app.user_id === driverId)
     setResignationApplications(driverResignationApps)
 
     // 获取该司机的所有打卡记录
-    const allAttendanceRecords = await getAllAttendanceRecords()
+    const allAttendanceRecords = await AttendanceAPI.getAllAttendanceRecords()
     const driverAttendanceRecords = allAttendanceRecords.filter((record) => record.user_id === driverId)
     setAttendanceRecords(driverAttendanceRecords)
   }, [driverId])
@@ -244,7 +240,7 @@ const DriverLeaveDetail: React.FC = () => {
 
     if (!result.confirm) return
 
-    const success = await reviewLeaveApplication(applicationId, {
+    const success = await LeaveAPI.reviewLeaveApplication(applicationId, {
       status: 'approved',
       reviewed_by: user.id,
       review_notes: '已通过',
@@ -270,7 +266,7 @@ const DriverLeaveDetail: React.FC = () => {
 
     if (!result.confirm) return
 
-    const success = await reviewLeaveApplication(applicationId, {
+    const success = await LeaveAPI.reviewLeaveApplication(applicationId, {
       status: 'rejected',
       reviewed_by: user.id,
       review_notes: '已驳回',
@@ -296,7 +292,7 @@ const DriverLeaveDetail: React.FC = () => {
 
     if (!result.confirm) return
 
-    const success = await reviewResignationApplication(applicationId, {
+    const success = await LeaveAPI.reviewResignationApplication(applicationId, {
       status: 'approved',
       reviewed_by: user.id,
       review_notes: '已通过',
@@ -322,7 +318,7 @@ const DriverLeaveDetail: React.FC = () => {
 
     if (!result.confirm) return
 
-    const success = await reviewResignationApplication(applicationId, {
+    const success = await LeaveAPI.reviewResignationApplication(applicationId, {
       status: 'rejected',
       reviewed_by: user.id,
       review_notes: '已驳回',

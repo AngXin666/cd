@@ -3,7 +3,7 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {getManagerPermissionsEnabled, updateManagerPermissionsEnabled} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
 
 const PermissionConfig: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -22,7 +22,7 @@ const PermissionConfig: React.FC = () => {
     setLoading(true)
     try {
       // 加载车队长权限状态
-      const permissionsEnabled = await getManagerPermissionsEnabled(userId)
+      const permissionsEnabled = await UsersAPI.getManagerPermissionsEnabled(userId)
       if (permissionsEnabled !== null) {
         setManagerPermissionsEnabled(permissionsEnabled)
       }
@@ -45,7 +45,7 @@ const PermissionConfig: React.FC = () => {
     Taro.showLoading({title: '保存中...'})
     try {
       // 保存车队长权限状态
-      const permissionSuccess = await updateManagerPermissionsEnabled(userId, managerPermissionsEnabled)
+      const permissionSuccess = await UsersAPI.updateManagerPermissionsEnabled(userId, managerPermissionsEnabled)
 
       if (!permissionSuccess) {
         throw new Error('保存权限配置失败')

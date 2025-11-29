@@ -9,7 +9,10 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getDriverLicense, getDriverVehicles, getDriverWarehouses, getUserById} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {DriverLicense, Profile, Vehicle, Warehouse} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -152,23 +155,23 @@ const UserDetail: React.FC = () => {
     logger.info('开始加载用户信息', {userId})
     setLoading(true)
     try {
-      const data = await getUserById(userId)
+      const data = await UsersAPI.getUserById(userId)
       if (data) {
         setUserInfo(data)
         logger.info('用户信息加载成功', {userId, name: data.name})
 
         // 如果是司机，加载车辆信息和仓库信息
         if (data.role === 'DRIVER') {
-          const vehicleData = await getDriverVehicles(userId)
+          const vehicleData = await VehiclesAPI.getDriverVehicles(userId)
           setVehicles(vehicleData)
           logger.info('司机车辆信息加载成功', {userId, vehicleCount: vehicleData.length})
 
-          const warehouseData = await getDriverWarehouses(userId)
+          const warehouseData = await WarehousesAPI.getDriverWarehouses(userId)
           setWarehouses(warehouseData)
           logger.info('司机仓库信息加载成功', {userId, warehouseCount: warehouseData.length})
 
           // 加载司机证件信息
-          const licenseData = await getDriverLicense(userId)
+          const licenseData = await VehiclesAPI.getDriverLicense(userId)
           setDriverLicense(licenseData)
           logger.info('司机证件信息加载成功', {
             userId,

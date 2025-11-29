@@ -3,16 +3,11 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  createPieceWorkRecord,
-  getCategoryPriceForDriver,
-  getDriverWarehouses,
-  getPieceWorkRecordsByUser,
-  getTodayAttendance,
-  getUserById,
-  getWarehouseCategoriesWithDetails,
-  updatePieceWorkRecord
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {canStartPieceWork} from '@/utils/attendance-check'
 import {
@@ -82,16 +77,16 @@ const PieceWorkEntry: React.FC = () => {
     if (!user?.id) return
 
     // 加载司机信息
-    const profile = await getUserById(user.id)
+    const profile = await UsersAPI.getUserById(user.id)
     setDriverProfile(profile)
 
     // 获取今日打卡记录
-    const todayAttendance = await getTodayAttendance(user.id)
+    const todayAttendance = await AttendanceAPI.getTodayAttendance(user.id)
     const clockedWarehouse = todayAttendance?.warehouse_id || null
     setClockedWarehouseId(clockedWarehouse)
 
     // 加载司机的仓库（只加载启用的仓库）
-    const allWarehouses = await getDriverWarehouses(user.id)
+    const allWarehouses = await WarehousesAPI.getDriverWarehouses(user.id)
     const activeWarehouses = allWarehouses.filter((w) => w.is_active)
     setWarehouses(activeWarehouses)
 
@@ -112,7 +107,7 @@ const PieceWorkEntry: React.FC = () => {
     const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
     const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
 
-    const recordsData = await getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
+    const recordsData = await PieceworkAPI.getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
     setRecords(recordsData)
 
     // 只在首次加载时恢复用户偏好设置或自动选择打卡仓库
@@ -141,7 +136,7 @@ const PieceWorkEntry: React.FC = () => {
       // 加载选中仓库的品类
       const warehouseToLoad = activeWarehouses[warehouseIndexToLoad]
       if (warehouseToLoad) {
-        const categoriesData = await getWarehouseCategoriesWithDetails(warehouseToLoad.id)
+        const categoriesData = await WarehousesAPI.getWarehouseCategoriesWithDetails(warehouseToLoad.id)
         setCategories(categoriesData)
 
         // 恢复上次选择的品类（如果存在）
@@ -229,7 +224,7 @@ const PieceWorkEntry: React.FC = () => {
         return
       }
 
-      const categoriesData = await getWarehouseCategoriesWithDetails(selectedWarehouse.id)
+      const categoriesData = await WarehousesAPI.getWarehouseCategoriesWithDetails(selectedWarehouse.id)
       setCategories(categoriesData)
 
       // 如果只有一个品类，自动选中
@@ -264,7 +259,7 @@ const PieceWorkEntry: React.FC = () => {
         return
       }
 
-      const priceConfig = await getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+      const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
 
       setPieceWorkItems((prev) =>
         prev.map((item) => {
@@ -307,7 +302,7 @@ const PieceWorkEntry: React.FC = () => {
     let unitPriceLocked = false
 
     if (selectedWarehouse && selectedCategory && driverProfile) {
-      const priceConfig = await getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+      const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
       if (priceConfig) {
         // 所有司机都使用相同的基础单价
         // unit_price: 基础单价
@@ -589,7 +584,7 @@ const PieceWorkEntry: React.FC = () => {
     const newTotalAmount = totalBaseAmount + totalUpstairsAmount + totalSortingAmount
 
     // 更新现有记录
-    const success = await updatePieceWorkRecord(existingRecord.id, {
+    const success = await PieceworkAPI.updatePieceWorkRecord(existingRecord.id, {
       user_id: existingRecord.user_id,
       warehouse_id: existingRecord.warehouse_id,
       work_date: existingRecord.work_date,
@@ -649,7 +644,7 @@ const PieceWorkEntry: React.FC = () => {
         total_amount: totalAmount
       }
 
-      const success = await createPieceWorkRecord(input)
+      const success = await PieceworkAPI.createPieceWorkRecord(input)
       if (!success) {
         allSuccess = false
         break

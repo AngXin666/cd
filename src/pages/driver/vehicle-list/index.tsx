@@ -14,7 +14,9 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {debugAuthStatus, getDriverVehicles, getProfileById} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {Profile, Vehicle} from '@/db/types'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
@@ -38,7 +40,7 @@ const VehicleList: React.FC = () => {
       callStack: new Error().stack?.split('\n').slice(0, 5).join('\n')
     })
     try {
-      const driver = await getProfileById(driverId)
+      const driver = await UsersAPI.getProfileById(driverId)
       setTargetDriver(driver)
       logger.info('司机信息加载成功', {
         driverId,
@@ -111,7 +113,7 @@ const VehicleList: React.FC = () => {
         } else {
           logger.info('🔄 从数据库加载车辆列表', {driverId, forceRefresh})
           // 调试：检查认证状态
-          const authStatus = await debugAuthStatus()
+          const authStatus = await UsersAPI.debugAuthStatus()
           logger.info('认证状态检查', authStatus)
 
           // 如果认证用户ID与查询的司机ID不匹配，记录警告
@@ -122,7 +124,7 @@ const VehicleList: React.FC = () => {
             })
           }
 
-          data = await getDriverVehicles(driverId)
+          data = await VehiclesAPI.getDriverVehicles(driverId)
           // 保存到缓存（30秒有效期，缩短缓存时间以便更快看到审核结果）
           setVersionedCache(cacheKey, data, 30 * 1000)
         }

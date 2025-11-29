@@ -8,7 +8,8 @@ import Taro, {useDidShow, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getVehicleByPlateNumber} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {VehicleWithDriver} from '@/db/types'
 import {calculateAge, calculateDrivingYears} from '@/utils/date'
 import {createLogger} from '@/utils/logger'
@@ -34,7 +35,7 @@ const VehicleHistory: React.FC = () => {
     setLoading(true)
 
     try {
-      const data = await getVehicleByPlateNumber(plateNumber)
+      const data = await VehiclesAPI.getVehicleByPlateNumber(plateNumber)
       if (data) {
         setVehicle(data)
         logger.info('车辆信息加载成功', {

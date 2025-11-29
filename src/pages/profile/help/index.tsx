@@ -4,7 +4,8 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import SwipeBack from '@/components/SwipeBack'
-import {getCurrentUserProfile} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Profile} from '@/db/types'
 
 const HelpPage: React.FC = () => {
@@ -13,7 +14,7 @@ const HelpPage: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null)
 
   const loadProfile = useCallback(async () => {
-    const data = await getCurrentUserProfile()
+    const data = await UsersAPI.getCurrentUserProfile()
     setProfile(data)
   }, [])
 

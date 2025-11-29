@@ -3,15 +3,10 @@ import {navigateTo, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  createNotificationSendRecord,
-  createScheduledNotification,
-  getAllDriverIds,
-  getAllWarehouses,
-  getDriversByWarehouse,
-  getNotificationTemplates,
-  sendNotificationToDrivers
-} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {NotificationTemplate, Profile, Warehouse} from '@/db/types'
 
 /**
@@ -45,24 +40,24 @@ const DriverNotification: React.FC = () => {
 
   // 加载模板
   const loadTemplates = useCallback(async () => {
-    const data = await getNotificationTemplates()
+    const data = await NotificationsAPI.getNotificationTemplates()
     setTemplates(data)
   }, [])
 
   // 加载仓库
   const loadWarehouses = useCallback(async () => {
-    const data = await getAllWarehouses()
+    const data = await WarehousesAPI.getAllWarehouses()
     setWarehouses(data)
   }, [])
 
   // 加载司机
   const loadDrivers = useCallback(async () => {
     if (targetType === 'warehouse' && selectedWarehouseId) {
-      const data = await getDriversByWarehouse(selectedWarehouseId)
+      const data = await WarehousesAPI.getDriversByWarehouse(selectedWarehouseId)
       setDrivers(data)
     } else if (targetType === 'specific') {
       // 加载所有司机供选择
-      const allDrivers = await getDriversByWarehouse('')
+      const allDrivers = await WarehousesAPI.getDriversByWarehouse('')
       setDrivers(allDrivers)
     }
   }, [targetType, selectedWarehouseId])
@@ -86,7 +81,7 @@ const DriverNotification: React.FC = () => {
   // 计算接收人数
   const _getRecipientCount = useCallback(async () => {
     if (targetType === 'all') {
-      const allDriverIds = await getAllDriverIds()
+      const allDriverIds = await UsersAPI.getAllDriverIds()
       return allDriverIds.length
     } else if (targetType === 'warehouse' && selectedWarehouseId) {
       return drivers.length
@@ -133,7 +128,7 @@ const DriverNotification: React.FC = () => {
         let driverIds: string[] = []
 
         if (targetType === 'all') {
-          driverIds = await getAllDriverIds()
+          driverIds = await UsersAPI.getAllDriverIds()
         } else if (targetType === 'warehouse' && selectedWarehouseId) {
           driverIds = drivers.map((d) => d.id)
         } else if (targetType === 'specific') {
@@ -146,11 +141,11 @@ const DriverNotification: React.FC = () => {
         }
 
         // 发送通知
-        const success = await sendNotificationToDrivers(driverIds, title, content)
+        const success = await NotificationsAPI.sendNotificationToDrivers(driverIds, title, content)
 
         if (success) {
           // 记录发送记录
-          await createNotificationSendRecord({
+          await NotificationsAPI.createNotificationSendRecord({
             notification_id: crypto.randomUUID(),
             recipient_id: driverIds[0] || '',
             is_read: false,
@@ -185,7 +180,7 @@ const DriverNotification: React.FC = () => {
           targetIds = selectedDriverIds
         }
 
-        const result = await createScheduledNotification({
+        const result = await NotificationsAPI.createScheduledNotification({
           template_id: crypto.randomUUID(),
           scheduled_time: sendTime,
           title,

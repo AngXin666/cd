@@ -3,7 +3,7 @@ import {hideLoading, navigateBack, showLoading, showToast} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {changePassword} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
 
 const ChangePasswordPage: React.FC = () => {
   useAuth({guard: true})
@@ -71,7 +71,7 @@ const ChangePasswordPage: React.FC = () => {
     showLoading({title: '修改中...'})
 
     try {
-      const result = await changePassword(newPassword)
+      const result = await UsersAPI.changePassword(newPassword)
       hideLoading()
       setLoading(false)
 

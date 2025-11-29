@@ -10,7 +10,9 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {deleteDriverLicense, getCurrentUserProfile, getDriverLicense} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {DriverLicense, Profile} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -32,13 +34,13 @@ const DriverProfile: React.FC = () => {
     try {
       // 加载个人资料
       logger.info('开始加载个人资料')
-      const profileData = await getCurrentUserProfile()
+      const profileData = await UsersAPI.getCurrentUserProfile()
       logger.info('个人资料加载完成', {hasData: !!profileData})
       setProfile(profileData)
 
       // 加载驾驶证信息
       logger.info('开始加载驾驶证信息')
-      const licenseData = await getDriverLicense(user.id)
+      const licenseData = await VehiclesAPI.getDriverLicense(user.id)
       logger.info('驾驶证信息加载完成', {
         hasData: !!licenseData,
         hasIdCardFront: !!licenseData?.id_card_photo_front,
@@ -89,7 +91,7 @@ const DriverProfile: React.FC = () => {
     logger.info('开始删除个人信息', {userId: user.id})
     Taro.showLoading({title: '删除中...'})
     try {
-      const success = await deleteDriverLicense(user.id)
+      const success = await VehiclesAPI.deleteDriverLicense(user.id)
 
       if (!success) {
         throw new Error('删除失败')

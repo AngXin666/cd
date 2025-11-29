@@ -5,7 +5,8 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
-import {getCurrentUserProfile} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Profile} from '@/db/types'
 import {
   useDashboardData,
@@ -80,7 +81,7 @@ const ManagerHome: React.FC = () => {
   // 加载用户资料
   const loadProfile = useCallback(async () => {
     try {
-      const profileData = await getCurrentUserProfile()
+      const profileData = await UsersAPI.getCurrentUserProfile()
       setProfile(profileData)
     } catch (error) {
       console.error('[ManagerHome] 加载用户资料失败:', error)

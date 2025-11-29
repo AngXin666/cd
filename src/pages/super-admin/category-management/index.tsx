@@ -3,15 +3,9 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  batchUpsertCategoryPrices,
-  deleteCategory,
-  deleteUnusedCategories,
-  getAllCategories,
-  getAllWarehouses,
-  getCategoryPricesByWarehouse,
-  updateCategory
-} from '@/db/api'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {CategoryPrice, CategoryPriceInput, PieceWorkCategory, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 
@@ -43,7 +37,7 @@ const CategoryManagement: React.FC = () => {
 
   // 加载所有启用的仓库列表（老板）
   const loadWarehouses = useCallback(async () => {
-    const data = await getAllWarehouses()
+    const data = await WarehousesAPI.getAllWarehouses()
     // 只显示启用的仓库，禁用的仓库不应该添加品类
     const activeWarehouses = data.filter((w) => w.is_active)
     setWarehouses(activeWarehouses)
@@ -51,14 +45,14 @@ const CategoryManagement: React.FC = () => {
 
   // 加载品类列表
   const loadCategories = useCallback(async () => {
-    const data = await getAllCategories()
+    const data = await PieceworkAPI.getAllCategories()
     setCategories(data)
   }, [])
 
   // 加载品类价格配置
   const loadCategoryPrices = useCallback(async () => {
     if (!selectedWarehouse) return
-    const data = await getCategoryPricesByWarehouse(selectedWarehouse.id)
+    const data = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouse.id)
     setCategoryPrices(data)
 
     // 初始化编辑状态 - 显示当前仓库已配置的品类
@@ -148,7 +142,7 @@ const CategoryManagement: React.FC = () => {
       })
     } else {
       // 如果是已存在的品类，需要从数据库删除
-      const success = await deleteCategory(edit.categoryId)
+      const success = await PieceworkAPI.deleteCategory(edit.categoryId)
       if (success) {
         Taro.showToast({
           title: '删除成功',
@@ -191,7 +185,7 @@ const CategoryManagement: React.FC = () => {
       setEditingCategoryName('')
     } else {
       // 如果是已存在的品类，更新数据库
-      const success = await updateCategory(edit.categoryId, {
+      const success = await PieceworkAPI.updateCategory(edit.categoryId, {
         warehouse_id: selectedWarehouse.id,
         category_name: editingCategoryName.trim(),
         unit_price: Number.parseFloat(edit.unitPrice),
@@ -309,7 +303,7 @@ const CategoryManagement: React.FC = () => {
       is_active: true
     }))
 
-    const success = await batchUpsertCategoryPrices(priceInputs)
+    const success = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
 
     if (success) {
       Taro.showToast({
@@ -333,7 +327,7 @@ const CategoryManagement: React.FC = () => {
 
     Taro.showLoading({title: '清理中...'})
     try {
-      const result = await deleteUnusedCategories()
+      const result = await PieceworkAPI.deleteUnusedCategories()
 
       if (result.success) {
         if (result.deletedCount > 0) {

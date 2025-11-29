@@ -8,7 +8,8 @@ import Taro from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
-import {upsertDriverLicense} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {DriverLicenseInput} from '@/db/types'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardBack, recognizeIdCardFront} from '@/utils/ocrUtils'
@@ -295,7 +296,7 @@ const LicenseOCR: React.FC = () => {
       }
 
       // 保存到数据库
-      await upsertDriverLicense(driverLicenseInput)
+      await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
 
       Taro.hideLoading()
       Taro.showToast({

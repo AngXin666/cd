@@ -3,13 +3,11 @@ import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {
-  getAllAttendanceRecords,
-  getAllLeaveApplications,
-  getAllProfiles,
-  getAllWarehouses,
-  reviewLeaveApplication
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as LeaveAPI from '@/db/api/leave'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
 const DriverAttendanceDetail: React.FC = () => {
@@ -66,11 +64,11 @@ const DriverAttendanceDetail: React.FC = () => {
 
     try {
       // 获取所有仓库信息
-      const allWarehouses = await getAllWarehouses()
+      const allWarehouses = await WarehousesAPI.getAllWarehouses()
       setWarehouses(allWarehouses)
 
       // 获取司机信息
-      const allProfiles = await getAllProfiles()
+      const allProfiles = await UsersAPI.getAllProfiles()
       const driver = allProfiles.find((p) => p.id === driverIdParam)
       setDriverProfile(driver || null)
 
@@ -80,12 +78,12 @@ const DriverAttendanceDetail: React.FC = () => {
       const month = now.getMonth() + 1
 
       // 加载打卡记录
-      const records = await getAllAttendanceRecords(year, month)
+      const records = await AttendanceAPI.getAllAttendanceRecords(year, month)
       const driverRecords = records.filter((r) => r.user_id === driverIdParam)
       setAttendanceRecords(driverRecords)
 
       // 加载请假记录
-      const leaves = await getAllLeaveApplications()
+      const leaves = await LeaveAPI.getAllLeaveApplications()
       const driverLeaves = leaves.filter((l) => l.user_id === driverIdParam)
       setLeaveApplications(driverLeaves)
     } finally {
@@ -137,7 +135,7 @@ const DriverAttendanceDetail: React.FC = () => {
 
         showLoading({title: '处理中...'})
 
-        const success = await reviewLeaveApplication(leaveId, {
+        const success = await LeaveAPI.reviewLeaveApplication(leaveId, {
           status,
           reviewed_by: user.id,
           review_notes: undefined,

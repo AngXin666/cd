@@ -3,13 +3,9 @@ import {showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {
-  createAutoReminderRule,
-  deleteAutoReminderRule,
-  getAllWarehouses,
-  getAutoReminderRules,
-  updateAutoReminderRule
-} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AutoReminderRuleWithWarehouse, Warehouse} from '@/db/types'
 
 /**
@@ -38,13 +34,13 @@ const AutoReminderRules: React.FC = () => {
 
   // 加载规则
   const loadRules = useCallback(async () => {
-    const data = await getAutoReminderRules()
+    const data = await NotificationsAPI.getAutoReminderRules()
     setRules(data)
   }, [])
 
   // 加载仓库
   const loadWarehouses = useCallback(async () => {
-    const data = await getAllWarehouses()
+    const data = await WarehousesAPI.getAllWarehouses()
     setWarehouses(data)
   }, [])
 
@@ -91,7 +87,7 @@ const AutoReminderRules: React.FC = () => {
     try {
       if (editingRule) {
         // 更新
-        const success = await updateAutoReminderRule(editingRule.id, {
+        const success = await NotificationsAPI.updateAutoReminderRule(editingRule.id, {
           rule_name: ruleName,
           rule_type: ruleType,
           check_time: checkTime,
@@ -109,7 +105,7 @@ const AutoReminderRules: React.FC = () => {
         }
       } else {
         // 创建
-        const result = await createAutoReminderRule({
+        const result = await NotificationsAPI.createAutoReminderRule({
           rule_name: ruleName,
           rule_type: ruleType,
           check_time: checkTime,
@@ -143,7 +139,7 @@ const AutoReminderRules: React.FC = () => {
     })
 
     if (res.confirm) {
-      const success = await deleteAutoReminderRule(rule.id)
+      const success = await NotificationsAPI.deleteAutoReminderRule(rule.id)
       if (success) {
         showToast({title: '删除成功', icon: 'success'})
         loadRules()
@@ -155,7 +151,7 @@ const AutoReminderRules: React.FC = () => {
 
   // 切换启用状态
   const handleToggleActive = async (rule: AutoReminderRuleWithWarehouse) => {
-    const success = await updateAutoReminderRule(rule.id, {
+    const success = await NotificationsAPI.updateAutoReminderRule(rule.id, {
       is_active: !rule.is_active
     })
 

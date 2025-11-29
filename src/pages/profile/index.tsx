@@ -3,7 +3,10 @@ import Taro, {navigateTo, showModal, switchTab, useDidShow, usePullDownRefresh} 
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getCurrentUserProfile, getDriverLicense, getDriverStats, getManagerStats, getSuperAdminStats} from '@/db/api'
+import * as DashboardAPI from '@/db/api/dashboard'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {DriverLicense, Profile} from '@/db/types'
 import {smartLogout} from '@/utils/auth'
 
@@ -14,23 +17,23 @@ const ProfilePage: React.FC = () => {
   const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
 
   const loadProfile = useCallback(async () => {
-    const data = await getCurrentUserProfile()
+    const data = await UsersAPI.getCurrentUserProfile()
     setProfile(data)
 
     // 根据角色加载统计数据
     if (data && user) {
       if (data.role === 'DRIVER') {
-        const driverStats = await getDriverStats(user.id)
+        const driverStats = await DashboardAPI.getDriverStats(user.id)
         setStats(driverStats)
         // 加载司机的驾驶证信息以获取真实姓名
-        const license = await getDriverLicense(user.id)
+        const license = await VehiclesAPI.getDriverLicense(user.id)
         setDriverLicense(license)
       } else if (data.role === 'MANAGER') {
-        const managerStats = await getManagerStats(user.id)
+        const managerStats = await DashboardAPI.getManagerStats(user.id)
         setStats(managerStats)
       } else if (data.role === 'BOSS' || data.role === 'PEER_ADMIN') {
         // 老板和平级管理员都使用超级管理员统计
-        const superAdminStats = await getSuperAdminStats()
+        const superAdminStats = await DashboardAPI.getSuperAdminStats()
         setStats(superAdminStats)
       }
     }

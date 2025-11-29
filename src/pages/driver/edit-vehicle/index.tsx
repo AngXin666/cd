@@ -12,7 +12,8 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
-import {getVehicleById, updateVehicle} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {Vehicle} from '@/db/types'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
@@ -47,7 +48,7 @@ const SupplementVehicle: React.FC = () => {
   const loadVehicleData = useCallback(async (vehicleId: string) => {
     setLoading(true)
     try {
-      const vehicleData = await getVehicleById(vehicleId)
+      const vehicleData = await VehiclesAPI.getVehicleById(vehicleId)
       if (!vehicleData) {
         throw new Error('车辆不存在')
       }
@@ -201,7 +202,7 @@ const SupplementVehicle: React.FC = () => {
       }
 
       // 更新车辆信息，清空required_photos
-      await updateVehicle(vehicle.id, {
+      await VehiclesAPI.updateVehicle(vehicle.id, {
         ...updatedPhotos,
         required_photos: [],
         review_status: 'pending_review' // 重新提交审核

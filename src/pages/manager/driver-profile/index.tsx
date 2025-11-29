@@ -9,7 +9,9 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getDriverLicense, getProfileById} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {DriverLicense, Profile} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -41,13 +43,13 @@ const DriverProfileView: React.FC = () => {
     try {
       // 加载司机资料
       logger.info('开始加载司机资料', {driverId})
-      const profileData = await getProfileById(driverId)
+      const profileData = await UsersAPI.getProfileById(driverId)
       logger.info('司机资料加载完成', {driverId, hasData: !!profileData})
       setProfile(profileData)
 
       // 加载驾驶证信息
       logger.info('开始加载驾驶证信息', {driverId})
-      const licenseData = await getDriverLicense(driverId)
+      const licenseData = await VehiclesAPI.getDriverLicense(driverId)
       logger.info('驾驶证信息加载完成', {
         driverId,
         hasData: !!licenseData,

@@ -3,13 +3,11 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  getActiveCategories,
-  getDriverAttendanceStats,
-  getDriverProfiles,
-  getManagerWarehouses,
-  getPieceWorkRecordsByWarehouse
-} from '@/db/api'
+import * as DashboardAPI from '@/db/api/dashboard'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 
 const ManagerPieceWorkReportDetail: React.FC = () => {
@@ -36,16 +34,16 @@ const ManagerPieceWorkReportDetail: React.FC = () => {
       setLoading(true)
 
       // 加载司机信息
-      const driversData = await getDriverProfiles()
+      const driversData = await UsersAPI.getDriverProfiles()
       const driverData = driversData.find((d) => d.id === driverId)
       setDriver(driverData || null)
 
       // 加载管辖的仓库
-      const warehousesData = await getManagerWarehouses(user.id)
+      const warehousesData = await WarehousesAPI.getManagerWarehouses(user.id)
       setWarehouses(warehousesData)
 
       // 加载所有品类
-      const categoriesData = await getActiveCategories()
+      const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
 
       // 加载计件记录
@@ -55,7 +53,7 @@ const ManagerPieceWorkReportDetail: React.FC = () => {
       // 加载当前选中仓库的记录
       const warehouse = warehousesData[currentWarehouseIndex]
       if (warehouse) {
-        data = await getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
+        data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, startDate, endDate)
       }
 
       // 筛选该司机的记录
@@ -71,7 +69,7 @@ const ManagerPieceWorkReportDetail: React.FC = () => {
       setRecords(data)
 
       // 加载考勤数据
-      const attendanceData = await getDriverAttendanceStats(driverId, startDate, endDate)
+      const attendanceData = await DashboardAPI.getDriverAttendanceStats(driverId, startDate, endDate)
       setAttendanceStats(attendanceData)
     } catch (error) {
       console.error('加载数据失败:', error)

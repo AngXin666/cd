@@ -3,15 +3,9 @@ import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tar
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {
-  createDriver,
-  getAllProfiles,
-  getAllSuperAdmins,
-  getAllWarehouses,
-  getDriverWarehouseIds,
-  getWarehouseManagers,
-  setDriverWarehouses
-} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
 
@@ -32,7 +26,7 @@ const DriverWarehouseAssignment: React.FC = () => {
 
   // 加载司机列表
   const loadDrivers = useCallback(async () => {
-    const profiles = await getAllProfiles()
+    const profiles = await UsersAPI.getAllProfiles()
     const driverList = profiles.filter((p) => p.role === 'DRIVER')
     setDrivers(driverList)
 
@@ -45,13 +39,13 @@ const DriverWarehouseAssignment: React.FC = () => {
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
-    const data = await getAllWarehouses()
+    const data = await WarehousesAPI.getAllWarehouses()
     setWarehouses(data)
   }, [])
 
   // 加载司机的仓库分配
   const loadDriverWarehouses = useCallback(async (driverId: string) => {
-    const warehouseIds = await getDriverWarehouseIds(driverId)
+    const warehouseIds = await WarehousesAPI.getDriverWarehouseIds(driverId)
     setSelectedWarehouseIds(warehouseIds)
   }, [])
 
@@ -161,7 +155,7 @@ const DriverWarehouseAssignment: React.FC = () => {
           // 车队长操作 → 通知所有老板
           console.log('👤 [通知系统] 操作者是车队长，准备通知所有老板')
 
-          const superAdmins = await getAllSuperAdmins()
+          const superAdmins = await UsersAPI.getAllSuperAdmins()
           const operationDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
               ? '修改了仓库分配'
@@ -216,7 +210,7 @@ const DriverWarehouseAssignment: React.FC = () => {
           const managersSet = new Set<string>()
 
           for (const warehouseId of affectedWarehouseIds) {
-            const managers = await getWarehouseManagers(warehouseId)
+            const managers = await WarehousesAPI.getWarehouseManagers(warehouseId)
             console.log(`📦 [通知系统] 仓库 ${warehouseId} 的车队长`, {
               车队长数量: managers.length,
               车队长: managers.map((m) => m.name)
@@ -336,10 +330,10 @@ const DriverWarehouseAssignment: React.FC = () => {
     showLoading({title: '保存中...'})
 
     // 获取保存之前的仓库ID，用于判断是新增还是取消
-    const previousWarehouseIds = await getDriverWarehouseIds(selectedDriver.id)
+    const previousWarehouseIds = await WarehousesAPI.getDriverWarehouseIds(selectedDriver.id)
     console.log('💾 [保存] 之前的仓库', previousWarehouseIds)
 
-    const result = await setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
+    const result = await WarehousesAPI.setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
     console.log('💾 [保存] 保存结果', result)
 
     Taro.hideLoading()
@@ -427,7 +421,7 @@ const DriverWarehouseAssignment: React.FC = () => {
     setAddingDriver(true)
     showLoading({title: '添加中...'})
 
-    const newDriver = await createDriver(newDriverPhone.trim(), newDriverName.trim())
+    const newDriver = await UsersAPI.createDriver(newDriverPhone.trim(), newDriverName.trim())
 
     Taro.hideLoading()
     setAddingDriver(false)

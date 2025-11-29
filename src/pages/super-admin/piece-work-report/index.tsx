@@ -4,16 +4,13 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import CircularProgress from '@/components/CircularProgress'
-import {
-  getActiveCategories,
-  getAllWarehouses,
-  getAttendanceRecordsByWarehouse,
-  getBatchDriverAttendanceStats,
-  getDriverProfiles,
-  getDriversByWarehouse,
-  getLeaveApplicationsByWarehouse,
-  getPieceWorkRecordsByWarehouse
-} from '@/db/api'
+import * as AttendanceAPI from '@/db/api/attendance'
+import * as DashboardAPI from '@/db/api/dashboard'
+import * as LeaveAPI from '@/db/api/leave'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
@@ -166,15 +163,15 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
       console.log('🔄 从数据库加载基础数据')
       // 加载所有仓库
-      const warehousesData = await getAllWarehouses()
+      const warehousesData = await WarehousesAPI.getAllWarehouses()
       setWarehouses(warehousesData)
 
       // 加载所有司机
-      const driversData = await getDriverProfiles()
+      const driversData = await UsersAPI.getDriverProfiles()
       setDrivers(driversData)
 
       // 加载所有品类
-      const categoriesData = await getActiveCategories()
+      const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
 
       // 保存到缓存（5分钟有效期）
@@ -225,7 +222,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         data = cached
       } else {
         console.log('🔄 从数据库加载计件记录')
-        data = await getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
+        data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
         // 保存到缓存（3分钟有效期）
         setVersionedCache(cacheKey, data, 3 * 60 * 1000)
       }
@@ -270,7 +267,11 @@ const SuperAdminPieceWorkReport: React.FC = () => {
             // 如果缓存中没有数据，则预加载
             if (!cached) {
               console.log(`📥 [超级管理端] 预加载仓库 ${warehouse.name} 的数据`)
-              const data = await getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
+              const data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(
+                warehouse.id,
+                actualStartDate,
+                actualEndDate
+              )
               setVersionedCache(cacheKey, data, 3 * 60 * 1000)
               console.log(`✅ [超级管理端] 仓库 ${warehouse.name} 数据预加载完成`)
             } else {
@@ -536,10 +537,14 @@ const SuperAdminPieceWorkReport: React.FC = () => {
 
         // 批量获取所有司机的考勤数据（一次查询）
         const driverIds = driverSummariesBase.map((s) => s.driverId)
-        const attendanceStatsMap = await getBatchDriverAttendanceStats(driverIds, startDate, endDate)
+        const attendanceStatsMap = await DashboardAPI.getBatchDriverAttendanceStats(driverIds, startDate, endDate)
 
         // 批量获取本周考勤数据（用于计算本周请假天数）
-        const weeklyAttendanceStatsMap = await getBatchDriverAttendanceStats(driverIds, weekRange.start, weekRange.end)
+        const weeklyAttendanceStatsMap = await DashboardAPI.getBatchDriverAttendanceStats(
+          driverIds,
+          weekRange.start,
+          weekRange.end
+        )
 
         // 处理每个司机的数据
         const summariesWithAttendance = driverSummariesBase.map((summary) => {
@@ -756,18 +761,18 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         const today = getLocalDateString()
 
         // 获取当前分配至指定仓库的所有司机
-        const warehouseDrivers = await getDriversByWarehouse(warehouse.id)
+        const warehouseDrivers = await WarehousesAPI.getDriversByWarehouse(warehouse.id)
         const totalDrivers = warehouseDrivers.length
         console.log('仪表盘数据计算：仓库司机总数', totalDrivers)
 
         // 获取当日考勤记录
-        const todayAttendance = await getAttendanceRecordsByWarehouse(warehouse.id, today, today)
+        const todayAttendance = await AttendanceAPI.getAttendanceRecordsByWarehouse(warehouse.id, today, today)
         const todayDriversSet = new Set(todayAttendance.map((a) => a.user_id))
         const todayDriversCount = todayDriversSet.size
         console.log('仪表盘数据计算：今天出勤司机数', todayDriversCount)
 
         // 获取今天请假的司机
-        const leaveApplications = await getLeaveApplicationsByWarehouse(warehouse.id)
+        const leaveApplications = await LeaveAPI.getLeaveApplicationsByWarehouse(warehouse.id)
         const todayLeaveDriversSet = new Set<string>()
 
         // 筛选出今天在请假期间的申请（状态为已批准）

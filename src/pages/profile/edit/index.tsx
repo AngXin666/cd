@@ -3,7 +3,8 @@ import Taro, {chooseImage, navigateBack, showLoading, showToast, useDidShow, use
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getCurrentUserProfile, updateUserProfile, uploadAvatar} from '@/db/api'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Profile} from '@/db/types'
 
 // 中国省份列表
@@ -62,7 +63,7 @@ const ProfileEditPage: React.FC = () => {
   const [emergencyContactPhone, setEmergencyContactPhone] = useState('')
 
   const loadProfile = useCallback(async () => {
-    const data = await getCurrentUserProfile()
+    const data = await UsersAPI.getCurrentUserProfile()
     if (data) {
       setProfile(data)
       setAvatarUrl(data.avatar_url || '')
@@ -116,7 +117,7 @@ const ProfileEditPage: React.FC = () => {
         showLoading({title: '上传中...'})
 
         // 上传头像
-        const uploadResult = await uploadAvatar(user?.id || '', {
+        const uploadResult = await UsersAPI.uploadAvatar(user?.id || '', {
           path: file.path,
           size: file.size,
           name: `avatar_${Date.now()}.jpg`,
@@ -161,7 +162,7 @@ const ProfileEditPage: React.FC = () => {
     setLoading(true)
     showLoading({title: '保存中...'})
 
-    const result = await updateUserProfile(profile.id, {
+    const result = await UsersAPI.updateUserProfile(profile.id, {
       avatar_url: avatarUrl || undefined,
       name: name.trim(),
       nickname: nickname.trim() || undefined,

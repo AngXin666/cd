@@ -3,7 +3,9 @@ import Taro, {useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getWarehouseDriverCount, getWarehouseManager, getWarehouseWithRule} from '@/db/api'
+import * as DashboardAPI from '@/db/api/dashboard'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {AttendanceRule, Profile, WarehouseWithRule} from '@/db/types'
 
 /**
@@ -37,7 +39,7 @@ const WarehouseDetail: React.FC = () => {
 
     try {
       // 获取仓库信息
-      const warehouseData = await getWarehouseWithRule(warehouseId)
+      const warehouseData = await WarehousesAPI.getWarehouseWithRule(warehouseId)
       if (!warehouseData) {
         Taro.showToast({
           title: '仓库不存在',
@@ -55,11 +57,11 @@ const WarehouseDetail: React.FC = () => {
       }
 
       // 获取司机数量
-      const count = await getWarehouseDriverCount(warehouseId)
+      const count = await DashboardAPI.getWarehouseDriverCount(warehouseId)
       setDriverCount(count)
 
       // 获取管理员信息
-      const managerData = await getWarehouseManager(warehouseId)
+      const managerData = await WarehousesAPI.getWarehouseManager(warehouseId)
       setManager(managerData)
     } catch (error) {
       console.error('加载仓库详情失败:', error)

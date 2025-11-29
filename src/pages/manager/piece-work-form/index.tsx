@@ -3,7 +3,10 @@ import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {createPieceWorkRecord, getActiveCategories, getDriverProfiles, getManagerWarehouses} from '@/db/api'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+
 import type {PieceWorkCategory, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 
@@ -40,7 +43,7 @@ const ManagerPieceWorkForm: React.FC = () => {
 
     try {
       // 加载管辖的仓库
-      const warehousesData = await getManagerWarehouses(user.id)
+      const warehousesData = await WarehousesAPI.getManagerWarehouses(user.id)
       setWarehouses(warehousesData)
 
       // 如果有默认仓库ID，设置选中
@@ -52,11 +55,11 @@ const ManagerPieceWorkForm: React.FC = () => {
       }
 
       // 加载所有司机
-      const driversData = await getDriverProfiles()
+      const driversData = await UsersAPI.getDriverProfiles()
       setDrivers(driversData)
 
       // 加载所有品类
-      const categoriesData = await getActiveCategories()
+      const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
 
       // 设置默认日期和时间
@@ -205,7 +208,7 @@ const ManagerPieceWorkForm: React.FC = () => {
         notes: notes.trim()
       }
 
-      await createPieceWorkRecord(recordData)
+      await PieceworkAPI.createPieceWorkRecord(recordData)
       Taro.showToast({
         title: '添加成功',
         icon: 'success',

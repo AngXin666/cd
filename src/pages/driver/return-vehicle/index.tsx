@@ -14,7 +14,8 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
-import {getVehicleById, returnVehicle, updateVehicle} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {Vehicle} from '@/db/types'
 import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
@@ -157,7 +158,7 @@ const ReturnVehicle: React.FC = () => {
   const loadVehicleInfo = async (vehicleId: string) => {
     setLoading(true)
     try {
-      const data = await getVehicleById(vehicleId)
+      const data = await VehiclesAPI.getVehicleById(vehicleId)
       if (data) {
         setVehicle(data)
         logger.info('车辆信息加载成功', {vehicleId, plate: data.plate_number})
@@ -288,7 +289,7 @@ const ReturnVehicle: React.FC = () => {
       ].filter(Boolean)
 
       // 4. 调用还车API
-      const result = await returnVehicle(vehicle.id, returnPhotoUrls)
+      const result = await VehiclesAPI.returnVehicle(vehicle.id, returnPhotoUrls)
 
       // 5. 如果有车损照片，追加到车辆的damage_photos字段（保留提车时的车损照片）
       if (uploadedDamagePhotos.length > 0 && result) {
@@ -296,7 +297,7 @@ const ReturnVehicle: React.FC = () => {
         const existingDamagePhotos = vehicle.damage_photos || []
         // 合并提车和还车的车损照片
         const allDamagePhotos = [...existingDamagePhotos, ...uploadedDamagePhotos]
-        await updateVehicle(vehicle.id, {
+        await VehiclesAPI.updateVehicle(vehicle.id, {
           damage_photos: allDamagePhotos
         })
       }

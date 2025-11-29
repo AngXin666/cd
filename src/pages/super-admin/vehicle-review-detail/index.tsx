@@ -11,14 +11,8 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
-import {
-  approveVehicle,
-  getVehicleWithDriverDetails,
-  lockPhoto,
-  markPhotoForDeletion,
-  requireSupplement,
-  unlockPhoto
-} from '@/db/api'
+import * as VehiclesAPI from '@/db/api/vehicles'
+
 import type {VehicleWithDriverDetails} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
@@ -83,7 +77,7 @@ const VehicleReviewDetail: React.FC = () => {
     logger.info('加载车辆信息', {vehicleId})
 
     try {
-      const data = await getVehicleWithDriverDetails(vehicleId)
+      const data = await VehiclesAPI.getVehicleWithDriverDetails(vehicleId)
       if (!data) {
         throw new Error('车辆不存在')
       }
@@ -158,7 +152,7 @@ const VehicleReviewDetail: React.FC = () => {
     try {
       if (locked) {
         // 解锁
-        const success = await unlockPhoto(vehicle.id, field, index)
+        const success = await VehiclesAPI.unlockPhoto(vehicle.id, field, index)
         if (success) {
           const newLockedPhotos = {...lockedPhotos}
           const fieldLocks = newLockedPhotos[field] || []
@@ -168,7 +162,7 @@ const VehicleReviewDetail: React.FC = () => {
         }
       } else {
         // 锁定
-        const success = await lockPhoto(vehicle.id, field, index)
+        const success = await VehiclesAPI.lockPhoto(vehicle.id, field, index)
         if (success) {
           const newLockedPhotos = {...lockedPhotos}
           const fieldLocks = newLockedPhotos[field] || []
@@ -200,7 +194,7 @@ const VehicleReviewDetail: React.FC = () => {
     } else {
       // 标记为需补录
       try {
-        const success = await markPhotoForDeletion(vehicle.id, field, index)
+        const success = await VehiclesAPI.markPhotoForDeletion(vehicle.id, field, index)
         if (success) {
           const photoKey = `${field}_${index}`
           setRequiredPhotos([...requiredPhotos, photoKey])
@@ -236,7 +230,7 @@ const VehicleReviewDetail: React.FC = () => {
           Taro.showLoading({title: '提交中...'})
 
           try {
-            const success = await approveVehicle(vehicle.id, user.id, reviewNotes)
+            const success = await VehiclesAPI.approveVehicle(vehicle.id, user.id, reviewNotes)
             if (success) {
               Taro.hideLoading()
               Taro.showToast({title: '审核通过', icon: 'success'})
@@ -312,7 +306,7 @@ const VehicleReviewDetail: React.FC = () => {
 
           try {
             // 先更新需要补录的照片列表和审核状态
-            const success = await requireSupplement(vehicle.id, user.id, reviewNotes)
+            const success = await VehiclesAPI.requireSupplement(vehicle.id, user.id, reviewNotes)
             if (!success) {
               throw new Error('要求补录失败')
             }

@@ -3,7 +3,9 @@ import {navigateBack, showToast} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {createNotificationForAllSuperAdmins, getCurrentUserProfile, updateUserProfile} from '@/db/api'
+import * as NotificationsAPI from '@/db/api/notifications'
+import * as UsersAPI from '@/db/api/users'
+
 import type {Profile} from '@/db/types'
 
 const EditNamePage: React.FC = () => {
@@ -15,7 +17,7 @@ const EditNamePage: React.FC = () => {
 
   // 加载当前用户信息
   const loadProfile = useCallback(async () => {
-    const data = await getCurrentUserProfile()
+    const data = await UsersAPI.getCurrentUserProfile()
     setProfile(data)
     if (data) {
       setName(data.name || '')
@@ -88,12 +90,12 @@ const EditNamePage: React.FC = () => {
       }
 
       // 更新用户信息
-      const success = await updateUserProfile(user.id, updateData)
+      const success = await UsersAPI.updateUserProfile(user.id, updateData)
 
       if (success) {
         // 如果是车队长，通知所有老板
         if (profile.role === 'MANAGER') {
-          await createNotificationForAllSuperAdmins({
+          await NotificationsAPI.createNotificationForAllSuperAdmins({
             type: 'system_notice',
             title: '车队长信息更新',
             message: `车队长 ${name.trim()} (${phone.trim()}) 更新了实名信息，请审核确认。`
