@@ -44,18 +44,49 @@
 23. warehouses（仓库）- 1个约束
 
 #### 修复措施
+
+##### 第一步：删除 public Schema 中的外键约束
 ✅ **已完成**：批量删除所有 41 个外键约束
 - 迁移文件：`00455_batch_remove_profiles_foreign_key_constraints.sql`
 - 为所有受影响的列添加了注释，说明设计决策
-- 验证结果：不再有引用 `profiles` 的外键约束
+- 验证结果：public Schema 中不再有引用 `profiles` 的外键约束
+
+##### 第二步：在租户 Schema 中添加外键约束
+✅ **已完成**：为租户 Schema 添加外键约束，确保数据仅在本租户范围内引用
+- 迁移文件：`00456_add_tenant_schema_foreign_key_constraints.sql`
+- 创建函数 `add_tenant_foreign_keys()`，为租户 Schema 添加外键约束
+- 为所有现有租户 Schema（tenant_test1、tenant_test2）添加外键约束
+
+**添加的外键约束**（每个租户 Schema）：
+1. attendance.user_id → profiles(id)
+2. driver_warehouses.driver_id → profiles(id)
+3. manager_warehouses.manager_id → profiles(id)
+4. leave_requests.user_id → profiles(id)
+5. notifications.sender_id → profiles(id)
+6. piecework_records.user_id → profiles(id)
+7. vehicles.driver_id → profiles(id)
+
+**验证结果**：
+- ✅ tenant_test1：8 个外键约束
+- ✅ tenant_test2：8 个外键约束
+- ✅ 所有约束都引用本租户 Schema 中的 profiles 表
 
 #### 数据完整性保证
+
+##### public Schema
 虽然删除了外键约束，但数据完整性仍然得到保证：
 1. **应用层验证**：前端代码验证用户存在
 2. **认证系统保证**：所有用户都在 `auth.users` 表中
 3. **RLS 策略保护**：所有表都启用了 RLS
 4. **业务逻辑保证**：所有操作都需要认证
 5. **性能优势**：提高插入性能，减少数据库锁定
+
+##### 租户 Schema
+通过外键约束保证数据完整性：
+1. **数据库层面保证**：外键约束确保数据引用的正确性
+2. **租户数据隔离**：确保数据仅在本租户范围内引用
+3. **防止数据错误**：防止引用不存在的用户 ID
+4. **性能优化**：数据库可以利用外键索引优化查询
 
 ---
 
@@ -274,7 +305,8 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
 3. ✅ 通知创建外键约束错误
 4. ✅ 请假申请外键约束错误
 5. ✅ 仓库分配外键约束错误
-6. ✅ 批量删除所有外键约束（41个）
+6. ✅ 批量删除 public Schema 中的所有外键约束（41个）
+7. ✅ 为租户 Schema 添加外键约束，确保数据仅在本租户范围内引用（16个约束）
 
 ### 6.2 前端代码问题
 1. ✅ getCurrentUserWithRealName 函数支持多租户
@@ -341,7 +373,8 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
 4. `00452_remove_notifications_foreign_key_constraints.sql` - 删除 notifications 外键约束
 5. `00453_remove_warehouse_assignment_foreign_key_constraints.sql` - 删除仓库分配表外键约束
 6. `00454_remove_leave_applications_foreign_key_constraints.sql` - 删除请假申请表外键约束
-7. `00455_batch_remove_profiles_foreign_key_constraints.sql` - 批量删除所有外键约束
+7. `00455_batch_remove_profiles_foreign_key_constraints.sql` - 批量删除 public Schema 中的所有外键约束（41个）
+8. `00456_add_tenant_schema_foreign_key_constraints.sql` - 为租户 Schema 添加外键约束，确保数据仅在本租户范围内引用
 
 ---
 
