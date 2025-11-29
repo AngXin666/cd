@@ -40,7 +40,7 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
   }, [])
 
   return (
-    <AuthProvider client={supabase}>
+    <AuthProvider client={supabase} loginPath="/pages/login/index">
       <TenantProvider>{children}</TenantProvider>
     </AuthProvider>
   )
