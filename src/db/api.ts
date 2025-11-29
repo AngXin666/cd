@@ -309,11 +309,16 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
  * 获取当前用户的角色和租户信息
  *
  * 实现逻辑：
- * 1. 先尝试从 public.profiles 查询用户信息
- * 2. 如果用户在 public.profiles 中，说明是中央用户（super_admin）
- * 3. 如果用户不在 public.profiles 中，说明是租户用户，需要查找其所属的租户
- * 4. 通过查询 public.tenants 表，找到包含该用户的租户
- * 5. 返回 {role: 用户角色, tenant_id: 租户ID}
+ * 1. 从 public.profiles 查询用户信息（包括 role 和 main_account_id）
+ * 2. 如果用户有 main_account_id，说明是子账号，租户ID为 main_account_id
+ * 3. 如果用户没有 main_account_id：
+ *    - 角色是 boss：租户ID为用户自己的ID
+ *    - 角色是 super_admin 或 peer_admin：没有租户ID（中央用户）
+ * 4. 返回 {role: 用户角色, tenant_id: 租户ID}
+ *
+ * 注意：
+ * - 当前系统中，所有用户都在 public.profiles 中
+ * - 不使用租户 Schema，通过 main_account_id 字段判断租户关系
  *
  * @returns {role, tenant_id}
  */
