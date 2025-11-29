@@ -55,7 +55,7 @@ export interface UserContextData {
 /**
  * 默认权限（所有权限为 false）
  */
-const DEFAULT_PERMISSIONS: UserPermissions = {
+const _DEFAULT_PERMISSIONS: UserPermissions = {
   can_add_driver: false,
   can_edit_driver: false,
   can_delete_driver: false,
@@ -122,7 +122,13 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
         error: authError
       } = await supabase.auth.getUser()
 
+      // 如果是会话缺失错误，说明用户未登录，这是正常的
       if (authError) {
+        if (authError.message.includes('Auth session missing')) {
+          console.log('[UserContext] 用户未登录（会话缺失）')
+          clearUserData()
+          return
+        }
         console.error('[UserContext] 获取认证用户失败:', authError)
         throw new Error('获取认证用户失败')
       }
@@ -135,92 +141,61 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
 
       console.log('[UserContext] 当前用户ID:', user.id)
 
-      // 2. 查询用户信息（包括角色和租户信息）
-      const {data: profile, error: profileError} = await supabase
-        .schema('public')
-        .from('profiles')
-        .select('name, email, phone, role, status, main_account_id')
+      // 2. 查询用户信息
+      const {data: userInfo, error: userError} = await supabase
+        .from('users')
+        .select('name, email, phone, status')
         .eq('id', user.id)
         .maybeSingle()
 
-      if (profileError) {
-        console.error('[UserContext] 查询用户信息失败:', profileError)
+      if (userError) {
+        console.error('[UserContext] 查询用户信息失败:', userError)
         throw new Error('查询用户信息失败')
       }
 
-      if (!profile) {
-        console.error('[UserContext] 用户不存在')
-        throw new Error('用户不存在')
+      if (!userInfo) {
+        console.error('[UserContext] 用户信息不存在')
+        throw new Error('用户信息不存在')
       }
 
-      console.log('[UserContext] 用户信息:', profile)
+      // 3. 查询用户角色
+      const {data: roleData, error: roleError} = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-      // 3. 判断租户ID
-      let calculatedTenantId: string | null = null
-
-      if (profile.main_account_id) {
-        // 如果有 main_account_id，说明是子账号
-        calculatedTenantId = profile.main_account_id
-      } else if (profile.role === 'boss') {
-        // 如果是老板，租户ID是用户自己的ID
-        calculatedTenantId = user.id
-      } else {
-        // super_admin 或 peer_admin 没有租户ID
-        calculatedTenantId = null
+      if (roleError) {
+        console.error('[UserContext] 查询用户角色失败:', roleError)
+        throw new Error('查询用户角色失败')
       }
 
-      console.log('[UserContext] 租户ID:', calculatedTenantId)
-
-      // 4. 查询用户权限（如果有租户ID）
-      let userPermissions: UserPermissions = {...DEFAULT_PERMISSIONS}
-
-      if (calculatedTenantId) {
-        const {data: permissionsData, error: permissionsError} = await supabase
-          .schema('public')
-          .from('user_permissions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle()
-
-        if (permissionsError) {
-          console.warn('[UserContext] 查询用户权限失败:', permissionsError)
-          // 不抛出错误，使用默认权限
-        } else if (permissionsData) {
-          console.log('[UserContext] 用户权限:', permissionsData)
-          userPermissions = {
-            can_add_driver: permissionsData.can_add_driver || false,
-            can_edit_driver: permissionsData.can_edit_driver || false,
-            can_delete_driver: permissionsData.can_delete_driver || false,
-            can_disable_driver: permissionsData.can_disable_driver || false,
-            can_approve_leave: permissionsData.can_approve_leave || false,
-            can_approve_resignation: permissionsData.can_approve_resignation || false,
-            can_approve_vehicle: permissionsData.can_approve_vehicle || false,
-            can_approve_realname: permissionsData.can_approve_realname || false,
-            can_view_all_drivers: permissionsData.can_view_all_drivers || false,
-            can_view_all_data: permissionsData.can_view_all_data || false
-          }
-        } else {
-          console.log('[UserContext] 用户没有权限配置，使用默认权限')
-        }
-      } else {
-        console.log('[UserContext] 中央用户，不查询权限')
+      if (!roleData) {
+        console.error('[UserContext] 用户角色不存在')
+        throw new Error('用户角色不存在')
       }
 
-      // 5. 更新状态
+      console.log('[UserContext] 用户信息加载成功:', {
+        name: userInfo.name,
+        role: roleData.role,
+        status: userInfo.status
+      })
+
+      // 4. 更新状态
       setUserId(user.id)
-      setName(profile.name)
-      setEmail(profile.email)
-      setPhone(profile.phone)
-      setRole(profile.role as UserRole)
-      setStatus(profile.status)
-      setTenantId(calculatedTenantId)
-      setMainAccountId(profile.main_account_id)
-      setPermissions(userPermissions)
-
-      console.log('[UserContext] 用户数据加载完成')
+      setName(userInfo.name || null)
+      setEmail(userInfo.email || null)
+      setPhone(userInfo.phone || null)
+      setRole(roleData.role)
+      setStatus(userInfo.status || null)
+      // 单用户系统不需要租户ID和主账号ID
+      setTenantId(null)
+      setMainAccountId(null)
+      setPermissions(null)
     } catch (err) {
-      console.error('[UserContext] 加载用户数据失败:', err)
-      setError(err instanceof Error ? err.message : '加载用户数据失败')
+      const errorMessage = err instanceof Error ? err.message : '未知错误'
+      console.error('[UserContext] 加载用户数据失败:', errorMessage)
+      setError(errorMessage)
       clearUserData()
     } finally {
       setLoading(false)
