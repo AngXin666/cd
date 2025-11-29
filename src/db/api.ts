@@ -68,25 +68,6 @@ import type {
 const logger = createLogger('DatabaseAPI')
 
 /**
- * 兼容函数：将租户 Profile 转换为 Profile 类型
- * 注意：此函数仅用于向后兼容，新代码不应使用
- * @deprecated 多租户功能已废弃
- */
-function _convertTenantProfileToProfile(tenantProfile: any): Profile {
-  console.warn('[convertTenantProfileToProfile] 此函数已废弃，请使用新的用户管理 API')
-  return {
-    id: tenantProfile.id || '',
-    phone: tenantProfile.phone || null,
-    email: tenantProfile.email || null,
-    name: tenantProfile.name || '',
-    role: (tenantProfile.role as UserRole) || 'DRIVER',
-    avatar_url: tenantProfile.avatar_url || null,
-    created_at: tenantProfile.created_at || new Date().toISOString(),
-    updated_at: tenantProfile.updated_at || new Date().toISOString()
-  }
-}
-
-/**
  * 获取本地日期字符串（YYYY-MM-DD格式）
  * 避免使用toISOString()导致的时区问题
  */
@@ -1084,40 +1065,55 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
 
 /**
  * 获取仓库的司机列表
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 driver_warehouses + users + user_roles
  */
 export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询仓库司机，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询仓库司机，使用 Schema: public')
-    }
-
-    // 必须明确指定使用 driver_id 关系
-    const {data, error} = await supabase
-      .schema(schemaName)
+    // 查询仓库的司机关联
+    const {data: driverWarehouseData, error: dwError} = await supabase
       .from('driver_warehouses')
-      .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
+      .select('driver_id')
       .eq('warehouse_id', warehouseId)
 
-    if (error) {
-      console.error('获取仓库司机失败:', error)
+    if (dwError) {
+      console.error('获取仓库司机关联失败:', dwError)
       return []
     }
 
-    if (!data) return []
+    if (!driverWarehouseData || driverWarehouseData.length === 0) {
+      return []
+    }
 
-    // 提取司机信息
-    return data.map((item: any) => item.profiles).filter(Boolean)
+    const driverIds = driverWarehouseData.map((dw) => dw.driver_id)
+
+    // 单用户架构：从 users 表查询司机信息
+    const [{data: users, error: usersError}, {data: roles, error: rolesError}] = await Promise.all([
+      supabase.from('users').select('*').in('id', driverIds),
+      supabase.from('user_roles').select('user_id, role').in('user_id', driverIds)
+    ])
+
+    if (usersError) {
+      console.error('查询 users 表失败:', usersError)
+      return []
+    }
+
+    if (rolesError) {
+      console.error('查询 user_roles 表失败:', rolesError)
+      return []
+    }
+
+    // 合并用户和角色数据
+    const profiles = (users || []).map((user) => {
+      const roleData = (roles || []).find((r) => r.user_id === user.id)
+      return convertUserToProfile({
+        ...user,
+        role: roleData?.role || 'DRIVER'
+      })
+    })
+
+    return profiles
   } catch (error) {
-    console.error('获取仓库司机异常:', error)
+    console.error('获取仓库司机失败:', error)
     return []
   }
 }
@@ -2062,10 +2058,7 @@ export async function removeManagerWarehouse(managerId: string, warehouseId: str
 
 /**
  * 创建请假申请
- */
-/**
- * 创建请假申请
- * 支持多租户架构：根据当前用户角色插入到对应的 Schema
+ * 单用户架构：直接插入到 leave_applications 表
  */
 export async function createLeaveApplication(input: LeaveApplicationInput): Promise<LeaveApplication | null> {
   try {
@@ -2079,21 +2072,8 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       return null
     }
 
-    // 2. 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 3. 根据角色选择插入的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户创建请假申请，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户创建请假申请，使用 Schema: public')
-    }
-
-    // 4. 插入请假申请
+    // 2. 插入请假申请
     const {data, error} = await supabase
-      .schema(schemaName)
       .from('leave_applications')
       .insert({
         user_id: input.user_id,
@@ -2866,52 +2846,54 @@ export async function getWarehouseDriverCount(warehouseId: string): Promise<numb
 
 /**
  * 获取仓库的管理员（单个）
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 manager_warehouses + users + user_roles
  */
 export async function getWarehouseManager(warehouseId: string): Promise<Profile | null> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询仓库管理员，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询仓库管理员，使用 Schema: public')
-    }
-
-    const {data, error} = await supabase
-      .schema(schemaName)
+    // 查询仓库的管理员关联
+    const {data: managerWarehouseData, error: mwError} = await supabase
       .from('manager_warehouses')
-      .select(
-        `
-        profile:profiles (
-          id,
-          name,
-          phone,
-          email,
-          role,
-          created_at
-        )
-      `
-      )
+      .select('manager_id')
       .eq('warehouse_id', warehouseId)
       .order('created_at', {ascending: true})
       .limit(1)
       .maybeSingle()
 
-    if (error) {
-      console.error('获取仓库管理员失败:', error)
+    if (mwError) {
+      console.error('获取仓库管理员关联失败:', mwError)
       return null
     }
 
-    if (!data || !data.profile) {
+    if (!managerWarehouseData) {
       return null
     }
 
-    return data.profile as unknown as Profile
+    const managerId = managerWarehouseData.manager_id
+
+    // 单用户架构：从 users 表查询车队长信息
+    const [{data: user, error: userError}, {data: roleData, error: roleError}] = await Promise.all([
+      supabase.from('users').select('*').eq('id', managerId).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', managerId).maybeSingle()
+    ])
+
+    if (userError) {
+      console.error('查询 users 表失败:', userError)
+      return null
+    }
+
+    if (roleError) {
+      console.error('查询 user_roles 表失败:', roleError)
+      return null
+    }
+
+    if (!user) {
+      return null
+    }
+
+    return convertUserToProfile({
+      ...user,
+      role: roleData?.role || 'MANAGER'
+    })
   } catch (error) {
     console.error('获取仓库管理员异常:', error)
     return null
