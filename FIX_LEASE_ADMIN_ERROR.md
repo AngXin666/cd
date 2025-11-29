@@ -38,7 +38,18 @@
   - `fleet_leader`（车队长）
   - `driver`（司机）
 
-### 2. 关键代码更改
+### 2. 删除废弃的 lease_admin 相关函数和策略
+
+创建了新的迁移文件 `00444_remove_lease_admin_functions_and_policies.sql`，该文件：
+
+- 删除了 `init_lease_admin_profile` 函数（该函数尝试使用已删除的 'lease_admin' 枚举值）
+- 删除了 `is_lease_admin_user` 函数
+- 删除了 `is_lease_admin` 函数
+- 删除了所有与 lease_admin 相关的 RLS 策略
+
+这些函数和策略引用了已删除的 'lease_admin' 枚举值，可能导致错误。
+
+### 3. 关键代码更改
 
 **之前（错误的）：**
 ```sql
@@ -85,8 +96,16 @@ v_sql := format(
 3. **应用迁移**：
    ```bash
    supabase_apply_migration fix_insert_tenant_profile_remove_enum_cast
+   supabase_apply_migration remove_lease_admin_functions_and_policies
    ```
    结果：成功（✓）
+
+4. **验证函数已删除**：
+   ```sql
+   SELECT proname FROM pg_proc 
+   WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_admin');
+   ```
+   结果：无记录（✓）
 
 ## 注意事项
 
@@ -128,7 +147,8 @@ v_sql := format(
 - **迁移文件**：
   - `supabase/migrations/00416_remove_lease_admin_role.sql`：移除 lease_admin 角色
   - `supabase/migrations/00432_recreate_insert_tenant_profile_function.sql`：旧的（有问题的）函数
-  - `supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`：修复后的函数
+  - `supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`：修复后的 insert_tenant_profile 函数
+  - `supabase/migrations/00444_remove_lease_admin_functions_and_policies.sql`：删除废弃的 lease_admin 相关函数和策略
 
 - **类型定义**：
   - `src/db/types.ts`：TypeScript 类型定义
