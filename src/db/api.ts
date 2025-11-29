@@ -305,10 +305,22 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
  * 获取当前用户的角色和租户信息
  * 用于判断是否需要检查租期
  */
+/**
+ * 获取当前用户的角色和租户信息
+ *
+ * 实现逻辑：
+ * 1. 先尝试从 public.profiles 查询用户信息
+ * 2. 如果用户在 public.profiles 中，说明是中央用户（super_admin）
+ * 3. 如果用户不在 public.profiles 中，说明是租户用户，需要查找其所属的租户
+ * 4. 通过查询 public.tenants 表，找到包含该用户的租户
+ * 5. 返回 {role: 用户角色, tenant_id: 租户ID}
+ *
+ * @returns {role, tenant_id}
+ */
 export async function getCurrentUserRoleAndTenant(): Promise<{
   role: UserRole
   tenant_id: string | null
-} | null> {
+}> {
   try {
     console.log('[getCurrentUserRoleAndTenant] 开始获取用户角色和租户信息')
     const {
@@ -318,31 +330,87 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     if (authError) {
       console.error('[getCurrentUserRoleAndTenant] 获取认证用户失败:', authError)
-      return null
+      return {role: 'driver', tenant_id: null}
     }
 
     if (!user) {
       console.warn('[getCurrentUserRoleAndTenant] 用户未登录')
-      return null
+      return {role: 'driver', tenant_id: null}
     }
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
-    console.log('[getCurrentUserRoleAndTenant] 用户元数据:', user.user_metadata)
 
-    // 从 user_metadata 获取租户ID和角色
-    const tenant_id = user.user_metadata?.tenant_id || null
-    const role = user.user_metadata?.role || null
+    // 1. 先从 public.profiles 查询用户信息
+    const {data: profile, error: profileError} = await supabase
+      .schema('public')
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
 
-    if (!role) {
-      console.warn('[getCurrentUserRoleAndTenant] 用户元数据中没有角色信息')
-      return null
+    if (profileError) {
+      console.error('[getCurrentUserRoleAndTenant] 查询 public.profiles 失败:', profileError)
+      return {role: 'driver', tenant_id: null}
     }
 
-    console.log('[getCurrentUserRoleAndTenant] 成功获取:', {role, tenant_id})
-    return {role, tenant_id}
+    if (profile) {
+      console.log('[getCurrentUserRoleAndTenant] 在 public.profiles 中找到用户，角色:', profile.role)
+      // 如果用户在 public.profiles 中，说明是中央用户（super_admin）
+      return {role: profile.role as UserRole, tenant_id: null}
+    }
+
+    // 2. 如果在 public.profiles 中没有找到，说明是租户用户
+    console.log('[getCurrentUserRoleAndTenant] 在 public.profiles 中未找到用户，查询租户信息')
+
+    // 查询所有租户
+    const {data: tenants, error: tenantsError} = await supabase.schema('public').from('tenants').select('id')
+
+    if (tenantsError) {
+      console.error('[getCurrentUserRoleAndTenant] 查询租户列表失败:', tenantsError)
+      return {role: 'driver', tenant_id: null}
+    }
+
+    if (!tenants || tenants.length === 0) {
+      console.warn('[getCurrentUserRoleAndTenant] 没有找到任何租户')
+      return {role: 'driver', tenant_id: null}
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 找到租户列表，数量:', tenants.length)
+
+    // 3. 遍历所有租户，查找包含该用户的租户
+    for (const tenant of tenants) {
+      // 生成 Schema 名称：tenant_{tenant_id}，将 UUID 中的 - 替换为 _
+      const schemaName = `tenant_${tenant.id.replace(/-/g, '_')}`
+      console.log(`[getCurrentUserRoleAndTenant] 查询租户 Schema: ${schemaName}`)
+
+      try {
+        const {data: tenantProfile, error: tenantProfileError} = await supabase
+          .schema(schemaName)
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (tenantProfileError) {
+          console.warn(`[getCurrentUserRoleAndTenant] 查询租户 ${schemaName} 失败:`, tenantProfileError)
+          continue
+        }
+
+        if (tenantProfile) {
+          console.log(`[getCurrentUserRoleAndTenant] 在租户 ${schemaName} 中找到用户，角色:`, tenantProfile.role)
+          return {role: tenantProfile.role as UserRole, tenant_id: tenant.id}
+        }
+      } catch (error) {
+        console.warn(`[getCurrentUserRoleAndTenant] 查询租户 ${schemaName} 异常:`, error)
+      }
+    }
+
+    // 4. 如果在所有租户中都没有找到，返回默认值
+    console.warn('[getCurrentUserRoleAndTenant] 在所有租户中都未找到用户')
+    return {role: 'driver', tenant_id: null}
   } catch (error) {
     console.error('[getCurrentUserRoleAndTenant] 未预期的错误:', error)
-    return null
+    return {role: 'driver', tenant_id: null}
   }
 }
 
