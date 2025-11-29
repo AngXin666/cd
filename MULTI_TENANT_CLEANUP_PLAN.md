@@ -10,6 +10,9 @@
 - ✅ 更新 `getDriversByWarehouse()` - 移除多租户逻辑
 - ✅ 更新 `createLeaveApplication()` - 移除多租户逻辑
 - ✅ 更新 `getWarehouseManager()` - 移除多租户逻辑
+- ✅ 更新 `getAllManagers()` - 更新注释
+- ✅ 更新 `getNotifications()` - 移除多租户逻辑
+- ✅ 更新 `getUnreadNotificationCount()` - 移除多租户逻辑
 - ✅ 所有函数已不再使用 `getCurrentUserRoleAndTenant()` 的 `tenant_id`
 
 ### 2. src/services/notificationService.ts（已完成）
@@ -19,6 +22,14 @@
 - ✅ 更新 `_getAllAdmins()` - 移除 Schema 切换逻辑
 - ✅ 更新 `getManagersWithJurisdiction()` - 移除 Schema 切换逻辑
 - ✅ 所有函数改为直接查询 public schema
+
+### 3. src/db/notificationApi.ts（已完成）
+- ✅ 更新 `createNotification()` - 移除多租户逻辑
+- ✅ 更新 `createNotifications()` - 移除多租户逻辑
+- ✅ 所有函数改为直接查询 public schema
+
+### 4. src/db/api/utils.ts（已完成）
+- ✅ 删除废弃的 `convertTenantProfileToProfile()` 函数
 
 ## 📋 待清理的文件和函数
 
