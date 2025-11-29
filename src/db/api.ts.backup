@@ -3,65 +3,72 @@ import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/
 import {formatLeaveDate} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
 import type {
-  ApplicationReviewInput,
+  // ApplicationReviewInput, // 已删除 - 多租户相关
   AttendanceRecord,
   AttendanceRecordInput,
   AttendanceRecordUpdate,
-  AttendanceRule,
-  AttendanceRuleInput,
-  AttendanceRuleUpdate,
-  AutoReminderRule,
-  AutoReminderRuleWithWarehouse,
-  CategoryPrice,
-  CategoryPriceInput,
-  CreateLeaseInput,
-  CreateNotificationInput,
-  DriverLicense,
-  DriverLicenseInput,
-  DriverLicenseUpdate,
-  DriverType,
-  DriverWarehouse,
-  DriverWarehouseInput,
-  Feedback,
-  FeedbackInput,
-  FeedbackStatus,
-  Lease,
-  LeaseBill,
-  LeaseWithTenant,
-  LeaveApplication,
-  LeaveApplicationInput,
-  LockedPhotos,
-  ManagerPermission,
-  ManagerPermissionInput,
+  // LockedPhotos, // 已删除 - 多租户相关
+  // ManagerPermission, // 已删除 - 多租户相关
+  // ManagerPermissionInput, // 已删除 - 多租户相关
   Notification,
-  NotificationSendRecord,
-  NotificationSendRecordWithSender,
-  NotificationTemplate,
-  PieceWorkCategory,
-  PieceWorkCategoryInput,
-  PieceWorkRecord,
-  PieceWorkRecordInput,
-  PieceWorkStats,
-  Profile,
-  ProfileUpdate,
-  ResignationApplication,
-  ResignationApplicationInput,
-  ScheduledNotification,
-  SenderRole,
+  // ProfileUpdate, // 已删除 - 多租户相关
+  // ResignationApplication, // 已删除 - 多租户相关
+  // ResignationApplicationInput, // 已删除 - 多租户相关
+  // ScheduledNotification, // 已删除 - 多租户相关
+  // SenderRole, // 已删除 - 多租户相关
+  // TenantProfile, // 已删除 - 多租户相关
   UserRole,
   Vehicle,
   VehicleInput,
   VehicleUpdate,
-  VehicleWithDriver,
-  VehicleWithDriverDetails,
+  // VehicleWithDriver, // 已删除 - 多租户相关
+  // VehicleWithDriverDetails, // 已删除 - 多租户相关
   Warehouse,
   WarehouseInput,
-  WarehouseUpdate,
-  WarehouseWithRule
+  WarehouseUpdate
+  // WarehouseWithRule // 已删除 - 多租户相关
 } from './types'
 
 // 创建数据库操作日志记录器
 const logger = createLogger('DatabaseAPI')
+
+/**
+ * 将租户 Profile 转换为 Profile 类型
+ * 租户 Schema 中的 profiles 表结构与 public.profiles 不同
+ */
+function convertTenantProfileToProfile(tenantProfile: TenantProfile): Profile {
+  return {
+    id: tenantProfile.id,
+    phone: tenantProfile.phone,
+    email: tenantProfile.email,
+    name: tenantProfile.name,
+    // 角色映射：租户角色 -> 系统角色
+    role: tenantProfile.role === 'fleet_leader' ? 'manager' : (tenantProfile.role as UserRole),
+    driver_type: null,
+    avatar_url: null,
+    nickname: null,
+    address_province: null,
+    address_city: null,
+    address_district: null,
+    address_detail: null,
+    emergency_contact_name: null,
+    emergency_contact_phone: null,
+    login_account: null,
+    vehicle_plate: tenantProfile.vehicle_plate,
+    join_date: null,
+    status: tenantProfile.status,
+    company_name: null,
+    lease_start_date: null,
+    lease_end_date: null,
+    monthly_fee: null,
+    notes: null,
+    main_account_id: null,
+    peer_account_permission: tenantProfile.permission_type,
+    manager_permissions_enabled: null,
+    created_at: tenantProfile.created_at,
+    updated_at: tenantProfile.updated_at
+  }
+}
 
 /**
  * 获取本地日期字符串（YYYY-MM-DD格式）
@@ -94,8 +101,10 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
 
     console.log('[getCurrentUserProfile] 当前用户ID:', user.id)
     console.log('[getCurrentUserProfile] 当前用户手机号:', user.phone)
+    console.log('[getCurrentUserProfile] 用户元数据:', user.user_metadata)
 
-    const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    // 使用 RPC 函数从正确的 Schema 查询 profile
+    const {data, error} = await supabase.rpc('get_current_user_profile')
 
     if (error) {
       console.error('[getCurrentUserProfile] 查询用户档案失败:', error)
@@ -115,7 +124,7 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
       role: data.role
     })
 
-    return data
+    return data as Profile
   } catch (error) {
     console.error('[getCurrentUserProfile] 未预期的错误:', error)
     return null
@@ -146,45 +155,66 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
 
     console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
 
-    // 查询用户档案，并 LEFT JOIN driver_licenses 表获取真实姓名
-    // 注意：driver_licenses 表有两个外键指向 profiles（driver_id 和 tenant_id）
-    // 必须明确指定使用 driver_id 关系，否则 Supabase 会报错
-    const {data, error} = await supabase
-      .from('profiles')
-      .select(
-        `
-        *,
-        driver_licenses!driver_licenses_driver_id_fkey (
-          id_card_name
-        )
-      `
-      )
-      .eq('id', user.id)
+    // 获取用户的角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    console.log('[getCurrentUserWithRealName] 用户角色和租户:', {role, tenant_id})
+
+    let profileData: any = null
+    let realName: string | null = null
+
+    // 如果是租户用户，从租户 Schema 中获取档案
+    if (tenant_id) {
+      console.log('[getCurrentUserWithRealName] 从租户 Schema 获取用户档案')
+      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
+        user_id: user.id
+      })
+
+      if (tenantProfile && tenantProfile.length > 0) {
+        profileData = tenantProfile[0]
+        console.log('[getCurrentUserWithRealName] 租户用户档案:', profileData)
+      } else {
+        console.warn('[getCurrentUserWithRealName] 租户用户档案不存在，用户ID:', user.id)
+        return null
+      }
+    } else {
+      // 如果是中央用户，从 public.profiles 中获取档案
+      console.log('[getCurrentUserWithRealName] 从 public.profiles 获取用户档案')
+      const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+
+      if (error) {
+        console.error('[getCurrentUserWithRealName] 查询用户档案失败:', error)
+        return null
+      }
+
+      if (!data) {
+        console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
+        return null
+      }
+
+      profileData = data
+      console.log('[getCurrentUserWithRealName] 中央用户档案:', profileData)
+    }
+
+    // 查询驾驶证信息获取真实姓名（driver_licenses 表是共享的，包含所有租户的数据）
+    const {data: licenseData} = await supabase
+      .from('driver_licenses')
+      .select('id_card_name')
+      .eq('driver_id', user.id)
       .maybeSingle()
 
-    if (error) {
-      console.error('[getCurrentUserWithRealName] 查询用户档案失败:', error)
-      return null
-    }
-
-    if (!data) {
-      console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
-      return null
-    }
-
-    // 提取真实姓名
-    const realName = (data.driver_licenses as any)?.id_card_name || null
+    realName = licenseData?.id_card_name || null
+    console.log('[getCurrentUserWithRealName] 驾驶证真实姓名:', realName)
 
     console.log('[getCurrentUserWithRealName] 成功获取用户档案:', {
-      id: data.id,
-      name: data.name,
+      id: profileData.id,
+      name: profileData.name,
       real_name: realName,
-      role: data.role
+      role: profileData.role
     })
 
     // 返回包含真实姓名的用户信息
     return {
-      ...data,
+      ...profileData,
       real_name: realName
     }
   } catch (error) {
@@ -217,7 +247,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     console.log('[getCurrentUserRole] 当前用户ID:', user.id)
 
-    // 只查询 role 字段，提高查询效率
+    // 明确指定从 public schema 查询，确保查询超级管理员账号
     const {data, error} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 
     if (error) {
@@ -227,6 +257,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     if (!data) {
       console.warn('[getCurrentUserRole] 用户档案不存在，用户ID:', user.id)
+      console.warn('[getCurrentUserRole] 请检查 profiles 表中是否存在该用户记录')
       return null
     }
 
@@ -238,15 +269,129 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
   }
 }
 
-export async function getAllProfiles(): Promise<Profile[]> {
-  const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
+/**
+ * 获取当前用户的角色和租户信息
+ *
+ * 实现逻辑：
+ * 1. 从 public.profiles 查询用户信息（包括 role 和 main_account_id）
+ * 2. 如果用户有 main_account_id，说明是子账号，租户ID为 main_account_id
+ * 3. 如果用户没有 main_account_id：
+ *    - 角色是 boss：租户ID为用户自己的ID
+ *    - 角色是 super_admin 或 peer_admin：没有租户ID（中央用户）
+ * 4. 返回 {role: 用户角色, tenant_id: 租户ID}
+ *
+ * 注意：
+ * - 当前系统中，所有用户都在 public.profiles 中
+ * - 不使用租户 Schema，通过 main_account_id 字段判断租户关系
+ *
+ * @returns {role, tenant_id}
+ */
+export async function getCurrentUserRoleAndTenant(): Promise<{
+  role: UserRole
+  tenant_id: string | null
+}> {
+  try {
+    console.log('[getCurrentUserRoleAndTenant] 开始获取用户角色和租户信息')
+    const {
+      data: {user},
+      error: authError
+    } = await supabase.auth.getUser()
 
-  if (error) {
-    console.error('获取所有用户档案失败:', error)
+    if (authError) {
+      console.error('[getCurrentUserRoleAndTenant] 获取认证用户失败:', authError)
+      throw new Error('获取认证用户失败')
+    }
+
+    if (!user) {
+      console.warn('[getCurrentUserRoleAndTenant] 用户未登录')
+      throw new Error('用户未登录')
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
+
+    // 从 public.profiles 查询用户信息
+    const {data: profile, error: profileError} = await supabase
+      .schema('public')
+      .from('profiles')
+      .select('role, main_account_id')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileError) {
+      console.error('[getCurrentUserRoleAndTenant] 查询 public.profiles 出错:', profileError)
+      throw new Error('查询用户信息失败')
+    }
+
+    if (!profile) {
+      console.error('[getCurrentUserRoleAndTenant] 用户不存在')
+      throw new Error('用户不存在')
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', profile.role, '主账号ID:', profile.main_account_id)
+
+    // 判断租户ID
+    let tenant_id: string | null = null
+
+    // 如果用户有 main_account_id，说明是子账号，属于某个租户
+    if (profile.main_account_id) {
+      tenant_id = profile.main_account_id
+      console.log('[getCurrentUserRoleAndTenant] 用户是子账号，租户ID:', tenant_id)
+    } else {
+      // 如果用户没有 main_account_id，说明是主账号
+      // 如果角色是 boss，则租户ID是用户自己的ID
+      if (profile.role === 'boss') {
+        tenant_id = user.id
+        console.log('[getCurrentUserRoleAndTenant] 用户是老板，租户ID:', tenant_id)
+      } else {
+        // 如果角色是 super_admin 或 peer_admin，则没有租户ID
+        tenant_id = null
+        console.log('[getCurrentUserRoleAndTenant] 用户是中央用户，没有租户ID')
+      }
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: profile.role, tenant_id})
+    return {role: profile.role as UserRole, tenant_id}
+  } catch (error) {
+    console.error('[getCurrentUserRoleAndTenant] 发生错误:', error)
+    // 返回默认值，避免应用崩溃
+    return {role: 'driver', tenant_id: null}
+  }
+}
+
+/**
+ * 获取所有用户档案
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
+export async function getAllProfiles(): Promise<Profile[]> {
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询用户列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询用户列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取所有用户档案失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取所有用户档案异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 /**
@@ -256,7 +401,20 @@ export async function getAllProfiles(): Promise<Profile[]> {
 export async function getAllDriversWithRealName(): Promise<Array<Profile & {real_name: string | null}>> {
   logger.db('查询', 'profiles + driver_licenses', {role: 'driver'})
   try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      logger.info(`租户用户查询司机列表，使用 Schema: ${schemaName}`)
+    } else {
+      logger.info('中央用户查询司机列表，使用 Schema: public')
+    }
+
     const {data, error} = await supabase
+      .schema(schemaName)
       .from('profiles')
       .select(
         `
@@ -291,57 +449,188 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
 
 /**
  * 根据ID获取用户档案
+ * 支持多租户架构：先尝试从租户 Schema 查询，如果没有则从 public Schema 查询
  */
 export async function getProfileById(id: string): Promise<Profile | null> {
-  const {data, error} = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取用户档案失败:', error)
+    // 如果是租户用户，先尝试从租户 Schema 查询
+    if (tenant_id && role !== 'super_admin') {
+      const schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      const {data: tenantData, error: tenantError} = await supabase
+        .schema(schemaName)
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+
+      if (!tenantError && tenantData) {
+        console.log(`从租户 Schema ${schemaName} 获取用户档案成功`)
+        return tenantData
+      }
+    }
+
+    // 从 public Schema 查询
+    const {data, error} = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+
+    if (error) {
+      console.error('获取用户档案失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('获取用户档案异常:', error)
     return null
   }
-
-  return data
 }
 
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
-  const {error} = await supabase.from('profiles').update(updates).eq('id', id)
+  console.log('🔄 updateProfile: 开始更新用户档案')
+  console.log('  - 用户 ID:', id)
+  console.log('  - 更新内容:', updates)
 
-  if (error) {
-    console.error('更新用户档案失败:', error)
+  try {
+    // 获取当前登录用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('❌ 用户未登录')
+      return false
+    }
+
+    // 从 user_metadata 获取租户信息
+    const tenantId = user.user_metadata?.tenant_id
+
+    console.log('👤 当前登录用户:')
+    console.log('  - 用户 ID:', user.id)
+    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
+
+    // 如果是租户用户，使用 RPC 函数更新租户 Schema
+    if (tenantId) {
+      console.log('  - 目标：租户 Schema')
+      console.log('  - 使用函数: update_tenant_user')
+
+      const {data, error} = await supabase.rpc('update_tenant_user', {
+        p_tenant_id: tenantId,
+        p_user_id: id,
+        p_name: updates.name || null,
+        p_phone: updates.phone || null,
+        p_email: updates.email || null,
+        p_role: updates.role || null,
+        p_permission_type: updates.permission_type || null,
+        p_vehicle_plate: updates.vehicle_plate || null,
+        p_warehouse_ids: updates.warehouse_ids || null,
+        p_status: updates.status || null
+      })
+
+      if (error) {
+        console.error('❌ 更新租户用户档案失败:', error)
+        return false
+      }
+
+      console.log('✅ 租户用户档案更新成功')
+      console.log('  - 更新后数据:', data)
+      return true
+    }
+
+    // 否则是中央管理员，直接更新 public.profiles
+    console.log('  - 目标：public.profiles')
+    console.log('  - 当前用户是中央管理员')
+
+    const {error} = await supabase.from('profiles').update(updates).eq('id', id)
+
+    if (error) {
+      console.error('❌ 更新用户档案失败:', error)
+      return false
+    }
+
+    console.log('✅ 用户档案更新成功')
+    return true
+  } catch (error) {
+    console.error('❌ 更新用户档案异常:', error)
     return false
   }
-
-  return true
 }
 
+/**
+ * 获取司机档案列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
 export async function getDriverProfiles(): Promise<Profile[]> {
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'driver')
-    .order('created_at', {ascending: false})
+  console.log('🔍 getDriverProfiles: 开始获取司机列表')
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取司机档案失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询司机列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询司机列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .eq('role', 'driver')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('❌ 获取司机档案失败:', error)
+      return []
+    }
+
+    console.log(`✅ getDriverProfiles: 获取到 ${data?.length || 0} 个司机`)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('❌ 获取司机档案异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
+/**
+ * 获取管理员档案列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
 export async function getManagerProfiles(): Promise<Profile[]> {
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .in('role', ['manager', 'super_admin'])
-    .order('created_at', {ascending: false})
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取管理员档案失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询管理员列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询管理员列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .in('role', ['manager', 'super_admin'])
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('获取管理员档案失败:', error)
+      return []
+    }
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('获取管理员档案异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 // ==================== 考勤打卡相关API ====================
@@ -350,7 +639,23 @@ export async function getManagerProfiles(): Promise<Profile[]> {
  * 创建上班打卡记录
  */
 export async function createClockIn(input: AttendanceRecordInput): Promise<AttendanceRecord | null> {
-  const {data, error} = await supabase.from('attendance').insert(input).select().maybeSingle()
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建打卡记录失败: 用户未登录')
+    return null
+  }
+
+  const {data, error} = await supabase
+    .from('attendance')
+    .insert({
+      ...input
+    })
+    .select()
+    .maybeSingle()
 
   if (error) {
     console.error('创建打卡记录失败:', error)
@@ -655,6 +960,16 @@ export async function getWarehouseWithRule(id: string): Promise<WarehouseWithRul
  * 创建仓库
  */
 export async function createWarehouse(input: WarehouseInput): Promise<Warehouse | null> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建仓库失败: 用户未登录')
+    throw new Error('用户未登录')
+  }
+
   const {data, error} = await supabase
     .from('warehouses')
     .insert({
@@ -666,7 +981,11 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
 
   if (error) {
     console.error('创建仓库失败:', error)
-    return null
+    // 检查是否是重复名称错误
+    if (error.code === '23505' && error.message.includes('warehouses_name_key')) {
+      throw new Error('仓库名称已存在，请使用其他名称')
+    }
+    throw new Error('创建仓库失败，请稍后重试')
   }
 
   return data
@@ -694,7 +1013,11 @@ export async function deleteWarehouse(id: string): Promise<boolean> {
 
   if (error) {
     console.error('删除仓库失败:', error)
-    return false
+    // 检查是否是最后一个仓库的错误
+    if (error.message?.includes('每个老板号必须保留至少一个仓库')) {
+      throw new Error('无法删除：每个老板号必须保留至少一个仓库')
+    }
+    throw new Error('删除仓库失败，请稍后重试')
   }
 
   return true
@@ -740,6 +1063,16 @@ export async function getAllAttendanceRules(): Promise<AttendanceRule[]> {
  * 创建考勤规则
  */
 export async function createAttendanceRule(input: AttendanceRuleInput): Promise<AttendanceRule | null> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建考勤规则失败: 用户未登录')
+    throw new Error('用户未登录')
+  }
+
   const {data, error} = await supabase
     .from('attendance_rules')
     .insert({
@@ -755,7 +1088,7 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
 
   if (error) {
     console.error('创建考勤规则失败:', error)
-    return null
+    throw new Error('创建考勤规则失败，请稍后重试')
   }
 
   return data
@@ -853,36 +1186,67 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
  * 获取司机的仓库ID列表
  */
 export async function getDriverWarehouseIds(driverId: string): Promise<string[]> {
-  const {data, error} = await supabase.from('driver_warehouses').select('warehouse_id').eq('driver_id', driverId)
-
-  if (error) {
-    console.error('获取司机仓库ID失败:', error)
+  // 添加参数验证
+  if (!driverId || driverId === 'anon' || driverId.length < 10) {
+    logger.error('无效的司机 ID', {driverId})
     return []
   }
 
-  return data?.map((item) => item.warehouse_id) || []
+  logger.db('查询', 'driver_warehouses', {driverId})
+
+  const {data, error} = await supabase.from('driver_warehouses').select('warehouse_id').eq('driver_id', driverId)
+
+  if (error) {
+    logger.error('获取司机仓库ID失败', error)
+    return []
+  }
+
+  const warehouseIds = data?.map((item) => item.warehouse_id) || []
+  logger.db('查询成功', 'driver_warehouses', {
+    driverId,
+    count: warehouseIds.length
+  })
+  return warehouseIds
 }
 
 /**
  * 获取仓库的司机列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
-  // 注意：driver_warehouses 表有两个外键指向 profiles（driver_id 和 tenant_id）
-  // 必须明确指定使用 driver_id 关系
-  const {data, error} = await supabase
-    .from('driver_warehouses')
-    .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
-    .eq('warehouse_id', warehouseId)
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取仓库司机失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询仓库司机，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询仓库司机，使用 Schema: public')
+    }
+
+    // 必须明确指定使用 driver_id 关系
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('driver_warehouses')
+      .select('driver_id, profiles!driver_warehouses_driver_id_fkey(*)')
+      .eq('warehouse_id', warehouseId)
+
+    if (error) {
+      console.error('获取仓库司机失败:', error)
+      return []
+    }
+
+    if (!data) return []
+
+    // 提取司机信息
+    return data.map((item: any) => item.profiles).filter(Boolean)
+  } catch (error) {
+    console.error('获取仓库司机异常:', error)
     return []
   }
-
-  if (!data) return []
-
-  // 提取司机信息
-  return data.map((item: any) => item.profiles).filter(Boolean)
 }
 
 /**
@@ -891,7 +1255,22 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
 export async function assignWarehouseToDriver(
   input: DriverWarehouseInput
 ): Promise<{success: boolean; error?: string}> {
-  // 检查仓库是否被禁用
+  const {data: driver, error: driverError} = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', input.driver_id)
+    .maybeSingle()
+
+  if (driverError) {
+    console.error('查询司机信息失败:', driverError)
+    return {success: false, error: '查询司机信息失败'}
+  }
+
+  if (!driver) {
+    console.error('司机不存在:', input.driver_id)
+    return {success: false, error: '司机不存在'}
+  }
+
   const {data: warehouse, error: warehouseError} = await supabase
     .from('warehouses')
     .select('is_active, name')
@@ -908,11 +1287,13 @@ export async function assignWarehouseToDriver(
     return {success: false, error: '仓库不存在'}
   }
 
+  // 3. 检查仓库是否被禁用
   if (!warehouse.is_active) {
     console.error('仓库已被禁用，不允许分配司机:', warehouse.name)
     return {success: false, error: `仓库"${warehouse.name}"已被禁用，不允许分配司机`}
   }
 
+  // 4. 执行分配
   const {error} = await supabase.from('driver_warehouses').insert(input)
 
   if (error) {
@@ -1011,7 +1392,18 @@ export async function deleteWarehouseAssignmentsByDriver(driverId: string): Prom
  * 插入单个仓库分配
  */
 export async function insertWarehouseAssignment(input: DriverWarehouseInput): Promise<boolean> {
-  const {error} = await supabase.from('driver_warehouses').insert(input)
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('插入仓库分配失败: 用户未登录')
+    return false
+  }
+
+  const {error} = await supabase.from('driver_warehouses').insert({
+    ...input
+  })
 
   if (error) {
     console.error('插入仓库分配失败:', error)
@@ -1028,7 +1420,6 @@ export async function insertManagerWarehouseAssignment(input: {
   manager_id: string
   warehouse_id: string
 }): Promise<boolean> {
-  // 获取当前用户的 tenant_id
   const {
     data: {user}
   } = await supabase.auth.getUser()
@@ -1038,17 +1429,54 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
-  // 获取当前用户的 tenant_id
-  const {data: profile} = await supabase.from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
+  const {data: manager, error: managerError} = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', input.manager_id)
+    .maybeSingle()
 
-  if (!profile?.tenant_id) {
-    console.error('插入管理员仓库分配失败: 无法获取 tenant_id')
+  if (managerError) {
+    console.error('查询车队长信息失败:', managerError)
     return false
   }
 
+  if (!manager) {
+    console.error('车队长不存在:', input.manager_id)
+    return false
+  }
+
+  const {data: warehouse, error: warehouseError} = await supabase
+    .from('warehouses')
+    .select('name')
+    .eq('id', input.warehouse_id)
+    .maybeSingle()
+
+  if (warehouseError) {
+    console.error('查询仓库信息失败:', warehouseError)
+    return false
+  }
+
+  if (!warehouse) {
+    console.error('仓库不存在:', input.warehouse_id)
+    return false
+  }
+
+  // 3. 检查是否已经存在该分配
+  const {data: existingAssignment} = await supabase
+    .from('manager_warehouses')
+    .select('id')
+    .eq('manager_id', input.manager_id)
+    .eq('warehouse_id', input.warehouse_id)
+    .maybeSingle()
+
+  if (existingAssignment) {
+    console.log('该车队长已经被分配到此仓库，无需重复分配')
+    return true
+  }
+
+  // 4. 执行分配
   const {error} = await supabase.from('manager_warehouses').insert({
-    ...input,
-    tenant_id: profile.tenant_id
+    ...input
   })
 
   if (error) {
@@ -1228,7 +1656,19 @@ export async function getAllPieceWorkRecords(): Promise<PieceWorkRecord[]> {
 
 // 创建计件记录
 export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_records').insert(record)
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建计件记录失败: 用户未登录')
+    return false
+  }
+
+  const {error} = await supabase.from('piece_work_records').insert({
+    ...record
+  })
 
   if (error) {
     console.error('创建计件记录失败:', error)
@@ -1482,6 +1922,16 @@ export async function getCategoryPrice(warehouseId: string, categoryName: string
 
 // 创建或更新品类价格配置
 export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<boolean> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('保存品类价格配置失败: 用户未登录')
+    return false
+  }
+
   const {error} = await supabase.from('category_prices').upsert(
     {
       warehouse_id: input.warehouse_id,
@@ -1506,6 +1956,16 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
 
 // 批量创建或更新品类价格配置
 export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): Promise<boolean> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('批量保存品类价格配置失败: 用户未登录')
+    return false
+  }
+
   const {error} = await supabase.from('category_prices').upsert(
     inputs.map((input) => ({
       warehouse_id: input.warehouse_id,
@@ -1577,42 +2037,43 @@ export async function getCategoryPriceForDriver(
 
 // 获取管理员的仓库列表
 export async function getManagerWarehouses(managerId: string): Promise<Warehouse[]> {
-  console.log('[getManagerWarehouses] 开始查询，管理员ID:', managerId)
+  // 添加参数验证
+  if (!managerId || managerId === 'anon' || managerId.length < 10) {
+    logger.error('无效的管理员 ID', {managerId})
+    return []
+  }
+
+  logger.db('查询', 'manager_warehouses', {managerId})
 
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.WAREHOUSE_ASSIGNMENTS}_${managerId}`
-  console.log('[getManagerWarehouses] 缓存键:', cacheKey)
 
   // 尝试从缓存获取
   const cached = getCache<Warehouse[]>(cacheKey)
   if (cached) {
-    console.log(`✅ [getManagerWarehouses] 使用缓存数据，仓库数: ${cached.length}`)
+    logger.db('缓存命中', 'manager_warehouses', {
+      managerId,
+      count: cached.length
+    })
     return cached
   }
 
-  console.log('[getManagerWarehouses] 缓存未命中，从数据库查询...')
-
+  // 从数据库查询
   const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
 
-  console.log('[getManagerWarehouses] 查询结果:', {data, error})
-
   if (error) {
-    console.error('[getManagerWarehouses] 获取管理员仓库失败:', error)
+    logger.error('获取管理员仓库失败', error)
     return []
   }
 
   if (!data || data.length === 0) {
-    console.log('[getManagerWarehouses] 没有找到仓库分配数据')
+    logger.db('查询结果为空', 'manager_warehouses', {managerId})
     // 缓存空结果，避免重复查询（缓存5分钟）
     setCache(cacheKey, [], 5 * 60 * 1000)
     return []
   }
 
-  console.log(
-    '[getManagerWarehouses] 找到仓库ID列表:',
-    data.map((item) => item.warehouse_id)
-  )
-
+  // 查询仓库详情
   const warehouseIds = data.map((item) => item.warehouse_id)
   const {data: warehouses, error: warehouseError} = await supabase
     .from('warehouses')
@@ -1620,49 +2081,74 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
     .in('id', warehouseIds)
     .order('name', {ascending: true})
 
-  console.log('[getManagerWarehouses] 仓库详情查询结果:', {warehouses, warehouseError})
-
   if (warehouseError) {
-    console.error('[getManagerWarehouses] 获取仓库信息失败:', warehouseError)
+    logger.error('获取仓库信息失败', warehouseError)
     return []
   }
 
   const result = Array.isArray(warehouses) ? warehouses : []
-  console.log('[getManagerWarehouses] 最终返回仓库数量:', result.length)
+  logger.db('查询成功', 'manager_warehouses', {
+    managerId,
+    count: result.length
+  })
 
   // 缓存30分钟
   setCache(cacheKey, result, 30 * 60 * 1000)
-  console.log('[getManagerWarehouses] 已缓存数据，有效期: 30分钟')
 
   return result
 }
 
-// 获取仓库的管理员列表
+/**
+ * 获取仓库的管理员列表
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ */
 export async function getWarehouseManagers(warehouseId: string): Promise<Profile[]> {
-  const {data, error} = await supabase.from('manager_warehouses').select('manager_id').eq('warehouse_id', warehouseId)
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('获取仓库管理员失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询仓库管理员，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询仓库管理员，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('manager_warehouses')
+      .select('manager_id')
+      .eq('warehouse_id', warehouseId)
+
+    if (error) {
+      console.error('获取仓库管理员失败:', error)
+      return []
+    }
+
+    if (!data || data.length === 0) {
+      return []
+    }
+
+    const managerIds = data.map((item) => item.manager_id)
+    const {data: managers, error: managerError} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .in('id', managerIds)
+      .order('name', {ascending: true})
+
+    if (managerError) {
+      console.error('获取管理员信息失败:', managerError)
+      return []
+    }
+
+    return Array.isArray(managers) ? managers : []
+  } catch (error) {
+    console.error('获取仓库管理员异常:', error)
     return []
   }
-
-  if (!data || data.length === 0) {
-    return []
-  }
-
-  const managerIds = data.map((item) => item.manager_id)
-  const {data: managers, error: managerError} = await supabase
-    .from('profiles')
-    .select('*')
-    .in('id', managerIds)
-    .order('name', {ascending: true})
-
-  if (managerError) {
-    console.error('获取管理员信息失败:', managerError)
-    return []
-  }
-
-  return Array.isArray(managers) ? managers : []
 }
 
 // 添加管理员仓库关联
@@ -1701,27 +2187,60 @@ export async function removeManagerWarehouse(managerId: string, warehouseId: str
 /**
  * 创建请假申请
  */
+/**
+ * 创建请假申请
+ * 支持多租户架构：根据当前用户角色插入到对应的 Schema
+ */
 export async function createLeaveApplication(input: LeaveApplicationInput): Promise<LeaveApplication | null> {
-  const {data, error} = await supabase
-    .from('leave_applications')
-    .insert({
-      user_id: input.user_id,
-      warehouse_id: input.warehouse_id,
-      leave_type: input.leave_type,
-      start_date: input.start_date,
-      end_date: input.end_date,
-      reason: input.reason,
-      status: 'pending'
-    })
-    .select()
-    .maybeSingle()
+  try {
+    // 1. 获取当前用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
 
-  if (error) {
-    console.error('创建请假申请失败:', error)
+    if (!user) {
+      console.error('创建请假申请失败: 用户未登录')
+      return null
+    }
+
+    // 2. 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 3. 根据角色选择插入的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户创建请假申请，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户创建请假申请，使用 Schema: public')
+    }
+
+    // 4. 插入请假申请
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('leave_applications')
+      .insert({
+        user_id: input.user_id,
+        warehouse_id: input.warehouse_id,
+        leave_type: input.leave_type,
+        start_date: input.start_date,
+        end_date: input.end_date,
+        reason: input.reason,
+        status: 'pending'
+      })
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      console.error('创建请假申请失败:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建请假申请异常:', error)
     return null
   }
-
-  return data
 }
 
 /**
@@ -2021,6 +2540,16 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 export async function createResignationApplication(
   input: ResignationApplicationInput
 ): Promise<ResignationApplication | null> {
+  // 1. 获取当前用户
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.error('创建离职申请失败: 用户未登录')
+    return null
+  }
+
   const {data, error} = await supabase
     .from('resignation_applications')
     .insert({
@@ -2460,38 +2989,57 @@ export async function getWarehouseDriverCount(warehouseId: string): Promise<numb
 }
 
 /**
- * 获取仓库的主要管理员信息
+ * 获取仓库的管理员（单个）
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getWarehouseManager(warehouseId: string): Promise<Profile | null> {
-  const {data, error} = await supabase
-    .from('manager_warehouses')
-    .select(
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询仓库管理员，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询仓库管理员，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('manager_warehouses')
+      .select(
+        `
+        profile:profiles (
+          id,
+          name,
+          phone,
+          email,
+          role,
+          created_at
+        )
       `
-      profile:profiles (
-        id,
-        name,
-        phone,
-        email,
-        role,
-        created_at
       )
-    `
-    )
-    .eq('warehouse_id', warehouseId)
-    .order('created_at', {ascending: true})
-    .limit(1)
-    .maybeSingle()
+      .eq('warehouse_id', warehouseId)
+      .order('created_at', {ascending: true})
+      .limit(1)
+      .maybeSingle()
 
-  if (error) {
-    console.error('获取仓库管理员失败:', error)
+    if (error) {
+      console.error('获取仓库管理员失败:', error)
+      return null
+    }
+
+    if (!data || !data.profile) {
+      return null
+    }
+
+    return data.profile as unknown as Profile
+  } catch (error) {
+    console.error('获取仓库管理员异常:', error)
     return null
   }
-
-  if (!data || !data.profile) {
-    return null
-  }
-
-  return data.profile as unknown as Profile
 }
 
 /**
@@ -3216,56 +3764,80 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
  */
 
 /**
- * 获取所有用户列表（老板）
+ * 获取所有用户
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getAllUsers(): Promise<Profile[]> {
   console.log('🔍 getAllUsers: 开始从数据库获取用户列表')
-  const {data, error} = await supabase.from('profiles').select('*').order('created_at', {ascending: false})
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('❌ 获取用户列表失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询用户列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询用户列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('❌ 获取用户列表失败:', error)
+      return []
+    }
+
+    console.log(`✅ getAllUsers: 获取到 ${data?.length || 0} 个用户`)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('❌ 获取用户列表异常:', error)
     return []
   }
-
-  console.log('📦 getAllUsers: 从数据库获取到的原始数据:')
-  console.log(JSON.stringify(data, null, 2))
-
-  // 检查每个用户的 vehicle_plate 字段
-  if (Array.isArray(data)) {
-    const drivers = data.filter((u) => u.role === 'driver')
-    console.log(`🚗 getAllUsers: 发现 ${drivers.length} 个司机用户`)
-    drivers.forEach((driver, index) => {
-      console.log(`   ${index + 1}. ${driver.name}:`)
-      console.log(`      - id: ${driver.id}`)
-      console.log(`      - role: ${driver.role}`)
-      console.log(
-        `      - vehicle_plate: ${driver.vehicle_plate === null ? '(null)' : driver.vehicle_plate === '' ? '(空字符串)' : driver.vehicle_plate}`
-      )
-      console.log(`      - vehicle_plate 类型: ${typeof driver.vehicle_plate}`)
-    })
-  }
-
-  return Array.isArray(data) ? data : []
 }
 
 /**
  * 获取所有管理员用户
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getAllManagers(): Promise<Profile[]> {
   console.log('🔍 getAllManagers: 开始获取管理员列表')
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'manager')
-    .order('created_at', {ascending: false})
+  try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
 
-  if (error) {
-    console.error('❌ 获取管理员列表失败:', error)
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+      console.log(`租户用户查询管理员列表，使用 Schema: ${schemaName}`)
+    } else {
+      console.log('中央用户查询管理员列表，使用 Schema: public')
+    }
+
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('*')
+      .eq('role', 'manager')
+      .order('created_at', {ascending: false})
+
+    if (error) {
+      console.error('❌ 获取管理员列表失败:', error)
+      return []
+    }
+
+    console.log(`✅ getAllManagers: 获取到 ${data?.length || 0} 个管理员`)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('❌ 获取管理员列表异常:', error)
     return []
   }
-
-  console.log(`✅ getAllManagers: 获取到 ${data?.length || 0} 个管理员`)
-  return Array.isArray(data) ? data : []
 }
 
 /**
@@ -3291,13 +3863,13 @@ export async function getAllSuperAdmins(): Promise<Profile[]> {
 /**
  * 获取所有司机列表
  */
+/**
+ * 获取租户 Schema 中的所有司机
+ * 使用 RPC 函数查询，确保数据隔离
+ */
 export async function getAllDrivers(): Promise<Profile[]> {
-  console.log('🔍 getAllDrivers: 开始获取司机列表')
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'driver')
-    .order('created_at', {ascending: false})
+  console.log('🔍 getAllDrivers: 开始获取租户司机列表')
+  const {data, error} = await supabase.rpc('get_tenant_drivers')
 
   if (error) {
     console.error('❌ 获取司机列表失败:', error)
@@ -3305,7 +3877,8 @@ export async function getAllDrivers(): Promise<Profile[]> {
   }
 
   console.log(`✅ getAllDrivers: 获取到 ${data?.length || 0} 个司机`)
-  return Array.isArray(data) ? data : []
+  const tenantProfiles = Array.isArray(data) ? data : []
+  return tenantProfiles.map(convertTenantProfileToProfile)
 }
 
 /**
@@ -3347,8 +3920,8 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
     return null
   }
 
-  // 如果是老板，返回所有权限
-  if (profile.role === 'super_admin') {
+  // 如果是老板或平级管理员，返回所有权限
+  if (profile.role === 'super_admin' || profile.role === 'peer_admin') {
     const now = new Date().toISOString()
     return {
       id: managerId, // 使用 managerId 作为 id
@@ -3467,21 +4040,12 @@ export async function getManagerWarehouseIds(managerId: string): Promise<string[
  * 设置管理员管辖的仓库（先删除旧的，再插入新的）
  */
 export async function setManagerWarehouses(managerId: string, warehouseIds: string[]): Promise<boolean> {
-  // 0. 获取当前用户的 tenant_id
   const {
     data: {user}
   } = await supabase.auth.getUser()
 
   if (!user) {
     console.error('设置管理员仓库失败: 用户未登录')
-    return false
-  }
-
-  // 获取当前用户的 tenant_id
-  const {data: profile} = await supabase.from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
-
-  if (!profile?.tenant_id) {
-    console.error('设置管理员仓库失败: 无法获取 tenant_id')
     return false
   }
 
@@ -3505,11 +4069,9 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
     return true
   }
 
-  // 3. 插入新的关联（包含 tenant_id）
   const insertData = warehouseIds.map((warehouseId) => ({
     manager_id: managerId,
-    warehouse_id: warehouseId,
-    tenant_id: profile.tenant_id
+    warehouse_id: warehouseId
   }))
 
   const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
@@ -3600,9 +4162,10 @@ export async function getCurrentUserPermissions(): Promise<ManagerPermission | n
 }
 
 /**
- * 创建司机账号
+ * 创建司机账号（使用租户隔离）
  * @param phone 手机号
  * @param name 姓名
+ * @param driverType 司机类型（暂时保留参数，但租户 Schema 中不使用）
  * @returns 创建的司机资料，如果失败返回null
  */
 export async function createDriver(
@@ -3610,145 +4173,71 @@ export async function createDriver(
   name: string,
   driverType: 'pure' | 'with_vehicle' = 'pure'
 ): Promise<Profile | null> {
-  const timestamp = new Date().toISOString()
-  console.log(`\n${'='.repeat(80)}`)
-  console.log('🚀 [createDriver] 函数调用开始')
-  console.log('⏰ 时间戳:', timestamp)
-  console.log('📱 输入参数:')
-  console.log('  - 手机号:', phone)
-  console.log('  - 姓名:', name)
-  console.log('  - 司机类型:', driverType)
-  console.log(`${'='.repeat(80)}\n`)
+  console.log('🚀 [createDriver] 开始创建司机账号')
+  console.log('📱 手机号:', phone)
+  console.log('👤 姓名:', name)
+  console.log('🚗 司机类型:', driverType, '(注意：租户 Schema 中不使用此字段)')
 
   try {
-    // 步骤1: 检查手机号是否已存在
-    console.log('📋 [步骤1] 检查手机号是否已存在')
-    console.log('  - 查询条件: phone =', phone)
-
-    const {data: existingProfiles, error: checkError} = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (checkError) {
-      console.error('  ❌ 查询 profiles 失败:', checkError)
-      console.error('  错误详情:', JSON.stringify(checkError, null, 2))
-      return null
-    }
-
-    if (existingProfiles) {
-      console.warn('  ⚠️ 手机号已存在于 profiles 表')
-      console.warn('  已存在的用户ID:', existingProfiles.id)
-      console.warn('  已存在的用户姓名:', existingProfiles.name)
-      console.log('  ❌ 创建失败：手机号重复\n')
-      return null
-    }
-
-    console.log('  ✅ 手机号可用，继续创建\n')
-
-    // 步骤2: 先创建 auth.users 表记录
-    console.log('📋 [步骤2] 创建 auth.users 表记录')
-    const loginEmail = `${phone}@fleet.com`
-    console.log('  - 登录邮箱:', loginEmail)
-    console.log('  - 手机号:', phone)
-    console.log('  - 默认密码: 123456')
-    console.log('  - 使用函数: create_user_auth_account_first')
-
-    const {data: authResult, error: authError} = await supabase.rpc('create_user_auth_account_first', {
-      user_email: loginEmail,
-      user_phone: phone
+    // 调用 RPC 函数，在租户 Schema 中创建司机
+    const {data, error} = await supabase.rpc('create_driver_in_tenant', {
+      p_phone: phone,
+      p_name: name,
+      p_email: null,
+      p_password: null // 使用默认密码（手机号后6位）
     })
 
-    console.log('  - RPC 调用完成')
-    console.log('  - 返回数据:', authResult)
-    console.log('  - 错误信息:', authError)
-
-    if (authError) {
-      console.error('  ❌ 创建 auth.users 记录失败')
-      console.error('  错误代码:', authError.code)
-      console.error('  错误消息:', authError.message)
-      console.error('  错误详情:', JSON.stringify(authError, null, 2))
-      return null
-    }
-
-    if (!authResult || authResult.success === false) {
-      console.error('  ❌ 创建 auth.users 记录失败')
-      console.error('  错误:', authResult?.error)
-      console.error('  详情:', authResult?.details)
-      return null
-    }
-
-    const userId = authResult.user_id
-    console.log('  ✅ auth.users 记录创建成功')
-    console.log('  - 用户ID:', userId)
-    console.log('  - 邮箱:', authResult.email)
-    console.log('  - 手机号:', authResult.phone)
-    console.log('  - 默认密码:', authResult.default_password)
-    console.log('')
-
-    // 步骤3: 创建 profiles 表记录
-    console.log('📋 [步骤3] 创建 profiles 表记录')
-    const insertData = {
-      id: userId, // 使用 auth.users 的 ID
-      phone,
-      name,
-      role: 'driver' as UserRole,
-      email: loginEmail,
-      driver_type: driverType,
-      join_date: new Date().toISOString().split('T')[0] // 设置入职日期为今天
-    }
-    console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
-
-    const {data, error} = await supabase.from('profiles').insert(insertData).select().maybeSingle()
-
     if (error) {
-      console.error('  ❌ 插入失败:', error)
-      console.error('  错误代码:', error.code)
-      console.error('  错误消息:', error.message)
-      console.error('  错误详情:', JSON.stringify(error, null, 2))
+      console.error('❌ 创建司机失败:', error)
       return null
     }
 
-    if (!data) {
-      console.error('  ❌ 插入失败：返回数据为空')
+    if (!data || !data.success) {
+      console.error('❌ 创建司机失败:', data?.error || '未知错误')
       return null
     }
 
-    console.log('  ✅ profiles 表记录创建成功')
-    console.log('  - 用户ID:', data.id)
+    console.log('✅ 司机账号创建成功')
+    console.log('  - 用户ID:', data.user_id)
     console.log('  - 手机号:', data.phone)
-    console.log('  - 姓名:', data.name)
-    console.log('  - 角色:', data.role)
-    console.log('  - 邮箱:', data.email)
-    console.log('  - 司机类型:', data.driver_type)
-    console.log('  - 入职日期:', data.join_date)
-    console.log('  - 创建时间:', data.created_at)
-    console.log('  - 完整数据:', JSON.stringify(data, null, 2))
-    console.log('')
+    console.log('  - 登录邮箱:', data.email)
+    console.log('  - 默认密码:', data.default_password)
 
-    console.log('='.repeat(80))
-    console.log('✅ [createDriver] 函数执行完成')
-    console.log('📊 最终结果:')
-    console.log('  - auth.users 表: ✅ 创建成功')
-    console.log('  - profiles 表: ✅ 创建成功')
-    console.log('  💡 用户可以使用以下方式登录:')
-    console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
-    console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-    console.log('  - 返回数据:', JSON.stringify(data, null, 2))
-    console.log(`${'='.repeat(80)}\n`)
-
-    return data as Profile
-  } catch (error) {
-    console.error(`\n${'='.repeat(80)}`)
-    console.error('❌ [createDriver] 函数执行异常')
-    console.error('异常类型:', typeof error)
-    console.error('异常内容:', error)
-    if (error instanceof Error) {
-      console.error('异常消息:', error.message)
-      console.error('异常堆栈:', error.stack)
+    // 构造 Profile 对象返回
+    const profile: Profile = {
+      id: data.user_id,
+      phone: data.phone,
+      email: data.email,
+      name,
+      role: 'driver',
+      driver_type: driverType,
+      avatar_url: null,
+      nickname: null,
+      address_province: null,
+      address_city: null,
+      address_district: null,
+      address_detail: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      login_account: null,
+      vehicle_plate: null,
+      join_date: new Date().toISOString().split('T')[0],
+      status: 'active',
+      company_name: null,
+      lease_start_date: null,
+      lease_end_date: null,
+      monthly_fee: null,
+      notes: null,
+      main_account_id: null,
+      peer_account_permission: null,
+      manager_permissions_enabled: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
-    console.error(`${'='.repeat(80)}\n`)
+
+    return profile
+  } catch (error) {
+    console.error('❌ 创建司机异常:', error)
     return null
   }
 }
@@ -3779,39 +4268,32 @@ export async function createUser(
   console.log(`${'='.repeat(80)}\n`)
 
   try {
-    // 步骤1: 检查手机号是否已存在
-    console.log('📋 [步骤1] 检查手机号是否已存在')
-    console.log('  - 查询条件: phone =', phone)
+    // 获取当前登录用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
 
-    const {data: existingProfiles, error: checkError} = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (checkError) {
-      console.error('  ❌ 查询 profiles 失败:', checkError)
-      console.error('  错误详情:', JSON.stringify(checkError, null, 2))
-      return null
+    if (!user) {
+      console.error('  ❌ 用户未登录')
+      throw new Error('用户未登录')
     }
 
-    if (existingProfiles) {
-      console.warn('  ⚠️ 手机号已存在于 profiles 表')
-      console.warn('  已存在的用户ID:', existingProfiles.id)
-      console.warn('  已存在的用户姓名:', existingProfiles.name)
-      console.log('  ❌ 创建失败：手机号重复\n')
-      return null
-    }
+    // 从 user_metadata 获取租户信息
+    const tenantId = user.user_metadata?.tenant_id
+    const userRole = user.user_metadata?.role
 
-    console.log('  ✅ 手机号可用，继续创建\n')
+    console.log('👤 当前登录用户:')
+    console.log('  - 用户 ID:', user.id)
+    console.log('  - 角色:', userRole)
+    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
+    console.log('')
 
-    // 步骤2: 先创建 auth.users 表记录
-    console.log('📋 [步骤2] 创建 auth.users 表记录')
+    // 步骤1: 创建 auth.users 表记录
+    console.log('📋 [步骤1] 创建 auth.users 表记录')
     const loginEmail = `${phone}@fleet.com`
     console.log('  - 登录邮箱:', loginEmail)
     console.log('  - 手机号:', phone)
     console.log('  - 默认密码: 123456')
-    console.log('  - 使用函数: create_user_auth_account_first')
 
     let userId: string | null = null
 
@@ -3821,50 +4303,133 @@ export async function createUser(
         user_phone: phone
       })
 
-      console.log('  - RPC 调用完成')
-      console.log('  - 返回数据:', rpcData)
-      console.log('  - 错误信息:', authError)
-
-      if (authError) {
+      if (authError || !rpcData || rpcData.success === false) {
         console.error('  ❌ 创建 auth.users 记录失败')
-        console.error('  错误代码:', authError.code)
-        console.error('  错误消息:', authError.message)
-        console.error('  错误详情:', JSON.stringify(authError, null, 2))
-        return null
-      }
+        console.error('  错误:', authError?.message || rpcData?.error)
 
-      if (!rpcData || rpcData.success === false) {
-        console.error('  ❌ 创建 auth.users 记录失败')
-        console.error('  错误:', rpcData?.error)
-        console.error('  详情:', rpcData?.details)
-        return null
+        // 检查是否是重复用户错误
+        const errorMsg = authError?.message || rpcData?.error || ''
+        if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
+          throw new Error(`该手机号（${phone}）已被注册，请使用其他手机号`)
+        }
+
+        throw new Error(authError?.message || rpcData?.error || '创建用户失败')
       }
 
       userId = rpcData.user_id
       console.log('  ✅ auth.users 记录创建成功')
       console.log('  - 用户ID:', userId)
-      console.log('  - 邮箱:', rpcData.email)
-      console.log('  - 默认密码:', rpcData.default_password)
-    } catch (authError) {
-      console.error('  ❌ 创建 auth.users 记录异常')
-      console.error('  异常类型:', typeof authError)
-      console.error('  异常内容:', authError)
-      if (authError instanceof Error) {
-        console.error('  异常消息:', authError.message)
-        console.error('  异常堆栈:', authError.stack)
+    } catch (authError: any) {
+      console.error('  ❌ 创建 auth.users 记录异常:', authError)
+
+      // 如果已经是我们自定义的错误，直接抛出
+      if (authError.message?.includes('已被注册')) {
+        throw authError
       }
-      return null
+
+      // 检查是否是重复用户错误
+      const errorMsg = authError?.message || String(authError)
+      if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
+        throw new Error(`该手机号（${phone}）已被注册，请使用其他手机号`)
+      }
+
+      throw new Error('创建用户失败，请稍后重试')
     }
 
     if (!userId) {
       console.error('  ❌ 未能获取用户ID')
-      return null
+      throw new Error('创建用户失败：未能获取用户ID')
     }
 
     console.log('')
 
-    // 步骤3: 创建 profiles 表记录
-    console.log('📋 [步骤3] 创建 profiles 表记录')
+    // 步骤2: 创建 profiles 表记录
+    console.log('📋 [步骤2] 创建 profiles 表记录')
+
+    // 如果是租户用户，使用 RPC 函数在租户 Schema 中创建
+    if (tenantId) {
+      console.log('  - 目标：租户 Schema')
+      console.log('  - 租户 ID:', tenantId)
+      console.log('  - 使用函数: create_tenant_user')
+
+      // 角色映射：前端角色 -> 租户 Schema 角色
+      // manager -> fleet_leader（车队长）
+      // driver -> driver（司机）
+      const tenantRole = role === 'manager' ? 'fleet_leader' : 'driver'
+      console.log('  - 角色映射:', role, '->', tenantRole)
+
+      try {
+        // 调用 RPC 函数在租户 Schema 中创建用户
+        const {data: tenantUser, error: tenantError} = await supabase.rpc('create_tenant_user', {
+          p_tenant_id: tenantId,
+          p_user_id: userId,
+          p_name: name,
+          p_phone: phone,
+          p_email: loginEmail,
+          p_role: tenantRole,
+          p_permission_type: 'full',
+          p_vehicle_plate: driverType === 'with_vehicle' ? '' : null,
+          p_warehouse_ids: null
+        })
+
+        if (tenantError) {
+          console.error('  ❌ 在租户 Schema 创建用户失败:', tenantError)
+          return null
+        }
+
+        if (!tenantUser) {
+          console.error('  ❌ 创建失败：返回数据为空')
+          return null
+        }
+
+        console.log('  ✅ 租户 Schema 中的 profiles 记录创建成功')
+        console.log('  - 用户ID:', tenantUser.id)
+        console.log('  - 姓名:', tenantUser.name)
+        console.log('  - 角色:', tenantUser.role)
+
+        // 更新 user_metadata
+        console.log('\n📋 [步骤3] 更新 user_metadata')
+        const {error: metadataError} = await supabase.rpc('insert_tenant_profile', {
+          p_schema_name: `tenant_${tenantId.replace(/-/g, '_')}`,
+          p_user_id: userId,
+          p_name: name,
+          p_phone: phone,
+          p_email: loginEmail,
+          p_role: tenantRole // 使用映射后的租户角色
+        })
+
+        if (metadataError) {
+          console.warn('  ⚠️ 更新 user_metadata 失败:', metadataError.message)
+          console.warn('  用户可以登录，但可能需要手动设置 user_metadata')
+        } else {
+          console.log('  ✅ user_metadata 更新成功')
+        }
+
+        // 转换为标准 Profile 格式
+        const profile: Profile = convertTenantProfileToProfile(tenantUser)
+
+        console.log(`\n${'='.repeat(80)}`)
+        console.log('✅ [createUser] 函数执行完成')
+        console.log('📊 最终结果:')
+        console.log('  - auth.users 表: ✅ 创建成功')
+        console.log('  - 租户 Schema profiles 表: ✅ 创建成功')
+        console.log('  - user_metadata: ✅ 更新成功')
+        console.log('  💡 用户可以使用以下方式登录:')
+        console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
+        console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
+        console.log(`${'='.repeat(80)}\n`)
+
+        return profile
+      } catch (err) {
+        console.error('  ❌ 创建租户用户异常:', err)
+        return null
+      }
+    }
+
+    // 否则是中央管理员，在 public.profiles 中创建
+    console.log('  - 目标：public.profiles')
+    console.log('  - 当前用户是中央管理员')
+
     const insertData: any = {
       id: userId,
       phone,
@@ -3873,7 +4438,6 @@ export async function createUser(
       email: loginEmail
     }
 
-    // 如果是司机，添加司机类型和入职日期
     if (role === 'driver') {
       insertData.driver_type = driverType || 'pure'
       insertData.join_date = new Date().toISOString().split('T')[0]
@@ -3885,11 +4449,7 @@ export async function createUser(
 
     if (error) {
       console.error('  ❌ 插入失败:', error)
-      console.error('  错误代码:', error.code)
-      console.error('  错误消息:', error.message)
-      console.error('  错误详情:', JSON.stringify(error, null, 2))
       console.warn('  ⚠️ auth.users 记录已创建，但 profiles 记录创建失败')
-      console.warn('  💡 需要手动清理 auth.users 记录或稍后重试')
       return null
     }
 
@@ -3898,41 +4458,28 @@ export async function createUser(
       return null
     }
 
-    console.log('  ✅ profiles 表记录创建成功')
+    console.log('  ✅ public.profiles 记录创建成功')
     console.log('  - 用户ID:', data.id)
-    console.log('  - 手机号:', data.phone)
     console.log('  - 姓名:', data.name)
     console.log('  - 角色:', data.role)
-    console.log('  - 邮箱:', data.email)
-    if (role === 'driver') {
-      console.log('  - 司机类型:', data.driver_type)
-      console.log('  - 入职日期:', data.join_date)
-    }
-    console.log('  - 创建时间:', data.created_at)
-    console.log('  - 完整数据:', JSON.stringify(data, null, 2))
 
-    console.log('')
-    console.log('='.repeat(80))
+    console.log(`\n${'='.repeat(80)}`)
     console.log('✅ [createUser] 函数执行完成')
     console.log('📊 最终结果:')
     console.log('  - auth.users 表: ✅ 创建成功')
-    console.log('  - profiles 表: ✅ 创建成功')
+    console.log('  - public.profiles 表: ✅ 创建成功')
     console.log('  💡 用户可以使用以下方式登录:')
     console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
     console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-    console.log('    3. 手机号 + 验证码')
-    console.log('  - 返回数据:', JSON.stringify(data, null, 2))
     console.log(`${'='.repeat(80)}\n`)
 
     return data as Profile
   } catch (error) {
     console.error(`\n${'='.repeat(80)}`)
     console.error('❌ [createUser] 函数执行异常')
-    console.error('异常类型:', typeof error)
     console.error('异常内容:', error)
     if (error instanceof Error) {
       console.error('异常消息:', error.message)
-      console.error('异常堆栈:', error.stack)
     }
     console.error(`${'='.repeat(80)}\n`)
     return null
@@ -4857,7 +5404,22 @@ export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
   logger.db('插入', 'vehicles', {plate: vehicle.plate_number})
   try {
-    const {data, error} = await supabase.from('vehicles').insert(vehicle).select().maybeSingle()
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      logger.error('添加车辆失败: 用户未登录')
+      return null
+    }
+
+    const {data, error} = await supabase
+      .from('vehicles')
+      .insert({
+        ...vehicle
+      })
+      .select()
+      .maybeSingle()
 
     if (error) {
       logger.error('添加车辆失败', {
@@ -5818,11 +6380,35 @@ export async function createNotification(notification: {
   try {
     logger.info('创建通知', notification)
 
-    // 使用 create_notifications_batch 函数来创建通知，利用其向后兼容性
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    const senderId = user?.id || null
+    let senderName = '系统'
+    let senderRole = 'system'
+
+    // 如果有当前用户，获取其 profile 信息
+    if (user?.id) {
+      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+      if (senderProfile) {
+        senderName = senderProfile.name || '系统'
+        senderRole = senderProfile.role || 'system'
+      }
+    }
+
+    logger.info('发送者信息', {senderId, senderName, senderRole})
+
+    // 使用 create_notifications_batch 函数来创建通知，传递完整的发送者信息
     const {data, error} = await supabase.rpc('create_notifications_batch', {
       notifications: [
         {
           user_id: notification.user_id,
+          sender_id: senderId,
+          sender_name: senderName,
+          sender_role: senderRole,
           type: notification.type,
           title: notification.title,
           message: notification.message,
@@ -5875,11 +6461,32 @@ export async function createNotificationForAllManagers(notification: {
   try {
     logger.info('为所有管理员创建通知', notification)
 
-    // 获取所有车队长和老板
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    const senderId = user?.id || null
+    let senderName = '系统'
+    let senderRole = 'system'
+
+    // 如果有当前用户，获取其 profile 信息
+    if (user?.id) {
+      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+      if (senderProfile) {
+        senderName = senderProfile.name || '系统'
+        senderRole = senderProfile.role || 'system'
+      }
+    }
+
+    logger.info('发送者信息', {senderId, senderName, senderRole})
+
+    // 获取所有车队长、老板和平级账号
     const {data: managers, error: managersError} = await supabase
       .from('profiles')
       .select('id')
-      .in('role', ['manager', 'super_admin'])
+      .in('role', ['manager', 'super_admin', 'peer_admin'])
 
     if (managersError) {
       logger.error('获取管理员列表失败', managersError)
@@ -5891,11 +6498,14 @@ export async function createNotificationForAllManagers(notification: {
       return 0
     }
 
-    logger.info('找到管理员', {count: managers.length})
+    logger.info('找到管理员', {count: managers.length, managers})
 
     // 为每个管理员创建通知
     const notifications = managers.map((manager) => ({
       user_id: manager.id,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
       type: notification.type,
       title: notification.title,
       message: notification.message,
@@ -5903,13 +6513,15 @@ export async function createNotificationForAllManagers(notification: {
       is_read: false
     }))
 
+    logger.info('准备批量创建通知', {notifications})
+
     // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
     const {data, error} = await supabase.rpc('create_notifications_batch', {
       notifications: notifications
     })
 
     if (error) {
-      logger.error('批量创建通知失败', error)
+      logger.error('批量创建通知失败', {error, errorMessage: error.message, errorDetails: error.details})
       return 0
     }
 
@@ -5936,6 +6548,27 @@ export async function createNotificationForAllSuperAdmins(notification: {
   try {
     logger.info('为所有老板创建通知', notification)
 
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    const senderId = user?.id || null
+    let senderName = '系统'
+    let senderRole = 'system'
+
+    // 如果有当前用户，获取其 profile 信息
+    if (user?.id) {
+      const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+
+      if (senderProfile) {
+        senderName = senderProfile.name || '系统'
+        senderRole = senderProfile.role || 'system'
+      }
+    }
+
+    logger.info('发送者信息', {senderId, senderName, senderRole})
+
     // 获取所有老板
     const {data: superAdmins, error: superAdminsError} = await supabase
       .from('profiles')
@@ -5957,6 +6590,9 @@ export async function createNotificationForAllSuperAdmins(notification: {
     // 为每个老板创建通知
     const notifications = superAdmins.map((admin) => ({
       user_id: admin.id,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
       type: notification.type,
       title: notification.title,
       message: notification.message,
@@ -5992,11 +6628,26 @@ export async function createNotificationForAllSuperAdmins(notification: {
  * 获取司机的显示名称（包含司机类型和姓名）
  * @param userId 用户ID
  * @returns 格式化的司机名称，例如："纯司机 张三" 或 "带车司机 李四"
+ * 支持多租户架构：根据当前用户角色查询对应的 Schema
  */
 export async function getDriverDisplayName(userId: string): Promise<string> {
   try {
+    // 获取当前用户角色和租户信息
+    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+
+    // 根据角色选择查询的 Schema
+    let schemaName = 'public'
+    if (tenant_id && role !== 'super_admin') {
+      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
+    }
+
     // 获取司机的基本信息
-    const {data, error} = await supabase.from('profiles').select('name, driver_type').eq('id', userId).maybeSingle()
+    const {data, error} = await supabase
+      .schema(schemaName)
+      .from('profiles')
+      .select('name, driver_type')
+      .eq('id', userId)
+      .maybeSingle()
 
     if (error || !data) {
       logger.error('获取司机信息失败', {userId, error})
@@ -6534,13 +7185,13 @@ export async function getAllTenants(): Promise<Profile[]> {
 /**
  * 获取某个租户下的所有车队长
  */
-export async function getManagersByTenantId(tenantId: string): Promise<Profile[]> {
+export async function getManagersByTenantId(_tenantId: string): Promise<Profile[]> {
   try {
     const {data, error} = await supabase
       .from('profiles')
       .select('*')
       .eq('role', 'manager')
-      .eq('tenant_id', tenantId)
+
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -6670,8 +7321,7 @@ export async function createTenant(
         lease_end_date: tenant.lease_end_date,
         monthly_fee: tenant.monthly_fee,
         notes: tenant.notes,
-        status: 'active',
-        tenant_id: authData.user.id // 设置 tenant_id 为自己的 id
+        status: 'active'
       })
       .eq('id', authData.user.id)
       .select()
@@ -6687,7 +7337,6 @@ export async function createTenant(
       .from('warehouses')
       .insert({
         name: `${tenant.company_name || tenant.name}的仓库`,
-        tenant_id: authData.user.id,
         is_active: true
       })
       .select()
@@ -6702,8 +7351,7 @@ export async function createTenant(
     if (warehouseData) {
       const {error: assignError} = await supabase.from('manager_warehouses').insert({
         manager_id: authData.user.id,
-        warehouse_id: warehouseData.id,
-        tenant_id: authData.user.id
+        warehouse_id: warehouseData.id
       })
 
       if (assignError) {
@@ -6812,7 +7460,6 @@ export async function createPeerAccount(
         lease_end_date: mainAccount.lease_end_date,
         notes: account.notes,
         status: 'active',
-        tenant_id: mainAccount.tenant_id, // 使用主账号的 tenant_id
         main_account_id: mainAccountId // 设置主账号ID
       })
       .eq('id', authData.user.id)
@@ -6915,16 +7562,42 @@ export async function updateTenant(
  */
 export async function suspendTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('profiles').update({status: 'suspended'}).eq('id', id)
+    // 停用主账号
+    const {error: mainError} = await supabase.from('profiles').update({status: 'inactive'}).eq('id', id)
 
-    if (error) {
-      console.error('停用老板账号失败:', error)
+    if (mainError) {
+      console.error('停用主账号失败:', mainError)
       return false
     }
 
+    // 停用平级账号
+    const {error: peerError} = await supabase
+      .from('profiles')
+      .update({status: 'inactive'})
+      .eq('main_account_id', id)
+      .eq('role', 'super_admin')
+
+    if (peerError) {
+      console.error('停用平级账号失败:', peerError)
+      // 不返回 false，继续停用车队长
+    }
+
+    // 停用车队长
+    const {error: adminError} = await supabase
+      .from('profiles')
+      .update({status: 'inactive'})
+
+      .eq('role', 'admin')
+
+    if (adminError) {
+      console.error('停用车队长失败:', adminError)
+      // 不返回 false
+    }
+
+    console.log('✅ 租户账号已停用（主账号、平级账号、车队长）')
     return true
   } catch (error) {
-    console.error('停用老板账号异常:', error)
+    console.error('停用租户账号异常:', error)
     return false
   }
 }
@@ -6934,32 +7607,166 @@ export async function suspendTenant(id: string): Promise<boolean> {
  */
 export async function activateTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('profiles').update({status: 'active'}).eq('id', id)
+    // 启用主账号
+    const {error: mainError} = await supabase.from('profiles').update({status: 'active'}).eq('id', id)
 
-    if (error) {
-      console.error('启用老板账号失败:', error)
+    if (mainError) {
+      console.error('启用主账号失败:', mainError)
       return false
     }
 
+    // 启用平级账号
+    const {error: peerError} = await supabase
+      .from('profiles')
+      .update({status: 'active'})
+      .eq('main_account_id', id)
+      .eq('role', 'super_admin')
+
+    if (peerError) {
+      console.error('启用平级账号失败:', peerError)
+      // 不返回 false，继续启用车队长
+    }
+
+    // 启用车队长
+    const {error: adminError} = await supabase
+      .from('profiles')
+      .update({status: 'active'})
+
+      .eq('role', 'admin')
+
+    if (adminError) {
+      console.error('启用车队长失败:', adminError)
+      // 不返回 false
+    }
+
+    console.log('✅ 租户账号已启用（主账号、平级账号、车队长）')
     return true
   } catch (error) {
-    console.error('启用老板账号异常:', error)
+    console.error('启用租户账号异常:', error)
     return false
   }
 }
 
 /**
- * 删除老板账号
+ * 删除租户（老板账号）
+ * 会级联删除该租户下的所有数据：
+ * - 平级账号
+ * - 车队长
+ * - 司机
+ * - 车辆
+ * - 仓库
+ * - 考勤记录
+ * - 请假记录
+ * - 计件记录
+ * - 通知
+ * 等所有关联数据
  */
 export async function deleteTenant(id: string): Promise<boolean> {
   try {
-    const {error} = await supabase.from('profiles').delete().eq('id', id)
+    // 1. 验证是否为主账号
+    const {data: tenant, error: fetchError} = await supabase
+      .from('profiles')
+      .select('id, role, main_account_id, name, phone')
+      .eq('id', id)
+      .maybeSingle()
 
-    if (error) {
-      console.error('删除老板账号失败:', error)
+    if (fetchError) {
+      console.error('查询租户信息失败:', fetchError)
       return false
     }
 
+    if (!tenant) {
+      console.error('租户不存在')
+      return false
+    }
+
+    // 确保是老板账号
+    if (tenant.role !== 'super_admin') {
+      console.error('只能删除老板账号')
+      return false
+    }
+
+    // 确保是主账号（不是平级账号）
+    if (tenant.main_account_id !== null) {
+      console.error('只能删除主账号，不能删除平级账号')
+      return false
+    }
+
+    // 2. 统计将要删除的数据
+    const [
+      {data: peerAccounts},
+      {data: managers},
+      {data: drivers},
+      {data: vehicles},
+      {data: warehouses},
+      {data: attendance},
+      {data: leaves},
+      {data: pieceWorks}
+    ] = await Promise.all([
+      // 平级账号
+      supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'super_admin')
+        .eq('main_account_id', id),
+      // 车队长
+      supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'manager'),
+      // 司机
+      supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'driver'),
+      // 车辆
+      supabase
+        .from('vehicles')
+        .select('id')
+        .eq('tenant_id', id),
+      // 仓库
+      supabase
+        .from('warehouses')
+        .select('id')
+        .eq('tenant_id', id),
+      // 考勤记录
+      supabase
+        .from('attendance')
+        .select('id')
+        .eq('tenant_id', id),
+      // 请假记录
+      supabase
+        .from('leave_applications')
+        .select('id')
+        .eq('tenant_id', id),
+      // 计件记录
+      supabase
+        .from('piece_work_records')
+        .select('id')
+        .eq('tenant_id', id)
+    ])
+
+    console.log('准备删除租户:', {
+      tenant: `${tenant.name} (${tenant.phone})`,
+      peerAccounts: peerAccounts?.length || 0,
+      managers: managers?.length || 0,
+      drivers: drivers?.length || 0,
+      vehicles: vehicles?.length || 0,
+      warehouses: warehouses?.length || 0,
+      attendance: attendance?.length || 0,
+      leaves: leaves?.length || 0,
+      pieceWorks: pieceWorks?.length || 0
+    })
+
+    // 3. 删除主账号（会自动级联删除所有关联数据）
+    const {error: deleteError} = await supabase.from('profiles').delete().eq('id', id)
+
+    if (deleteError) {
+      console.error('删除老板账号失败:', deleteError)
+      return false
+    }
+
+    console.log('成功删除租户及其所有关联数据')
     return true
   } catch (error) {
     console.error('删除老板账号异常:', error)
@@ -7069,12 +7876,12 @@ export async function getPendingLeaseBills(): Promise<LeaseBill[]> {
 /**
  * 根据租户ID获取账单
  */
-export async function getLeaseBillsByTenantId(tenantId: string): Promise<LeaseBill[]> {
+export async function getLeaseBillsByTenantId(_tenantId: string): Promise<LeaseBill[]> {
   try {
     const {data, error} = await supabase
       .from('lease_bills')
       .select('*')
-      .eq('tenant_id', tenantId)
+
       .order('bill_month', {ascending: false})
 
     if (error) {
@@ -7195,7 +8002,7 @@ export async function getAllLeases(): Promise<LeaseWithTenant[]> {
       .select(
         `
         *,
-        tenant:profiles!leases_tenant_id_fkey(id, name, phone, company_name)
+        tenant:profiles(id, name, phone, company_name)
       `
       )
       .order('created_at', {ascending: false})
@@ -7215,12 +8022,12 @@ export async function getAllLeases(): Promise<LeaseWithTenant[]> {
 /**
  * 根据租户ID获取租期记录
  */
-export async function getLeasesByTenantId(tenantId: string): Promise<Lease[]> {
+export async function getLeasesByTenantId(_tenantId: string): Promise<Lease[]> {
   try {
     const {data, error} = await supabase
       .from('leases')
       .select('*')
-      .eq('tenant_id', tenantId)
+
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -7248,7 +8055,6 @@ export async function createLease(input: CreateLeaseInput): Promise<boolean> {
     const {data: existingLeases, error: queryError} = await supabase
       .from('leases')
       .select('*')
-      .eq('tenant_id', input.tenant_id)
       .order('created_at', {ascending: false})
       .limit(1)
 
@@ -7304,7 +8110,6 @@ export async function createLease(input: CreateLeaseInput): Promise<boolean> {
       console.log(`新租期: ${input.start_date} + ${input.duration_months}个月 = ${endDateStr}`)
 
       const {error: insertError} = await supabase.from('leases').insert({
-        tenant_id: input.tenant_id,
         start_date: input.start_date,
         end_date: endDateStr,
         duration_months: input.duration_months,
@@ -7406,6 +8211,7 @@ export async function reduceLease(leaseId: string, reduceMonths: number): Promis
 /**
  * 处理租期到期
  * 根据 expire_action 执行相应的停用操作
+ * 注意：在物理隔离架构下，每个老板拥有独立数据库，此功能已不适用
  */
 export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
   try {
@@ -7417,34 +8223,12 @@ export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
       return false
     }
 
-    const {tenant_id, expire_action} = lease
+    const {expire_action} = lease
 
-    // 根据到期操作类型执行相应的停用操作
-    switch (expire_action) {
-      case 'suspend_all':
-        // 停用主账号、平级账号和车队长
-        await suspendTenantAndRelated(tenant_id)
-        break
-
-      case 'suspend_main':
-        // 仅停用主账号
-        await suspendTenant(tenant_id)
-        break
-
-      case 'suspend_peer':
-        // 停用平级账号
-        await suspendPeerAccounts(tenant_id)
-        break
-
-      case 'suspend_manager':
-        // 停用车队长
-        await suspendManagers(tenant_id)
-        break
-
-      default:
-        console.error('未知的到期操作类型:', expire_action)
-        return false
-    }
+    // 在物理隔离架构下，停用操作应该在数据库级别进行
+    // 这里只更新租期状态
+    console.log('租期到期，到期操作类型:', expire_action)
+    console.log('注意：在物理隔离架构下，停用操作应该在数据库级别进行')
 
     // 更新租期状态为已过期
     const {error: updateError} = await supabase.from('leases').update({status: 'expired'}).eq('id', leaseId)
@@ -7464,7 +8248,7 @@ export async function handleLeaseExpiration(leaseId: string): Promise<boolean> {
 /**
  * 停用租户及其所有相关账号（主账号、平级账号、车队长）
  */
-async function suspendTenantAndRelated(tenantId: string): Promise<boolean> {
+async function _suspendTenantAndRelated(tenantId: string): Promise<boolean> {
   try {
     // 停用主账号
     await suspendTenant(tenantId)
@@ -7504,12 +8288,12 @@ async function suspendPeerAccounts(mainAccountId: string): Promise<boolean> {
 /**
  * 停用车队长
  */
-async function suspendManagers(tenantId: string): Promise<boolean> {
+async function suspendManagers(_tenantId: string): Promise<boolean> {
   try {
     const {error} = await supabase
       .from('profiles')
       .update({status: 'suspended'})
-      .eq('tenant_id', tenantId)
+
       .eq('role', 'manager')
 
     if (error) {
@@ -7583,12 +8367,11 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    console.log('[租期检测] 用户信息:', {
-      userId: user.id,
-      role: user.role,
-      tenant_id: user.tenant_id,
-      main_account_id: user.main_account_id
-    })
+    // 系统超级管理员不受租期限制（tenant_id 为 NULL）
+    if (user.role === 'super_admin' && user.tenant_id === null) {
+      console.log('[租期检测] 系统超级管理员，不受租期限制')
+      return {status: 'ok'}
+    }
 
     // 司机不受租期限制
     if (user.role === 'driver') {
@@ -7596,57 +8379,34 @@ export async function checkUserLeaseStatus(
       return {status: 'ok'}
     }
 
-    // 租赁管理员不受租期限制
-    if (user.role === 'lease_admin') {
-      console.log('[租期检测] 租赁管理员角色，不受租期限制')
-      return {status: 'ok'}
-    }
-
-    // 确定主账号ID（用于查询租期的tenant_id）
-    let mainAccountId: string
+    let _mainAccountId: string
     let isMainAccount = false
 
-    if (user.role === 'super_admin' && user.main_account_id === null) {
-      // 当前用户是主账号（老板号）
-      // 老板号的租期记录中，tenant_id 应该是老板号自己的 tenant_id
-      mainAccountId = user.tenant_id || user.id
+    if ((user.role === 'super_admin' || user.role === 'peer_admin') && user.main_account_id === null) {
+      // 当前用户是主账号（老板号或独立的平级管理员）
+      _mainAccountId = user.id
       isMainAccount = true
-      console.log('[租期检测] 当前用户是主账号（老板号），tenant_id:', mainAccountId)
-    } else if (user.role === 'super_admin' && user.main_account_id !== null) {
-      // 当前用户是平级账号，需要查询主账号的 tenant_id
+    } else if ((user.role === 'super_admin' || user.role === 'peer_admin') && user.main_account_id !== null) {
       const {data: mainAccount} = await supabase
         .from('profiles')
-        .select('tenant_id')
+        .select('id')
         .eq('id', user.main_account_id)
         .maybeSingle()
 
-      mainAccountId = mainAccount?.tenant_id || user.main_account_id
+      _mainAccountId = user.id
       isMainAccount = false
-      console.log('[租期检测] 当前用户是平级账号，主账号ID:', user.main_account_id, '主账号tenant_id:', mainAccountId)
     } else if (user.role === 'manager') {
-      // 当前用户是车队长，需要查询所属老板号的 tenant_id
-      const {data: bossAccount} = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .eq('id', user.tenant_id)
-        .maybeSingle()
-
-      mainAccountId = bossAccount?.tenant_id || user.tenant_id || ''
-      isMainAccount = false
-      console.log('[租期检测] 当前用户是车队长，老板号ID:', user.tenant_id, '老板号tenant_id:', mainAccountId)
     } else {
       // 其他角色不受限制
       console.log('[租期检测] 其他角色，不受租期限制')
       return {status: 'ok'}
     }
 
-    console.log('[租期检测] 查询租期，tenant_id:', mainAccountId)
-
     // 检查主账号是否有有效租期（只查询 active 状态的租期）
     const {data: leases, error: leaseError} = await supabase
       .from('leases')
       .select('*')
-      .eq('tenant_id', mainAccountId)
+
       .eq('status', 'active')
       .order('end_date', {ascending: false})
       .limit(1)
@@ -7723,6 +8483,16 @@ export async function checkUserLeaseStatus(
  */
 export async function createNotificationRecord(input: CreateNotificationInput): Promise<Notification | null> {
   try {
+    // 1. 获取当前用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('创建通知失败: 用户未登录')
+      return null
+    }
+
     const {data, error} = await supabase
       .from('notifications')
       .insert({
@@ -7755,6 +8525,50 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
  */
 export async function getNotifications(userId: string, limit = 50): Promise<Notification[]> {
   try {
+    console.log('🔍 getNotifications: 开始获取通知列表')
+    console.log('  - 用户 ID:', userId)
+    console.log('  - 限制数量:', limit)
+
+    // 获取当前用户的租户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('❌ 用户未登录')
+      return []
+    }
+
+    const tenantId = user.user_metadata?.tenant_id
+
+    console.log('👤 当前用户:')
+    console.log('  - 用户 ID:', user.id)
+    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
+
+    // 如果是租户用户，使用 RPC 函数查询租户 Schema
+    if (tenantId) {
+      console.log('  - 目标：租户 Schema')
+      console.log('  - 使用函数: get_tenant_notifications')
+
+      const {data, error} = await supabase.rpc('get_tenant_notifications', {
+        p_tenant_id: tenantId,
+        p_user_id: userId,
+        p_limit: limit
+      })
+
+      if (error) {
+        console.error('❌ 获取租户通知失败:', error)
+        return []
+      }
+
+      console.log(`✅ 获取到 ${data?.length || 0} 条通知`)
+      return Array.isArray(data) ? data : []
+    }
+
+    // 否则是中央管理员，查询 public.notifications
+    console.log('  - 目标：public.notifications')
+    console.log('  - 当前用户是中央管理员')
+
     const {data, error} = await supabase
       .from('notifications')
       .select('*')
@@ -7763,13 +8577,14 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
       .limit(limit)
 
     if (error) {
-      console.error('获取通知列表失败:', error)
+      console.error('❌ 获取通知失败:', error)
       return []
     }
 
+    console.log(`✅ 获取到 ${data?.length || 0} 条通知`)
     return Array.isArray(data) ? data : []
   } catch (error) {
-    console.error('获取通知列表异常:', error)
+    console.error('❌ 获取通知异常:', error)
     return []
   }
 }
@@ -7779,6 +8594,48 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
  */
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
   try {
+    console.log('🔍 getUnreadNotificationCount: 开始获取未读通知数量')
+    console.log('  - 用户 ID:', userId)
+
+    // 获取当前用户的租户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('❌ 用户未登录')
+      return 0
+    }
+
+    const tenantId = user.user_metadata?.tenant_id
+
+    console.log('👤 当前用户:')
+    console.log('  - 用户 ID:', user.id)
+    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
+
+    // 如果是租户用户，使用 RPC 函数查询租户 Schema
+    if (tenantId) {
+      console.log('  - 目标：租户 Schema')
+      console.log('  - 使用函数: get_tenant_unread_notification_count')
+
+      const {data, error} = await supabase.rpc('get_tenant_unread_notification_count', {
+        p_tenant_id: tenantId,
+        p_user_id: userId
+      })
+
+      if (error) {
+        console.error('❌ 获取租户未读通知数量失败:', error)
+        return 0
+      }
+
+      console.log(`✅ 未读通知数量: ${data || 0}`)
+      return data || 0
+    }
+
+    // 否则是中央管理员，查询 public.notifications
+    console.log('  - 目标：public.notifications')
+    console.log('  - 当前用户是中央管理员')
+
     const {count, error} = await supabase
       .from('notifications')
       .select('*', {count: 'exact', head: true})
@@ -7786,13 +8643,14 @@ export async function getUnreadNotificationCount(userId: string): Promise<number
       .eq('is_read', false)
 
     if (error) {
-      console.error('获取未读通知数量失败:', error)
+      console.error('❌ 获取未读通知数量失败:', error)
       return 0
     }
 
+    console.log(`✅ 未读通知数量: ${count || 0}`)
     return count || 0
   } catch (error) {
-    console.error('获取未读通知数量异常:', error)
+    console.error('❌ 获取未读通知数量异常:', error)
     return 0
   }
 }
@@ -7883,5 +8741,170 @@ export async function sendVerificationReminder(
   } catch (error) {
     console.error('发送实名提醒通知异常:', error)
     return false
+  }
+}
+
+/**
+ * 删除租户结果
+ */
+export interface DeleteTenantResult {
+  success: boolean
+  message: string
+  deletedData?: {
+    tenant: string
+    peerAccounts: number
+    managers: number
+    drivers: number
+    vehicles: number
+    warehouses: number
+    attendance: number
+    leaves: number
+    pieceWorks: number
+    notifications: number
+    total: number
+  }
+  error?: string
+}
+
+/**
+ * 删除租户（老板账号）- 带详细日志版本
+ * 会级联删除该租户下的所有数据
+ */
+export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResult> {
+  try {
+    // 1. 验证是否为主账号
+    const {data: tenant, error: fetchError} = await supabase
+      .from('profiles')
+      .select('id, role, main_account_id, name, phone')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (fetchError) {
+      console.error('查询租户信息失败:', fetchError)
+      return {
+        success: false,
+        message: '查询租户信息失败',
+        error: fetchError.message
+      }
+    }
+
+    if (!tenant) {
+      console.error('租户不存在')
+      return {
+        success: false,
+        message: '租户不存在',
+        error: '未找到指定的租户'
+      }
+    }
+
+    // 确保是老板账号
+    if (tenant.role !== 'super_admin') {
+      console.error('只能删除老板账号，当前角色:', tenant.role)
+      return {
+        success: false,
+        message: '只能删除老板账号',
+        error: `当前用户角色为 ${tenant.role}，不是 super_admin`
+      }
+    }
+
+    // 确保是主账号（不是平级账号）
+    if (tenant.main_account_id !== null) {
+      console.error('只能删除主账号，不能删除平级账号')
+      return {
+        success: false,
+        message: '只能删除主账号，不能删除平级账号',
+        error: '请删除主账号，平级账号会自动级联删除'
+      }
+    }
+
+    // 2. 统计将要删除的数据
+    const [
+      {data: peerAccounts},
+      {data: managers},
+      {data: drivers},
+      {data: vehicles},
+      {data: warehouses},
+      {data: attendance},
+      {data: leaves},
+      {data: pieceWorks},
+      {data: notifications}
+    ] = await Promise.all([
+      supabase.from('profiles').select('id').eq('role', 'super_admin').eq('main_account_id', id),
+      supabase.from('profiles').select('id').eq('role', 'manager'),
+      supabase.from('profiles').select('id').eq('role', 'driver'),
+      supabase.from('vehicles').select('id').eq('tenant_id', id),
+      supabase.from('warehouses').select('id').eq('tenant_id', id),
+      supabase.from('attendance').select('id').eq('tenant_id', id),
+      supabase.from('leave_applications').select('id').eq('tenant_id', id),
+      supabase.from('piece_work_records').select('id').eq('tenant_id', id),
+      supabase.from('notifications').select('id').eq('tenant_id', id)
+    ])
+
+    const stats = {
+      tenant: `${tenant.name || '未命名'} (${tenant.phone || '无手机号'})`,
+      peerAccounts: peerAccounts?.length || 0,
+      managers: managers?.length || 0,
+      drivers: drivers?.length || 0,
+      vehicles: vehicles?.length || 0,
+      warehouses: warehouses?.length || 0,
+      attendance: attendance?.length || 0,
+      leaves: leaves?.length || 0,
+      pieceWorks: pieceWorks?.length || 0,
+      notifications: notifications?.length || 0,
+      total: 0
+    }
+
+    stats.total =
+      1 + // 租户本身
+      stats.peerAccounts +
+      stats.managers +
+      stats.drivers +
+      stats.vehicles +
+      stats.warehouses +
+      stats.attendance +
+      stats.leaves +
+      stats.pieceWorks +
+      stats.notifications
+
+    console.log('准备删除租户:', stats)
+
+    // 3. 删除主账号（会自动级联删除所有关联数据）
+    const {error: deleteError} = await supabase.from('profiles').delete().eq('id', id)
+
+    if (deleteError) {
+      console.error('删除老板账号失败:', deleteError)
+      return {
+        success: false,
+        message: '删除失败',
+        error: deleteError.message
+      }
+    }
+
+    // 4. 验证删除是否成功
+    const {data: verifyTenant} = await supabase.from('profiles').select('id').eq('id', id).maybeSingle()
+
+    if (verifyTenant) {
+      console.error('删除失败：租户仍然存在')
+      return {
+        success: false,
+        message: '删除失败：租户仍然存在',
+        error: '可能是权限不足或数据库约束问题',
+        deletedData: stats
+      }
+    }
+
+    console.log('成功删除租户及其所有关联数据')
+    return {
+      success: true,
+      message: '删除成功',
+      deletedData: stats
+    }
+  } catch (error) {
+    console.error('删除老板账号异常:', error)
+    return {
+      success: false,
+      message: '删除异常',
+      error: error instanceof Error ? error.message : String(error)
+    }
   }
 }
