@@ -72,7 +72,7 @@ const logger = createLogger('DatabaseAPI')
  * 注意：此函数仅用于向后兼容，新代码不应使用
  * @deprecated 多租户功能已废弃
  */
-function convertTenantProfileToProfile(tenantProfile: any): Profile {
+function _convertTenantProfileToProfile(tenantProfile: any): Profile {
   console.warn('[convertTenantProfileToProfile] 此函数已废弃，请使用新的用户管理 API')
   return {
     id: tenantProfile.id || '',
@@ -4195,14 +4195,8 @@ export async function createUser(
       throw new Error('用户未登录')
     }
 
-    // 从 user_metadata 获取租户信息
-    const tenantId = user.user_metadata?.tenant_id
-    const userRole = user.user_metadata?.role
-
     console.log('👤 当前登录用户:')
     console.log('  - 用户 ID:', user.id)
-    console.log('  - 角色:', userRole)
-    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
     console.log('')
 
     // 步骤1: 创建 auth.users 表记录
@@ -4260,98 +4254,13 @@ export async function createUser(
 
     console.log('')
 
-    // 步骤2: 创建 profiles 表记录
-    console.log('📋 [步骤2] 创建 profiles 表记录')
-
-    // 如果是租户用户，使用 RPC 函数在租户 Schema 中创建
-    if (tenantId) {
-      console.log('  - 目标：租户 Schema')
-      console.log('  - 租户 ID:', tenantId)
-      console.log('  - 使用函数: create_tenant_user')
-
-      // 角色映射：前端角色 -> 租户 Schema 角色
-      // manager -> fleet_leader（车队长）
-      // driver -> driver（司机）
-      const tenantRole = role === 'MANAGER' ? 'fleet_leader' : 'DRIVER'
-      console.log('  - 角色映射:', role, '->', tenantRole)
-
-      try {
-        // 调用 RPC 函数在租户 Schema 中创建用户
-        const {data: tenantUser, error: tenantError} = await supabase.rpc('create_tenant_user', {
-          p_tenant_id: tenantId,
-          p_user_id: userId,
-          p_name: name,
-          p_phone: phone,
-          p_email: loginEmail,
-          p_role: tenantRole,
-          p_permission_type: 'full',
-          p_vehicle_plate: driverType === 'with_vehicle' ? '' : null,
-          p_warehouse_ids: null
-        })
-
-        if (tenantError) {
-          console.error('  ❌ 在租户 Schema 创建用户失败:', tenantError)
-          return null
-        }
-
-        if (!tenantUser) {
-          console.error('  ❌ 创建失败：返回数据为空')
-          return null
-        }
-
-        console.log('  ✅ 租户 Schema 中的 profiles 记录创建成功')
-        console.log('  - 用户ID:', tenantUser.id)
-        console.log('  - 姓名:', tenantUser.name)
-        console.log('  - 角色:', tenantUser.role)
-
-        // 更新 user_metadata
-        console.log('\n📋 [步骤3] 更新 user_metadata')
-        const {error: metadataError} = await supabase.rpc('insert_tenant_profile', {
-          p_schema_name: `tenant_${tenantId.replace(/-/g, '_')}`,
-          p_user_id: userId,
-          p_name: name,
-          p_phone: phone,
-          p_email: loginEmail,
-          p_role: tenantRole // 使用映射后的租户角色
-        })
-
-        if (metadataError) {
-          console.warn('  ⚠️ 更新 user_metadata 失败:', metadataError.message)
-          console.warn('  用户可以登录，但可能需要手动设置 user_metadata')
-        } else {
-          console.log('  ✅ user_metadata 更新成功')
-        }
-
-        // 转换为标准 Profile 格式
-        const profile: Profile = convertTenantProfileToProfile(tenantUser)
-
-        console.log(`\n${'='.repeat(80)}`)
-        console.log('✅ [createUser] 函数执行完成')
-        console.log('📊 最终结果:')
-        console.log('  - auth.users 表: ✅ 创建成功')
-        console.log('  - 租户 Schema profiles 表: ✅ 创建成功')
-        console.log('  - user_metadata: ✅ 更新成功')
-        console.log('  💡 用户可以使用以下方式登录:')
-        console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
-        console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-        console.log(`${'='.repeat(80)}\n`)
-
-        return profile
-      } catch (err) {
-        console.error('  ❌ 创建租户用户异常:', err)
-        return null
-      }
-    }
-
-    // 否则是中央管理员，在 public.profiles 中创建
-    console.log('  - 目标：public.profiles')
-    console.log('  - 当前用户是中央管理员')
+    // 步骤2: 创建 users 表记录（单用户架构）
+    console.log('📋 [步骤2] 创建 users 表记录')
 
     const insertData: any = {
       id: userId,
       phone,
       name,
-      role: role as UserRole,
       email: loginEmail
     }
 
@@ -4362,35 +4271,58 @@ export async function createUser(
 
     console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
 
-    const {data, error} = await supabase.from('profiles').insert(insertData).select().maybeSingle()
+    const {data: userData, error: userError} = await supabase.from('users').insert(insertData).select().maybeSingle()
 
-    if (error) {
-      console.error('  ❌ 插入失败:', error)
-      console.warn('  ⚠️ auth.users 记录已创建，但 profiles 记录创建失败')
+    if (userError) {
+      console.error('  ❌ 插入 users 表失败:', userError)
+      console.warn('  ⚠️ auth.users 记录已创建，但 users 记录创建失败')
       return null
     }
 
-    if (!data) {
+    if (!userData) {
       console.error('  ❌ 插入失败：返回数据为空')
       return null
     }
 
-    console.log('  ✅ public.profiles 记录创建成功')
-    console.log('  - 用户ID:', data.id)
-    console.log('  - 姓名:', data.name)
-    console.log('  - 角色:', data.role)
+    console.log('  ✅ users 表记录创建成功')
+    console.log('  - 用户ID:', userData.id)
+    console.log('  - 姓名:', userData.name)
+
+    // 步骤3: 创建 user_roles 表记录
+    console.log('\n📋 [步骤3] 创建 user_roles 表记录')
+
+    const {error: roleError} = await supabase.from('user_roles').insert({
+      user_id: userId,
+      role: role as UserRole
+    })
+
+    if (roleError) {
+      console.error('  ❌ 插入 user_roles 表失败:', roleError)
+      console.warn('  ⚠️ users 记录已创建，但 user_roles 记录创建失败')
+      return null
+    }
+
+    console.log('  ✅ user_roles 表记录创建成功')
+    console.log('  - 角色:', role)
+
+    // 转换为 Profile 格式
+    const profile: Profile = convertUserToProfile({
+      ...userData,
+      role: role as UserRole
+    })
 
     console.log(`\n${'='.repeat(80)}`)
     console.log('✅ [createUser] 函数执行完成')
     console.log('📊 最终结果:')
     console.log('  - auth.users 表: ✅ 创建成功')
-    console.log('  - public.profiles 表: ✅ 创建成功')
+    console.log('  - users 表: ✅ 创建成功')
+    console.log('  - user_roles 表: ✅ 创建成功')
     console.log('  💡 用户可以使用以下方式登录:')
     console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
     console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
     console.log(`${'='.repeat(80)}\n`)
 
-    return data as Profile
+    return profile
   } catch (error) {
     console.error(`\n${'='.repeat(80)}`)
     console.error('❌ [createUser] 函数执行异常')
@@ -4399,7 +4331,7 @@ export async function createUser(
       console.error('异常消息:', error.message)
     }
     console.error(`${'='.repeat(80)}\n`)
-    return null
+    throw error
   }
 }
 
@@ -7087,9 +7019,9 @@ export async function createPeerAccount(
   password: string
 ): Promise<Profile | null | 'EMAIL_EXISTS'> {
   try {
-    // 1. 获取主账号信息
+    // 1. 获取主账号信息 - 单用户架构：从 users 表查询
     const {data: mainAccount, error: mainAccountError} = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('id', mainAccountId)
       .maybeSingle()
@@ -7146,17 +7078,16 @@ export async function createPeerAccount(
       return null
     }
 
-    // 5. 等待触发器创建 profiles 记录（短暂延迟）
+    // 5. 等待触发器创建 users 记录（短暂延迟）
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    // 6. 更新 profiles 记录，设置平级账号相关字段
-    const {data: profileData, error: profileError} = await supabase
-      .from('profiles')
+    // 6. 更新 users 记录，设置平级账号相关字段（单用户架构）
+    const {data: userData, error: userError} = await supabase
+      .from('users')
       .update({
         name: account.name,
         phone: account.phone,
         email: email, // 保存真实邮箱（可能为 null）
-        role: 'BOSS' as UserRole,
         company_name: account.company_name || mainAccount.company_name,
         monthly_fee: account.monthly_fee || mainAccount.monthly_fee,
         lease_start_date: mainAccount.lease_start_date,
@@ -7169,12 +7100,34 @@ export async function createPeerAccount(
       .select()
       .maybeSingle()
 
-    if (profileError) {
-      console.error('更新平级账号 profiles 记录失败:', profileError)
+    if (userError) {
+      console.error('更新平级账号 users 记录失败:', userError)
       return null
     }
 
-    return profileData
+    // 7. 创建 user_roles 记录
+    const {error: roleError} = await supabase.from('user_roles').insert({
+      user_id: authData.user.id,
+      role: 'BOSS' as UserRole
+    })
+
+    if (roleError) {
+      console.error('创建平级账号 user_roles 记录失败:', roleError)
+      return null
+    }
+
+    // 转换为 Profile 格式
+    if (!userData) {
+      console.error('更新失败：返回数据为空')
+      return null
+    }
+
+    const profile: Profile = convertUserToProfile({
+      ...userData,
+      role: 'BOSS' as UserRole
+    })
+
+    return profile
   } catch (error) {
     console.error('创建平级账号异常:', error)
     return null
@@ -7562,12 +7515,11 @@ export interface DeleteTenantResult {
  */
 export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResult> {
   try {
-    // 1. 验证是否为主账号
-    const {data: tenant, error: fetchError} = await supabase
-      .from('profiles')
-      .select('id, role, main_account_id, name, phone')
-      .eq('id', id)
-      .maybeSingle()
+    // 1. 验证是否为主账号 - 单用户架构：从 users 和 user_roles 表查询
+    const [{data: user, error: fetchError}, {data: roleData}] = await Promise.all([
+      supabase.from('users').select('id, main_account_id, name, phone').eq('id', id).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', id).maybeSingle()
+    ])
 
     if (fetchError) {
       console.error('查询租户信息失败:', fetchError)
@@ -7578,7 +7530,7 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       }
     }
 
-    if (!tenant) {
+    if (!user) {
       console.error('租户不存在')
       return {
         success: false,
@@ -7587,18 +7539,20 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       }
     }
 
+    const role = roleData?.role || 'DRIVER'
+
     // 确保是老板账号
-    if (tenant.role !== 'BOSS') {
-      console.error('只能删除老板账号，当前角色:', tenant.role)
+    if (role !== 'BOSS') {
+      console.error('只能删除老板账号，当前角色:', role)
       return {
         success: false,
         message: '只能删除老板账号',
-        error: `当前用户角色为 ${tenant.role}，不是 super_admin`
+        error: `当前用户角色为 ${role}，不是 BOSS`
       }
     }
 
     // 确保是主账号（不是平级账号）
-    if (tenant.main_account_id !== null) {
+    if (user.main_account_id !== null) {
       console.error('只能删除主账号，不能删除平级账号')
       return {
         success: false,
@@ -7607,11 +7561,11 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       }
     }
 
-    // 2. 统计将要删除的数据
+    // 2. 统计将要删除的数据 - 单用户架构
     const [
       {data: peerAccounts},
-      {data: managers},
-      {data: drivers},
+      {data: managerRoles},
+      {data: driverRoles},
       {data: vehicles},
       {data: warehouses},
       {data: attendance},
@@ -7619,9 +7573,17 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       {data: pieceWorks},
       {data: notifications}
     ] = await Promise.all([
-      supabase.from('profiles').select('id').eq('role', 'BOSS').eq('main_account_id', id),
-      supabase.from('profiles').select('id').eq('role', 'MANAGER'),
-      supabase.from('profiles').select('id').eq('role', 'DRIVER'),
+      supabase.from('users').select('id').eq('main_account_id', id),
+      supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'MANAGER')
+        .in('user_id', (await supabase.from('users').select('id')).data?.map((u) => u.id) || []),
+      supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'DRIVER')
+        .in('user_id', (await supabase.from('users').select('id')).data?.map((u) => u.id) || []),
       supabase.from('vehicles').select('id').eq('tenant_id', id),
       supabase.from('warehouses').select('id').eq('tenant_id', id),
       supabase.from('attendance').select('id').eq('tenant_id', id),
@@ -7631,10 +7593,10 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
     ])
 
     const stats = {
-      tenant: `${tenant.name || '未命名'} (${tenant.phone || '无手机号'})`,
+      tenant: `${user.name || '未命名'} (${user.phone || '无手机号'})`,
       peerAccounts: peerAccounts?.length || 0,
-      managers: managers?.length || 0,
-      drivers: drivers?.length || 0,
+      managers: managerRoles?.length || 0,
+      drivers: driverRoles?.length || 0,
       vehicles: vehicles?.length || 0,
       warehouses: warehouses?.length || 0,
       attendance: attendance?.length || 0,
@@ -7658,8 +7620,8 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
 
     console.log('准备删除租户:', stats)
 
-    // 3. 删除主账号（会自动级联删除所有关联数据）
-    const {error: deleteError} = await supabase.from('profiles').delete().eq('id', id)
+    // 3. 删除主账号（会自动级联删除所有关联数据）- 单用户架构：删除 users 表记录
+    const {error: deleteError} = await supabase.from('users').delete().eq('id', id)
 
     if (deleteError) {
       console.error('删除老板账号失败:', deleteError)
@@ -7671,9 +7633,9 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
     }
 
     // 4. 验证删除是否成功
-    const {data: verifyTenant} = await supabase.from('profiles').select('id').eq('id', id).maybeSingle()
+    const {data: verifyUser} = await supabase.from('users').select('id').eq('id', id).maybeSingle()
 
-    if (verifyTenant) {
+    if (verifyUser) {
       console.error('删除失败：租户仍然存在')
       return {
         success: false,
