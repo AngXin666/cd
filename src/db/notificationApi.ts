@@ -438,23 +438,15 @@ export async function createNotification(
       return false
     }
 
-    // 获取发送者的角色和租户信息
-    const {role: senderRole, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 获取发送者的角色信息
+    const {role: senderRole} = await getCurrentUserRoleAndTenant()
 
     // 获取发送者的姓名
     let senderName = '系统'
 
-    // 如果是租户用户，从租户 Schema 中获取姓名
-    if (tenant_id) {
-      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
-        user_id: user.id
-      })
-      senderName = tenantProfile?.[0]?.name || '系统'
-    } else {
-      // 单用户架构：从 users 表中获取姓名
-      const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
-      senderName = userData?.name || '系统'
-    }
+    // 单用户架构：从 users 表中获取姓名
+    const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+    senderName = userData?.name || '系统'
 
     // 自动确定分类
     const category = getNotificationCategory(type)
@@ -515,25 +507,17 @@ export async function createNotifications(
 
     logger.info('📝 当前用户信息', {userId: user.id})
 
-    // 获取发送者的角色和租户信息
-    const {role: senderRole, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 获取发送者的角色信息
+    const {role: senderRole} = await getCurrentUserRoleAndTenant()
 
     // 获取发送者的姓名
     let senderName = '系统'
 
-    // 如果是租户用户，从租户 Schema 中获取姓名
-    if (tenant_id) {
-      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
-        user_id: user.id
-      })
-      senderName = tenantProfile?.[0]?.name || '系统'
-    } else {
-      // 单用户架构：从 users 表中获取姓名
-      const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
-      senderName = userData?.name || '系统'
-    }
+    // 单用户架构：从 users 表中获取姓名
+    const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+    senderName = userData?.name || '系统'
 
-    logger.info('👤 发送者信息', {senderName, senderRole, tenant_id})
+    logger.info('👤 发送者信息', {senderName, senderRole})
 
     const notificationData = notifications.map((n) => ({
       recipient_id: n.userId,

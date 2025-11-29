@@ -3683,7 +3683,7 @@ export async function getAllUsers(): Promise<Profile[]> {
 
 /**
  * 获取所有管理员用户
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 MANAGER 角色的用户
  */
 export async function getAllManagers(): Promise<Profile[]> {
   console.log('🔍 getAllManagers: 开始获取管理员列表')
@@ -7247,6 +7247,7 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
 
 /**
  * 获取用户的通知列表
+ * 单用户架构：直接查询 public.notifications 表
  */
 export async function getNotifications(userId: string, limit = 50): Promise<Notification[]> {
   try {
@@ -7254,46 +7255,7 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
     console.log('  - 用户 ID:', userId)
     console.log('  - 限制数量:', limit)
 
-    // 获取当前用户的租户信息
-    const {
-      data: {user}
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      console.error('❌ 用户未登录')
-      return []
-    }
-
-    const tenantId = user.user_metadata?.tenant_id
-
-    console.log('👤 当前用户:')
-    console.log('  - 用户 ID:', user.id)
-    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
-
-    // 如果是租户用户，使用 RPC 函数查询租户 Schema
-    if (tenantId) {
-      console.log('  - 目标：租户 Schema')
-      console.log('  - 使用函数: get_tenant_notifications')
-
-      const {data, error} = await supabase.rpc('get_tenant_notifications', {
-        p_tenant_id: tenantId,
-        p_user_id: userId,
-        p_limit: limit
-      })
-
-      if (error) {
-        console.error('❌ 获取租户通知失败:', error)
-        return []
-      }
-
-      console.log(`✅ 获取到 ${data?.length || 0} 条通知`)
-      return Array.isArray(data) ? data : []
-    }
-
-    // 否则是中央管理员，查询 public.notifications
-    console.log('  - 目标：public.notifications')
-    console.log('  - 当前用户是中央管理员')
-
+    // 单用户架构：直接查询 public.notifications
     const {data, error} = await supabase
       .from('notifications')
       .select('*')
@@ -7316,51 +7278,14 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
 
 /**
  * 获取未读通知数量
+ * 单用户架构：直接查询 public.notifications 表
  */
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
   try {
     console.log('🔍 getUnreadNotificationCount: 开始获取未读通知数量')
     console.log('  - 用户 ID:', userId)
 
-    // 获取当前用户的租户信息
-    const {
-      data: {user}
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      console.error('❌ 用户未登录')
-      return 0
-    }
-
-    const tenantId = user.user_metadata?.tenant_id
-
-    console.log('👤 当前用户:')
-    console.log('  - 用户 ID:', user.id)
-    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
-
-    // 如果是租户用户，使用 RPC 函数查询租户 Schema
-    if (tenantId) {
-      console.log('  - 目标：租户 Schema')
-      console.log('  - 使用函数: get_tenant_unread_notification_count')
-
-      const {data, error} = await supabase.rpc('get_tenant_unread_notification_count', {
-        p_tenant_id: tenantId,
-        p_user_id: userId
-      })
-
-      if (error) {
-        console.error('❌ 获取租户未读通知数量失败:', error)
-        return 0
-      }
-
-      console.log(`✅ 未读通知数量: ${data || 0}`)
-      return data || 0
-    }
-
-    // 否则是中央管理员，查询 public.notifications
-    console.log('  - 目标：public.notifications')
-    console.log('  - 当前用户是中央管理员')
-
+    // 单用户架构：直接查询 public.notifications
     const {count, error} = await supabase
       .from('notifications')
       .select('*', {count: 'exact', head: true})
