@@ -41,7 +41,20 @@ export interface UserUpdate {
   avatar_url?: string
 }
 
-// 兼容旧代码的 Profile 接口（映射到新的 User）
+// 用户与角色组合接口（推荐使用）
+export interface UserWithRole {
+  id: string
+  phone: string | null
+  email: string | null
+  name: string
+  role: UserRole | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 兼容旧代码的 Profile 接口（映射到 UserWithRole）
+// @deprecated 请使用 UserWithRole 替代
 export interface Profile {
   id: string
   phone: string | null

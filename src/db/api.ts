@@ -109,26 +109,22 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
 
     console.log('[getCurrentUserProfile] 当前用户ID:', user.id)
 
-    // 直接从 profiles 视图查询用户信息
-    const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    // 使用 helpers 中的函数查询用户信息
+    const {getUserWithRole, convertUserToProfile} = await import('./helpers')
+    const userWithRole = await getUserWithRole(user.id)
 
-    if (error) {
-      console.error('[getCurrentUserProfile] 查询用户档案失败:', error)
-      return null
-    }
-
-    if (!data) {
+    if (!userWithRole) {
       console.warn('[getCurrentUserProfile] 用户档案不存在')
       return null
     }
 
     console.log('[getCurrentUserProfile] 成功获取用户档案:', {
-      id: data.id,
-      phone: data.phone,
-      role: data.role
+      id: userWithRole.id,
+      phone: userWithRole.phone,
+      role: userWithRole.role
     })
 
-    return data as Profile
+    return convertUserToProfile(userWithRole)
   } catch (error) {
     console.error('[getCurrentUserProfile] 未预期的错误:', error)
     return null

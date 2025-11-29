@@ -5,7 +5,7 @@
  */
 
 import {supabase} from '@/client/supabase'
-import type {UserRole} from './types'
+import type {Profile, UserRole} from './types'
 
 /**
  * 用户完整信息接口（包含角色）
@@ -19,6 +19,33 @@ export interface UserWithRole {
   role: UserRole | null
   created_at: string
   updated_at: string
+}
+
+/**
+ * 将 UserWithRole 转换为 Profile 格式（向后兼容）
+ * @param user 用户数据
+ * @returns Profile 对象
+ */
+export function convertUserToProfile(user: UserWithRole): Profile {
+  return {
+    id: user.id,
+    phone: user.phone,
+    email: user.email,
+    name: user.name,
+    role: user.role || 'DRIVER', // 默认角色
+    avatar_url: user.avatar_url,
+    created_at: user.created_at,
+    updated_at: user.updated_at
+  }
+}
+
+/**
+ * 批量转换用户数据为 Profile 格式
+ * @param users 用户数据数组
+ * @returns Profile 对象数组
+ */
+export function convertUsersToProfiles(users: UserWithRole[]): Profile[] {
+  return users.map(convertUserToProfile)
 }
 
 /**
