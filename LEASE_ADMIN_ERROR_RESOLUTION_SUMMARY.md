@@ -111,9 +111,11 @@ await supabase.rpc('create_tenant_user', {
 
 ### 4. 修复 `create_user_auth_account_first` 函数的权限检查
 
-**迁移文件**：`supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`
+**迁移文件**：
+- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`（第一次修复，使用了错误的角色）
+- `supabase/migrations/00446_fix_create_user_auth_correct_roles.sql`（最终修复，使用正确的角色）
 
-**问题**：
+**问题 1**：引用已删除的 `lease_admin` 角色
 ```sql
 -- 错误的代码
 IF current_user_role NOT IN ('lease_admin', 'super_admin', 'manager') THEN
@@ -121,20 +123,31 @@ IF current_user_role NOT IN ('lease_admin', 'super_admin', 'manager') THEN
 END IF;
 ```
 
-当 PostgreSQL 尝试将 `current_user_role`（枚举类型）与字符串 `'lease_admin'` 比较时，会尝试将字符串转换为枚举类型，但 `'lease_admin'` 已从枚举中删除，导致错误。
-
-**解决方案**：
+**问题 2**：使用了错误的角色名称
 ```sql
--- 修复后的代码
+-- 第一次修复（仍然有问题）
 IF current_user_role NOT IN ('super_admin', 'peer_admin', 'manager', 'boss') THEN
   RAISE EXCEPTION '权限不足：只有管理员可以创建用户';
 END IF;
 ```
+- 使用了 `peer_admin`，但正确的角色是 `peer`
+- 使用了 `manager`，但正确的角色是 `fleet_leader`
+- 包含了租户 Schema 的角色，但这个函数检查的是 `public.profiles`
 
-**修复内容**：
-- 移除对 `'lease_admin'` 的引用
-- 使用当前系统中存在的角色：`super_admin`、`peer_admin`、`manager`、`boss`
-- 同时修复 `cleanup_orphaned_auth_users` 函数
+**最终解决方案**：
+```sql
+-- 正确的代码
+IF current_user_role NOT IN ('super_admin', 'boss') THEN
+  RAISE EXCEPTION '权限不足：只有超级管理员和老板可以创建用户';
+END IF;
+```
+
+**修复说明**：
+- `create_user_auth_account_first` 函数在 public Schema 中定义
+- 它检查 `public.profiles` 表中的当前用户角色
+- 只有在 `public.profiles` 中有记录的用户才能调用
+- 因此只需要检查：`super_admin`（超级管理员）和 `boss`（老板）
+- 车队长和平级账号只存在于租户 Schema 中，不能直接调用此函数
 
 ## 当前有效的角色
 
@@ -142,20 +155,17 @@ END IF;
 
 用于中央管理系统用户：
 
-- `driver`：司机
-- `manager`：管理员
 - `super_admin`：超级管理员
-- `peer_admin`：平级管理员
 - `boss`：老板
 
 ### 租户 Schema（`tenant_xxx.profiles`）
 
-用于租户内部用户：
+用于租户内部用户（角色字段是 TEXT 类型，不是枚举）：
 
-- `driver`：司机
-- `fleet_leader`：车队长
-- `peer`：平级账号
 - `boss`：老板
+- `peer`：平级账号
+- `fleet_leader`：车队长
+- `driver`：司机
 
 ## 验证结果
 
@@ -242,7 +252,8 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
 - `supabase/migrations/00432_recreate_insert_tenant_profile_function.sql`：旧的（有问题的）函数
 - `supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`：修复后的 insert_tenant_profile 函数
 - `supabase/migrations/00444_remove_lease_admin_functions_and_policies.sql`：删除废弃的函数和策略
-- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`：修复 create_user_auth_account_first 函数
+- `supabase/migrations/00445_fix_create_user_auth_remove_lease_admin_check.sql`：第一次修复 create_user_auth_account_first 函数（使用了错误的角色）
+- `supabase/migrations/00446_fix_create_user_auth_correct_roles.sql`：最终修复 create_user_auth_account_first 函数（使用正确的角色）
 
 ### 代码文件
 - `src/db/types.ts`：TypeScript 类型定义
