@@ -53,6 +53,7 @@ export interface Profile {
   notes?: string | null
   main_account_id?: string | null
   is_active?: boolean
+  vehicle_plate?: string | null
 }
 
 export interface ProfileUpdate {
@@ -115,6 +116,7 @@ export interface Warehouse {
   updated_at: string
   // 兼容旧代码的可选字段
   is_active?: boolean
+  max_leave_days?: number | null
 }
 
 // 创建仓库的输入接口
@@ -207,6 +209,7 @@ export interface AttendanceRecord {
   status: AttendanceStatus
   notes: string | null
   created_at: string
+  work_date?: string
 }
 
 // 创建考勤记录的输入接口
@@ -247,6 +250,10 @@ export interface LeaveRequest {
   approved_at: string | null
   created_at: string
   updated_at: string
+  review_notes?: string | null
+  warehouse_id?: string | null
+  reviewed_by?: string | null
+  reviewed_at?: string | null
 }
 
 // 创建请假申请的输入接口
@@ -569,6 +576,10 @@ export interface ResignationApplication {
   approved_at: string | null
   created_at: string
   updated_at: string
+  review_notes?: string | null
+  warehouse_id?: string | null
+  reviewed_by?: string | null
+  reviewed_at?: string | null
 }
 
 // 创建辞职申请的输入接口
@@ -583,9 +594,9 @@ export interface ResignationApplicationInput {
 
 // 审核输入接口（保留用于兼容性）
 export interface ApplicationReviewInput {
-  application_id: string
+  application_id?: string
   status: 'approved' | 'rejected'
-  approver_id: string
+  approver_id?: string
   comment?: string
   reviewed_by?: string
   review_notes?: string

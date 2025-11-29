@@ -25,7 +25,7 @@ import type {Notification} from './useNotifications'
 
 interface NotificationOptions {
   userId: string
-  userRole: 'driver' | 'manager' | 'super_admin'
+  userRole: 'DRIVER' | 'MANAGER' | 'SUPER_ADMIN'
   onLeaveApplicationChange?: () => void
   onResignationApplicationChange?: () => void
   onAttendanceChange?: () => void
