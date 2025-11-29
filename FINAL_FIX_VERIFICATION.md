@@ -7,7 +7,9 @@
 1. ✅ 修复 `insert_tenant_profile` 函数（迁移 00443）
 2. ✅ 删除废弃的 lease_admin 函数和策略（迁移 00444）
 3. ✅ 修复 `createUser` 函数的角色映射（src/db/api.ts）
-4. ✅ 修复 `create_user_auth_account_first` 函数的权限检查（迁移 00445）
+4. ✅ 修复 `create_user_auth_account_first` 函数的权限检查
+   - 迁移 00445：移除 lease_admin 引用（但使用了错误的角色）
+   - 迁移 00446：使用正确的角色（super_admin 和 boss）
 
 ## 验证步骤
 
