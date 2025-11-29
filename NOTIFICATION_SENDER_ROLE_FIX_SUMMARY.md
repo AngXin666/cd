@@ -257,17 +257,48 @@ WHERE conrelid = 'public.notifications'::regclass
 
 ## 相关问题修复
 
-这次修复也解决了之前的问题：
+这次修复解决了多个相关问题：
 
 1. ✅ [司机仓库分配 RLS 权限问题](./DRIVER_WAREHOUSE_RLS_FIX_SUMMARY.md)
    - 为租户 Schema 添加缺失的表
    - 创建 `is_tenant_admin()` 函数
    - 更新 RLS 策略
 
-2. ✅ 通知创建 sender_role 检查约束错误（本次修复）
-   - 更新检查约束
-   - 修改前端代码
+2. ✅ 通知创建 sender_role 检查约束错误
+   - 更新检查约束，允许所有有效角色
+   - 修改前端代码，正确获取租户用户信息
 
-这两个问题的根本原因都是：**系统从单租户架构迁移到多租户架构后，数据库约束和前端代码没有完全适配新的架构**。
+3. ✅ 通知创建外键约束错误（最新修复）
+   - 删除 `notifications_sender_id_fkey` 外键约束
+   - 删除 `notifications_recipient_id_fkey` 外键约束
+   - 添加列注释说明数据完整性保证机制
+
+### 外键约束问题详情
+
+**问题描述**：
+```
+insert or update on table "notifications" violates foreign key constraint "notifications_sender_id_fkey"
+Key is not present in table "profiles".
+```
+
+**根本原因**：
+- `public.notifications` 表的 `sender_id` 和 `recipient_id` 字段有外键约束，引用 `public.profiles(id)`
+- 在多租户架构中，租户用户不在 `public.profiles` 中，导致外键约束失败
+
+**解决方案**：
+- 删除外键约束，因为在多租户架构中，用户可能存在于不同的 Schema 中
+- 数据完整性由应用层验证、认证系统和 RLS 策略保证
+
+**为什么删除外键约束是安全的**：
+1. **应用层验证**：前端代码验证用户存在，使用 `getCurrentUserRoleAndTenant()`
+2. **认证系统保证**：所有用户都在 `auth.users` 表中，用户 ID 有效
+3. **RLS 策略保护**：`notifications` 表启用了 RLS，只有认证用户才能访问
+4. **性能优势**：提高插入性能，减少数据库锁定
+
+**迁移文件**：`supabase/migrations/00452_remove_notifications_foreign_key_constraints.sql`
+
+---
+
+这些问题的根本原因都是：**系统从单租户架构迁移到多租户架构后，数据库约束和前端代码没有完全适配新的架构**。
 
 现在，系统已经完全适配多租户架构，所有功能都可以正常使用！✅
