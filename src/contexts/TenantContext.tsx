@@ -17,6 +17,27 @@ import {getProfileById, getWarehouseAssignmentsByDriver, getWarehouseAssignments
 import type {Profile, UserRole} from '@/db/types'
 
 /**
+ * 检查用户是否为 BOSS 角色
+ */
+function isBossRole(role: UserRole | null): boolean {
+  return role === 'BOSS'
+}
+
+/**
+ * 检查用户是否为 DISPATCHER 角色
+ */
+function isDispatcherRole(role: UserRole | null): boolean {
+  return role === 'DISPATCHER' || role === 'BOSS'
+}
+
+/**
+ * 检查用户是否为 DRIVER 角色
+ */
+function isDriverRole(role: UserRole | null): boolean {
+  return role === 'DRIVER'
+}
+
+/**
  * 租户上下文值接口
  */
 interface TenantContextValue {
@@ -79,11 +100,11 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
 
       // 根据角色加载仓库信息
       if (userProfile) {
-        if (userProfile.role === 'manager') {
+        if (isDispatcherRole(userProfile.role)) {
           // 管理员：加载管理的仓库
           const assignments = await getWarehouseAssignmentsByManager(user.id)
           setManagedWarehouseIds(assignments.map((a) => a.warehouse_id))
-        } else if (userProfile.role === 'driver') {
+        } else if (isDriverRole(userProfile.role)) {
           // 司机：加载分配的仓库
           const assignments = await getWarehouseAssignmentsByDriver(user.id)
           setAssignedWarehouseIds(assignments.map((a) => a.warehouse_id))
@@ -121,13 +142,13 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
     }
 
     // 超级管理员可以访问所有仓库
-    if (profile.role === 'super_admin') {
+    if (isBossRole(profile.role)) {
       // 这里可以返回所有仓库ID，但为了性能考虑，返回空数组表示"所有"
       return []
     }
 
     // 管理员返回管理的仓库
-    if (profile.role === 'manager') {
+    if (isDispatcherRole(profile.role)) {
       return managedWarehouseIds
     }
 
@@ -144,17 +165,17 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
     }
 
     // 超级管理员可以访问所有仓库
-    if (profile.role === 'super_admin') {
+    if (isBossRole(profile.role)) {
       return []
     }
 
     // 管理员返回管理的仓库
-    if (profile.role === 'manager') {
+    if (isDispatcherRole(profile.role)) {
       return managedWarehouseIds
     }
 
     // 司机返回分配的仓库
-    if (profile.role === 'driver') {
+    if (isDriverRole(profile.role)) {
       return assignedWarehouseIds
     }
 
@@ -176,13 +197,13 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
       }
 
       // 超级管理员可以访问所有用户的数据
-      if (profile.role === 'super_admin') {
+      if (isBossRole(profile.role)) {
         return true
       }
 
       // 管理员可以访问管理仓库下的司机数据
       // 这里需要异步查询，所以返回 false，实际权限由 RLS 策略控制
-      if (profile.role === 'manager') {
+      if (isDispatcherRole(profile.role)) {
         // 在实际使用中，应该通过 canAccessWarehouse 来检查
         return false
       }
@@ -203,17 +224,17 @@ export const TenantProvider: React.FC<{children: React.ReactNode}> = ({children}
       }
 
       // 超级管理员可以访问所有仓库
-      if (profile.role === 'super_admin') {
+      if (isBossRole(profile.role)) {
         return true
       }
 
       // 管理员检查是否管理该仓库
-      if (profile.role === 'manager') {
+      if (isDispatcherRole(profile.role)) {
         return managedWarehouseIds.includes(warehouseId)
       }
 
       // 司机检查是否分配到该仓库
-      if (profile.role === 'driver') {
+      if (isDriverRole(profile.role)) {
         return assignedWarehouseIds.includes(warehouseId)
       }
 
