@@ -4157,6 +4157,12 @@ export async function createUser(
       console.log('  - 租户 ID:', tenantId)
       console.log('  - 使用函数: create_tenant_user')
 
+      // 角色映射：前端角色 -> 租户 Schema 角色
+      // manager -> fleet_leader（车队长）
+      // driver -> driver（司机）
+      const tenantRole = role === 'manager' ? 'fleet_leader' : 'driver'
+      console.log('  - 角色映射:', role, '->', tenantRole)
+
       try {
         // 调用 RPC 函数在租户 Schema 中创建用户
         const {data: tenantUser, error: tenantError} = await supabase.rpc('create_tenant_user', {
@@ -4165,7 +4171,7 @@ export async function createUser(
           p_name: name,
           p_phone: phone,
           p_email: loginEmail,
-          p_role: role,
+          p_role: tenantRole,
           p_permission_type: 'full',
           p_vehicle_plate: driverType === 'with_vehicle' ? '' : null,
           p_warehouse_ids: null
@@ -4194,7 +4200,7 @@ export async function createUser(
           p_name: name,
           p_phone: phone,
           p_email: loginEmail,
-          p_role: role
+          p_role: tenantRole // 使用映射后的租户角色
         })
 
         if (metadataError) {
