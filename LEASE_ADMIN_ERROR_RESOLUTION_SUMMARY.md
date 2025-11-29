@@ -1,0 +1,207 @@
+# lease_admin 错误修复总结
+
+## 问题描述
+
+老板添加新的司机时失败，出现以下错误：
+
+```
+❌ 创建 auth.users 记录失败
+错误: invalid input value for enum user_role: "lease_admin"
+```
+
+## 根本原因
+
+虽然 `lease_admin` 角色已在迁移 `00416_remove_lease_admin_role.sql` 中从 `user_role` 枚举类型中移除，但系统中仍有多处引用了这个已删除的角色：
+
+1. **`insert_tenant_profile` 函数**：尝试将角色转换为租户 Schema 中不存在的 `user_role` 枚举类型
+2. **`init_lease_admin_profile` 函数**：尝试使用 `'lease_admin'::user_role` 创建用户
+3. **`is_lease_admin_user` 函数**：检查用户是否为 lease_admin
+4. **相关 RLS 策略**：引用了 lease_admin 角色
+
+## 修复方案
+
+### 1. 修复 `insert_tenant_profile` 函数
+
+**迁移文件**：`supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`
+
+**问题**：
+```sql
+-- 错误的代码
+$5::text::%I.user_role  -- 尝试转换为不存在的枚举类型
+```
+
+**解决方案**：
+```sql
+-- 修复后的代码
+$5::text  -- 直接使用 TEXT 类型，因为租户 Schema 中的 role 字段是 TEXT 类型
+```
+
+**添加的验证**：
+```sql
+-- 验证角色值是否有效
+IF p_role NOT IN ('boss', 'peer', 'fleet_leader', 'driver') THEN
+  RAISE EXCEPTION 'Invalid role: %. Valid roles are: boss, peer, fleet_leader, driver', p_role;
+END IF;
+```
+
+### 2. 删除废弃的 lease_admin 相关函数和策略
+
+**迁移文件**：`supabase/migrations/00444_remove_lease_admin_functions_and_policies.sql`
+
+**删除的函数**：
+- `init_lease_admin_profile(uuid, text)`：尝试创建 lease_admin 用户
+- `is_lease_admin_user(uuid)`：检查用户是否为 lease_admin
+- `is_lease_admin()`：检查当前用户是否为 lease_admin
+
+**删除的策略**：
+- `"租赁管理员查看所有用户"` on `profiles`
+- `"Lease admins can view all notifications"` on `notifications`
+- `"Lease admins can insert notifications"` on `notifications`
+- `"Lease admins can update notifications"` on `notifications`
+- `"Lease admins can delete notifications"` on `notifications`
+
+## 当前有效的角色
+
+### Public Schema（`public.profiles`）
+
+用于中央管理系统用户：
+
+- `driver`：司机
+- `manager`：管理员
+- `super_admin`：超级管理员
+- `peer_admin`：平级管理员
+- `boss`：老板
+
+### 租户 Schema（`tenant_xxx.profiles`）
+
+用于租户内部用户：
+
+- `driver`：司机
+- `fleet_leader`：车队长
+- `peer`：平级账号
+- `boss`：老板
+
+## 验证结果
+
+### 1. 数据库检查
+
+✅ 无 lease_admin 用户记录：
+```sql
+SELECT id, name, phone, role 
+FROM public.profiles 
+WHERE role::text = 'lease_admin';
+-- 结果：0 行
+```
+
+✅ 无 lease_admin metadata：
+```sql
+SELECT id, email, phone, raw_user_meta_data->>'role' as role 
+FROM auth.users 
+WHERE raw_user_meta_data->>'role' = 'lease_admin';
+-- 结果：0 行
+```
+
+✅ 函数已删除：
+```sql
+SELECT proname FROM pg_proc 
+WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_admin');
+-- 结果：0 行
+```
+
+### 2. 迁移应用
+
+✅ 迁移 `00443_fix_insert_tenant_profile_remove_enum_cast.sql` 成功应用
+✅ 迁移 `00444_remove_lease_admin_functions_and_policies.sql` 成功应用
+
+## 后续步骤
+
+### 1. 清除浏览器缓存（重要！）
+
+虽然数据库已修复，但浏览器可能缓存了旧的应用状态。请按照 `CLEAR_CACHE_INSTRUCTIONS.md` 中的说明清除浏览器缓存。
+
+**快速步骤**：
+1. 按 `F12` 打开开发者工具
+2. 右键点击浏览器刷新按钮
+3. 选择"清空缓存并硬性重新加载"
+4. 清除 Local Storage 和 Session Storage
+5. 重新登录系统
+
+### 2. 测试添加用户功能
+
+1. 以老板身份登录
+2. 进入用户管理页面
+3. 尝试添加新的司机用户
+4. 验证是否成功创建
+
+### 3. 监控日志
+
+在浏览器开发者工具的 Console 标签中监控是否还有与 `lease_admin` 相关的错误。
+
+## 技术细节
+
+### 为什么会出现这个错误？
+
+1. **枚举类型的限制**：PostgreSQL 的枚举类型只接受预定义的值。当尝试插入不在枚举中的值时，会抛出错误。
+
+2. **类型转换的问题**：`insert_tenant_profile` 函数尝试将角色转换为 `user_role` 枚举类型，但：
+   - Public Schema 中的 `profiles.role` 是 `user_role` 枚举类型
+   - 租户 Schema 中的 `profiles.role` 是 `TEXT` 类型
+   - 这两个 Schema 使用不同的角色值集合
+
+3. **废弃函数的影响**：即使不直接调用，存在引用已删除枚举值的函数也可能导致问题，特别是在：
+   - 数据库查询优化器分析查询时
+   - RLS 策略评估时
+   - 触发器执行时
+
+### 为什么租户 Schema 使用 TEXT 而不是枚举？
+
+1. **灵活性**：每个租户可能需要不同的角色定义
+2. **动态性**：TEXT 类型允许在不修改数据库架构的情况下添加新角色
+3. **隔离性**：避免不同租户的角色定义相互影响
+
+## 相关文件
+
+### 迁移文件
+- `supabase/migrations/00416_remove_lease_admin_role.sql`：移除 lease_admin 角色
+- `supabase/migrations/00432_recreate_insert_tenant_profile_function.sql`：旧的（有问题的）函数
+- `supabase/migrations/00443_fix_insert_tenant_profile_remove_enum_cast.sql`：修复后的 insert_tenant_profile 函数
+- `supabase/migrations/00444_remove_lease_admin_functions_and_policies.sql`：删除废弃的函数和策略
+
+### 代码文件
+- `src/db/types.ts`：TypeScript 类型定义
+- `src/db/api.ts`：`createUser` 函数
+
+### 文档文件
+- `FIX_LEASE_ADMIN_ERROR.md`：详细的问题诊断和修复过程
+- `CLEAR_CACHE_INSTRUCTIONS.md`：清除浏览器缓存的详细说明
+- `LEASE_ADMIN_ERROR_RESOLUTION_SUMMARY.md`：本文档
+
+## 预防措施
+
+为了避免类似问题再次发生：
+
+1. **删除枚举值时**：
+   - 搜索所有引用该值的函数、策略和触发器
+   - 更新或删除所有相关代码
+   - 在迁移文件中添加详细的注释说明影响范围
+
+2. **类型转换时**：
+   - 确认目标类型确实存在
+   - 验证源值在目标类型的有效值范围内
+   - 考虑使用 TEXT 类型以提供更大的灵活性
+
+3. **多租户架构**：
+   - 明确区分 Public Schema 和租户 Schema 的数据结构
+   - 避免在跨 Schema 操作时假设类型一致性
+   - 为不同 Schema 使用不同的类型定义
+
+## 总结
+
+通过以下两个关键修复，彻底解决了 `lease_admin` 错误：
+
+1. ✅ 修复 `insert_tenant_profile` 函数，移除错误的枚举类型转换
+2. ✅ 删除所有引用已删除 `lease_admin` 角色的函数和策略
+
+现在系统应该能够正常创建新用户，不再出现 `lease_admin` 相关的错误。
+
+如果问题仍然存在，请清除浏览器缓存并重新登录。
