@@ -5,6 +5,7 @@
 
 import {supabase} from '@/client/supabase'
 import {createLogger} from '@/utils/logger'
+import {getCurrentUserRoleAndTenant} from './api'
 
 const logger = createLogger('NotificationAPI')
 
@@ -437,11 +438,23 @@ export async function createNotification(
       return false
     }
 
-    // 获取发送者的profile信息
-    const {data: senderProfile} = await supabase.from('profiles').select('name, role').eq('id', user.id).maybeSingle()
+    // 获取发送者的角色和租户信息
+    const {role: senderRole, tenant_id} = await getCurrentUserRoleAndTenant()
 
-    const senderName = senderProfile?.name || '系统'
-    const senderRole = senderProfile?.role || 'system'
+    // 获取发送者的姓名
+    let senderName = '系统'
+
+    // 如果是租户用户，从租户 Schema 中获取姓名
+    if (tenant_id) {
+      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
+        user_id: user.id
+      })
+      senderName = tenantProfile?.[0]?.name || '系统'
+    } else {
+      // 如果是中央用户，从 public.profiles 中获取姓名
+      const {data: publicProfile} = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
+      senderName = publicProfile?.name || '系统'
+    }
 
     // 自动确定分类
     const category = getNotificationCategory(type)
@@ -502,22 +515,25 @@ export async function createNotifications(
 
     logger.info('📝 当前用户信息', {userId: user.id})
 
-    // 获取发送者的profile信息
-    const {data: senderProfile, error: profileError} = await supabase
-      .from('profiles')
-      .select('name, role')
-      .eq('id', user.id)
-      .maybeSingle()
+    // 获取发送者的角色和租户信息
+    const {role: senderRole, tenant_id} = await getCurrentUserRoleAndTenant()
 
-    if (profileError) {
-      logger.error('❌ 获取发送者profile失败', profileError)
-      return false
+    // 获取发送者的姓名
+    let senderName = '系统'
+
+    // 如果是租户用户，从租户 Schema 中获取姓名
+    if (tenant_id) {
+      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
+        user_id: user.id
+      })
+      senderName = tenantProfile?.[0]?.name || '系统'
+    } else {
+      // 如果是中央用户，从 public.profiles 中获取姓名
+      const {data: publicProfile} = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
+      senderName = publicProfile?.name || '系统'
     }
 
-    logger.info('👤 发送者profile信息', senderProfile)
-
-    const senderName = senderProfile?.name || '系统'
-    const senderRole = senderProfile?.role || 'system'
+    logger.info('👤 发送者信息', {senderName, senderRole, tenant_id})
 
     const notificationData = notifications.map((n) => ({
       recipient_id: n.userId,
