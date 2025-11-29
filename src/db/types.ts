@@ -161,6 +161,9 @@ export interface WarehouseAssignmentInput {
 
 // ==================== 车辆相关类型 ====================
 
+// 车辆所有权类型
+export type OwnershipType = 'company' | 'personal'
+
 // 车辆接口
 export interface Vehicle {
   id: string
@@ -178,6 +181,35 @@ export interface Vehicle {
   return_photos?: string[] | null
   registration_photos?: string[] | null
   return_time?: string | null
+  damage_photos?: string[] | null
+  color?: string | null
+  review_status?: string | null
+  required_photos?: string[] | null
+  review_notes?: string | null
+  pickup_time?: string | null
+  vin?: string | null
+  use_character?: string | null
+  register_date?: string | null
+  left_front_photo?: string | null
+  right_front_photo?: string | null
+  left_rear_photo?: string | null
+  right_rear_photo?: string | null
+  dashboard_photo?: string | null
+  rear_door_photo?: string | null
+  cargo_box_photo?: string | null
+  driving_license_main_photo?: string | null
+  driving_license_sub_photo?: string | null
+  driving_license_sub_back_photo?: string | null
+  // 租赁管理字段
+  ownership_type?: string | null
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
 }
 
 // 创建车辆的输入接口
@@ -188,6 +220,43 @@ export interface VehicleInput {
   model?: string
   driver_id?: string
   status?: string
+  color?: string
+  vin?: string
+  engine_number?: string
+  register_date?: string
+  owner_name?: string
+  use_character?: string
+  issue_date?: string
+  user_id?: string
+  warehouse_id?: string
+  pickup_time?: string
+  pickup_photos?: string[]
+  registration_photos?: string[]
+  damage_photos?: string[]
+  // 行驶证信息
+  archive_number?: string
+  total_mass?: string
+  approved_passengers?: string
+  curb_weight?: string
+  approved_load?: string
+  overall_dimension_length?: string
+  overall_dimension_width?: string
+  overall_dimension_height?: string
+  inspection_valid_until?: string
+  inspection_date?: string
+  mandatory_scrap_date?: string
+  // 车辆照片
+  left_front_photo?: string
+  right_front_photo?: string
+  left_rear_photo?: string
+  right_rear_photo?: string
+  dashboard_photo?: string
+  rear_door_photo?: string
+  cargo_box_photo?: string
+  // 行驶证照片
+  driving_license_main_photo?: string
+  driving_license_sub_photo?: string
+  driving_license_sub_back_photo?: string
 }
 
 // 更新车辆的输入接口
@@ -198,6 +267,172 @@ export interface VehicleUpdate {
   model?: string
   driver_id?: string
   status?: string
+  color?: string
+  vin?: string
+  engine_number?: string
+  register_date?: string
+  owner_name?: string
+  use_character?: string
+  issue_date?: string
+  user_id?: string
+  damage_photos?: string[]
+  review_status?: string
+  required_photos?: string[]
+  review_notes?: string
+  pickup_time?: string
+  return_time?: string
+  pickup_photos?: string[]
+  return_photos?: string[]
+  registration_photos?: string[]
+  // 租赁管理字段
+  ownership_type?: string
+  lessor_name?: string
+  lessor_contact?: string
+  lessee_name?: string
+  lessee_contact?: string
+  monthly_rent?: number
+  lease_start_date?: string
+  lease_end_date?: string
+  rent_payment_day?: number
+}
+
+// ==================== 车辆基本信息和记录相关类型 ====================
+
+// 车辆基本信息接口（vehicles_base 表）
+export interface VehicleBase {
+  id: string
+  plate_number: string
+  brand: string
+  model: string
+  color?: string | null
+  vin?: string | null
+  vehicle_type?: string | null
+  owner_name?: string | null
+  use_character?: string | null
+  register_date?: string | null
+  engine_number?: string | null
+  ownership_type?: string | null
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
+  created_at: string
+  updated_at: string
+}
+
+// 车辆租赁信息接口（vehicle_lease_info 视图）
+export interface VehicleLeaseInfo extends VehicleBase {
+  next_payment_date?: string | null
+  days_until_payment?: number | null
+  lease_status?: string | null
+}
+
+// 车辆记录接口（vehicle_records 表）
+export interface VehicleRecord {
+  id: string
+  vehicle_id: string
+  driver_id: string
+  record_type: string
+  start_date: string
+  end_date?: string | null
+  rental_fee?: number | null
+  deposit?: number | null
+  status: string
+  pickup_photos?: string[] | null
+  return_photos?: string[] | null
+  registration_photos?: string[] | null
+  damage_photos?: string[] | null
+  locked_photos?: Record<string, unknown> | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 车辆记录输入接口
+export interface VehicleRecordInput {
+  vehicle_id: string
+  driver_id: string
+  record_type: string
+  start_date: string
+  end_date?: string
+  rental_fee?: number
+  deposit?: number
+  status?: string
+  pickup_photos?: string[]
+  return_photos?: string[]
+  registration_photos?: string[]
+  damage_photos?: string[]
+  locked_photos?: Record<string, unknown>
+  notes?: string
+  // 车辆基本信息
+  plate_number: string
+  brand?: string
+  model?: string
+  color?: string
+  vin?: string
+  vehicle_type?: string
+  owner_name?: string
+  use_character?: string
+  register_date?: string
+  engine_number?: string
+  // 仓库信息
+  warehouse_id?: string
+  // 行驶证信息
+  issue_date?: string
+  archive_number?: string
+  total_mass?: string
+  approved_passengers?: string
+  curb_weight?: string
+  approved_load?: string
+  overall_dimension_length?: string
+  overall_dimension_width?: string
+  overall_dimension_height?: string
+  inspection_valid_until?: string
+  inspection_date?: string
+  mandatory_scrap_date?: string
+  // 车辆照片
+  left_front_photo?: string
+  right_front_photo?: string
+  left_rear_photo?: string
+  right_rear_photo?: string
+  dashboard_photo?: string
+  rear_door_photo?: string
+  cargo_box_photo?: string
+  // 行驶证照片
+  driving_license_main_photo?: string
+  driving_license_sub_photo?: string
+  driving_license_sub_back_photo?: string
+  // 驾驶证信息
+  driver_name?: string
+  license_number?: string
+  license_class?: string
+  first_issue_date?: string
+  license_valid_from?: string
+  license_valid_until?: string
+  id_card_number?: string
+  // 审核管理
+  review_status?: string
+  required_photos?: string[]
+  review_notes?: string
+  // 时间字段
+  pickup_time?: string
+  return_time?: string
+  recorded_at?: string
+}
+
+// 车辆基本信息带记录接口
+export interface VehicleBaseWithRecords extends VehicleBase {
+  records?: VehicleRecord[]
+}
+
+// 车辆记录带详细信息接口
+export interface VehicleRecordWithDetails extends VehicleRecord {
+  vehicle?: VehicleBase
+  driver?: Profile
 }
 
 // ==================== 考勤相关类型 ====================
@@ -514,6 +749,18 @@ export interface DriverWarehouseInput {
 export interface VehicleWithDriver extends Vehicle {
   driver?: Profile | null
   return_time?: string | null
+  driver_license?: DriverLicense | null
+  driver_name?: string | null
+  driver_phone?: string | null
+  ownership_type?: string | null
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
 }
 
 // 车辆与司机详细信息接口（保留用于兼容性）
@@ -522,6 +769,8 @@ export interface VehicleWithDriverDetails extends Vehicle {
   driver_name?: string | null
   driver_phone?: string | null
   driver_profile?: Profile | null
+  driver_license?: DriverLicense | null
+  locked_photos?: Record<string, any>
 }
 
 // ==================== 司机类型和驾照（已废弃 - 多租户相关）====================
@@ -561,6 +810,19 @@ export interface DriverLicenseInput {
   license_type: string
   issue_date: string
   expiry_date: string
+  id_card_name?: string
+  id_card_number?: string
+  license_class?: string
+  valid_from?: string
+  valid_to?: string
+  id_card_photo_front?: string
+  id_card_photo_back?: string
+  driving_license_photo?: string
+  id_card_birth_date?: string
+  first_issue_date?: string
+  id_card_address?: string
+  issue_authority?: string
+  status?: string
 }
 
 // 更新驾照信息的输入接口
