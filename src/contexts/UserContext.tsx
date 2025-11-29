@@ -141,10 +141,10 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
 
       console.log('[UserContext] 当前用户ID:', user.id)
 
-      // 2. 查询用户信息
+      // 2. 查询用户信息（注意：users 表没有 status 字段）
       const {data: userInfo, error: userError} = await supabase
         .from('users')
-        .select('name, email, phone, status')
+        .select('name, email, phone')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -177,8 +177,7 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
 
       console.log('[UserContext] 用户信息加载成功:', {
         name: userInfo.name,
-        role: roleData.role,
-        status: userInfo.status
+        role: roleData.role
       })
 
       // 4. 更新状态
@@ -187,7 +186,7 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
       setEmail(userInfo.email || null)
       setPhone(userInfo.phone || null)
       setRole(roleData.role)
-      setStatus(userInfo.status || null)
+      setStatus('active') // 单用户系统固定为 active
       // 单用户系统不需要租户ID和主账号ID
       setTenantId(null)
       setMainAccountId(null)
