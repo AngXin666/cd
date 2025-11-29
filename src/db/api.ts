@@ -455,37 +455,23 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
 
 /**
  * 获取司机档案列表
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 DRIVER 角色的用户
  */
 export async function getDriverProfiles(): Promise<Profile[]> {
   console.log('🔍 getDriverProfiles: 开始获取司机列表')
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 单用户架构：直接查询 DRIVER 角色的用户
+    const drivers = await getUsersByRole('DRIVER')
 
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询司机列表，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询司机列表，使用 Schema: public')
-    }
-
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('*')
-      .eq('role', 'DRIVER')
-      .order('created_at', {ascending: false})
-
-    if (error) {
-      console.error('❌ 获取司机档案失败:', error)
+    if (!drivers || drivers.length === 0) {
+      console.log('没有找到任何司机')
       return []
     }
 
-    console.log(`✅ getDriverProfiles: 获取到 ${data?.length || 0} 个司机`)
-    return Array.isArray(data) ? data : []
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(drivers)
+    console.log(`✅ getDriverProfiles: 获取到 ${profiles.length} 个司机`)
+    return profiles
   } catch (error) {
     console.error('❌ 获取司机档案异常:', error)
     return []
@@ -494,35 +480,25 @@ export async function getDriverProfiles(): Promise<Profile[]> {
 
 /**
  * 获取管理员档案列表
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：查询 MANAGER 和 BOSS 角色的用户
  */
 export async function getManagerProfiles(): Promise<Profile[]> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 单用户架构：查询所有用户，然后筛选 MANAGER 和 BOSS
+    const allUsers = await getUsersWithRole()
 
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询管理员列表，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询管理员列表，使用 Schema: public')
-    }
-
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('*')
-      .in('role', ['MANAGER', 'BOSS'])
-      .order('created_at', {ascending: false})
-
-    if (error) {
-      console.error('获取管理员档案失败:', error)
+    if (!allUsers || allUsers.length === 0) {
+      console.log('没有找到任何用户')
       return []
     }
 
-    return Array.isArray(data) ? data : []
+    // 筛选 MANAGER 和 BOSS 角色
+    const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'BOSS')
+
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(managers)
+    console.log(`✅ getManagerProfiles: 获取到 ${profiles.length} 个管理员`)
+    return profiles
   } catch (error) {
     console.error('获取管理员档案异常:', error)
     return []
@@ -1151,8 +1127,9 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
 export async function assignWarehouseToDriver(
   input: DriverWarehouseInput
 ): Promise<{success: boolean; error?: string}> {
+  // 单用户架构：从 users 表查询司机信息
   const {data: driver, error: driverError} = await supabase
-    .from('profiles')
+    .from('users')
     .select('name')
     .eq('id', input.driver_id)
     .maybeSingle()
@@ -1325,8 +1302,9 @@ export async function insertManagerWarehouseAssignment(input: {
     return false
   }
 
+  // 单用户架构：从 users 表查询车队长信息
   const {data: manager, error: managerError} = await supabase
-    .from('profiles')
+    .from('users')
     .select('name')
     .eq('id', input.manager_id)
     .maybeSingle()
@@ -1996,27 +1974,12 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
 
 /**
  * 获取仓库的管理员列表
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 manager_warehouses + users
  */
 export async function getWarehouseManagers(warehouseId: string): Promise<Profile[]> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询仓库管理员，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询仓库管理员，使用 Schema: public')
-    }
-
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('manager_warehouses')
-      .select('manager_id')
-      .eq('warehouse_id', warehouseId)
+    // 单用户架构：直接查询 manager_warehouses 表
+    const {data, error} = await supabase.from('manager_warehouses').select('manager_id').eq('warehouse_id', warehouseId)
 
     if (error) {
       console.error('获取仓库管理员失败:', error)
@@ -2028,9 +1991,10 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
     }
 
     const managerIds = data.map((item) => item.manager_id)
+
+    // 查询管理员信息
     const {data: managers, error: managerError} = await supabase
-      .schema(schemaName)
-      .from('profiles')
+      .from('users')
       .select('*')
       .in('id', managerIds)
       .order('name', {ascending: true})
@@ -2040,7 +2004,22 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
       return []
     }
 
-    return Array.isArray(managers) ? managers : []
+    if (!managers || managers.length === 0) {
+      return []
+    }
+
+    // 获取角色信息
+    const {data: roleData} = await supabase.from('user_roles').select('user_id, role').in('user_id', managerIds)
+
+    const roleMap = new Map(roleData?.map((r) => [r.user_id, r.role]) || [])
+
+    // 转换为 Profile 格式
+    const profiles: Profile[] = managers.map((user) => ({
+      ...user,
+      role: roleMap.get(user.id) || 'DRIVER'
+    }))
+
+    return profiles
   } catch (error) {
     console.error('获取仓库管理员异常:', error)
     return []
@@ -2283,10 +2262,10 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       return false
     }
 
-    // 获取审批人信息
+    // 获取审批人信息 - 单用户架构：查询 users + user_roles
     const {data: reviewer, error: reviewerError} = await supabase
-      .from('profiles')
-      .select('name, role')
+      .from('users')
+      .select('name')
       .eq('id', review.reviewed_by)
       .maybeSingle()
 
@@ -2297,9 +2276,9 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 
     const reviewerName = reviewer.name || '管理员'
 
-    // 获取申请人信息
+    // 获取申请人信息 - 单用户架构：查询 users 表
     const {data: applicant, error: applicantError} = await supabase
-      .from('profiles')
+      .from('users')
       .select('name, phone')
       .eq('id', application.user_id)
       .maybeSingle()
@@ -2606,10 +2585,10 @@ export async function reviewResignationApplication(
       return false
     }
 
-    // 获取审批人信息
+    // 获取审批人信息 - 单用户架构：查询 users 表
     const {data: reviewer, error: reviewerError} = await supabase
-      .from('profiles')
-      .select('name, role')
+      .from('users')
+      .select('name')
       .eq('id', review.reviewed_by)
       .maybeSingle()
 
@@ -2620,9 +2599,9 @@ export async function reviewResignationApplication(
 
     const reviewerName = reviewer.name || '管理员'
 
-    // 获取申请人信息
+    // 获取申请人信息 - 单用户架构：查询 users 表
     const {data: applicant, error: applicantError} = await supabase
-      .from('profiles')
+      .from('users')
       .select('name, phone')
       .eq('id', application.user_id)
       .maybeSingle()
@@ -3249,11 +3228,33 @@ export async function updateUserProfile(
   updates: ProfileUpdate
 ): Promise<{success: boolean; error?: string}> {
   try {
-    const {error} = await supabase.from('profiles').update(updates).eq('id', userId)
+    // 单用户架构：分别更新 users 和 user_roles 表
+    const {role, ...userUpdates} = updates
 
-    if (error) {
-      console.error('更新个人信息失败:', error)
-      return {success: false, error: error.message}
+    // 更新用户基本信息
+    if (Object.keys(userUpdates).length > 0) {
+      const {error: userError} = await supabase
+        .from('users')
+        .update({
+          ...userUpdates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+
+      if (userError) {
+        console.error('更新个人信息失败:', userError)
+        return {success: false, error: userError.message}
+      }
+    }
+
+    // 更新用户角色
+    if (role) {
+      const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', userId)
+
+      if (roleError) {
+        console.error('更新用户角色失败:', roleError)
+        return {success: false, error: roleError.message}
+      }
     }
 
     return {success: true}
@@ -3540,11 +3541,24 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     allTodayAttendanceResult,
     allTodayPieceResult
   ] = await Promise.all([
-    // 所有司机基本信息
-    supabase
-      .from('profiles')
-      .select('id, name, phone')
-      .eq('role', 'DRIVER'),
+    // 所有司机基本信息 - 单用户架构：查询 users + user_roles
+    (async () => {
+      const {data: roleData, error: roleError} = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'DRIVER')
+
+      if (roleError || !roleData) {
+        return {data: null, error: roleError}
+      }
+
+      const driverIds = roleData.map((r) => r.user_id)
+      if (driverIds.length === 0) {
+        return {data: [], error: null}
+      }
+
+      return await supabase.from('users').select('id, name, phone').in('id', driverIds)
+    })(),
     // 今日出勤人数（所有仓库）
     supabase
       .from('attendance')
@@ -3661,36 +3675,23 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
 
 /**
  * 获取所有用户
- * 支持多租户架构：根据当前用户角色查询对应的 Schema
+ * 单用户架构：直接查询 users + user_roles
  */
 export async function getAllUsers(): Promise<Profile[]> {
   console.log('🔍 getAllUsers: 开始从数据库获取用户列表')
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 单用户架构：使用 getUsersWithRole() 获取所有用户
+    const users = await getUsersWithRole()
 
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询用户列表，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询用户列表，使用 Schema: public')
-    }
-
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('*')
-      .order('created_at', {ascending: false})
-
-    if (error) {
-      console.error('❌ 获取用户列表失败:', error)
+    if (!users || users.length === 0) {
+      console.log('没有找到任何用户')
       return []
     }
 
-    console.log(`✅ getAllUsers: 获取到 ${data?.length || 0} 个用户`)
-    return Array.isArray(data) ? data : []
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(users)
+    console.log(`✅ getAllUsers: 获取到 ${profiles.length} 个用户`)
+    return profiles
   } catch (error) {
     console.error('❌ 获取用户列表异常:', error)
     return []
@@ -3704,32 +3705,18 @@ export async function getAllUsers(): Promise<Profile[]> {
 export async function getAllManagers(): Promise<Profile[]> {
   console.log('🔍 getAllManagers: 开始获取管理员列表')
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 单用户架构：直接查询 MANAGER 角色的用户
+    const managers = await getUsersByRole('MANAGER')
 
-    // 根据角色选择查询的 Schema
-    let schemaName = 'public'
-    if (tenant_id && role !== 'BOSS') {
-      schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      console.log(`租户用户查询管理员列表，使用 Schema: ${schemaName}`)
-    } else {
-      console.log('中央用户查询管理员列表，使用 Schema: public')
-    }
-
-    const {data, error} = await supabase
-      .schema(schemaName)
-      .from('profiles')
-      .select('*')
-      .eq('role', 'MANAGER')
-      .order('created_at', {ascending: false})
-
-    if (error) {
-      console.error('❌ 获取管理员列表失败:', error)
+    if (!managers || managers.length === 0) {
+      console.log('没有找到任何管理员')
       return []
     }
 
-    console.log(`✅ getAllManagers: 获取到 ${data?.length || 0} 个管理员`)
-    return Array.isArray(data) ? data : []
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(managers)
+    console.log(`✅ getAllManagers: 获取到 ${profiles.length} 个管理员`)
+    return profiles
   } catch (error) {
     console.error('❌ 获取管理员列表异常:', error)
     return []
@@ -3741,65 +3728,90 @@ export async function getAllManagers(): Promise<Profile[]> {
  */
 export async function getAllSuperAdmins(): Promise<Profile[]> {
   console.log('🔍 getAllSuperAdmins: 开始获取老板列表')
-  const {data, error} = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'BOSS')
-    .order('created_at', {ascending: false})
+  try {
+    // 单用户架构：直接查询 BOSS 角色的用户
+    const bosses = await getUsersByRole('BOSS')
 
-  if (error) {
+    if (!bosses || bosses.length === 0) {
+      console.log('没有找到任何老板')
+      return []
+    }
+
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(bosses)
+    console.log(`✅ getAllSuperAdmins: 获取到 ${profiles.length} 个老板`)
+    return profiles
+  } catch (error) {
     console.error('❌ 获取老板列表失败:', error)
     return []
   }
-
-  console.log(`✅ getAllSuperAdmins: 获取到 ${data?.length || 0} 个老板`)
-  return Array.isArray(data) ? data : []
 }
 
 /**
  * 获取所有司机列表
  */
-/**
- * 获取租户 Schema 中的所有司机
- * 使用 RPC 函数查询，确保数据隔离
- */
 export async function getAllDrivers(): Promise<Profile[]> {
-  console.log('🔍 getAllDrivers: 开始获取租户司机列表')
-  const {data, error} = await supabase.rpc('get_tenant_drivers')
+  console.log('🔍 getAllDrivers: 开始获取司机列表')
+  try {
+    // 单用户架构：直接查询 DRIVER 角色的用户
+    const drivers = await getUsersByRole('DRIVER')
 
-  if (error) {
+    if (!drivers || drivers.length === 0) {
+      console.log('没有找到任何司机')
+      return []
+    }
+
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(drivers)
+    console.log(`✅ getAllDrivers: 获取到 ${profiles.length} 个司机`)
+    return profiles
+  } catch (error) {
     console.error('❌ 获取司机列表失败:', error)
     return []
   }
-
-  console.log(`✅ getAllDrivers: 获取到 ${data?.length || 0} 个司机`)
-  const tenantProfiles = Array.isArray(data) ? data : []
-  return tenantProfiles.map(convertTenantProfileToProfile)
 }
 
 /**
  * 修改用户角色（老板）
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
-  // 根据角色设置 driver_type
-  const updateData: {role: UserRole; driver_type?: 'pure' | null} = {role}
+  try {
+    // 单用户架构：更新 user_roles 表和 users 表
 
-  if (role === 'DRIVER') {
-    // 变更为司机时，设置默认的 driver_type 为 'pure'（纯司机）
-    updateData.driver_type = 'pure'
-  } else {
-    // 变更为车队长或老板时，清空 driver_type
-    updateData.driver_type = null
-  }
+    // 更新角色
+    const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', userId)
 
-  const {error} = await supabase.from('profiles').update(updateData).eq('id', userId)
+    if (roleError) {
+      console.error('修改用户角色失败:', roleError)
+      return false
+    }
 
-  if (error) {
-    console.error('修改用户角色失败:', error)
+    // 根据角色设置 driver_type
+    const updateData: {driver_type?: 'pure' | null} = {}
+
+    if (role === 'DRIVER') {
+      // 变更为司机时，设置默认的 driver_type 为 'pure'（纯司机）
+      updateData.driver_type = 'pure'
+    } else {
+      // 变更为车队长或老板时，清空 driver_type
+      updateData.driver_type = null
+    }
+
+    // 更新 driver_type
+    if (Object.keys(updateData).length > 0) {
+      const {error: userError} = await supabase.from('users').update(updateData).eq('id', userId)
+
+      if (userError) {
+        console.error('更新用户 driver_type 失败:', userError)
+        return false
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('修改用户角色异常:', error)
     return false
   }
-
-  return true
 }
 
 /**
@@ -3808,16 +3820,20 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
  * 这个函数返回默认权限配置
  */
 export async function getManagerPermission(managerId: string): Promise<ManagerPermission | null> {
-  // 检查用户是否是管理员
-  const {data: profile, error} = await supabase.from('profiles').select('role').eq('id', managerId).maybeSingle()
+  // 单用户架构：从 user_roles 表查询用户角色
+  const {data: roleData, error} = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', managerId)
+    .maybeSingle()
 
-  if (error || !profile) {
+  if (error || !roleData) {
     console.error('获取管理员信息失败:', error)
     return null
   }
 
   // 如果是老板或平级管理员，返回所有权限
-  if (profile.role === 'BOSS' || profile.role === 'BOSS') {
+  if (roleData.role === 'BOSS' || roleData.role === 'BOSS') {
     const now = new Date().toISOString()
     return {
       id: managerId, // 使用 managerId 作为 id
@@ -3833,7 +3849,7 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
   }
 
   // 如果是车队长，返回默认权限
-  if (profile.role === 'MANAGER') {
+  if (roleData.role === 'MANAGER') {
     const now = new Date().toISOString()
     return {
       id: managerId, // 使用 managerId 作为 id
@@ -3871,7 +3887,8 @@ export async function updateManagerPermissionsEnabled(managerId: string, enabled
   try {
     console.log('[updateManagerPermissionsEnabled] 开始更新车队长权限状态', {managerId, enabled})
 
-    const {error} = await supabase.from('profiles').update({manager_permissions_enabled: enabled}).eq('id', managerId)
+    // 单用户架构：更新 users 表
+    const {error} = await supabase.from('users').update({manager_permissions_enabled: enabled}).eq('id', managerId)
 
     if (error) {
       console.error('[updateManagerPermissionsEnabled] 更新失败:', error)
@@ -3881,7 +3898,7 @@ export async function updateManagerPermissionsEnabled(managerId: string, enabled
     console.log('[updateManagerPermissionsEnabled] 更新成功')
     return true
   } catch (error) {
-    console.error('[updateManagerPermissionsEnabled] 更新异常:', error)
+    console.error('[updateManagerPermissionsEnabled] 异常:', error)
     return false
   }
 }
@@ -4691,57 +4708,78 @@ export async function updateUserInfo(
   console.log('========================================')
 
   try {
-    // 1. 更新 profiles 表
-    const {data, error} = await supabase.from('profiles').update(updates).eq('id', userId).select()
+    // 单用户架构：分别更新 users 和 user_roles 表
+    const {role, ...userUpdates} = updates
 
-    console.log('Supabase 更新 profiles 响应 - data:', JSON.stringify(data, null, 2))
-    console.log('Supabase 更新 profiles 响应 - error:', JSON.stringify(error, null, 2))
+    // 1. 更新 users 表
+    if (Object.keys(userUpdates).length > 0) {
+      const {data, error} = await supabase
+        .from('users')
+        .update({
+          ...userUpdates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .select()
 
-    if (error) {
-      console.error('========================================')
-      console.error('❌ 更新用户信息失败 - Supabase 错误')
-      console.error('错误代码:', error.code)
-      console.error('错误消息:', error.message)
-      console.error('错误详情:', error.details)
-      console.error('错误提示:', error.hint)
-      console.error('完整错误对象:', JSON.stringify(error, null, 2))
-      console.error('========================================')
-      return false
+      console.log('Supabase 更新 users 响应 - data:', JSON.stringify(data, null, 2))
+      console.log('Supabase 更新 users 响应 - error:', JSON.stringify(error, null, 2))
+
+      if (error) {
+        console.error('========================================')
+        console.error('❌ 更新用户信息失败 - Supabase 错误')
+        console.error('错误代码:', error.code)
+        console.error('错误消息:', error.message)
+        console.error('错误详情:', error.details)
+        console.error('错误提示:', error.hint)
+        console.error('完整错误对象:', JSON.stringify(error, null, 2))
+        console.error('========================================')
+        return false
+      }
+
+      if (!data || data.length === 0) {
+        console.error('========================================')
+        console.error('❌ 更新用户信息失败 - 没有返回数据')
+        console.error('可能原因：')
+        console.error('1. 用户不存在（ID 不匹配）')
+        console.error('2. RLS 策略阻止了更新操作（权限不足）')
+        console.error('3. 触发器阻止了更新操作')
+        console.error('========================================')
+        console.error('调试信息：')
+        console.error('- 目标用户ID:', userId)
+        console.error('- 当前登录用户ID:', (await supabase.auth.getUser()).data.user?.id)
+        console.error('- 更新的字段:', Object.keys(userUpdates))
+        console.error('========================================')
+        return false
+      }
+
+      console.log('========================================')
+      console.log('✅ users 表更新成功！')
+      console.log('更新后的完整数据:', JSON.stringify(data[0], null, 2))
+
+      // 特别检查更新后的 vehicle_plate 字段
+      if (data[0]) {
+        console.log('🚗 更新后的 vehicle_plate 字段:')
+        console.log('   - 值:', data[0].vehicle_plate)
+        console.log('   - 类型:', typeof data[0].vehicle_plate)
+        console.log('   - 是否为 null:', data[0].vehicle_plate === null)
+        console.log('   - 是否为空字符串:', data[0].vehicle_plate === '')
+      }
+      console.log('========================================')
     }
 
-    if (!data || data.length === 0) {
-      console.error('========================================')
-      console.error('❌ 更新用户信息失败 - 没有返回数据')
-      console.error('可能原因：')
-      console.error('1. 用户不存在（ID 不匹配）')
-      console.error('2. RLS 策略阻止了更新操作（权限不足）')
-      console.error('3. 触发器阻止了更新操作')
-      console.error('========================================')
-      console.error('调试信息：')
-      console.error('- 目标用户ID:', userId)
-      console.error('- 当前登录用户ID:', (await supabase.auth.getUser()).data.user?.id)
-      console.error('- 更新的字段:', Object.keys(updates))
-      console.error('- 是否包含 role 字段:', 'role' in updates)
-      console.error('- 是否包含 vehicle_plate 字段:', 'vehicle_plate' in updates)
-      console.error('========================================')
-      return false
+    // 2. 更新用户角色
+    if (role) {
+      const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', userId)
+
+      if (roleError) {
+        console.error('❌ 更新用户角色失败:', roleError)
+        return false
+      }
+      console.log('✅ user_roles 表更新成功！')
     }
 
-    console.log('========================================')
-    console.log('✅ profiles 表更新成功！')
-    console.log('更新后的完整数据:', JSON.stringify(data[0], null, 2))
-
-    // 特别检查更新后的 vehicle_plate 字段
-    if (data[0]) {
-      console.log('🚗 更新后的 vehicle_plate 字段:')
-      console.log('   - 值:', data[0].vehicle_plate)
-      console.log('   - 类型:', typeof data[0].vehicle_plate)
-      console.log('   - 是否为 null:', data[0].vehicle_plate === null)
-      console.log('   - 是否为空字符串:', data[0].vehicle_plate === '')
-    }
-    console.log('========================================')
-
-    // 2. 如果更新了 login_account，同时更新/创建 auth.users 表的 email
+    // 3. 如果更新了 login_account，同时更新/创建 auth.users 表的 email
     if (updates.login_account) {
       console.log('检测到 login_account 更新，同步更新/创建 auth.users 表的 email...')
 
@@ -4753,7 +4791,6 @@ export async function updateUserInfo(
       console.log('新的邮箱地址:', newEmail)
 
       // 使用 SQL 直接更新/创建 auth.users 表
-      // 如果用户不存在，函数会自动创建用户记录
       const {error: authError} = await supabase.rpc('update_user_email', {
         target_user_id: userId,
         new_email: newEmail
@@ -4762,15 +4799,14 @@ export async function updateUserInfo(
       if (authError) {
         console.error('❌ 更新/创建 auth.users 邮箱失败:', authError)
         console.error('错误详情:', JSON.stringify(authError, null, 2))
-        console.warn('⚠️ profiles 表已更新，但 auth.users 表操作失败，用户可能无法使用新账号登录')
-        // 不返回 false，因为 profiles 已经更新成功
+        console.warn('⚠️ users 表已更新，但 auth.users 表操作失败，用户可能无法使用新账号登录')
       } else {
         console.log('✅ auth.users 表邮箱更新/创建成功！')
         console.log('💡 如果是新创建的账号，用户需要通过"重置密码"功能设置密码')
 
-        // 同时更新 profiles 表的 email 字段以保持一致
-        await supabase.from('profiles').update({email: newEmail}).eq('id', userId)
-        console.log('✅ profiles 表 email 字段同步更新成功！')
+        // 同时更新 users 表的 email 字段以保持一致
+        await supabase.from('users').update({email: newEmail}).eq('id', userId)
+        console.log('✅ users 表 email 字段同步更新成功！')
       }
     }
 
@@ -4787,14 +4823,16 @@ export async function updateUserInfo(
  */
 export async function getUserById(userId: string): Promise<Profile | null> {
   try {
-    const {data, error} = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    // 单用户架构：从 users + user_roles 表查询
+    const userWithRole = await getUserWithRole(userId)
 
-    if (error) {
-      console.error('获取用户信息失败:', error)
+    if (!userWithRole) {
+      console.log('用户不存在:', userId)
       return null
     }
 
-    return data
+    // 转换为 Profile 格式
+    return convertUserToProfile(userWithRole)
   } catch (error) {
     console.error('获取用户信息失败:', error)
     return null

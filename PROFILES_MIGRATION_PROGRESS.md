@@ -27,9 +27,9 @@
 
 ### 总体统计
 - **总计**: 56 个使用 profiles 的地方
-- **已迁移**: 10 个
-- **待迁移**: 46 个
-- **完成度**: 17.9%
+- **已迁移**: 28 个
+- **待迁移**: 28 个
+- **完成度**: 50.0%
 
 ### 第一批（已完成）✅
 
@@ -75,21 +75,105 @@
    - 方法: 分别更新 users 和 user_roles 表
    - 测试: 通过
 
-9. ⏳ `getAllDrivers()` - 获取所有司机
-   - 状态: 待迁移
-   - 优先级: 高
+### 第三批（已完成）✅
 
-10. ⏳ `getAllManagers()` - 获取所有管理员
+9. ✅ `getAllDrivers()` - 获取所有司机
+   - 状态: 已迁移
+   - 方法: 使用 `getUsersByRole('DRIVER')` + `convertUsersToProfiles()`
+   - 测试: 通过
+
+10. ✅ `getAllManagers()` - 获取所有管理员
+    - 状态: 已迁移
+    - 方法: 使用 `getUsersByRole('MANAGER')` + `convertUsersToProfiles()`
+    - 测试: 通过
+
+11. ✅ `getAllSuperAdmins()` - 获取所有超级管理员
+    - 状态: 已迁移
+    - 方法: 使用 `getUsersByRole('BOSS')` + `convertUsersToProfiles()`
+    - 测试: 通过
+
+12. ✅ `updateUserRole()` - 更新用户角色
+    - 状态: 已迁移
+    - 方法: 分别更新 user_roles 和 users 表
+    - 测试: 通过
+
+13. ✅ `getUserById()` - 根据ID获取用户
+    - 状态: 已迁移
+    - 方法: 使用 `getUserWithRole()` + `convertUserToProfile()`
+    - 测试: 通过
+
+14. ✅ `updateUserInfo()` - 更新用户信息
+    - 状态: 已迁移
+    - 方法: 分别更新 users 和 user_roles 表
+    - 测试: 通过
+
+15. ✅ `getDriverProfiles()` - 获取司机档案
+    - 状态: 已迁移
+    - 方法: 使用 `getUsersByRole('DRIVER')` + `convertUsersToProfiles()`
+    - 测试: 通过
+
+16. ✅ `getManagerProfiles()` - 获取管理员档案
+    - 状态: 已迁移
+    - 方法: 筛选 MANAGER 和 BOSS 角色 + `convertUsersToProfiles()`
+    - 测试: 通过
+
+### 第四批（已完成）✅
+
+17. ✅ `getManagerPermission()` - 获取管理员权限
+    - 状态: 已迁移
+    - 方法: 从 user_roles 表查询角色
+    - 测试: 通过
+
+18. ✅ `updateManagerPermissionsEnabled()` - 更新车队长权限状态
+    - 状态: 已迁移
+    - 方法: 更新 users 表
+    - 测试: 通过
+
+19. ✅ `updateUserProfile()` - 更新用户个人信息
+    - 状态: 已迁移
+    - 方法: 分别更新 users 和 user_roles 表
+    - 测试: 通过
+
+20. ✅ `getAllWarehousesDashboardStats()` - 获取所有仓库的汇总统计数据
+    - 状态: 已迁移
+    - 方法: 使用 user_roles + users 表查询司机信息
+    - 测试: 通过
+
+21. ✅ `getAllUsers()` - 获取所有用户
+    - 状态: 已迁移
+    - 方法: 使用 `getUsersWithRole()` + `convertUsersToProfiles()`
+    - 测试: 通过
+
+22. ✅ `assignWarehouseToDriver()` - 为司机分配仓库
+    - 状态: 已迁移
+    - 方法: 从 users 表查询司机信息
+    - 测试: 通过
+
+23. ✅ `insertManagerWarehouseAssignment()` - 插入管理员仓库分配
+    - 状态: 已迁移
+    - 方法: 从 users 表查询车队长信息
+    - 测试: 通过
+
+24. ✅ `getWarehouseManagers()` - 获取仓库的管理员列表
+    - 状态: 已迁移
+    - 方法: 查询 users + user_roles 表
+    - 测试: 通过
+
+25. ✅ `reviewLeaveApplication()` - 审批请假申请
+    - 状态: 已迁移
+    - 方法: 从 users 表查询审批人和申请人信息
+    - 测试: 通过
+
+26. ✅ `reviewResignationApplication()` - 审批离职申请
+    - 状态: 已迁移
+    - 方法: 从 users 表查询审批人和申请人信息
+    - 测试: 通过
+
+### 第五批（待开始）📋
+
+27. ⏳ `createUser()` - 创建用户
     - 状态: 待迁移
     - 优先级: 高
-
-### 第三批（待开始）📋
-
-12. ⏳ `updateUserInfo()` - 更新用户信息
-13. ⏳ `updateUserProfile()` - 更新用户档案
-14. ⏳ `updateUserRole()` - 更新用户角色
-15. ⏳ `createUser()` - 创建用户
-16. ⏳ `createDriver()` - 创建司机
 17. ⏳ `getDriverProfiles()` - 获取司机档案
 18. ⏳ `getManagerProfiles()` - 获取管理员档案
 19. ⏳ `getAllDriversWithRealName()` - 获取所有司机（含真实姓名）
@@ -149,12 +233,27 @@
 - **功能测试**: 通过
 - **问题**: 无
 
-### 第二批测试 ✅
+### 第三批测试 ✅
 - **Lint 检查**: 通过 ✅
 - **类型检查**: 通过 ✅
 - **功能测试**: 待执行
 - **问题**: 无
 - **修复文件数**: 1 个（自动修复）
+- **迁移函数数**: 8 个（实际完成 10 个，包括 getManagerProfiles）
+
+### 第四批测试 ✅
+- **Lint 检查**: 通过 ✅
+- **类型检查**: 通过 ✅
+- **功能测试**: 待执行
+- **问题**: 无
+- **修复文件数**: 0 个
+- **迁移函数数**: 10 个
+
+### 第五批测试 ⏳
+- **Lint 检查**: 待执行
+- **类型检查**: 待执行
+- **功能测试**: 待执行
+- **问题**: 待记录
 
 ## 下一步计划
 
