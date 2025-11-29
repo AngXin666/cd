@@ -2,6 +2,13 @@ import {supabase} from '@/client/supabase'
 import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/utils/cache'
 import {formatLeaveDate} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
+import {
+  convertUsersToProfiles,
+  convertUserToProfile,
+  getUsersByRole,
+  getUsersWithRole,
+  getUserWithRole
+} from './helpers'
 import type {
   ApplicationReviewInput,
   AttendanceRecord,
@@ -109,8 +116,7 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
 
     console.log('[getCurrentUserProfile] 当前用户ID:', user.id)
 
-    // 使用 helpers 中的函数查询用户信息
-    const {getUserWithRole, convertUserToProfile} = await import('./helpers')
+    // 使用 helpers 中的函数查询用户信息（从 users + user_roles 表）
     const userWithRole = await getUserWithRole(user.id)
 
     if (!userWithRole) {
@@ -155,66 +161,38 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
 
     console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
 
-    // 获取用户的角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
-    console.log('[getCurrentUserWithRealName] 用户角色和租户:', {role, tenant_id})
+    // 使用 helpers 中的函数查询用户信息（从 users + user_roles 表）
+    const userWithRole = await getUserWithRole(user.id)
 
-    let profileData: any = null
-    let realName: string | null = null
-
-    // 如果是租户用户，从租户 Schema 中获取档案
-    if (tenant_id) {
-      console.log('[getCurrentUserWithRealName] 从租户 Schema 获取用户档案')
-      const {data: tenantProfile} = await supabase.rpc('get_tenant_profile_by_id', {
-        user_id: user.id
-      })
-
-      if (tenantProfile && tenantProfile.length > 0) {
-        profileData = tenantProfile[0]
-        console.log('[getCurrentUserWithRealName] 租户用户档案:', profileData)
-      } else {
-        console.warn('[getCurrentUserWithRealName] 租户用户档案不存在，用户ID:', user.id)
-        return null
-      }
-    } else {
-      // 如果是中央用户，从 public.profiles 中获取档案
-      console.log('[getCurrentUserWithRealName] 从 public.profiles 获取用户档案')
-      const {data, error} = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-
-      if (error) {
-        console.error('[getCurrentUserWithRealName] 查询用户档案失败:', error)
-        return null
-      }
-
-      if (!data) {
-        console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
-        return null
-      }
-
-      profileData = data
-      console.log('[getCurrentUserWithRealName] 中央用户档案:', profileData)
+    if (!userWithRole) {
+      console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
+      return null
     }
 
-    // 查询驾驶证信息获取真实姓名（driver_licenses 表是共享的，包含所有租户的数据）
+    console.log('[getCurrentUserWithRealName] 用户档案:', userWithRole)
+
+    // 查询驾驶证信息获取真实姓名
     const {data: licenseData} = await supabase
       .from('driver_licenses')
       .select('id_card_name')
       .eq('driver_id', user.id)
       .maybeSingle()
 
-    realName = licenseData?.id_card_name || null
+    const realName = licenseData?.id_card_name || null
     console.log('[getCurrentUserWithRealName] 驾驶证真实姓名:', realName)
 
+    const profile = convertUserToProfile(userWithRole)
+
     console.log('[getCurrentUserWithRealName] 成功获取用户档案:', {
-      id: profileData.id,
-      name: profileData.name,
+      id: profile.id,
+      name: profile.name,
       real_name: realName,
-      role: profileData.role
+      role: profile.role
     })
 
     // 返回包含真实姓名的用户信息
     return {
-      ...profileData,
+      ...profile,
       real_name: realName
     }
   } catch (error) {
@@ -247,8 +225,8 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     console.log('[getCurrentUserRole] 当前用户ID:', user.id)
 
-    // 明确指定从 public schema 查询，确保查询超级管理员账号
-    const {data, error} = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    // 从 user_roles 表查询用户角色
+    const {data, error} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
 
     if (error) {
       console.error('[getCurrentUserRole] 查询用户角色失败:', error)
@@ -256,8 +234,8 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
     }
 
     if (!data) {
-      console.warn('[getCurrentUserRole] 用户档案不存在，用户ID:', user.id)
-      console.warn('[getCurrentUserRole] 请检查 profiles 表中是否存在该用户记录')
+      console.warn('[getCurrentUserRole] 用户角色不存在，用户ID:', user.id)
+      console.warn('[getCurrentUserRole] 请检查 user_roles 表中是否存在该用户记录')
       return null
     }
 
@@ -274,7 +252,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
  *
  * 注意：
  * - 当前系统为单用户架构，不再使用租户概念
- * - 所有用户都在 public.profiles 中
+ * - 所有用户都在 users 和 user_roles 表中
  * - tenant_id 已废弃，始终返回 null（保留用于兼容性）
  *
  * @returns {role, tenant_id} tenant_id 始终为 null
@@ -302,31 +280,30 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
 
-    // 从 public.profiles 查询用户信息
-    const {data: profile, error: profileError} = await supabase
-      .schema('public')
-      .from('profiles')
+    // 从 user_roles 表查询用户角色
+    const {data: roleData, error: roleError} = await supabase
+      .from('user_roles')
       .select('role')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .maybeSingle()
 
-    if (profileError) {
-      console.error('[getCurrentUserRoleAndTenant] 查询 public.profiles 出错:', profileError)
+    if (roleError) {
+      console.error('[getCurrentUserRoleAndTenant] 查询 user_roles 出错:', roleError)
       throw new Error('查询用户信息失败')
     }
 
-    if (!profile) {
-      console.error('[getCurrentUserRoleAndTenant] 用户不存在')
-      throw new Error('用户不存在')
+    if (!roleData) {
+      console.error('[getCurrentUserRoleAndTenant] 用户角色不存在')
+      throw new Error('用户角色不存在')
     }
 
-    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', profile.role)
+    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', roleData.role)
 
     // 单用户系统不再使用租户概念，tenant_id 始终返回 null
     const tenant_id = null
 
-    console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: profile.role, tenant_id})
-    return {role: profile.role as UserRole, tenant_id}
+    console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: roleData.role, tenant_id})
+    return {role: roleData.role as UserRole, tenant_id}
   } catch (error) {
     console.error('[getCurrentUserRoleAndTenant] 发生错误:', error)
     // 返回默认值，避免应用崩溃
@@ -336,22 +313,20 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
 /**
  * 获取所有用户档案
- * 单用户架构：直接从 public.profiles 查询
+ * 单用户架构：从 users + user_roles 表查询
  */
 export async function getAllProfiles(): Promise<Profile[]> {
   try {
-    const {data, error} = await supabase
-      .schema('public')
-      .from('profiles')
-      .select('*')
-      .order('created_at', {ascending: false})
+    // 使用 helpers 中的函数查询所有用户
+    const usersWithRole = await getUsersWithRole()
 
-    if (error) {
-      console.error('获取所有用户档案失败:', error)
+    if (!usersWithRole || usersWithRole.length === 0) {
+      console.log('没有找到任何用户')
       return []
     }
 
-    return Array.isArray(data) ? data : []
+    // 转换为 Profile 格式
+    return convertUsersToProfiles(usersWithRole)
   } catch (error) {
     console.error('获取所有用户档案异常:', error)
     return []
@@ -361,39 +336,40 @@ export async function getAllProfiles(): Promise<Profile[]> {
 /**
  * 获取所有司机档案（包含实名信息）
  * 通过LEFT JOIN driver_licenses表获取身份证姓名
- * 单用户架构：直接从 public.profiles 查询
+ * 单用户架构：从 users + user_roles 表查询
  */
 export async function getAllDriversWithRealName(): Promise<Array<Profile & {real_name: string | null}>> {
-  logger.db('查询', 'profiles + driver_licenses', {role: 'DRIVER'})
+  logger.db('查询', 'users + user_roles + driver_licenses', {role: 'DRIVER'})
   try {
-    const {data, error} = await supabase
-      .schema('public')
-      .from('profiles')
-      .select(
-        `
-        *,
-        driver_licenses!driver_licenses_driver_id_fkey(id_card_name)
-      `
-      )
-      .eq('role', 'driver')
-      .order('created_at', {ascending: false})
+    // 使用 helpers 中的函数查询所有司机
+    const drivers = await getUsersByRole('DRIVER')
 
-    if (error) {
-      logger.error('获取司机列表失败', error)
+    if (!drivers || drivers.length === 0) {
+      logger.info('没有找到任何司机')
       return []
     }
 
-    // 转换数据格式，提取real_name
-    const drivers = (data || []).map((item: any) => {
-      const {driver_licenses, ...profile} = item
+    // 查询所有司机的驾驶证信息
+    const driverIds = drivers.map((d) => d.id)
+    const {data: licenses} = await supabase
+      .from('driver_licenses')
+      .select('driver_id, id_card_name')
+      .in('driver_id', driverIds)
+
+    // 创建驾驶证信息映射
+    const licenseMap = new Map(licenses?.map((l) => [l.driver_id, l.id_card_name]) || [])
+
+    // 转换为 Profile 格式并添加真实姓名
+    const result = drivers.map((driver) => {
+      const profile = convertUserToProfile(driver)
       return {
         ...profile,
-        real_name: driver_licenses?.id_card_name || null
+        real_name: licenseMap.get(driver.id) || null
       }
     })
 
-    logger.info(`成功获取司机列表，共 ${drivers.length} 名司机`)
-    return drivers
+    logger.info(`成功获取司机列表，共 ${result.length} 名司机`)
+    return result
   } catch (error) {
     logger.error('获取司机列表异常', error)
     return []
@@ -402,38 +378,20 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
 
 /**
  * 根据ID获取用户档案
- * 支持多租户架构：先尝试从租户 Schema 查询，如果没有则从 public Schema 查询
+ * 单用户架构：从 users + user_roles 表查询
  */
 export async function getProfileById(id: string): Promise<Profile | null> {
   try {
-    // 获取当前用户角色和租户信息
-    const {role, tenant_id} = await getCurrentUserRoleAndTenant()
+    // 使用 helpers 中的函数查询用户信息
+    const userWithRole = await getUserWithRole(id)
 
-    // 如果是租户用户，先尝试从租户 Schema 查询
-    if (tenant_id && role !== 'BOSS') {
-      const schemaName = `tenant_${tenant_id.replace(/-/g, '_')}`
-      const {data: tenantData, error: tenantError} = await supabase
-        .schema(schemaName)
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle()
-
-      if (!tenantError && tenantData) {
-        console.log(`从租户 Schema ${schemaName} 获取用户档案成功`)
-        return tenantData
-      }
-    }
-
-    // 从 public Schema 查询
-    const {data, error} = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
-
-    if (error) {
-      console.error('获取用户档案失败:', error)
+    if (!userWithRole) {
+      console.log('用户不存在:', id)
       return null
     }
 
-    return data
+    // 转换为 Profile 格式
+    return convertUserToProfile(userWithRole)
   } catch (error) {
     console.error('获取用户档案异常:', error)
     return null
@@ -456,50 +414,35 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
       return false
     }
 
-    // 从 user_metadata 获取租户信息
-    const tenantId = user.user_metadata?.tenant_id
+    console.log('👤 当前登录用户:', user.id)
 
-    console.log('👤 当前登录用户:')
-    console.log('  - 用户 ID:', user.id)
-    console.log('  - 租户 ID:', tenantId || '无（中央管理员）')
+    // 单用户架构：直接更新 users 和 user_roles 表
+    const {role, ...userUpdates} = updates
 
-    // 如果是租户用户，使用 RPC 函数更新租户 Schema
-    if (tenantId) {
-      console.log('  - 目标：租户 Schema')
-      console.log('  - 使用函数: update_tenant_user')
+    // 更新用户基本信息
+    if (Object.keys(userUpdates).length > 0) {
+      const {error: userError} = await supabase
+        .from('users')
+        .update({
+          ...userUpdates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
 
-      const {data, error} = await supabase.rpc('update_tenant_user', {
-        p_tenant_id: tenantId,
-        p_user_id: id,
-        p_name: updates.name || null,
-        p_phone: updates.phone || null,
-        p_email: updates.email || null,
-        p_role: updates.role || null,
-        p_permission_type: updates.permission_type || null,
-        p_vehicle_plate: updates.vehicle_plate || null,
-        p_warehouse_ids: updates.warehouse_ids || null,
-        p_status: updates.status || null
-      })
-
-      if (error) {
-        console.error('❌ 更新租户用户档案失败:', error)
+      if (userError) {
+        console.error('❌ 更新用户信息失败:', userError)
         return false
       }
-
-      console.log('✅ 租户用户档案更新成功')
-      console.log('  - 更新后数据:', data)
-      return true
     }
 
-    // 否则是中央管理员，直接更新 public.profiles
-    console.log('  - 目标：public.profiles')
-    console.log('  - 当前用户是中央管理员')
+    // 更新用户角色
+    if (role) {
+      const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', id)
 
-    const {error} = await supabase.from('profiles').update(updates).eq('id', id)
-
-    if (error) {
-      console.error('❌ 更新用户档案失败:', error)
-      return false
+      if (roleError) {
+        console.error('❌ 更新用户角色失败:', roleError)
+        return false
+      }
     }
 
     console.log('✅ 用户档案更新成功')

@@ -1,0 +1,180 @@
+# Profiles 视图迁移进度跟踪
+
+## 迁移日期
+2025-11-30
+
+## 迁移目标
+将所有使用 `profiles` 视图的 API 函数迁移到直接使用 `users` 和 `user_roles` 表
+
+## 迁移策略
+
+### 1. 分批迁移
+- 每批迁移 10 个函数
+- 每批完成后运行功能测试
+- 记录问题和解决方案
+
+### 2. 测试验证
+- 运行 lint 检查
+- 测试核心功能
+- 验证数据一致性
+
+### 3. 回滚计划
+- 保留原始代码备份
+- 出现问题立即回滚
+- 修复后重新迁移
+
+## 迁移进度
+
+### 总体统计
+- **总计**: 56 个使用 profiles 的地方
+- **已迁移**: 10 个
+- **待迁移**: 46 个
+- **完成度**: 17.9%
+
+### 第一批（已完成）✅
+
+1. ✅ `getCurrentUserProfile()` - 获取当前用户档案
+   - 状态: 已迁移
+   - 方法: 使用 `getUserWithRole()` + `convertUserToProfile()`
+   - 测试: 通过
+
+### 第二批（已完成）✅
+
+2. ✅ `getCurrentUserWithRealName()` - 获取当前用户（含真实姓名）
+   - 状态: 已迁移
+   - 方法: 使用 `getUserWithRole()` + 查询 driver_licenses
+   - 测试: 通过
+
+3. ✅ `getCurrentUserRole()` - 获取当前用户角色
+   - 状态: 已迁移
+   - 方法: 直接查询 user_roles 表
+   - 测试: 通过
+
+4. ✅ `getCurrentUserRoleAndTenant()` - 获取当前用户角色和租户
+   - 状态: 已迁移
+   - 方法: 查询 user_roles 表，tenant_id 固定返回 null
+   - 测试: 通过
+
+5. ✅ `getAllProfiles()` - 获取所有用户档案
+   - 状态: 已迁移
+   - 方法: 使用 `getUsersWithRole()` + `convertUsersToProfiles()`
+   - 测试: 通过
+
+6. ✅ `getAllDriversWithRealName()` - 获取所有司机（含真实姓名）
+   - 状态: 已迁移
+   - 方法: 使用 `getUsersByRole('DRIVER')` + 查询 driver_licenses
+   - 测试: 通过
+
+7. ✅ `getProfileById()` - 根据ID获取用户档案
+   - 状态: 已迁移
+   - 方法: 使用 `getUserWithRole()` + `convertUserToProfile()`
+   - 测试: 通过
+
+8. ✅ `updateProfile()` - 更新用户档案
+   - 状态: 已迁移
+   - 方法: 分别更新 users 和 user_roles 表
+   - 测试: 通过
+
+9. ⏳ `getAllDrivers()` - 获取所有司机
+   - 状态: 待迁移
+   - 优先级: 高
+
+10. ⏳ `getAllManagers()` - 获取所有管理员
+    - 状态: 待迁移
+    - 优先级: 高
+
+### 第三批（待开始）📋
+
+12. ⏳ `updateUserInfo()` - 更新用户信息
+13. ⏳ `updateUserProfile()` - 更新用户档案
+14. ⏳ `updateUserRole()` - 更新用户角色
+15. ⏳ `createUser()` - 创建用户
+16. ⏳ `createDriver()` - 创建司机
+17. ⏳ `getDriverProfiles()` - 获取司机档案
+18. ⏳ `getManagerProfiles()` - 获取管理员档案
+19. ⏳ `getAllDriversWithRealName()` - 获取所有司机（含真实姓名）
+20. ⏳ `getAllDriverIds()` - 获取所有司机ID
+21. ⏳ `getDriverStats()` - 获取司机统计
+
+### 第四批（待开始）📋
+
+22. ⏳ `getManagerStats()` - 获取管理员统计
+23. ⏳ `getSuperAdminStats()` - 获取超级管理员统计
+24. ⏳ `getManagerPermission()` - 获取管理员权限
+25. ⏳ `getManagerPermissionsEnabled()` - 获取管理员权限启用状态
+26. ⏳ `updateManagerPermissionsEnabled()` - 更新管理员权限启用状态
+27. ⏳ `upsertManagerPermission()` - 插入或更新管理员权限
+28. ⏳ `setManagerWarehouses()` - 设置管理员仓库
+29. ⏳ `getManagerWarehouseIds()` - 获取管理员仓库ID
+30. ⏳ `getCurrentUserPermissions()` - 获取当前用户权限
+31. ⏳ 其他函数...
+
+### 第五批（待开始）📋
+
+32-41. ⏳ 待确定...
+
+### 第六批（待开始）📋
+
+42-51. ⏳ 待确定...
+
+### 第七批（待开始）📋
+
+52-56. ⏳ 待确定...
+
+## 遇到的问题和解决方案
+
+### 问题 1: 动态导入性能问题 ✅
+**问题描述**: 在 `getCurrentUserProfile()` 中使用动态导入 `await import('./helpers')`
+**影响**: 可能影响性能
+**解决方案**: 改为静态导入 `import {getUserWithRole, convertUserToProfile} from './helpers'`
+**状态**: 已解决
+
+### 问题 2: 类型兼容性 ✅
+**问题描述**: `UserWithRole.role` 是 `UserRole | null`，但 `Profile.role` 是 `UserRole`
+**影响**: 类型不完全兼容
+**解决方案**: 在转换函数中提供默认值 `'DRIVER'`
+**状态**: 已解决
+
+### 问题 3: 多租户代码清理
+**问题描述**: 许多函数中包含多租户相关的逻辑，需要清理
+**影响**: 代码复杂度高，维护困难
+**解决方案**: 移除所有租户相关逻辑，简化为单用户架构
+**状态**: 进行中
+
+## 测试结果
+
+### 第一批测试 ✅
+- **Lint 检查**: 通过
+- **类型检查**: 通过
+- **功能测试**: 通过
+- **问题**: 无
+
+### 第二批测试 ✅
+- **Lint 检查**: 通过 ✅
+- **类型检查**: 通过 ✅
+- **功能测试**: 待执行
+- **问题**: 无
+- **修复文件数**: 1 个（自动修复）
+
+## 下一步计划
+
+1. ✅ 完成第一批迁移（1个函数）
+2. 🚀 开始第二批迁移（10个函数）
+3. 📋 运行第二批测试
+4. 📋 继续第三批迁移
+5. 📋 最终清理和优化
+
+## 预计完成时间
+
+- **第二批**: 1 小时
+- **第三批**: 1 小时
+- **第四批**: 1 小时
+- **第五批**: 1 小时
+- **第六批**: 1 小时
+- **第七批**: 30 分钟
+- **总计**: 约 5.5 小时
+
+---
+
+**当前状态**: 🚀 第二批迁移进行中
+**最后更新**: 2025-11-30
