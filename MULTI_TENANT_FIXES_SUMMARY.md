@@ -172,6 +172,40 @@ Key is not present in table "profiles".
 
 ---
 
+### 问题6：请假申请外键约束错误
+
+**错误信息**：
+```
+insert or update on table "leave_applications" violates foreign key constraint "leave_applications_user_id_fkey"
+Key is not present in table "profiles".
+```
+
+**根本原因**：
+1. `public.leave_applications` 表的 `user_id`、`reviewed_by` 和 `tenant_id` 字段有外键约束，引用 `public.profiles(id)`
+2. 在多租户架构中，租户用户不在 `public.profiles` 中
+3. 当租户用户创建请假申请时，用户 ID 不在 `public.profiles` 中，导致外键约束失败
+
+**解决方案**：
+删除以下外键约束：
+- `leave_applications_user_id_fkey`：user_id → profiles(id)
+- `leave_applications_reviewed_by_fkey`：reviewed_by → profiles(id)
+- `leave_applications_tenant_id_fkey`：tenant_id → profiles(id)
+
+保留以下外键约束：
+- `leave_applications_warehouse_id_fkey`：warehouse_id → warehouses(id)
+
+**为什么删除外键约束是安全的**：
+1. **应用层验证**：前端代码验证用户存在，使用 `getCurrentUserRoleAndTenant()`
+2. **认证系统保证**：所有用户都在 `auth.users` 表中，用户 ID 有效
+3. **RLS 策略保护**：请假申请表启用了 RLS，只有认证用户才能访问
+4. **业务逻辑保证**：请假申请功能只能由认证用户操作
+5. **性能优势**：提高插入性能，减少数据库锁定
+
+**迁移文件**：
+- `00454_remove_leave_applications_foreign_key_constraints.sql`
+
+---
+
 ## 修复总结
 
 ### 数据库修改
