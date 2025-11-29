@@ -141,9 +141,7 @@ const WarehouseEdit: React.FC = () => {
       try {
         // 加载所有车队长、老板和超级管理员
         const allUsers = await getAllUsers()
-        const managers = allUsers.filter(
-          (u) => u.role === 'MANAGER' || u.role === 'SUPER_ADMIN' || u.role === 'SUPER_ADMIN'
-        )
+        const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'SUPER_ADMIN')
         console.log('加载到的车队长列表:', managers)
         setAllManagers(managers)
 
@@ -411,6 +409,7 @@ const WarehouseEdit: React.FC = () => {
     try {
       // 直接创建品类价格记录
       const priceInput = {
+        category_id: '',
         warehouse_id: warehouseId,
         category_name: newCategoryName.trim(),
         unit_price: Number(newCategoryDriverPrice || 0),
@@ -418,7 +417,8 @@ const WarehouseEdit: React.FC = () => {
         sorting_unit_price: Number(newCategorySortingPrice || 0),
         driver_only_price: 0,
         driver_with_vehicle_price: 0,
-        is_active: true
+        is_active: true,
+        effective_date: new Date().toISOString().split('T')[0]
       }
 
       const success = await upsertCategoryPrice(priceInput)
@@ -594,6 +594,7 @@ const WarehouseEdit: React.FC = () => {
       // 2. 更新品类价格
       for (const categoryName of selectedCategories) {
         const priceInput = {
+          category_id: '',
           warehouse_id: warehouseId,
           category_name: categoryName,
           unit_price: Number(categoryDriverPrices.get(categoryName) || 0),
@@ -601,7 +602,8 @@ const WarehouseEdit: React.FC = () => {
           sorting_unit_price: Number(categorySortingPrices.get(categoryName) || 0),
           driver_only_price: 0,
           driver_with_vehicle_price: 0,
-          is_active: true
+          is_active: true,
+          effective_date: new Date().toISOString().split('T')[0]
         }
 
         const priceSuccess = await upsertCategoryPrice(priceInput)
@@ -632,6 +634,8 @@ const WarehouseEdit: React.FC = () => {
       // 4. 更新考勤规则
       const ruleInput = {
         warehouse_id: warehouseId,
+        clock_in_time: ruleStartTime,
+        clock_out_time: ruleEndTime,
         work_start_time: ruleStartTime,
         work_end_time: ruleEndTime,
         late_threshold: Number(ruleLateThreshold),
@@ -1037,11 +1041,7 @@ const WarehouseEdit: React.FC = () => {
                             )}
                           </View>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {manager.role === 'SUPER_ADMIN'
-                              ? '老板'
-                              : manager.role === 'SUPER_ADMIN'
-                                ? '超级管理员'
-                                : '车队长'}
+                            {manager.role === 'SUPER_ADMIN' ? '超级管理员' : '车队长'}
                           </Text>
                         </View>
                       </View>

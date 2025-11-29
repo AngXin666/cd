@@ -12,7 +12,7 @@ import {
   getCategoryPricesByWarehouse,
   updateCategory
 } from '@/db/api'
-import type {CategoryPrice, PieceWorkCategory, Warehouse} from '@/db/types'
+import type {CategoryPrice, CategoryPriceInput, PieceWorkCategory, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 
 // 品类价格编辑状态
@@ -296,10 +296,12 @@ const CategoryManagement: React.FC = () => {
     }
 
     // 直接保存所有品类价格配置（新品类和已有品类都通过 upsert 处理）
-    const priceInputs = priceEdits.map((edit) => ({
+    const priceInputs: CategoryPriceInput[] = priceEdits.map((edit) => ({
+      category_id: edit.categoryId || '',
       warehouse_id: selectedWarehouse.id,
       category_name: edit.categoryName.trim(),
       unit_price: Number.parseFloat(edit.unitPrice),
+      effective_date: new Date().toISOString().split('T')[0],
       upstairs_price: Number.parseFloat(edit.upstairsPrice),
       sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
       driver_only_price: Number.parseFloat(edit.driverOnlyPrice),

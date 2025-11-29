@@ -60,7 +60,9 @@ const NotificationTemplates: React.FC = () => {
     setEditingTemplate(template)
     setTitle(template.title)
     setContent(template.content)
-    setCategory(template.category)
+    // 确保 category 是有效的类型
+    const validCategory = template.category as 'general' | 'attendance' | 'piece_work' | 'vehicle' | 'leave' | undefined
+    setCategory(validCategory || 'general')
     setIsFavorite(template.is_favorite)
     setShowForm(true)
   }

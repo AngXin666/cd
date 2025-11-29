@@ -4,7 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {createPieceWorkRecord, getActiveCategories, getDriverProfiles, getManagerWarehouses} from '@/db/api'
-import type {PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import type {PieceWorkCategory, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 
 const ManagerPieceWorkForm: React.FC = () => {
@@ -187,8 +187,10 @@ const ManagerPieceWorkForm: React.FC = () => {
     try {
       const totalAmount = calculateTotalAmount()
 
-      const recordData = {
+      const recordData: PieceWorkRecordInput = {
         user_id: drivers[selectedDriverIndex].id,
+        date: workDate,
+        category: categories[selectedCategoryIndex].category_name,
         warehouse_id: warehouses[selectedWarehouseIndex].id,
         category_id: categories[selectedCategoryIndex].id,
         work_date: workDate,

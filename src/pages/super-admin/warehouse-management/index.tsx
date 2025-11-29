@@ -91,6 +91,8 @@ const WarehouseManagement: React.FC = () => {
         // 为新仓库创建默认考勤规则
         await createAttendanceRule({
           warehouse_id: warehouse.id,
+          clock_in_time: '09:00:00',
+          clock_out_time: '18:00:00',
           work_start_time: '09:00:00',
           work_end_time: '18:00:00',
           late_threshold: 15,
@@ -236,6 +238,8 @@ const WarehouseManagement: React.FC = () => {
         if (currentRule) {
           // 更新现有规则
           await updateAttendanceRule(currentRule.id, {
+            clock_in_time: ruleStartTime,
+            clock_out_time: ruleEndTime,
             work_start_time: ruleStartTime,
             work_end_time: ruleEndTime,
             late_threshold: lateThreshold,
@@ -247,6 +251,8 @@ const WarehouseManagement: React.FC = () => {
           // 创建新规则
           await createAttendanceRule({
             warehouse_id: currentWarehouse.id,
+            clock_in_time: ruleStartTime,
+            clock_out_time: ruleEndTime,
             work_start_time: ruleStartTime,
             work_end_time: ruleEndTime,
             late_threshold: lateThreshold,

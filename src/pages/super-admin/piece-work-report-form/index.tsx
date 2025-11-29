@@ -11,7 +11,7 @@ import {
   getPieceWorkRecordsByWarehouse,
   updatePieceWorkRecord
 } from '@/db/api'
-import type {PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import type {PieceWorkCategory, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 
 const SuperAdminPieceWorkReportForm: React.FC = () => {
@@ -232,8 +232,10 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
       const sortingAmount = needSorting ? Number(sortingQuantity) * Number(sortingUnitPrice) : 0
       const totalAmount = baseAmount + upstairsAmount + sortingAmount
 
-      const recordData = {
+      const recordData: PieceWorkRecordInput = {
         user_id: drivers[selectedDriverIndex].id,
+        date: workDate,
+        category: categories[selectedCategoryIndex].category_name,
         warehouse_id: warehouses[selectedWarehouseIndex].id,
         category_id: categories[selectedCategoryIndex].id,
         work_date: workDate,

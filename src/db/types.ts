@@ -54,6 +54,7 @@ export interface Profile {
   main_account_id?: string | null
   is_active?: boolean
   vehicle_plate?: string | null
+  manager_permissions_enabled?: boolean
 }
 
 export interface ProfileUpdate {
@@ -117,6 +118,8 @@ export interface Warehouse {
   // 兼容旧代码的可选字段
   is_active?: boolean
   max_leave_days?: number | null
+  resignation_notice_days?: number | null
+  daily_target?: number | null
 }
 
 // 创建仓库的输入接口
@@ -134,6 +137,10 @@ export interface WarehouseUpdate {
   address?: string
   contact_person?: string
   contact_phone?: string
+  is_active?: boolean
+  max_leave_days?: number | null
+  resignation_notice_days?: number | null
+  daily_target?: number | null
 }
 
 // 仓库分配接口
@@ -210,6 +217,7 @@ export interface AttendanceRecord {
   notes: string | null
   created_at: string
   work_date?: string
+  work_hours?: number | null
 }
 
 // 创建考勤记录的输入接口
@@ -288,6 +296,10 @@ export interface PieceworkRecord {
   notes: string | null
   created_at: string
   updated_at: string
+  category_id?: string
+  need_upstairs?: boolean
+  upstairs_price?: number | null
+  work_date?: string
 }
 
 // 创建计件记录的输入接口
@@ -296,10 +308,17 @@ export interface PieceworkRecordInput {
   date: string
   warehouse_id?: string
   category: string
+  category_id?: string
   quantity: number
   unit_price?: number
   total_amount?: number
   notes?: string
+  work_date?: string
+  need_upstairs?: boolean
+  upstairs_price?: number
+  need_sorting?: boolean
+  sorting_quantity?: number
+  sorting_unit_price?: number
 }
 
 // 更新计件记录的输入接口
@@ -359,12 +378,22 @@ export interface PieceWorkCategory {
   description: string | null
   created_at: string
   updated_at: string
+  category_name?: string
+  is_active?: boolean
 }
 
 // 创建计件分类的输入接口
 export interface PieceWorkCategoryInput {
   name: string
   description?: string
+  warehouse_id?: string
+  category_name?: string
+  unit_price?: number
+  upstairs_price?: number
+  sorting_unit_price?: number
+  driver_only_price?: number
+  driver_with_vehicle_price?: number
+  is_active?: boolean
 }
 
 // 计件分类价格接口
@@ -375,6 +404,11 @@ export interface CategoryPrice {
   unit_price: number
   effective_date: string
   created_at: string
+  category_name?: string
+  upstairs_price?: number | null
+  sorting_unit_price?: number | null
+  driver_only_price?: number | null
+  driver_with_vehicle_price?: number | null
 }
 
 // 创建计件分类价格的输入接口
@@ -386,18 +420,20 @@ export interface CategoryPriceInput {
   category_name?: string
   upstairs_price?: number
   sorting_unit_price?: number
+  driver_only_price?: number
+  driver_with_vehicle_price?: number
   is_active?: boolean
 }
 
 // 计件统计接口
 export interface PieceWorkStats {
-  user_id: string
-  user_name: string
+  user_id?: string
+  user_name?: string
   total_quantity: number
   total_amount: number
-  record_count: number
+  record_count?: number
   total_orders?: number
-  by_category?: Record<string, {quantity: number; amount: number}>
+  by_category?: Array<{category_id: string; category_name: string; quantity: number; amount: number}>
 }
 
 // ==================== 仓库规则（已废弃 - 多租户相关）====================
@@ -405,6 +441,7 @@ export interface PieceWorkStats {
 // 仓库规则接口（保留用于兼容性）
 export interface WarehouseWithRule extends Warehouse {
   rule?: any // 规则已废弃，保留字段用于兼容
+  resignation_notice_days?: number
 }
 
 // ==================== 考勤规则（已废弃 - 多租户相关）====================
@@ -420,6 +457,9 @@ export interface AttendanceRule {
   is_active?: boolean
   created_at: string
   updated_at: string
+  work_start_time?: string
+  work_end_time?: string
+  require_clock_out?: boolean
 }
 
 // 创建考勤规则的输入接口
@@ -432,6 +472,7 @@ export interface AttendanceRuleInput {
   work_start_time?: string
   work_end_time?: string
   is_active?: boolean
+  require_clock_out?: boolean
 }
 
 // 更新考勤规则的输入接口
@@ -440,6 +481,10 @@ export interface AttendanceRuleUpdate {
   clock_out_time?: string
   late_threshold?: number
   early_threshold?: number
+  work_start_time?: string
+  work_end_time?: string
+  require_clock_out?: boolean
+  is_active?: boolean
 }
 
 // ==================== 司机仓库关联（已废弃 - 多租户相关）====================
@@ -614,12 +659,18 @@ export interface ManagerPermission {
   // 兼容旧代码的可选字段
   can_edit_user_info?: boolean
   can_edit_piece_work?: boolean
+  can_manage_attendance_rules?: boolean
+  can_manage_categories?: boolean
 }
 
 // 创建管理员权限的输入接口
 export interface ManagerPermissionInput {
   manager_id: string
-  permission_type: string
+  permission_type?: string
+  can_edit_user_info?: boolean
+  can_edit_piece_work?: boolean
+  can_manage_attendance_rules?: boolean
+  can_manage_categories?: boolean
 }
 
 // ==================== 锁定照片（已废弃 - 多租户相关）====================
@@ -644,6 +695,7 @@ export interface NotificationTemplate {
   content: string
   type: NotificationType
   created_at: string
+  category?: string
 }
 
 // 定时通知接口（保留用于兼容性）
