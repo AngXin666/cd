@@ -217,6 +217,7 @@ Key is not present in table "profiles".
 | 00451_fix_notifications_sender_role_constraint.sql | 修复 notifications sender_role 检查约束 | ✅ 完成 |
 | 00452_remove_notifications_foreign_key_constraints.sql | 删除 notifications 外键约束 | ✅ 完成 |
 | 00453_remove_warehouse_assignment_foreign_key_constraints.sql | 删除仓库分配表外键约束 | ✅ 完成 |
+| 00454_remove_leave_applications_foreign_key_constraints.sql | 删除请假申请表外键约束 | ✅ 完成 |
 
 ### 前端代码修改
 
@@ -251,16 +252,19 @@ Key is not present in table "profiles".
 -- 4. manager_warehouses 表的外键约束已删除
 ✅ 只保留 warehouse_id 外键约束
 
--- 5. 租户 Schema 中的 driver_warehouses 表
+-- 5. leave_applications 表的外键约束已删除
+✅ 只保留 warehouse_id 外键约束
+
+-- 6. 租户 Schema 中的 driver_warehouses 表
 ✅ 2 个租户 Schema
 
--- 6. 租户 Schema 中的 manager_warehouses 表
+-- 7. 租户 Schema 中的 manager_warehouses 表
 ✅ 2 个租户 Schema
 
--- 7. is_tenant_admin 函数存在
+-- 8. is_tenant_admin 函数存在
 ✅ 用于检查租户管理员权限
 
--- 8. get_tenant_profile_by_id RPC 函数存在
+-- 9. get_tenant_profile_by_id RPC 函数存在
 ✅ 用于获取租户用户信息
 ```
 
@@ -271,6 +275,7 @@ Key is not present in table "profiles".
 | 添加司机 | ✅ 正常 | ✅ 正常 | ✅ 通过 |
 | 分配仓库 | ✅ 正常 | ✅ 正常 | ✅ 通过 |
 | 创建通知 | ✅ 正常 | ✅ 正常 | ✅ 通过 |
+| 创建请假申请 | ✅ 正常 | ✅ 正常 | ✅ 通过 |
 | 获取用户档案 | ✅ 正常 | ✅ 正常 | ✅ 通过 |
 
 ---
@@ -448,9 +453,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 3. ✅ 通知创建外键约束错误
 4. ✅ getCurrentUserWithRealName 函数警告
 5. ✅ 仓库分配外键约束错误
+6. ✅ 请假申请外键约束错误
 
 **修复的文件**：
-- 5 个迁移文件
+- 6 个迁移文件
 - 2 个前端代码文件
 - 1 个新增数据库函数
 
