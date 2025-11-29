@@ -101,7 +101,7 @@ export const sendWarehouseAssignmentNotifications = async (
 
     // 3. 通知相关管理员
     if (operatorProfile) {
-      if (operatorProfile.role === 'manager') {
+      if (operatorProfile.role === 'MANAGER') {
         // 普通管理员操作 → 通知所有超级管理员
         console.log('👤 [通知系统] 操作者是普通管理员，准备通知所有超级管理员')
 
@@ -146,7 +146,7 @@ export const sendWarehouseAssignmentNotifications = async (
             relatedId: driver.id
           })
         }
-      } else if (operatorProfile.role === 'super_admin') {
+      } else if (operatorProfile.role === 'SUPER_ADMIN') {
         // 超级管理员操作 → 通知相关仓库的普通管理员
         console.log('👤 [通知系统] 操作者是超级管理员，准备通知相关仓库的管理员')
 

@@ -3,34 +3,84 @@ import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/
 import {formatLeaveDate} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
 import type {
-  // ApplicationReviewInput, // 已删除 - 多租户相关
+  ApplicationReviewInput,
   AttendanceRecord,
   AttendanceRecordInput,
   AttendanceRecordUpdate,
-  // LockedPhotos, // 已删除 - 多租户相关
-  // ManagerPermission, // 已删除 - 多租户相关
-  // ManagerPermissionInput, // 已删除 - 多租户相关
+  AttendanceRule,
+  AttendanceRuleInput,
+  AttendanceRuleUpdate,
+  AutoReminderRule,
+  AutoReminderRuleWithWarehouse,
+  CategoryPrice,
+  CategoryPriceInput,
+  CreateLeaseInput,
+  CreateNotificationInput,
+  DriverLicense,
+  DriverLicenseInput,
+  DriverLicenseUpdate,
+  DriverType,
+  DriverWarehouse,
+  DriverWarehouseInput,
+  Feedback,
+  FeedbackInput,
+  FeedbackStatus,
+  Lease,
+  LeaseBill,
+  LeaseWithTenant,
+  LeaveApplication,
+  LeaveApplicationInput,
+  LockedPhotos,
+  ManagerPermission,
+  ManagerPermissionInput,
   Notification,
-  // ProfileUpdate, // 已删除 - 多租户相关
-  // ResignationApplication, // 已删除 - 多租户相关
-  // ResignationApplicationInput, // 已删除 - 多租户相关
-  // ScheduledNotification, // 已删除 - 多租户相关
-  // SenderRole, // 已删除 - 多租户相关
-  // TenantProfile, // 已删除 - 多租户相关
+  NotificationSendRecord,
+  NotificationSendRecordWithSender,
+  NotificationTemplate,
+  PieceWorkCategory,
+  PieceWorkCategoryInput,
+  PieceWorkRecord,
+  PieceWorkRecordInput,
+  PieceWorkStats,
+  Profile,
+  ProfileUpdate,
+  ResignationApplication,
+  ResignationApplicationInput,
+  ScheduledNotification,
+  SenderRole,
   UserRole,
   Vehicle,
   VehicleInput,
   VehicleUpdate,
-  // VehicleWithDriver, // 已删除 - 多租户相关
-  // VehicleWithDriverDetails, // 已删除 - 多租户相关
+  VehicleWithDriver,
+  VehicleWithDriverDetails,
   Warehouse,
   WarehouseInput,
-  WarehouseUpdate
-  // WarehouseWithRule // 已删除 - 多租户相关
+  WarehouseUpdate,
+  WarehouseWithRule
 } from './types'
 
 // 创建数据库操作日志记录器
 const logger = createLogger('DatabaseAPI')
+
+/**
+ * 兼容函数：将租户 Profile 转换为 Profile 类型
+ * 注意：此函数仅用于向后兼容，新代码不应使用
+ * @deprecated 多租户功能已废弃
+ */
+function convertTenantProfileToProfile(tenantProfile: any): Profile {
+  console.warn('[convertTenantProfileToProfile] 此函数已废弃，请使用新的用户管理 API')
+  return {
+    id: tenantProfile.id || '',
+    phone: tenantProfile.phone || null,
+    email: tenantProfile.email || null,
+    name: tenantProfile.name || '',
+    role: (tenantProfile.role as UserRole) || 'DRIVER',
+    avatar_url: tenantProfile.avatar_url || null,
+    created_at: tenantProfile.created_at || new Date().toISOString(),
+    updated_at: tenantProfile.updated_at || new Date().toISOString()
+  }
+}
 
 /**
  * 获取本地日期字符串（YYYY-MM-DD格式）

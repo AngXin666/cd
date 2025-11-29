@@ -82,23 +82,19 @@ export function getRoleDisplayName(role: UserRole): string {
  * 获取可创建的角色列表
  * @param currentRole 当前用户角色
  * @returns 可创建的角色列表
+ * @deprecated 多租户功能已废弃
  */
 export function getCreatableRoles(currentRole: UserRole | undefined | null): UserRole[] {
   if (!currentRole) return []
 
-  // super_admin（中央管理系统）只能创建租户，不能直接创建用户
-  if (currentRole === 'super_admin') {
-    return []
+  // SUPER_ADMIN 可以创建所有角色
+  if (currentRole === 'SUPER_ADMIN') {
+    return ['MANAGER', 'DRIVER']
   }
 
-  // boss（租户老板）可以创建租户内的所有角色
-  if (currentRole === 'boss') {
-    return ['peer_admin', 'manager', 'driver']
-  }
-
-  // peer_admin（平级管理员）只能创建 driver 和 manager
-  if (currentRole === 'peer_admin') {
-    return ['manager', 'driver']
+  // MANAGER 可以创建 DRIVER
+  if (currentRole === 'MANAGER') {
+    return ['DRIVER']
   }
 
   // 其他角色不能创建用户
