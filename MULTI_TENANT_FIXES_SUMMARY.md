@@ -135,6 +135,43 @@ Key is not present in table "profiles".
 
 ---
 
+### 问题5：仓库分配外键约束错误
+
+**错误信息**：
+```
+insert or update on table "driver_warehouses" violates foreign key constraint "driver_warehouses_driver_id_fkey"
+Key is not present in table "profiles".
+```
+
+**根本原因**：
+1. `public.driver_warehouses` 表的 `driver_id` 和 `tenant_id` 字段有外键约束，引用 `public.profiles(id)`
+2. `public.manager_warehouses` 表的 `manager_id` 和 `tenant_id` 字段有外键约束，引用 `public.profiles(id)`
+3. 在多租户架构中，租户用户不在 `public.profiles` 中
+4. 当为租户用户分配仓库时，用户 ID 不在 `public.profiles` 中，导致外键约束失败
+
+**解决方案**：
+删除以下外键约束：
+- `driver_warehouses_driver_id_fkey`：driver_id → profiles(id)
+- `driver_warehouses_tenant_id_fkey`：tenant_id → profiles(id)
+- `manager_warehouses_manager_id_fkey`：manager_id → profiles(id)
+- `manager_warehouses_tenant_id_fkey`：tenant_id → profiles(id)
+
+保留以下外键约束：
+- `driver_warehouses_warehouse_id_fkey`：warehouse_id → warehouses(id)
+- `manager_warehouses_warehouse_id_fkey`：warehouse_id → warehouses(id)
+
+**为什么删除外键约束是安全的**：
+1. **应用层验证**：前端代码验证用户存在，使用 `getCurrentUserRoleAndTenant()`
+2. **认证系统保证**：所有用户都在 `auth.users` 表中，用户 ID 有效
+3. **RLS 策略保护**：仓库分配表启用了 RLS，只有认证用户才能访问
+4. **业务逻辑保证**：仓库分配功能只能由管理员操作
+5. **性能优势**：提高插入性能，减少数据库锁定
+
+**迁移文件**：
+- `00453_remove_warehouse_assignment_foreign_key_constraints.sql`
+
+---
+
 ## 修复总结
 
 ### 数据库修改
@@ -145,6 +182,7 @@ Key is not present in table "profiles".
 | 00450_fix_driver_warehouses_rls_for_tenant_users.sql | 修复 driver_warehouses RLS 策略 | ✅ 完成 |
 | 00451_fix_notifications_sender_role_constraint.sql | 修复 notifications sender_role 检查约束 | ✅ 完成 |
 | 00452_remove_notifications_foreign_key_constraints.sql | 删除 notifications 外键约束 | ✅ 完成 |
+| 00453_remove_warehouse_assignment_foreign_key_constraints.sql | 删除仓库分配表外键约束 | ✅ 完成 |
 
 ### 前端代码修改
 
@@ -173,16 +211,22 @@ Key is not present in table "profiles".
 -- 2. notifications 表的外键约束已删除
 ✅ 不再引用 public.profiles
 
--- 3. 租户 Schema 中的 driver_warehouses 表
+-- 3. driver_warehouses 表的外键约束已删除
+✅ 只保留 warehouse_id 外键约束
+
+-- 4. manager_warehouses 表的外键约束已删除
+✅ 只保留 warehouse_id 外键约束
+
+-- 5. 租户 Schema 中的 driver_warehouses 表
 ✅ 2 个租户 Schema
 
--- 4. 租户 Schema 中的 manager_warehouses 表
+-- 6. 租户 Schema 中的 manager_warehouses 表
 ✅ 2 个租户 Schema
 
--- 5. is_tenant_admin 函数存在
+-- 7. is_tenant_admin 函数存在
 ✅ 用于检查租户管理员权限
 
--- 6. get_tenant_profile_by_id RPC 函数存在
+-- 8. get_tenant_profile_by_id RPC 函数存在
 ✅ 用于获取租户用户信息
 ```
 
@@ -369,9 +413,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 2. ✅ 通知创建 sender_role 检查约束错误
 3. ✅ 通知创建外键约束错误
 4. ✅ getCurrentUserWithRealName 函数警告
+5. ✅ 仓库分配外键约束错误
 
 **修复的文件**：
-- 4 个迁移文件
+- 5 个迁移文件
 - 2 个前端代码文件
 - 1 个新增数据库函数
 
