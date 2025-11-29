@@ -81,6 +81,33 @@ END IF;
 - `"Lease admins can update notifications"` on `notifications`
 - `"Lease admins can delete notifications"` on `notifications`
 
+### 3. 修复角色映射问题
+
+**修改文件**：`src/db/api.ts`
+
+**问题**：
+```typescript
+// 错误的代码
+await supabase.rpc('create_tenant_user', {
+  p_role: role  // 直接使用 'manager'，但租户 Schema 中应该是 'fleet_leader'
+})
+```
+
+**解决方案**：
+```typescript
+// 修复后的代码
+// 角色映射：前端角色 -> 租户 Schema 角色
+const tenantRole = role === 'manager' ? 'fleet_leader' : 'driver'
+
+await supabase.rpc('create_tenant_user', {
+  p_role: tenantRole  // 使用映射后的角色
+})
+```
+
+**角色映射关系**：
+- 前端 `manager` → 租户 Schema `fleet_leader`（车队长）
+- 前端 `driver` → 租户 Schema `driver`（司机）
+
 ## 当前有效的角色
 
 ### Public Schema（`public.profiles`）
@@ -190,7 +217,8 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
 
 ### 代码文件
 - `src/db/types.ts`：TypeScript 类型定义
-- `src/db/api.ts`：`createUser` 函数
+- `src/db/api.ts`：`createUser` 函数（已修复角色映射）
+- `src/pages/super-admin/user-management/index.tsx`：老板端用户管理页面
 
 ### 文档文件
 - `FIX_LEASE_ADMIN_ERROR.md`：详细的问题诊断和修复过程
@@ -216,13 +244,22 @@ WHERE proname IN ('init_lease_admin_profile', 'is_lease_admin_user', 'is_lease_a
    - 避免在跨 Schema 操作时假设类型一致性
    - 为不同 Schema 使用不同的类型定义
 
+4. **角色映射**：
+   - 在前端和后端之间建立清晰的角色映射关系
+   - 在 API 层面进行角色转换，而不是在数据库层面
+   - 为不同的系统（中央管理系统 vs 租户系统）使用不同的角色定义
+
 ## 总结
 
-通过以下两个关键修复，彻底解决了 `lease_admin` 错误：
+通过以下三个关键修复，彻底解决了 `lease_admin` 错误：
 
 1. ✅ 修复 `insert_tenant_profile` 函数，移除错误的枚举类型转换
 2. ✅ 删除所有引用已删除 `lease_admin` 角色的函数和策略
+3. ✅ 修复 `createUser` 函数的角色映射，确保前端角色正确映射到租户 Schema 角色
 
-现在系统应该能够正常创建新用户，不再出现 `lease_admin` 相关的错误。
+现在系统可以正常添加新用户，并且角色系统清晰明确：
+- **中央管理系统**：使用 `super_admin` 和 `boss` 角色
+- **租户系统**：使用 `boss`、`peer`、`fleet_leader` 和 `driver` 角色
+- **角色映射**：前端 `manager` 自动映射为租户 Schema 的 `fleet_leader`
 
 如果问题仍然存在，请清除浏览器缓存并重新登录。
