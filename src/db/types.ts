@@ -10,9 +10,10 @@ export type {NotificationType}
  * - BOSS: 老板，拥有最高权限
  * - PEER_ADMIN: 平级账户，与老板同级的管理员
  * - MANAGER: 车队长，管理司机和车辆
+ * - DISPATCHER: 调度员，负责调度和管理
  * - DRIVER: 司机，基础用户
  */
-export type UserRole = 'BOSS' | 'PEER_ADMIN' | 'MANAGER' | 'DRIVER'
+export type UserRole = 'BOSS' | 'PEER_ADMIN' | 'MANAGER' | 'DISPATCHER' | 'DRIVER'
 
 // 用户信息接口
 export interface User {
