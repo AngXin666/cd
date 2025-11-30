@@ -7351,17 +7351,15 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
       return null
     }
 
+    // 2. 只使用数据库表中存在的字段
     const {data, error} = await supabase
       .from('notifications')
       .insert({
         recipient_id: input.recipient_id,
-        sender_id: input.sender_id,
-        sender_name: input.sender_name,
-        sender_role: input.sender_role,
-        type: input.type,
+        sender_id: input.sender_id || user.id,
+        type: input.type || 'system',
         title: input.title,
-        content: input.content,
-        action_url: input.action_url || null
+        content: input.content
       })
       .select()
       .maybeSingle()
