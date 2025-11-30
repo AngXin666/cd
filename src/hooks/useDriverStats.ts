@@ -71,12 +71,24 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
 
       if (warehouseId) {
         // 如果指定了仓库，需要通过 warehouse_assignments 表过滤
+        // 同时需要确保只统计角色为 DRIVER 的用户（排除车队长和平级账号）
         const {data: assignedDrivers} = await supabase
           .from('warehouse_assignments')
-          .select('user_id')
+          .select('user_id, users!inner(id)')
           .eq('warehouse_id', warehouseId)
 
-        driverIds = assignedDrivers?.map((a) => a.user_id) || []
+        // 获取这些用户的角色信息
+        if (assignedDrivers && assignedDrivers.length > 0) {
+          const userIds = assignedDrivers.map((a) => a.user_id)
+          const {data: driverRoles} = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'DRIVER')
+            .in('user_id', userIds)
+
+          driverIds = driverRoles?.map((d) => d.user_id) || []
+        }
+
         if (driverIds.length === 0) {
           // 该仓库没有分配司机
           const emptyStats: DriverStats = {
@@ -90,7 +102,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           return emptyStats
         }
       } else {
-        // 获取所有司机ID
+        // 获取所有司机ID（只统计角色为 DRIVER 的用户）
         const {data: allDrivers} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
         driverIds = allDrivers?.map((d) => d.user_id) || []
       }
@@ -98,11 +110,13 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       const totalDrivers = driverIds.length
 
       // 4. 获取今日已打卡的司机数（在线司机）
+      // 只统计角色为 DRIVER 的用户
       let onlineDriversQuery = supabase
         .from('attendance')
         .select('user_id', {count: 'exact', head: false})
         .gte('clock_in_time', `${today}T00:00:00`)
         .lte('clock_in_time', `${today}T23:59:59`)
+        .in('user_id', driverIds)
 
       if (warehouseId) {
         onlineDriversQuery = onlineDriversQuery.eq('warehouse_id', warehouseId)
@@ -116,11 +130,13 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       const onlineDrivers = uniqueOnlineDrivers.size
 
       // 5. 获取今日有计件记录的司机数（已计件司机）
+      // 只统计角色为 DRIVER 的用户
       let busyDriversQuery = supabase
         .from('piece_work_records')
         .select('user_id', {count: 'exact', head: false})
         .gte('work_date', today)
         .lte('work_date', today)
+        .in('user_id', driverIds)
 
       if (warehouseId) {
         busyDriversQuery = busyDriversQuery.eq('warehouse_id', warehouseId)
