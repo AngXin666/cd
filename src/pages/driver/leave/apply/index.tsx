@@ -455,67 +455,51 @@ const ApplyLeave: React.FC = () => {
     setSubmitting(false)
 
     if (success && applicationId) {
-      // 获取司机显示名称（包含司机类型和姓名）
-      const driverDisplayName = await VehiclesAPI.getDriverDisplayName(user.id)
-
-      // 获取请假类型中文名称
-      const leaveTypeLabel = leaveTypes.find((t) => t.value === leaveType)?.label || '请假'
-
-      // 格式化日期为人性化显示
-      const dateRangeText = formatLeaveDate(startDate, endDate, leaveDays)
-
-      console.log('🔍 调试信息 - 开始发送通知', {
-        userId: user?.id,
-        userObject: user,
-        driverName: driverDisplayName,
-        applicationId: applicationId
-      })
-
-      // 验证 user.id 是否有效
-      if (!user?.id || user.id === 'anon' || user.id.length < 10) {
-        console.error('❌ 无效的用户ID，无法发送通知', {userId: user?.id})
-        showToast({
-          title: '用户信息异常，请重新登录',
-          icon: 'none',
-          duration: 3000
-        })
-        setSubmitting(false)
-        return
-      }
-
-      // 使用新的通知服务发送通知
-      try {
-        const notificationSent = await sendDriverSubmissionNotification({
-          driverId: user.id,
-          driverName: driverDisplayName,
-          type: 'leave_submitted',
-          title: '新的请假申请',
-          content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
-          relatedId: applicationId
-        })
-
-        console.log('📬 通知发送结果:', notificationSent)
-
-        if (notificationSent) {
-          console.log('✅ 请假申请提交成功，已发送通知给老板、平级账号和车队长')
-        } else {
-          console.warn('⚠️ 请假申请提交成功，但通知发送失败')
-          showToast({
-            title: '通知发送失败，请联系管理员',
-            icon: 'none',
-            duration: 3000
-          })
-        }
-      } catch (error) {
-        console.error('❌ 发送通知时出错:', error)
-        showToast({
-          title: '通知发送异常',
-          icon: 'none',
-          duration: 3000
-        })
-      }
-
+      // 🚀 性能优化：立即显示成功提示，不等待通知发送完成
       showToast({title: '提交成功', icon: 'success'})
+
+      // 异步发送通知（不阻塞用户操作）
+      Promise.all([
+        VehiclesAPI.getDriverDisplayName(user.id),
+        Promise.resolve(leaveTypes.find((t) => t.value === leaveType)?.label || '请假'),
+        Promise.resolve(formatLeaveDate(startDate, endDate, leaveDays))
+      ])
+        .then(([driverDisplayName, leaveTypeLabel, dateRangeText]) => {
+          console.log('🔍 调试信息 - 开始发送通知', {
+            userId: user?.id,
+            userObject: user,
+            driverName: driverDisplayName,
+            applicationId: applicationId
+          })
+
+          // 验证 user.id 是否有效
+          if (!user?.id || user.id === 'anon' || user.id.length < 10) {
+            console.error('❌ 无效的用户ID，无法发送通知', {userId: user?.id})
+            return
+          }
+
+          // 后台发送通知
+          return sendDriverSubmissionNotification({
+            driverId: user.id,
+            driverName: driverDisplayName,
+            type: 'leave_submitted',
+            title: '新的请假申请',
+            content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
+            relatedId: applicationId
+          })
+        })
+        .then((notificationSent) => {
+          if (notificationSent) {
+            console.log('✅ 请假申请提交成功，已发送通知给老板、平级账号和车队长')
+          } else {
+            console.warn('⚠️ 请假申请提交成功，但通知发送失败')
+          }
+        })
+        .catch((error) => {
+          console.error('❌ 发送通知时出错:', error)
+        })
+
+      // 立即返回上一页，不等待通知发送
       setTimeout(() => {
         navigateBack()
       }, 1500)

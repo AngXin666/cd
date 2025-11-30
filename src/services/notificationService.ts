@@ -317,6 +317,8 @@ export interface DriverSubmissionNotificationParams {
  * 1. 主账号（老板）- 始终通知
  * 2. 平级账号 - 如果存在则通知
  * 3. 有管辖权的车队长 - 只通知对该司机有管辖权的车队长
+ *
+ * 性能优化：使用 Promise.all 并行执行独立查询
  */
 export async function sendDriverSubmissionNotification(params: DriverSubmissionNotificationParams): Promise<boolean> {
   try {
@@ -330,8 +332,14 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
 
     const recipientMap = new Map<string, NotificationRecipient>()
 
-    // 1. 获取主账号（老板）- 始终通知
-    const primaryAdmin = await getPrimaryAdmin()
+    // 🚀 性能优化：并行执行所有独立查询
+    const [primaryAdmin, peerAccounts, managers] = await Promise.all([
+      getPrimaryAdmin(),
+      getPeerAccounts(),
+      getManagersWithJurisdiction(params.driverId)
+    ])
+
+    // 1. 处理主账号（老板）
     if (primaryAdmin) {
       recipientMap.set(primaryAdmin.userId, primaryAdmin)
       logger.info('✅ 将通知主账号（老板）', {userId: primaryAdmin.userId})
@@ -339,8 +347,7 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
       logger.warn('⚠️ 未找到主账号，跳过主账号通知')
     }
 
-    // 2. 获取平级账号 - 如果存在则通知
-    const peerAccounts = await getPeerAccounts()
+    // 2. 处理平级账号
     if (peerAccounts.length > 0) {
       for (const peer of peerAccounts) {
         recipientMap.set(peer.userId, peer)
@@ -350,8 +357,7 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
       logger.info('ℹ️ 不存在平级账号，跳过平级账号通知')
     }
 
-    // 3. 获取有管辖权的车队长 - 只通知对该司机有管辖权的车队长
-    const managers = await getManagersWithJurisdiction(params.driverId)
+    // 3. 处理有管辖权的车队长
     if (managers.length > 0) {
       for (const manager of managers) {
         recipientMap.set(manager.userId, manager)
