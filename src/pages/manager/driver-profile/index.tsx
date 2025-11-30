@@ -135,7 +135,7 @@ const DriverProfileView: React.FC = () => {
     )
   }
 
-  if (!driverLicense) {
+  if (!profile) {
     return (
       <ScrollView scrollY className="min-h-screen bg-gray-50">
         <View className="p-6">
@@ -149,8 +149,8 @@ const DriverProfileView: React.FC = () => {
     )
   }
 
-  const age = calculateAge(driverLicense.id_card_birth_date)
-  const drivingYears = calculateDrivingYears(driverLicense.first_issue_date)
+  const age = driverLicense ? calculateAge(driverLicense.id_card_birth_date) : null
+  const drivingYears = driverLicense ? calculateDrivingYears(driverLicense.first_issue_date) : null
 
   return (
     <ScrollView scrollY className="min-h-screen bg-gray-50">
@@ -162,8 +162,10 @@ const DriverProfileView: React.FC = () => {
               <View className="i-mdi-account text-white text-4xl" />
             </View>
             <View className="flex-1">
-              <Text className="text-white text-2xl font-bold block mb-1">{driverLicense.id_card_name || '未识别'}</Text>
-              <Text className="text-blue-100 text-sm block">{profile?.phone || '未设置手机号'}</Text>
+              <Text className="text-white text-2xl font-bold block mb-1">
+                {driverLicense?.id_card_name || profile.name || '未设置姓名'}
+              </Text>
+              <Text className="text-blue-100 text-sm block">{profile.phone || '未设置手机号'}</Text>
             </View>
           </View>
           {age !== null && (
@@ -182,311 +184,333 @@ const DriverProfileView: React.FC = () => {
           )}
         </View>
 
-        {/* 身份证信息卡片 */}
-        <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
-          <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
-            <View className="bg-blue-50 rounded-full p-2.5 mr-3">
-              <View className="i-mdi-card-account-details text-blue-600 text-2xl" />
+        {/* 如果没有驾驶证信息，显示提示 */}
+        {!driverLicense && (
+          <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-4">
+            <View className="flex items-center">
+              <View className="i-mdi-information text-yellow-600 text-2xl mr-3" />
+              <View className="flex-1">
+                <Text className="text-yellow-800 text-base font-medium block mb-1">尚未录入证件信息</Text>
+                <Text className="text-yellow-700 text-sm block">该司机还未录入身份证和驾驶证信息</Text>
+              </View>
             </View>
-            <Text className="text-gray-800 text-lg font-bold">身份证信息</Text>
           </View>
+        )}
 
-          <View className="space-y-4">
-            {/* 身份证号 */}
-            <View className="bg-gray-50 rounded-xl p-4">
-              <Text className="text-gray-500 text-xs mb-1.5 block">身份证号码</Text>
-              <Text className="text-gray-900 text-base font-mono tracking-wide">
-                {driverLicense.id_card_number || '未识别'}
-              </Text>
+        {/* 身份证信息卡片 - 只在有驾驶证信息时显示 */}
+        {driverLicense && (
+          <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
+            <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
+              <View className="bg-blue-50 rounded-full p-2.5 mr-3">
+                <View className="i-mdi-card-account-details text-blue-600 text-2xl" />
+              </View>
+              <Text className="text-gray-800 text-lg font-bold">身份证信息</Text>
             </View>
 
-            {/* 出生日期 */}
-            {driverLicense.id_card_birth_date && (
-              <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
-                <View className="flex items-center">
-                  <View className="i-mdi-calendar text-blue-500 text-xl mr-3" />
-                  <View>
-                    <Text className="text-gray-500 text-xs block mb-0.5">出生日期</Text>
-                    <Text className="text-gray-900 text-sm font-medium">{driverLicense.id_card_birth_date}</Text>
+            <View className="space-y-4">
+              {/* 身份证号 */}
+              <View className="bg-gray-50 rounded-xl p-4">
+                <Text className="text-gray-500 text-xs mb-1.5 block">身份证号码</Text>
+                <Text className="text-gray-900 text-base font-mono tracking-wide">
+                  {driverLicense.id_card_number || '未识别'}
+                </Text>
+              </View>
+
+              {/* 出生日期 */}
+              {driverLicense.id_card_birth_date && (
+                <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar text-blue-500 text-xl mr-3" />
+                    <View>
+                      <Text className="text-gray-500 text-xs block mb-0.5">出生日期</Text>
+                      <Text className="text-gray-900 text-sm font-medium">{driverLicense.id_card_birth_date}</Text>
+                    </View>
+                  </View>
+                  {age !== null && (
+                    <View className="bg-blue-100 px-3 py-1.5 rounded-full">
+                      <Text className="text-blue-700 text-xs font-medium">{age} 岁</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* 地址 */}
+              <View className="bg-gray-50 rounded-xl p-4">
+                <View className="flex items-start">
+                  <View className="i-mdi-map-marker text-blue-500 text-xl mr-3 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-gray-500 text-xs block mb-1.5">户籍地址</Text>
+                    <Text className="text-gray-900 text-sm leading-relaxed">
+                      {driverLicense.id_card_address || '未识别'}
+                    </Text>
                   </View>
                 </View>
-                {age !== null && (
-                  <View className="bg-blue-100 px-3 py-1.5 rounded-full">
-                    <Text className="text-blue-700 text-xs font-medium">{age} 岁</Text>
-                  </View>
-                )}
+              </View>
+            </View>
+
+            {/* 身份证照片 */}
+            {(driverLicense.id_card_photo_front || driverLicense.id_card_photo_back) && (
+              <View className="mt-5 pt-5 border-t border-gray-100">
+                <Text className="text-gray-700 text-base font-medium mb-4 block">证件照片</Text>
+                <View className="grid grid-cols-2 gap-3">
+                  {/* 身份证正面 */}
+                  {driverLicense.id_card_photo_front && (
+                    <View>
+                      <View className="bg-blue-50 px-2 py-1 rounded-t-lg">
+                        <Text className="text-blue-700 text-xs font-medium text-center">正面</Text>
+                      </View>
+                      <Image
+                        src={getImageUrl(driverLicense.id_card_photo_front)}
+                        mode="aspectFit"
+                        className="w-full h-40 bg-gray-100 rounded-b-lg border border-gray-200"
+                        onClick={() => {
+                          Taro.previewImage({
+                            urls: [getImageUrl(driverLicense.id_card_photo_front!)],
+                            current: getImageUrl(driverLicense.id_card_photo_front!)
+                          })
+                        }}
+                      />
+                    </View>
+                  )}
+                  {/* 身份证背面 */}
+                  {driverLicense.id_card_photo_back && (
+                    <View>
+                      <View className="bg-green-50 px-2 py-1 rounded-t-lg">
+                        <Text className="text-green-700 text-xs font-medium text-center">背面</Text>
+                      </View>
+                      <Image
+                        src={getImageUrl(driverLicense.id_card_photo_back)}
+                        mode="aspectFit"
+                        className="w-full h-40 bg-gray-100 rounded-b-lg border border-gray-200"
+                        onClick={() => {
+                          Taro.previewImage({
+                            urls: [getImageUrl(driverLicense.id_card_photo_back!)],
+                            current: getImageUrl(driverLicense.id_card_photo_back!)
+                          })
+                        }}
+                      />
+                    </View>
+                  )}
+                </View>
               </View>
             )}
+          </View>
+        )}
 
-            {/* 地址 */}
-            <View className="bg-gray-50 rounded-xl p-4">
-              <View className="flex items-start">
-                <View className="i-mdi-map-marker text-blue-500 text-xl mr-3 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-gray-500 text-xs block mb-1.5">户籍地址</Text>
-                  <Text className="text-gray-900 text-sm leading-relaxed">
-                    {driverLicense.id_card_address || '未识别'}
-                  </Text>
+        {/* 驾驶证信息卡片 - 只在有驾驶证信息时显示 */}
+        {driverLicense && (
+          <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
+              <View className="bg-green-50 rounded-full p-2.5 mr-3">
+                <View className="i-mdi-card-account-details-outline text-green-600 text-2xl" />
+              </View>
+              <Text className="text-gray-800 text-lg font-bold">驾驶证信息</Text>
+            </View>
+
+            <View className="space-y-4">
+              {/* 驾驶证号 */}
+              <View className="bg-gray-50 rounded-xl p-4">
+                <Text className="text-gray-500 text-xs mb-1.5 block">驾驶证号</Text>
+                <Text className="text-gray-900 text-base font-mono tracking-wide">
+                  {driverLicense.license_number || '未识别'}
+                </Text>
+              </View>
+
+              {/* 准驾车型 */}
+              <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                <View className="flex items-center">
+                  <View className="i-mdi-car text-green-500 text-xl mr-3" />
+                  <View>
+                    <Text className="text-gray-500 text-xs block mb-0.5">准驾车型</Text>
+                    <Text className="text-gray-900 text-sm font-medium">{driverLicense.license_class || '未识别'}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 初次领证日期 */}
+              {driverLicense.first_issue_date && (
+                <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar-check text-green-500 text-xl mr-3" />
+                    <View>
+                      <Text className="text-gray-500 text-xs block mb-0.5">初次领证日期</Text>
+                      <Text className="text-gray-900 text-sm font-medium">{driverLicense.first_issue_date}</Text>
+                    </View>
+                  </View>
+                  {drivingYears !== null && (
+                    <View className="bg-green-100 px-3 py-1.5 rounded-full">
+                      <Text className="text-green-700 text-xs font-medium">驾龄 {drivingYears} 年</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* 有效期 */}
+              <View className="bg-gray-50 rounded-xl p-4">
+                <View className="flex items-start mb-3">
+                  <View className="i-mdi-clock-outline text-orange-500 text-xl mr-3 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-gray-500 text-xs block mb-2">证件有效期</Text>
+                    <View className="space-y-2">
+                      <View className="flex items-center">
+                        <Text className="text-gray-600 text-xs mr-2">起：</Text>
+                        <Text className="text-gray-900 text-sm">{driverLicense.valid_from || '未识别'}</Text>
+                      </View>
+                      <View className="flex items-center">
+                        <Text className="text-gray-600 text-xs mr-2">至：</Text>
+                        <Text className="text-gray-900 text-sm">{driverLicense.valid_to || '未识别'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* 发证机关 */}
+              <View className="bg-gray-50 rounded-xl p-4">
+                <View className="flex items-start">
+                  <View className="i-mdi-office-building text-purple-500 text-xl mr-3 mt-0.5" />
+                  <View className="flex-1">
+                    <Text className="text-gray-500 text-xs block mb-1.5">发证机关</Text>
+                    <Text className="text-gray-900 text-sm leading-relaxed">
+                      {driverLicense.issue_authority || '未识别'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
 
-          {/* 身份证照片 */}
-          {(driverLicense.id_card_photo_front || driverLicense.id_card_photo_back) && (
-            <View className="mt-5 pt-5 border-t border-gray-100">
-              <Text className="text-gray-700 text-base font-medium mb-4 block">证件照片</Text>
-              <View className="grid grid-cols-2 gap-3">
-                {/* 身份证正面 */}
-                {driverLicense.id_card_photo_front && (
-                  <View>
-                    <View className="bg-blue-50 px-2 py-1 rounded-t-lg">
-                      <Text className="text-blue-700 text-xs font-medium text-center">正面</Text>
-                    </View>
-                    <Image
-                      src={getImageUrl(driverLicense.id_card_photo_front)}
-                      mode="aspectFit"
-                      className="w-full h-40 bg-gray-100 rounded-b-lg border border-gray-200"
-                      onClick={() => {
-                        Taro.previewImage({
-                          urls: [getImageUrl(driverLicense.id_card_photo_front!)],
-                          current: getImageUrl(driverLicense.id_card_photo_front!)
-                        })
-                      }}
-                    />
-                  </View>
-                )}
-                {/* 身份证背面 */}
-                {driverLicense.id_card_photo_back && (
-                  <View>
-                    <View className="bg-green-50 px-2 py-1 rounded-t-lg">
-                      <Text className="text-green-700 text-xs font-medium text-center">背面</Text>
-                    </View>
-                    <Image
-                      src={getImageUrl(driverLicense.id_card_photo_back)}
-                      mode="aspectFit"
-                      className="w-full h-40 bg-gray-100 rounded-b-lg border border-gray-200"
-                      onClick={() => {
-                        Taro.previewImage({
-                          urls: [getImageUrl(driverLicense.id_card_photo_back!)],
-                          current: getImageUrl(driverLicense.id_card_photo_back!)
-                        })
-                      }}
-                    />
-                  </View>
-                )}
+            {/* 驾驶证照片 */}
+            {driverLicense.driving_license_photo && (
+              <View className="mt-5 pt-5 border-t border-gray-100">
+                <Text className="text-gray-700 text-base font-medium mb-4 block">驾驶证照片</Text>
+                <View className="bg-purple-50 px-2 py-1 rounded-t-lg">
+                  <Text className="text-purple-700 text-xs font-medium text-center">驾驶证</Text>
+                </View>
+                <Image
+                  src={getImageUrl(driverLicense.driving_license_photo)}
+                  mode="aspectFit"
+                  className="w-full h-48 bg-gray-100 rounded-b-lg border border-gray-200"
+                  onClick={() => {
+                    Taro.previewImage({
+                      urls: [getImageUrl(driverLicense.driving_license_photo!)],
+                      current: getImageUrl(driverLicense.driving_license_photo!)
+                    })
+                  }}
+                />
               </View>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        )}
 
-        {/* 驾驶证信息卡片 */}
+        {/* 账号管理操作 - 独立卡片，始终显示 */}
         <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <View className="flex items-center mb-5 pb-4 border-b border-gray-100">
-            <View className="bg-green-50 rounded-full p-2.5 mr-3">
-              <View className="i-mdi-card-account-details-outline text-green-600 text-2xl" />
+            <View className="bg-purple-50 rounded-full p-2.5 mr-3">
+              <View className="i-mdi-account-cog text-purple-600 text-2xl" />
             </View>
-            <Text className="text-gray-800 text-lg font-bold">驾驶证信息</Text>
+            <Text className="text-gray-800 text-lg font-bold">账号管理</Text>
           </View>
+          <View className="grid grid-cols-2 gap-3">
+            {/* 重置密码按钮 */}
+            <View
+              onClick={async () => {
+                const {confirm} = await Taro.showModal({
+                  title: '重置密码',
+                  content: `确认将用户"${profile.name || profile.phone}"的密码重置为 123456 吗？`
+                })
 
-          <View className="space-y-4">
-            {/* 驾驶证号 */}
-            <View className="bg-gray-50 rounded-xl p-4">
-              <Text className="text-gray-500 text-xs mb-1.5 block">驾驶证号</Text>
-              <Text className="text-gray-900 text-base font-mono tracking-wide">
-                {driverLicense.license_number || '未识别'}
-              </Text>
-            </View>
+                if (!confirm) return
 
-            {/* 准驾车型 */}
-            <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
-              <View className="flex items-center">
-                <View className="i-mdi-car text-green-500 text-xl mr-3" />
-                <View>
-                  <Text className="text-gray-500 text-xs block mb-0.5">准驾车型</Text>
-                  <Text className="text-gray-900 text-sm font-medium">{driverLicense.license_class || '未识别'}</Text>
-                </View>
-              </View>
-            </View>
+                try {
+                  Taro.showLoading({title: '处理中...'})
+                  logger.userAction('重置密码', {driverId, operatorId: user?.id})
 
-            {/* 初次领证日期 */}
-            {driverLicense.first_issue_date && (
-              <View className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
-                <View className="flex items-center">
-                  <View className="i-mdi-calendar-check text-green-500 text-xl mr-3" />
-                  <View>
-                    <Text className="text-gray-500 text-xs block mb-0.5">初次领证日期</Text>
-                    <Text className="text-gray-900 text-sm font-medium">{driverLicense.first_issue_date}</Text>
-                  </View>
-                </View>
-                {drivingYears !== null && (
-                  <View className="bg-green-100 px-3 py-1.5 rounded-full">
-                    <Text className="text-green-700 text-xs font-medium">驾龄 {drivingYears} 年</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* 有效期 */}
-            <View className="bg-gray-50 rounded-xl p-4">
-              <View className="flex items-start mb-3">
-                <View className="i-mdi-clock-outline text-orange-500 text-xl mr-3 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-gray-500 text-xs block mb-2">证件有效期</Text>
-                  <View className="space-y-2">
-                    <View className="flex items-center">
-                      <Text className="text-gray-600 text-xs mr-2">起：</Text>
-                      <Text className="text-gray-900 text-sm">{driverLicense.valid_from || '未识别'}</Text>
-                    </View>
-                    <View className="flex items-center">
-                      <Text className="text-gray-600 text-xs mr-2">至：</Text>
-                      <Text className="text-gray-900 text-sm">{driverLicense.valid_to || '未识别'}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* 发证机关 */}
-            <View className="bg-gray-50 rounded-xl p-4">
-              <View className="flex items-start">
-                <View className="i-mdi-office-building text-purple-500 text-xl mr-3 mt-0.5" />
-                <View className="flex-1">
-                  <Text className="text-gray-500 text-xs block mb-1.5">发证机关</Text>
-                  <Text className="text-gray-900 text-sm leading-relaxed">
-                    {driverLicense.issue_authority || '未识别'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* 驾驶证照片 */}
-          {driverLicense.driving_license_photo && (
-            <View className="mt-5 pt-5 border-t border-gray-100">
-              <Text className="text-gray-700 text-base font-medium mb-4 block">驾驶证照片</Text>
-              <View className="bg-purple-50 px-2 py-1 rounded-t-lg">
-                <Text className="text-purple-700 text-xs font-medium text-center">驾驶证</Text>
-              </View>
-              <Image
-                src={getImageUrl(driverLicense.driving_license_photo)}
-                mode="aspectFit"
-                className="w-full h-48 bg-gray-100 rounded-b-lg border border-gray-200"
-                onClick={() => {
-                  Taro.previewImage({
-                    urls: [getImageUrl(driverLicense.driving_license_photo!)],
-                    current: getImageUrl(driverLicense.driving_license_photo!)
-                  })
-                }}
-              />
-            </View>
-          )}
-
-          {/* 账号管理操作 */}
-          <View className="mt-5 pt-5 border-t border-gray-100">
-            <Text className="text-gray-700 text-base font-medium mb-4 block">账号管理</Text>
-            <View className="grid grid-cols-2 gap-3">
-              {/* 重置密码按钮 */}
-              <View
-                onClick={async () => {
-                  const {confirm} = await Taro.showModal({
-                    title: '重置密码',
-                    content: `确认将用户"${profile?.name || profile?.phone}"的密码重置为 123456 吗？`
+                  const {error} = await supabase.rpc('reset_user_password', {
+                    target_user_id: driverId,
+                    new_password: '123456'
                   })
 
-                  if (!confirm) return
+                  Taro.hideLoading()
 
-                  try {
-                    Taro.showLoading({title: '处理中...'})
-                    logger.userAction('重置密码', {driverId, operatorId: user?.id})
-
-                    const {error} = await supabase.rpc('reset_user_password', {
-                      target_user_id: driverId,
-                      new_password: '123456'
-                    })
-
-                    Taro.hideLoading()
-
-                    if (error) {
-                      logger.error('重置密码失败', {error, driverId})
-                      Taro.showToast({
-                        title: '重置密码失败',
-                        icon: 'none'
-                      })
-                      return
-                    }
-
-                    logger.info('重置密码成功', {driverId})
+                  if (error) {
+                    logger.error('重置密码失败', {error, driverId})
                     Taro.showToast({
-                      title: '密码已重置为 123456',
-                      icon: 'success'
+                      title: '重置密码失败',
+                      icon: 'none'
                     })
-                  } catch (err) {
-                    Taro.hideLoading()
-                    logger.error('重置密码异常', {error: err, driverId})
+                    return
+                  }
+
+                  logger.info('重置密码成功', {driverId})
+                  Taro.showToast({
+                    title: '密码已重置为 123456',
+                    icon: 'success'
+                  })
+                } catch (err) {
+                  Taro.hideLoading()
+                  logger.error('重置密码异常', {error: err, driverId})
+                  Taro.showToast({
+                    title: '操作失败',
+                    icon: 'none'
+                  })
+                }
+              }}
+              className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-3 active:bg-amber-100 transition-all">
+              <View className="i-mdi-lock-reset text-amber-600 text-xl mr-2" />
+              <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
+            </View>
+
+            {/* 提升为管理员按钮 */}
+            <View
+              onClick={async () => {
+                const {confirm} = await Taro.showModal({
+                  title: '提升为管理员',
+                  content: `确认将司机"${profile.name || profile.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
+                })
+
+                if (!confirm) return
+
+                try {
+                  Taro.showLoading({title: '处理中...'})
+                  logger.userAction('提升为管理员', {driverId, operatorId: user?.id})
+
+                  // 单用户架构：更新 user_roles 表
+                  const {error} = await supabase.from('user_roles').update({role: 'MANAGER'}).eq('user_id', driverId)
+
+                  Taro.hideLoading()
+
+                  if (error) {
+                    logger.error('提升为管理员失败', {error, driverId})
                     Taro.showToast({
                       title: '操作失败',
                       icon: 'none'
                     })
+                    return
                   }
-                }}
-                className="flex items-center justify-center bg-amber-50 border border-amber-200 rounded-lg py-3 active:bg-amber-100 transition-all">
-                <View className="i-mdi-lock-reset text-amber-600 text-xl mr-2" />
-                <Text className="text-amber-700 text-sm font-medium">重置密码</Text>
-              </View>
 
-              {/* 提升为管理员按钮 */}
-              <View
-                onClick={async () => {
-                  const {confirm} = await Taro.showModal({
-                    title: '提升为管理员',
-                    content: `确认将司机"${profile?.name || profile?.phone}"提升为管理员吗？\n\n提升后将获得管理员权限。`
+                  logger.info('提升为管理员成功', {driverId})
+                  Taro.showToast({
+                    title: '已提升为管理员',
+                    icon: 'success',
+                    duration: 2000
                   })
 
-                  if (!confirm) return
-
-                  try {
-                    Taro.showLoading({title: '处理中...'})
-                    logger.userAction('提升为管理员', {driverId, operatorId: user?.id})
-
-                    // 单用户架构：更新 user_roles 表
-                    const {error} = await supabase.from('user_roles').update({role: 'MANAGER'}).eq('user_id', driverId)
-
-                    Taro.hideLoading()
-
-                    if (error) {
-                      logger.error('提升为管理员失败', {error, driverId})
-                      Taro.showToast({
-                        title: '操作失败',
-                        icon: 'none'
-                      })
-                      return
-                    }
-
-                    logger.info('提升为管理员成功', {driverId})
-                    Taro.showToast({
-                      title: '已提升为管理员',
-                      icon: 'success',
-                      duration: 2000
-                    })
-
-                    // 延迟返回上一页
-                    setTimeout(() => {
-                      Taro.navigateBack()
-                    }, 2000)
-                  } catch (err) {
-                    Taro.hideLoading()
-                    logger.error('提升为管理员异常', {error: err, driverId})
-                    Taro.showToast({
-                      title: '操作失败',
-                      icon: 'none'
-                    })
-                  }
-                }}
-                className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-3 active:bg-sky-100 transition-all">
-                <View className="i-mdi-account-convert text-sky-600 text-xl mr-2" />
-                <Text className="text-sky-700 text-sm font-medium">提升为管理员</Text>
-              </View>
+                  // 延迟返回上一页
+                  setTimeout(() => {
+                    Taro.navigateBack()
+                  }, 2000)
+                } catch (err) {
+                  Taro.hideLoading()
+                  logger.error('提升为管理员异常', {error: err, driverId})
+                  Taro.showToast({
+                    title: '操作失败',
+                    icon: 'none'
+                  })
+                }
+              }}
+              className="flex items-center justify-center bg-sky-50 border border-sky-200 rounded-lg py-3 active:bg-sky-100 transition-all">
+              <View className="i-mdi-account-convert text-sky-600 text-xl mr-2" />
+              <Text className="text-sky-700 text-sm font-medium">提升为管理员</Text>
             </View>
           </View>
         </View>
