@@ -587,28 +587,31 @@ export interface PieceworkRecord {
 // 创建计件记录的输入接口
 export interface PieceworkRecordInput {
   user_id: string
-  date: string
-  warehouse_id?: string
-  category: string
+  warehouse_id: string
+  work_date: string
   category_id?: string
   quantity: number
-  unit_price?: number
-  total_amount?: number
-  notes?: string
-  work_date?: string
+  unit_price: number
+  total_amount: number
   need_upstairs?: boolean
   upstairs_price?: number
   need_sorting?: boolean
   sorting_quantity?: number
   sorting_unit_price?: number
+  notes?: string
 }
 
 // 更新计件记录的输入接口
 export interface PieceworkRecordUpdate {
-  category?: string
+  category_id?: string
   quantity?: number
   unit_price?: number
   total_amount?: number
+  need_upstairs?: boolean
+  upstairs_price?: number
+  need_sorting?: boolean
+  sorting_quantity?: number
+  sorting_unit_price?: number
   notes?: string
 }
 

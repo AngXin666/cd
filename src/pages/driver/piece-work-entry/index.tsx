@@ -629,11 +629,9 @@ const PieceWorkEntry: React.FC = () => {
 
       const input: PieceWorkRecordInput = {
         user_id: user.id,
-        date: workDate,
-        category: category.category_name,
+        work_date: workDate,
         warehouse_id: warehouse.id,
         category_id: category.id,
-        work_date: workDate,
         quantity: Number(item.quantity),
         unit_price: Number(item.unitPrice),
         need_upstairs: item.needUpstairs,

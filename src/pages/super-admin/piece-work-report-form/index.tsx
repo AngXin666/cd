@@ -232,11 +232,9 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
 
       const recordData: PieceWorkRecordInput = {
         user_id: drivers[selectedDriverIndex].id,
-        date: workDate,
-        category: categories[selectedCategoryIndex].category_name,
+        work_date: workDate,
         warehouse_id: warehouses[selectedWarehouseIndex].id,
         category_id: categories[selectedCategoryIndex].id,
-        work_date: workDate,
         quantity: Number(quantity),
         unit_price: Number(unitPrice),
         need_upstairs: needUpstairs,
