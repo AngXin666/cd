@@ -9,6 +9,11 @@ export interface DriverStats {
   onlineDrivers: number // 在线司机数（今日已打卡）
   busyDrivers: number // 已计件司机数（今日有计件记录）
   idleDrivers: number // 未计件司机数
+  // 按类型和新旧分类统计
+  newPureDrivers: number // 新纯司机（注册≤7天的纯司机）
+  newWithVehicleDrivers: number // 新带车司机（注册≤7天的带车司机）
+  pureDrivers: number // 纯司机（注册>7天的纯司机）
+  withVehicleDrivers: number // 带车司机（注册>7天的带车司机）
 }
 
 /**
@@ -65,12 +70,10 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       }
 
       const today = new Date().toISOString().split('T')[0]
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
       // 1. 获取总司机数（按仓库过滤）- 单用户架构：从 user_roles 表查询
-      let totalDriversQuery = supabase
-        .from('user_roles')
-        .select('user_id', {count: 'exact', head: true})
-        .eq('role', 'DRIVER')
+      let driverIds: string[] = []
 
       if (warehouseId) {
         // 如果指定了仓库，需要通过 warehouse_assignments 表过滤
@@ -79,26 +82,61 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           .select('user_id')
           .eq('warehouse_id', warehouseId)
 
-        const driverIds = assignedDrivers?.map((a) => a.user_id) || []
+        driverIds = assignedDrivers?.map((a) => a.user_id) || []
         if (driverIds.length === 0) {
           // 该仓库没有分配司机
           const emptyStats: DriverStats = {
             totalDrivers: 0,
             onlineDrivers: 0,
             busyDrivers: 0,
-            idleDrivers: 0
+            idleDrivers: 0,
+            newPureDrivers: 0,
+            newWithVehicleDrivers: 0,
+            pureDrivers: 0,
+            withVehicleDrivers: 0
           }
           setData(emptyStats)
           setLoading(false)
           return emptyStats
         }
-        totalDriversQuery = totalDriversQuery.in('user_id', driverIds)
+      } else {
+        // 获取所有司机ID
+        const {data: allDrivers} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
+        driverIds = allDrivers?.map((d) => d.user_id) || []
       }
 
-      const {count: totalDrivers, error: totalError} = await totalDriversQuery
-      if (totalError) throw totalError
+      // 2. 获取司机详细信息（包括注册时间和司机类型）
+      const {data: driversData, error: driversError} = await supabase
+        .from('users')
+        .select('id, created_at, driver_type')
+        .in('id', driverIds)
 
-      // 2. 获取今日已打卡的司机数（在线司机）
+      if (driversError) throw driversError
+
+      // 3. 统计各类司机数量
+      let newPureDrivers = 0
+      let newWithVehicleDrivers = 0
+      let pureDrivers = 0
+      let withVehicleDrivers = 0
+
+      driversData?.forEach((driver) => {
+        const isNew = new Date(driver.created_at) >= new Date(sevenDaysAgo)
+        const isPure = driver.driver_type === 'pure'
+
+        if (isNew && isPure) {
+          newPureDrivers++
+        } else if (isNew && !isPure) {
+          newWithVehicleDrivers++
+        } else if (!isNew && isPure) {
+          pureDrivers++
+        } else if (!isNew && !isPure) {
+          withVehicleDrivers++
+        }
+      })
+
+      const totalDrivers = driverIds.length
+
+      // 4. 获取今日已打卡的司机数（在线司机）
       let onlineDriversQuery = supabase
         .from('attendance')
         .select('user_id', {count: 'exact', head: false})
@@ -116,7 +154,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || [])
       const onlineDrivers = uniqueOnlineDrivers.size
 
-      // 3. 获取今日有计件记录的司机数（已计件司机）
+      // 5. 获取今日有计件记录的司机数（已计件司机）
       let busyDriversQuery = supabase
         .from('piece_work_records')
         .select('user_id', {count: 'exact', head: false})
@@ -134,14 +172,18 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       const uniqueBusyDrivers = new Set(busyDriversData?.map((r) => r.user_id) || [])
       const busyDrivers = uniqueBusyDrivers.size
 
-      // 4. 计算未计件司机数（在线但没有计件记录）
+      // 6. 计算未计件司机数（在线但没有计件记录）
       const idleDrivers = Math.max(0, onlineDrivers - busyDrivers)
 
       const stats: DriverStats = {
-        totalDrivers: totalDrivers || 0,
+        totalDrivers,
         onlineDrivers,
         busyDrivers,
-        idleDrivers
+        idleDrivers,
+        newPureDrivers,
+        newWithVehicleDrivers,
+        pureDrivers,
+        withVehicleDrivers
       }
 
       // 更新缓存
