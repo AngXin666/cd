@@ -1016,9 +1016,17 @@ const UserManagement: React.FC = () => {
     }
   }
 
-  // 获取司机类型
+  // 获取司机类型（包含新司机标签）
   const getDriverType = (targetUser: UserWithRealName) => {
     if (targetUser.role !== 'DRIVER') return null
+
+    // 尝试从详细信息中获取（包含新司机标签）
+    const detail = userDetails.get(targetUser.id)
+    if (detail?.driverType) {
+      return detail.driverType
+    }
+
+    // 如果没有详细信息，返回基本类型
     return targetUser.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
   }
 
@@ -1409,11 +1417,23 @@ const UserManagement: React.FC = () => {
                           {u.role === 'DRIVER' && detail && getDriverType(u) ? (
                             <View
                               className={`px-2 py-0.5 rounded-full ${
-                                getDriverType(u) === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
+                                getDriverType(u) === '新带车司机'
+                                  ? 'bg-amber-100'
+                                  : getDriverType(u) === '带车司机'
+                                    ? 'bg-orange-100'
+                                    : getDriverType(u) === '新纯司机'
+                                      ? 'bg-cyan-100'
+                                      : 'bg-blue-100'
                               }`}>
                               <Text
                                 className={`text-xs font-medium ${
-                                  getDriverType(u) === '带车司机' ? 'text-orange-700' : 'text-blue-700'
+                                  getDriverType(u) === '新带车司机'
+                                    ? 'text-amber-700'
+                                    : getDriverType(u) === '带车司机'
+                                      ? 'text-orange-700'
+                                      : getDriverType(u) === '新纯司机'
+                                        ? 'text-cyan-700'
+                                        : 'text-blue-700'
                                 }`}>
                                 {getDriverType(u)}
                               </Text>

@@ -988,11 +988,23 @@ const DriverManagement: React.FC = () => {
                                   {detail && (
                                     <View
                                       className={`px-2 py-0.5 rounded-full ${
-                                        detail.driverType === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
+                                        detail.driverType === '新带车司机'
+                                          ? 'bg-amber-100'
+                                          : detail.driverType === '带车司机'
+                                            ? 'bg-orange-100'
+                                            : detail.driverType === '新纯司机'
+                                              ? 'bg-cyan-100'
+                                              : 'bg-blue-100'
                                       }`}>
                                       <Text
                                         className={`text-xs font-medium ${
-                                          detail.driverType === '带车司机' ? 'text-orange-700' : 'text-blue-700'
+                                          detail.driverType === '新带车司机'
+                                            ? 'text-amber-700'
+                                            : detail.driverType === '带车司机'
+                                              ? 'text-orange-700'
+                                              : detail.driverType === '新纯司机'
+                                                ? 'text-cyan-700'
+                                                : 'text-blue-700'
                                         }`}>
                                         {detail.driverType}
                                       </Text>
