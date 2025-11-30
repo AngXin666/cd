@@ -777,6 +777,7 @@ export interface DriverWarehouse {
   id: string
   user_id: string
   warehouse_id: string
+  assigned_by: string | null
   created_at: string
 }
 
@@ -784,6 +785,7 @@ export interface DriverWarehouse {
 export interface DriverWarehouseInput {
   user_id: string
   warehouse_id: string
+  assigned_by?: string
 }
 
 // ==================== 车辆扩展（已废弃 - 多租户相关）====================
