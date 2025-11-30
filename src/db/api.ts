@@ -1014,7 +1014,7 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
 
   const {data, error} = await supabase
     .from('warehouse_assignments')
-    .select('warehouse_id, new_warehouses(*)')
+    .select('warehouse_id, warehouses(*)')
     .eq('user_id', driverId)
 
   console.log('Supabase 查询响应 - data:', data)
@@ -1032,7 +1032,7 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
   }
 
   // 提取仓库信息
-  const warehouses = data.map((item: any) => item.new_warehouses).filter(Boolean)
+  const warehouses = data.map((item: any) => item.warehouses).filter(Boolean)
   console.log('✅ 成功获取司机仓库，数量:', warehouses.length)
   console.log('仓库列表:', warehouses)
 
