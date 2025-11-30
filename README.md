@@ -26,6 +26,33 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复 RLS 策略的 WITH CHECK 子句缺失问题
+  - **问题描述**：司机的请假申请审批后，对应的人的通知中心的信息状态都不会更新
+  - **根本原因**：
+    - 之前添加的 RLS 策略 `Admins can update all notifications` 只有 `USING` 子句，没有 `WITH CHECK` 子句
+    - 在 PostgreSQL 中，对于 UPDATE 操作：
+      - `USING` 子句：决定哪些行可以被更新（WHERE 条件）
+      - `WITH CHECK` 子句：决定更新后的值是否允许（新值检查）
+    - 如果没有 `WITH CHECK`，PostgreSQL 可能会拒绝更新操作
+  - **解决方案**：
+    1. 删除旧的策略
+    2. 重新创建策略，同时添加 `USING` 和 `WITH CHECK` 子句
+    3. 添加调试代码，检查用户认证状态
+  - **修改文件**：
+    - `supabase/migrations/00529_fix_admin_update_notifications_policy.sql`：修复 RLS 策略
+    - `src/pages/super-admin/leave-approval/index.tsx`：添加认证状态调试
+    - `src/pages/manager/leave-approval/index.tsx`：添加认证状态调试
+  - **效果**：
+    - 管理员现在可以成功更新所有通知的状态和内容
+    - 添加了调试日志，方便排查认证问题
+  - **测试结果**：
+    - ✅ 数据库层面的更新操作成功
+    - ✅ RLS 策略正确工作
+    - 🔍 前端需要确保用户已登录且 session 有效
+  - **使用建议**：
+    - 如果审批后通知状态仍未更新，请检查浏览器控制台的日志
+    - 查看 `🔐 当前用户认证状态` 日志，确认 `hasSession` 为 true
+    - 如果 `hasSession` 为 false，说明用户未登录或 session 过期，需要重新登录
 - ✅ **2025-11-30**：修复管理员无法更新其他人通知的权限问题
   - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
   - **根本原因**：

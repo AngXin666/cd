@@ -552,6 +552,17 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
           // 🔄 更新原有通知状态（发送给老板和车队长的通知）
           // 只更新原始申请通知，不更新审批结果通知
+
+          // 检查当前用户的认证状态
+          const {
+            data: {session}
+          } = await supabase.auth.getSession()
+          console.log('🔐 当前用户认证状态:', {
+            hasSession: !!session,
+            userId: session?.user?.id,
+            currentUserId: user.id
+          })
+
           const {data: existingNotifications} = await supabase
             .from('notifications')
             .select('*')
