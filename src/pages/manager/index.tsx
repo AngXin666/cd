@@ -54,7 +54,7 @@ const ManagerHome: React.FC = () => {
   const warehouses = sortedWarehouses
 
   // 获取当前选中的仓库ID
-  const currentWarehouseId = warehouses[currentWarehouseIndex]?.id || ''
+  const currentWarehouseId = warehouses[currentWarehouseIndex]?.id
 
   // 使用仪表板数据管理 Hook
   const {
@@ -68,15 +68,23 @@ const ManagerHome: React.FC = () => {
   })
 
   // 使用司机统计数据管理Hook（带缓存和实时更新）
+  // 只有当有仓库ID时才启用统计
   const {
     data: driverStats,
     loading: driverStatsLoading,
     refresh: refreshDriverStats
   } = useDriverStats({
     warehouseId: currentWarehouseId,
-    enableRealtime: true,
+    enableRealtime: !!currentWarehouseId, // 只有当有仓库ID时才启用实时更新
     cacheEnabled: true
   })
+
+  // 监听 driverStats 变化
+  useEffect(() => {
+    console.log('[ManagerHome] driverStats 更新:', driverStats)
+    console.log('[ManagerHome] currentWarehouseId:', currentWarehouseId)
+    console.log('[ManagerHome] warehouses:', warehouses)
+  }, [driverStats, currentWarehouseId, warehouses])
 
   // 加载用户资料
   const loadProfile = useCallback(async () => {
