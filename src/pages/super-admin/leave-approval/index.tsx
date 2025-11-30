@@ -508,7 +508,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       })
 
       if (success) {
-        // 3. 更新申请人的通知状态
+        // 3. 发送审批结果通知给司机
         try {
           // 获取当前审批人信息
           const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
@@ -546,11 +546,22 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
           // 构建通知消息
           const statusText = approved ? '已通过' : '已拒绝'
-          const _notificationType = approved ? 'leave_approved' : 'leave_rejected'
+          const notificationType = approved ? 'leave_approved' : 'leave_rejected'
           const approvalStatus = approved ? 'approved' : 'rejected'
           const message = `${reviewerText}${statusText}了您的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
 
-          // 使用新的 API 更新通知状态
+          // 🔔 创建新通知给司机（审批结果通知）
+          await createNotification(
+            application.user_id, // 发送给申请人（司机）
+            notificationType,
+            `${leaveTypeText}申请${statusText}`,
+            message,
+            applicationId // 关联请假申请ID
+          )
+
+          console.log(`✅ 已发送审批结果通知给司机: ${application.user_id}`)
+
+          // 🔄 更新原有通知状态（发送给老板和车队长的通知）
           await updateApprovalNotificationStatus(applicationId, approvalStatus, '请假审批通知', message)
 
           console.log(`✅ 已更新请假审批通知状态: ${applicationId}`)
@@ -595,7 +606,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
             }
           }
         } catch (notificationError) {
-          console.error('❌ 更新请假审批通知失败:', notificationError)
+          console.error('❌ 发送审批结果通知失败:', notificationError)
           // 通知发送失败不影响审批流程
         }
 

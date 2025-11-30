@@ -8,6 +8,7 @@ import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 
+import {createNotification, updateApprovalNotificationStatus} from '@/db/notificationApi'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
@@ -514,6 +515,13 @@ const ManagerLeaveApproval: React.FC = () => {
     try {
       showLoading({title: approved ? '批准中...' : '拒绝中...'})
 
+      // 1. 获取请假申请详情
+      const application = leaveApplications.find((app) => app.id === applicationId)
+      if (!application) {
+        throw new Error('未找到请假申请')
+      }
+
+      // 2. 审批请假申请
       const success = await LeaveAPI.reviewLeaveApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
@@ -521,6 +529,68 @@ const ManagerLeaveApproval: React.FC = () => {
       })
 
       if (success) {
+        // 3. 发送审批结果通知给司机
+        try {
+          // 获取当前审批人信息
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
+
+          // 构建审批人显示文本
+          let reviewerText = '车队长'
+          if (currentUserProfile) {
+            const reviewerRealName = currentUserProfile.real_name
+            const reviewerUserName = currentUserProfile.name
+
+            if (reviewerRealName) {
+              reviewerText = `车队长【${reviewerRealName}】`
+            } else if (reviewerUserName && reviewerUserName !== '车队长') {
+              reviewerText = `车队长【${reviewerUserName}】`
+            }
+          }
+
+          // 获取请假类型文本
+          const leaveTypeText =
+            {
+              sick: '病假',
+              personal: '事假',
+              annual: '年假',
+              other: '其他'
+            }[application.leave_type] || '请假'
+
+          // 格式化日期
+          const formatDate = (dateStr: string) => {
+            const date = new Date(dateStr)
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+          }
+
+          const startDate = formatDate(application.start_date)
+          const endDate = formatDate(application.end_date)
+
+          // 构建通知消息
+          const statusText = approved ? '已通过' : '已拒绝'
+          const notificationType = approved ? 'leave_approved' : 'leave_rejected'
+          const approvalStatus = approved ? 'approved' : 'rejected'
+          const message = `${reviewerText}${statusText}了您的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
+
+          // 🔔 创建新通知给司机（审批结果通知）
+          await createNotification(
+            application.user_id, // 发送给申请人（司机）
+            notificationType,
+            `${leaveTypeText}申请${statusText}`,
+            message,
+            applicationId // 关联请假申请ID
+          )
+
+          console.log(`✅ 已发送审批结果通知给司机: ${application.user_id}`)
+
+          // 🔄 更新原有通知状态（发送给老板和车队长的通知）
+          await updateApprovalNotificationStatus(applicationId, approvalStatus, '请假审批通知', message)
+
+          console.log(`✅ 已更新请假审批通知状态: ${applicationId}`)
+        } catch (notificationError) {
+          console.error('❌ 发送审批结果通知失败:', notificationError)
+          // 通知发送失败不影响审批流程
+        }
+
         showToast({
           title: approved ? '已批准' : '已拒绝',
           icon: 'success',
