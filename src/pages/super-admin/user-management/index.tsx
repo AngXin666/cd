@@ -1377,7 +1377,8 @@ const UserManagement: React.FC = () => {
                           <Text className="text-gray-900 text-lg font-bold">
                             {u.real_name || u.name || '未设置姓名'}
                           </Text>
-                          {u.real_name && (
+                          {/* 检查个人信息是否已录入：name 和 phone 都已填写 */}
+                          {u.name && u.phone && (
                             <View className="bg-green-100 px-2 py-0.5 rounded-full">
                               <Text className="text-green-700 text-xs font-medium">已实名</Text>
                             </View>

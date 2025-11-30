@@ -918,8 +918,8 @@ const DriverManagement: React.FC = () => {
                   <View className="space-y-3">
                     {filteredDrivers.map((driver) => {
                       const detail = driverDetails.get(driver.id)
-                      // 检测司机是否已录入个人信息和车辆信息
-                      const hasPersonalInfo = !!detail?.license?.id_card_number
+                      // 检测司机是否已录入个人信息：检查 users 表中的 name 和 phone 是否已填写
+                      const hasPersonalInfo = !!(driver.name && driver.phone)
                       const hasVehicleInfo = detail?.vehicles && detail.vehicles.length > 0
                       const isVerified = hasPersonalInfo || hasVehicleInfo // 只要有一个就算已实名
 
@@ -936,29 +936,28 @@ const DriverManagement: React.FC = () => {
                                   <Text className="text-gray-900 text-lg font-bold">
                                     {driver.real_name || driver.name || '未设置姓名'}
                                   </Text>
-                                  {/* 实名状态标签 */}
-                                  {isVerified ? (
-                                    <>
-                                      {driver.real_name && (
-                                        <View className="bg-green-100 px-2 py-0.5 rounded-full">
-                                          <Text className="text-green-700 text-xs font-medium">已实名</Text>
-                                        </View>
-                                      )}
-                                      {detail && (
-                                        <View
-                                          className={`px-2 py-0.5 rounded-full ${
-                                            detail.driverType === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
-                                          }`}>
-                                          <Text
-                                            className={`text-xs font-medium ${
-                                              detail.driverType === '带车司机' ? 'text-orange-700' : 'text-blue-700'
-                                            }`}>
-                                            {detail.driverType}
-                                          </Text>
-                                        </View>
-                                      )}
-                                    </>
-                                  ) : (
+                                  {/* 实名状态标签：检查个人信息是否已录入 */}
+                                  {hasPersonalInfo && (
+                                    <View className="bg-green-100 px-2 py-0.5 rounded-full">
+                                      <Text className="text-green-700 text-xs font-medium">已实名</Text>
+                                    </View>
+                                  )}
+                                  {/* 司机类型标签 */}
+                                  {detail && (
+                                    <View
+                                      className={`px-2 py-0.5 rounded-full ${
+                                        detail.driverType === '带车司机' ? 'bg-orange-100' : 'bg-blue-100'
+                                      }`}>
+                                      <Text
+                                        className={`text-xs font-medium ${
+                                          detail.driverType === '带车司机' ? 'text-orange-700' : 'text-blue-700'
+                                        }`}>
+                                        {detail.driverType}
+                                      </Text>
+                                    </View>
+                                  )}
+                                  {/* 未实名标签 */}
+                                  {!isVerified && (
                                     <View className="bg-gray-100 px-2 py-0.5 rounded-full">
                                       <Text className="text-gray-600 text-xs font-medium">未实名</Text>
                                     </View>
