@@ -1,5 +1,5 @@
 /*
-# 修复通知表的 INSERT 策略
+# 修复通知表的 INSERT 策略 - 允许车队长发送通知
 
 ## 问题
 - notifications 表的 INSERT 策略使用 is_dispatcher() 函数
@@ -18,9 +18,10 @@
 - 这样可以防止用户冒充他人发送通知
 */
 
--- 删除旧的 INSERT 策略
+-- 删除所有旧的 INSERT 策略
 DROP POLICY IF EXISTS "BOSS 和 DISPATCHER 可以发送通知" ON notifications;
 DROP POLICY IF EXISTS "Managers and bosses can create notifications" ON notifications;
+DROP POLICY IF EXISTS "管理员可以发送通知" ON notifications;
 
 -- 创建新的 INSERT 策略，允许 MANAGER、DISPATCHER 和 BOSS 创建通知
 CREATE POLICY "管理员可以发送通知"
