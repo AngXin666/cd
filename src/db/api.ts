@@ -1010,9 +1010,9 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
   console.log('司机ID:', driverId)
 
   const {data, error} = await supabase
-    .from('driver_warehouses')
+    .from('warehouse_assignments')
     .select('warehouse_id, warehouses(*)')
-    .eq('driver_id', driverId)
+    .eq('user_id', driverId)
 
   console.log('Supabase 查询响应 - data:', data)
   console.log('Supabase 查询响应 - error:', error)
@@ -1046,9 +1046,9 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
     return []
   }
 
-  logger.db('查询', 'driver_warehouses', {driverId})
+  logger.db('查询', 'warehouse_assignments', {driverId})
 
-  const {data, error} = await supabase.from('driver_warehouses').select('warehouse_id').eq('driver_id', driverId)
+  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', driverId)
 
   if (error) {
     logger.error('获取司机仓库ID失败', error)
@@ -1056,7 +1056,7 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
   }
 
   const warehouseIds = data?.map((item) => item.warehouse_id) || []
-  logger.db('查询成功', 'driver_warehouses', {
+  logger.db('查询成功', 'warehouse_assignments', {
     driverId,
     count: warehouseIds.length
   })
@@ -1065,14 +1065,14 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
 
 /**
  * 获取仓库的司机列表
- * 单用户架构：直接查询 driver_warehouses + users + user_roles
+ * 单用户架构：直接查询 warehouse_assignments + users + user_roles
  */
 export async function getDriversByWarehouse(warehouseId: string): Promise<Profile[]> {
   try {
     // 查询仓库的司机关联
     const {data: driverWarehouseData, error: dwError} = await supabase
-      .from('driver_warehouses')
-      .select('driver_id')
+      .from('warehouse_assignments')
+      .select('user_id')
       .eq('warehouse_id', warehouseId)
 
     if (dwError) {
@@ -1084,7 +1084,7 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
       return []
     }
 
-    const driverIds = driverWarehouseData.map((dw) => dw.driver_id)
+    const driverIds = driverWarehouseData.map((dw) => dw.user_id)
 
     // 单用户架构：从 users 表查询司机信息
     const [{data: users, error: usersError}, {data: roles, error: rolesError}] = await Promise.all([
@@ -1163,8 +1163,11 @@ export async function assignWarehouseToDriver(
     return {success: false, error: `仓库"${warehouse.name}"已被禁用，不允许分配司机`}
   }
 
-  // 4. 执行分配
-  const {error} = await supabase.from('driver_warehouses').insert(input)
+  // 4. 执行分配 - 将 driver_id 映射为 user_id
+  const {error} = await supabase.from('warehouse_assignments').insert({
+    user_id: input.driver_id,
+    warehouse_id: input.warehouse_id
+  })
 
   if (error) {
     console.error('分配仓库失败:', error)
@@ -1179,9 +1182,9 @@ export async function assignWarehouseToDriver(
  */
 export async function removeWarehouseFromDriver(driverId: string, warehouseId: string): Promise<boolean> {
   const {error} = await supabase
-    .from('driver_warehouses')
+    .from('warehouse_assignments')
     .delete()
-    .eq('driver_id', driverId)
+    .eq('user_id', driverId)
     .eq('warehouse_id', warehouseId)
 
   if (error) {
@@ -1196,14 +1199,20 @@ export async function removeWarehouseFromDriver(driverId: string, warehouseId: s
  * 获取所有司机仓库关联
  */
 export async function getAllDriverWarehouses(): Promise<DriverWarehouse[]> {
-  const {data, error} = await supabase.from('driver_warehouses').select('*').order('created_at', {ascending: false})
+  const {data, error} = await supabase.from('warehouse_assignments').select('*').order('created_at', {ascending: false})
 
   if (error) {
     console.error('获取司机仓库关联失败:', error)
     return []
   }
 
-  return Array.isArray(data) ? data : []
+  // 将 user_id 映射为 driver_id 以保持兼容性
+  return Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        driver_id: item.user_id
+      }))
+    : []
 }
 
 /**
@@ -1211,9 +1220,9 @@ export async function getAllDriverWarehouses(): Promise<DriverWarehouse[]> {
  */
 export async function getWarehouseAssignmentsByDriver(driverId: string): Promise<DriverWarehouse[]> {
   const {data, error} = await supabase
-    .from('driver_warehouses')
+    .from('warehouse_assignments')
     .select('*')
-    .eq('driver_id', driverId)
+    .eq('user_id', driverId)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -1221,7 +1230,13 @@ export async function getWarehouseAssignmentsByDriver(driverId: string): Promise
     return []
   }
 
-  return Array.isArray(data) ? data : []
+  // 将 user_id 映射为 driver_id 以保持兼容性
+  return Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        driver_id: item.user_id
+      }))
+    : []
 }
 
 /**
@@ -1256,7 +1271,7 @@ export async function getWarehouseAssignmentsByManager(
  * 删除指定司机的所有仓库分配
  */
 export async function deleteWarehouseAssignmentsByDriver(driverId: string): Promise<boolean> {
-  const {error} = await supabase.from('driver_warehouses').delete().eq('driver_id', driverId)
+  const {error} = await supabase.from('warehouse_assignments').delete().eq('user_id', driverId)
 
   if (error) {
     console.error('删除司机仓库分配失败:', error)
@@ -1279,8 +1294,9 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
     return false
   }
 
-  const {error} = await supabase.from('driver_warehouses').insert({
-    ...input
+  const {error} = await supabase.from('warehouse_assignments').insert({
+    user_id: input.driver_id,
+    warehouse_id: input.warehouse_id
   })
 
   if (error) {
@@ -1397,7 +1413,7 @@ export async function setDriverWarehouses(
     }
 
     // 先删除该司机的所有仓库分配
-    const {error: deleteError} = await supabase.from('driver_warehouses').delete().eq('driver_id', driverId)
+    const {error: deleteError} = await supabase.from('warehouse_assignments').delete().eq('user_id', driverId)
 
     if (deleteError) {
       console.error('删除旧仓库分配失败:', deleteError)
@@ -1411,11 +1427,11 @@ export async function setDriverWarehouses(
 
     // 批量插入新的仓库分配
     const insertData = warehouseIds.map((warehouseId) => ({
-      driver_id: driverId,
+      user_id: driverId,
       warehouse_id: warehouseId
     }))
 
-    const {error: insertError} = await supabase.from('driver_warehouses').insert(insertData)
+    const {error: insertError} = await supabase.from('warehouse_assignments').insert(insertData)
 
     if (insertError) {
       console.error('插入新仓库分配失败:', insertError)
@@ -2841,7 +2857,7 @@ export async function validateResignationDate(
  */
 export async function getWarehouseDriverCount(warehouseId: string): Promise<number> {
   const {count, error} = await supabase
-    .from('driver_warehouses')
+    .from('warehouse_assignments')
     .select('*', {count: 'exact', head: true})
     .eq('warehouse_id', warehouseId)
 
@@ -3417,11 +3433,11 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
 
   // 1. 获取该仓库的所有司机ID
   const {data: driverWarehouseData} = await supabase
-    .from('driver_warehouses')
-    .select('driver_id')
+    .from('warehouse_assignments')
+    .select('user_id')
     .eq('warehouse_id', warehouseId)
 
-  const driverIds = driverWarehouseData?.map((dw) => dw.driver_id) || []
+  const driverIds = driverWarehouseData?.map((dw) => dw.user_id) || []
 
   // 2. 并行执行所有统计查询
   const [
@@ -4384,7 +4400,7 @@ export async function getDriverStats(userId: string): Promise<{
     }
 
     // 获取分配的仓库数
-    const {data: warehouseData} = await supabase.from('driver_warehouses').select('id').eq('driver_id', userId)
+    const {data: warehouseData} = await supabase.from('warehouse_assignments').select('id').eq('user_id', userId)
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
 
@@ -4423,12 +4439,12 @@ export async function getManagerStats(userId: string): Promise<{
     let totalDrivers = 0
     if (warehouseIds.length > 0) {
       const {data: driverData} = await supabase
-        .from('driver_warehouses')
-        .select('driver_id')
+        .from('warehouse_assignments')
+        .select('user_id')
         .in('warehouse_id', warehouseIds)
 
       // 去重统计司机数
-      const uniqueDrivers = new Set(Array.isArray(driverData) ? driverData.map((d) => d.driver_id) : [])
+      const uniqueDrivers = new Set(Array.isArray(driverData) ? driverData.map((d) => d.user_id) : [])
       totalDrivers = uniqueDrivers.size
     }
 
@@ -6951,14 +6967,14 @@ export async function sendNotificationToDrivers(driverIds: string[], title: stri
  */
 export async function getDriverIdsByWarehouse(warehouseId: string): Promise<string[]> {
   try {
-    const {data, error} = await supabase.from('driver_warehouses').select('driver_id').eq('warehouse_id', warehouseId)
+    const {data, error} = await supabase.from('warehouse_assignments').select('user_id').eq('warehouse_id', warehouseId)
 
     if (error) {
       console.error('获取仓库司机失败:', error)
       return []
     }
 
-    return Array.isArray(data) ? data.map((item) => item.driver_id) : []
+    return Array.isArray(data) ? data.map((item) => item.user_id) : []
   } catch (error) {
     console.error('获取仓库司机异常:', error)
     return []

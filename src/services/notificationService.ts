@@ -162,9 +162,9 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
 
     // 获取司机所在的仓库
     const {data: driverWarehouses, error: dwError} = await supabase
-      .from('driver_warehouses')
+      .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('driver_id', driverId)
+      .eq('user_id', driverId)
 
     if (dwError || !driverWarehouses || driverWarehouses.length === 0) {
       logger.warn('司机未分配仓库', {driverId})
@@ -201,7 +201,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
  * 获取对司机有管辖权的车队长
  * @param driverId 司机ID
  * @returns 有管辖权的车队长列表
- * 单用户架构：直接查询 driver_warehouses + warehouse_assignments + users + user_roles
+ * 单用户架构：直接查询 warehouse_assignments + users + user_roles
  */
 async function getManagersWithJurisdiction(driverId: string): Promise<NotificationRecipient[]> {
   try {
@@ -215,9 +215,9 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     // 步骤1：获取司机所在的仓库
     const {data: driverWarehouses, error: dwError} = await supabase
-      .from('driver_warehouses')
+      .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('driver_id', driverId)
+      .eq('user_id', driverId)
 
     if (dwError) {
       logger.error('获取司机仓库失败', {error: dwError, driverId})

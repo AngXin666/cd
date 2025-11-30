@@ -73,13 +73,13 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         .eq('role', 'DRIVER')
 
       if (warehouseId) {
-        // 如果指定了仓库，需要通过 driver_warehouses 表过滤
+        // 如果指定了仓库，需要通过 warehouse_assignments 表过滤
         const {data: assignedDrivers} = await supabase
-          .from('driver_warehouses')
-          .select('driver_id')
+          .from('warehouse_assignments')
+          .select('user_id')
           .eq('warehouse_id', warehouseId)
 
-        const driverIds = assignedDrivers?.map((a) => a.driver_id) || []
+        const driverIds = assignedDrivers?.map((a) => a.user_id) || []
         if (driverIds.length === 0) {
           // 该仓库没有分配司机
           const emptyStats: DriverStats = {
@@ -240,7 +240,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         {
           event: '*',
           schema: 'public',
-          table: 'driver_warehouses'
+          table: 'warehouse_assignments'
         },
         (payload) => {
           console.log('[useDriverStats] 司机分配变化:', payload)

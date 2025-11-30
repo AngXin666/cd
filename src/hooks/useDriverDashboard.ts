@@ -448,14 +448,14 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
 
     // 创建实时订阅频道
     const channel = supabase
-      .channel(`driver_warehouses_${userId}`)
+      .channel(`warehouse_assignments_${userId}`)
       .on(
         'postgres_changes',
         {
           event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
           schema: 'public',
-          table: 'driver_warehouses',
-          filter: `driver_id=eq.${userId}`
+          table: 'warehouse_assignments',
+          filter: `user_id=eq.${userId}`
         },
         (payload) => {
           console.log('[useDriverWarehouses] 检测到仓库分配变化:', payload)
