@@ -20,37 +20,43 @@ interface NotificationRecipient {
 
 /**
  * 获取主账号（老板）
- * 注意：主账号的 main_account_id 为 NULL
- * 单用户架构：直接查询 users 和 user_roles 表
+ * 单用户架构：返回第一个 SUPER_ADMIN 角色的用户
  */
 async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
   try {
     logger.info('查询主账号（老板）')
 
-    // 单用户架构：从 users 和 user_roles 表查询
-    const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
-      supabase.from('users').select('id, name').is('main_account_id', null).maybeSingle(),
-      supabase.from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN').maybeSingle()
-    ])
+    // 单用户架构：从 users 和 user_roles 表查询第一个 SUPER_ADMIN
+    const {data: roleData, error: roleError} = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('role', 'SUPER_ADMIN')
+      .order('user_id', {ascending: true})
+      .limit(1)
+      .maybeSingle()
 
-    if (userError) {
-      logger.error('获取主账号失败', {error: userError})
-      return null
-    }
-
-    // 合并用户和角色数据
-    const data = userData && roleData && userData.id === roleData.user_id ? {...userData, role: roleData.role} : null
-
-    if (!data) {
+    if (roleError || !roleData) {
       logger.warn('未找到主账号')
       return null
     }
 
-    logger.info('找到主账号', {userId: data.id, name: data.name})
+    // 获取用户信息
+    const {data: userData, error: userError} = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('id', roleData.user_id)
+      .maybeSingle()
+
+    if (userError || !userData) {
+      logger.error('获取主账号用户信息失败', {error: userError})
+      return null
+    }
+
+    logger.info('找到主账号', {userId: userData.id, name: userData.name})
     return {
-      userId: data.id,
-      name: data.name || '老板',
-      role: data.role
+      userId: userData.id,
+      name: userData.name || '老板',
+      role: roleData.role
     }
   } catch (error) {
     logger.error('获取主账号异常', error)
@@ -60,42 +66,46 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
 
 /**
  * 获取所有平级账号
- * 注意：平级账号的 main_account_id 不为 NULL
- * 单用户架构：直接查询 users 和 user_roles 表
+ * 单用户架构：返回除第一个之外的所有 SUPER_ADMIN 角色用户
  */
 async function getPeerAccounts(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询平级账号')
 
-    // 单用户架构：从 users 和 user_roles 表查询
-    const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
-      supabase.from('users').select('id, name').not('main_account_id', 'is', null),
-      supabase.from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
-    ])
+    // 单用户架构：从 users 和 user_roles 表查询所有 SUPER_ADMIN（跳过第一个）
+    const {data: roles, error: rolesError} = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('role', 'SUPER_ADMIN')
+      .order('user_id', {ascending: true})
 
-    if (usersError) {
-      logger.error('获取平级账号失败', {error: usersError})
-      return []
-    }
-
-    // 合并用户和角色数据
-    const data = users
-      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
-      .map((user) => ({
-        ...user,
-        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
-      }))
-
-    if (!data || data.length === 0) {
+    if (rolesError || !roles || roles.length <= 1) {
       logger.info('未找到平级账号')
       return []
     }
 
-    logger.info('找到平级账号', {count: data.length})
-    return data.map((p) => ({
-      userId: p.id,
-      name: p.name || '平级账号',
-      role: p.role
+    // 跳过第一个（主账号）
+    const peerRoles = roles.slice(1)
+
+    // 获取用户信息
+    const {data: users, error: usersError} = await supabase
+      .from('users')
+      .select('id, name')
+      .in(
+        'id',
+        peerRoles.map((r) => r.user_id)
+      )
+
+    if (usersError || !users) {
+      logger.error('获取平级账号用户信息失败', {error: usersError})
+      return []
+    }
+
+    logger.info('找到平级账号', {count: users.length})
+    return users.map((user) => ({
+      userId: user.id,
+      name: user.name || '平级账号',
+      role: 'SUPER_ADMIN'
     }))
   } catch (error) {
     logger.error('获取平级账号异常', error)
