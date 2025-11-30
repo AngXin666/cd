@@ -45,7 +45,7 @@ export async function getRolePermissions(roleId: string): Promise<string[]> {
     return []
   }
 
-  return Array.isArray(data) ? data.map(item => item.permission_id) : []
+  return Array.isArray(data) ? data.map((item) => item.permission_id) : []
 }
 
 /**
@@ -64,7 +64,7 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
       return []
     }
 
-    return Array.isArray(data) ? data.map(item => item.permission_id) : []
+    return Array.isArray(data) ? data.map((item) => item.permission_id) : []
   } catch (error) {
     console.error('获取用户权限异常:', error)
     return []
@@ -153,7 +153,7 @@ export async function updateRolePermissions(roleId: string, permissionIds: strin
 
     // 2. 插入新的权限映射
     if (permissionIds.length > 0) {
-      const mappings: Omit<RolePermission, 'id' | 'created_at'>[] = permissionIds.map(permissionId => ({
+      const mappings: Omit<RolePermission, 'id' | 'created_at'>[] = permissionIds.map((permissionId) => ({
         role_id: roleId,
         permission_id: permissionId
       }))

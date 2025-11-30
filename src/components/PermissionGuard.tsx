@@ -83,5 +83,5 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   }
 
   // 根据权限决定显示内容
-  return hasAccess ? <>{children}</> : <>{fallback}</>
+  return hasAccess ? children : fallback
 }

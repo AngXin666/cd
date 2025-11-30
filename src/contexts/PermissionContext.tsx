@@ -3,11 +3,10 @@
  * 提供全局权限状态管理和验证功能
  */
 
+import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react'
 import {getUserPermissions} from '@/db/permission-api'
-import type {UserPermissions} from '@/db/types/permission'
-import {useAuth} from 'miaoda-auth-taro'
 
 /**
  * 权限上下文类型定义
@@ -115,7 +114,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasAnyPermission = useCallback(
     (permissionCodes: string[]): boolean => {
-      const result = permissionCodes.some(code => permissions.has(code))
+      const result = permissionCodes.some((code) => permissions.has(code))
       console.log('🔍 权限检查(任一):', {permissionCodes, result})
       return result
     },
@@ -127,7 +126,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasAllPermissions = useCallback(
     (permissionCodes: string[]): boolean => {
-      const result = permissionCodes.every(code => permissions.has(code))
+      const result = permissionCodes.every((code) => permissions.has(code))
       console.log('🔍 权限检查(全部):', {permissionCodes, result})
       return result
     },

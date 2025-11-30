@@ -92,7 +92,10 @@ export default function PermissionDemo() {
                 <Text className="text-foreground">{permissions.size}</Text>
               </View>
             </View>
-            <Button className="mt-4 bg-primary text-primary-foreground py-2 rounded break-keep text-base" size="default" onClick={handleRefresh}>
+            <Button
+              className="mt-4 bg-primary text-primary-foreground py-2 rounded break-keep text-base"
+              size="default"
+              onClick={handleRefresh}>
               刷新权限
             </Button>
           </View>
@@ -102,7 +105,7 @@ export default function PermissionDemo() {
             <Text className="text-lg font-bold text-foreground mb-2">我的权限</Text>
             {permissions.size > 0 ? (
               <View className="space-y-1">
-                {Array.from(permissions).map(perm => (
+                {Array.from(permissions).map((perm) => (
                   <View key={perm} className="flex flex-row items-center py-1">
                     <View className="w-2 h-2 rounded-full bg-primary mr-2" />
                     <Text className="text-sm text-foreground">{perm}</Text>
@@ -121,22 +124,19 @@ export default function PermissionDemo() {
               <Button
                 className="bg-secondary text-secondary-foreground py-2 rounded break-keep text-base"
                 size="default"
-                onClick={() => testPermission(PermissionCode.DRIVER_VIEW)}
-              >
+                onClick={() => testPermission(PermissionCode.DRIVER_VIEW)}>
                 测试: 查看司机
               </Button>
               <Button
                 className="bg-secondary text-secondary-foreground py-2 rounded break-keep text-base"
                 size="default"
-                onClick={() => testPermission(PermissionCode.DRIVER_MANAGE)}
-              >
+                onClick={() => testPermission(PermissionCode.DRIVER_MANAGE)}>
                 测试: 管理司机
               </Button>
               <Button
                 className="bg-secondary text-secondary-foreground py-2 rounded break-keep text-base"
                 size="default"
-                onClick={() => testPermission(PermissionCode.PIECEWORK_APPROVE)}
-              >
+                onClick={() => testPermission(PermissionCode.PIECEWORK_APPROVE)}>
                 测试: 审核计件
               </Button>
             </View>
@@ -158,8 +158,7 @@ export default function PermissionDemo() {
                   <View className="bg-red-100 p-3 rounded">
                     <Text className="text-red-800">✗ 您没有"管理司机"权限</Text>
                   </View>
-                }
-              >
+                }>
                 <View className="bg-green-100 p-3 rounded">
                   <Text className="text-green-800">✓ 您有"管理司机"权限</Text>
                 </View>
@@ -183,13 +182,12 @@ export default function PermissionDemo() {
           <View className="bg-card rounded-lg p-4 shadow">
             <Text className="text-lg font-bold text-foreground mb-2">角色权限查询</Text>
             <View className="space-y-2">
-              {roles.map(role => (
+              {roles.map((role) => (
                 <Button
                   key={role.id}
                   className={`py-2 rounded break-keep text-base ${selectedRole === role.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}
                   size="default"
-                  onClick={() => handleRoleSelect(role.id)}
-                >
+                  onClick={() => handleRoleSelect(role.id)}>
                   {role.name}
                 </Button>
               ))}
@@ -198,10 +196,10 @@ export default function PermissionDemo() {
             {selectedRole && (
               <View className="mt-4 p-3 bg-muted rounded">
                 <Text className="text-sm font-bold text-foreground mb-2">
-                  {roles.find(r => r.id === selectedRole)?.name} 的权限:
+                  {roles.find((r) => r.id === selectedRole)?.name} 的权限:
                 </Text>
                 <View className="space-y-1">
-                  {rolePermissions.map(perm => (
+                  {rolePermissions.map((perm) => (
                     <View key={perm} className="flex flex-row items-center py-1">
                       <View className="w-2 h-2 rounded-full bg-primary mr-2" />
                       <Text className="text-xs text-foreground">{perm}</Text>
@@ -232,13 +230,15 @@ export default function PermissionDemo() {
                   <View key={module} className="p-3 bg-muted rounded">
                     <Text className="text-sm font-bold text-foreground mb-2">{module} 模块</Text>
                     <View className="space-y-1">
-                      {perms.map(perm => (
+                      {perms.map((perm) => (
                         <View key={perm.id} className="flex flex-row items-start py-1">
                           <View className="w-2 h-2 rounded-full bg-primary mr-2 mt-1" />
                           <View className="flex-1">
                             <Text className="text-xs font-medium text-foreground">{perm.name}</Text>
                             <Text className="text-xs text-muted-foreground">{perm.id}</Text>
-                            {perm.description && <Text className="text-xs text-muted-foreground">{perm.description}</Text>}
+                            {perm.description && (
+                              <Text className="text-xs text-muted-foreground">{perm.description}</Text>
+                            )}
                           </View>
                         </View>
                       ))}
