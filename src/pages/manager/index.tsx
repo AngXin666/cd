@@ -129,9 +129,11 @@ const ManagerHome: React.FC = () => {
   useDidShow(() => {
     if (user) {
       // 批量并行刷新所有数据
-      loadProfile()
-      refreshWarehouses()
-      refreshSorting()
+      Promise.all([loadProfile(), refreshWarehouses(), refreshSorting()]).catch((error) => {
+        console.error('[ManagerHome] 批量刷新数据失败:', error)
+      })
+
+      // 如果有仓库ID，则同时刷新仪表板和司机统计
       if (currentWarehouseId) {
         refreshDashboard()
         refreshDriverStats()

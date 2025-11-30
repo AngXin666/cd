@@ -76,17 +76,27 @@ const PieceWorkEntry: React.FC = () => {
   const loadData = useCallback(async () => {
     if (!user?.id) return
 
-    // 加载司机信息
-    const profile = await UsersAPI.getUserById(user.id)
-    setDriverProfile(profile)
+    // 批量并行加载基础数据
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const firstDay = `${year}-${month}-01`
+    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
+    const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
 
-    // 获取今日打卡记录
-    const todayAttendance = await AttendanceAPI.getTodayAttendance(user.id)
+    const [profile, todayAttendance, allWarehouses, recordsData] = await Promise.all([
+      UsersAPI.getUserById(user.id),
+      AttendanceAPI.getTodayAttendance(user.id),
+      WarehousesAPI.getDriverWarehouses(user.id),
+      PieceworkAPI.getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
+    ])
+
+    setDriverProfile(profile)
     const clockedWarehouse = todayAttendance?.warehouse_id || null
     setClockedWarehouseId(clockedWarehouse)
+    setRecords(recordsData)
 
-    // 加载司机的仓库（只加载启用的仓库）
-    const allWarehouses = await WarehousesAPI.getDriverWarehouses(user.id)
+    // 过滤启用的仓库
     const activeWarehouses = allWarehouses.filter((w) => w.is_active)
     setWarehouses(activeWarehouses)
 
@@ -98,17 +108,6 @@ const PieceWorkEntry: React.FC = () => {
       })
       return
     }
-
-    // 加载本月的计件记录
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const firstDay = `${year}-${month}-01`
-    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
-    const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
-
-    const recordsData = await PieceworkAPI.getPieceWorkRecordsByUser(user.id, firstDay, lastDayStr)
-    setRecords(recordsData)
 
     // 只在首次加载时恢复用户偏好设置或自动选择打卡仓库
     if (isFirstLoad) {
@@ -148,35 +147,36 @@ const PieceWorkEntry: React.FC = () => {
           } else {
             setSelectedCategoryIndex(0)
           }
-        } else if (categoriesData.length > 0) {
+        } else {
           setSelectedCategoryIndex(0)
-        }
-      }
-
-      const lastDate = getLastWorkDate()
-      if (lastDate) {
-        const lastDateObj = new Date(lastDate)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        if (lastDateObj >= today) {
-          setWorkDate(lastDate)
-        }
-      }
-
-      const formDefaults = getPieceWorkFormDefaults()
-      if (formDefaults) {
-        if (formDefaults.needUpstairs !== undefined) {
-          setPieceWorkItems((prev) =>
-            prev.map((item, index) =>
-              index === 0 ? {...item, needUpstairs: formDefaults.needUpstairs || false} : item
-            )
-          )
         }
       }
 
       setIsFirstLoad(false)
     }
   }, [user?.id, isFirstLoad])
+
+  // 恢复上次的工作日期和表单默认值（如果是今天或未来）
+  useEffect(() => {
+    const lastDate = getLastWorkDate()
+    if (lastDate) {
+      const lastDateObj = new Date(lastDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (lastDateObj >= today) {
+        setWorkDate(lastDate)
+      }
+    }
+
+    const formDefaults = getPieceWorkFormDefaults()
+    if (formDefaults) {
+      if (formDefaults.needUpstairs !== undefined) {
+        setPieceWorkItems((prev) =>
+          prev.map((item, index) => (index === 0 ? {...item, needUpstairs: formDefaults.needUpstairs || false} : item))
+        )
+      }
+    }
+  }, [])
 
   useEffect(() => {
     loadData()

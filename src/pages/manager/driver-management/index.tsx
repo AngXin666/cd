@@ -211,10 +211,11 @@ const DriverManagement: React.FC = () => {
     loadManagerPermissions()
   }, [loadDrivers, loadWarehouses, loadManagerPermissions])
 
+  // 页面显示时加载数据（批量并行查询优化）
   useDidShow(() => {
-    loadDrivers()
-    loadWarehouses()
-    loadManagerPermissions()
+    Promise.all([loadDrivers(), loadWarehouses(), loadManagerPermissions()]).catch((error) => {
+      console.error('[DriverManagement] 批量刷新数据失败:', error)
+    })
   })
 
   // 下拉刷新
