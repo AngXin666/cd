@@ -1,6 +1,17 @@
 /**
  * 通知系统 API
  * 提供通知的查询、标记已读、删除等功能
+ *
+ * 审批类型通知说明：
+ * - 审批类型的通知包括：请假申请、离职申请、车辆审核等需要管理员审批的通知
+ * - 审批类型的通知使用 approval_status 字段标记状态（pending/approved/rejected）
+ * - 审批完成后，直接更新原通知的状态，而不是创建新通知
+ * - 非审批类型的通知不使用 approval_status 字段
+ *
+ * 审批类型通知列表：
+ * - leave_application_submitted: 请假申请提交
+ * - resignation_application_submitted: 离职申请提交
+ * - vehicle_review_pending: 车辆待审核
  */
 
 import {supabase} from '@/client/supabase'
@@ -626,6 +637,21 @@ export async function createOrUpdateApprovalNotification(
   approvalStatus: ApprovalStatus = 'pending'
 ): Promise<boolean> {
   try {
+    // 定义审批类型的通知
+    const approvalTypes: NotificationType[] = [
+      'leave_application_submitted',
+      'resignation_application_submitted',
+      'vehicle_review_pending'
+    ]
+
+    // 检查是否为审批类型
+    if (!approvalTypes.includes(type)) {
+      console.warn(`⚠️ 通知类型 ${type} 不是审批类型，不应使用 createOrUpdateApprovalNotification`)
+      logger.warn('尝试为非审批类型创建审批通知', {type, title})
+      // 对于非审批类型，使用普通的通知创建方式
+      return false
+    }
+
     // 参数验证
     console.log('🔔 createOrUpdateApprovalNotification 调用参数:', {
       recipientId,
@@ -754,6 +780,7 @@ export async function createOrUpdateApprovalNotification(
 /**
  * 更新审批通知状态
  * 根据 related_id 查找通知并更新审批状态
+ * 注意：此函数只应用于审批类型的通知（请假、离职、车辆审核等）
  * @param relatedId 关联的记录ID
  * @param approvalStatus 审批状态（'approved', 'rejected'）
  * @param newTitle 新的标题（可选）
@@ -794,6 +821,14 @@ export async function updateApprovalNotificationStatus(
     if (!notifications || notifications.length === 0) {
       logger.warn('未找到相关通知', {relatedId})
       return false
+    }
+
+    // 检查通知类型是否为审批类型
+    const approvalTypes = ['leave_application_submitted', 'resignation_application_submitted', 'vehicle_review_pending']
+    const hasNonApprovalType = notifications.some((n) => !approvalTypes.includes(n.type))
+    if (hasNonApprovalType) {
+      logger.warn('发现非审批类型的通知，跳过更新', {relatedId})
+      console.warn('⚠️ 发现非审批类型的通知，不应使用 updateApprovalNotificationStatus')
     }
 
     // 更新所有相关通知的状态
