@@ -782,7 +782,7 @@ export interface DriverWarehouse {
 
 // 创建司机仓库关联的输入接口
 export interface DriverWarehouseInput {
-  driver_id: string
+  user_id: string
   warehouse_id: string
 }
 

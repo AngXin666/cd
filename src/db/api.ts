@@ -1128,7 +1128,7 @@ export async function assignWarehouseToDriver(
   const {data: driver, error: driverError} = await supabase
     .from('users')
     .select('name')
-    .eq('id', input.driver_id)
+    .eq('id', input.user_id)
     .maybeSingle()
 
   if (driverError) {
@@ -1137,7 +1137,7 @@ export async function assignWarehouseToDriver(
   }
 
   if (!driver) {
-    console.error('司机不存在:', input.driver_id)
+    console.error('司机不存在:', input.user_id)
     return {success: false, error: '司机不存在'}
   }
 
@@ -1163,9 +1163,9 @@ export async function assignWarehouseToDriver(
     return {success: false, error: `仓库"${warehouse.name}"已被禁用，不允许分配司机`}
   }
 
-  // 4. 执行分配 - 将 driver_id 映射为 user_id
+  // 4. 执行分配
   const {error} = await supabase.from('warehouse_assignments').insert({
-    user_id: input.driver_id,
+    user_id: input.user_id,
     warehouse_id: input.warehouse_id
   })
 
@@ -1206,13 +1206,7 @@ export async function getAllDriverWarehouses(): Promise<DriverWarehouse[]> {
     return []
   }
 
-  // 将 user_id 映射为 driver_id 以保持兼容性
-  return Array.isArray(data)
-    ? data.map((item) => ({
-        ...item,
-        driver_id: item.user_id
-      }))
-    : []
+  return Array.isArray(data) ? data : []
 }
 
 /**
@@ -1230,13 +1224,7 @@ export async function getWarehouseAssignmentsByDriver(driverId: string): Promise
     return []
   }
 
-  // 将 user_id 映射为 driver_id 以保持兼容性
-  return Array.isArray(data)
-    ? data.map((item) => ({
-        ...item,
-        driver_id: item.user_id
-      }))
-    : []
+  return Array.isArray(data) ? data : []
 }
 
 /**
@@ -1295,7 +1283,7 @@ export async function insertWarehouseAssignment(input: DriverWarehouseInput): Pr
   }
 
   const {error} = await supabase.from('warehouse_assignments').insert({
-    user_id: input.driver_id,
+    user_id: input.user_id,
     warehouse_id: input.warehouse_id
   })
 

@@ -364,7 +364,7 @@ const DriverManagement: React.FC = () => {
         logger.info('开始为新司机分配仓库', {driverId: newDriver.id, warehouseIds: newDriverWarehouseIds})
         for (const warehouseId of newDriverWarehouseIds) {
           await WarehousesAPI.insertWarehouseAssignment({
-            driver_id: newDriver.id,
+            user_id: newDriver.id,
             warehouse_id: warehouseId
           })
         }
@@ -578,7 +578,7 @@ const DriverManagement: React.FC = () => {
       // 添加新的仓库分配
       for (const warehouseId of selectedWarehouseIds) {
         await WarehousesAPI.insertWarehouseAssignment({
-          driver_id: driverId,
+          user_id: driverId,
           warehouse_id: warehouseId
         })
       }

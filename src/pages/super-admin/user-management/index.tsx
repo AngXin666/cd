@@ -488,7 +488,7 @@ const UserManagement: React.FC = () => {
             // 为司机分配仓库（使用 warehouse_assignments 表）
             for (const warehouseId of newUserWarehouseIds) {
               await WarehousesAPI.insertWarehouseAssignment({
-                driver_id: newUser.id,
+                user_id: newUser.id,
                 warehouse_id: warehouseId
               })
             }
@@ -771,7 +771,7 @@ const UserManagement: React.FC = () => {
       for (const warehouseId of selectedWarehouseIds) {
         if (userRole === 'DRIVER') {
           await WarehousesAPI.insertWarehouseAssignment({
-            driver_id: userId,
+            user_id: userId,
             warehouse_id: warehouseId
           })
         } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
