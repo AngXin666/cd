@@ -3422,15 +3422,27 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
   const today = getLocalDateString()
   const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
-  // 1. 获取该仓库的所有司机ID
-  const {data: driverWarehouseData} = await supabase
+  // 1. 获取该仓库的所有用户ID
+  const {data: warehouseAssignments} = await supabase
     .from('warehouse_assignments')
     .select('user_id')
     .eq('warehouse_id', warehouseId)
 
-  const driverIds = driverWarehouseData?.map((dw) => dw.user_id) || []
+  const allUserIds = warehouseAssignments?.map((wa) => wa.user_id) || []
 
-  // 2. 并行执行所有统计查询
+  // 2. 过滤出司机ID（排除车队长和老板）
+  let driverIds: string[] = []
+  if (allUserIds.length > 0) {
+    const {data: userRoles} = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('user_id', allUserIds)
+      .eq('role', 'DRIVER') // 只获取司机角色
+
+    driverIds = userRoles?.map((ur) => ur.user_id) || []
+  }
+
+  // 3. 并行执行所有统计查询
   const [
     todayAttendanceResult,
     todayPieceResult,
@@ -3478,13 +3490,13 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
       : Promise.resolve({data: null})
   ])
 
-  // 3. 处理统计数据
+  // 4. 处理统计数据
   const todayAttendance = todayAttendanceResult.data?.length || 0
   const todayPieceCount = todayPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
   const pendingLeaveCount = pendingLeaveResult.data?.length || 0
   const monthlyPieceCount = monthlyPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
 
-  // 4. 构建司机列表（使用批量查询结果）
+  // 5. 构建司机列表（使用批量查询结果）
   const driverList: DashboardStats['driverList'] = []
 
   if (driversResult.data && driversResult.data.length > 0) {
