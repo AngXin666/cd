@@ -30,7 +30,7 @@ interface UserWithRealName extends Profile {
 
 // 辅助函数：判断是否是管理员角色（boss 或 super_admin）
 const isAdminRole = (role: string | undefined) => {
-  return role === 'BOSS' || role === 'BOSS'
+  return role === 'BOSS' || role === 'PEER_ADMIN'
 }
 
 const UserManagement: React.FC = () => {
