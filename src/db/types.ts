@@ -775,7 +775,7 @@ export interface AttendanceRuleUpdate {
 // 司机仓库关联接口（保留用于兼容性）
 export interface DriverWarehouse {
   id: string
-  driver_id: string
+  user_id: string
   warehouse_id: string
   created_at: string
 }
