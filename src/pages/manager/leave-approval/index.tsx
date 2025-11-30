@@ -591,6 +591,16 @@ const ManagerLeaveApproval: React.FC = () => {
             .eq('type', 'leave_application_submitted') // 只查询原始申请通知
 
           console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
+          console.log(
+            '📋 通知详情:',
+            existingNotifications?.map((n) => ({
+              id: n.id,
+              recipient_id: n.recipient_id,
+              approval_status: n.approval_status,
+              title: n.title
+            }))
+          )
+          console.log('👤 当前审批人 ID:', user.id)
 
           if (existingNotifications && existingNotifications.length > 0) {
             // 针对每个通知接收者单独更新
@@ -602,7 +612,11 @@ const ManagerLeaveApproval: React.FC = () => {
                 : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
 
               console.log(
-                `📝 更新通知 ${notification.id}，接收者: ${notification.recipient_id}，是否为审批人: ${isReviewer}`
+                `📝 准备更新通知 ${notification.id}:`,
+                `\n  - 接收者: ${notification.recipient_id}`,
+                `\n  - 是否为审批人: ${isReviewer}`,
+                `\n  - 新状态: ${approvalStatus}`,
+                `\n  - 新内容: ${message}`
               )
 
               const {error: updateError} = await supabase
