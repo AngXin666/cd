@@ -931,10 +931,13 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
     .from('attendance_rules')
     .insert({
       warehouse_id: input.warehouse_id,
+      clock_in_time: input.clock_in_time,
+      clock_out_time: input.clock_out_time,
       work_start_time: input.work_start_time,
       work_end_time: input.work_end_time,
       late_threshold: input.late_threshold || 15,
       early_threshold: input.early_threshold || 15,
+      require_clock_out: input.require_clock_out !== undefined ? input.require_clock_out : true,
       is_active: input.is_active !== undefined ? input.is_active : true
     })
     .select()
