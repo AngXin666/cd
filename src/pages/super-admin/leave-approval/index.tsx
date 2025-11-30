@@ -573,7 +573,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
             // 针对每个通知接收者单独更新
             for (const notification of existingNotifications) {
               // 判断接收者是否为审批人本人
-              const isReviewer = notification.user_id === user.id
+              const isReviewer = notification.recipient_id === user.id
               const message = isReviewer
                 ? `您${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
                 : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
@@ -732,7 +732,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
             // 针对每个通知接收者单独更新
             for (const notification of existingNotifications) {
               // 判断接收者是否为审批人本人
-              const isReviewer = notification.user_id === user.id
+              const isReviewer = notification.recipient_id === user.id
               const message = isReviewer
                 ? `您${statusText}了司机的离职申请（离职日期：${resignationDate}）`
                 : `${reviewerText}${statusText}了司机的离职申请（离职日期：${resignationDate}）`
