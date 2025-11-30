@@ -108,6 +108,28 @@ relation "public.category_prices" does not exist
 
 ---
 
+### 6. users 表 RLS 未启用 ✅
+
+**错误现象**：
+```
+考勤管理页面读取不到司机列表
+```
+
+**影响**：
+- 考勤管理页面无法显示司机列表
+- 所有需要显示用户信息的功能失效
+- 无法查看司机档案
+- 无法进行用户管理
+
+**修复方案**：
+- 启用 `users` 表的 RLS（行级安全）
+- 创建查看策略：所有认证用户可以查看所有用户
+- 创建更新策略：用户可以更新自己的信息
+- 创建管理员策略：管理员可以管理所有用户
+- 迁移文件：`00505_enable_rls_for_users_table.sql`
+
+---
+
 ## 技术细节
 
 ### 系统架构变更
@@ -198,6 +220,11 @@ EXISTS (
    - 包含多种价格类型
    - 配置完整的 RLS 策略
 
+5. **`supabase/migrations/00505_enable_rls_for_users_table.sql`**
+   - 启用 users 表的 RLS
+   - 创建查看、更新、管理员策略
+   - 解决考勤管理读取不到司机的问题
+
 ### 代码修改文件
 
 1. **`src/db/api.ts`**
@@ -223,11 +250,20 @@ EXISTS (
 -- 验证所有表都已创建
 SELECT table_name FROM information_schema.tables 
 WHERE table_schema = 'public' 
-AND table_name IN ('driver_licenses', 'attendance_rules', 'category_prices', 'new_warehouses')
+AND table_name IN ('driver_licenses', 'attendance_rules', 'category_prices', 'new_warehouses', 'users')
 ORDER BY table_name;
 ```
 
 **结果**：✅ 所有表都已成功创建
+
+**RLS 验证**：
+```sql
+-- 验证 users 表 RLS 已启用
+SELECT tablename, rowsecurity FROM pg_tables 
+WHERE schemaname = 'public' AND tablename = 'users';
+```
+
+**结果**：✅ users 表 RLS 已启用（rowsecurity = true）
 
 ### 代码质量验证
 
@@ -238,7 +274,7 @@ pnpm run lint
 
 **结果**：
 ```
-Checked 220 files in 1140ms. No fixes applied.
+Checked 220 files in 1274ms. No fixes applied.
 ```
 
 ✅ 所有代码检查通过，没有错误
@@ -263,6 +299,8 @@ Checked 220 files in 1140ms. No fixes applied.
 - ✅ 品类价格更新
 - ✅ 品类价格删除
 - ✅ 计件工资计算
+- ✅ 用户列表查询
+- ✅ 考勤管理司机列表显示
 
 ### 权限控制
 
@@ -280,9 +318,11 @@ Checked 220 files in 1140ms. No fixes applied.
 - ✅ 可以查看自己的数据
 - ✅ 可以查看自己仓库的考勤规则
 - ✅ 可以查看品类价格
+- ✅ 可以查看所有用户的基本信息
 - ❌ 不能修改考勤规则
 - ❌ 不能修改品类价格
 - ❌ 不能管理其他司机
+- ❌ 不能修改其他用户的信息
 
 ### 数据完整性
 
@@ -440,10 +480,11 @@ SELECT role FROM users WHERE id = auth.uid()
 
 **修复统计**：
 - 重建表：3 个（`driver_licenses`, `attendance_rules`, `category_prices`）
+- 启用 RLS：1 个（`users`）
 - 修复触发器：1 个（`prevent_delete_last_warehouse`）
-- 修复查询：1 个（`getDriverWarehouses`）
+- 修复查询：2 个（`getDriverWarehouses`, `getUsersWithRole`）
 - 调整逻辑：2 处（实名认证检查）
-- 创建迁移文件：4 个
+- 创建迁移文件：5 个
 - 修改代码文件：3 个
 
 **系统状态**：
