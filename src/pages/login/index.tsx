@@ -1,4 +1,4 @@
-import {Button, Checkbox, Input, Text, View} from '@tarojs/components'
+import {Button, Checkbox, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {getStorageSync, reLaunch, setStorageSync, showToast, switchTab} from '@tarojs/taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -355,308 +355,312 @@ const Login: React.FC = () => {
 
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #1E3A8A, #3B82F6)'}}>
-      <View className="pt-16 pb-8 text-center">
-        <Text className="text-3xl font-bold text-white block mb-2">车队管家</Text>
-        <Text className="text-sm text-blue-100 block">专业的车队管理系统</Text>
-      </View>
-
-      <View className="px-6">
-        <View className="bg-white rounded-2xl p-6 shadow-lg">
-          {/* 账号输入 - 优化输入体验 */}
-          <View className="mb-4">
-            <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
-              <View className="i-mdi-account text-2xl text-primary mr-3" />
-              <Input
-                className="flex-1 py-4 text-base"
-                type={loginType === 'otp' ? 'number' : 'text'}
-                maxlength={loginType === 'otp' ? 11 : 50}
-                placeholder={loginType === 'otp' ? '请输入11位手机号' : '请输入手机号或账号'}
-                value={account}
-                onInput={(e) => setAccount(e.detail.value)}
-                focus={false}
-                style={{fontSize: '16px'}}
-              />
-              {account && (
-                <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setAccount('')} />
-              )}
-            </View>
-            {/* 输入提示 */}
-            {loginType === 'password' && (
-              <View className="mt-2 px-1">
-                <Text className="text-xs text-gray-500">支持：11位手机号、账号名</Text>
-              </View>
-            )}
-          </View>
-
-          {/* 密码登录 */}
-          {loginType === 'password' && (
-            <>
-              <View className="mb-4">
-                <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
-                  <View className="i-mdi-lock text-2xl text-primary mr-3" />
-                  <Input
-                    className="flex-1 py-4 text-base"
-                    type="text"
-                    password
-                    placeholder="请输入密码"
-                    value={password}
-                    onInput={(e) => setPassword(e.detail.value)}
-                    focus={false}
-                    style={{fontSize: '16px'}}
-                  />
-                  {password && (
-                    <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setPassword('')} />
-                  )}
-                </View>
-              </View>
-
-              {/* 记住密码选项 */}
-              <View className="mb-6 flex items-center px-1">
-                <Checkbox
-                  value="remember"
-                  checked={rememberMe}
-                  onClick={() => setRememberMe(!rememberMe)}
-                  color="#1E3A8A"
-                  className="mr-2"
-                />
-                <Text className="text-sm text-gray-600" onClick={() => setRememberMe(!rememberMe)}>
-                  记住账号密码
-                </Text>
-              </View>
-            </>
-          )}
-
-          {/* 验证码登录 */}
-          {loginType === 'otp' && (
-            <>
-              <View className="mb-4">
-                <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
-                  <View className="i-mdi-message-text text-2xl text-primary mr-3" />
-                  <Input
-                    className="flex-1 py-4 text-base"
-                    type="number"
-                    maxlength={6}
-                    placeholder="请输入6位验证码"
-                    value={otp}
-                    onInput={(e) => setOtp(e.detail.value)}
-                    focus={false}
-                    style={{fontSize: '16px'}}
-                  />
-                  {otp && <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setOtp('')} />}
-                </View>
-              </View>
-              <Button
-                className="w-full text-base break-keep font-medium mb-6"
-                size="default"
-                disabled={countdown > 0 || loading}
-                style={{
-                  backgroundColor: countdown > 0 || loading ? '#E5E7EB' : '#F97316',
-                  color: 'white',
-                  borderRadius: '12px',
-                  border: 'none',
-                  padding: '14px 0'
-                }}
-                onClick={handleSendOtp}>
-                {countdown > 0 ? `${countdown}秒后重试` : '发送验证码'}
-              </Button>
-            </>
-          )}
-
-          {/* 登录按钮组 - 将切换按钮改造成登录按钮 */}
-          <View className="flex gap-3">
-            <Button
-              className="flex-1 text-base break-keep font-bold"
-              size="default"
-              disabled={loading}
-              style={{
-                backgroundColor: loginType === 'password' ? (loading ? '#93C5FD' : '#1E3A8A') : '#F3F4F6',
-                color: loginType === 'password' ? 'white' : '#6B7280',
-                borderRadius: '12px',
-                border: loginType === 'password' ? 'none' : '2px solid #E5E7EB',
-                padding: '14px 0',
-                boxShadow: loginType === 'password' ? '0 4px 12px rgba(30, 58, 138, 0.3)' : 'none'
-              }}
-              onClick={() => {
-                if (loginType === 'password') {
-                  handlePasswordLogin()
-                } else {
-                  setLoginType('password')
-                }
-              }}>
-              {loginType === 'password' ? (loading ? '登录中...' : '密码登录') : '密码登录'}
-            </Button>
-
-            <Button
-              className="flex-1 text-base break-keep font-bold"
-              size="default"
-              disabled={loading}
-              style={{
-                backgroundColor: loginType === 'otp' ? (loading ? '#93C5FD' : '#1E3A8A') : '#F3F4F6',
-                color: loginType === 'otp' ? 'white' : '#6B7280',
-                borderRadius: '12px',
-                border: loginType === 'otp' ? 'none' : '2px solid #E5E7EB',
-                padding: '14px 0',
-                boxShadow: loginType === 'otp' ? '0 4px 12px rgba(30, 58, 138, 0.3)' : 'none'
-              }}
-              onClick={() => {
-                if (loginType === 'otp') {
-                  handleOtpLogin()
-                } else {
-                  setLoginType('otp')
-                }
-              }}>
-              {loginType === 'otp' ? (loading ? '登录中...' : '验证码登录') : '验证码登录'}
-            </Button>
-          </View>
+      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
+        <View className="pt-16 pb-8 text-center">
+          <Text className="text-3xl font-bold text-white block mb-2">车队管家</Text>
+          <Text className="text-sm text-blue-100 block">专业的车队管理系统</Text>
         </View>
 
-        {/* 测试账号快速登录（开发测试用） */}
-        <View className="mt-8">
-          <View className="bg-white bg-opacity-10 rounded-lg p-4">
-            <View
-              className="flex flex-row items-center justify-between"
-              onClick={() => {
-                const newShowState = !showTestAccounts
-                setShowTestAccounts(newShowState)
-              }}>
-              <Text className="text-xs text-white font-bold">🧪 开发测试 - 快速登录</Text>
-              <Text className="text-xs text-white">{showTestAccounts ? '▲ 收起' : '▼ 展开'}</Text>
+        <View className="px-6 pb-8">
+          <View className="bg-white rounded-2xl p-6 shadow-lg">
+            {/* 账号输入 - 优化输入体验 */}
+            <View className="mb-4">
+              <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
+                <View className="i-mdi-account text-2xl text-primary mr-3" />
+                <Input
+                  className="flex-1 py-4 text-base"
+                  type={loginType === 'otp' ? 'number' : 'text'}
+                  maxlength={loginType === 'otp' ? 11 : 50}
+                  placeholder={loginType === 'otp' ? '请输入11位手机号' : '请输入手机号或账号'}
+                  value={account}
+                  onInput={(e) => setAccount(e.detail.value)}
+                  focus={false}
+                  style={{fontSize: '16px'}}
+                />
+                {account && (
+                  <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setAccount('')} />
+                )}
+              </View>
+              {/* 输入提示 */}
+              {loginType === 'password' && (
+                <View className="mt-2 px-1">
+                  <Text className="text-xs text-gray-500">支持：11位手机号、账号名</Text>
+                </View>
+              )}
             </View>
 
-            {showTestAccounts && (
-              <View className="mt-3">
-                {testLoading ? (
-                  <Text className="text-xs text-blue-100 block text-center py-4">登录中...</Text>
-                ) : (
-                  <View>
-                    {/* 单用户系统测试账号 */}
-                    <View className="mb-2">
-                      <Text className="text-xs text-white font-bold mb-2">🚗 车队管家测试账号</Text>
-                      <View className="space-y-2">
-                        {/* admin - 老板 */}
-                        <View
-                          className="bg-white bg-opacity-20 rounded-lg p-3"
-                          onClick={() => {
-                            setAccount('admin')
-                            setPassword('admin123')
-                            setLoginType('password')
-                          }}>
-                          <View className="flex flex-row items-center justify-between">
-                            <View className="flex-1">
-                              <View className="flex flex-row items-center mb-1">
-                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#EF4444'}}>
-                                  <Text className="text-xs text-white font-bold">老板</Text>
-                                </View>
-                                <Text className="text-xs text-white ml-2">admin</Text>
-                              </View>
-                              <Text className="text-xs text-blue-100">13800000000 / admin123</Text>
-                            </View>
-                            <Text className="text-xs text-white">点击填充 →</Text>
-                          </View>
-                        </View>
+            {/* 密码登录 */}
+            {loginType === 'password' && (
+              <>
+                <View className="mb-4">
+                  <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
+                    <View className="i-mdi-lock text-2xl text-primary mr-3" />
+                    <Input
+                      className="flex-1 py-4 text-base"
+                      type="text"
+                      password
+                      placeholder="请输入密码"
+                      value={password}
+                      onInput={(e) => setPassword(e.detail.value)}
+                      focus={false}
+                      style={{fontSize: '16px'}}
+                    />
+                    {password && (
+                      <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setPassword('')} />
+                    )}
+                  </View>
+                </View>
 
-                        {/* admin1 - 车队长 */}
-                        <View
-                          className="bg-white bg-opacity-20 rounded-lg p-3"
-                          onClick={() => {
-                            setAccount('admin1')
-                            setPassword('admin123')
-                            setLoginType('password')
-                          }}>
-                          <View className="flex flex-row items-center justify-between">
-                            <View className="flex-1">
-                              <View className="flex flex-row items-center mb-1">
-                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#3B82F6'}}>
-                                  <Text className="text-xs text-white font-bold">车队长</Text>
-                                </View>
-                                <Text className="text-xs text-white ml-2">admin1</Text>
-                              </View>
-                              <Text className="text-xs text-blue-100">13800000001 / admin123</Text>
-                            </View>
-                            <Text className="text-xs text-white">点击填充 →</Text>
-                          </View>
-                        </View>
+                {/* 记住密码选项 */}
+                <View className="mb-6 flex items-center px-1">
+                  <Checkbox
+                    value="remember"
+                    checked={rememberMe}
+                    onClick={() => setRememberMe(!rememberMe)}
+                    color="#1E3A8A"
+                    className="mr-2"
+                  />
+                  <Text className="text-sm text-gray-600" onClick={() => setRememberMe(!rememberMe)}>
+                    记住账号密码
+                  </Text>
+                </View>
+              </>
+            )}
 
-                        {/* admin2 - 司机 */}
-                        <View
-                          className="bg-white bg-opacity-20 rounded-lg p-3"
-                          onClick={() => {
-                            setAccount('admin2')
-                            setPassword('admin123')
-                            setLoginType('password')
-                          }}>
-                          <View className="flex flex-row items-center justify-between">
-                            <View className="flex-1">
-                              <View className="flex flex-row items-center mb-1">
-                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#6B7280'}}>
-                                  <Text className="text-xs text-white font-bold">司机</Text>
-                                </View>
-                                <Text className="text-xs text-white ml-2">admin2</Text>
-                              </View>
-                              <Text className="text-xs text-blue-100">13800000002 / admin123</Text>
-                            </View>
-                            <Text className="text-xs text-white">点击填充 →</Text>
-                          </View>
-                        </View>
+            {/* 验证码登录 */}
+            {loginType === 'otp' && (
+              <>
+                <View className="mb-4">
+                  <View className="flex items-center bg-gray-50 rounded-xl px-4 border-2 border-transparent focus-within:border-primary transition-all">
+                    <View className="i-mdi-message-text text-2xl text-primary mr-3" />
+                    <Input
+                      className="flex-1 py-4 text-base"
+                      type="number"
+                      maxlength={6}
+                      placeholder="请输入6位验证码"
+                      value={otp}
+                      onInput={(e) => setOtp(e.detail.value)}
+                      focus={false}
+                      style={{fontSize: '16px'}}
+                    />
+                    {otp && (
+                      <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setOtp('')} />
+                    )}
+                  </View>
+                </View>
+                <Button
+                  className="w-full text-base break-keep font-medium mb-6"
+                  size="default"
+                  disabled={countdown > 0 || loading}
+                  style={{
+                    backgroundColor: countdown > 0 || loading ? '#E5E7EB' : '#F97316',
+                    color: 'white',
+                    borderRadius: '12px',
+                    border: 'none',
+                    padding: '14px 0'
+                  }}
+                  onClick={handleSendOtp}>
+                  {countdown > 0 ? `${countdown}秒后重试` : '发送验证码'}
+                </Button>
+              </>
+            )}
 
-                        {/* admin3 - 平级账号 */}
-                        <View
-                          className="bg-white bg-opacity-20 rounded-lg p-3"
-                          onClick={() => {
-                            setAccount('admin3')
-                            setPassword('admin123')
-                            setLoginType('password')
-                          }}>
-                          <View className="flex flex-row items-center justify-between">
-                            <View className="flex-1">
-                              <View className="flex flex-row items-center mb-1">
-                                <View className="px-2 py-1 rounded" style={{backgroundColor: '#A855F7'}}>
-                                  <Text className="text-xs text-white font-bold">平级账号</Text>
+            {/* 登录按钮组 - 将切换按钮改造成登录按钮 */}
+            <View className="flex gap-3">
+              <Button
+                className="flex-1 text-base break-keep font-bold"
+                size="default"
+                disabled={loading}
+                style={{
+                  backgroundColor: loginType === 'password' ? (loading ? '#93C5FD' : '#1E3A8A') : '#F3F4F6',
+                  color: loginType === 'password' ? 'white' : '#6B7280',
+                  borderRadius: '12px',
+                  border: loginType === 'password' ? 'none' : '2px solid #E5E7EB',
+                  padding: '14px 0',
+                  boxShadow: loginType === 'password' ? '0 4px 12px rgba(30, 58, 138, 0.3)' : 'none'
+                }}
+                onClick={() => {
+                  if (loginType === 'password') {
+                    handlePasswordLogin()
+                  } else {
+                    setLoginType('password')
+                  }
+                }}>
+                {loginType === 'password' ? (loading ? '登录中...' : '密码登录') : '密码登录'}
+              </Button>
+
+              <Button
+                className="flex-1 text-base break-keep font-bold"
+                size="default"
+                disabled={loading}
+                style={{
+                  backgroundColor: loginType === 'otp' ? (loading ? '#93C5FD' : '#1E3A8A') : '#F3F4F6',
+                  color: loginType === 'otp' ? 'white' : '#6B7280',
+                  borderRadius: '12px',
+                  border: loginType === 'otp' ? 'none' : '2px solid #E5E7EB',
+                  padding: '14px 0',
+                  boxShadow: loginType === 'otp' ? '0 4px 12px rgba(30, 58, 138, 0.3)' : 'none'
+                }}
+                onClick={() => {
+                  if (loginType === 'otp') {
+                    handleOtpLogin()
+                  } else {
+                    setLoginType('otp')
+                  }
+                }}>
+                {loginType === 'otp' ? (loading ? '登录中...' : '验证码登录') : '验证码登录'}
+              </Button>
+            </View>
+          </View>
+
+          {/* 测试账号快速登录（开发测试用） */}
+          <View className="mt-8">
+            <View className="bg-white bg-opacity-10 rounded-lg p-4">
+              <View
+                className="flex flex-row items-center justify-between"
+                onClick={() => {
+                  const newShowState = !showTestAccounts
+                  setShowTestAccounts(newShowState)
+                }}>
+                <Text className="text-xs text-white font-bold">🧪 开发测试 - 快速登录</Text>
+                <Text className="text-xs text-white">{showTestAccounts ? '▲ 收起' : '▼ 展开'}</Text>
+              </View>
+
+              {showTestAccounts && (
+                <View className="mt-3">
+                  {testLoading ? (
+                    <Text className="text-xs text-blue-100 block text-center py-4">登录中...</Text>
+                  ) : (
+                    <View>
+                      {/* 单用户系统测试账号 */}
+                      <View className="mb-2">
+                        <Text className="text-xs text-white font-bold mb-2">🚗 车队管家测试账号</Text>
+                        <View className="space-y-2">
+                          {/* admin - 老板 */}
+                          <View
+                            className="bg-white bg-opacity-20 rounded-lg p-3"
+                            onClick={() => {
+                              setAccount('admin')
+                              setPassword('admin123')
+                              setLoginType('password')
+                            }}>
+                            <View className="flex flex-row items-center justify-between">
+                              <View className="flex-1">
+                                <View className="flex flex-row items-center mb-1">
+                                  <View className="px-2 py-1 rounded" style={{backgroundColor: '#EF4444'}}>
+                                    <Text className="text-xs text-white font-bold">老板</Text>
+                                  </View>
+                                  <Text className="text-xs text-white ml-2">admin</Text>
                                 </View>
-                                <Text className="text-xs text-white ml-2">admin3</Text>
+                                <Text className="text-xs text-blue-100">13800000000 / admin123</Text>
                               </View>
-                              <Text className="text-xs text-blue-100">13800000003 / admin123</Text>
+                              <Text className="text-xs text-white">点击填充 →</Text>
                             </View>
-                            <Text className="text-xs text-white">点击填充 →</Text>
+                          </View>
+
+                          {/* admin1 - 车队长 */}
+                          <View
+                            className="bg-white bg-opacity-20 rounded-lg p-3"
+                            onClick={() => {
+                              setAccount('admin1')
+                              setPassword('admin123')
+                              setLoginType('password')
+                            }}>
+                            <View className="flex flex-row items-center justify-between">
+                              <View className="flex-1">
+                                <View className="flex flex-row items-center mb-1">
+                                  <View className="px-2 py-1 rounded" style={{backgroundColor: '#3B82F6'}}>
+                                    <Text className="text-xs text-white font-bold">车队长</Text>
+                                  </View>
+                                  <Text className="text-xs text-white ml-2">admin1</Text>
+                                </View>
+                                <Text className="text-xs text-blue-100">13800000001 / admin123</Text>
+                              </View>
+                              <Text className="text-xs text-white">点击填充 →</Text>
+                            </View>
+                          </View>
+
+                          {/* admin2 - 司机 */}
+                          <View
+                            className="bg-white bg-opacity-20 rounded-lg p-3"
+                            onClick={() => {
+                              setAccount('admin2')
+                              setPassword('admin123')
+                              setLoginType('password')
+                            }}>
+                            <View className="flex flex-row items-center justify-between">
+                              <View className="flex-1">
+                                <View className="flex flex-row items-center mb-1">
+                                  <View className="px-2 py-1 rounded" style={{backgroundColor: '#6B7280'}}>
+                                    <Text className="text-xs text-white font-bold">司机</Text>
+                                  </View>
+                                  <Text className="text-xs text-white ml-2">admin2</Text>
+                                </View>
+                                <Text className="text-xs text-blue-100">13800000002 / admin123</Text>
+                              </View>
+                              <Text className="text-xs text-white">点击填充 →</Text>
+                            </View>
+                          </View>
+
+                          {/* admin3 - 平级账号 */}
+                          <View
+                            className="bg-white bg-opacity-20 rounded-lg p-3"
+                            onClick={() => {
+                              setAccount('admin3')
+                              setPassword('admin123')
+                              setLoginType('password')
+                            }}>
+                            <View className="flex flex-row items-center justify-between">
+                              <View className="flex-1">
+                                <View className="flex flex-row items-center mb-1">
+                                  <View className="px-2 py-1 rounded" style={{backgroundColor: '#A855F7'}}>
+                                    <Text className="text-xs text-white font-bold">平级账号</Text>
+                                  </View>
+                                  <Text className="text-xs text-white ml-2">admin3</Text>
+                                </View>
+                                <Text className="text-xs text-blue-100">13800000003 / admin123</Text>
+                              </View>
+                              <Text className="text-xs text-white">点击填充 →</Text>
+                            </View>
                           </View>
                         </View>
                       </View>
-                    </View>
 
-                    {/* 使用说明 */}
-                    <View className="mt-3 bg-white bg-opacity-10 rounded-lg p-3">
-                      <Text className="text-xs text-blue-100 mb-2">💡 使用说明：</Text>
-                      <Text className="text-xs text-blue-100">1. 点击账号卡片自动填充账号密码</Text>
-                      <Text className="text-xs text-blue-100">2. 点击"密码登录"按钮完成登录</Text>
-                      <Text className="text-xs text-blue-100">3. 首次登录需要先注册账号</Text>
+                      {/* 使用说明 */}
+                      <View className="mt-3 bg-white bg-opacity-10 rounded-lg p-3">
+                        <Text className="text-xs text-blue-100 mb-2">💡 使用说明：</Text>
+                        <Text className="text-xs text-blue-100">1. 点击账号卡片自动填充账号密码</Text>
+                        <Text className="text-xs text-blue-100">2. 点击"密码登录"按钮完成登录</Text>
+                        <Text className="text-xs text-blue-100">3. 首次登录需要先注册账号</Text>
+                      </View>
                     </View>
-                  </View>
-                )}
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* 功能说明 */}
+          <View className="mt-4">
+            <View className="bg-white bg-opacity-10 rounded-lg p-4">
+              <Text className="text-xs text-white block mb-2 font-bold">登录方式说明：</Text>
+              <View className="mb-1">
+                <Text className="text-xs text-blue-100 block">• 密码登录：支持手机号或账号名 + 密码</Text>
               </View>
-            )}
-          </View>
-        </View>
-
-        {/* 功能说明 */}
-        <View className="mt-4">
-          <View className="bg-white bg-opacity-10 rounded-lg p-4">
-            <Text className="text-xs text-white block mb-2 font-bold">登录方式说明：</Text>
-            <View className="mb-1">
-              <Text className="text-xs text-blue-100 block">• 密码登录：支持手机号或账号名 + 密码</Text>
-            </View>
-            <View className="mb-1">
-              <Text className="text-xs text-blue-100 block">• 验证码登录：仅支持手机号 + 验证码</Text>
-            </View>
-            <View className="mt-2 pt-2 border-t border-white border-opacity-20">
-              <Text className="text-xs text-blue-100 block mb-1">测试账号（默认密码：admin123）：</Text>
-              <Text className="text-xs text-blue-100 block">• admin - 老板（13800000000）</Text>
-              <Text className="text-xs text-blue-100 block">• admin1 - 车队长（13800000001）</Text>
-              <Text className="text-xs text-blue-100 block">• admin2 - 司机（13800000002）</Text>
-              <Text className="text-xs text-blue-100 block">• admin3 - 平级账号（13800000003）</Text>
+              <View className="mb-1">
+                <Text className="text-xs text-blue-100 block">• 验证码登录：仅支持手机号 + 验证码</Text>
+              </View>
+              <View className="mt-2 pt-2 border-t border-white border-opacity-20">
+                <Text className="text-xs text-blue-100 block mb-1">测试账号（默认密码：admin123）：</Text>
+                <Text className="text-xs text-blue-100 block">• admin - 老板（13800000000）</Text>
+                <Text className="text-xs text-blue-100 block">• admin1 - 车队长（13800000001）</Text>
+                <Text className="text-xs text-blue-100 block">• admin2 - 司机（13800000002）</Text>
+                <Text className="text-xs text-blue-100 block">• admin3 - 平级账号（13800000003）</Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   )
 }
