@@ -34,6 +34,7 @@ export {
   // 仓库品类
   getWarehouseCategories,
   getWarehouseCategoriesWithDetails,
+  getWarehouseDispatchersAndManagers,
   getWarehouseDriverCount,
   getWarehouseManager,
   getWarehouseManagers,

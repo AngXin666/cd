@@ -552,6 +552,46 @@ const SuperAdminLeaveApproval: React.FC = () => {
           await createNotification(application.user_id, notificationType, '请假审批通知', message, applicationId)
 
           console.log(`✅ 已发送请假审批通知给申请人: ${application.user_id}`)
+
+          // 4. 如果是拒绝请假，则通知该仓库的调度和车队长
+          if (!approved && application.warehouse_id) {
+            try {
+              // 获取该仓库的所有调度和车队长
+              const managersAndDispatchers = await WarehousesAPI.getWarehouseDispatchersAndManagers(
+                application.warehouse_id
+              )
+
+              // 获取申请人信息
+              const applicantProfile = profiles.find((p) => p.id === application.user_id)
+              const applicantName = applicantProfile?.name || '司机'
+
+              // 获取仓库信息
+              const warehouse = warehouses.find((w) => w.id === application.warehouse_id)
+              const warehouseName = warehouse?.name || '仓库'
+
+              // 构建通知消息
+              const notificationMessage = `${reviewerText}拒绝了【${warehouseName}】司机【${applicantName}】的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
+
+              // 发送通知给所有调度和车队长
+              for (const managerId of managersAndDispatchers) {
+                // 不要通知申请人自己
+                if (managerId !== application.user_id) {
+                  await createNotification(
+                    managerId,
+                    'leave_rejected',
+                    '请假申请被拒绝通知',
+                    notificationMessage,
+                    applicationId
+                  )
+                }
+              }
+
+              console.log(`✅ 已发送请假拒绝通知给 ${managersAndDispatchers.length} 位调度和车队长`)
+            } catch (managerNotificationError) {
+              console.error('❌ 发送调度和车队长通知失败:', managerNotificationError)
+              // 通知发送失败不影响审批流程
+            }
+          }
         } catch (notificationError) {
           console.error('❌ 发送请假审批通知失败:', notificationError)
           // 通知发送失败不影响审批流程

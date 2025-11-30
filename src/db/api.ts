@@ -2066,6 +2066,49 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
   }
 }
 
+/**
+ * 获取仓库的所有调度和车队长
+ * @param warehouseId 仓库ID
+ * @returns 调度和车队长的用户ID列表
+ */
+export async function getWarehouseDispatchersAndManagers(warehouseId: string): Promise<string[]> {
+  try {
+    // 1. 获取分配到该仓库的所有用户ID
+    const {data: assignments, error: assignmentError} = await supabase
+      .from('warehouse_assignments')
+      .select('user_id')
+      .eq('warehouse_id', warehouseId)
+
+    if (assignmentError) {
+      console.error('获取仓库分配失败:', assignmentError)
+      return []
+    }
+
+    if (!assignments || assignments.length === 0) {
+      return []
+    }
+
+    const userIds = assignments.map((a) => a.user_id)
+
+    // 2. 查询这些用户中角色为 PEER_ADMIN 或 MANAGER 的用户
+    const {data: roles, error: roleError} = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('user_id', userIds)
+      .in('role', ['PEER_ADMIN', 'MANAGER'])
+
+    if (roleError) {
+      console.error('获取用户角色失败:', roleError)
+      return []
+    }
+
+    return roles?.map((r) => r.user_id) || []
+  } catch (error) {
+    console.error('获取仓库调度和车队长异常:', error)
+    return []
+  }
+}
+
 // 添加管理员仓库关联
 export async function addManagerWarehouse(managerId: string, warehouseId: string): Promise<boolean> {
   const {error} = await supabase.from('warehouse_assignments').insert({
