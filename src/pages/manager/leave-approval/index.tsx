@@ -571,6 +571,52 @@ const ManagerLeaveApproval: React.FC = () => {
           const notificationType = approved ? 'leave_approved' : 'leave_rejected'
           const approvalStatus = approved ? 'approved' : 'rejected'
 
+          // 🔄 更新原有通知状态（发送给老板和车队长的通知）
+          // 只更新原始申请通知，不更新审批结果通知
+          const {data: existingNotifications} = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('related_id', applicationId)
+            .eq('type', 'leave_application_submitted') // 只查询原始申请通知
+
+          console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
+
+          if (existingNotifications && existingNotifications.length > 0) {
+            // 针对每个通知接收者单独更新
+            for (const notification of existingNotifications) {
+              // 判断接收者是否为审批人本人
+              const isReviewer = notification.recipient_id === user.id
+              const message = isReviewer
+                ? `您${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
+                : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
+
+              console.log(
+                `📝 更新通知 ${notification.id}，接收者: ${notification.recipient_id}，是否为审批人: ${isReviewer}`
+              )
+
+              const {error: updateError} = await supabase
+                .from('notifications')
+                .update({
+                  approval_status: approvalStatus,
+                  is_read: false, // 重置为未读
+                  title: '请假审批通知',
+                  content: message,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', notification.id)
+
+              if (updateError) {
+                console.error(`❌ 更新通知 ${notification.id} 失败:`, updateError)
+              } else {
+                console.log(`✅ 成功更新通知 ${notification.id}`)
+              }
+            }
+
+            console.log(`✅ 已更新 ${existingNotifications.length} 条请假审批通知状态`)
+          } else {
+            console.warn('⚠️ 未找到需要更新的原始申请通知')
+          }
+
           // 🔔 创建新通知给司机（审批结果通知）
           const driverMessage = `${reviewerText}${statusText}了您的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
           await createNotification(
@@ -582,37 +628,6 @@ const ManagerLeaveApproval: React.FC = () => {
           )
 
           console.log(`✅ 已发送审批结果通知给司机: ${application.user_id}`)
-
-          // 🔄 更新原有通知状态（发送给老板和车队长的通知）
-          // 查询所有相关通知，针对不同接收者显示不同内容
-          const {data: existingNotifications} = await supabase
-            .from('notifications')
-            .select('*')
-            .eq('related_id', applicationId)
-
-          if (existingNotifications && existingNotifications.length > 0) {
-            // 针对每个通知接收者单独更新
-            for (const notification of existingNotifications) {
-              // 判断接收者是否为审批人本人
-              const isReviewer = notification.recipient_id === user.id
-              const message = isReviewer
-                ? `您${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
-                : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
-
-              await supabase
-                .from('notifications')
-                .update({
-                  approval_status: approvalStatus,
-                  is_read: false, // 重置为未读
-                  title: '请假审批通知',
-                  content: message,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', notification.id)
-            }
-
-            console.log(`✅ 已更新 ${existingNotifications.length} 条请假审批通知状态`)
-          }
         } catch (notificationError) {
           console.error('❌ 发送审批结果通知失败:', notificationError)
           // 通知发送失败不影响审批流程
