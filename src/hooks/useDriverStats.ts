@@ -261,7 +261,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'profiles',
+          table: 'user_roles',
           filter: 'role=eq.driver'
         },
         (payload) => {
