@@ -493,7 +493,7 @@ const UserManagement: React.FC = () => {
               })
             }
           } else if (newUserRole === 'MANAGER' || newUserRole === 'BOSS' || newUserRole === 'BOSS') {
-            // 为管理员、老板和车队长分配仓库（使用 manager_warehouses 表）
+            // 为管理员、老板和车队长分配仓库（使用 warehouse_assignments 表）
             for (const warehouseId of newUserWarehouseIds) {
               await WarehousesAPI.insertManagerWarehouseAssignment({
                 manager_id: newUser.id,
@@ -764,7 +764,7 @@ const UserManagement: React.FC = () => {
         await WarehousesAPI.deleteWarehouseAssignmentsByDriver(userId)
       } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
         // 删除管理员/车队长的仓库分配
-        await supabase.from('manager_warehouses').delete().eq('manager_id', userId)
+        await supabase.from('warehouse_assignments').delete().eq('user_id', userId)
       }
 
       // 添加新的仓库分配

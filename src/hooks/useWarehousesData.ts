@@ -147,14 +147,14 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
 
     // 创建实时频道
     const channel = supabase
-      .channel(`manager_warehouses_${managerId}`)
+      .channel(`warehouse_assignments_${managerId}`)
       .on(
         'postgres_changes',
         {
           event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
           schema: 'public',
-          table: 'manager_warehouses',
-          filter: `manager_id=eq.${managerId}` // 只监听当前管理员的变化
+          table: 'warehouse_assignments',
+          filter: `user_id=eq.${managerId}` // 只监听当前管理员的变化
         },
         (payload) => {
           console.log('[useWarehousesData] 检测到仓库分配变化:', payload)

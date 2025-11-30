@@ -175,9 +175,9 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
 
     // 获取车队长管理的仓库
     const {data: managerWarehouses, error: mwError} = await supabase
-      .from('manager_warehouses')
+      .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('manager_id', managerId)
+      .eq('user_id', managerId)
 
     if (mwError || !managerWarehouses || managerWarehouses.length === 0) {
       logger.warn('车队长未管理任何仓库', {managerId})
@@ -201,7 +201,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
  * 获取对司机有管辖权的车队长
  * @param driverId 司机ID
  * @returns 有管辖权的车队长列表
- * 单用户架构：直接查询 driver_warehouses + manager_warehouses + users + user_roles
+ * 单用户架构：直接查询 driver_warehouses + warehouse_assignments + users + user_roles
  */
 async function getManagersWithJurisdiction(driverId: string): Promise<NotificationRecipient[]> {
   try {
@@ -234,8 +234,8 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     // 步骤2：获取管理这些仓库的车队长
     const {data: managerWarehouses, error: mwError} = await supabase
-      .from('manager_warehouses')
-      .select('manager_id')
+      .from('warehouse_assignments')
+      .select('user_id')
       .in('warehouse_id', driverWarehouseIds)
 
     if (mwError) {
@@ -248,7 +248,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       return []
     }
 
-    const managerIds = [...new Set(managerWarehouses.map((mw) => mw.manager_id))]
+    const managerIds = [...new Set(managerWarehouses.map((mw) => mw.user_id))]
     logger.info('找到车队长ID列表', {managerIds})
 
     // 步骤3：获取车队长的详细信息（单用户架构：从 users 和 user_roles 表查询）

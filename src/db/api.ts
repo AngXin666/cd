@@ -1231,9 +1231,9 @@ export async function getWarehouseAssignmentsByManager(
   managerId: string
 ): Promise<{id: string; manager_id: string; warehouse_id: string; created_at: string}[]> {
   const {data, error} = await supabase
-    .from('manager_warehouses')
+    .from('warehouse_assignments')
     .select('*')
-    .eq('manager_id', managerId)
+    .eq('user_id', managerId)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -1241,7 +1241,15 @@ export async function getWarehouseAssignmentsByManager(
     return []
   }
 
-  return Array.isArray(data) ? data : []
+  // 转换字段名以保持兼容性
+  const result = Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        manager_id: item.user_id
+      }))
+    : []
+
+  return result
 }
 
 /**
@@ -1334,9 +1342,9 @@ export async function insertManagerWarehouseAssignment(input: {
 
   // 3. 检查是否已经存在该分配
   const {data: existingAssignment} = await supabase
-    .from('manager_warehouses')
+    .from('warehouse_assignments')
     .select('id')
-    .eq('manager_id', input.manager_id)
+    .eq('user_id', input.manager_id)
     .eq('warehouse_id', input.warehouse_id)
     .maybeSingle()
 
@@ -1346,8 +1354,9 @@ export async function insertManagerWarehouseAssignment(input: {
   }
 
   // 4. 执行分配
-  const {error} = await supabase.from('manager_warehouses').insert({
-    ...input
+  const {error} = await supabase.from('warehouse_assignments').insert({
+    user_id: input.manager_id,
+    warehouse_id: input.warehouse_id
   })
 
   if (error) {
@@ -1914,7 +1923,7 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
     return []
   }
 
-  logger.db('查询', 'manager_warehouses', {managerId})
+  logger.db('查询', 'warehouse_assignments', {managerId})
 
   // 生成缓存键
   const cacheKey = `${CACHE_KEYS.WAREHOUSE_ASSIGNMENTS}_${managerId}`
@@ -1922,15 +1931,15 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
   // 尝试从缓存获取
   const cached = getCache<Warehouse[]>(cacheKey)
   if (cached) {
-    logger.db('缓存命中', 'manager_warehouses', {
+    logger.db('缓存命中', 'warehouse_assignments', {
       managerId,
       count: cached.length
     })
     return cached
   }
 
-  // 从数据库查询
-  const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
+  // 从数据库查询 - 使用 warehouse_assignments 表
+  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', managerId)
 
   if (error) {
     logger.error('获取管理员仓库失败', error)
@@ -1938,7 +1947,7 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
   }
 
   if (!data || data.length === 0) {
-    logger.db('查询结果为空', 'manager_warehouses', {managerId})
+    logger.db('查询结果为空', 'warehouse_assignments', {managerId})
     // 缓存空结果，避免重复查询（缓存5分钟）
     setCache(cacheKey, [], 5 * 60 * 1000)
     return []
@@ -1958,7 +1967,7 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
   }
 
   const result = Array.isArray(warehouses) ? warehouses : []
-  logger.db('查询成功', 'manager_warehouses', {
+  logger.db('查询成功', 'warehouse_assignments', {
     managerId,
     count: result.length
   })
@@ -1971,12 +1980,12 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
 
 /**
  * 获取仓库的管理员列表
- * 单用户架构：直接查询 manager_warehouses + users
+ * 单用户架构：直接查询 warehouse_assignments + users
  */
 export async function getWarehouseManagers(warehouseId: string): Promise<Profile[]> {
   try {
-    // 单用户架构：直接查询 manager_warehouses 表
-    const {data, error} = await supabase.from('manager_warehouses').select('manager_id').eq('warehouse_id', warehouseId)
+    // 单用户架构：直接查询 warehouse_assignments 表
+    const {data, error} = await supabase.from('warehouse_assignments').select('user_id').eq('warehouse_id', warehouseId)
 
     if (error) {
       console.error('获取仓库管理员失败:', error)
@@ -1987,7 +1996,7 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
       return []
     }
 
-    const managerIds = data.map((item) => item.manager_id)
+    const managerIds = data.map((item) => item.user_id)
 
     // 查询管理员信息
     const {data: managers, error: managerError} = await supabase
@@ -2025,8 +2034,8 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
 
 // 添加管理员仓库关联
 export async function addManagerWarehouse(managerId: string, warehouseId: string): Promise<boolean> {
-  const {error} = await supabase.from('manager_warehouses').insert({
-    manager_id: managerId,
+  const {error} = await supabase.from('warehouse_assignments').insert({
+    user_id: managerId,
     warehouse_id: warehouseId
   })
 
@@ -2041,9 +2050,9 @@ export async function addManagerWarehouse(managerId: string, warehouseId: string
 // 删除管理员仓库关联
 export async function removeManagerWarehouse(managerId: string, warehouseId: string): Promise<boolean> {
   const {error} = await supabase
-    .from('manager_warehouses')
+    .from('warehouse_assignments')
     .delete()
-    .eq('manager_id', managerId)
+    .eq('user_id', managerId)
     .eq('warehouse_id', warehouseId)
 
   if (error) {
@@ -2846,14 +2855,14 @@ export async function getWarehouseDriverCount(warehouseId: string): Promise<numb
 
 /**
  * 获取仓库的管理员（单个）
- * 单用户架构：直接查询 manager_warehouses + users + user_roles
+ * 单用户架构：直接查询 warehouse_assignments + users + user_roles
  */
 export async function getWarehouseManager(warehouseId: string): Promise<Profile | null> {
   try {
     // 查询仓库的管理员关联
     const {data: managerWarehouseData, error: mwError} = await supabase
-      .from('manager_warehouses')
-      .select('manager_id')
+      .from('warehouse_assignments')
+      .select('user_id')
       .eq('warehouse_id', warehouseId)
       .order('created_at', {ascending: true})
       .limit(1)
@@ -2868,7 +2877,7 @@ export async function getWarehouseManager(warehouseId: string): Promise<Profile 
       return null
     }
 
-    const managerId = managerWarehouseData.manager_id
+    const managerId = managerWarehouseData.user_id
 
     // 单用户架构：从 users 表查询车队长信息
     const [{data: user, error: userError}, {data: roleData, error: roleError}] = await Promise.all([
@@ -3925,7 +3934,7 @@ export async function getManagerPermissionsEnabled(managerId: string): Promise<b
  * 获取管理员管辖的仓库ID列表
  */
 export async function getManagerWarehouseIds(managerId: string): Promise<string[]> {
-  const {data, error} = await supabase.from('manager_warehouses').select('warehouse_id').eq('manager_id', managerId)
+  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', managerId)
 
   if (error) {
     console.error('获取管理员仓库列表失败:', error)
@@ -3949,7 +3958,7 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   }
 
   // 1. 删除旧的关联
-  const {error: deleteError} = await supabase.from('manager_warehouses').delete().eq('manager_id', managerId)
+  const {error: deleteError} = await supabase.from('warehouse_assignments').delete().eq('user_id', managerId)
 
   if (deleteError) {
     console.error('删除旧的仓库关联失败:', deleteError)
@@ -3969,11 +3978,11 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   }
 
   const insertData = warehouseIds.map((warehouseId) => ({
-    manager_id: managerId,
+    user_id: managerId,
     warehouse_id: warehouseId
   }))
 
-  const {error: insertError} = await supabase.from('manager_warehouses').insert(insertData)
+  const {error: insertError} = await supabase.from('warehouse_assignments').insert(insertData)
 
   if (insertError) {
     console.error('插入新的仓库关联失败:', insertError)
@@ -4403,9 +4412,9 @@ export async function getManagerStats(userId: string): Promise<{
   try {
     // 获取管理的仓库数
     const {data: warehouseData} = await supabase
-      .from('manager_warehouses')
+      .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('manager_id', userId)
+      .eq('user_id', userId)
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
     const warehouseIds = Array.isArray(warehouseData) ? warehouseData.map((w) => w.warehouse_id) : []
