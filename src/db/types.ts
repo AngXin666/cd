@@ -501,12 +501,11 @@ export interface AttendanceRecord {
 // 创建考勤记录的输入接口
 export interface AttendanceRecordInput {
   user_id: string
-  date: string
-  clock_in_time?: string
+  work_date: string
+  clock_in_time: string
   warehouse_id?: string
   status?: AttendanceStatus
   notes?: string
-  work_date?: string
 }
 
 // 更新考勤记录的输入接口
