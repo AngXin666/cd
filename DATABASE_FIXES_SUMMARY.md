@@ -150,6 +150,27 @@ relation "public.category_prices" does not exist
 
 ---
 
+### 8. 多个表的旧 RLS 策略问题 ✅
+
+**错误现象**：
+```
+更新仓库失败: relation "profiles" does not exist（持续出现）
+```
+
+**影响**：
+- 仓库更新仍然失败
+- 可能影响考勤、请假、计件、车辆等多个功能
+- 所有涉及这些表的操作都可能失败
+
+**修复方案**：
+- 全面清理所有引用 `profiles` 表的旧 RLS 策略
+- 删除 test_notifications schema 中的所有旧策略
+- 删除 dc1fd05e-a692-49f9-a71f-2b356866289e schema 中的所有旧策略
+- 涉及表：attendance、leave_requests、piecework_records、vehicles
+- 迁移文件：`00507_remove_all_old_profiles_policies.sql`
+
+---
+
 ## 技术细节
 
 ### 系统架构变更
@@ -250,6 +271,11 @@ EXISTS (
    - 清理引用 profiles 表的策略
    - 解决仓库更新失败的问题
 
+7. **`supabase/migrations/00507_remove_all_old_profiles_policies.sql`**
+   - 全面清理所有引用 profiles 表的旧 RLS 策略
+   - 删除多个表的旧策略（attendance、leave_requests、piecework_records、vehicles）
+   - 彻底解决 profiles 表不存在的问题
+
 ### 代码修改文件
 
 1. **`src/db/api.ts`**
@@ -292,14 +318,14 @@ WHERE schemaname = 'public' AND tablename = 'users';
 
 **策略清理验证**：
 ```sql
--- 验证 warehouses 表策略已清理
-SELECT schemaname, policyname, cmd 
+-- 验证所有引用 profiles 表的策略已删除
+SELECT schemaname, tablename, policyname 
 FROM pg_policies 
-WHERE tablename = 'warehouses' 
-ORDER BY schemaname, policyname;
+WHERE qual LIKE '%profiles%' OR with_check LIKE '%profiles%' 
+ORDER BY schemaname, tablename, policyname;
 ```
 
-**结果**：✅ 只剩下两个正确的策略，旧策略已全部删除
+**结果**：✅ 没有任何策略引用 profiles 表，所有旧策略已全部删除
 
 ### 代码质量验证
 
@@ -310,7 +336,7 @@ pnpm run lint
 
 **结果**：
 ```
-Checked 220 files in 1226ms. No fixes applied.
+Checked 220 files in 1230ms. No fixes applied.
 ```
 
 ✅ 所有代码检查通过，没有错误
@@ -517,11 +543,11 @@ SELECT role FROM users WHERE id = auth.uid()
 **修复统计**：
 - 重建表：3 个（`driver_licenses`, `attendance_rules`, `category_prices`）
 - 启用 RLS：1 个（`users`）
-- 清理 RLS 策略：1 个（`warehouses`）
+- 清理 RLS 策略：5 个表（`warehouses`, `attendance`, `leave_requests`, `piecework_records`, `vehicles`）
 - 修复触发器：1 个（`prevent_delete_last_warehouse`）
 - 修复查询：2 个（`getDriverWarehouses`, `getUsersWithRole`）
 - 调整逻辑：2 处（实名认证检查）
-- 创建迁移文件：6 个
+- 创建迁移文件：7 个
 - 修改代码文件：3 个
 
 **系统状态**：
