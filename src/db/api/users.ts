@@ -50,6 +50,7 @@ export {
   getTableConstraints,
   getUserById,
   getUserFeedbackList,
+  getUserRoles,
   resetUserPassword,
   setManagerWarehouses,
   // 反馈管理

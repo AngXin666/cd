@@ -264,7 +264,7 @@ const DriverManagement: React.FC = () => {
     Taro.showLoading({title: '发送中...', mask: true})
 
     try {
-      // 获取当前用户信息
+      // 获取当前用户信息和角色
       const currentUser = await UsersAPI.getCurrentUserWithRealName()
       if (!currentUser) {
         Taro.showToast({
@@ -274,12 +274,51 @@ const DriverManagement: React.FC = () => {
         return
       }
 
+      // 获取当前用户的角色
+      const userRoles = await UsersAPI.getUserRoles(user.id)
+      const isBoss = userRoles.includes('BOSS')
+      const isDispatcher = userRoles.includes('DISPATCHER')
+      const isManager = userRoles.includes('MANAGER')
+
+      // 如果是车队长，需要检查是否对该司机有管辖权
+      if (isManager && !isBoss && !isDispatcher) {
+        // 获取司机的仓库分配
+        const driverWarehouseIds = driverWarehouseMap.get(driver.id) || []
+        // 获取车队长管辖的仓库
+        const managerWarehouseIds = warehouses.map((w) => w.id)
+
+        // 检查是否有交集
+        const hasPermission = driverWarehouseIds.some((id) => managerWarehouseIds.includes(id))
+
+        if (!hasPermission) {
+          Taro.showToast({
+            title: '该司机不在您管辖的仓库中',
+            icon: 'none',
+            duration: 2000
+          })
+          logger.warn('车队长无权限给该司机发送通知', {
+            driverId: driver.id,
+            driverWarehouses: driverWarehouseIds,
+            managerWarehouses: managerWarehouseIds
+          })
+          return
+        }
+      }
+
+      // 确定发送者角色
+      let senderRole: 'MANAGER' | 'BOSS' | 'DISPATCHER' = 'MANAGER'
+      if (isBoss) {
+        senderRole = 'BOSS'
+      } else if (isDispatcher) {
+        senderRole = 'DISPATCHER'
+      }
+
       // 发送通知
       const success = await NotificationsAPI.sendVerificationReminder(
         driver.id,
         user.id,
         currentUser.real_name || currentUser.name || '管理员',
-        'MANAGER'
+        senderRole
       )
 
       if (success) {
@@ -287,7 +326,7 @@ const DriverManagement: React.FC = () => {
           title: '通知已发送',
           icon: 'success'
         })
-        logger.info('实名通知发送成功', {driverId: driver.id})
+        logger.info('实名通知发送成功', {driverId: driver.id, senderRole})
       } else {
         Taro.showToast({
           title: '发送失败，请重试',

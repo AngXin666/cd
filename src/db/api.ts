@@ -232,6 +232,31 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 }
 
 /**
+ * 获取指定用户的所有角色
+ * 单用户架构：一个用户可能有多个角色（例如，既是 BOSS 又是 MANAGER）
+ */
+export async function getUserRoles(userId: string): Promise<UserRole[]> {
+  try {
+    console.log('[getUserRoles] 开始获取用户角色', {userId})
+
+    // 从 user_roles 表查询用户的所有角色
+    const {data, error} = await supabase.from('user_roles').select('role').eq('user_id', userId)
+
+    if (error) {
+      console.error('[getUserRoles] 查询用户角色失败:', error)
+      return []
+    }
+
+    const roles = data?.map((r) => r.role) || []
+    console.log('[getUserRoles] 成功获取用户角色:', roles)
+    return roles
+  } catch (error) {
+    console.error('[getUserRoles] 未预期的错误:', error)
+    return []
+  }
+}
+
+/**
  * 获取当前用户的角色
  *
  * 注意：
