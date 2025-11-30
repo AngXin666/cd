@@ -26,6 +26,19 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-11-30**：修复审批后通知状态实时更新问题
+  - **问题描述**：管理员审批后，通知中心的通知状态不会实时更新，需要刷新页面才能看到最新状态
+  - **根本原因**：
+    1. `subscribeToNotifications` 函数只监听 INSERT 事件，不监听 UPDATE 事件
+    2. 当审批更新通知的 `approval_status` 时，实时订阅不会触发
+  - **解决方案**：
+    1. 修改 `subscribeToNotifications` 函数，同时监听 INSERT 和 UPDATE 事件
+    2. 添加 `onUpdate` 回调参数，处理通知更新
+    3. 在通知页面中，当收到更新事件时，更新对应的通知状态
+  - **修改文件**：
+    - `src/db/notificationApi.ts`：添加 UPDATE 事件监听
+    - `src/pages/common/notifications/index.tsx`：处理通知更新事件
+  - **效果**：审批后，所有相关人员的通知中心会实时更新通知状态，无需刷新页面
 - ✅ **2025-11-30**：修复审批后通知状态未更新的问题
   - **问题描述**：审批处理后，同一条通知没有更新状态，一直显示待审批状态
   - **根本原因**：代码中使用了错误的字段名 `notification.user_id`，但数据库表中的字段是 `notification.recipient_id`

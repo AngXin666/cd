@@ -403,7 +403,11 @@ export async function deleteReadNotifications(userId: string): Promise<boolean> 
  * @param callback 回调函数
  * @returns 取消订阅函数
  */
-export function subscribeToNotifications(userId: string, callback: (notification: Notification) => void) {
+export function subscribeToNotifications(
+  userId: string,
+  onInsert: (notification: Notification) => void,
+  onUpdate?: (notification: Notification) => void
+) {
   logger.info('订阅通知更新', {userId})
 
   const channel = supabase
@@ -418,7 +422,22 @@ export function subscribeToNotifications(userId: string, callback: (notification
       },
       (payload) => {
         logger.info('收到新通知', payload)
-        callback(payload.new as Notification)
+        onInsert(payload.new as Notification)
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `recipient_id=eq.${userId}`
+      },
+      (payload) => {
+        logger.info('通知已更新', payload)
+        if (onUpdate) {
+          onUpdate(payload.new as Notification)
+        }
       }
     )
     .subscribe()

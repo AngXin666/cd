@@ -105,18 +105,28 @@ const NotificationsPage: React.FC = () => {
 
     // 订阅实时通知更新
     if (user) {
-      const unsubscribe = subscribeToNotifications(user.id, (newNotification) => {
-        // 只添加新通知，不重新加载所有通知
-        setNotifications((prev) => {
-          // 检查是否已存在该通知
-          const exists = prev.some((n) => n.id === newNotification.id)
-          if (exists) {
-            return prev
-          }
-          // 添加到列表开头
-          return [newNotification, ...prev]
-        })
-      })
+      const unsubscribe = subscribeToNotifications(
+        user.id,
+        // 处理新通知插入
+        (newNotification) => {
+          // 只添加新通知，不重新加载所有通知
+          setNotifications((prev) => {
+            // 检查是否已存在该通知
+            const exists = prev.some((n) => n.id === newNotification.id)
+            if (exists) {
+              return prev
+            }
+            // 添加到列表开头
+            return [newNotification, ...prev]
+          })
+        },
+        // 处理通知更新
+        (updatedNotification) => {
+          setNotifications((prev) => {
+            return prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
+          })
+        }
+      )
 
       return () => {
         unsubscribe()
