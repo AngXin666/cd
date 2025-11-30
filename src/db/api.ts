@@ -6233,22 +6233,6 @@ export async function getRequiredPhotos(vehicleId: string): Promise<string[]> {
 // ==================== 通知系统 ====================
 
 /**
- * 将 user_roles 表中的大写角色映射为 notifications 表要求的小写角色
- */
-function mapUserRoleToNotificationRole(userRole: string | undefined | null): string {
-  if (!userRole) return 'system'
-
-  const roleMap: Record<string, string> = {
-    BOSS: 'boss',
-    MANAGER: 'manager',
-    DRIVER: 'driver',
-    DISPATCHER: 'fleet_leader'
-  }
-
-  return roleMap[userRole] || 'system'
-}
-
-/**
  * 创建通知
  * @param notification 通知信息
  * @returns 创建的通知ID，失败返回null
@@ -6270,7 +6254,7 @@ export async function createNotification(notification: {
 
     const senderId = user?.id || null
     let senderName = '系统'
-    let senderRole = 'system'
+    let senderRole = 'BOSS'
 
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
@@ -6279,7 +6263,7 @@ export async function createNotification(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = mapUserRoleToNotificationRole(roleData?.role)
+        senderRole = roleData?.role || 'BOSS'
       }
     }
 
@@ -6354,7 +6338,7 @@ export async function createNotificationForAllManagers(notification: {
 
     const senderId = user?.id || null
     let senderName = '系统'
-    let senderRole = 'system'
+    let senderRole = 'BOSS'
 
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
@@ -6363,7 +6347,7 @@ export async function createNotificationForAllManagers(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = mapUserRoleToNotificationRole(roleData?.role)
+        senderRole = roleData?.role || 'BOSS'
       }
     }
 
@@ -6442,7 +6426,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
     const senderId = user?.id || null
     let senderName = '系统'
-    let senderRole = 'system'
+    let senderRole = 'BOSS'
 
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
@@ -6451,7 +6435,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = mapUserRoleToNotificationRole(roleData?.role)
+        senderRole = roleData?.role || 'BOSS'
       }
     }
 

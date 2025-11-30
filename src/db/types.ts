@@ -1007,8 +1007,8 @@ export interface LockedPhotos {
 
 // ==================== 通知模板和定时通知（已废弃 - 多租户相关）====================
 
-// 发送者角色类型
-export type SenderRole = 'system' | 'admin' | 'manager' | 'MANAGER' | 'BOSS'
+// 发送者角色类型（统一使用大写格式）
+export type SenderRole = 'BOSS' | 'MANAGER' | 'DRIVER' | 'DISPATCHER'
 
 // 通知模板接口（保留用于兼容性）
 export interface NotificationTemplate {

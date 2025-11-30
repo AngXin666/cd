@@ -3,9 +3,12 @@ import {useCallback, useEffect, useRef} from 'react'
 import {getAllAttendanceRecords, getAllLeaveApplications, getAllResignationApplications} from '@/db/api'
 import type {Notification} from './useNotifications'
 
+// 前端角色类型（用于 UI 逻辑）
+type FrontendUserRole = 'driver' | 'manager' | 'super_admin'
+
 interface PollingNotificationOptions {
   userId: string
-  userRole: 'driver' | 'manager' | 'super_admin'
+  userRole: FrontendUserRole
   onLeaveApplicationChange?: () => void
   onResignationApplicationChange?: () => void
   onAttendanceChange?: () => void

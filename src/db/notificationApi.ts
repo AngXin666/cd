@@ -9,22 +9,6 @@ import {getCurrentUserRoleAndTenant} from './api'
 
 const logger = createLogger('NotificationAPI')
 
-/**
- * 将 user_roles 表中的大写角色映射为 notifications 表要求的小写角色
- */
-function mapUserRoleToNotificationRole(userRole: string | undefined | null): string {
-  if (!userRole) return 'system'
-
-  const roleMap: Record<string, string> = {
-    BOSS: 'boss',
-    MANAGER: 'manager',
-    DRIVER: 'driver',
-    DISPATCHER: 'fleet_leader'
-  }
-
-  return roleMap[userRole] || 'system'
-}
-
 // 通知类型 - 与数据库 notification_type 枚举保持一致
 export type NotificationType =
   | 'permission_change' // 权限变更
@@ -457,7 +441,7 @@ export async function createNotification(
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
     // 将大写角色映射为小写角色
-    const mappedSenderRole = mapUserRoleToNotificationRole(senderRole)
+    const mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -528,7 +512,7 @@ export async function createNotifications(
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
     // 将大写角色映射为小写角色
-    const mappedSenderRole = mapUserRoleToNotificationRole(senderRole)
+    const mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
