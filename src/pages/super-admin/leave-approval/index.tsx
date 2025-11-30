@@ -8,7 +8,7 @@ import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 
-import {createOrUpdateApprovalNotification, updateApprovalNotificationStatus} from '@/db/notificationApi'
+import {createNotification, updateApprovalNotificationStatus} from '@/db/notificationApi'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
@@ -574,17 +574,16 @@ const SuperAdminLeaveApproval: React.FC = () => {
               // 构建通知消息
               const notificationMessage = `${reviewerText}拒绝了【${warehouseName}】司机【${applicantName}】的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
 
-              // 发送通知给所有调度和车队长
+              // 发送通知给所有调度和车队长（使用普通通知，不是审批通知）
               for (const managerId of managersAndDispatchers) {
                 // 不要通知申请人自己
                 if (managerId !== application.user_id) {
-                  await createOrUpdateApprovalNotification(
+                  await createNotification(
                     managerId,
                     'leave_rejected',
                     '请假申请被拒绝通知',
-                    notificationMessage,
-                    applicationId,
-                    'rejected'
+                    notificationMessage
+                    // 不传 relatedId，这是额外的通知，不关联审批流程
                   )
                 }
               }

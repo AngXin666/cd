@@ -2420,7 +2420,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       return false
     }
 
-    const reviewerName = reviewer.name || '管理员'
+    const _reviewerName = reviewer.name || '管理员'
 
     // 获取申请人信息 - 单用户架构：查询 users 表
     const {data: applicant, error: applicantError} = await supabase
@@ -2434,7 +2434,7 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       return false
     }
 
-    const applicantName = applicant.name || '司机'
+    const _applicantName = applicant.name || '司机'
 
     // 更新审批状态
     const {error: updateError} = await supabase
@@ -2452,100 +2452,10 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       return false
     }
 
-    // 删除旧的"待审核"通知（给司机的）
-    const {error: deleteError} = await supabase
-      .from('notifications')
-      .delete()
-      .eq('related_id', applicationId)
-      .eq('type', 'leave_application_submitted')
-      .eq('user_id', application.user_id)
+    // 注意：通知更新逻辑已移至审批页面，使用 updateApprovalNotificationStatus 函数统一处理
+    // 这里不再处理通知更新，避免重复和冲突
 
-    if (deleteError) {
-      console.warn('删除旧通知失败:', deleteError)
-    } else {
-      console.log('✅ 已删除旧的待审核通知')
-    }
-
-    // 更新管理员的"待审核"通知为审批结果
-    const notificationType = review.status === 'approved' ? 'leave_approved' : 'leave_rejected'
-    const notificationTitle = review.status === 'approved' ? '请假申请已通过' : '请假申请已驳回'
-    const statusText = review.status === 'approved' ? '已通过' : '已驳回'
-
-    const leaveTypeMap: Record<string, string> = {
-      personal: '事假',
-      sick: '病假',
-      annual: '年假',
-      other: '其他'
-    }
-    const leaveTypeLabel = leaveTypeMap[application.leave_type] || '请假'
-
-    // 格式化日期为人性化显示
-    const dateRangeText = formatLeaveDate(application.start_date, application.end_date, application.days)
-
-    // 获取所有管理员的待审核通知
-    const {data: managerNotifications, error: fetchNotifError} = await supabase
-      .from('notifications')
-      .select('id, user_id')
-      .eq('related_id', applicationId)
-      .eq('type', 'leave_application_submitted')
-      .neq('user_id', application.user_id)
-
-    if (!fetchNotifError && managerNotifications && managerNotifications.length > 0) {
-      // 更新每个管理员的通知
-      for (const notif of managerNotifications) {
-        // 判断是否为审批人本人
-        const isReviewer = notif.user_id === review.reviewed_by
-        const operatorText = isReviewer ? '您' : reviewerName
-        const verbText = isReviewer ? '已' : ''
-
-        await supabase
-          .from('notifications')
-          .update({
-            type: notificationType,
-            title: `请假申请${verbText}${statusText}`,
-            message: `${operatorText}${verbText}${statusText.replace('已', '')}了${leaveTypeLabel}申请（${dateRangeText}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`
-          })
-          .eq('id', notif.id)
-      }
-      console.log(`✅ 已更新 ${managerNotifications.length} 个管理员通知`)
-    }
-
-    // 创建通知给司机（包含审批人信息）
-    await createNotification({
-      user_id: application.user_id,
-      type: notificationType,
-      title: notificationTitle,
-      message: `您的${leaveTypeLabel}申请（${dateRangeText}）${statusText}（审批人：${reviewerName}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
-      related_id: applicationId
-    })
-
-    console.log('✅ 已通知司机审批结果')
-
-    // 通知所有老板
-    const superAdmins = await getAllSuperAdmins()
-    const actionText = review.status === 'approved' ? '同意' : '拒绝'
-
-    for (const admin of superAdmins) {
-      // 如果是审批人自己，使用"您"
-      const operatorText = admin.id === review.reviewed_by ? '您' : reviewerName
-      const verbText = admin.id === review.reviewed_by ? '已' : ''
-
-      // 构建详细的通知消息
-      const detailedMessage =
-        admin.id === review.reviewed_by
-          ? `您${verbText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请时间：${dateRangeText}${application.reason ? `\n申请事由：${application.reason}` : ''}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
-          : `${operatorText}${actionText}了${applicantName}的${leaveTypeLabel}申请\n申请人：${applicantName}${applicant.phone ? `（${applicant.phone}）` : ''}\n申请时间：${dateRangeText}${application.reason ? `\n申请事由：${application.reason}` : ''}\n审批人：${reviewerName}\n审批时间：${new Date(review.reviewed_at).toLocaleString('zh-CN')}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
-
-      await createNotification({
-        user_id: admin.id,
-        type: notificationType,
-        title: `${leaveTypeLabel}申请${verbText}${actionText}`,
-        message: detailedMessage,
-        related_id: applicationId
-      })
-    }
-
-    console.log(`✅ 已通知 ${superAdmins.length} 位老板`)
+    console.log('✅ 请假申请审批成功')
     return true
   } catch (error) {
     console.error('审批请假申请异常:', error)
@@ -2824,7 +2734,7 @@ export async function reviewResignationApplication(
       return false
     }
 
-    const reviewerName = reviewer.name || '管理员'
+    const _reviewerName = reviewer.name || '管理员'
 
     // 获取申请人信息 - 单用户架构：查询 users 表
     const {data: applicant, error: applicantError} = await supabase
@@ -2838,7 +2748,7 @@ export async function reviewResignationApplication(
       return false
     }
 
-    const applicantName = applicant.name || '司机'
+    const _applicantName = applicant.name || '司机'
 
     // 更新审批状态
     const {error: updateError} = await supabase
@@ -2856,89 +2766,10 @@ export async function reviewResignationApplication(
       return false
     }
 
-    // 删除旧的"待审核"通知（给司机的）
-    const {error: deleteError} = await supabase
-      .from('notifications')
-      .delete()
-      .eq('related_id', applicationId)
-      .eq('type', 'resignation_application_submitted')
-      .eq('user_id', application.user_id)
+    // 注意：通知更新逻辑已移至审批页面，使用 updateApprovalNotificationStatus 函数统一处理
+    // 这里不再处理通知更新，避免重复和冲突
 
-    if (deleteError) {
-      console.warn('删除旧通知失败:', deleteError)
-    } else {
-      console.log('✅ 已删除旧的待审核通知')
-    }
-
-    // 更新管理员的"待审核"通知为审批结果
-    const notificationType = review.status === 'approved' ? 'resignation_approved' : 'resignation_rejected'
-    const notificationTitle = review.status === 'approved' ? '离职申请已通过' : '离职申请已驳回'
-    const statusText = review.status === 'approved' ? '已通过' : '已驳回'
-
-    // 获取所有管理员的待审核通知
-    const {data: managerNotifications, error: fetchNotifError} = await supabase
-      .from('notifications')
-      .select('id, user_id')
-      .eq('related_id', applicationId)
-      .eq('type', 'resignation_application_submitted')
-      .neq('user_id', application.user_id)
-
-    if (!fetchNotifError && managerNotifications && managerNotifications.length > 0) {
-      // 更新每个管理员的通知
-      for (const notif of managerNotifications) {
-        // 判断是否为审批人本人
-        const isReviewer = notif.user_id === review.reviewed_by
-        const operatorText = isReviewer ? '您' : reviewerName
-        const verbText = isReviewer ? '已' : ''
-
-        await supabase
-          .from('notifications')
-          .update({
-            type: notificationType,
-            title: `离职申请${verbText}${statusText}`,
-            message: `${operatorText}${verbText}${statusText.replace('已', '')}了离职申请（期望离职日期：${application.resignation_date}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`
-          })
-          .eq('id', notif.id)
-      }
-      console.log(`✅ 已更新 ${managerNotifications.length} 个管理员通知`)
-    }
-
-    // 创建通知给司机（包含审批人信息）
-    await createNotification({
-      user_id: application.user_id,
-      type: notificationType,
-      title: notificationTitle,
-      message: `您的离职申请（期望离职日期：${application.resignation_date}）${statusText}（审批人：${reviewerName}）${review.review_notes ? `，备注：${review.review_notes}` : ''}`,
-      related_id: applicationId
-    })
-
-    console.log('✅ 已通知司机审批结果')
-
-    // 通知所有老板
-    const superAdmins = await getAllSuperAdmins()
-    const actionText = review.status === 'approved' ? '同意' : '拒绝'
-
-    for (const admin of superAdmins) {
-      // 如果是审批人自己，使用"您"
-      const operatorText = admin.id === review.reviewed_by ? '您' : reviewerName
-      const verbText = admin.id === review.reviewed_by ? '已' : ''
-
-      // 构建详细的通知消息
-      const detailedMessage =
-        admin.id === review.reviewed_by
-          ? `您${verbText}${actionText}了${applicantName}的离职申请\n期望离职日期：${application.resignation_date}${application.reason ? `\n离职原因：${application.reason}` : ''}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
-          : `${operatorText}${actionText}了${applicantName}的离职申请\n申请人：${applicantName}${applicant.phone ? `（${applicant.phone}）` : ''}\n期望离职日期：${application.resignation_date}${application.reason ? `\n离职原因：${application.reason}` : ''}\n审批人：${reviewerName}\n审批时间：${new Date(review.reviewed_at).toLocaleString('zh-CN')}${review.review_notes ? `\n审批意见：${review.review_notes}` : ''}`
-
-      await createNotification({
-        user_id: admin.id,
-        type: notificationType,
-        title: `离职申请${verbText}${actionText}`,
-        message: detailedMessage,
-        related_id: applicationId
-      })
-    }
-
-    console.log(`✅ 已通知 ${superAdmins.length} 位老板`)
+    console.log('✅ 离职申请审批成功')
     return true
   } catch (error) {
     console.error('审批离职申请异常:', error)

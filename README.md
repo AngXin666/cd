@@ -34,9 +34,11 @@ pnpm run lint
   - 新增 `createOrUpdateApprovalNotification` API，专门用于创建或更新审批类通知，包含类型检查
   - 新增 `updateApprovalNotificationStatus` API，用于根据 `related_id` 更新审批状态，包含类型验证
   - 修改请假申请、离职申请的创建和审批流程，使用新的通知 API
+  - 移除 `reviewLeaveApplication` 和 `reviewResignationApplication` 中的旧通知逻辑，避免重复和冲突
   - 审批完成后，直接更新原通知的状态和内容，避免通知冗余
   - 自动重置通知为未读状态，确保用户能及时看到审批结果
   - 通知中心页面优先显示 `approval_status` 字段的状态，确保审批状态准确显示
+  - 修复了审批通知重复创建的问题，确保每个审批只有一条通知
 - ✅ **2025-11-30**：实现请假拒绝通知功能
   - 老板拒绝司机请假申请时，自动通知该仓库的所有调度和车队长
   - 新增 `getWarehouseDispatchersAndManagers` API，用于获取仓库的调度和车队长
