@@ -1377,12 +1377,34 @@ const UserManagement: React.FC = () => {
                           <Text className="text-gray-900 text-lg font-bold">
                             {u.real_name || u.name || '未设置姓名'}
                           </Text>
-                          {/* 检查个人信息是否已录入：name 和 phone 都已填写 */}
-                          {u.name && u.phone && (
-                            <View className="bg-green-100 px-2 py-0.5 rounded-full">
-                              <Text className="text-green-700 text-xs font-medium">已实名</Text>
-                            </View>
-                          )}
+                          {/* 实名认证标签 */}
+                          {(() => {
+                            // 对于司机角色，判断是否已录入身份证信息
+                            if (u.role === 'DRIVER') {
+                              const hasIdCard = !!(
+                                detail?.license?.id_card_number ||
+                                detail?.license?.id_card_photo_front ||
+                                detail?.license?.id_card_photo_back
+                              )
+                              if (hasIdCard) {
+                                return (
+                                  <View className="bg-green-100 px-2 py-0.5 rounded-full">
+                                    <Text className="text-green-700 text-xs font-medium">已实名</Text>
+                                  </View>
+                                )
+                              }
+                            } else {
+                              // 对于其他角色，判断是否已填写姓名和手机号
+                              if (u.name && u.phone) {
+                                return (
+                                  <View className="bg-green-100 px-2 py-0.5 rounded-full">
+                                    <Text className="text-green-700 text-xs font-medium">已实名</Text>
+                                  </View>
+                                )
+                              }
+                            }
+                            return null
+                          })()}
                           {/* 角色标签：如果是司机且有详细信息，显示具体司机类型；否则显示角色 */}
                           {u.role === 'DRIVER' && detail && getDriverType(u) ? (
                             <View

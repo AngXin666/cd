@@ -918,10 +918,13 @@ const DriverManagement: React.FC = () => {
                   <View className="space-y-3">
                     {filteredDrivers.map((driver) => {
                       const detail = driverDetails.get(driver.id)
-                      // 检测司机是否已录入个人信息：检查 users 表中的 name 和 phone 是否已填写
-                      const hasPersonalInfo = !!(driver.name && driver.phone)
-                      const hasVehicleInfo = detail?.vehicles && detail.vehicles.length > 0
-                      const isVerified = hasPersonalInfo || hasVehicleInfo // 只要有一个就算已实名
+                      // 判断司机是否已实名：检查是否已录入身份证信息
+                      const hasIdCard = !!(
+                        detail?.license?.id_card_number ||
+                        detail?.license?.id_card_photo_front ||
+                        detail?.license?.id_card_photo_back
+                      )
+                      const isVerified = hasIdCard
 
                       return (
                         <View key={driver.id} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
@@ -936,8 +939,8 @@ const DriverManagement: React.FC = () => {
                                   <Text className="text-gray-900 text-lg font-bold">
                                     {driver.real_name || driver.name || '未设置姓名'}
                                   </Text>
-                                  {/* 实名状态标签：检查个人信息是否已录入 */}
-                                  {hasPersonalInfo && (
+                                  {/* 实名状态标签：检查是否已录入身份证信息 */}
+                                  {isVerified && (
                                     <View className="bg-green-100 px-2 py-0.5 rounded-full">
                                       <Text className="text-green-700 text-xs font-medium">已实名</Text>
                                     </View>
