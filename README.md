@@ -25,11 +25,72 @@ pnpm run build:weapp   # 小程序构建
 pnpm run lint
 ```
 
-### 最近修复
+### 最近更新
+- ✅ **2025-11-30**：实现完整的权限管理系统
+  - 创建基于角色的权限管理系统（RBAC）
+  - 实现权限上下文管理器和自动加载机制
+  - 提供权限验证 Hook 和守卫组件
+  - 详见：[权限系统文档](./docs/PERMISSION_SYSTEM.md)
 - ✅ **2025-11-29**：修复 Taro 配置验证问题，开发服务器现已可以正常启动
   - 修复了 vitePlugins 数组中的 null 值问题
   - 移除了不支持的 viteBuildConfig 配置项
   - 详见：[预览启动修复总结.md](./预览启动修复总结.md)
+
+---
+
+## 🔐 权限管理系统 ⭐ 2025-11-30
+
+**新功能**：实现了完整的基于角色的权限管理系统（RBAC）！🎉
+
+### 系统特性
+- ✅ **数据库层**：roles、permissions、role_permissions 三表结构
+- ✅ **上下文管理器**：自动加载、内存缓存、自动清理
+- ✅ **权限验证**：Hook 和组件两种验证方式
+- ✅ **性能优化**：一次加载、O(1) 查询、长期缓存
+- ✅ **演示页面**：完整的权限系统演示和测试
+
+### 快速使用
+
+#### 1. 在页面中验证权限
+```typescript
+import { usePermission } from '@/contexts/PermissionContext'
+import { PermissionCode } from '@/db/types/permission'
+
+export default function MyPage() {
+  const { hasPermission } = usePermission()
+
+  if (hasPermission(PermissionCode.DRIVER_MANAGE)) {
+    // 用户有管理司机的权限
+  }
+}
+```
+
+#### 2. 使用权限守卫组件
+```typescript
+import { PermissionGuard } from '@/components/PermissionGuard'
+import { PermissionCode } from '@/db/types/permission'
+
+<PermissionGuard permissions={PermissionCode.DRIVER_MANAGE}>
+  <Button>管理司机</Button>
+</PermissionGuard>
+```
+
+### 权限代码
+- **司机管理**：driver:view, driver:manage, driver:verify
+- **车辆管理**：vehicle:view, vehicle:manage
+- **计件管理**：piecework:view, piecework:manage, piecework:approve
+- **通知管理**：notification:send, notification:view
+- **报表管理**：report:view, report:export
+- **系统管理**：system:admin, system:role, system:permission
+
+### 角色配置
+- **DRIVER（司机）**：查看权限
+- **MANAGER（车队长）**：管理权限 + 审核权限
+- **DISPATCHER（调度）**：调度权限 + 通知权限
+- **BOSS（老板）**：所有权限
+
+### 详细文档
+📖 [权限系统完整文档](./docs/PERMISSION_SYSTEM.md)
 
 ---
 
