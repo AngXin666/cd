@@ -92,7 +92,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           setLoading(false)
           return emptyStats
         }
-        totalDriversQuery = totalDriversQuery.in('id', driverIds)
+        totalDriversQuery = totalDriversQuery.in('user_id', driverIds)
       }
 
       const {count: totalDrivers, error: totalError} = await totalDriversQuery
