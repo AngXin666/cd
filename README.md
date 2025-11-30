@@ -39,7 +39,10 @@ pnpm run lint
   - 自动重置通知为未读状态，确保用户能及时看到审批结果
   - 通知中心页面优先显示 `approval_status` 字段的状态，确保审批状态准确显示
   - 修复了审批通知重复创建的问题，确保每个审批只有一条通知
-  - 修复了 `PEER_ADMIN` 角色与数据库枚举不匹配的问题，自动映射为 `BOSS` 角色
+  - **修复了 `PEER_ADMIN` 角色与数据库枚举不匹配的问题**：
+    - 在 `notificationApi.ts` 中的所有通知创建函数中，将 `PEER_ADMIN` 自动映射为 `BOSS`
+    - 在 `api.ts` 中的 SQL 查询中，将 `PEER_ADMIN` 替换为 `BOSS` 或 `DISPATCHER`
+    - 确保所有数据库查询使用的角色值都在 `user_role` 枚举中（BOSS、MANAGER、DISPATCHER、DRIVER）
 - ✅ **2025-11-30**：实现请假拒绝通知功能
   - 老板拒绝司机请假申请时，自动通知该仓库的所有调度和车队长
   - 新增 `getWarehouseDispatchersAndManagers` API，用于获取仓库的调度和车队长

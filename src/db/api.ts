@@ -2089,12 +2089,13 @@ export async function getWarehouseDispatchersAndManagers(warehouseId: string): P
 
     const userIds = assignments.map((a) => a.user_id)
 
-    // 2. 查询这些用户中角色为 PEER_ADMIN 或 MANAGER 的用户
+    // 2. 查询这些用户中角色为 BOSS、DISPATCHER 或 MANAGER 的用户
+    // 注意：PEER_ADMIN 在代码中等同于 BOSS，但数据库枚举中没有 PEER_ADMIN
     const {data: roles, error: roleError} = await supabase
       .from('user_roles')
       .select('user_id')
       .in('user_id', userIds)
-      .in('role', ['PEER_ADMIN', 'MANAGER'])
+      .in('role', ['BOSS', 'DISPATCHER', 'MANAGER'])
 
     if (roleError) {
       console.error('获取用户角色失败:', roleError)
@@ -6422,11 +6423,12 @@ export async function createNotificationForAllManagers(notification: {
 
     logger.info('发送者信息', {senderId, senderName, senderRole})
 
-    // 获取所有车队长、老板和平级账号 - 单用户架构：查询 user_roles 表
+    // 获取所有车队长、老板和调度 - 单用户架构：查询 user_roles 表
+    // 注意：PEER_ADMIN 在代码中等同于 BOSS，但数据库枚举中没有 PEER_ADMIN
     const {data: managers, error: managersError} = await supabase
       .from('user_roles')
       .select('user_id')
-      .in('role', ['MANAGER', 'BOSS', 'PEER_ADMIN'])
+      .in('role', ['MANAGER', 'BOSS', 'DISPATCHER'])
 
     if (managersError) {
       logger.error('获取管理员列表失败', managersError)
