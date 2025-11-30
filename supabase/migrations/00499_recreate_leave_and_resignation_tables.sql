@@ -43,13 +43,14 @@
 
 ### 5. RLS 策略
 - 启用 RLS
-- 管理员（boss/manager）可以查看和管理所有申请
+- 管理员（BOSS/MANAGER）可以查看和管理所有申请
 - 司机只能查看和管理自己的申请
 
 ## 注意事项
 - 不使用外键约束引用 users 表，因为在单用户系统中，用户ID直接来自 auth.users
 - 数据完整性由应用层验证、认证系统和 RLS 策略保证
 - warehouse_id 可以为空，因为某些申请可能不关联特定仓库
+- 枚举值使用大写：BOSS、MANAGER、DRIVER
 */
 
 -- 1. 创建 leave_applications 表
@@ -130,7 +131,7 @@ CREATE TRIGGER update_resignation_applications_updated_at
 ALTER TABLE leave_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resignation_applications ENABLE ROW LEVEL SECURITY;
 
--- 6. 创建 RLS 策略
+-- 6. 创建 RLS 策略（使用大写枚举值）
 
 -- leave_applications 策略
 -- 管理员可以查看所有申请
@@ -141,7 +142,7 @@ CREATE POLICY "Managers can view all leave applications" ON leave_applications
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('boss', 'manager')
+      AND user_roles.role IN ('BOSS'::user_role, 'MANAGER'::user_role)
     )
   );
 
@@ -153,7 +154,7 @@ CREATE POLICY "Managers can update all leave applications" ON leave_applications
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('boss', 'manager')
+      AND user_roles.role IN ('BOSS'::user_role, 'MANAGER'::user_role)
     )
   );
 
@@ -165,7 +166,7 @@ CREATE POLICY "Managers can delete all leave applications" ON leave_applications
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('boss', 'manager')
+      AND user_roles.role IN ('BOSS'::user_role, 'MANAGER'::user_role)
     )
   );
 
@@ -202,7 +203,7 @@ CREATE POLICY "Managers can view all resignation applications" ON resignation_ap
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('boss', 'manager')
+      AND user_roles.role IN ('BOSS'::user_role, 'MANAGER'::user_role)
     )
   );
 
@@ -214,7 +215,7 @@ CREATE POLICY "Managers can update all resignation applications" ON resignation_
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('boss', 'manager')
+      AND user_roles.role IN ('BOSS'::user_role, 'MANAGER'::user_role)
     )
   );
 
@@ -226,7 +227,7 @@ CREATE POLICY "Managers can delete all resignation applications" ON resignation_
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('boss', 'manager')
+      AND user_roles.role IN ('BOSS'::user_role, 'MANAGER'::user_role)
     )
   );
 
