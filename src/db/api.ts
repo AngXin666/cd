@@ -9,7 +9,7 @@ import {
   getUsersWithRole,
   getUserWithRole
 } from './helpers'
-import {createNotifications} from './notificationApi'
+import {createOrUpdateApprovalNotification} from './notificationApi'
 import type {
   ApplicationReviewInput,
   AttendanceRecord,
@@ -41,7 +41,6 @@ import type {
   NotificationSendRecord,
   NotificationSendRecordWithSender,
   NotificationTemplate,
-  NotificationType,
   PieceWorkCategory,
   PieceWorkCategoryInput,
   PieceWorkRecord,
@@ -2200,55 +2199,59 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
     const dateRangeText = formatLeaveDate(input.start_date, input.end_date, data.days || 0)
 
     // 6. 创建通知给所有管理员（车队长、老板、调度员）
-    const notifications: Array<{
-      userId: string
-      type: NotificationType
-      title: string
-      message: string
-      relatedId?: string
-    }> = []
+    const notificationPromises: Promise<boolean>[] = []
 
     // 获取所有车队长
     const managers = await getAllManagers()
     for (const manager of managers) {
-      notifications.push({
-        userId: manager.id,
-        type: 'leave_application_submitted',
-        title: '新的请假申请',
-        message: `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
-        relatedId: data.id
-      })
+      notificationPromises.push(
+        createOrUpdateApprovalNotification(
+          manager.id,
+          'leave_application_submitted',
+          '新的请假申请',
+          `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
+          data.id,
+          'pending'
+        )
+      )
     }
 
     // 获取所有老板
     const bosses = await getAllSuperAdmins()
     for (const boss of bosses) {
-      notifications.push({
-        userId: boss.id,
-        type: 'leave_application_submitted',
-        title: '新的请假申请',
-        message: `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
-        relatedId: data.id
-      })
+      notificationPromises.push(
+        createOrUpdateApprovalNotification(
+          boss.id,
+          'leave_application_submitted',
+          '新的请假申请',
+          `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
+          data.id,
+          'pending'
+        )
+      )
     }
 
     // 获取所有调度员
     const dispatchers = await getUsersByRole('DISPATCHER')
     for (const dispatcher of dispatchers) {
-      notifications.push({
-        userId: dispatcher.id,
-        type: 'leave_application_submitted',
-        title: '新的请假申请',
-        message: `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
-        relatedId: data.id
-      })
+      notificationPromises.push(
+        createOrUpdateApprovalNotification(
+          dispatcher.id,
+          'leave_application_submitted',
+          '新的请假申请',
+          `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
+          data.id,
+          'pending'
+        )
+      )
     }
 
     // 批量创建通知
-    if (notifications.length > 0) {
-      const success = await createNotifications(notifications)
-      if (success) {
-        console.log(`✅ 已通知 ${notifications.length} 个管理员`)
+    if (notificationPromises.length > 0) {
+      const results = await Promise.all(notificationPromises)
+      const successCount = results.filter((r) => r).length
+      if (successCount > 0) {
+        console.log(`✅ 已通知 ${successCount} 个管理员`)
       } else {
         console.error('❌ 通知管理员失败')
       }
@@ -2558,34 +2561,115 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 export async function createResignationApplication(
   input: ResignationApplicationInput
 ): Promise<ResignationApplication | null> {
-  // 1. 获取当前用户
-  const {
-    data: {user}
-  } = await supabase.auth.getUser()
+  try {
+    // 1. 获取当前用户
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    console.error('创建离职申请失败: 用户未登录')
+    if (!user) {
+      console.error('创建离职申请失败: 用户未登录')
+      return null
+    }
+
+    // 2. 插入离职申请
+    const {data, error} = await supabase
+      .from('resignation_applications')
+      .insert({
+        user_id: input.user_id,
+        warehouse_id: input.warehouse_id,
+        resignation_date: input.resignation_date,
+        reason: input.reason,
+        status: 'pending'
+      })
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      console.error('创建离职申请失败:', error)
+      return null
+    }
+
+    if (!data) {
+      console.error('创建离职申请失败: 未返回数据')
+      return null
+    }
+
+    // 3. 获取申请人信息
+    const {data: applicant} = await supabase.from('users').select('name').eq('id', input.user_id).maybeSingle()
+    const applicantName = applicant?.name || '司机'
+
+    // 4. 格式化日期
+    const formatDate = (dateStr: string) => {
+      const date = new Date(dateStr)
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    }
+    const resignationDate = formatDate(input.resignation_date)
+
+    // 5. 创建通知给所有管理员（车队长、老板、调度员）
+    const notificationPromises: Promise<boolean>[] = []
+
+    // 获取所有车队长
+    const managers = await getAllManagers()
+    for (const manager of managers) {
+      notificationPromises.push(
+        createOrUpdateApprovalNotification(
+          manager.id,
+          'resignation_application_submitted',
+          '新的离职申请',
+          `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
+          data.id,
+          'pending'
+        )
+      )
+    }
+
+    // 获取所有老板
+    const bosses = await getAllSuperAdmins()
+    for (const boss of bosses) {
+      notificationPromises.push(
+        createOrUpdateApprovalNotification(
+          boss.id,
+          'resignation_application_submitted',
+          '新的离职申请',
+          `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
+          data.id,
+          'pending'
+        )
+      )
+    }
+
+    // 获取所有调度员
+    const dispatchers = await getUsersByRole('DISPATCHER')
+    for (const dispatcher of dispatchers) {
+      notificationPromises.push(
+        createOrUpdateApprovalNotification(
+          dispatcher.id,
+          'resignation_application_submitted',
+          '新的离职申请',
+          `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
+          data.id,
+          'pending'
+        )
+      )
+    }
+
+    // 批量创建通知
+    if (notificationPromises.length > 0) {
+      const results = await Promise.all(notificationPromises)
+      const successCount = results.filter((r) => r).length
+      if (successCount > 0) {
+        console.log(`✅ 已通知 ${successCount} 个管理员`)
+      } else {
+        console.error('❌ 通知管理员失败')
+      }
+    }
+
+    return data
+  } catch (error) {
+    console.error('创建离职申请异常:', error)
     return null
   }
-
-  const {data, error} = await supabase
-    .from('resignation_applications')
-    .insert({
-      user_id: input.user_id,
-      warehouse_id: input.warehouse_id,
-      resignation_date: input.resignation_date,
-      reason: input.reason,
-      status: 'pending'
-    })
-    .select()
-    .maybeSingle()
-
-  if (error) {
-    console.error('创建离职申请失败:', error)
-    return null
-  }
-
-  return data
 }
 
 /**

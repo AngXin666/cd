@@ -40,6 +40,9 @@ export type NotificationCategory =
 // 通知处理状态
 export type NotificationProcessStatus = 'pending' | 'processed' | 'info_only'
 
+// 审批状态
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
 // 通知接口
 export interface Notification {
   id: string
@@ -53,6 +56,7 @@ export interface Notification {
   content: string // 改为content以匹配新表结构
   action_url: string | null // 新增
   related_id: string | null
+  approval_status: ApprovalStatus | null // 新增：审批状态
   is_read: boolean
   created_at: string
   updated_at?: string // 新增
@@ -89,8 +93,23 @@ export function isNotificationProcessed(type: NotificationType | string): boolea
 
 /**
  * 获取通知的处理状态
+ * 优先使用 approval_status 字段，如果不存在则根据 type 判断
  */
-export function getNotificationProcessStatus(type: NotificationType | string): NotificationProcessStatus {
+export function getNotificationProcessStatus(
+  type: NotificationType | string,
+  approvalStatus?: ApprovalStatus | null
+): NotificationProcessStatus {
+  // 优先使用 approval_status 字段
+  if (approvalStatus) {
+    if (approvalStatus === 'pending') {
+      return 'pending'
+    }
+    if (approvalStatus === 'approved' || approvalStatus === 'rejected') {
+      return 'processed'
+    }
+  }
+
+  // 如果没有 approval_status，则根据 type 判断
   if (isNotificationPending(type)) {
     return 'pending'
   }
@@ -102,8 +121,25 @@ export function getNotificationProcessStatus(type: NotificationType | string): N
 
 /**
  * 获取通知状态标签
+ * 优先使用 approval_status 字段，如果不存在则根据 type 判断
  */
-export function getNotificationStatusLabel(type: NotificationType | string): string {
+export function getNotificationStatusLabel(
+  type: NotificationType | string,
+  approvalStatus?: ApprovalStatus | null
+): string {
+  // 优先使用 approval_status 字段
+  if (approvalStatus) {
+    switch (approvalStatus) {
+      case 'pending':
+        return '待审批'
+      case 'approved':
+        return '已批准'
+      case 'rejected':
+        return '已拒绝'
+    }
+  }
+
+  // 如果没有 approval_status，则根据 type 判断
   switch (type) {
     case 'leave_application_submitted':
       return '待审批'
@@ -130,8 +166,25 @@ export function getNotificationStatusLabel(type: NotificationType | string): str
 
 /**
  * 获取通知状态颜色
+ * 优先使用 approval_status 字段，如果不存在则根据 type 判断
  */
-export function getNotificationStatusColor(type: NotificationType | string): string {
+export function getNotificationStatusColor(
+  type: NotificationType | string,
+  approvalStatus?: ApprovalStatus | null
+): string {
+  // 优先使用 approval_status 字段
+  if (approvalStatus) {
+    switch (approvalStatus) {
+      case 'pending':
+        return 'text-warning' // 待审批：警告色（橙色）
+      case 'approved':
+        return 'text-success' // 已批准：成功色（绿色）
+      case 'rejected':
+        return 'text-destructive' // 已拒绝：错误色（红色）
+    }
+  }
+
+  // 如果没有 approval_status，则根据 type 判断
   const status = getNotificationProcessStatus(type)
   switch (status) {
     case 'pending':
@@ -549,6 +602,230 @@ export async function createNotifications(
     return true
   } catch (error) {
     logger.error('💥 批量创建通知异常', error)
+    return false
+  }
+}
+
+/**
+ * 创建或更新审批类通知
+ * 如果已存在相同 related_id 的待审批通知，则更新状态；否则创建新通知
+ * @param recipientId 接收通知的用户ID
+ * @param type 通知类型
+ * @param title 通知标题
+ * @param message 通知内容
+ * @param relatedId 关联的记录ID（必填）
+ * @param approvalStatus 审批状态（'pending', 'approved', 'rejected'）
+ * @returns 是否成功
+ */
+export async function createOrUpdateApprovalNotification(
+  recipientId: string,
+  type: NotificationType,
+  title: string,
+  message: string,
+  relatedId: string,
+  approvalStatus: ApprovalStatus = 'pending'
+): Promise<boolean> {
+  try {
+    // 参数验证
+    console.log('🔔 createOrUpdateApprovalNotification 调用参数:', {
+      recipientId,
+      type,
+      title,
+      message,
+      relatedId,
+      approvalStatus
+    })
+
+    if (!recipientId) {
+      console.error('❌ createOrUpdateApprovalNotification: recipientId 参数为空')
+      logger.error('创建或更新审批通知失败：recipientId 为空', {type, title})
+      return false
+    }
+
+    if (!relatedId) {
+      console.error('❌ createOrUpdateApprovalNotification: relatedId 参数为空')
+      logger.error('创建或更新审批通知失败：relatedId 为空', {type, title})
+      return false
+    }
+
+    // 获取当前用户信息作为发送者
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+    if (!user) {
+      logger.error('创建或更新审批通知失败：无法获取当前用户信息')
+      return false
+    }
+
+    // 获取发送者的角色信息
+    const {role: senderRole} = await getCurrentUserRoleAndTenant()
+    const mappedSenderRole = senderRole || 'BOSS'
+
+    // 获取发送者的姓名
+    let senderName = '系统'
+    const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+    senderName = userData?.name || '系统'
+
+    // 自动确定分类
+    const category = getNotificationCategory(type)
+
+    // 1. 查找是否已存在相同 related_id 的通知
+    const {data: existingNotifications, error: queryError} = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('recipient_id', recipientId)
+      .eq('related_id', relatedId)
+      .order('created_at', {ascending: false})
+      .limit(1)
+
+    if (queryError) {
+      logger.error('查询现有通知失败', queryError)
+      // 如果查询失败，继续创建新通知
+    }
+
+    // 2. 如果存在通知，则更新状态
+    if (existingNotifications && existingNotifications.length > 0) {
+      const existingNotification = existingNotifications[0]
+      logger.info('找到现有通知，更新状态', {
+        notificationId: existingNotification.id,
+        oldStatus: existingNotification.approval_status,
+        newStatus: approvalStatus
+      })
+
+      const {error: updateError} = await supabase
+        .from('notifications')
+        .update({
+          type,
+          title,
+          content: message,
+          approval_status: approvalStatus,
+          is_read: false, // 重置为未读，提醒用户查看审批结果
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingNotification.id)
+
+      if (updateError) {
+        logger.error('更新通知失败', updateError)
+        return false
+      }
+
+      logger.info('通知更新成功', {notificationId: existingNotification.id, approvalStatus})
+      return true
+    }
+
+    // 3. 如果不存在通知，则创建新通知
+    logger.db('创建新的审批通知', 'notifications', {
+      recipientId,
+      type,
+      category,
+      title,
+      message,
+      relatedId,
+      approvalStatus
+    })
+
+    const {error: insertError} = await supabase.from('notifications').insert({
+      recipient_id: recipientId,
+      sender_id: user.id,
+      sender_name: senderName,
+      sender_role: mappedSenderRole,
+      type,
+      title,
+      content: message,
+      action_url: null,
+      related_id: relatedId,
+      approval_status: approvalStatus,
+      is_read: false
+    })
+
+    if (insertError) {
+      logger.error('创建审批通知失败', insertError)
+      return false
+    }
+
+    logger.info('审批通知创建成功', {recipientId, type, category, title, approvalStatus})
+    return true
+  } catch (error) {
+    logger.error('创建或更新审批通知异常', error)
+    return false
+  }
+}
+
+/**
+ * 更新审批通知状态
+ * 根据 related_id 查找通知并更新审批状态
+ * @param relatedId 关联的记录ID
+ * @param approvalStatus 审批状态（'approved', 'rejected'）
+ * @param newTitle 新的标题（可选）
+ * @param newMessage 新的消息内容（可选）
+ * @returns 是否成功
+ */
+export async function updateApprovalNotificationStatus(
+  relatedId: string,
+  approvalStatus: 'approved' | 'rejected',
+  newTitle?: string,
+  newMessage?: string
+): Promise<boolean> {
+  try {
+    console.log('🔄 updateApprovalNotificationStatus 调用参数:', {
+      relatedId,
+      approvalStatus,
+      newTitle,
+      newMessage
+    })
+
+    if (!relatedId) {
+      console.error('❌ updateApprovalNotificationStatus: relatedId 参数为空')
+      logger.error('更新审批通知状态失败：relatedId 为空')
+      return false
+    }
+
+    // 查找所有相关的通知
+    const {data: notifications, error: queryError} = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('related_id', relatedId)
+
+    if (queryError) {
+      logger.error('查询相关通知失败', queryError)
+      return false
+    }
+
+    if (!notifications || notifications.length === 0) {
+      logger.warn('未找到相关通知', {relatedId})
+      return false
+    }
+
+    // 更新所有相关通知的状态
+    const updateData: any = {
+      approval_status: approvalStatus,
+      is_read: false, // 重置为未读，提醒用户查看审批结果
+      updated_at: new Date().toISOString()
+    }
+
+    if (newTitle) {
+      updateData.title = newTitle
+    }
+
+    if (newMessage) {
+      updateData.content = newMessage
+    }
+
+    const {error: updateError} = await supabase.from('notifications').update(updateData).eq('related_id', relatedId)
+
+    if (updateError) {
+      logger.error('更新审批通知状态失败', updateError)
+      return false
+    }
+
+    logger.info('审批通知状态更新成功', {
+      relatedId,
+      approvalStatus,
+      count: notifications.length
+    })
+    return true
+  } catch (error) {
+    logger.error('更新审批通知状态异常', error)
     return false
   }
 }

@@ -8,7 +8,7 @@ import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 
-import {createNotification} from '@/db/notificationApi'
+import {createOrUpdateApprovalNotification, updateApprovalNotificationStatus} from '@/db/notificationApi'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
@@ -508,7 +508,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       })
 
       if (success) {
-        // 3. 发送通知给申请人
+        // 3. 更新申请人的通知状态
         try {
           // 获取当前审批人信息
           const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
@@ -546,12 +546,14 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
           // 构建通知消息
           const statusText = approved ? '已通过' : '已拒绝'
-          const notificationType = approved ? 'leave_approved' : 'leave_rejected'
+          const _notificationType = approved ? 'leave_approved' : 'leave_rejected'
+          const approvalStatus = approved ? 'approved' : 'rejected'
           const message = `${reviewerText}${statusText}了您的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
 
-          await createNotification(application.user_id, notificationType, '请假审批通知', message, applicationId)
+          // 使用新的 API 更新通知状态
+          await updateApprovalNotificationStatus(applicationId, approvalStatus, '请假审批通知', message)
 
-          console.log(`✅ 已发送请假审批通知给申请人: ${application.user_id}`)
+          console.log(`✅ 已更新请假审批通知状态: ${applicationId}`)
 
           // 4. 如果是拒绝请假，则通知该仓库的调度和车队长
           if (!approved && application.warehouse_id) {
@@ -576,12 +578,13 @@ const SuperAdminLeaveApproval: React.FC = () => {
               for (const managerId of managersAndDispatchers) {
                 // 不要通知申请人自己
                 if (managerId !== application.user_id) {
-                  await createNotification(
+                  await createOrUpdateApprovalNotification(
                     managerId,
                     'leave_rejected',
                     '请假申请被拒绝通知',
                     notificationMessage,
-                    applicationId
+                    applicationId,
+                    'rejected'
                   )
                 }
               }
@@ -593,7 +596,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
             }
           }
         } catch (notificationError) {
-          console.error('❌ 发送请假审批通知失败:', notificationError)
+          console.error('❌ 更新请假审批通知失败:', notificationError)
           // 通知发送失败不影响审批流程
         }
 
@@ -624,6 +627,13 @@ const SuperAdminLeaveApproval: React.FC = () => {
     try {
       showLoading({title: approved ? '批准中...' : '拒绝中...'})
 
+      // 1. 获取离职申请详情
+      const application = resignationApplications.find((app) => app.id === applicationId)
+      if (!application) {
+        throw new Error('未找到离职申请')
+      }
+
+      // 2. 审批离职申请
       const success = await LeaveAPI.reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
@@ -631,6 +641,46 @@ const SuperAdminLeaveApproval: React.FC = () => {
       })
 
       if (success) {
+        // 3. 更新申请人的通知状态
+        try {
+          // 获取当前审批人信息
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
+
+          // 构建审批人显示文本
+          let reviewerText = '老板'
+          if (currentUserProfile) {
+            const reviewerRealName = currentUserProfile.real_name
+            const reviewerUserName = currentUserProfile.name
+
+            if (reviewerRealName) {
+              reviewerText = `老板【${reviewerRealName}】`
+            } else if (reviewerUserName && reviewerUserName !== '老板' && reviewerUserName !== '车队长') {
+              reviewerText = `老板【${reviewerUserName}】`
+            }
+          }
+
+          // 格式化日期
+          const formatDate = (dateStr: string) => {
+            const date = new Date(dateStr)
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+          }
+
+          const resignationDate = formatDate(application.resignation_date)
+
+          // 构建通知消息
+          const statusText = approved ? '已通过' : '已拒绝'
+          const approvalStatus = approved ? 'approved' : 'rejected'
+          const message = `${reviewerText}${statusText}了您的离职申请（离职日期：${resignationDate}）`
+
+          // 使用新的 API 更新通知状态
+          await updateApprovalNotificationStatus(applicationId, approvalStatus, '离职审批通知', message)
+
+          console.log(`✅ 已更新离职审批通知状态: ${applicationId}`)
+        } catch (notificationError) {
+          console.error('❌ 更新离职审批通知失败:', notificationError)
+          // 通知发送失败不影响审批流程
+        }
+
         showToast({
           title: approved ? '已批准' : '已拒绝',
           icon: 'success',

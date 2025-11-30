@@ -635,9 +635,12 @@ const NotificationsPage: React.FC = () => {
                     {/* 该分组的通知列表 */}
                     <View className="px-4 pt-3 space-y-3">
                       {group.notifications.map((notification) => {
-                        const processStatus = getNotificationProcessStatus(notification.type)
-                        const statusLabel = getNotificationStatusLabel(notification.type)
-                        const statusColor = getNotificationStatusColor(notification.type)
+                        const processStatus = getNotificationProcessStatus(
+                          notification.type,
+                          notification.approval_status
+                        )
+                        const statusLabel = getNotificationStatusLabel(notification.type, notification.approval_status)
+                        const statusColor = getNotificationStatusColor(notification.type, notification.approval_status)
                         const isPending = processStatus === 'pending'
                         const isProcessed = processStatus === 'processed'
 
