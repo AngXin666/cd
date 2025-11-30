@@ -515,45 +515,6 @@ const ManagerHome: React.FC = () => {
                     </View>
                   </View>
                 </View>
-
-                {/* 司机分类统计 */}
-                <View>
-                  <View className="flex items-center mb-2">
-                    <View className="i-mdi-account-details text-sm text-orange-600 mr-1" />
-                    <Text className="text-xs text-gray-600 font-medium">司机分类统计</Text>
-                  </View>
-                  <View className="grid grid-cols-4 gap-2">
-                    {/* 新纯司机 */}
-                    <View className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-account-star text-xl text-cyan-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">新纯司机</Text>
-                      <Text className="text-lg font-bold text-cyan-600 block">{driverStats.newPureDrivers}</Text>
-                    </View>
-
-                    {/* 新带车司机 */}
-                    <View className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-truck-fast text-xl text-amber-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">新带车司机</Text>
-                      <Text className="text-lg font-bold text-amber-600 block">
-                        {driverStats.newWithVehicleDrivers}
-                      </Text>
-                    </View>
-
-                    {/* 纯司机 */}
-                    <View className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-account text-xl text-indigo-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">纯司机</Text>
-                      <Text className="text-lg font-bold text-indigo-600 block">{driverStats.pureDrivers}</Text>
-                    </View>
-
-                    {/* 带车司机 */}
-                    <View className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-lg p-3 flex flex-col items-center">
-                      <View className="i-mdi-truck text-xl text-rose-600 mb-1" />
-                      <Text className="text-xs text-gray-600 block mb-1">带车司机</Text>
-                      <Text className="text-lg font-bold text-rose-600 block">{driverStats.withVehicleDrivers}</Text>
-                    </View>
-                  </View>
-                </View>
               </View>
             ) : (
               <View className="bg-white rounded-xl p-8 shadow-md flex items-center justify-center">

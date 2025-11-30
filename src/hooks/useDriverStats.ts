@@ -9,11 +9,6 @@ export interface DriverStats {
   onlineDrivers: number // 在线司机数（今日已打卡）
   busyDrivers: number // 已计件司机数（今日有计件记录）
   idleDrivers: number // 未计件司机数
-  // 按类型和新旧分类统计
-  newPureDrivers: number // 新纯司机（注册≤7天的纯司机）
-  newWithVehicleDrivers: number // 新带车司机（注册≤7天的带车司机）
-  pureDrivers: number // 纯司机（注册>7天的纯司机）
-  withVehicleDrivers: number // 带车司机（注册>7天的带车司机）
 }
 
 /**
@@ -70,7 +65,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       }
 
       const today = new Date().toISOString().split('T')[0]
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
       // 1. 获取总司机数（按仓库过滤）- 单用户架构：从 user_roles 表查询
       let driverIds: string[] = []
@@ -89,11 +83,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
             totalDrivers: 0,
             onlineDrivers: 0,
             busyDrivers: 0,
-            idleDrivers: 0,
-            newPureDrivers: 0,
-            newWithVehicleDrivers: 0,
-            pureDrivers: 0,
-            withVehicleDrivers: 0
+            idleDrivers: 0
           }
           setData(emptyStats)
           setLoading(false)
@@ -104,35 +94,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         const {data: allDrivers} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
         driverIds = allDrivers?.map((d) => d.user_id) || []
       }
-
-      // 2. 获取司机详细信息（包括注册时间和司机类型）
-      const {data: driversData, error: driversError} = await supabase
-        .from('users')
-        .select('id, created_at, driver_type')
-        .in('id', driverIds)
-
-      if (driversError) throw driversError
-
-      // 3. 统计各类司机数量
-      let newPureDrivers = 0
-      let newWithVehicleDrivers = 0
-      let pureDrivers = 0
-      let withVehicleDrivers = 0
-
-      driversData?.forEach((driver) => {
-        const isNew = new Date(driver.created_at) >= new Date(sevenDaysAgo)
-        const isPure = driver.driver_type === 'pure'
-
-        if (isNew && isPure) {
-          newPureDrivers++
-        } else if (isNew && !isPure) {
-          newWithVehicleDrivers++
-        } else if (!isNew && isPure) {
-          pureDrivers++
-        } else if (!isNew && !isPure) {
-          withVehicleDrivers++
-        }
-      })
 
       const totalDrivers = driverIds.length
 
@@ -179,11 +140,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         totalDrivers,
         onlineDrivers,
         busyDrivers,
-        idleDrivers,
-        newPureDrivers,
-        newWithVehicleDrivers,
-        pureDrivers,
-        withVehicleDrivers
+        idleDrivers
       }
 
       // 更新缓存
