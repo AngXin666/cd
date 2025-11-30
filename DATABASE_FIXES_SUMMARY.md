@@ -130,6 +130,26 @@ relation "public.category_prices" does not exist
 
 ---
 
+### 7. warehouses 表旧 RLS 策略问题 ✅
+
+**错误现象**：
+```
+更新仓库失败: relation "profiles" does not exist
+```
+
+**影响**：
+- 无法更新仓库信息
+- 仓库管理功能受影响
+- 所有涉及仓库更新的操作都失败
+
+**修复方案**：
+- 删除引用 `profiles` 表的旧 RLS 策略
+- 这些策略来自旧的系统架构（多用户系统）
+- 保留新的策略（使用 `user_roles` 表）
+- 迁移文件：`00506_remove_old_warehouse_policies.sql`
+
+---
+
 ## 技术细节
 
 ### 系统架构变更
@@ -225,6 +245,11 @@ EXISTS (
    - 创建查看、更新、管理员策略
    - 解决考勤管理读取不到司机的问题
 
+6. **`supabase/migrations/00506_remove_old_warehouse_policies.sql`**
+   - 删除 warehouses 表的旧 RLS 策略
+   - 清理引用 profiles 表的策略
+   - 解决仓库更新失败的问题
+
 ### 代码修改文件
 
 1. **`src/db/api.ts`**
@@ -250,7 +275,7 @@ EXISTS (
 -- 验证所有表都已创建
 SELECT table_name FROM information_schema.tables 
 WHERE table_schema = 'public' 
-AND table_name IN ('driver_licenses', 'attendance_rules', 'category_prices', 'new_warehouses', 'users')
+AND table_name IN ('driver_licenses', 'attendance_rules', 'category_prices', 'new_warehouses', 'users', 'warehouses')
 ORDER BY table_name;
 ```
 
@@ -265,6 +290,17 @@ WHERE schemaname = 'public' AND tablename = 'users';
 
 **结果**：✅ users 表 RLS 已启用（rowsecurity = true）
 
+**策略清理验证**：
+```sql
+-- 验证 warehouses 表策略已清理
+SELECT schemaname, policyname, cmd 
+FROM pg_policies 
+WHERE tablename = 'warehouses' 
+ORDER BY schemaname, policyname;
+```
+
+**结果**：✅ 只剩下两个正确的策略，旧策略已全部删除
+
 ### 代码质量验证
 
 **Lint 检查**：
@@ -274,7 +310,7 @@ pnpm run lint
 
 **结果**：
 ```
-Checked 220 files in 1274ms. No fixes applied.
+Checked 220 files in 1226ms. No fixes applied.
 ```
 
 ✅ 所有代码检查通过，没有错误
@@ -481,10 +517,11 @@ SELECT role FROM users WHERE id = auth.uid()
 **修复统计**：
 - 重建表：3 个（`driver_licenses`, `attendance_rules`, `category_prices`）
 - 启用 RLS：1 个（`users`）
+- 清理 RLS 策略：1 个（`warehouses`）
 - 修复触发器：1 个（`prevent_delete_last_warehouse`）
 - 修复查询：2 个（`getDriverWarehouses`, `getUsersWithRole`）
 - 调整逻辑：2 处（实名认证检查）
-- 创建迁移文件：5 个
+- 创建迁移文件：6 个
 - 修改代码文件：3 个
 
 **系统状态**：
