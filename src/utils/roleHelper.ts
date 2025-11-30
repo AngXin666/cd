@@ -19,30 +19,21 @@ export function isBoss(role: UserRole | undefined | null): boolean {
 }
 
 /**
- * 检查用户是否为平级管理员
- * @param role 用户角色
- * @returns 是否为平级管理员
- */
-export function isPeerAdmin(role: UserRole | undefined | null): boolean {
-  return role === 'PEER_ADMIN'
-}
-
-/**
- * 检查用户是否为管理员（老板或平级管理员）
+ * 检查用户是否为管理员（老板）
  * @param role 用户角色
  * @returns 是否为管理员
  */
 export function isTenantAdmin(role: UserRole | undefined | null): boolean {
-  return role === 'BOSS' || role === 'PEER_ADMIN'
+  return role === 'BOSS'
 }
 
 /**
- * 检查用户是否为管理员（包括老板、平级管理员和车队长）
+ * 检查用户是否为管理员（包括老板和车队长）
  * @param role 用户角色
  * @returns 是否为管理员
  */
 export function isManager(role: UserRole | undefined | null): boolean {
-  return role === 'BOSS' || role === 'PEER_ADMIN' || role === 'MANAGER'
+  return role === 'BOSS' || role === 'MANAGER'
 }
 
 /**
@@ -54,8 +45,8 @@ export function isManager(role: UserRole | undefined | null): boolean {
 export function canManageUser(managerRole: UserRole | undefined | null, targetRole: UserRole): boolean {
   if (!managerRole) return false
 
-  // BOSS 和 PEER_ADMIN 可以管理所有角色
-  if (managerRole === 'BOSS' || managerRole === 'PEER_ADMIN') return true
+  // BOSS 可以管理所有角色
+  if (managerRole === 'BOSS') return true
 
   // MANAGER 可以管理 DRIVER
   if (managerRole === 'MANAGER') {
@@ -74,7 +65,6 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
 export function getRoleDisplayName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {
     BOSS: '老板',
-    PEER_ADMIN: '平级账户',
     MANAGER: '车队长',
     DISPATCHER: '调度员',
     DRIVER: '司机'
@@ -90,9 +80,9 @@ export function getRoleDisplayName(role: UserRole): string {
 export function getCreatableRoles(currentRole: UserRole | undefined | null): UserRole[] {
   if (!currentRole) return []
 
-  // BOSS 和 PEER_ADMIN 可以创建所有角色（除了 BOSS）
-  if (currentRole === 'BOSS' || currentRole === 'PEER_ADMIN') {
-    return ['PEER_ADMIN', 'MANAGER', 'DRIVER']
+  // BOSS 可以创建所有角色（除了 BOSS）
+  if (currentRole === 'BOSS') {
+    return ['MANAGER', 'DISPATCHER', 'DRIVER']
   }
 
   // MANAGER 可以创建 DRIVER

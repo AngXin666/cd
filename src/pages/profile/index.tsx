@@ -31,8 +31,8 @@ const ProfilePage: React.FC = () => {
       } else if (data.role === 'MANAGER') {
         const managerStats = await DashboardAPI.getManagerStats(user.id)
         setStats(managerStats)
-      } else if (data.role === 'BOSS' || data.role === 'PEER_ADMIN') {
-        // 老板和平级管理员都使用超级管理员统计
+      } else if (data.role === 'BOSS') {
+        // 老板使用超级管理员统计
         const superAdminStats = await DashboardAPI.getSuperAdminStats()
         setStats(superAdminStats)
       }

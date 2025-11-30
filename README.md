@@ -26,6 +26,14 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-11-30**：移除 `PEER_ADMIN` 角色，统一角色系统
+  - **系统角色**：现在只有4个角色 - 老板（BOSS）、调度（DISPATCHER）、车队长（MANAGER）、司机（DRIVER）
+  - 从 TypeScript 类型定义中移除 `PEER_ADMIN` 角色
+  - 更新所有使用 `PEER_ADMIN` 的代码，统一使用 `BOSS` 角色
+  - 修复 SQL 查询中的角色过滤，确保只使用数据库枚举中存在的角色值
+  - 更新角色辅助函数（`roleHelper.ts`），移除 `isPeerAdmin` 函数
+  - 更新所有页面组件，移除对 `PEER_ADMIN` 的判断逻辑
+  - 确保 TypeScript 类型定义与数据库枚举完全一致
 - ✅ **2025-11-30**：优化通知中心，实现审批状态更新机制
   - 为通知表添加 `approval_status` 字段（pending/approved/rejected）和 `updated_at` 字段
   - **审批类型通知**：只有需要审批的通知（请假申请、离职申请、车辆审核）才使用 `approval_status` 字段
@@ -39,10 +47,6 @@ pnpm run lint
   - 自动重置通知为未读状态，确保用户能及时看到审批结果
   - 通知中心页面优先显示 `approval_status` 字段的状态，确保审批状态准确显示
   - 修复了审批通知重复创建的问题，确保每个审批只有一条通知
-  - **修复了 `PEER_ADMIN` 角色与数据库枚举不匹配的问题**：
-    - 在 `notificationApi.ts` 中的所有通知创建函数中，将 `PEER_ADMIN` 自动映射为 `BOSS`
-    - 在 `api.ts` 中的 SQL 查询中，将 `PEER_ADMIN` 替换为 `BOSS` 或 `DISPATCHER`
-    - 确保所有数据库查询使用的角色值都在 `user_role` 枚举中（BOSS、MANAGER、DISPATCHER、DRIVER）
 - ✅ **2025-11-30**：实现请假拒绝通知功能
   - 老板拒绝司机请假申请时，自动通知该仓库的所有调度和车队长
   - 新增 `getWarehouseDispatchersAndManagers` API，用于获取仓库的调度和车队长

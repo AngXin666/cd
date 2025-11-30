@@ -504,8 +504,8 @@ export async function createNotification(
 
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
-    // 将 PEER_ADMIN 映射为 BOSS，因为数据库枚举中没有 PEER_ADMIN
-    const mappedSenderRole = senderRole === 'PEER_ADMIN' ? 'BOSS' : senderRole || 'BOSS'
+
+    const mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -575,8 +575,8 @@ export async function createNotifications(
 
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
-    // 将 PEER_ADMIN 映射为 BOSS，因为数据库枚举中没有 PEER_ADMIN
-    const mappedSenderRole = senderRole === 'PEER_ADMIN' ? 'BOSS' : senderRole || 'BOSS'
+
+    const mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -685,8 +685,8 @@ export async function createOrUpdateApprovalNotification(
 
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
-    // 将 PEER_ADMIN 映射为 BOSS，因为数据库枚举中没有 PEER_ADMIN
-    const mappedSenderRole = senderRole === 'PEER_ADMIN' ? 'BOSS' : senderRole || 'BOSS'
+
+    const mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'

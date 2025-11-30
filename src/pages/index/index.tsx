@@ -134,7 +134,6 @@ const IndexPage: React.FC = () => {
           switchTab({url: '/pages/manager/index'})
           break
         case 'BOSS':
-        case 'PEER_ADMIN':
           switchTab({url: '/pages/super-admin/index'})
           break
         default:

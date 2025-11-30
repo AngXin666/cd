@@ -110,7 +110,7 @@ const HelpPage: React.FC = () => {
       roleFAQ = getDriverFAQ()
     } else if (profile?.role === 'MANAGER') {
       roleFAQ = getManagerFAQ()
-    } else if (profile?.role === 'BOSS' || profile?.role === 'PEER_ADMIN') {
+    } else if (profile?.role === 'BOSS') {
       roleFAQ = getSuperAdminFAQ()
     }
     return [...roleFAQ, ...getCommonFAQ()]
