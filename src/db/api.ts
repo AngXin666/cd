@@ -6221,6 +6221,22 @@ export async function getRequiredPhotos(vehicleId: string): Promise<string[]> {
 // ==================== 通知系统 ====================
 
 /**
+ * 将 user_roles 表中的大写角色映射为 notifications 表要求的小写角色
+ */
+function mapUserRoleToNotificationRole(userRole: string | undefined | null): string {
+  if (!userRole) return 'system'
+
+  const roleMap: Record<string, string> = {
+    BOSS: 'boss',
+    MANAGER: 'manager',
+    DRIVER: 'driver',
+    DISPATCHER: 'fleet_leader'
+  }
+
+  return roleMap[userRole] || 'system'
+}
+
+/**
  * 创建通知
  * @param notification 通知信息
  * @returns 创建的通知ID，失败返回null
@@ -6251,7 +6267,7 @@ export async function createNotification(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = roleData?.role || 'system'
+        senderRole = mapUserRoleToNotificationRole(roleData?.role)
       }
     }
 
@@ -6333,7 +6349,7 @@ export async function createNotificationForAllManagers(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = roleData?.role || 'system'
+        senderRole = mapUserRoleToNotificationRole(roleData?.role)
       }
     }
 
@@ -6421,7 +6437,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = roleData?.role || 'system'
+        senderRole = mapUserRoleToNotificationRole(roleData?.role)
       }
     }
 
