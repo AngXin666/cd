@@ -7352,12 +7352,11 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
     }
 
     // 2. 只使用数据库表中存在的字段
-    // 注意：sender_id 必须使用当前登录用户的 ID，这是 RLS 策略的要求
     const {data, error} = await supabase
       .from('notifications')
       .insert({
         recipient_id: input.recipient_id,
-        sender_id: user.id, // 强制使用当前登录用户的 ID，符合 RLS 策略要求
+        sender_id: input.sender_id || user.id,
         type: input.type || 'system',
         title: input.title,
         content: input.content
