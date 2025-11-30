@@ -29,15 +29,25 @@ pnpm run lint
 - ✅ **2025-11-30**：修复管理员无法更新其他人通知的权限问题
   - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
   - **根本原因**：
-    - RLS 策略只允许接收者更新自己的通知（`auth.uid() = recipient_id`）
-    - 管理员审批时，想要更新其他管理员的通知，但 RLS 策略不允许
-    - 例如：老板审批时，想要更新车队长的通知，但老板不是车队长通知的接收者
+    - **权限系统架构说明**：
+      1. **应用层权限**：`profiles` 表中的 `role` 字段（`driver`、`super_admin` 等）用于前端页面权限控制
+      2. **数据库层权限**：RLS（Row Level Security）策略直接在数据库层面控制数据访问
+      3. **关键点**：RLS 策略使用 `is_admin(auth.uid())` 函数，该函数查询 `profiles.role` 字段
+    - **问题所在**：
+      - 原有 RLS 策略只允许接收者更新自己的通知（`auth.uid() = recipient_id`）
+      - 管理员审批时，需要更新其他管理员的通知，但 RLS 策略不允许
+      - 例如：老板（`profiles.role = 'super_admin'`）审批时，想要更新车队长的通知，但老板不是车队长通知的接收者
   - **解决方案**：
     - 添加新的 RLS 策略：`Admins can update all notifications`
-    - 允许管理员（`is_admin(auth.uid())`）更新所有通知
+    - 允许管理员（`is_admin(auth.uid())` 返回 true）更新所有通知
+    - `is_admin` 函数定义：检查 `profiles.role IN ('super_admin', 'peer_admin')`
   - **修改文件**：
     - `supabase/migrations/add_admin_update_notifications_policy.sql`：新增迁移文件
   - **效果**：管理员现在可以更新所有通知的状态和内容
+  - **权限映射说明**：
+    - 本系统使用 `profiles.role` 字段作为权限判断依据
+    - RLS 策略通过 `is_admin()` 函数读取 `profiles.role` 字段
+    - 不需要额外的权限映射表，`profiles` 表本身就是权限映射表
 - ✅ **2025-11-30**：修复审批后通知重复和状态混乱问题
   - **问题描述**：
     1. 老板端审批后，老板端的通知不会更新，还是显示待审批
