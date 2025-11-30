@@ -86,6 +86,28 @@ relation "public.attendance_rules" does not exist
 
 ---
 
+### 5. 品类价格表缺失 ✅
+
+**错误信息**：
+```
+relation "public.category_prices" does not exist
+```
+
+**影响**：
+- 无法查看品类价格
+- 无法创建、更新、删除品类价格配置
+- 计件工资系统完全失效
+- 老板端和管理端的品类价格管理功能失效
+
+**修复方案**：
+- 重新创建 `category_prices` 表
+- 支持全局配置和仓库配置
+- 包含多种价格类型（基础单价、上楼价、分拣单价等）
+- 配置 RLS 策略，控制不同角色的访问权限
+- 迁移文件：`00504_recreate_category_prices_table.sql`
+
+---
+
 ## 技术细节
 
 ### 系统架构变更
@@ -170,6 +192,12 @@ EXISTS (
    - 创建唯一性约束
    - 配置完整的 RLS 策略
 
+4. **`supabase/migrations/00504_recreate_category_prices_table.sql`**
+   - 重建品类价格表
+   - 支持全局配置和仓库配置
+   - 包含多种价格类型
+   - 配置完整的 RLS 策略
+
 ### 代码修改文件
 
 1. **`src/db/api.ts`**
@@ -195,7 +223,7 @@ EXISTS (
 -- 验证所有表都已创建
 SELECT table_name FROM information_schema.tables 
 WHERE table_schema = 'public' 
-AND table_name IN ('driver_licenses', 'attendance_rules', 'new_warehouses')
+AND table_name IN ('driver_licenses', 'attendance_rules', 'category_prices', 'new_warehouses')
 ORDER BY table_name;
 ```
 
@@ -210,7 +238,7 @@ pnpm run lint
 
 **结果**：
 ```
-Checked 220 files in 1239ms. No fixes applied.
+Checked 220 files in 1140ms. No fixes applied.
 ```
 
 ✅ 所有代码检查通过，没有错误
@@ -230,6 +258,11 @@ Checked 220 files in 1239ms. No fixes applied.
 - ✅ 考勤规则创建
 - ✅ 考勤规则更新
 - ✅ 考勤规则删除
+- ✅ 品类价格查看
+- ✅ 品类价格创建
+- ✅ 品类价格更新
+- ✅ 品类价格删除
+- ✅ 计件工资计算
 
 ### 权限控制
 
@@ -246,7 +279,9 @@ Checked 220 files in 1239ms. No fixes applied.
 **DRIVER 角色**：
 - ✅ 可以查看自己的数据
 - ✅ 可以查看自己仓库的考勤规则
+- ✅ 可以查看品类价格
 - ❌ 不能修改考勤规则
+- ❌ 不能修改品类价格
 - ❌ 不能管理其他司机
 
 ### 数据完整性
@@ -404,11 +439,11 @@ SELECT role FROM users WHERE id = auth.uid()
 本次修复成功解决了车队管理小程序在单用户系统迁移过程中遗留的所有数据库问题。所有核心功能已恢复正常，权限控制正确，数据完整性得到保证。
 
 **修复统计**：
-- 重建表：2 个（`driver_licenses`, `attendance_rules`）
+- 重建表：3 个（`driver_licenses`, `attendance_rules`, `category_prices`）
 - 修复触发器：1 个（`prevent_delete_last_warehouse`）
 - 修复查询：1 个（`getDriverWarehouses`）
 - 调整逻辑：2 处（实名认证检查）
-- 创建迁移文件：3 个
+- 创建迁移文件：4 个
 - 修改代码文件：3 个
 
 **系统状态**：
