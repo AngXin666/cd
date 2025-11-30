@@ -9,6 +9,22 @@ import {getCurrentUserRoleAndTenant} from './api'
 
 const logger = createLogger('NotificationAPI')
 
+/**
+ * 将 user_roles 表中的大写角色映射为 notifications 表要求的小写角色
+ */
+function mapUserRoleToNotificationRole(userRole: string | undefined | null): string {
+  if (!userRole) return 'system'
+
+  const roleMap: Record<string, string> = {
+    BOSS: 'boss',
+    MANAGER: 'manager',
+    DRIVER: 'driver',
+    DISPATCHER: 'fleet_leader'
+  }
+
+  return roleMap[userRole] || 'system'
+}
+
 // 通知类型 - 与数据库 notification_type 枚举保持一致
 export type NotificationType =
   | 'permission_change' // 权限变更
@@ -440,6 +456,8 @@ export async function createNotification(
 
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
+    // 将大写角色映射为小写角色
+    const mappedSenderRole = mapUserRoleToNotificationRole(senderRole)
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -457,7 +475,7 @@ export async function createNotification(
       recipient_id: userId,
       sender_id: user.id,
       sender_name: senderName,
-      sender_role: senderRole,
+      sender_role: mappedSenderRole,
       type,
       title,
       content: message,
@@ -509,6 +527,8 @@ export async function createNotifications(
 
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
+    // 将大写角色映射为小写角色
+    const mappedSenderRole = mapUserRoleToNotificationRole(senderRole)
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -517,13 +537,13 @@ export async function createNotifications(
     const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
     senderName = userData?.name || '系统'
 
-    logger.info('👤 发送者信息', {senderName, senderRole})
+    logger.info('👤 发送者信息', {senderName, senderRole: mappedSenderRole})
 
     const notificationData = notifications.map((n) => ({
       recipient_id: n.userId,
       sender_id: user.id,
       sender_name: senderName,
-      sender_role: senderRole,
+      sender_role: mappedSenderRole,
       type: n.type,
       title: n.title,
       content: n.message,

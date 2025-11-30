@@ -6273,21 +6273,23 @@ export async function createNotification(notification: {
 
     logger.info('发送者信息', {senderId, senderName, senderRole})
 
+    const notificationPayload = {
+      user_id: notification.user_id,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      related_id: notification.related_id || null,
+      is_read: false
+    }
+
+    logger.info('通知载荷', notificationPayload)
+
     // 使用 create_notifications_batch 函数来创建通知，传递完整的发送者信息
     const {data, error} = await supabase.rpc('create_notifications_batch', {
-      notifications: [
-        {
-          user_id: notification.user_id,
-          sender_id: senderId,
-          sender_name: senderName,
-          sender_role: senderRole,
-          type: notification.type,
-          title: notification.title,
-          message: notification.message,
-          related_id: notification.related_id || null,
-          is_read: false
-        }
-      ]
+      notifications: [notificationPayload]
     })
 
     if (error) {
