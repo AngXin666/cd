@@ -17,6 +17,7 @@ import {
   useWarehousesSorted
 } from '@/hooks'
 import {smartLogout} from '@/utils/auth'
+import {testAllRLSPolicies, testNotificationUpdatePermission} from '@/utils/testRLSPolicies'
 
 const SuperAdminHome: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -122,6 +123,25 @@ const SuperAdminHome: React.FC = () => {
     if (user) {
       // 批量并行加载所有初始数据
       Promise.all([loadData(), loadWarehouses()])
+
+      // 注册全局测试函数（仅在开发环境）
+      if (process.env.NODE_ENV === 'development' || typeof window !== 'undefined') {
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log('🔧 RLS 策略测试工具已加载')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log('使用方法:')
+        console.log('  1. 打开浏览器控制台（F12）')
+        console.log('  2. 输入以下命令测试:')
+        console.log('     - testAllRLSPolicies()          // 测试所有 RLS 策略')
+        console.log('     - testNotificationUpdatePermission()  // 测试通知更新权限')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+        // 注册到全局
+        if (typeof window !== 'undefined') {
+          ;(window as any).testAllRLSPolicies = testAllRLSPolicies
+          ;(window as any).testNotificationUpdatePermission = testNotificationUpdatePermission
+        }
+      }
     }
   }, [user, loadData, loadWarehouses])
 
