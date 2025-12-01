@@ -23,6 +23,7 @@ export * from './dashboard'
 export * from './leave'
 export * from './notifications'
 export * from './peer-accounts'
+export * from './peer-admin'
 export * from './piecework'
 // 重新导出所有模块
 export * from './stats'
