@@ -74,6 +74,32 @@ const SuperAdminLeaveApproval: React.FC = () => {
     showLoading({title: '加载中...'})
 
     try {
+      // 🔐 检查 Session 是否有效
+      const {
+        data: {session}
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        console.warn('⚠️ 页面加载时 Session 不存在，尝试刷新...')
+        const {data: refreshData, error: refreshError} = await supabase.auth.refreshSession()
+
+        if (refreshError || !refreshData.session) {
+          console.error('❌ Session 刷新失败，跳转到登录页:', refreshError)
+          Taro.hideLoading()
+          showToast({
+            title: '登录已过期，请重新登录',
+            icon: 'none',
+            duration: 2000
+          })
+          setTimeout(() => {
+            navigateTo({url: '/pages/login/index'})
+          }, 2000)
+          return
+        }
+
+        console.log('✅ Session 刷新成功')
+      }
+
       // 获取所有仓库信息
       const allWarehouses = await WarehousesAPI.getAllWarehouses()
       setWarehouses(allWarehouses)
