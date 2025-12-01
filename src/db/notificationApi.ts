@@ -576,6 +576,8 @@ export async function createNotifications(
     title: string
     message: string
     relatedId?: string
+    batchId?: string // 批次ID，同一批次的通知共享此ID
+    approvalStatus?: 'pending' | 'approved' | 'rejected' | null // 审批状态
   }>
 ): Promise<boolean> {
   try {
@@ -616,6 +618,8 @@ export async function createNotifications(
       content: n.message,
       action_url: null,
       related_id: n.relatedId || null,
+      batch_id: n.batchId || null, // 批次ID
+      approval_status: n.approvalStatus || null, // 审批状态
       is_read: false
     }))
 
@@ -881,6 +885,116 @@ export async function updateApprovalNotificationStatus(
     return true
   } catch (error) {
     logger.error('更新审批通知状态异常', error)
+    return false
+  }
+}
+
+/**
+ * 根据 batch_id 批量更新通知状态
+ * @param batchId 批次ID
+ * @param approvalStatus 审批状态
+ * @param content 可选的新内容
+ * @returns 是否成功
+ */
+export async function updateNotificationsByBatchId(
+  batchId: string,
+  approvalStatus: 'pending' | 'approved' | 'rejected',
+  content?: string
+): Promise<boolean> {
+  try {
+    logger.info('📝 根据 batch_id 批量更新通知状态', {batchId, approvalStatus, content})
+
+    if (!batchId) {
+      logger.error('❌ batch_id 参数为空')
+      return false
+    }
+
+    // 构建更新数据
+    const updateData: any = {
+      approval_status: approvalStatus,
+      updated_at: new Date().toISOString()
+    }
+
+    if (content) {
+      updateData.content = content
+    }
+
+    // 更新通知
+    const {data, error} = await supabase.from('notifications').update(updateData).eq('batch_id', batchId).select('id')
+
+    if (error) {
+      logger.error('❌ 批量更新通知失败', error)
+      return false
+    }
+
+    logger.info('✅ 批量更新通知成功', {
+      batchId,
+      approvalStatus,
+      count: data?.length || 0
+    })
+
+    return true
+  } catch (error) {
+    logger.error('💥 批量更新通知异常', error)
+    return false
+  }
+}
+
+/**
+ * 根据 related_id 和 type 批量更新通知状态（兼容旧代码）
+ * @param relatedId 关联的记录ID
+ * @param type 通知类型
+ * @param approvalStatus 审批状态
+ * @param content 可选的新内容
+ * @returns 是否成功
+ */
+export async function updateNotificationsByRelatedId(
+  relatedId: string,
+  type: NotificationType,
+  approvalStatus: 'pending' | 'approved' | 'rejected',
+  content?: string
+): Promise<boolean> {
+  try {
+    logger.info('📝 根据 related_id 和 type 批量更新通知状态', {relatedId, type, approvalStatus, content})
+
+    if (!relatedId) {
+      logger.error('❌ related_id 参数为空')
+      return false
+    }
+
+    // 构建更新数据
+    const updateData: any = {
+      approval_status: approvalStatus,
+      updated_at: new Date().toISOString()
+    }
+
+    if (content) {
+      updateData.content = content
+    }
+
+    // 更新通知
+    const {data, error} = await supabase
+      .from('notifications')
+      .update(updateData)
+      .eq('related_id', relatedId)
+      .eq('type', type)
+      .select('id')
+
+    if (error) {
+      logger.error('❌ 批量更新通知失败', error)
+      return false
+    }
+
+    logger.info('✅ 批量更新通知成功', {
+      relatedId,
+      type,
+      approvalStatus,
+      count: data?.length || 0
+    })
+
+    return true
+  } catch (error) {
+    logger.error('💥 批量更新通知异常', error)
     return false
   }
 }

@@ -627,6 +627,11 @@ export interface Notification {
   recipient_id: string
   is_read: boolean
   created_at: string
+  related_id?: string | null // 关联的业务记录ID（如请假申请ID）
+  approval_status?: 'pending' | 'approved' | 'rejected' | null // 审批状态
+  updated_at?: string | null // 更新时间
+  batch_id?: string | null // 批次ID，同一批次的通知共享此ID
+  parent_notification_id?: string | null // 父通知ID，用于关联审批结果通知与原始申请通知
 }
 
 // 创建通知的输入接口
@@ -636,11 +641,18 @@ export interface NotificationInput {
   type?: NotificationType
   sender_id?: string
   recipient_id: string
+  related_id?: string | null // 关联的业务记录ID
+  approval_status?: 'pending' | 'approved' | 'rejected' | null // 审批状态
+  batch_id?: string | null // 批次ID
+  parent_notification_id?: string | null // 父通知ID
 }
 
 // 更新通知的输入接口
 export interface NotificationUpdate {
   is_read?: boolean
+  approval_status?: 'pending' | 'approved' | 'rejected' | null
+  content?: string
+  title?: string
 }
 
 // ==================== 兼容旧代码的类型别名 ====================

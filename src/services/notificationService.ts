@@ -304,6 +304,8 @@ export interface DriverSubmissionNotificationParams {
   title: string
   content: string
   relatedId?: string
+  batchId?: string // 批次ID，用于后续更新通知状态
+  approvalStatus?: 'pending' | 'approved' | 'rejected' | null // 审批状态
 }
 
 /**
@@ -377,7 +379,9 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
       type: params.type,
       title: params.title,
       message: params.content,
-      relatedId: params.relatedId
+      relatedId: params.relatedId,
+      batchId: params.batchId, // 批次ID
+      approvalStatus: params.approvalStatus // 审批状态
     }))
 
     const success = await createNotifications(notifications)
