@@ -552,22 +552,44 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
           // 🔄 更新原有通知状态（发送给老板和车队长的通知）
           // 只更新原始申请通知，不更新审批结果通知
-          const {data: existingNotifications} = await supabase
+          console.log('🔍 开始查询原始申请通知:', {
+            related_id: applicationId,
+            type: 'leave_application_submitted',
+            current_user: user.id
+          })
+
+          const {data: existingNotifications, error: queryError} = await supabase
             .from('notifications')
             .select('*')
             .eq('related_id', applicationId)
             .eq('type', 'leave_application_submitted') // 只查询原始申请通知
 
+          if (queryError) {
+            console.error('❌ 查询原始通知失败:', queryError)
+          }
+
           console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
-          console.log(
-            '📋 通知详情:',
-            existingNotifications?.map((n) => ({
-              id: n.id,
-              recipient_id: n.recipient_id,
-              approval_status: n.approval_status,
-              title: n.title
-            }))
-          )
+
+          if (existingNotifications && existingNotifications.length > 0) {
+            console.log('📋 通知详情:')
+            existingNotifications.forEach((n, index) => {
+              console.log(`  [${index + 1}] ID: ${n.id}`)
+              console.log(`      接收者: ${n.recipient_id}`)
+              console.log(`      类型: ${n.type}`)
+              console.log(`      关联ID: ${n.related_id}`)
+              console.log(`      审批状态: ${n.approval_status}`)
+              console.log(`      标题: ${n.title}`)
+              console.log(`      是否已读: ${n.is_read}`)
+            })
+          } else {
+            console.warn('⚠️ 未查询到任何原始申请通知！')
+            console.log('🔍 可能的原因:')
+            console.log('  1. related_id 不匹配')
+            console.log('  2. type 不匹配')
+            console.log('  3. 通知已被删除')
+            console.log('  4. 司机提交时没有创建通知')
+          }
+
           console.log('👤 当前审批人 ID:', user.id)
 
           if (existingNotifications && existingNotifications.length > 0) {
