@@ -3385,6 +3385,36 @@ pnpm run dev:h5
 - ✅ 删除所有 boss_id 相关代码
 - ✅ 简化查询逻辑
 - ✅ 提升代码可读性
+- ✅ 修复通知系统 RLS 策略
+- ✅ 添加批次ID和父通知ID支持
+- ✅ 创建批量更新通知函数
+
+---
+
+## ⚠️ 重要提示
+
+### 通知系统修复
+如果遇到"老板审批后信息中心通知状态不更新"的问题，请执行以下步骤：
+
+1. **在 Supabase 控制台执行修复脚本**：
+   ```sql
+   -- 执行 supabase/migrations/99999_fix_notification_rls_final.sql
+   ```
+
+2. **验证修复**：
+   ```sql
+   -- 检查 RLS 策略
+   SELECT policyname, cmd, 
+          qual IS NOT NULL AS has_using,
+          with_check IS NOT NULL AS has_with_check
+   FROM pg_policies
+   WHERE tablename = 'notifications'
+   AND policyname = 'admins_update_all_notifications';
+   ```
+
+3. **详细说明**：
+   - 查看 `通知状态不更新问题诊断和修复.md`
+   - 查看 `通知系统修复实施指南.md`
 
 ---
 
