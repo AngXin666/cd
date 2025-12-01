@@ -25,6 +25,7 @@ export * from './notifications'
 export * from './peer-accounts'
 export * from './piecework'
 // 重新导出所有模块
+export * from './stats'
 export * from './users'
 // 导出工具函数
 export * from './utils'
