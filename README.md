@@ -26,6 +26,20 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复离职申请审批时的无效UUID错误
+  - **问题描述**：
+    - 审批离职申请时出现错误：`invalid input syntax for type uuid: "anon"`
+    - 查询原始通知失败，导致无法更新通知状态
+  - **根本原因**：
+    - `handleReviewResignation` 函数缺少 `applicationId` 验证
+    - 当 `applicationId` 为 `'anon'` 或无效值时，直接执行数据库查询导致错误
+  - **修复措施**：
+    - 在 `handleReviewResignation` 函数开始处添加 `applicationId` 验证
+    - 验证逻辑与 `handleReviewLeave` 保持一致
+    - 无效ID时显示错误提示并提前返回
+  - **相关文件**：
+    - `src/pages/super-admin/leave-approval/index.tsx`
+
 - ✅ **2025-12-01**：修复通知服务角色查询错误
   - **问题描述**：
     - 系统日志显示"未找到主账号"、"未找到车队长信息"
