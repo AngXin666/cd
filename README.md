@@ -26,6 +26,44 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复审批时出现"Session 不存在"错误（简化版）
+  - **问题描述**：审批请假/离职申请时，出现"❌ Session 不存在，请重新登录"错误，导致审批失败
+  - **根本原因**：
+    - 代码在审批逻辑中间添加了额外的 session 检查（`supabase.auth.getSession()`）
+    - 用户已经通过 `useAuth({guard: true})` 的认证检查，但在审批过程中再次检查 session
+    - 在某些情况下（如 session 刷新时），`getSession()` 可能返回空，导致误判
+  - **解决方案**：
+    - 移除审批逻辑中多余的 session 检查
+    - 依赖页面加载时的 `useAuth` 认证检查即可
+    - 如果用户真的未登录，`useAuth({guard: true})` 会自动跳转到登录页
+  - **修改文件**：
+    - `src/pages/super-admin/leave-approval/index.tsx`：老板端审批
+    - `src/pages/manager/leave-approval/index.tsx`：车队长端审批
+  - **效果**：审批流程不再出现误报的 session 错误，审批可以正常进行
+
+- ✅ **2025-12-01**：添加管理员更新通知的 RLS 策略
+  - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
+  - **根本原因**：
+    - **权限系统架构说明**：
+      1. **应用层权限**：`profiles` 表中的 `role` 字段（`driver`、`super_admin` 等）用于前端页面权限控制
+      2. **数据库层权限**：RLS（Row Level Security）策略直接在数据库层面控制数据访问
+      3. **关键点**：RLS 策略使用 `is_admin(auth.uid())` 函数，该函数查询 `profiles.role` 字段
+    - **问题所在**：
+      - 原有 RLS 策略只允许接收者更新自己的通知（`auth.uid() = recipient_id`）
+      - 管理员审批时，需要更新其他管理员的通知，但 RLS 策略不允许
+      - 例如：老板（`profiles.role = 'super_admin'`）审批时，想要更新车队长的通知，但老板不是车队长通知的接收者
+  - **解决方案**：
+    - 添加新的 RLS 策略：`Admins can update all notifications`
+    - 允许管理员（`is_admin(auth.uid())` 返回 true）更新所有通知
+    - `is_admin` 函数定义：检查 `profiles.role IN ('super_admin', 'peer_admin')`
+  - **修改文件**：
+    - `supabase/migrations/add_admin_update_notifications_policy.sql`：新增迁移文件
+  - **效果**：管理员现在可以更新所有通知的状态和内容
+  - **权限映射说明**：
+    - 本系统使用 `profiles.role` 字段作为权限判断依据
+    - RLS 策略通过 `is_admin()` 函数读取 `profiles.role` 字段
+    - 不需要额外的权限映射表，`profiles` 表本身就是权限映射表
+
 - ✅ **2025-12-01**：修复老板端通知中心审批后状态未实时更新的问题（含 Session 过期处理）
   - **问题描述**：
     - 老板在审核操作完成后，老板端通知中心的信息未能实时更新

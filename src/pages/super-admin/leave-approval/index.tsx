@@ -1,5 +1,5 @@
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -552,31 +552,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
           // 🔄 更新原有通知状态（发送给老板和车队长的通知）
           // 只更新原始申请通知，不更新审批结果通知
-
-          // 检查当前用户的认证状态
-          const {
-            data: {session}
-          } = await supabase.auth.getSession()
-          console.log('🔐 当前用户认证状态:', {
-            hasSession: !!session,
-            userId: session?.user?.id,
-            currentUserId: user.id
-          })
-
-          // 如果 session 不存在，直接跳转到登录页（不尝试刷新，因为可能根本没有 session）
-          if (!session) {
-            console.error('❌ Session 不存在，请重新登录')
-            showToast({
-              title: '登录已过期，请重新登录',
-              icon: 'none',
-              duration: 2000
-            })
-            setTimeout(() => {
-              navigateTo({url: '/pages/login/index'})
-            }, 2000)
-            return
-          }
-
           const {data: existingNotifications} = await supabase
             .from('notifications')
             .select('*')
