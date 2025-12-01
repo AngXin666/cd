@@ -38,40 +38,12 @@ pnpm run lint
     - 修改 `getPrimaryAdmin()` 查询 `'BOSS'` 而不是 `'SUPER_ADMIN'`
     - 修改 `getPeerAccounts()` 查询 `'PEER_ADMIN'`
     - 修改 `_getAllAdmins()` 查询 `['BOSS', 'PEER_ADMIN']`
-    - 更新数据库迁移使用正确的角色名称
-  - **使用方法**：
-    1. 代码已自动修复
-    2. 执行数据库迁移：`supabase db push`
-    3. 或手动执行 SQL（见 `问题解决方案.md`）
-    4. 验证修复：检查所有用户都有角色
+  - **验证方法**：
+    - 运行 `验证角色数据.sql` 检查数据库中的角色数据
+    - 刷新页面，重新测试通知功能
   - **相关文件**：
-    - `src/services/notificationService.ts`：修复角色查询
-    - `supabase/migrations/00531_fix_missing_user_roles.sql`：修复迁移
-    - `问题解决方案.md`：详细解决方案
-
-- ✅ **2025-12-01**：修复用户角色缺失导致通知无法发送的问题
-  - **问题描述**：
-    - 系统日志显示"未找到主账号"、"未找到车队长信息"
-    - 通知无法发送，提示"没有找到任何通知接收者"
-  - **根本原因**：
-    - `user_roles` 表中缺少用户角色数据
-    - 部分用户在 `users` 表中存在，但没有对应的角色记录
-    - 导致通知服务无法找到 `SUPER_ADMIN` 和 `MANAGER` 角色的用户
-  - **修复措施**：
-    - 创建数据库迁移 `00531_fix_missing_user_roles.sql`
-    - 自动为所有没有角色的用户添加默认角色
-    - 第一个用户（按创建时间）：`SUPER_ADMIN`
-    - 其他用户：`DRIVER`
-  - **使用方法**：
-    1. 应用迁移：`supabase db push` 或手动执行 SQL
-    2. 验证修复：检查所有用户都有角色
-    3. 如需车队长：手动将某些用户角色改为 `MANAGER`
-    4. 为车队长分配仓库（通过 `warehouse_assignments` 表）
-  - **相关文件**：
-    - `supabase/migrations/00531_fix_missing_user_roles.sql`：修复迁移
-    - `检查用户角色.sql`：检查脚本
-    - `修复用户角色.sql`：手动修复脚本
-    - `测试指南.md`：更新测试步骤
+    - `src/services/notificationService.ts`：修复角色查询逻辑
+    - `验证角色数据.sql`：验证数据库角色数据
 
 - ✅ **2025-12-01**：修复无效 UUID 导致的审批失败问题
   - **问题描述**：
