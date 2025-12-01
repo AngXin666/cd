@@ -7,20 +7,22 @@
 
 ## 解决方案
 为所有没有角色的用户添加默认角色：
-- 第一个用户（按创建时间排序）：SUPER_ADMIN
+- 第一个用户（按创建时间排序）：BOSS
 - 其他用户：DRIVER
+
+注意：user_role 枚举值为 ('BOSS', 'PEER_ADMIN', 'MANAGER', 'DRIVER')
 
 ## 变更内容
 1. 查找没有角色的用户
-2. 为第一个用户添加 SUPER_ADMIN 角色
+2. 为第一个用户添加 BOSS 角色
 3. 为其他用户添加 DRIVER 角色
 */
 
--- 1. 为第一个用户添加 SUPER_ADMIN 角色（如果还没有）
+-- 1. 为第一个用户添加 BOSS 角色（如果还没有）
 INSERT INTO user_roles (user_id, role, created_at)
 SELECT 
   u.id,
-  'SUPER_ADMIN'::user_role,
+  'BOSS'::user_role,
   NOW()
 FROM users u
 LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -60,8 +62,9 @@ LEFT JOIN user_roles ur ON u.id = ur.user_id
 GROUP BY ur.role
 ORDER BY 
   CASE ur.role
-    WHEN 'SUPER_ADMIN' THEN 1
-    WHEN 'MANAGER' THEN 2
-    WHEN 'DRIVER' THEN 3
-    ELSE 4
+    WHEN 'BOSS' THEN 1
+    WHEN 'PEER_ADMIN' THEN 2
+    WHEN 'MANAGER' THEN 3
+    WHEN 'DRIVER' THEN 4
+    ELSE 5
   END;

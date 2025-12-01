@@ -26,6 +26,29 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复通知服务角色查询错误
+  - **问题描述**：
+    - 系统日志显示"未找到主账号"、"未找到车队长信息"
+    - 通知无法发送，提示"没有找到任何通知接收者"
+  - **根本原因**：
+    - 通知服务查询的角色名称不正确
+    - 代码查询 `'SUPER_ADMIN'`，但数据库枚举是 `'BOSS'`
+    - 系统角色枚举：`('BOSS', 'PEER_ADMIN', 'MANAGER', 'DRIVER')`
+  - **修复措施**：
+    - 修改 `getPrimaryAdmin()` 查询 `'BOSS'` 而不是 `'SUPER_ADMIN'`
+    - 修改 `getPeerAccounts()` 查询 `'PEER_ADMIN'`
+    - 修改 `_getAllAdmins()` 查询 `['BOSS', 'PEER_ADMIN']`
+    - 更新数据库迁移使用正确的角色名称
+  - **使用方法**：
+    1. 代码已自动修复
+    2. 执行数据库迁移：`supabase db push`
+    3. 或手动执行 SQL（见 `问题解决方案.md`）
+    4. 验证修复：检查所有用户都有角色
+  - **相关文件**：
+    - `src/services/notificationService.ts`：修复角色查询
+    - `supabase/migrations/00531_fix_missing_user_roles.sql`：修复迁移
+    - `问题解决方案.md`：详细解决方案
+
 - ✅ **2025-12-01**：修复用户角色缺失导致通知无法发送的问题
   - **问题描述**：
     - 系统日志显示"未找到主账号"、"未找到车队长信息"

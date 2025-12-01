@@ -20,23 +20,23 @@ interface NotificationRecipient {
 
 /**
  * 获取主账号（老板）
- * 单用户架构：返回第一个 SUPER_ADMIN 角色的用户
+ * 单用户架构：返回第一个 BOSS 角色的用户
  */
 async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
   try {
     logger.info('查询主账号（老板）')
 
-    // 单用户架构：从 users 和 user_roles 表查询第一个 SUPER_ADMIN
+    // 单用户架构：从 users 和 user_roles 表查询第一个 BOSS
     const {data: roleData, error: roleError} = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .eq('role', 'SUPER_ADMIN')
+      .eq('role', 'BOSS')
       .order('user_id', {ascending: true})
       .limit(1)
       .maybeSingle()
 
     if (roleError || !roleData) {
-      logger.warn('未找到主账号')
+      logger.warn('未找到主账号', {error: roleError})
       return null
     }
 
@@ -66,26 +66,23 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
 
 /**
  * 获取所有平级账号
- * 单用户架构：返回除第一个之外的所有 SUPER_ADMIN 角色用户
+ * 单用户架构：返回所有 PEER_ADMIN 角色用户
  */
 async function getPeerAccounts(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询平级账号')
 
-    // 单用户架构：从 users 和 user_roles 表查询所有 SUPER_ADMIN（跳过第一个）
+    // 单用户架构：从 users 和 user_roles 表查询所有 PEER_ADMIN
     const {data: roles, error: rolesError} = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .eq('role', 'SUPER_ADMIN')
+      .eq('role', 'PEER_ADMIN')
       .order('user_id', {ascending: true})
 
-    if (rolesError || !roles || roles.length <= 1) {
+    if (rolesError || !roles || roles.length === 0) {
       logger.info('未找到平级账号')
       return []
     }
-
-    // 跳过第一个（主账号）
-    const peerRoles = roles.slice(1)
 
     // 获取用户信息
     const {data: users, error: usersError} = await supabase
@@ -93,7 +90,7 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
       .select('id, name')
       .in(
         'id',
-        peerRoles.map((r) => r.user_id)
+        roles.map((r) => r.user_id)
       )
 
     if (usersError || !users) {
@@ -105,7 +102,7 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
     return users.map((user) => ({
       userId: user.id,
       name: user.name || '平级账号',
-      role: 'SUPER_ADMIN'
+      role: 'PEER_ADMIN'
     }))
   } catch (error) {
     logger.error('获取平级账号异常', error)
@@ -115,18 +112,16 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
 
 /**
  * 获取所有管理员（老板 + 平级账号）
- * 注意：数据库中的 user_role 枚举只包含 'driver', 'manager', 'super_admin'
- * 平级账号通过 main_account_id 字段标识（main_account_id IS NOT NULL）
- * 单用户架构：直接查询 users 和 user_roles 表
+ * 单用户架构：查询所有 BOSS 和 PEER_ADMIN 角色的用户
  */
 async function _getAllAdmins(): Promise<NotificationRecipient[]> {
   try {
     logger.info('查询所有管理员账号')
 
-    // 单用户架构：从 users 和 user_roles 表查询所有 SUPER_ADMIN 角色的用户
+    // 单用户架构：从 users 和 user_roles 表查询所有 BOSS 和 PEER_ADMIN 角色的用户
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
       supabase.from('users').select('id, name'),
-      supabase.from('user_roles').select('user_id, role').eq('role', 'SUPER_ADMIN')
+      supabase.from('user_roles').select('user_id, role').in('role', ['BOSS', 'PEER_ADMIN'])
     ])
 
     if (usersError) {
