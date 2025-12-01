@@ -26,6 +26,19 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复通知表 RLS 策略的完整性问题
+  - **问题描述**：
+    1. 用户更新通知的策略缺少 WITH CHECK 子句
+    2. 用户无法删除自己的通知，导致通知列表越来越长
+  - **解决方案**：
+    1. 为 "Users can update their own notifications" 策略添加 WITH CHECK 子句
+    2. 添加 "Users can delete their own notifications" 策略
+  - **修改文件**：
+    - `supabase/migrations/00530_fix_notifications_rls_policies.sql`：新增迁移文件
+  - **效果**：
+    - 用户更新通知时有完整的权限检查
+    - 用户可以删除自己的通知，改善用户体验
+
 - ✅ **2025-12-01**：修复审批时出现"Session 不存在"错误（简化版）
   - **问题描述**：审批请假/离职申请时，出现"❌ Session 不存在，请重新登录"错误，导致审批失败
   - **根本原因**：
@@ -45,24 +58,24 @@ pnpm run lint
   - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
   - **根本原因**：
     - **权限系统架构说明**：
-      1. **应用层权限**：`profiles` 表中的 `role` 字段（`driver`、`super_admin` 等）用于前端页面权限控制
+      1. **应用层权限**：`user_roles` 表管理用户角色（单用户架构）
       2. **数据库层权限**：RLS（Row Level Security）策略直接在数据库层面控制数据访问
-      3. **关键点**：RLS 策略使用 `is_admin(auth.uid())` 函数，该函数查询 `profiles.role` 字段
+      3. **关键点**：RLS 策略使用 `is_admin(auth.uid())` 函数，该函数查询 `user_roles` 表
     - **问题所在**：
       - 原有 RLS 策略只允许接收者更新自己的通知（`auth.uid() = recipient_id`）
       - 管理员审批时，需要更新其他管理员的通知，但 RLS 策略不允许
-      - 例如：老板（`profiles.role = 'super_admin'`）审批时，想要更新车队长的通知，但老板不是车队长通知的接收者
+      - 例如：老板（`user_roles.role = 'BOSS'`）审批时，想要更新车队长的通知，但老板不是车队长通知的接收者
   - **解决方案**：
     - 添加新的 RLS 策略：`Admins can update all notifications`
     - 允许管理员（`is_admin(auth.uid())` 返回 true）更新所有通知
-    - `is_admin` 函数定义：检查 `profiles.role IN ('super_admin', 'peer_admin')`
+    - `is_admin` 函数定义：检查 `user_roles.role IN ('BOSS', 'MANAGER')`
   - **修改文件**：
     - `supabase/migrations/add_admin_update_notifications_policy.sql`：新增迁移文件
   - **效果**：管理员现在可以更新所有通知的状态和内容
   - **权限映射说明**：
-    - 本系统使用 `profiles.role` 字段作为权限判断依据
-    - RLS 策略通过 `is_admin()` 函数读取 `profiles.role` 字段
-    - 不需要额外的权限映射表，`profiles` 表本身就是权限映射表
+    - 本系统使用**单用户架构**，通过 `user_roles` 表管理用户角色
+    - RLS 策略通过 `is_admin()` 函数读取 `user_roles` 表
+    - 每个用户可以有多个角色（例如：同时是 BOSS 和 MANAGER）
 
 - ✅ **2025-12-01**：修复老板端通知中心审批后状态未实时更新的问题（含 Session 过期处理）
   - **问题描述**：
