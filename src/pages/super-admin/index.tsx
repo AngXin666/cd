@@ -17,7 +17,6 @@ import {
   useWarehousesSorted
 } from '@/hooks'
 import {smartLogout} from '@/utils/auth'
-import {testAllRLSPolicies, testNotificationUpdatePermission} from '@/utils/testRLSPolicies'
 
 const SuperAdminHome: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -123,25 +122,6 @@ const SuperAdminHome: React.FC = () => {
     if (user) {
       // 批量并行加载所有初始数据
       Promise.all([loadData(), loadWarehouses()])
-
-      // 注册全局测试函数（仅在开发环境）
-      if (process.env.NODE_ENV === 'development' || typeof window !== 'undefined') {
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.log('🔧 RLS 策略测试工具已加载')
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.log('使用方法:')
-        console.log('  1. 打开浏览器控制台（F12）')
-        console.log('  2. 输入以下命令测试:')
-        console.log('     - testAllRLSPolicies()          // 测试所有 RLS 策略')
-        console.log('     - testNotificationUpdatePermission()  // 测试通知更新权限')
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-
-        // 注册到全局
-        if (typeof window !== 'undefined') {
-          ;(window as any).testAllRLSPolicies = testAllRLSPolicies
-          ;(window as any).testNotificationUpdatePermission = testNotificationUpdatePermission
-        }
-      }
     }
   }, [user, loadData, loadWarehouses])
 
@@ -531,7 +511,7 @@ const SuperAdminHome: React.FC = () => {
               <View className="i-mdi-lightning-bolt text-xl text-orange-600 mr-2" />
               <Text className="text-lg font-bold text-gray-800">系统功能</Text>
             </View>
-            <View className="grid grid-cols-2 gap-3">
+            <View className="grid grid-cols-3 gap-3">
               {/* 件数报表 */}
               <View
                 onClick={handlePieceWorkReport}
@@ -562,6 +542,14 @@ const SuperAdminHome: React.FC = () => {
                 className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
                 <View className="i-mdi-send text-3xl text-purple-600 mb-2" />
                 <Text className="text-xs text-gray-700 font-medium">发送通知</Text>
+              </View>
+
+              {/* RLS 测试 */}
+              <View
+                onClick={() => navigateTo({url: '/pages/test-rls/index'})}
+                className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-4 flex flex-col items-center active:scale-95 transition-all">
+                <View className="i-mdi-shield-check text-3xl text-cyan-600 mb-2" />
+                <Text className="text-xs text-gray-700 font-medium">RLS 测试</Text>
               </View>
             </View>
           </View>
