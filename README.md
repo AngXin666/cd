@@ -26,41 +26,56 @@ pnpm run lint
 ```
 
 ### 最近更新
-- ✅ **2025-12-01**：修复老板端通知中心审批后状态未实时更新的问题
+- ✅ **2025-12-01**：修复老板端通知中心审批后状态未实时更新的问题（含 Session 过期处理）
   - **问题描述**：
     - 老板在审核操作完成后，老板端通知中心的信息未能实时更新
     - 审核操作执行后，原信息的状态（例如"待审核"）未根据实际审核结果（如"已通过"或"已拒绝"）进行相应变更
     - 仍然错误地显示为操作前的状态
+    - 控制台报错：`AuthApiError: Session not found`
   
   - **根本原因分析**：
-    1. **RLS 策略问题**：
+    1. **Session 过期问题**（最关键）：
+       - 用户在审批页面停留时间过长，导致 Supabase Session 过期
+       - Session 过期后，`auth.uid()` 返回 null
+       - RLS 策略检查 `is_admin(auth.uid())` 时失败，导致更新操作被拒绝
+       - 错误信息：`AuthApiError: Session not found`
+    
+    2. **RLS 策略问题**：
        - 之前添加的 RLS 策略 `Admins can update all notifications` 只有 `USING` 子句，没有 `WITH CHECK` 子句
        - 在 PostgreSQL 中，对于 UPDATE 操作：
          - `USING` 子句：决定哪些行可以被更新（WHERE 条件）
          - `WITH CHECK` 子句：决定更新后的值是否允许（新值检查）
        - 如果没有 `WITH CHECK`，PostgreSQL 可能会拒绝更新操作
     
-    2. **错误处理不足**：
+    3. **错误处理不足**：
        - 更新失败时，错误只是打印到控制台，用户无法感知
        - 没有统计更新成功/失败的数量
+       - Session 过期时，没有提示用户重新登录
     
-    3. **实时同步机制**：
+    4. **实时同步机制**：
        - 前端已经实现了 Supabase Realtime 订阅机制
        - 但如果更新操作失败，实时订阅也无法收到更新事件
   
   - **完整解决方案**：
-    1. **修复 RLS 策略**：
+    1. **添加 Session 检查和自动刷新机制**（核心修复）：
+       - 在审批操作前，检查 Session 是否存在
+       - 如果 Session 不存在或已过期，尝试自动刷新
+       - 如果刷新失败，提示用户重新登录并跳转到登录页
+       - 确保所有数据库操作都在有效的 Session 下进行
+    
+    2. **修复 RLS 策略**：
        - 删除旧的策略
        - 重新创建策略，同时添加 `USING` 和 `WITH CHECK` 子句
        - 确保管理员可以更新所有通知
     
-    2. **增强错误处理和用户反馈**：
+    3. **增强错误处理和用户反馈**：
        - 添加更新结果统计（成功/失败数量）
        - 如果有更新失败，显示明确的错误提示
        - 在控制台输出详细的错误信息，方便调试
     
-    3. **添加详细的调试日志**：
+    4. **添加详细的调试日志**：
        - 用户认证状态检查
+       - Session 刷新过程日志
        - 查询到的通知详情（ID、接收者、状态、标题）
        - 当前审批人 ID
        - 每条通知的更新详情（接收者、是否为审批人、新状态、新内容）
@@ -69,16 +84,53 @@ pnpm run lint
   - **修改文件**：
     - `supabase/migrations/00529_fix_admin_update_notifications_policy.sql`：修复 RLS 策略
     - `src/pages/super-admin/leave-approval/index.tsx`：
+      - **添加 Session 检查和自动刷新机制**
       - 添加详细调试日志
       - 添加更新结果统计
       - 添加失败提示
+      - Session 过期时提示并跳转登录页
     - `src/pages/manager/leave-approval/index.tsx`：
+      - **添加 Session 检查和自动刷新机制**
       - 添加详细调试日志
       - 添加更新结果统计
       - 添加失败提示
+      - Session 过期时提示并跳转登录页
   
   - **技术实现细节**：
-    1. **RLS 策略修复**：
+    1. **Session 检查和自动刷新**（最重要）：
+       ```typescript
+       // 检查当前用户的认证状态
+       const { data: { session } } = await supabase.auth.getSession()
+       console.log('🔐 当前用户认证状态:', {
+         hasSession: !!session,
+         userId: session?.user?.id,
+         currentUserId: user.id
+       })
+
+       // 如果 session 不存在或已过期，尝试刷新
+       if (!session) {
+         console.warn('⚠️ Session 不存在，尝试刷新...')
+         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+         
+         if (refreshError || !refreshData.session) {
+           console.error('❌ Session 刷新失败:', refreshError)
+           showToast({
+             title: '登录已过期，请重新登录',
+             icon: 'none',
+             duration: 3000
+           })
+           // 跳转到登录页
+           setTimeout(() => {
+             navigateTo({ url: '/pages/login/index' })
+           }, 3000)
+           return
+         }
+         
+         console.log('✅ Session 刷新成功')
+       }
+       ```
+    
+    2. **RLS 策略修复**：
        ```sql
        DROP POLICY IF EXISTS "Admins can update all notifications" ON notifications;
        
@@ -88,7 +140,7 @@ pnpm run lint
          WITH CHECK (is_admin(auth.uid()));
        ```
     
-    2. **更新结果统计**：
+    3. **更新结果统计**：
        ```typescript
        let successCount = 0
        let failCount = 0
@@ -118,6 +170,7 @@ pnpm run lint
        - 当通知更新时，自动更新前端状态
   
   - **效果**：
+    - ✅ **Session 过期时会自动尝试刷新，刷新失败会提示用户重新登录**
     - ✅ 管理员现在可以成功更新所有通知的状态和内容（包括自己的通知）
     - ✅ 添加了详细的调试日志，方便排查问题
     - ✅ 更新失败时，用户会收到明确的提示
@@ -128,38 +181,55 @@ pnpm run lint
     - ✅ RLS 策略正确工作
     - ✅ 代码逻辑会更新审批者本人的通知
     - ✅ 实时订阅机制正常工作
-    - 🔍 前端需要确保用户已登录且 session 有效
+    - ✅ **Session 过期检测和自动刷新机制正常工作**
   
   - **调试指南**：
     如果审批后通知状态仍未更新，请按以下步骤排查：
     
-    1. **检查认证状态**：
+    1. **检查 Session 状态**（最重要）：
        - 查看控制台日志 `🔐 当前用户认证状态`
        - 确认 `hasSession: true` 且 `userId` 与 `currentUserId` 一致
-       - 如果 `hasSession: false`，说明用户未登录或 session 过期，需要重新登录
+       - 如果看到 `⚠️ Session 不存在，尝试刷新...`，说明 Session 已过期
+       - 如果看到 `✅ Session 刷新成功`，说明自动刷新成功
+       - 如果看到 `❌ Session 刷新失败`，说明需要重新登录
+       - **如果控制台报错 `AuthApiError: Session not found`，说明 Session 已过期且刷新失败**
     
-    2. **检查通知查询**：
+    2. **检查认证状态**：
+       - 如果 `hasSession: false`，说明用户未登录或 session 过期
+       - 系统会自动尝试刷新 Session
+       - 如果刷新失败，会显示提示"登录已过期，请重新登录"并跳转到登录页
+    
+    3. **检查通知查询**：
        - 查看日志 `🔍 查询到 X 条原始申请通知`
        - 查看 `📋 通知详情`，确认查询到了正确的通知
        - 查看 `👤 当前审批人 ID`，确认审批人 ID 正确
     
-    3. **检查通知更新**：
+    4. **检查通知更新**：
        - 查看每条通知的 `📝 准备更新通知` 日志
        - 确认 `是否为审批人` 字段正确识别
        - 确认 `新状态` 和 `新内容` 正确
        - 查看 `✅ 成功更新通知` 或 `❌ 更新通知失败` 日志
        - 查看 `📊 通知更新结果` 摘要
     
-    4. **检查用户界面**：
+    5. **检查用户界面**：
        - 如果更新成功但界面未刷新，检查 Supabase Realtime 订阅是否正常
        - 尝试手动刷新通知中心页面（返回后重新进入）
        - 检查浏览器控制台是否有 WebSocket 连接错误
     
-    5. **常见问题**：
-       - 如果没有查询到通知，检查 `related_id` 是否正确
-       - 如果更新失败，检查错误信息，可能是权限问题或数据验证问题
-       - 如果审批者本人的通知没有更新，检查 `recipient_id` 是否与 `user.id` 匹配
-       - 如果收到"通知更新部分失败"提示，查看控制台的详细错误信息
+    6. **常见问题及解决方案**：
+       - **问题**：控制台报错 `AuthApiError: Session not found`
+         - **原因**：用户在审批页面停留时间过长，Session 已过期
+         - **解决**：系统会自动尝试刷新 Session，如果刷新失败，请重新登录
+       - **问题**：如果没有查询到通知
+         - **检查**：`related_id` 是否正确
+       - **问题**：如果更新失败
+         - **检查**：错误信息，可能是权限问题或数据验证问题
+       - **问题**：如果审批者本人的通知没有更新
+         - **检查**：`recipient_id` 是否与 `user.id` 匹配
+       - **问题**：如果收到"通知更新部分失败"提示
+         - **检查**：控制台的详细错误信息
+       - **问题**：如果收到"登录已过期，请重新登录"提示
+         - **解决**：等待 3 秒后会自动跳转到登录页，或手动跳转到登录页重新登录
 - ✅ **2025-11-30**：修复管理员无法更新其他人通知的权限问题
   - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
   - **根本原因**：

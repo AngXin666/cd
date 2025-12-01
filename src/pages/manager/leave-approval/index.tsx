@@ -1,5 +1,5 @@
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -583,6 +583,28 @@ const ManagerLeaveApproval: React.FC = () => {
             userId: session?.user?.id,
             currentUserId: user.id
           })
+
+          // 如果 session 不存在或已过期，尝试刷新
+          if (!session) {
+            console.warn('⚠️ Session 不存在，尝试刷新...')
+            const {data: refreshData, error: refreshError} = await supabase.auth.refreshSession()
+
+            if (refreshError || !refreshData.session) {
+              console.error('❌ Session 刷新失败:', refreshError)
+              showToast({
+                title: '登录已过期，请重新登录',
+                icon: 'none',
+                duration: 3000
+              })
+              // 跳转到登录页
+              setTimeout(() => {
+                navigateTo({url: '/pages/login/index'})
+              }, 3000)
+              return
+            }
+
+            console.log('✅ Session 刷新成功')
+          }
 
           const {data: existingNotifications} = await supabase
             .from('notifications')
