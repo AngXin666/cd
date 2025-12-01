@@ -450,6 +450,30 @@ const ApplyLeave: React.FC = () => {
       })
       success = result !== null
       applicationId = result?.id || null
+
+      // 验证返回的 applicationId 是否有效
+      if (applicationId && (applicationId === 'anon' || applicationId.length < 10)) {
+        console.error('❌ 创建请假申请返回了无效的ID:', {
+          applicationId,
+          userId: user.id,
+          result
+        })
+        showToast({
+          title: '创建申请失败：无效的申请ID',
+          icon: 'none',
+          duration: 2000
+        })
+        return
+      }
+
+      console.log('✅ 请假申请创建成功:', {
+        applicationId,
+        userId: user.id,
+        warehouseId,
+        leaveType,
+        startDate,
+        endDate
+      })
     }
 
     setSubmitting(false)

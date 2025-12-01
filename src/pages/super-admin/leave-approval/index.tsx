@@ -492,6 +492,17 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const handleReviewLeave = async (applicationId: string, approved: boolean) => {
     if (!user) return
 
+    // 验证 applicationId 是否为有效的 UUID
+    if (!applicationId || applicationId === 'anon' || applicationId.length < 10) {
+      showToast({
+        title: '无效的申请ID，无法审批',
+        icon: 'none',
+        duration: 2000
+      })
+      console.error('❌ 无效的申请ID:', applicationId)
+      return
+    }
+
     try {
       showLoading({title: approved ? '批准中...' : '拒绝中...'})
 

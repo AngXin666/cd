@@ -26,6 +26,33 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复无效 UUID 导致的审批失败问题
+  - **问题描述**：
+    - 老板审批请假申请时出现错误：`invalid input syntax for type uuid: "anon"`
+    - 查询原始通知失败，导致无法更新通知状态
+  - **根本原因**：
+    - 数据库中存在 `id` 或 `user_id` 为 `'anon'` 的无效记录
+    - 可能是测试数据或用户认证问题导致
+  - **修复措施**：
+    - 在司机端添加 `applicationId` 验证，防止提交无效数据
+    - 在老板端添加 `applicationId` 验证，防止审批无效申请
+    - 创建数据清理脚本 `CLEANUP_INVALID_DATA.sql`
+    - 更新调试指南，添加数据检查和清理步骤
+  - **验证逻辑**：
+    - 检查 `applicationId` 是否为 `'anon'`
+    - 检查 `applicationId` 长度是否小于 10
+    - 如果无效，显示错误提示并阻止操作
+  - **使用方法**：
+    1. 运行 `CLEANUP_INVALID_DATA.sql` 检查数据库
+    2. 删除无效记录
+    3. 确保用户已正确登录
+    4. 重新测试提交和审批流程
+  - **相关文件**：
+    - `src/pages/driver/leave/apply/index.tsx`：添加申请ID验证
+    - `src/pages/super-admin/leave-approval/index.tsx`：添加审批ID验证
+    - `CLEANUP_INVALID_DATA.sql`：数据清理脚本
+    - `NOTIFICATION_DEBUG_GUIDE.md`：更新调试指南
+
 - ✅ **2025-12-01**：添加通知系统详细调试日志和诊断指南
   - **问题描述**：
     - 用户反馈审批后会出现两条通知，而不是更新原有通知状态

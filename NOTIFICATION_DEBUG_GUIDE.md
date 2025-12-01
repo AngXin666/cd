@@ -3,6 +3,43 @@
 ## 问题描述
 用户反馈：老板在审核请假申请后，通知中心会出现两条信息，而不是更新原有通知的状态。
 
+## 最新发现（2025-12-01）
+
+### 错误信息
+```
+invalid input syntax for type uuid: "anon"
+```
+
+### 问题分析
+1. **错误位置**：在老板审批请假申请时，查询原始通知失败
+2. **错误原因**：`applicationId` 的值是字符串 `"anon"`，而不是有效的 UUID
+3. **影响范围**：
+   - 无法查询到原始通知
+   - 无法更新通知状态
+   - 老板会看到未更新的通知
+
+### 可能的根本原因
+1. **数据库中存在无效数据**：
+   - `leave_applications` 表中可能有 `id = 'anon'` 的记录
+   - 这可能是测试数据或错误数据
+   
+2. **用户认证问题**：
+   - 用户可能使用了匿名会话
+   - `user.id` 可能是 `'anon'`
+
+### 解决方案
+1. **添加数据验证**：
+   - 在司机端提交请假申请后，验证返回的 `applicationId` 是否有效
+   - 在老板端审批前，验证 `applicationId` 是否有效
+   
+2. **清理无效数据**：
+   - 使用 `CLEANUP_INVALID_DATA.sql` 脚本检查数据库
+   - 删除无效的记录
+
+3. **防止创建无效数据**：
+   - 确保用户已正确登录
+   - 验证 `user.id` 不是 `'anon'`
+
 ## 已完成的修复
 
 ### 1. ✅ 修复通知类型不匹配
@@ -19,6 +56,72 @@
   - 错误信息的详细输出
 
 ## 调试步骤
+
+### 第零步：检查和清理无效数据（重要！）
+在开始测试之前，**必须先检查数据库中是否有无效数据**。
+
+#### 1. 运行检查脚本
+使用 `CLEANUP_INVALID_DATA.sql` 脚本检查数据库：
+
+```sql
+-- 1. 检查是否有无效的 ID
+SELECT 
+  id,
+  user_id,
+  leave_type,
+  start_date,
+  end_date,
+  status,
+  created_at
+FROM leave_applications
+WHERE 
+  id::text = 'anon'
+  OR user_id::text = 'anon'
+ORDER BY created_at DESC;
+```
+
+#### 2. 如果发现无效数据
+**症状**：查询结果显示有 `id` 或 `user_id` 为 `'anon'` 的记录
+
+**解决方案**：删除这些无效记录
+```sql
+-- 删除 ID 为 'anon' 的请假申请
+DELETE FROM leave_applications WHERE id::text = 'anon';
+
+-- 删除 user_id 为 'anon' 的请假申请
+DELETE FROM leave_applications WHERE user_id::text = 'anon';
+
+-- 删除 related_id 为 'anon' 的通知
+DELETE FROM notifications WHERE related_id::text = 'anon';
+```
+
+#### 3. 验证清理结果
+```sql
+-- 确认没有无效数据
+SELECT COUNT(*) as invalid_count
+FROM leave_applications
+WHERE id::text = 'anon' OR user_id::text = 'anon';
+
+-- 应该返回 0
+```
+
+#### 4. 检查用户认证状态
+确保用户已正确登录：
+1. 打开浏览器控制台
+2. 运行以下代码：
+```javascript
+// 检查当前用户
+const { data: { user } } = await supabase.auth.getUser()
+console.log('当前用户:', user)
+console.log('用户ID:', user?.id)
+
+// 验证用户ID是否有效
+if (user?.id === 'anon' || !user?.id || user?.id.length < 10) {
+  console.error('❌ 用户ID无效！')
+} else {
+  console.log('✅ 用户ID有效')
+}
+```
 
 ### 第一步：清理现有数据
 为了准确测试，建议先清理现有的通知数据：
