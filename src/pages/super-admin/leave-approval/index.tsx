@@ -582,6 +582,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
           console.log('👤 当前审批人 ID:', user.id)
 
           if (existingNotifications && existingNotifications.length > 0) {
+            // 统计更新结果
+            let successCount = 0
+            let failCount = 0
+            const errors: string[] = []
+
             // 针对每个通知接收者单独更新
             for (const notification of existingNotifications) {
               // 判断接收者是否为审批人本人
@@ -611,12 +616,28 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
               if (updateError) {
                 console.error(`❌ 更新通知 ${notification.id} 失败:`, updateError)
+                failCount++
+                errors.push(`通知 ${notification.id.substring(0, 8)}... 更新失败: ${updateError.message}`)
               } else {
                 console.log(`✅ 成功更新通知 ${notification.id}`)
+                successCount++
               }
             }
 
-            console.log(`✅ 已更新 ${existingNotifications.length} 条请假审批通知状态`)
+            // 显示更新结果摘要
+            console.log(`📊 通知更新结果: 成功 ${successCount} 条, 失败 ${failCount} 条`)
+
+            if (failCount > 0) {
+              console.error('❌ 更新失败的通知:', errors)
+              // 如果有更新失败，提示用户
+              showToast({
+                title: `通知更新部分失败（${failCount}/${existingNotifications.length}）`,
+                icon: 'none',
+                duration: 3000
+              })
+            } else {
+              console.log(`✅ 已成功更新所有 ${existingNotifications.length} 条请假审批通知状态`)
+            }
           } else {
             console.warn('⚠️ 未找到需要更新的原始申请通知')
           }

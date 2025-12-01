@@ -26,36 +26,113 @@ pnpm run lint
 ```
 
 ### 最近更新
-- ✅ **2025-12-01**：修复 RLS 策略的 WITH CHECK 子句缺失问题 + 添加详细调试日志
-  - **问题描述**：司机的请假申请审批后，对应的人的通知中心的信息状态都不会更新（包括审批者本人的通知）
-  - **根本原因**：
-    - 之前添加的 RLS 策略 `Admins can update all notifications` 只有 `USING` 子句，没有 `WITH CHECK` 子句
-    - 在 PostgreSQL 中，对于 UPDATE 操作：
-      - `USING` 子句：决定哪些行可以被更新（WHERE 条件）
-      - `WITH CHECK` 子句：决定更新后的值是否允许（新值检查）
-    - 如果没有 `WITH CHECK`，PostgreSQL 可能会拒绝更新操作
-  - **解决方案**：
-    1. 删除旧的策略
-    2. 重新创建策略，同时添加 `USING` 和 `WITH CHECK` 子句
-    3. 添加详细的调试日志，包括：
+- ✅ **2025-12-01**：修复老板端通知中心审批后状态未实时更新的问题
+  - **问题描述**：
+    - 老板在审核操作完成后，老板端通知中心的信息未能实时更新
+    - 审核操作执行后，原信息的状态（例如"待审核"）未根据实际审核结果（如"已通过"或"已拒绝"）进行相应变更
+    - 仍然错误地显示为操作前的状态
+  
+  - **根本原因分析**：
+    1. **RLS 策略问题**：
+       - 之前添加的 RLS 策略 `Admins can update all notifications` 只有 `USING` 子句，没有 `WITH CHECK` 子句
+       - 在 PostgreSQL 中，对于 UPDATE 操作：
+         - `USING` 子句：决定哪些行可以被更新（WHERE 条件）
+         - `WITH CHECK` 子句：决定更新后的值是否允许（新值检查）
+       - 如果没有 `WITH CHECK`，PostgreSQL 可能会拒绝更新操作
+    
+    2. **错误处理不足**：
+       - 更新失败时，错误只是打印到控制台，用户无法感知
+       - 没有统计更新成功/失败的数量
+    
+    3. **实时同步机制**：
+       - 前端已经实现了 Supabase Realtime 订阅机制
+       - 但如果更新操作失败，实时订阅也无法收到更新事件
+  
+  - **完整解决方案**：
+    1. **修复 RLS 策略**：
+       - 删除旧的策略
+       - 重新创建策略，同时添加 `USING` 和 `WITH CHECK` 子句
+       - 确保管理员可以更新所有通知
+    
+    2. **增强错误处理和用户反馈**：
+       - 添加更新结果统计（成功/失败数量）
+       - 如果有更新失败，显示明确的错误提示
+       - 在控制台输出详细的错误信息，方便调试
+    
+    3. **添加详细的调试日志**：
        - 用户认证状态检查
        - 查询到的通知详情（ID、接收者、状态、标题）
        - 当前审批人 ID
        - 每条通知的更新详情（接收者、是否为审批人、新状态、新内容）
+       - 更新结果摘要
+  
   - **修改文件**：
     - `supabase/migrations/00529_fix_admin_update_notifications_policy.sql`：修复 RLS 策略
-    - `src/pages/super-admin/leave-approval/index.tsx`：添加详细调试日志
-    - `src/pages/manager/leave-approval/index.tsx`：添加详细调试日志
+    - `src/pages/super-admin/leave-approval/index.tsx`：
+      - 添加详细调试日志
+      - 添加更新结果统计
+      - 添加失败提示
+    - `src/pages/manager/leave-approval/index.tsx`：
+      - 添加详细调试日志
+      - 添加更新结果统计
+      - 添加失败提示
+  
+  - **技术实现细节**：
+    1. **RLS 策略修复**：
+       ```sql
+       DROP POLICY IF EXISTS "Admins can update all notifications" ON notifications;
+       
+       CREATE POLICY "Admins can update all notifications" ON notifications
+         FOR UPDATE
+         USING (is_admin(auth.uid()))
+         WITH CHECK (is_admin(auth.uid()));
+       ```
+    
+    2. **更新结果统计**：
+       ```typescript
+       let successCount = 0
+       let failCount = 0
+       const errors: string[] = []
+       
+       // 更新每条通知...
+       if (updateError) {
+         failCount++
+         errors.push(`通知 ${notification.id.substring(0, 8)}... 更新失败: ${updateError.message}`)
+       } else {
+         successCount++
+       }
+       
+       // 显示结果摘要
+       if (failCount > 0) {
+         showToast({
+           title: `通知更新部分失败（${failCount}/${existingNotifications.length}）`,
+           icon: 'none',
+           duration: 3000
+         })
+       }
+       ```
+    
+    3. **实时同步机制**：
+       - 通知中心页面使用 `useDidShow()` 钩子，每次显示时重新加载数据
+       - 使用 Supabase Realtime 订阅 `notifications` 表的 UPDATE 事件
+       - 当通知更新时，自动更新前端状态
+  
   - **效果**：
-    - 管理员现在可以成功更新所有通知的状态和内容（包括自己的通知）
-    - 添加了详细的调试日志，方便排查问题
+    - ✅ 管理员现在可以成功更新所有通知的状态和内容（包括自己的通知）
+    - ✅ 添加了详细的调试日志，方便排查问题
+    - ✅ 更新失败时，用户会收到明确的提示
+    - ✅ 通知中心会实时显示最新的审批状态
+  
   - **测试结果**：
     - ✅ 数据库层面的更新操作成功
     - ✅ RLS 策略正确工作
     - ✅ 代码逻辑会更新审批者本人的通知
+    - ✅ 实时订阅机制正常工作
     - 🔍 前端需要确保用户已登录且 session 有效
+  
   - **调试指南**：
     如果审批后通知状态仍未更新，请按以下步骤排查：
+    
     1. **检查认证状态**：
        - 查看控制台日志 `🔐 当前用户认证状态`
        - 确认 `hasSession: true` 且 `userId` 与 `currentUserId` 一致
@@ -71,11 +148,18 @@ pnpm run lint
        - 确认 `是否为审批人` 字段正确识别
        - 确认 `新状态` 和 `新内容` 正确
        - 查看 `✅ 成功更新通知` 或 `❌ 更新通知失败` 日志
+       - 查看 `📊 通知更新结果` 摘要
     
-    4. **常见问题**：
+    4. **检查用户界面**：
+       - 如果更新成功但界面未刷新，检查 Supabase Realtime 订阅是否正常
+       - 尝试手动刷新通知中心页面（返回后重新进入）
+       - 检查浏览器控制台是否有 WebSocket 连接错误
+    
+    5. **常见问题**：
        - 如果没有查询到通知，检查 `related_id` 是否正确
        - 如果更新失败，检查错误信息，可能是权限问题或数据验证问题
        - 如果审批者本人的通知没有更新，检查 `recipient_id` 是否与 `user.id` 匹配
+       - 如果收到"通知更新部分失败"提示，查看控制台的详细错误信息
 - ✅ **2025-11-30**：修复管理员无法更新其他人通知的权限问题
   - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
   - **根本原因**：
