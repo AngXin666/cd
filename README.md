@@ -26,6 +26,49 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复请假申请通知类型不匹配导致审批后状态不更新的问题
+  - **问题描述**：
+    - 老板在审核请假申请后，通知中心对应的那条信息应该更新状态为审核状态，但实际上没有更新
+    - 通知列表中的请假申请一直显示"待审批"状态，即使老板已经审批通过或拒绝
+  - **根本原因**：
+    - **司机端发送通知**：使用 `type: 'leave_submitted'`
+    - **老板端查询通知**：使用 `type: 'leave_application_submitted'`
+    - **结果**：类型不匹配，导致老板端查询不到需要更新的通知（`existingNotifications` 为空数组）
+  - **技术细节**：
+    ```typescript
+    // 司机端（错误）
+    sendDriverSubmissionNotification({
+      type: 'leave_submitted',  // ❌ 错误的类型
+      relatedId: applicationId
+    })
+    
+    // 老板端查询（正确）
+    const {data: existingNotifications} = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('related_id', applicationId)
+      .eq('type', 'leave_application_submitted')  // ✅ 正确的类型
+    
+    // 结果：existingNotifications = [] （查询不到任何通知）
+    ```
+  - **解决方案**：
+    - 修改司机端发送通知的类型为 `leave_application_submitted`
+    - 确保司机端发送的通知类型与老板端、车队长端查询的类型一致
+  - **修改文件**：
+    - `src/pages/driver/leave/apply/index.tsx`：修改通知类型
+  - **效果**：
+    - 司机提交请假申请后，老板和车队长收到通知（包含 `related_id` 和正确的 `type`）
+    - 老板审批后，能够查询到原始通知
+    - 原始通知的状态和内容被正确更新
+    - 司机收到审批结果通知
+    - 其他管理员看到更新后的通知状态
+  - **验证方法**：
+    1. 司机端提交请假申请
+    2. 检查老板端通知中心是否收到通知
+    3. 老板审批请假申请（通过或拒绝）
+    4. 检查老板端通知中心的通知状态是否更新为"已通过"或"已拒绝"
+    5. 检查通知内容是否显示审批结果
+
 - ✅ **2025-12-01**：修复通知表 RLS 策略的完整性问题
   - **问题描述**：
     1. 用户更新通知的策略缺少 WITH CHECK 子句

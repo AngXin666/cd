@@ -482,7 +482,7 @@ const ApplyLeave: React.FC = () => {
           return sendDriverSubmissionNotification({
             driverId: user.id,
             driverName: driverDisplayName,
-            type: 'leave_submitted',
+            type: 'leave_application_submitted', // 修复：使用正确的类型，与老板端查询一致
             title: '新的请假申请',
             content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
             relatedId: applicationId
