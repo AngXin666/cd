@@ -74,32 +74,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
     showLoading({title: '加载中...'})
 
     try {
-      // 🔐 检查 Session 是否有效
-      const {
-        data: {session}
-      } = await supabase.auth.getSession()
-
-      if (!session) {
-        console.warn('⚠️ 页面加载时 Session 不存在，尝试刷新...')
-        const {data: refreshData, error: refreshError} = await supabase.auth.refreshSession()
-
-        if (refreshError || !refreshData.session) {
-          console.error('❌ Session 刷新失败，跳转到登录页:', refreshError)
-          Taro.hideLoading()
-          showToast({
-            title: '登录已过期，请重新登录',
-            icon: 'none',
-            duration: 2000
-          })
-          setTimeout(() => {
-            navigateTo({url: '/pages/login/index'})
-          }, 2000)
-          return
-        }
-
-        console.log('✅ Session 刷新成功')
-      }
-
       // 获取所有仓库信息
       const allWarehouses = await WarehousesAPI.getAllWarehouses()
       setWarehouses(allWarehouses)
@@ -589,26 +563,18 @@ const SuperAdminLeaveApproval: React.FC = () => {
             currentUserId: user.id
           })
 
-          // 如果 session 不存在或已过期，尝试刷新
+          // 如果 session 不存在，直接跳转到登录页（不尝试刷新，因为可能根本没有 session）
           if (!session) {
-            console.warn('⚠️ Session 不存在，尝试刷新...')
-            const {data: refreshData, error: refreshError} = await supabase.auth.refreshSession()
-
-            if (refreshError || !refreshData.session) {
-              console.error('❌ Session 刷新失败:', refreshError)
-              showToast({
-                title: '登录已过期，请重新登录',
-                icon: 'none',
-                duration: 3000
-              })
-              // 跳转到登录页
-              setTimeout(() => {
-                navigateTo({url: '/pages/login/index'})
-              }, 3000)
-              return
-            }
-
-            console.log('✅ Session 刷新成功')
+            console.error('❌ Session 不存在，请重新登录')
+            showToast({
+              title: '登录已过期，请重新登录',
+              icon: 'none',
+              duration: 2000
+            })
+            setTimeout(() => {
+              navigateTo({url: '/pages/login/index'})
+            }, 2000)
+            return
           }
 
           const {data: existingNotifications} = await supabase

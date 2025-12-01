@@ -31,14 +31,14 @@ pnpm run lint
     - 老板在审核操作完成后，老板端通知中心的信息未能实时更新
     - 审核操作执行后，原信息的状态（例如"待审核"）未根据实际审核结果（如"已通过"或"已拒绝"）进行相应变更
     - 仍然错误地显示为操作前的状态
-    - 控制台报错：`AuthApiError: Session not found`
+    - 控制台报错：`AuthApiError: Session not found` 或 `AuthSessionMissingError: Auth session missing!`
   
   - **根本原因分析**：
-    1. **Session 过期问题**（最关键）：
-       - 用户在审批页面停留时间过长，导致 Supabase Session 过期
-       - Session 过期后，`auth.uid()` 返回 null
-       - RLS 策略检查 `is_admin(auth.uid())` 时失败，导致更新操作被拒绝
-       - 错误信息：`AuthApiError: Session not found`
+    1. **Session 缺失问题**（最关键）：
+       - 用户可能从未登录，或者 Session 已经完全失效（被清除）
+       - `refreshSession()` 只能刷新**已过期但仍存在**的 Session
+       - 如果 Session 完全不存在，调用 `refreshSession()` 会抛出 `AuthSessionMissingError` 错误
+       - Session 缺失后，`auth.uid()` 返回 null，RLS 策略检查失败
     
     2. **RLS 策略问题**：
        - 之前添加的 RLS 策略 `Admins can update all notifications` 只有 `USING` 子句，没有 `WITH CHECK` 子句
@@ -50,23 +50,24 @@ pnpm run lint
     3. **错误处理不足**：
        - 更新失败时，错误只是打印到控制台，用户无法感知
        - 没有统计更新成功/失败的数量
-       - Session 过期时，没有提示用户重新登录
+       - Session 缺失时，错误地尝试刷新导致抛出异常
     
     4. **实时同步机制**：
        - 前端已经实现了 Supabase Realtime 订阅机制
        - 但如果更新操作失败，实时订阅也无法收到更新事件
   
   - **完整解决方案**：
-    1. **在页面加载时检查 Session**（最关键的修复）：
-       - 在 `loadData` 函数开始时就检查 Session 是否有效
-       - 如果 Session 不存在，立即尝试刷新
-       - 如果刷新失败，提示用户并跳转到登录页
-       - **避免在 Session 无效的情况下执行任何数据库操作**
+    1. **信任 AuthProvider 的认证逻辑**（最关键的修复）：
+       - 移除页面加载时的 Session 检查和刷新逻辑
+       - 因为 `useAuth({ guard: true })` 已经处理了未登录的情况
+       - AuthProvider 会自动重定向未登录用户到登录页
+       - **避免重复的认证检查和不必要的 Session 刷新**
     
-    2. **在审批操作前再次检查 Session**（双重保险）：
-       - 在审批操作前，再次检查 Session 是否存在
-       - 如果 Session 不存在或已过期，尝试自动刷新
-       - 如果刷新失败，提示用户重新登录并跳转到登录页
+    2. **在审批操作前检查 Session**（简化逻辑）：
+       - 在审批操作前，检查 Session 是否存在
+       - 如果 Session 不存在，**直接跳转到登录页**，不尝试刷新
+       - 因为 `refreshSession()` 无法刷新一个根本不存在的 Session
+       - 避免抛出 `AuthSessionMissingError` 异常
        - 确保所有数据库操作都在有效的 Session 下进行
     
     3. **修复 RLS 策略**：
@@ -91,61 +92,45 @@ pnpm run lint
   - **修改文件**：
     - `supabase/migrations/00529_fix_admin_update_notifications_policy.sql`：修复 RLS 策略
     - `src/pages/super-admin/leave-approval/index.tsx`：
-      - **在页面加载时添加 Session 检查和自动刷新机制**
-      - **在审批操作前添加 Session 检查和自动刷新机制**
+      - **移除页面加载时的 Session 检查逻辑（信任 AuthProvider）**
+      - **在审批操作前添加 Session 检查（不尝试刷新，直接跳转）**
       - 添加详细调试日志
       - 添加更新结果统计
       - 添加失败提示
-      - Session 过期时提示并跳转登录页
+      - Session 缺失时提示并跳转登录页
     - `src/pages/manager/leave-approval/index.tsx`：
-      - **在页面加载时添加 Session 检查和自动刷新机制**
-      - **在审批操作前添加 Session 检查和自动刷新机制**
+      - **移除页面加载时的 Session 检查逻辑（信任 AuthProvider）**
+      - **在审批操作前添加 Session 检查（不尝试刷新，直接跳转）**
       - 添加详细调试日志
       - 添加更新结果统计
       - 添加失败提示
-      - Session 过期时提示并跳转登录页
+      - Session 缺失时提示并跳转登录页
   
   - **技术实现细节**：
-    1. **页面加载时的 Session 检查**（最关键）：
+    1. **信任 AuthProvider 的认证逻辑**：
        ```typescript
-       // 在 loadData 函数开始时检查
+       // 页面组件中使用 useAuth hook
+       const { user } = useAuth({ guard: true })
+       
+       // guard: true 会自动处理未登录的情况
+       // 如果用户未登录，AuthProvider 会自动重定向到登录页
+       // 因此不需要在 loadData 中再次检查 Session
+       
        const loadData = useCallback(async () => {
          if (!user) return
          showLoading({title: '加载中...'})
          
          try {
-           // 🔐 检查 Session 是否有效
-           const { data: { session } } = await supabase.auth.getSession()
-           
-           if (!session) {
-             console.warn('⚠️ 页面加载时 Session 不存在，尝试刷新...')
-             const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-             
-             if (refreshError || !refreshData.session) {
-               console.error('❌ Session 刷新失败，跳转到登录页:', refreshError)
-               Taro.hideLoading()
-               showToast({
-                 title: '登录已过期，请重新登录',
-                 icon: 'none',
-                 duration: 2000
-               })
-               setTimeout(() => {
-                 navigateTo({ url: '/pages/login/index' })
-               }, 2000)
-               return
-             }
-             
-             console.log('✅ Session 刷新成功')
-           }
-           
-           // 继续加载数据...
+           // 直接加载数据，不需要检查 Session
+           const allWarehouses = await WarehousesAPI.getAllWarehouses()
+           // ...
          } finally {
            Taro.hideLoading()
          }
        }, [user])
        ```
     
-    2. **审批操作前的 Session 检查**（双重保险）：
+    2. **审批操作前的 Session 检查**（简化逻辑）：
        ```typescript
        // 检查当前用户的认证状态
        const { data: { session } } = await supabase.auth.getSession()
@@ -155,26 +140,20 @@ pnpm run lint
          currentUserId: user.id
        })
 
-       // 如果 session 不存在或已过期，尝试刷新
+       // 如果 session 不存在，直接跳转到登录页（不尝试刷新）
+       // 因为 refreshSession() 无法刷新一个根本不存在的 Session
+       // 尝试刷新会抛出 AuthSessionMissingError 异常
        if (!session) {
-         console.warn('⚠️ Session 不存在，尝试刷新...')
-         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-         
-         if (refreshError || !refreshData.session) {
-           console.error('❌ Session 刷新失败:', refreshError)
-           showToast({
-             title: '登录已过期，请重新登录',
-             icon: 'none',
-             duration: 3000
-           })
-           // 跳转到登录页
-           setTimeout(() => {
-             navigateTo({ url: '/pages/login/index' })
-           }, 3000)
-           return
-         }
-         
-         console.log('✅ Session 刷新成功')
+         console.error('❌ Session 不存在，请重新登录')
+         showToast({
+           title: '登录已过期，请重新登录',
+           icon: 'none',
+           duration: 2000
+         })
+         setTimeout(() => {
+           navigateTo({ url: '/pages/login/index' })
+         }, 2000)
+         return
        }
        ```
     
@@ -218,9 +197,9 @@ pnpm run lint
        - 当通知更新时，自动更新前端状态
   
   - **效果**：
-    - ✅ **页面加载时会检查 Session，无效时自动刷新或跳转登录页**
-    - ✅ **审批操作前会再次检查 Session，确保操作在有效 Session 下进行**
-    - ✅ **Session 过期时会自动尝试刷新，刷新失败会提示用户重新登录**
+    - ✅ **信任 AuthProvider 的认证逻辑，避免重复检查和不必要的 Session 刷新**
+    - ✅ **审批操作前会检查 Session，缺失时直接跳转登录页（不尝试刷新）**
+    - ✅ **避免了 `AuthSessionMissingError` 异常**
     - ✅ 管理员现在可以成功更新所有通知的状态和内容（包括自己的通知）
     - ✅ 添加了详细的调试日志，方便排查问题
     - ✅ 更新失败时，用户会收到明确的提示
@@ -231,9 +210,9 @@ pnpm run lint
     - ✅ RLS 策略正确工作
     - ✅ 代码逻辑会更新审批者本人的通知
     - ✅ 实时订阅机制正常工作
-    - ✅ **页面加载时的 Session 检测正常工作**
+    - ✅ **AuthProvider 的认证保护正常工作**
     - ✅ **审批操作前的 Session 检测正常工作**
-    - ✅ **Session 过期检测和自动刷新机制正常工作**
+    - ✅ **不再抛出 `AuthSessionMissingError` 异常**
   
   - **调试指南**：
     如果审批后通知状态仍未更新，请按以下步骤排查：
@@ -241,15 +220,14 @@ pnpm run lint
     1. **检查 Session 状态**（最重要）：
        - 查看控制台日志 `🔐 当前用户认证状态`
        - 确认 `hasSession: true` 且 `userId` 与 `currentUserId` 一致
-       - 如果看到 `⚠️ Session 不存在，尝试刷新...`，说明 Session 已过期
-       - 如果看到 `✅ Session 刷新成功`，说明自动刷新成功
-       - 如果看到 `❌ Session 刷新失败`，说明需要重新登录
-       - **如果控制台报错 `AuthApiError: Session not found`，说明 Session 已过期且刷新失败**
+       - 如果看到 `❌ Session 不存在，请重新登录`，说明 Session 已失效
+       - 系统会提示"登录已过期，请重新登录"并在 2 秒后跳转到登录页
+       - **不会再尝试刷新 Session，避免抛出 `AuthSessionMissingError` 异常**
     
     2. **检查认证状态**：
-       - 如果 `hasSession: false`，说明用户未登录或 session 过期
-       - 系统会自动尝试刷新 Session
-       - 如果刷新失败，会显示提示"登录已过期，请重新登录"并跳转到登录页
+       - 如果 `hasSession: false`，说明用户未登录或 Session 已失效
+       - 系统会直接跳转到登录页，不会尝试刷新
+       - 用户需要重新登录以获取新的 Session
     
     3. **检查通知查询**：
        - 查看日志 `🔍 查询到 X 条原始申请通知`
@@ -269,9 +247,9 @@ pnpm run lint
        - 检查浏览器控制台是否有 WebSocket 连接错误
     
     6. **常见问题及解决方案**：
-       - **问题**：控制台报错 `AuthApiError: Session not found`
-         - **原因**：用户在审批页面停留时间过长，Session 已过期
-         - **解决**：系统会自动尝试刷新 Session，如果刷新失败，请重新登录
+       - **问题**：控制台报错 `AuthSessionMissingError: Auth session missing!`
+         - **原因**：用户从未登录，或 Session 已被清除
+         - **解决**：系统会直接跳转到登录页，不会尝试刷新（避免抛出异常）
        - **问题**：如果没有查询到通知
          - **检查**：`related_id` 是否正确
        - **问题**：如果更新失败
@@ -281,7 +259,7 @@ pnpm run lint
        - **问题**：如果收到"通知更新部分失败"提示
          - **检查**：控制台的详细错误信息
        - **问题**：如果收到"登录已过期，请重新登录"提示
-         - **解决**：等待 3 秒后会自动跳转到登录页，或手动跳转到登录页重新登录
+         - **解决**：等待 2 秒后会自动跳转到登录页，或手动跳转到登录页重新登录
 - ✅ **2025-11-30**：修复管理员无法更新其他人通知的权限问题
   - **问题描述**：审批后，原始申请通知的状态不会更新，还是显示"待审批"
   - **根本原因**：
