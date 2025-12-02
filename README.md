@@ -26,6 +26,27 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：修复司机类型显示问题
+  - **问题描述**：
+    - 司机类型没有正确显示"新纯司机"、"新带车司机"、"纯司机"、"带车司机"
+    - 司机类型判断依赖 `driver_type` 字段，但该字段可能与实际情况不符
+  - **根本原因**：
+    - `getDriverDetailInfo` 函数根据 `profile.driver_type` 字段判断司机类型
+    - 该字段可能手动设置错误，导致显示不准确
+  - **修复措施**：
+    - 修改 `getDriverDetailInfo` 函数，根据实际情况计算司机类型：
+      - 判断是否为新司机：入职时间 ≤ 7天
+      - 判断是否带车：查询 vehicles 表中是否有该司机的活跃车辆记录
+    - 创建数据库函数 `get_driver_type_label`、`is_new_driver`、`has_vehicle`
+  - **司机类型规则**：
+    - **新纯司机**：入职7天内 + 无车辆
+    - **纯司机**：入职7天以上 + 无车辆
+    - **新带车司机**：入职7天内 + 有车辆
+    - **带车司机**：入职7天以上 + 有车辆
+  - **相关文件**：
+    - `src/db/api.ts` - 修改 `getDriverDetailInfo` 函数
+    - `supabase/migrations/*_add_driver_type_calculation_function.sql` - 新增数据库函数
+
 - ✅ **2025-12-01**：修复离职申请审批时的无效UUID错误
   - **问题描述**：
     - 审批离职申请时出现错误：`invalid input syntax for type uuid: "anon"`
