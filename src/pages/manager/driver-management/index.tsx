@@ -986,31 +986,47 @@ const DriverManagement: React.FC = () => {
                                     </View>
                                   )}
                                   {/* 司机类型标签 */}
-                                  {detail && (
-                                    <View
-                                      className={`px-2 py-0.5 rounded-full ${
-                                        detail.driverType === '新带车司机'
-                                          ? 'bg-amber-100'
-                                          : detail.driverType === '带车司机'
-                                            ? 'bg-orange-100'
-                                            : detail.driverType === '新纯司机'
-                                              ? 'bg-cyan-100'
-                                              : 'bg-blue-100'
-                                      }`}>
-                                      <Text
-                                        className={`text-xs font-medium ${
-                                          detail.driverType === '新带车司机'
-                                            ? 'text-amber-700'
-                                            : detail.driverType === '带车司机'
-                                              ? 'text-orange-700'
-                                              : detail.driverType === '新纯司机'
-                                                ? 'text-cyan-700'
-                                                : 'text-blue-700'
-                                        }`}>
-                                        {detail.driverType}
-                                      </Text>
-                                    </View>
-                                  )}
+                                  {detail &&
+                                    (() => {
+                                      // 判断是否为新司机
+                                      const isNewDriver =
+                                        detail.workDays !== null &&
+                                        detail.workDays !== undefined &&
+                                        detail.workDays <= 7
+                                      // 根据 driver_type 字段和是否为新司机，计算司机类型
+                                      let driverTypeLabel = ''
+                                      if (driver.driver_type === 'with_vehicle') {
+                                        driverTypeLabel = isNewDriver ? '新带车司机' : '带车司机'
+                                      } else {
+                                        driverTypeLabel = isNewDriver ? '新纯司机' : '纯司机'
+                                      }
+
+                                      return (
+                                        <View
+                                          className={`px-2 py-0.5 rounded-full ${
+                                            driverTypeLabel === '新带车司机'
+                                              ? 'bg-amber-100'
+                                              : driverTypeLabel === '带车司机'
+                                                ? 'bg-orange-100'
+                                                : driverTypeLabel === '新纯司机'
+                                                  ? 'bg-cyan-100'
+                                                  : 'bg-blue-100'
+                                          }`}>
+                                          <Text
+                                            className={`text-xs font-medium ${
+                                              driverTypeLabel === '新带车司机'
+                                                ? 'text-amber-700'
+                                                : driverTypeLabel === '带车司机'
+                                                  ? 'text-orange-700'
+                                                  : driverTypeLabel === '新纯司机'
+                                                    ? 'text-cyan-700'
+                                                    : 'text-blue-700'
+                                            }`}>
+                                            {driverTypeLabel}
+                                          </Text>
+                                        </View>
+                                      )
+                                    })()}
                                   {/* 未实名标签 */}
                                   {!isVerified && (
                                     <View className="bg-gray-100 px-2 py-0.5 rounded-full">

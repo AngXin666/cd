@@ -1021,14 +1021,18 @@ const UserManagement: React.FC = () => {
   const getDriverType = (targetUser: UserWithRealName) => {
     if (targetUser.role !== 'DRIVER') return null
 
-    // 尝试从详细信息中获取（包含新司机标签）
+    // 获取详细信息（用于判断是否为新司机）
     const detail = userDetails.get(targetUser.id)
-    if (detail?.driverType) {
-      return detail.driverType
+    const isNewDriver = detail?.workDays !== null && detail?.workDays !== undefined && detail.workDays <= 7
+
+    // 根据 driver_type 字段和是否为新司机，返回司机类型
+    const baseType = targetUser.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
+
+    if (isNewDriver) {
+      return targetUser.driver_type === 'with_vehicle' ? '新带车司机' : '新纯司机'
     }
 
-    // 如果没有详细信息，返回基本类型
-    return targetUser.driver_type === 'with_vehicle' ? '带车司机' : '纯司机'
+    return baseType
   }
 
   return (
