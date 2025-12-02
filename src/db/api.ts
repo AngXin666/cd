@@ -3363,23 +3363,13 @@ export async function changePassword(newPassword: string): Promise<{success: boo
  * 提交意见反馈
  * @param input 反馈信息
  * @returns 提交结果
+ * @deprecated feedback表不存在，此函数返回失败
  */
-export async function submitFeedback(input: FeedbackInput): Promise<{success: boolean; error?: string}> {
+export async function submitFeedback(_input: FeedbackInput): Promise<{success: boolean; error?: string}> {
   try {
-    const {error} = await supabase.from('feedback').insert({
-      user_id: input.user_id,
-      type: input.type,
-      content: input.content,
-      contact: input.contact || null,
-      status: 'pending'
-    })
-
-    if (error) {
-      console.error('提交反馈失败:', error)
-      return {success: false, error: error.message}
-    }
-
-    return {success: true}
+    // feedback表不存在，返回失败
+    console.warn('submitFeedback: feedback表不存在')
+    return {success: false, error: '反馈功能暂未开放，请联系管理员'}
   } catch (error) {
     console.error('提交反馈异常:', error)
     return {success: false, error: '提交反馈失败'}
@@ -3390,21 +3380,13 @@ export async function submitFeedback(input: FeedbackInput): Promise<{success: bo
  * 获取用户的反馈列表
  * @param userId 用户ID
  * @returns 反馈列表
+ * @deprecated feedback表不存在，此函数返回空数组
  */
-export async function getUserFeedbackList(userId: string): Promise<Feedback[]> {
+export async function getUserFeedbackList(_userId: string): Promise<Feedback[]> {
   try {
-    const {data, error} = await supabase
-      .from('feedback')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', {ascending: false})
-
-    if (error) {
-      console.error('获取反馈列表失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data : []
+    // feedback表不存在，返回空数组
+    console.warn('getUserFeedbackList: feedback表不存在，返回空数组')
+    return []
   } catch (error) {
     console.error('获取反馈列表异常:', error)
     return []
@@ -3414,17 +3396,13 @@ export async function getUserFeedbackList(userId: string): Promise<Feedback[]> {
 /**
  * 获取所有反馈列表（管理员）
  * @returns 反馈列表
+ * @deprecated feedback表不存在，此函数返回空数组
  */
 export async function getAllFeedbackList(): Promise<Feedback[]> {
   try {
-    const {data, error} = await supabase.from('feedback').select('*').order('created_at', {ascending: false})
-
-    if (error) {
-      console.error('获取所有反馈失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data : []
+    // feedback表不存在，返回空数组
+    console.warn('getAllFeedbackList: feedback表不存在，返回空数组')
+    return []
   } catch (error) {
     console.error('获取所有反馈异常:', error)
     return []
@@ -3436,20 +3414,16 @@ export async function getAllFeedbackList(): Promise<Feedback[]> {
  * @param feedbackId 反馈ID
  * @param status 新状态
  * @returns 更新结果
+ * @deprecated feedback表不存在，此函数返回失败
  */
 export async function updateFeedbackStatus(
-  feedbackId: string,
-  status: FeedbackStatus
+  _feedbackId: string,
+  _status: FeedbackStatus
 ): Promise<{success: boolean; error?: string}> {
   try {
-    const {error} = await supabase.from('feedback').update({status}).eq('id', feedbackId)
-
-    if (error) {
-      console.error('更新反馈状态失败:', error)
-      return {success: false, error: error.message}
-    }
-
-    return {success: true}
+    // feedback表不存在，返回失败
+    console.warn('updateFeedbackStatus: feedback表不存在')
+    return {success: false, error: '反馈功能暂未开放'}
   } catch (error) {
     console.error('更新反馈状态异常:', error)
     return {success: false, error: '更新反馈状态失败'}
