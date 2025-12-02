@@ -5805,15 +5805,19 @@ export async function getDriverDetailInfo(driverId: string) {
       workDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24))
     }
 
-    // 从profile中读取司机类型，并根据注册时间判断是否为新司机
+    // 根据实际情况计算司机类型
     let driverType = '未设置'
 
-    // 判断是否为新司机（注册≤7天）
+    // 判断是否为新司机（入职≤7天）
     const isNewDriver = workDays !== null && workDays <= 7
 
-    if (profile.driver_type === 'with_vehicle') {
+    // 判断是否带车（根据实际车辆记录）
+    const hasVehicle = vehicles.length > 0
+
+    // 根据是否为新司机和是否带车，计算司机类型
+    if (hasVehicle) {
       driverType = isNewDriver ? '新带车司机' : '带车司机'
-    } else if (profile.driver_type === 'pure') {
+    } else {
       driverType = isNewDriver ? '新纯司机' : '纯司机'
     }
 
