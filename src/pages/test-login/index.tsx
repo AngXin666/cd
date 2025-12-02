@@ -40,7 +40,7 @@ export default function TestLogin() {
       // 单用户架构：从 users 和 user_roles 表查询
       const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
         supabase.from('users').select('id, name, phone, email').order('created_at', {ascending: true}).limit(20),
-        supabase.from('user_roles').select('user_id, role')
+        supabase.from('users').select('user_id, role')
       ])
 
       if (usersError) {

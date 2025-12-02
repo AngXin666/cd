@@ -159,7 +159,7 @@ export async function checkAccountStatusOnPageShow(excludeRoles: string[] = []):
     }
 
     // 获取用户角色（单用户架构：从 user_roles 表查询）
-    const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+    const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
 
     if (!roleData) {
       return false

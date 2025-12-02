@@ -160,9 +160,9 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
 
       // 3. 查询用户角色
       const {data: roleData, error: roleError} = await supabase
-        .from('user_roles')
+        .from('users')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle()
 
       if (roleError) {

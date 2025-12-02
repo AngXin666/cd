@@ -81,7 +81,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         if (assignedDrivers && assignedDrivers.length > 0) {
           const userIds = assignedDrivers.map((a) => a.user_id)
           const {data: driverRoles} = await supabase
-            .from('user_roles')
+            .from('users')
             .select('user_id')
             .eq('role', 'DRIVER')
             .in('user_id', userIds)
@@ -103,7 +103,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         }
       } else {
         // 获取所有司机ID（只统计角色为 DRIVER 的用户）
-        const {data: allDrivers} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
+        const {data: allDrivers} = await supabase.from('users').select('user_id').eq('role', 'DRIVER')
         driverIds = allDrivers?.map((d) => d.user_id) || []
       }
 

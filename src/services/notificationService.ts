@@ -37,7 +37,7 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
     console.log('    - 限制: 1 条')
 
     const {data: roleData, error: roleError} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id, role')
       .eq('role', 'BOSS')
       .order('user_id', {ascending: true})
@@ -115,7 +115,7 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
 
     // 单用户架构：从 users 和 user_roles 表查询所有 PEER_ADMIN
     const {data: roles, error: rolesError} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id, role')
       .eq('role', 'PEER_ADMIN')
       .order('user_id', {ascending: true})
@@ -162,7 +162,7 @@ async function _getAllAdmins(): Promise<NotificationRecipient[]> {
     // 单用户架构：从 users 和 user_roles 表查询所有 BOSS 和 PEER_ADMIN 角色的用户
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
       supabase.from('users').select('id, name'),
-      supabase.from('user_roles').select('user_id, role').in('role', ['BOSS', 'PEER_ADMIN'])
+      supabase.from('users').select('user_id, role').in('role', ['BOSS', 'PEER_ADMIN'])
     ])
 
     if (usersError) {
@@ -210,7 +210,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
     const {data: driverWarehouses, error: dwError} = await supabase
       .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('user_id', driverId)
+      .eq('id', driverId)
 
     if (dwError || !driverWarehouses || driverWarehouses.length === 0) {
       logger.warn('司机未分配仓库', {driverId})
@@ -223,7 +223,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
     const {data: managerWarehouses, error: mwError} = await supabase
       .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('user_id', managerId)
+      .eq('id', managerId)
 
     if (mwError || !managerWarehouses || managerWarehouses.length === 0) {
       logger.warn('车队长未管理任何仓库', {managerId})
@@ -273,7 +273,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
     const {data: driverWarehouses, error: dwError} = await supabase
       .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('user_id', driverId)
+      .eq('id', driverId)
 
     if (dwError) {
       console.error('  ❌ 查询司机仓库失败:', dwError)
@@ -328,7 +328,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
       supabase.from('users').select('id, name').in('id', managerIds),
-      supabase.from('user_roles').select('user_id, role').eq('role', 'MANAGER').in('user_id', managerIds)
+      supabase.from('users').select('user_id, role').eq('role', 'MANAGER').in('user_id', managerIds)
     ])
 
     if (usersError) {

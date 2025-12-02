@@ -205,8 +205,8 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     console.log('[getCurrentUserRole] 当前用户ID:', user.id)
 
-    // 从 user_roles 表查询用户角色（每个用户只有一个角色）
-    const {data, error} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+    // 从 users 表查询用户角色
+    const {data, error} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
 
     if (error) {
       console.error('[getCurrentUserRole] 查询用户角色失败:', error)
@@ -215,7 +215,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     if (!data) {
       console.warn('[getCurrentUserRole] 用户角色不存在，用户ID:', user.id)
-      console.warn('[getCurrentUserRole] 请检查 user_roles 表中是否存在该用户记录')
+      console.warn('[getCurrentUserRole] 请检查 users 表中是否存在该用户记录')
       return null
     }
 
@@ -235,15 +235,15 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
   try {
     console.log('[getUserRoles] 开始获取用户角色', {userId})
 
-    // 从 user_roles 表查询用户角色（每个用户只有一个角色）
-    const {data, error} = await supabase.from('user_roles').select('role').eq('user_id', userId)
+    // 从 users 表查询用户角色
+    const {data, error} = await supabase.from('users').select('role').eq('id', userId).maybeSingle()
 
     if (error) {
       console.error('[getUserRoles] 查询用户角色失败:', error)
       return []
     }
 
-    const roles = data?.map((r) => r.role) || []
+    const roles = data?.role ? [data.role] : []
     console.log('[getUserRoles] 成功获取用户角色:', roles)
     return roles
   } catch (error) {
@@ -285,15 +285,15 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
 
-    // 从 user_roles 表查询用户角色（每个用户只有一个角色）
+    // 从 users 表查询用户角色
     const {data: roleData, error: roleError} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('role')
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .maybeSingle()
 
     if (roleError) {
-      console.error('[getCurrentUserRoleAndTenant] 查询 user_roles 出错:', roleError)
+      console.error('[getCurrentUserRoleAndTenant] 查询 users 出错:', roleError)
       throw new Error('查询用户信息失败')
     }
 
@@ -442,7 +442,7 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
 
     // 更新用户角色
     if (role) {
-      const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', id)
+      const {error: roleError} = await supabase.from('users').update({role}).eq('id', id)
 
       if (roleError) {
         console.error('❌ 更新用户角色失败:', roleError)
@@ -590,7 +590,7 @@ export async function getTodayAttendance(userId: string): Promise<AttendanceReco
   const {data, error} = await supabase
     .from('attendance')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .eq('work_date', today)
     .maybeSingle()
 
@@ -628,7 +628,7 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
   const {data, error} = await supabase
     .from('attendance')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .gte('work_date', startDate)
     .lte('work_date', endDate)
     .order('work_date', {ascending: false})
@@ -705,7 +705,7 @@ export async function getAttendanceRecordsByUserAndWarehouse(
   let query = supabase
     .from('attendance')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .eq('warehouse_id', warehouseId)
     .order('work_date', {ascending: false})
 
@@ -1038,7 +1038,7 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
   const {data, error} = await supabase
     .from('warehouse_assignments')
     .select('warehouse_id, warehouses(*)')
-    .eq('user_id', driverId)
+    .eq('id', driverId)
 
   console.log('Supabase 查询响应 - data:', data)
   console.log('Supabase 查询响应 - error:', error)
@@ -1074,7 +1074,7 @@ export async function getDriverWarehouseIds(driverId: string): Promise<string[]>
 
   logger.db('查询', 'warehouse_assignments', {driverId})
 
-  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', driverId)
+  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('id', driverId)
 
   if (error) {
     logger.error('获取司机仓库ID失败', error)
@@ -1115,7 +1115,7 @@ export async function getDriversByWarehouse(warehouseId: string): Promise<Profil
     // 单用户架构：从 users 表查询司机信息
     const [{data: users, error: usersError}, {data: roles, error: rolesError}] = await Promise.all([
       supabase.from('users').select('*').in('id', driverIds),
-      supabase.from('user_roles').select('user_id, role').in('user_id', driverIds)
+      supabase.from('users').select('user_id, role').in('user_id', driverIds)
     ])
 
     if (usersError) {
@@ -1210,7 +1210,7 @@ export async function removeWarehouseFromDriver(driverId: string, warehouseId: s
   const {error} = await supabase
     .from('warehouse_assignments')
     .delete()
-    .eq('user_id', driverId)
+    .eq('id', driverId)
     .eq('warehouse_id', warehouseId)
 
   if (error) {
@@ -1242,7 +1242,7 @@ export async function getWarehouseAssignmentsByDriver(driverId: string): Promise
   const {data, error} = await supabase
     .from('warehouse_assignments')
     .select('*')
-    .eq('user_id', driverId)
+    .eq('id', driverId)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -1262,7 +1262,7 @@ export async function getWarehouseAssignmentsByManager(
   const {data, error} = await supabase
     .from('warehouse_assignments')
     .select('*')
-    .eq('user_id', managerId)
+    .eq('id', managerId)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -1285,7 +1285,7 @@ export async function getWarehouseAssignmentsByManager(
  * 删除指定司机的所有仓库分配
  */
 export async function deleteWarehouseAssignmentsByDriver(driverId: string): Promise<boolean> {
-  const {error} = await supabase.from('warehouse_assignments').delete().eq('user_id', driverId)
+  const {error} = await supabase.from('warehouse_assignments').delete().eq('id', driverId)
 
   if (error) {
     console.error('删除司机仓库分配失败:', error)
@@ -1374,7 +1374,7 @@ export async function insertManagerWarehouseAssignment(input: {
   const {data: existingAssignment} = await supabase
     .from('warehouse_assignments')
     .select('id')
-    .eq('user_id', input.manager_id)
+    .eq('id', input.manager_id)
     .eq('warehouse_id', input.warehouse_id)
     .maybeSingle()
 
@@ -1427,7 +1427,7 @@ export async function setDriverWarehouses(
     }
 
     // 先删除该司机的所有仓库分配
-    const {error: deleteError} = await supabase.from('warehouse_assignments').delete().eq('user_id', driverId)
+    const {error: deleteError} = await supabase.from('warehouse_assignments').delete().eq('id', driverId)
 
     if (deleteError) {
       console.error('删除旧仓库分配失败:', deleteError)
@@ -1467,11 +1467,7 @@ export async function getPieceWorkRecordsByUser(
   startDate?: string,
   endDate?: string
 ): Promise<PieceWorkRecord[]> {
-  let query = supabase
-    .from('piece_work_records')
-    .select('*')
-    .eq('user_id', userId)
-    .order('work_date', {ascending: false})
+  let query = supabase.from('piece_work_records').select('*').eq('id', userId).order('work_date', {ascending: false})
 
   if (startDate) {
     query = query.gte('work_date', startDate)
@@ -1529,7 +1525,7 @@ export async function getPieceWorkRecordsByUserAndWarehouse(
   let query = supabase
     .from('piece_work_records')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .eq('warehouse_id', warehouseId)
     .order('work_date', {ascending: false})
 
@@ -1969,7 +1965,7 @@ export async function getManagerWarehouses(managerId: string): Promise<Warehouse
   }
 
   // 从数据库查询 - 使用 warehouse_assignments 表
-  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', managerId)
+  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('id', managerId)
 
   if (error) {
     logger.error('获取管理员仓库失败', error)
@@ -2045,7 +2041,7 @@ export async function getWarehouseManagers(warehouseId: string): Promise<Profile
     }
 
     // 获取角色信息
-    const {data: roleData} = await supabase.from('user_roles').select('user_id, role').in('user_id', managerIds)
+    const {data: roleData} = await supabase.from('users').select('user_id, role').in('user_id', managerIds)
 
     const roleMap = new Map(roleData?.map((r) => [r.user_id, r.role]) || [])
 
@@ -2089,7 +2085,7 @@ export async function getWarehouseDispatchersAndManagers(warehouseId: string): P
     // 2. 查询这些用户中角色为 BOSS、DISPATCHER 或 MANAGER 的用户
 
     const {data: roles, error: roleError} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id')
       .in('user_id', userIds)
       .in('role', ['BOSS', 'DISPATCHER', 'MANAGER'])
@@ -2126,7 +2122,7 @@ export async function removeManagerWarehouse(managerId: string, warehouseId: str
   const {error} = await supabase
     .from('warehouse_assignments')
     .delete()
-    .eq('user_id', managerId)
+    .eq('id', managerId)
     .eq('warehouse_id', warehouseId)
 
   if (error) {
@@ -2330,7 +2326,7 @@ export async function getLeaveApplicationsByUser(userId: string): Promise<LeaveA
   const {data, error} = await supabase
     .from('leave_applications')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -2648,7 +2644,7 @@ export async function getResignationApplicationsByUser(userId: string): Promise<
   const {data, error} = await supabase
     .from('resignation_applications')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .order('created_at', {ascending: false})
 
   if (error) {
@@ -2948,7 +2944,7 @@ export async function getWarehouseManager(warehouseId: string): Promise<Profile 
     // 单用户架构：从 users 表查询车队长信息
     const [{data: user, error: userError}, {data: roleData, error: roleError}] = await Promise.all([
       supabase.from('users').select('*').eq('id', managerId).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', managerId).maybeSingle()
+      supabase.from('users').select('role').eq('id', managerId).maybeSingle()
     ])
 
     if (userError) {
@@ -2986,7 +2982,7 @@ export async function getMonthlyLeaveCount(userId: string, year: number, month: 
   const {data, error} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .eq('status', 'approved') // 只统计已通过的申请
     .gte('start_date', startDate)
     .lte('start_date', endDate)
@@ -3023,7 +3019,7 @@ export async function getMonthlyPendingLeaveCount(userId: string, year: number, 
   const {data, error} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .eq('status', 'pending') // 只统计待审批的申请
     .gte('start_date', startDate)
     .lte('start_date', endDate)
@@ -3065,7 +3061,7 @@ export async function getDriverAttendanceStats(
   const {data: attendanceData, error: attendanceError} = await supabase
     .from('attendance')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .gte('work_date', startDate)
     .lte('work_date', endDate)
 
@@ -3082,7 +3078,7 @@ export async function getDriverAttendanceStats(
   const {data: leaveData, error: leaveError} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .eq('status', 'approved')
     .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
 
@@ -3307,7 +3303,7 @@ export async function updateUserProfile(
 
     // 更新用户角色
     if (role) {
-      const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', userId)
+      const {error: roleError} = await supabase.from('users').update({role}).eq('id', userId)
 
       if (roleError) {
         console.error('更新用户角色失败:', roleError)
@@ -3396,7 +3392,7 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
   let driverIds: string[] = []
   if (allUserIds.length > 0) {
     const {data: userRoles} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id, role')
       .in('user_id', allUserIds)
       .eq('role', 'DRIVER') // 只获取司机角色
@@ -3516,10 +3512,7 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
   ] = await Promise.all([
     // 所有司机基本信息 - 单用户架构：查询 users + user_roles
     (async () => {
-      const {data: roleData, error: roleError} = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'DRIVER')
+      const {data: roleData, error: roleError} = await supabase.from('users').select('user_id').eq('role', 'DRIVER')
 
       if (roleError || !roleData) {
         return {data: null, error: roleError}
@@ -3752,7 +3745,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
     // 单用户架构：更新 user_roles 表和 users 表
 
     // 更新角色
-    const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', userId)
+    const {error: roleError} = await supabase.from('users').update({role}).eq('id', userId)
 
     if (roleError) {
       console.error('修改用户角色失败:', roleError)
@@ -3794,11 +3787,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
  */
 export async function getManagerPermission(managerId: string): Promise<ManagerPermission | null> {
   // 单用户架构：从 user_roles 表查询用户角色
-  const {data: roleData, error} = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', managerId)
-    .maybeSingle()
+  const {data: roleData, error} = await supabase.from('users').select('role').eq('id', managerId).maybeSingle()
 
   if (error || !roleData) {
     console.error('获取管理员信息失败:', error)
@@ -3915,7 +3904,7 @@ export async function getManagerPermissionsEnabled(managerId: string): Promise<b
  * 获取管理员管辖的仓库ID列表
  */
 export async function getManagerWarehouseIds(managerId: string): Promise<string[]> {
-  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', managerId)
+  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('id', managerId)
 
   if (error) {
     console.error('获取管理员仓库列表失败:', error)
@@ -3939,7 +3928,7 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   }
 
   // 1. 删除旧的关联
-  const {error: deleteError} = await supabase.from('warehouse_assignments').delete().eq('user_id', managerId)
+  const {error: deleteError} = await supabase.from('warehouse_assignments').delete().eq('id', managerId)
 
   if (deleteError) {
     console.error('删除旧的仓库关联失败:', deleteError)
@@ -4233,7 +4222,8 @@ export async function createUser(
       id: userId,
       phone,
       name,
-      email: loginEmail
+      email: loginEmail,
+      role: role as UserRole
     }
 
     if (role === 'DRIVER') {
@@ -4256,26 +4246,10 @@ export async function createUser(
       return null
     }
 
-    console.log('  ✅ users 表记录创建成功')
+    console.log('  ✅ users 表记录创建成功（包含角色）')
     console.log('  - 用户ID:', userData.id)
     console.log('  - 姓名:', userData.name)
-
-    // 步骤3: 创建 user_roles 表记录
-    console.log('\n📋 [步骤3] 创建 user_roles 表记录')
-
-    const {error: roleError} = await supabase.from('user_roles').insert({
-      user_id: userId,
-      role: role as UserRole
-    })
-
-    if (roleError) {
-      console.error('  ❌ 插入 user_roles 表失败:', roleError)
-      console.warn('  ⚠️ users 记录已创建，但 user_roles 记录创建失败')
-      return null
-    }
-
-    console.log('  ✅ user_roles 表记录创建成功')
-    console.log('  - 角色:', role)
+    console.log('  - 角色:', userData.role)
 
     // 转换为 Profile 格式
     const profile: Profile = convertUserToProfile({
@@ -4327,7 +4301,7 @@ export async function getDriverStats(userId: string): Promise<{
     const {data: attendanceData} = await supabase
       .from('attendance')
       .select('id')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .gte('work_date', monthStart)
       .lte('work_date', monthEnd)
 
@@ -4337,7 +4311,7 @@ export async function getDriverStats(userId: string): Promise<{
     const {data: pieceWorkData} = await supabase
       .from('piece_work_records')
       .select('total_amount')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .gte('work_date', monthStart)
       .lte('work_date', monthEnd)
 
@@ -4349,7 +4323,7 @@ export async function getDriverStats(userId: string): Promise<{
     const {data: leaveData} = await supabase
       .from('leave_applications')
       .select('start_date, end_date')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .eq('status', 'approved')
       .gte('start_date', monthStart)
       .lte('end_date', monthEnd)
@@ -4365,7 +4339,7 @@ export async function getDriverStats(userId: string): Promise<{
     }
 
     // 获取分配的仓库数
-    const {data: warehouseData} = await supabase.from('warehouse_assignments').select('id').eq('user_id', userId)
+    const {data: warehouseData} = await supabase.from('warehouse_assignments').select('id').eq('id', userId)
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
 
@@ -4392,10 +4366,7 @@ export async function getManagerStats(userId: string): Promise<{
 } | null> {
   try {
     // 获取管理的仓库数
-    const {data: warehouseData} = await supabase
-      .from('warehouse_assignments')
-      .select('warehouse_id')
-      .eq('user_id', userId)
+    const {data: warehouseData} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('id', userId)
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
     const warehouseIds = Array.isArray(warehouseData) ? warehouseData.map((w) => w.warehouse_id) : []
@@ -4476,12 +4447,12 @@ export async function getSuperAdminStats(): Promise<{
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
 
     // 获取总司机数 - 单用户架构：从 user_roles 表查询
-    const {data: driverData} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
+    const {data: driverData} = await supabase.from('users').select('user_id').eq('role', 'DRIVER')
 
     const totalDrivers = Array.isArray(driverData) ? driverData.length : 0
 
     // 获取总管理员数 - 单用户架构：从 user_roles 表查询
-    const {data: managerData} = await supabase.from('user_roles').select('user_id').eq('role', 'MANAGER')
+    const {data: managerData} = await supabase.from('users').select('user_id').eq('role', 'MANAGER')
 
     const totalManagers = Array.isArray(managerData) ? managerData.length : 0
 
@@ -4676,7 +4647,7 @@ export async function updateUserInfo(
 
     // 2. 更新用户角色
     if (role) {
-      const {error: roleError} = await supabase.from('user_roles').update({role}).eq('user_id', userId)
+      const {error: roleError} = await supabase.from('users').update({role}).eq('id', userId)
 
       if (roleError) {
         console.error('❌ 更新用户角色失败:', roleError)
@@ -4757,7 +4728,7 @@ export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApp
     const {data, error} = await supabase
       .from('leave_applications')
       .select('*')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .eq('status', 'approved')
       .lte('start_date', today)
       .gte('end_date', today)
@@ -4825,7 +4796,7 @@ export async function getWarehouseDataVolume(
       .eq('work_date', today)
 
     if (userId) {
-      todayPieceQuery = todayPieceQuery.eq('user_id', userId)
+      todayPieceQuery = todayPieceQuery.eq('id', userId)
     }
 
     const {count: todayPieceCount} = await todayPieceQuery
@@ -4838,7 +4809,7 @@ export async function getWarehouseDataVolume(
       .gte('work_date', firstDayOfMonth)
 
     if (userId) {
-      monthPieceQuery = monthPieceQuery.eq('user_id', userId)
+      monthPieceQuery = monthPieceQuery.eq('id', userId)
     }
 
     const {count: monthPieceCount} = await monthPieceQuery
@@ -4851,7 +4822,7 @@ export async function getWarehouseDataVolume(
       .eq('work_date', today)
 
     if (userId) {
-      todayAttendanceQuery = todayAttendanceQuery.eq('user_id', userId)
+      todayAttendanceQuery = todayAttendanceQuery.eq('id', userId)
     }
 
     const {count: todayAttendanceCount} = await todayAttendanceQuery
@@ -4864,7 +4835,7 @@ export async function getWarehouseDataVolume(
       .gte('work_date', firstDayOfMonth)
 
     if (userId) {
-      monthAttendanceQuery = monthAttendanceQuery.eq('user_id', userId)
+      monthAttendanceQuery = monthAttendanceQuery.eq('id', userId)
     }
 
     const {count: monthAttendanceCount} = await monthAttendanceQuery
@@ -4964,7 +4935,7 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
     const {data, error} = await supabase
       .from('vehicles')
       .select('*')
-      .eq('user_id', driverId)
+      .eq('id', driverId)
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -5168,7 +5139,7 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
     // 获取角色信息
     let profile: Profile | null = null
     if (user) {
-      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
 
       profile = {
         ...user,
@@ -5211,7 +5182,7 @@ export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]
     const {data, error} = await supabase
       .from('vehicles')
       .select('*')
-      .eq('user_id', driverId)
+      .eq('id', driverId)
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -6233,7 +6204,7 @@ export async function createNotification(notification: {
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
       const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
-      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
@@ -6317,7 +6288,7 @@ export async function createNotificationForAllManagers(notification: {
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
       const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
-      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
@@ -6330,7 +6301,7 @@ export async function createNotificationForAllManagers(notification: {
     // 获取所有车队长、老板和调度 - 单用户架构：查询 user_roles 表
 
     const {data: managers, error: managersError} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id')
       .in('role', ['MANAGER', 'BOSS', 'DISPATCHER'])
 
@@ -6406,7 +6377,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
       const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
-      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
@@ -6418,7 +6389,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
     // 获取所有老板 - 单用户架构：查询 user_roles 表
     const {data: superAdmins, error: superAdminsError} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id')
       .eq('role', 'BOSS')
 
@@ -6968,7 +6939,7 @@ export async function getAllDriverIds(): Promise<string[]> {
   try {
     // 单用户架构：从 user_roles 表查询所有司机
     const {data, error} = await supabase
-      .from('user_roles')
+      .from('users')
       .select('user_id')
       .eq('role', 'DRIVER')
       .order('user_id', {ascending: true})
@@ -7093,7 +7064,7 @@ export async function createPeerAccount(
     }
 
     // 7. 创建 user_roles 记录
-    const {error: roleError} = await supabase.from('user_roles').insert({
+    const {error: roleError} = await supabase.from('users').insert({
       user_id: authData.user.id,
       role: 'BOSS' as UserRole
     })
@@ -7159,7 +7130,7 @@ export async function getPeerAccounts(accountId: string): Promise<Profile[]> {
 
     // 4. 批量查询角色信息
     const userIds = usersData.map((u) => u.id)
-    const {data: rolesData} = await supabase.from('user_roles').select('user_id, role').in('user_id', userIds)
+    const {data: rolesData} = await supabase.from('users').select('user_id, role').in('user_id', userIds)
 
     // 创建角色映射
     const roleMap = new Map<string, UserRole>()
@@ -7428,7 +7399,7 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
     // 1. 验证是否为主账号 - 单用户架构：从 users 和 user_roles 表查询
     const [{data: user, error: fetchError}, {data: roleData}] = await Promise.all([
       supabase.from('users').select('id, main_account_id, name, phone').eq('id', id).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', id).maybeSingle()
+      supabase.from('users').select('role').eq('id', id).maybeSingle()
     ])
 
     if (fetchError) {
@@ -7485,12 +7456,12 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
     ] = await Promise.all([
       supabase.from('users').select('id').eq('main_account_id', id),
       supabase
-        .from('user_roles')
+        .from('users')
         .select('user_id')
         .eq('role', 'MANAGER')
         .in('user_id', (await supabase.from('users').select('id')).data?.map((u) => u.id) || []),
       supabase
-        .from('user_roles')
+        .from('users')
         .select('user_id')
         .eq('role', 'DRIVER')
         .in('user_id', (await supabase.from('users').select('id')).data?.map((u) => u.id) || []),

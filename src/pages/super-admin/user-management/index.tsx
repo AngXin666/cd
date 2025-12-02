@@ -165,7 +165,7 @@ const UserManagement: React.FC = () => {
           // 单用户架构：从 users 和 user_roles 表查询
           const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
             supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
-            supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+            supabase.from('users').select('role').eq('id', user.id).maybeSingle()
           ])
 
           if (!userError && userData) {
@@ -445,7 +445,7 @@ const UserManagement: React.FC = () => {
             })
             .select()
             .maybeSingle(),
-          supabase.from('user_roles').insert({
+          supabase.from('users').insert({
             user_id: authData.user.id,
             role: 'BOSS' // 老板角色在数据库中是 super_admin
           })
@@ -764,7 +764,7 @@ const UserManagement: React.FC = () => {
         await WarehousesAPI.deleteWarehouseAssignmentsByDriver(userId)
       } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
         // 删除管理员/车队长的仓库分配
-        await supabase.from('warehouse_assignments').delete().eq('user_id', userId)
+        await supabase.from('warehouse_assignments').delete().eq('id', userId)
       }
 
       // 添加新的仓库分配

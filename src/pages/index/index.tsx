@@ -43,9 +43,9 @@ const IndexPage: React.FC = () => {
 
       // 查询用户角色
       const {data: userRoles, error: roleError} = await supabase
-        .from('user_roles')
+        .from('users')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle()
 
       if (roleError) {
