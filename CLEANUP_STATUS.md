@@ -17,7 +17,7 @@
   - `updateFeedbackStatus()` - 返回失败
 
 **待完成：**
-- ⏳ vehicle_records相关API函数（vehicleRecordsApi.ts）
+- ✅ vehicle_records相关API函数（vehicleRecordsApi.ts）- 已重构为使用vehicles表
 - ⏳ notification相关API函数
 - ⏳ warehouse assignment相关API函数
 - ⏳ behavior tracking相关函数
@@ -32,15 +32,15 @@
 
 ### 高影响表（需要立即处理）
 
-#### 1. vehicle_records - 车辆记录表 🔴
+#### 1. vehicle_records - 车辆记录表 ✅
 **影响范围：**
-- `src/db/vehicleRecordsApi.ts` - 整个文件（约600行代码）
+- `src/db/vehicleRecordsApi.ts` - 整个文件（已重构✅）
 - 多个车辆管理页面
 
-**建议方案：**
-1. 评估是否应该创建此表
-2. 或者使用vehicles/new_vehicles表替代
-3. 或者禁用相关功能
+**解决方案：**
+1. ✅ 已将vehicleRecordsApi.ts重构为直接使用vehicles表
+2. ✅ 所有车辆信息现在统一存储在vehicles表中
+3. ✅ API函数已更新并通过lint检查
 
 #### 2. feedback - 反馈系统表 ✅
 **影响范围：**
