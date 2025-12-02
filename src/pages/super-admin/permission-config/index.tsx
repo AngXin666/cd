@@ -1,6 +1,6 @@
 /**
  * 权限配置页面
- * 用于配置PEER_ADMIN和MANAGER的权限级别
+ * 用于配置PEER_ADMIN、MANAGER和SCHEDULER的权限级别
  */
 
 import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
@@ -48,6 +48,8 @@ const PermissionConfig: React.FC = () => {
         permissionInfo = await PermissionStrategyAPI.getPeerAdminPermission(userId)
       } else if (userRole === 'MANAGER') {
         permissionInfo = await PermissionStrategyAPI.getManagerPermission(userId)
+      } else if (userRole === 'SCHEDULER') {
+        permissionInfo = await PermissionStrategyAPI.getSchedulerPermission(userId)
       }
 
       if (permissionInfo) {
@@ -103,6 +105,14 @@ const PermissionConfig: React.FC = () => {
           // 创建权限
           result = await PermissionStrategyAPI.createManager(userId, permissionLevel, user.id, notes)
         }
+      } else if (userRole === 'SCHEDULER') {
+        if (currentPermission) {
+          // 更新权限
+          result = await PermissionStrategyAPI.updateSchedulerPermission(userId, permissionLevel, user.id, notes)
+        } else {
+          // 创建权限
+          result = await PermissionStrategyAPI.createScheduler(userId, permissionLevel, user.id, notes)
+        }
       }
 
       if (result?.success) {
@@ -146,6 +156,8 @@ const PermissionConfig: React.FC = () => {
         deleteResult = await PermissionStrategyAPI.removePeerAdmin(userId, user.id)
       } else if (userRole === 'MANAGER') {
         deleteResult = await PermissionStrategyAPI.removeManager(userId, user.id)
+      } else if (userRole === 'SCHEDULER') {
+        deleteResult = await PermissionStrategyAPI.removeScheduler(userId, user.id)
       }
 
       if (deleteResult?.success) {
@@ -175,7 +187,8 @@ const PermissionConfig: React.FC = () => {
         <View className="px-4 pt-6 pb-4">
           <Text className="text-2xl max-sm:text-xl font-bold text-gray-800">权限配置</Text>
           <Text className="text-sm text-gray-500 mt-1">
-            为 {decodeURIComponent(userName || '')} 配置{userRole === 'PEER_ADMIN' ? '平级管理员' : '车队长'}权限
+            为 {decodeURIComponent(userName || '')} 配置
+            {userRole === 'PEER_ADMIN' ? '平级管理员' : userRole === 'MANAGER' ? '车队长' : '调度'}权限
           </Text>
         </View>
 
@@ -248,6 +261,11 @@ const PermissionConfig: React.FC = () => {
                       <Text className="text-xs text-blue-700">• 可以创建、编辑、删除数据</Text>
                       <Text className="text-xs text-blue-700">• 可以管理用户和权限</Text>
                       <Text className="text-xs text-blue-700">• 拥有完整的管理功能</Text>
+                      {userRole === 'SCHEDULER' && (
+                        <Text className="text-xs text-blue-700 font-semibold mt-1">
+                          ⭐ 调度完整权限等同于老板权限，拥有全系统访问权限
+                        </Text>
+                      )}
                     </View>
                   ) : (
                     <View>
