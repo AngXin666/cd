@@ -1,5 +1,5 @@
 import {ScrollView, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -95,7 +95,7 @@ const HelpPage: React.FC = () => {
     },
     {
       question: '如何联系管理员？',
-      answer: '可以通过"帮助与反馈"页面提交意见反馈，管理员会及时查看并处理。'
+      answer: '如有问题或建议，请直接联系您的管理员或通过客服电话联系。'
     },
     {
       question: '数据统计不准确怎么办？',
@@ -130,14 +130,8 @@ const HelpPage: React.FC = () => {
             {/* 快速入口 */}
             <View className="bg-white rounded-xl p-4 mb-4 shadow">
               <Text className="text-base font-bold text-gray-800 block mb-4">快速入口</Text>
-              <View className="grid grid-cols-2 gap-3">
-                <View
-                  className="flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl active:scale-95 transition-all"
-                  onClick={() => navigateTo({url: '/pages/profile/feedback/index'})}>
-                  <View className="i-mdi-message-text text-4xl text-blue-600 mb-2" />
-                  <Text className="text-sm font-medium text-gray-800">意见反馈</Text>
-                </View>
-                <View className="flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all">
+              <View className="flex justify-center">
+                <View className="flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl active:scale-95 transition-all w-40">
                   <View className="i-mdi-phone text-4xl text-green-600 mb-2" />
                   <Text className="text-sm font-medium text-gray-800">联系客服</Text>
                 </View>

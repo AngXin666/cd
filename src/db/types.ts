@@ -1110,38 +1110,6 @@ export interface AutoReminderRuleWithWarehouse extends AutoReminderRule {
   warehouse?: Warehouse | null
 }
 
-// ==================== 反馈管理（已废弃 - 多租户相关）====================
-
-// 反馈类型
-export type FeedbackType = 'bug' | 'feature' | 'question' | 'other' | 'suggestion' | 'complaint'
-
-// 反馈状态类型
-export type FeedbackStatus = 'pending' | 'processing' | 'resolved' | 'closed'
-
-// 反馈接口（保留用于兼容性）
-export interface Feedback {
-  id: string
-  user_id: string
-  title: string
-  content: string
-  status: FeedbackStatus
-  response: string | null
-  created_at: string
-  updated_at: string
-  type?: FeedbackType
-  contact?: string | null
-}
-
-// 创建反馈的输入接口
-export interface FeedbackInput {
-  user_id: string
-  title?: string
-  content: string
-  // 兼容旧代码的可选字段
-  type?: string
-  contact?: string
-}
-
 // ==================== 租户管理（已废弃 - 多租户相关）====================
 
 // 租户接口（保留用于兼容性）

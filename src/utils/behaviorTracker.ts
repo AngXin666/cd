@@ -29,9 +29,6 @@ export enum FeatureModule {
   // 计件管理
   PIECE_WORK = 'piece_work',
 
-  // 反馈管理
-  FEEDBACK = 'feedback',
-
   // 用户管理
   USER_MANAGEMENT = 'user_management',
 

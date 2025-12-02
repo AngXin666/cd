@@ -8,7 +8,6 @@
  * - 用户信息更新
  * - 头像上传
  * - 密码修改
- * - 反馈管理
  */
 
 // 从主 API 文件重新导出用户相关函数
@@ -22,7 +21,6 @@ export {
   getAllDriverIds,
   getAllDrivers,
   getAllDriversWithRealName,
-  getAllFeedbackList,
   getAllManagers,
   // 用户列表查询
   getAllProfiles,
@@ -49,13 +47,9 @@ export {
   getTableColumns,
   getTableConstraints,
   getUserById,
-  getUserFeedbackList,
   getUserRoles,
   resetUserPassword,
   setManagerWarehouses,
-  // 反馈管理
-  submitFeedback,
-  updateFeedbackStatus,
   updateManagerPermissionsEnabled,
   // 用户信息更新
   updateProfile,

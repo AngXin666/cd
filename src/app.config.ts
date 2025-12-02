@@ -12,7 +12,6 @@ const pages = [
   'pages/profile/change-password/index',
   'pages/profile/edit-name/index',
   'pages/profile/help/index',
-  'pages/profile/feedback/index',
   'pages/common/notifications/index',
   'pages/driver/notifications/index',
   'pages/driver/clock-in/index',

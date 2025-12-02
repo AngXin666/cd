@@ -29,9 +29,6 @@ import type {
   DriverType,
   DriverWarehouse,
   DriverWarehouseInput,
-  Feedback,
-  FeedbackInput,
-  FeedbackStatus,
   LeaveApplication,
   LeaveApplicationInput,
   LockedPhotos,
@@ -3356,77 +3353,6 @@ export async function changePassword(newPassword: string): Promise<{success: boo
   } catch (error) {
     console.error('修改密码异常:', error)
     return {success: false, error: '修改密码失败，请稍后重试'}
-  }
-}
-
-/**
- * 提交意见反馈
- * @param input 反馈信息
- * @returns 提交结果
- * @deprecated feedback表不存在，此函数返回失败
- */
-export async function submitFeedback(_input: FeedbackInput): Promise<{success: boolean; error?: string}> {
-  try {
-    // feedback表不存在，返回失败
-    console.warn('submitFeedback: feedback表不存在')
-    return {success: false, error: '反馈功能暂未开放，请联系管理员'}
-  } catch (error) {
-    console.error('提交反馈异常:', error)
-    return {success: false, error: '提交反馈失败'}
-  }
-}
-
-/**
- * 获取用户的反馈列表
- * @param userId 用户ID
- * @returns 反馈列表
- * @deprecated feedback表不存在，此函数返回空数组
- */
-export async function getUserFeedbackList(_userId: string): Promise<Feedback[]> {
-  try {
-    // feedback表不存在，返回空数组
-    console.warn('getUserFeedbackList: feedback表不存在，返回空数组')
-    return []
-  } catch (error) {
-    console.error('获取反馈列表异常:', error)
-    return []
-  }
-}
-
-/**
- * 获取所有反馈列表（管理员）
- * @returns 反馈列表
- * @deprecated feedback表不存在，此函数返回空数组
- */
-export async function getAllFeedbackList(): Promise<Feedback[]> {
-  try {
-    // feedback表不存在，返回空数组
-    console.warn('getAllFeedbackList: feedback表不存在，返回空数组')
-    return []
-  } catch (error) {
-    console.error('获取所有反馈异常:', error)
-    return []
-  }
-}
-
-/**
- * 更新反馈状态（管理员）
- * @param feedbackId 反馈ID
- * @param status 新状态
- * @returns 更新结果
- * @deprecated feedback表不存在，此函数返回失败
- */
-export async function updateFeedbackStatus(
-  _feedbackId: string,
-  _status: FeedbackStatus
-): Promise<{success: boolean; error?: string}> {
-  try {
-    // feedback表不存在，返回失败
-    console.warn('updateFeedbackStatus: feedback表不存在')
-    return {success: false, error: '反馈功能暂未开放'}
-  } catch (error) {
-    console.error('更新反馈状态异常:', error)
-    return {success: false, error: '更新反馈状态失败'}
   }
 }
 
