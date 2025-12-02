@@ -1200,7 +1200,7 @@ const DriverManagement: React.FC = () => {
                                 className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg py-2.5 active:bg-orange-100 transition-all">
                                 <View className="i-mdi-swap-horizontal text-orange-600 text-base mr-1.5" />
                                 <Text className="text-orange-700 text-xs font-medium">
-                                  {driver.driver_type === 'with_vehicle' ? '切换为纯司机' : '切换为带车'}
+                                  {driver.driver_type === 'with_vehicle' ? '切换为纯司机' : '切换为带车司机'}
                                 </Text>
                               </View>
                             )}

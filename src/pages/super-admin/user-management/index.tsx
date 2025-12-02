@@ -1634,7 +1634,7 @@ const UserManagement: React.FC = () => {
                         className="flex items-center justify-center bg-purple-50 border border-purple-200 rounded-lg py-2.5 active:bg-purple-100 transition-all">
                         <View className="i-mdi-swap-horizontal text-purple-600 text-lg mr-1.5" />
                         <Text className="text-purple-700 text-sm font-medium">
-                          {u.driver_type === 'with_vehicle' ? '切换成纯司机' : '切换成带车司机'}
+                          {u.driver_type === 'with_vehicle' ? '切换为纯司机' : '切换为带车司机'}
                         </Text>
                       </View>
                     )}
