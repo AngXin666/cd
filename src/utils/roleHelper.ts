@@ -67,6 +67,7 @@ export function getRoleDisplayName(role: UserRole): string {
     BOSS: '老板',
     MANAGER: '车队长',
     DISPATCHER: '调度员',
+    SCHEDULER: '调度',
     DRIVER: '司机'
   }
   return roleNames[role] || role

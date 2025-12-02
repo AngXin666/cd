@@ -208,22 +208,44 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     console.log('[getCurrentUserRole] 当前用户ID:', user.id)
 
-    // 从 user_roles 表查询用户角色
-    const {data, error} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+    // 从 user_roles 表查询用户所有角色
+    const {data, error} = await supabase.from('user_roles').select('role').eq('user_id', user.id)
 
     if (error) {
       console.error('[getCurrentUserRole] 查询用户角色失败:', error)
       return null
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
       console.warn('[getCurrentUserRole] 用户角色不存在，用户ID:', user.id)
       console.warn('[getCurrentUserRole] 请检查 user_roles 表中是否存在该用户记录')
       return null
     }
 
-    console.log('[getCurrentUserRole] 成功获取用户角色:', data.role)
-    return data.role
+    // 如果用户有多个角色，按优先级返回主要角色
+    // 优先级：BOSS > MANAGER > DRIVER > SCHEDULER
+    const roles = data.map((r) => r.role as UserRole)
+    console.log('[getCurrentUserRole] 用户所有角色:', roles)
+
+    if (roles.includes('BOSS')) {
+      console.log('[getCurrentUserRole] 返回主要角色: BOSS')
+      return 'BOSS'
+    }
+    if (roles.includes('MANAGER')) {
+      console.log('[getCurrentUserRole] 返回主要角色: MANAGER')
+      return 'MANAGER'
+    }
+    if (roles.includes('DRIVER')) {
+      console.log('[getCurrentUserRole] 返回主要角色: DRIVER')
+      return 'DRIVER'
+    }
+    if (roles.includes('SCHEDULER')) {
+      console.log('[getCurrentUserRole] 返回主要角色: SCHEDULER')
+      return 'SCHEDULER'
+    }
+
+    console.log('[getCurrentUserRole] 成功获取用户角色:', roles[0])
+    return roles[0]
   } catch (error) {
     console.error('[getCurrentUserRole] 未预期的错误:', error)
     return null
@@ -288,30 +310,44 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
 
     console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
 
-    // 从 user_roles 表查询用户角色
-    const {data: roleData, error: roleError} = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    // 从 user_roles 表查询用户所有角色
+    const {data: roleData, error: roleError} = await supabase.from('user_roles').select('role').eq('user_id', user.id)
 
     if (roleError) {
       console.error('[getCurrentUserRoleAndTenant] 查询 user_roles 出错:', roleError)
       throw new Error('查询用户信息失败')
     }
 
-    if (!roleData) {
+    if (!roleData || roleData.length === 0) {
       console.error('[getCurrentUserRoleAndTenant] 用户角色不存在')
       throw new Error('用户角色不存在')
     }
 
-    console.log('[getCurrentUserRoleAndTenant] 找到用户，角色:', roleData.role)
+    // 如果用户有多个角色，按优先级返回主要角色
+    // 优先级：BOSS > MANAGER > DRIVER > SCHEDULER
+    const roles = roleData.map((r) => r.role as UserRole)
+    console.log('[getCurrentUserRoleAndTenant] 用户所有角色:', roles)
+
+    let primaryRole: UserRole
+    if (roles.includes('BOSS')) {
+      primaryRole = 'BOSS'
+    } else if (roles.includes('MANAGER')) {
+      primaryRole = 'MANAGER'
+    } else if (roles.includes('DRIVER')) {
+      primaryRole = 'DRIVER'
+    } else if (roles.includes('SCHEDULER')) {
+      primaryRole = 'SCHEDULER'
+    } else {
+      primaryRole = roles[0]
+    }
+
+    console.log('[getCurrentUserRoleAndTenant] 找到用户，主要角色:', primaryRole)
 
     // 单用户系统不再使用租户概念，tenant_id 始终返回 null
     const tenant_id = null
 
-    console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: roleData.role, tenant_id})
-    return {role: roleData.role as UserRole, tenant_id}
+    console.log('[getCurrentUserRoleAndTenant] 最终结果:', {role: primaryRole, tenant_id})
+    return {role: primaryRole, tenant_id}
   } catch (error) {
     console.error('[getCurrentUserRoleAndTenant] 发生错误:', error)
     // 返回默认值，避免应用崩溃
