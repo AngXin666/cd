@@ -28,12 +28,36 @@
 - ✅ 创建了CLEANUP_STATUS.md - 当前状态报告
 - ✅ 更新了PERMISSION_FIX_PROGRESS.md - 权限修复进度
 
-### 4. 数据库表清理（进行中）⚠️
-**已删除的表：**
+### 4. 数据库表清理（100%完成）✅
+**第一批删除（2个表）：**
 - ✅ departments - 部门表（未被使用）
 - ✅ user_departments - 用户部门关联表（未被使用）
 
-**当前表数量：** 25个（从27个减少到25个）
+**第二批删除（9个表）：**
+- ✅ leave_requests - 请假请求表（leave_applications的重复）
+- ✅ new_attendance - 新考勤表（attendance的重复）
+- ✅ new_notifications - 新通知表（notifications的重复）
+- ✅ new_vehicles - 新车辆表（vehicles的重复）
+- ✅ piecework_records - 计件记录表（piece_work_records的重复）
+- ✅ permission_strategies - 权限策略表（未使用）
+- ✅ resource_permissions - 资源权限表（未使用）
+- ✅ role_permission_mappings - 角色权限映射表（未使用）
+- ✅ user_permission_assignments - 用户权限分配表（未使用）
+
+**清理成果：**
+- 总共删除：11个表
+- 原始表数：27个
+- 当前表数：16个
+- 优化率：41%
+
+**保留的16个核心表：**
+1. users, roles, user_roles, permissions, role_permissions（用户权限）
+2. vehicles, driver_licenses（车辆管理）
+3. warehouses, warehouse_assignments（仓库管理）
+4. attendance, attendance_rules（考勤管理）
+5. piece_work_records, category_prices（工作管理）
+6. leave_applications, resignation_applications（人事管理）
+7. notifications（通知系统）
 
 ## 不存在的表及其影响
 
