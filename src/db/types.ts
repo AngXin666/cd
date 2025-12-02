@@ -911,19 +911,10 @@ export interface DriverWarehouseInput {
 // 车辆与司机信息接口（保留用于兼容性）
 export interface VehicleWithDriver extends Vehicle {
   driver?: Profile | null
-  return_time?: string | null
   driver_license?: DriverLicense | null
   driver_name?: string | null
   driver_phone?: string | null
-  ownership_type?: string | null
-  lessor_name?: string | null
-  lessor_contact?: string | null
-  lessee_name?: string | null
-  lessee_contact?: string | null
-  monthly_rent?: number | null
-  lease_start_date?: string | null
-  lease_end_date?: string | null
-  rent_payment_day?: number | null
+  return_time?: string | null // 从vehicle_documents表获取
 }
 
 // 车辆与司机详细信息接口（保留用于兼容性）

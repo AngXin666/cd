@@ -4935,7 +4935,7 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
     const {data, error} = await supabase
       .from('vehicles')
       .select('*')
-      .eq('id', driverId)
+      .eq('driver_id', driverId)
       .order('created_at', {ascending: false})
 
     if (error) {
@@ -5088,12 +5088,19 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
 }
 
 /**
- * 根据ID获取车辆信息
+ * 根据ID获取车辆信息（包含扩展信息）
  */
-export async function getVehicleById(vehicleId: string): Promise<Vehicle | null> {
+export async function getVehicleById(vehicleId: string): Promise<VehicleWithDocuments | null> {
   logger.db('查询', 'vehicles', {vehicleId})
   try {
-    const {data, error} = await supabase.from('vehicles').select('*').eq('id', vehicleId).maybeSingle()
+    const {data, error} = await supabase
+      .from('vehicles')
+      .select(`
+        *,
+        document:vehicle_documents(*)
+      `)
+      .eq('id', vehicleId)
+      .maybeSingle()
 
     if (error) {
       logger.error('获取车辆信息失败', error)
@@ -5288,16 +5295,36 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       return false
     }
 
-    // 2. 收集所有图片路径
+    // 2. 收集所有图片路径（从vehicle_documents表）
     const allPhotos: string[] = []
-    if (vehicle.pickup_photos) {
-      allPhotos.push(...vehicle.pickup_photos)
-    }
-    if (vehicle.return_photos) {
-      allPhotos.push(...vehicle.return_photos)
-    }
-    if (vehicle.registration_photos) {
-      allPhotos.push(...vehicle.registration_photos)
+    if (vehicle.document) {
+      const doc = vehicle.document
+      // 提车、还车、登记照片
+      if (doc.pickup_photos) {
+        allPhotos.push(...doc.pickup_photos)
+      }
+      if (doc.return_photos) {
+        allPhotos.push(...doc.return_photos)
+      }
+      if (doc.registration_photos) {
+        allPhotos.push(...doc.registration_photos)
+      }
+      if (doc.damage_photos) {
+        allPhotos.push(...doc.damage_photos)
+      }
+      // 车辆照片
+      if (doc.left_front_photo) allPhotos.push(doc.left_front_photo)
+      if (doc.right_front_photo) allPhotos.push(doc.right_front_photo)
+      if (doc.left_rear_photo) allPhotos.push(doc.left_rear_photo)
+      if (doc.right_rear_photo) allPhotos.push(doc.right_rear_photo)
+      if (doc.dashboard_photo) allPhotos.push(doc.dashboard_photo)
+      if (doc.rear_door_photo) allPhotos.push(doc.rear_door_photo)
+      if (doc.cargo_box_photo) allPhotos.push(doc.cargo_box_photo)
+      // 行驶证照片
+      if (doc.driving_license_main_photo) allPhotos.push(doc.driving_license_main_photo)
+      if (doc.driving_license_sub_photo) allPhotos.push(doc.driving_license_sub_photo)
+      if (doc.driving_license_back_photo) allPhotos.push(doc.driving_license_back_photo)
+      if (doc.driving_license_sub_back_photo) allPhotos.push(doc.driving_license_sub_back_photo)
     }
 
     // 3. 删除存储桶中的图片文件
@@ -5322,7 +5349,7 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       }
     }
 
-    // 4. 删除数据库记录
+    // 4. 删除数据库记录（CASCADE会自动删除vehicle_documents）
     const {error} = await supabase.from('vehicles').delete().eq('id', vehicleId)
 
     if (error) {
@@ -5331,9 +5358,7 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
     }
 
     // 5. 清除相关缓存
-    // 清除所有司机的车辆列表缓存（因为缓存键包含司机ID）
     clearCacheByPrefix('driver_vehicles_')
-    // 清除全局车辆缓存
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('成功删除车辆及关联文件', {vehicleId, photoCount: allPhotos.length})
@@ -5350,33 +5375,48 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
  * @param returnPhotos 还车照片URL数组
  * @returns 更新后的车辆信息
  */
-export async function returnVehicle(vehicleId: string, returnPhotos: string[]): Promise<Vehicle | null> {
+export async function returnVehicle(vehicleId: string, returnPhotos: string[]): Promise<VehicleWithDocuments | null> {
   logger.db('更新', 'vehicles', {vehicleId, action: '还车录入'})
   try {
-    // 还车时需要更新：return_time、return_photos 和 status
-    // status 设置为 'inactive' 表示车辆已停用
-    const {data, error} = await supabase
+    // 1. 更新vehicles表的status
+    const {data: vehicleData, error: vehicleError} = await supabase
       .from('vehicles')
       .update({
-        return_time: new Date().toISOString(),
-        return_photos: returnPhotos,
         status: 'inactive' // 还车后将状态设置为已停用
       })
       .eq('id', vehicleId)
       .select()
       .maybeSingle()
 
-    if (error) {
-      logger.error('还车录入失败', error)
+    if (vehicleError) {
+      logger.error('更新车辆状态失败', vehicleError)
       return null
     }
 
-    // 清除相关缓存
+    // 2. 更新vehicle_documents表的return_time和return_photos
+    const {error: docError} = await supabase
+      .from('vehicle_documents')
+      .update({
+        return_time: new Date().toISOString(),
+        return_photos: returnPhotos
+      })
+      .eq('vehicle_id', vehicleId)
+
+    if (docError) {
+      logger.error('更新还车信息失败', docError)
+      // 回滚vehicle状态
+      await supabase.from('vehicles').update({status: 'active'}).eq('id', vehicleId)
+      return null
+    }
+
+    // 3. 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
     logger.info('成功完成还车录入', {vehicleId, status: 'inactive'})
-    return data
+
+    // 4. 返回完整的车辆信息
+    return await getVehicleById(vehicleId)
   } catch (error) {
     logger.error('还车录入异常', error)
     return null
@@ -5780,21 +5820,21 @@ export async function getPendingReviewVehicles(): Promise<Vehicle[]> {
  */
 export async function lockPhoto(vehicleId: string, photoField: string, photoIndex: number): Promise<boolean> {
   try {
-    logger.db('锁定图片', 'vehicles', {vehicleId, photoField, photoIndex})
+    logger.db('锁定图片', 'vehicle_documents', {vehicleId, photoField, photoIndex})
 
     // 先获取当前的 locked_photos
-    const {data: vehicle, error: fetchError} = await supabase
-      .from('vehicles')
+    const {data: document, error: fetchError} = await supabase
+      .from('vehicle_documents')
       .select('locked_photos')
-      .eq('id', vehicleId)
+      .eq('vehicle_id', vehicleId)
       .maybeSingle()
 
-    if (fetchError || !vehicle) {
-      logger.error('获取车辆信息失败', fetchError)
+    if (fetchError || !document) {
+      logger.error('获取车辆文档信息失败', fetchError)
       return false
     }
 
-    const lockedPhotos = vehicle.locked_photos || {}
+    const lockedPhotos = document.locked_photos || {}
     const fieldLocks = lockedPhotos[photoField] || []
 
     // 如果该索引尚未锁定，则添加
@@ -5803,12 +5843,12 @@ export async function lockPhoto(vehicleId: string, photoField: string, photoInde
       lockedPhotos[photoField] = fieldLocks
 
       const {error: updateError} = await supabase
-        .from('vehicles')
+        .from('vehicle_documents')
         .update({
           locked_photos: lockedPhotos,
           updated_at: new Date().toISOString()
         })
-        .eq('id', vehicleId)
+        .eq('vehicle_id', vehicleId)
 
       if (updateError) {
         logger.error('锁定图片失败', updateError)
@@ -5837,21 +5877,21 @@ export async function lockPhoto(vehicleId: string, photoField: string, photoInde
  */
 export async function unlockPhoto(vehicleId: string, photoField: string, photoIndex: number): Promise<boolean> {
   try {
-    logger.db('解锁图片', 'vehicles', {vehicleId, photoField, photoIndex})
+    logger.db('解锁图片', 'vehicle_documents', {vehicleId, photoField, photoIndex})
 
     // 先获取当前的 locked_photos
-    const {data: vehicle, error: fetchError} = await supabase
-      .from('vehicles')
+    const {data: document, error: fetchError} = await supabase
+      .from('vehicle_documents')
       .select('locked_photos')
-      .eq('id', vehicleId)
+      .eq('vehicle_id', vehicleId)
       .maybeSingle()
 
-    if (fetchError || !vehicle) {
-      logger.error('获取车辆信息失败', fetchError)
+    if (fetchError || !document) {
+      logger.error('获取车辆文档信息失败', fetchError)
       return false
     }
 
-    const lockedPhotos = vehicle.locked_photos || {}
+    const lockedPhotos = document.locked_photos || {}
     const fieldLocks = lockedPhotos[photoField] || []
 
     // 移除锁定
@@ -5859,12 +5899,12 @@ export async function unlockPhoto(vehicleId: string, photoField: string, photoIn
     lockedPhotos[photoField] = newFieldLocks
 
     const {error: updateError} = await supabase
-      .from('vehicles')
+      .from('vehicle_documents')
       .update({
         locked_photos: lockedPhotos,
         updated_at: new Date().toISOString()
       })
-      .eq('id', vehicleId)
+      .eq('vehicle_id', vehicleId)
 
     if (updateError) {
       logger.error('解锁图片失败', updateError)
@@ -5950,24 +5990,40 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
   try {
     logger.db('通过车辆审核', 'vehicles', {vehicleId, reviewerId, notes})
 
-    const {error} = await supabase
+    // 1. 更新vehicles表的审核状态
+    const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
         review_status: 'approved',
-        review_notes: notes,
         reviewed_at: new Date().toISOString(),
         reviewed_by: reviewerId,
-        required_photos: [], // 清空需补录列表
         updated_at: new Date().toISOString()
       })
       .eq('id', vehicleId)
 
-    if (error) {
-      logger.error('通过车辆审核失败', error)
+    if (vehicleError) {
+      logger.error('更新车辆审核状态失败', vehicleError)
       return false
     }
 
-    // 清除相关缓存
+    // 2. 更新vehicle_documents表的审核备注和清空需补录列表
+    const {error: docError} = await supabase
+      .from('vehicle_documents')
+      .update({
+        review_notes: notes,
+        required_photos: [], // 清空需补录列表
+        updated_at: new Date().toISOString()
+      })
+      .eq('vehicle_id', vehicleId)
+
+    if (docError) {
+      logger.error('更新车辆文档审核信息失败', docError)
+      // 回滚vehicles表
+      await supabase.from('vehicles').update({review_status: 'pending'}).eq('id', vehicleId)
+      return false
+    }
+
+    // 3. 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
@@ -5996,24 +6052,40 @@ export async function lockVehiclePhotos(
   try {
     logger.db('一键锁定车辆照片', 'vehicles', {vehicleId, reviewerId, notes, lockedPhotos})
 
-    const {error} = await supabase
+    // 1. 更新vehicles表的审核状态
+    const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
         review_status: 'approved',
-        locked_photos: lockedPhotos,
-        review_notes: notes,
         reviewed_at: new Date().toISOString(),
         reviewed_by: reviewerId,
         updated_at: new Date().toISOString()
       })
       .eq('id', vehicleId)
 
-    if (error) {
-      logger.error('一键锁定车辆照片失败', error)
+    if (vehicleError) {
+      logger.error('更新车辆审核状态失败', vehicleError)
       return false
     }
 
-    // 清除相关缓存
+    // 2. 更新vehicle_documents表的锁定照片和审核备注
+    const {error: docError} = await supabase
+      .from('vehicle_documents')
+      .update({
+        locked_photos: lockedPhotos,
+        review_notes: notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('vehicle_id', vehicleId)
+
+    if (docError) {
+      logger.error('更新车辆文档锁定信息失败', docError)
+      // 回滚vehicles表
+      await supabase.from('vehicles').update({review_status: 'pending'}).eq('id', vehicleId)
+      return false
+    }
+
+    // 3. 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
@@ -6036,23 +6108,39 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
   try {
     logger.db('要求补录车辆信息', 'vehicles', {vehicleId, reviewerId, notes})
 
-    const {error} = await supabase
+    // 1. 更新vehicles表的审核状态
+    const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
         review_status: 'need_supplement',
-        review_notes: notes,
         reviewed_at: new Date().toISOString(),
         reviewed_by: reviewerId,
         updated_at: new Date().toISOString()
       })
       .eq('id', vehicleId)
 
-    if (error) {
-      logger.error('要求补录车辆信息失败', error)
+    if (vehicleError) {
+      logger.error('更新车辆审核状态失败', vehicleError)
       return false
     }
 
-    // 清除相关缓存
+    // 2. 更新vehicle_documents表的审核备注
+    const {error: docError} = await supabase
+      .from('vehicle_documents')
+      .update({
+        review_notes: notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('vehicle_id', vehicleId)
+
+    if (docError) {
+      logger.error('更新车辆文档审核备注失败', docError)
+      // 回滚vehicles表
+      await supabase.from('vehicles').update({review_status: 'pending'}).eq('id', vehicleId)
+      return false
+    }
+
+    // 3. 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
@@ -6158,9 +6246,13 @@ export async function supplementPhoto(
  */
 export async function getRequiredPhotos(vehicleId: string): Promise<string[]> {
   try {
-    logger.db('获取需要补录的图片列表', 'vehicles', {vehicleId})
+    logger.db('获取需要补录的图片列表', 'vehicle_documents', {vehicleId})
 
-    const {data, error} = await supabase.from('vehicles').select('required_photos').eq('id', vehicleId).maybeSingle()
+    const {data, error} = await supabase
+      .from('vehicle_documents')
+      .select('required_photos')
+      .eq('vehicle_id', vehicleId)
+      .maybeSingle()
 
     if (error || !data) {
       logger.error('获取需要补录的图片列表失败', error)
