@@ -26,6 +26,27 @@ pnpm run lint
 ```
 
 ### 最近更新
+- ✅ **2025-12-01**：增强管理员端统计系统的实时更新功能
+  - **问题描述**：
+    - 管理员端统计系统无法实时更新司机数据
+    - 当司机信息变化时（如切换司机类型），统计数据不会自动刷新
+  - **根本原因**：
+    - `useDriverStats` Hook 监听的表不完整
+    - 只监听了 `user_roles` 表的特定角色变化（`role=eq.driver`）
+    - 没有监听 `users` 表的变化（包括 `driver_type` 字段）
+  - **修复措施**：
+    - 修改 `useDriverStats` Hook，添加对 `users` 表的监听
+    - 修改 `user_roles` 表的监听，移除过滤条件，监听所有角色变化
+    - 当 `users` 表或 `user_roles` 表发生变化时，清除缓存并重新获取数据
+  - **实时更新监听**：
+    - ✅ 考勤记录变化（`attendance` 表）
+    - ✅ 计件记录变化（`piece_work_records` 表）
+    - ✅ 司机分配变化（`warehouse_assignments` 表）
+    - ✅ 用户角色变化（`user_roles` 表）
+    - ✅ 用户信息变化（`users` 表，包括 `driver_type` 字段）
+  - **相关文件**：
+    - `src/hooks/useDriverStats.ts` - 添加 `users` 表监听，修改 `user_roles` 表监听
+
 - ✅ **2025-12-01**：修复司机类型切换后标签不更新的问题
   - **问题描述**：
     - 在老板端或车队长端切换司机类型后，司机卡片上的类型标签没有立即更新

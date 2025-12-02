@@ -269,18 +269,38 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       .subscribe()
 
     // 监听用户角色变化
-    const profileChannel = supabase
-      .channel('driver-stats-profile')
+    const roleChannel = supabase
+      .channel('driver-stats-role')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles'
+        },
+        (payload) => {
+          console.log('[useDriverStats] 用户角色变化:', payload)
+          // 清除缓存并重新获取数据
+          if (cacheEnabled) {
+            cache.clear()
+          }
+          fetchDriverStats()
+        }
+      )
+      .subscribe()
+
+    // 监听用户信息变化（包括 driver_type 字段）
+    const usersChannel = supabase
+      .channel('driver-stats-users')
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'user_roles',
-          filter: 'role=eq.driver'
+          table: 'users'
         },
         (payload) => {
-          console.log('[useDriverStats] 司机信息变化:', payload)
+          console.log('[useDriverStats] 用户信息变化:', payload)
           // 清除缓存并重新获取数据
           if (cacheEnabled) {
             cache.clear()
@@ -295,7 +315,8 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       supabase.removeChannel(attendanceChannel)
       supabase.removeChannel(pieceWorkChannel)
       supabase.removeChannel(assignmentChannel)
-      supabase.removeChannel(profileChannel)
+      supabase.removeChannel(roleChannel)
+      supabase.removeChannel(usersChannel)
     }
   }, [enableRealtime, fetchDriverStats, cacheEnabled])
 
