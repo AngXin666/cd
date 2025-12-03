@@ -25,7 +25,7 @@ function flattenPlugins(plugins: any[]): Plugin[] {
 }
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
-export default defineConfig<'vite'>(async (merge, {command, mode}) => {
+export default defineConfig<'vite'>(async (merge) => {
   const baseConfig: UserConfigExport<'vite'> = {
     projectName: 'taro-vite',
     date: '2025-8-25',
@@ -53,7 +53,7 @@ export default defineConfig<'vite'>(async (merge, {command, mode}) => {
     compiler: {
       type: 'vite',
       vitePlugins: flattenPlugins([
-        miaodaDevPlugin({appType: 'miniapp', cdnBase: publicPath}),
+        miaodaDevPlugin({appType: process.env.TARO_ENV === 'h5' ? 'web' : 'miniapp', cdnBase: publicPath}),
 
         {
           name: 'hmr-toggle',
