@@ -7,13 +7,12 @@ export type {NotificationType}
 
 /**
  * 系统角色类型
- * - BOSS: 老板，拥有最高权限
- * - MANAGER: 车队长，管理司机和车辆
- * - DISPATCHER: 调度员，负责调度和管理
- * - SCHEDULER: 调度，负责调度和管理（新增）
- * - DRIVER: 司机，基础用户
+ * - BOSS: 老板，系统最高权限
+ * - PEER_ADMIN: 调度，由老板授权，可设置 full_control(与老板相同权限) 或 view_only(仅查看)
+ * - MANAGER: 车队长，管理被分配的仓库及其司机，每个仓库可设置不同权限等级
+ * - DRIVER: 司机，只能管理自己的数据
  */
-export type UserRole = 'BOSS' | 'PEER_ADMIN' | 'MANAGER' | 'DISPATCHER' | 'SCHEDULER' | 'DRIVER'
+export type UserRole = 'BOSS' | 'PEER_ADMIN' | 'MANAGER' | 'DRIVER'
 
 // 用户信息接口
 export interface User {
@@ -186,12 +185,22 @@ export interface WarehouseUpdate {
   daily_target?: number | null
 }
 
+// 权限等级类型
+// - full_control: 完整控制权，可增删改查
+// - view_only: 仅查看权，只能查看不能修改
+// 
+// 适用于：
+// - PEER_ADMIN (调度): 由老板授权，full_control=与老板相同权限, view_only=仅查看所有数据
+// - MANAGER (车队长): 在仓库分配时设置，full_control=可管理该仓库, view_only=只能查看该仓库
+export type PermissionLevel = 'full_control' | 'view_only'
+
 // 仓库分配接口
 export interface WarehouseAssignment {
   id: string
   warehouse_id: string
   user_id: string
   assigned_by: string | null
+  permission_level: PermissionLevel | null  // 权限等级：full_control(完整控制) 或 view_only(仅查看)
   created_at: string
 }
 
@@ -200,6 +209,7 @@ export interface WarehouseAssignmentInput {
   warehouse_id: string
   user_id: string
   assigned_by?: string
+  permission_level?: PermissionLevel  // 权限等级：full_control(完整控制) 或 view_only(仅查看)
 }
 
 // ==================== 车辆相关类型 ====================

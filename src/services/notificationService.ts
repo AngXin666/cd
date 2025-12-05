@@ -536,8 +536,13 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('  - 通知数量:', recipients.length)
     console.log('  - 通知类型:', params.type)
-    console.log('  - 批次ID:', params.batchId || '(无)')
+    console.log('  - 关联ID(related_id):', params.relatedId || '(无)')
     console.log('  - 审批状态:', params.approvalStatus || '(无)')
+    console.log('')
+    console.log('  ℹ️ 审批类通知特别说明：')
+    console.log('     - 使用 related_id 作为唯一标识')
+    console.log('     - 审批后直接更新原通知状态')
+    console.log('     - 不会创建重复通知')
     console.log('')
 
     const notifications = recipients.map((recipient) => ({
@@ -605,34 +610,76 @@ export interface ManagerActionNotificationParams {
  * 发送车队长操作通知
  * 通知对象：
  * 1. 目标用户（司机）- 始终通知
- * 2. 平级账号 - 如果存在则通知
+ * 2. 调度(PEER_ADMIN) - 如果存在则通知
+ * 3. 老板(BOSS) - 始终通知
  */
 export async function sendManagerActionNotification(params: ManagerActionNotificationParams): Promise<boolean> {
   try {
+    console.log('')
+    console.log('╭───────────────────────────────────────────────────────────────╮')
+    console.log('│       📬 发送车队长操作通知                                            │')
+    console.log('╰───────────────────────────────────────────────────────────────╯')
+    console.log('  📋 车队长ID:', params.managerId)
+    console.log('  📋 车队长名称:', params.managerName)
+    console.log('  👤 目标用户ID:', params.targetUserId)
+    console.log('  📨 通知类型:', params.type)
+    console.log('  📝 通知标题:', params.title)
+    console.log('')
     logger.info('📬 发送车队长操作通知', params)
 
     const recipientMap = new Map<string, NotificationRecipient>()
 
     // 1. 添加目标用户（司机）
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🔍 步骤 1: 添加目标用户（司机）')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     recipientMap.set(params.targetUserId, {
       userId: params.targetUserId,
       name: '司机',
-      role: 'driver'
+      role: 'DRIVER'
     })
+    console.log('  ✅ 将通知目标用户（司机）:', params.targetUserId)
     logger.info('✅ 将通知目标用户（司机）', {userId: params.targetUserId})
+    console.log('')
 
-    // 2. 获取平级账号 - 如果存在则通知
-    const peerAccounts = await getPeerAccounts()
+    // 2. 获取调度 - 并行执行
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🔍 步骤 2: 并行查询调度和老板')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    const [peerAccounts, primaryAdmin] = await Promise.all([getPeerAccounts(), getPrimaryAdmin()])
+
+    // 添加调度
     if (peerAccounts.length > 0) {
       for (const peer of peerAccounts) {
         recipientMap.set(peer.userId, peer)
       }
-      logger.info('✅ 将通知平级账号', {count: peerAccounts.length})
+      console.log('  ✅ 找到调度:', peerAccounts.length, '位')
+      logger.info('✅ 将通知调度', {count: peerAccounts.length})
     } else {
-      logger.info('ℹ️ 不存在平级账号，跳过平级账号通知')
+      console.log('  ℹ️ 不存在调度，跳过调度通知')
+      logger.info('ℹ️ 不存在调度，跳过调度通知')
     }
 
+    // 3. 添加老板
+    if (primaryAdmin) {
+      recipientMap.set(primaryAdmin.userId, primaryAdmin)
+      console.log('  ✅ 找到老板:', primaryAdmin.name, '(', primaryAdmin.userId, ')')
+      logger.info('✅ 将通知老板', {userId: primaryAdmin.userId})
+    } else {
+      console.log('  ⚠️ 未找到老板账号')
+      logger.warn('⚠️ 未找到老板账号')
+    }
+    console.log('')
+
     const recipients = Array.from(recipientMap.values())
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📊 最终接收者统计')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('  👥 总人数:', recipients.length)
+    recipients.forEach((recipient, index) => {
+      console.log(`    [${index + 1}] ${recipient.name} (${recipient.role}) - ${recipient.userId}`)
+    })
+    console.log('')
     logger.info('📊 通知接收者总数', {count: recipients.length})
 
     // 批量创建通知
@@ -645,10 +692,23 @@ export async function sendManagerActionNotification(params: ManagerActionNotific
     }))
 
     const success = await createNotifications(notifications)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    if (success) {
+      console.log('✅ 通知发送成功 - 已创建', notifications.length, '条通知')
+    } else {
+      console.error('❌ 通知发送失败')
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
     logger.info('📮 通知发送结果', {success, count: notifications.length})
 
     return success
   } catch (error) {
+    console.error('╭───────────────────────────────────────────────────────────────╮')
+    console.error('│       ❌ 通知发送异常                                            │')
+    console.error('╰───────────────────────────────────────────────────────────────╯')
+    console.error('错误详情:', error)
+    console.error('')
     logger.error('❌ 发送车队长操作通知异常', error)
     return false
   }
@@ -689,6 +749,208 @@ export async function sendAdminApprovalNotification(params: AdminApprovalNotific
     return success
   } catch (error) {
     logger.error('❌ 发送管理员审批通知异常', error)
+    return false
+  }
+}
+
+/**
+ * 调度操作通知参数
+ */
+export interface PeerAdminActionNotificationParams {
+  peerAdminId: string
+  peerAdminName: string
+  targetUserId: string
+  targetUserRole: 'DRIVER' | 'MANAGER'
+  type: NotificationType
+  title: string
+  content: string
+  relatedId?: string
+}
+
+/**
+ * 发送调度操作通知
+ * 通知对象：
+ * 1. 老板(BOSS) - 始终通知
+ * 2. 目标用户（司机或车队长）- 始终通知
+ */
+export async function sendPeerAdminActionNotification(params: PeerAdminActionNotificationParams): Promise<boolean> {
+  try {
+    console.log('')
+    console.log('╭───────────────────────────────────────────────────────────────╮')
+    console.log('│       📬 发送调度操作通知                                            │')
+    console.log('╰───────────────────────────────────────────────────────────────╯')
+    console.log('  📋 调度ID:', params.peerAdminId)
+    console.log('  📋 调度名称:', params.peerAdminName)
+    console.log('  👤 目标用户ID:', params.targetUserId)
+    console.log('  🎯 目标用户角色:', params.targetUserRole)
+    console.log('')
+    logger.info('📬 发送调度操作通知', params)
+
+    const recipientMap = new Map<string, NotificationRecipient>()
+
+    // 1. 添加老板 - 并行执行
+    const primaryAdmin = await getPrimaryAdmin()
+    if (primaryAdmin) {
+      recipientMap.set(primaryAdmin.userId, primaryAdmin)
+      console.log('  ✅ 找到老板:', primaryAdmin.name)
+      logger.info('✅ 将通知老板', {userId: primaryAdmin.userId})
+    } else {
+      console.log('  ⚠️ 未找到老板账号')
+      logger.warn('⚠️ 未找到老板账号')
+    }
+
+    // 2. 添加目标用户
+    recipientMap.set(params.targetUserId, {
+      userId: params.targetUserId,
+      name: params.targetUserRole === 'DRIVER' ? '司机' : '车队长',
+      role: params.targetUserRole
+    })
+    console.log('  ✅ 将通知目标用户:', params.targetUserId, '(', params.targetUserRole, ')')
+    logger.info('✅ 将通知目标用户', {userId: params.targetUserId, role: params.targetUserRole})
+    console.log('')
+
+    const recipients = Array.from(recipientMap.values())
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📊 最终接收者统计: 总人数', recipients.length)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    logger.info('📊 通知接收者总数', {count: recipients.length})
+
+    // 批量创建通知
+    const notifications = recipients.map((recipient) => ({
+      userId: recipient.userId,
+      type: params.type,
+      title: params.title,
+      message: params.content,
+      relatedId: params.relatedId
+    }))
+
+    const success = await createNotifications(notifications)
+    if (success) {
+      console.log('✅ 通知发送成功')
+    } else {
+      console.error('❌ 通知发送失败')
+    }
+    console.log('')
+    logger.info('📮 通知发送结果', {success, count: notifications.length})
+
+    return success
+  } catch (error) {
+    console.error('❌ 调度操作通知发送异常:', error)
+    logger.error('❌ 发送调度操作通知异常', error)
+    return false
+  }
+}
+
+/**
+ * 老板操作通知参数
+ */
+export interface BossActionNotificationParams {
+  bossId: string
+  bossName: string
+  targetUserId: string
+  targetUserRole: 'DRIVER' | 'MANAGER' | 'PEER_ADMIN'
+  type: NotificationType
+  title: string
+  content: string
+  relatedId?: string
+}
+
+/**
+ * 发送老板操作通知
+ * 通知对象根据目标用户角色不同：
+ * - 对DRIVER操作：通知PEER_ADMIN、DRIVER和管辖MANAGER
+ * - 对MANAGER操作：通知MANAGER和PEER_ADMIN
+ * - 对PEER_ADMIN操作：仅通知本人
+ */
+export async function sendBossActionNotification(params: BossActionNotificationParams): Promise<boolean> {
+  try {
+    console.log('')
+    console.log('╭───────────────────────────────────────────────────────────────╮')
+    console.log('│       📬 发送老板操作通知                                            │')
+    console.log('╰───────────────────────────────────────────────────────────────╯')
+    console.log('  📋 老板ID:', params.bossId)
+    console.log('  📋 老板名称:', params.bossName)
+    console.log('  👤 目标用户ID:', params.targetUserId)
+    console.log('  🎯 目标用户角色:', params.targetUserRole)
+    console.log('')
+    logger.info('📬 发送老板操作通知', params)
+
+    const recipientMap = new Map<string, NotificationRecipient>()
+
+    // 总是添加目标用户
+    const targetRoleLabel =
+      params.targetUserRole === 'DRIVER' ? '司机' : params.targetUserRole === 'MANAGER' ? '车队长' : '调度'
+    recipientMap.set(params.targetUserId, {
+      userId: params.targetUserId,
+      name: targetRoleLabel,
+      role: params.targetUserRole
+    })
+    console.log('  ✅ 将通知目标用户:', targetRoleLabel, '(', params.targetUserId, ')')
+
+    // 根据目标用户角色决定额外接收者
+    if (params.targetUserRole === 'DRIVER') {
+      // 对司机操作: 通知调度和管辖车队长
+      const [peerAccounts, managers] = await Promise.all([getPeerAccounts(), getManagersWithJurisdiction(params.targetUserId)])
+
+      // 添加调度
+      if (peerAccounts.length > 0) {
+        for (const peer of peerAccounts) {
+          recipientMap.set(peer.userId, peer)
+        }
+        console.log('  ✅ 将通知调度:', peerAccounts.length, '位')
+      }
+
+      // 添加管辖车队长
+      if (managers.length > 0) {
+        for (const manager of managers) {
+          recipientMap.set(manager.userId, manager)
+        }
+        console.log('  ✅ 将通知管辖车队长:', managers.length, '位')
+      }
+    } else if (params.targetUserRole === 'MANAGER') {
+      // 对车队长操作: 通知调度
+      const peerAccounts = await getPeerAccounts()
+      if (peerAccounts.length > 0) {
+        for (const peer of peerAccounts) {
+          recipientMap.set(peer.userId, peer)
+        }
+        console.log('  ✅ 将通知调度:', peerAccounts.length, '位')
+      }
+    }
+    // 对调度操作: 仅通知本人，不需要添加额外接收者
+
+    const recipients = Array.from(recipientMap.values())
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📊 最终接收者统计: 总人数', recipients.length)
+    recipients.forEach((recipient, index) => {
+      console.log(`    [${index + 1}] ${recipient.name} (${recipient.role})`)      
+    })
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    logger.info('📊 通知接收者总数', {count: recipients.length})
+
+    // 批量创建通知
+    const notifications = recipients.map((recipient) => ({
+      userId: recipient.userId,
+      type: params.type,
+      title: params.title,
+      message: params.content,
+      relatedId: params.relatedId
+    }))
+
+    const success = await createNotifications(notifications)
+    if (success) {
+      console.log('✅ 通知发送成功')
+    } else {
+      console.error('❌ 通知发送失败')
+    }
+    console.log('')
+    logger.info('📮 通知发送结果', {success, count: notifications.length})
+
+    return success
+  } catch (error) {
+    console.error('❌ 老板操作通知发送异常:', error)
+    logger.error('❌ 发送老板操作通知异常', error)
     return false
   }
 }

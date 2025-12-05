@@ -41,6 +41,12 @@ export function isManager(role: UserRole | undefined | null): boolean {
  * @param managerRole 管理员角色
  * @param targetRole 目标用户角色
  * @returns 是否可以管理
+ * 
+ * 权限规则：
+ * - BOSS: 可以管理所有角色
+ * - PEER_ADMIN: 根据被授予的权限等级管理（需要完整控制权）
+ * - MANAGER: 只能管理被分配仓库内的司机（需要完整控制权）
+ * - DRIVER: 无管理权限
  */
 export function canManageUser(managerRole: UserRole | undefined | null, targetRole: UserRole): boolean {
   if (!managerRole) return false
@@ -48,9 +54,14 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
   // BOSS 可以管理所有角色
   if (managerRole === 'BOSS') return true
 
-  // MANAGER 可以管理 DRIVER
+  // PEER_ADMIN 可以管理所有角色（如果有完整控制权）
+  if (managerRole === 'PEER_ADMIN') {
+    return true  // 由RLS策略控制实际权限
+  }
+
+  // MANAGER 只能管理被分配仓库内的 DRIVER（需要完整控制权）
   if (managerRole === 'MANAGER') {
-    return targetRole === 'DRIVER'
+    return targetRole === 'DRIVER'  // 由RLS策略控制实际仓库范围和权限等级
   }
 
   // 其他角色不能管理
@@ -65,9 +76,8 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
 export function getRoleDisplayName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {
     BOSS: '老板',
+    PEER_ADMIN: '调度',
     MANAGER: '车队长',
-    DISPATCHER: '调度员',
-    SCHEDULER: '调度',
     DRIVER: '司机'
   }
   return roleNames[role] || role
@@ -83,7 +93,7 @@ export function getCreatableRoles(currentRole: UserRole | undefined | null): Use
 
   // BOSS 可以创建所有角色（除了 BOSS）
   if (currentRole === 'BOSS') {
-    return ['MANAGER', 'DISPATCHER', 'DRIVER']
+    return ['PEER_ADMIN', 'MANAGER', 'DRIVER']
   }
 
   // MANAGER 可以创建 DRIVER

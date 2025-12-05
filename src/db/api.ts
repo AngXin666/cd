@@ -10,6 +10,7 @@ import {
   getUserWithRole
 } from './helpers'
 import {createOrUpdateApprovalNotification} from './notificationApi'
+import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import type {
   ApplicationReviewInput,
   AttendanceRecord,
@@ -2289,64 +2290,17 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
     // 5. 格式化日期
     const dateRangeText = formatLeaveDate(input.start_date, input.end_date, data.days || 0)
 
-    // 6. 创建通知给所有管理员（车队长、老板、调度员）
-    const notificationPromises: Promise<boolean>[] = []
-
-    // 获取所有车队长
-    const managers = await getAllManagers()
-    for (const manager of managers) {
-      notificationPromises.push(
-        createOrUpdateApprovalNotification(
-          manager.id,
-          'leave_application_submitted',
-          '新的请假申请',
-          `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
-          data.id,
-          'pending'
-        )
-      )
-    }
-
-    // 获取所有老板
-    const bosses = await getAllSuperAdmins()
-    for (const boss of bosses) {
-      notificationPromises.push(
-        createOrUpdateApprovalNotification(
-          boss.id,
-          'leave_application_submitted',
-          '新的请假申请',
-          `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
-          data.id,
-          'pending'
-        )
-      )
-    }
-
-    // 获取所有调度员
-    const dispatchers = await getUsersByRole('DISPATCHER')
-    for (const dispatcher of dispatchers) {
-      notificationPromises.push(
-        createOrUpdateApprovalNotification(
-          dispatcher.id,
-          'leave_application_submitted',
-          '新的请假申请',
-          `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
-          data.id,
-          'pending'
-        )
-      )
-    }
-
-    // 批量创建通知
-    if (notificationPromises.length > 0) {
-      const results = await Promise.all(notificationPromises)
-      const successCount = results.filter((r) => r).length
-      if (successCount > 0) {
-        console.log(`✅ 已通知 ${successCount} 个管理员`)
-      } else {
-        console.error('❌ 通知管理员失败')
-      }
-    }
+    // 6. 发送通知给所有相关人员（老板、调度、有管辖权的车队长）
+    // 使用 sendDriverSubmissionNotification 并行获取所有接收者
+    await sendDriverSubmissionNotification({
+      driverId: input.user_id,
+      driverName: applicantName,
+      type: 'leave_application_submitted',
+      title: '新的请假申请',
+      content: `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
+      relatedId: data.id,
+      approvalStatus: 'pending'
+    })
 
     return data
   } catch (error) {
@@ -2584,64 +2538,17 @@ export async function createResignationApplication(
     }
     const resignationDate = formatDate(input.resignation_date)
 
-    // 5. 创建通知给所有管理员（车队长、老板、调度员）
-    const notificationPromises: Promise<boolean>[] = []
-
-    // 获取所有车队长
-    const managers = await getAllManagers()
-    for (const manager of managers) {
-      notificationPromises.push(
-        createOrUpdateApprovalNotification(
-          manager.id,
-          'resignation_application_submitted',
-          '新的离职申请',
-          `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
-          data.id,
-          'pending'
-        )
-      )
-    }
-
-    // 获取所有老板
-    const bosses = await getAllSuperAdmins()
-    for (const boss of bosses) {
-      notificationPromises.push(
-        createOrUpdateApprovalNotification(
-          boss.id,
-          'resignation_application_submitted',
-          '新的离职申请',
-          `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
-          data.id,
-          'pending'
-        )
-      )
-    }
-
-    // 获取所有调度员
-    const dispatchers = await getUsersByRole('DISPATCHER')
-    for (const dispatcher of dispatchers) {
-      notificationPromises.push(
-        createOrUpdateApprovalNotification(
-          dispatcher.id,
-          'resignation_application_submitted',
-          '新的离职申请',
-          `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
-          data.id,
-          'pending'
-        )
-      )
-    }
-
-    // 批量创建通知
-    if (notificationPromises.length > 0) {
-      const results = await Promise.all(notificationPromises)
-      const successCount = results.filter((r) => r).length
-      if (successCount > 0) {
-        console.log(`✅ 已通知 ${successCount} 个管理员`)
-      } else {
-        console.error('❌ 通知管理员失败')
-      }
-    }
+    // 5. 发送通知给所有相关人员（老板、调度、有管辖权的车队长）
+    // 使用 sendDriverSubmissionNotification 并行获取所有接收者
+    await sendDriverSubmissionNotification({
+      driverId: input.user_id,
+      driverName: applicantName,
+      type: 'resignation_application_submitted',
+      title: '新的离职申请',
+      content: `${applicantName}提交了离职申请（离职日期：${resignationDate}），请及时审批`,
+      relatedId: data.id,
+      approvalStatus: 'pending'
+    })
 
     return data
   } catch (error) {
@@ -3729,6 +3636,30 @@ export async function getAllSuperAdmins(): Promise<Profile[]> {
     return profiles
   } catch (error) {
     console.error('❌ 获取老板列表失败:', error)
+    return []
+  }
+}
+
+/**
+ * 获取所有调度列表
+ */
+export async function getAllPeerAdmins(): Promise<Profile[]> {
+  console.log('🔍 getAllPeerAdmins: 开始获取调度列表')
+  try {
+    // 单用户架构：直接查询 PEER_ADMIN 角色的用户
+    const peerAdmins = await getUsersByRole('PEER_ADMIN')
+
+    if (!peerAdmins || peerAdmins.length === 0) {
+      console.log('没有找到任何调度')
+      return []
+    }
+
+    // 转换为 Profile 格式
+    const profiles = convertUsersToProfiles(peerAdmins)
+    console.log(`✅ getAllPeerAdmins: 获取到 ${profiles.length} 个调度`)
+    return profiles
+  } catch (error) {
+    console.error('❌ 获取调度列表失败:', error)
     return []
   }
 }

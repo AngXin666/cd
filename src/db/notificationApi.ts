@@ -803,12 +803,28 @@ export async function createOrUpdateApprovalNotification(
 /**
  * 更新审批通知状态
  * 根据 related_id 查找通知并更新审批状态
+ * 
+ * ❗️ 审批类通知特别要求：
+ * 1. 必须具有原始信息唯一标识 (related_id)
+ * 2. 审批后直接在这条信息进行状态更新
+ * 3. 不会创建新的通知，只更新现有通知的 approval_status 字段
+ * 
  * 注意：此函数只应用于审批类型的通知（请假、离职、车辆审核等）
- * @param relatedId 关联的记录ID
+ * 
+ * @param relatedId 关联的记录ID（审批申请的ID）
  * @param approvalStatus 审批状态（'approved', 'rejected'）
  * @param newTitle 新的标题（可选）
  * @param newMessage 新的消息内容（可选）
  * @returns 是否成功
+ * 
+ * @example
+ * // 审批通过请假申请后更新通知
+ * await updateApprovalNotificationStatus(
+ *   leaveApplicationId,
+ *   'approved',
+ *   '请假申请已批准',
+ *   '您的请假申请已经老板批准'
+ * )
  */
 export async function updateApprovalNotificationStatus(
   relatedId: string,
