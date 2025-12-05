@@ -73,7 +73,6 @@ export function setCache<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): 
       ttl
     }
     Taro.setStorageSync(key, cacheData)
-    console.log(`✅ [缓存] 已设置缓存: ${key}, TTL: ${ttl / 1000}秒`)
   } catch (error) {
     console.error(`❌ [缓存] 设置缓存失败: ${key}`, error)
   }
@@ -97,13 +96,10 @@ export function getCache<T>(key: string): T | null {
 
     // 检查缓存是否过期
     if (age > cacheData.ttl) {
-      console.log(`⏰ [缓存] 缓存已过期: ${key} (已存在 ${Math.round(age / 1000)}秒)`)
-      // 删除过期缓存
       Taro.removeStorageSync(key)
       return null
     }
 
-    console.log(`✅ [缓存] 使用缓存: ${key} (已存在 ${Math.round(age / 1000)}秒)`)
     return cacheData.data
   } catch (error) {
     console.error(`❌ [缓存] 获取缓存失败: ${key}`, error)
@@ -118,7 +114,6 @@ export function getCache<T>(key: string): T | null {
 export function clearCache(key: string): void {
   try {
     Taro.removeStorageSync(key)
-    console.log(`🗑️ [缓存] 已清除缓存: ${key}`)
   } catch (error) {
     console.error(`❌ [缓存] 清除缓存失败: ${key}`, error)
   }
@@ -140,8 +135,6 @@ export function clearCacheByPrefix(prefix: string): void {
         clearedCount++
       }
     })
-
-    console.log(`🗑️ [缓存] 已清除 ${clearedCount} 个前缀为 "${prefix}" 的缓存`)
   } catch (error) {
     console.error(`❌ [缓存] 清除前缀缓存失败: ${prefix}`, error)
   }

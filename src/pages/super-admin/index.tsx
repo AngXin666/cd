@@ -66,12 +66,12 @@ const SuperAdminHome: React.FC = () => {
 
   // 监听 dashboardStats 变化
   useEffect(() => {
-    console.log('[SuperAdminHome] dashboardStats 更新:', dashboardStats)
+    // Dashboard stats updated
   }, [dashboardStats])
 
   // 监听 driverStats 变化
   useEffect(() => {
-    console.log('[SuperAdminHome] driverStats 更新:', driverStats)
+    // Driver stats updated
   }, [driverStats])
 
   // 加载仓库列表
@@ -105,7 +105,6 @@ const SuperAdminHome: React.FC = () => {
 
     timeoutRef.current = setTimeout(() => {
       if (!profile) {
-        console.error('[SuperAdminHome] 加载超时')
         setLoadTimeout(true)
       }
     }, 8000)
@@ -295,8 +294,10 @@ const SuperAdminHome: React.FC = () => {
             )}
 
             <View className="pr-12">
-              <Text className="text-white text-2xl font-bold block mb-2">老板控制台</Text>
-              <Text className="text-blue-100 text-sm block">欢迎回来，{profile?.name || profile?.phone || '老板'}</Text>
+              <Text className="text-white text-2xl font-bold block mb-2">
+                {profile?.role === 'PEER_ADMIN' ? '调度控制台' : '老板控制台'}
+              </Text>
+              <Text className="text-blue-100 text-sm block">欢迎回来,{profile?.name || profile?.phone || '老板'}</Text>
             </View>
           </View>
 

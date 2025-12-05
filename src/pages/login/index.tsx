@@ -4,6 +4,19 @@ import type React from 'react'
 import {useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
+// 清除旧的认证token
+const clearOldAuthTokens = async () => {
+  try {
+    const appId = process.env.TARO_APP_APP_ID
+    await Taro.removeStorage({key: `${appId}-auth-token`})
+    await Taro.removeStorage({key: `${appId}-auth-token-code-verifier`})
+    await supabase.auth.signOut()
+    console.log('✅ 已清除旧认证token')
+  } catch (err) {
+    console.log('⚠️  清除token失败（可能不存在）')
+  }
+}
+
 const Login: React.FC = () => {
   const [loginType, setLoginType] = useState<'otp' | 'password'>('password')
   const [account, setAccount] = useState('')
@@ -14,21 +27,24 @@ const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false)
   const [showTestAccounts, setShowTestAccounts] = useState(false)
 
-  // 页面加载时读取保存的账号密码
+  // 页面加载时清除旧token并读取保存的账号密码
   useEffect(() => {
-    try {
-      const savedAccount = getStorageSync('saved_account')
-      const savedPassword = getStorageSync('saved_password')
-      const savedRemember = getStorageSync('remember_me')
+    // 先清除旧token
+    clearOldAuthTokens().then(() => {
+      try {
+        const savedAccount = getStorageSync('saved_account')
+        const savedPassword = getStorageSync('saved_password')
+        const savedRemember = getStorageSync('remember_me')
 
-      if (savedRemember && savedAccount) {
-        setAccount(savedAccount)
-        setPassword(savedPassword || '')
-        setRememberMe(true)
+        if (savedRemember && savedAccount) {
+          setAccount(savedAccount)
+          setPassword(savedPassword || '')
+          setRememberMe(true)
+        }
+      } catch (error) {
+        console.error('读取保存的账号密码失败:', error)
       }
-    } catch (error) {
-      console.error('读取保存的账号密码失败:', error)
-    }
+    })
   }, [])
 
   const handleLoginSuccess = async () => {
@@ -133,37 +149,38 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      // 账号名到手机号的映射
       const accountMapping: Record<string, string> = {
-        admin: '13800000000',
-        admin1: '13800000001',
-        admin2: '13800000002',
-        admin3: '13800000003'
+        admin: '13800000001',
+        admin1: '13800000002',
+        admin2: '13800000003',
+        admin3: '13800000004'
       }
 
       const isPhoneNumber = validatePhone(account)
+      
       let actualAccount = account
       if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
         actualAccount = accountMapping[account.toLowerCase()]
       }
 
       const isFinalPhone = validatePhone(actualAccount)
-
-      let error
+      let loginEmail = ''
+      
       if (isFinalPhone) {
-        const result = await supabase.auth.signInWithPassword({
-          phone: actualAccount,
-          password
-        })
-        error = result.error
+        loginEmail = `${actualAccount}@phone.local`
       } else {
-        const email = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.local`
-        const result = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        error = result.error
+        loginEmail = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.local`
       }
+      
+      let error
+      let authData
+      
+      const result = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password
+      })
+      error = result.error
+      authData = result.data
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
@@ -172,7 +189,6 @@ const Login: React.FC = () => {
           showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
         }
       } else {
-        // 保存账号密码
         try {
           if (rememberMe) {
             setStorageSync('saved_account', account)
@@ -386,7 +402,7 @@ const Login: React.FC = () => {
                               </View>
                               <Text className="text-xs text-white ml-2">admin</Text>
                             </View>
-                            <Text className="text-xs text-blue-100">13800000000 / admin123</Text>
+                            <Text className="text-xs text-blue-100">13800000001 / admin123</Text>
                           </View>
                           <Text className="text-xs text-white">点击填充 →</Text>
                         </View>
@@ -408,7 +424,7 @@ const Login: React.FC = () => {
                               </View>
                               <Text className="text-xs text-white ml-2">admin1</Text>
                             </View>
-                            <Text className="text-xs text-blue-100">13800000001 / admin123</Text>
+                            <Text className="text-xs text-blue-100">13800000002 / admin123</Text>
                           </View>
                           <Text className="text-xs text-white">点击填充 →</Text>
                         </View>
@@ -430,7 +446,7 @@ const Login: React.FC = () => {
                               </View>
                               <Text className="text-xs text-white ml-2">admin2</Text>
                             </View>
-                            <Text className="text-xs text-blue-100">13800000002 / admin123</Text>
+                            <Text className="text-xs text-blue-100">13800000003 / admin123</Text>
                           </View>
                           <Text className="text-xs text-white">点击填充 →</Text>
                         </View>
@@ -452,7 +468,7 @@ const Login: React.FC = () => {
                               </View>
                               <Text className="text-xs text-white ml-2">admin3</Text>
                             </View>
-                            <Text className="text-xs text-blue-100">13800000003 / admin123</Text>
+                            <Text className="text-xs text-blue-100">13800000004 / admin123</Text>
                           </View>
                           <Text className="text-xs text-white">点击填充 →</Text>
                         </View>
@@ -484,10 +500,10 @@ const Login: React.FC = () => {
               </View>
               <View className="mt-2 pt-2 border-t border-white border-opacity-20">
                 <Text className="text-xs text-blue-100 block mb-1">测试账号（默认密码：admin123）：</Text>
-                <Text className="text-xs text-blue-100 block">• admin - 老板（13800000000）</Text>
-                <Text className="text-xs text-blue-100 block">• admin1 - 车队长（13800000001）</Text>
-                <Text className="text-xs text-blue-100 block">• admin2 - 司机（13800000002）</Text>
-                <Text className="text-xs text-blue-100 block">• admin3 - 平级账号（13800000003）</Text>
+                <Text className="text-xs text-blue-100 block">• admin - 老板（13800000001）</Text>
+                <Text className="text-xs text-blue-100 block">• admin1 - 车队长（13800000002）</Text>
+                <Text className="text-xs text-blue-100 block">• admin2 - 司机（13800000003）</Text>
+                <Text className="text-xs text-blue-100 block">• admin3 - 平级账号（13800000004）</Text>
               </View>
             </View>
           </View>

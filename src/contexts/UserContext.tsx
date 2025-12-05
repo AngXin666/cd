@@ -112,7 +112,6 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
    */
   const loadUserData = useCallback(async () => {
     try {
-      console.log('[UserContext] 开始加载用户数据')
       setLoading(true)
       setError(null)
 
@@ -125,7 +124,6 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
       // 如果是会话缺失错误，说明用户未登录，这是正常的
       if (authError) {
         if (authError.message.includes('Auth session missing')) {
-          console.log('[UserContext] 用户未登录（会话缺失）')
           clearUserData()
           return
         }
@@ -134,12 +132,9 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
       }
 
       if (!user) {
-        console.log('[UserContext] 用户未登录')
         clearUserData()
         return
       }
-
-      console.log('[UserContext] 当前用户ID:', user.id)
 
       // 2. 查询用户信息（注意：users 表没有 status 字段）
       const {data: userInfo, error: userError} = await supabase
@@ -175,11 +170,6 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
         throw new Error('用户角色不存在')
       }
 
-      console.log('[UserContext] 用户信息加载成功:', {
-        name: userInfo.name,
-        role: roleData.role
-      })
-
       // 4. 更新状态
       setUserId(user.id)
       setName(userInfo.name || null)
@@ -210,16 +200,11 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
 
   // 监听认证状态变化
   useEffect(() => {
-    console.log('[UserContext] 初始化，监听认证状态变化')
-
-    // 初始加载
     loadUserData()
 
-    // 监听认证状态变化
     const {
       data: {subscription}
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('[UserContext] 认证状态变化:', _event, session ? '已登录' : '未登录')
       if (session) {
         loadUserData()
       } else {
@@ -228,7 +213,6 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
     })
 
     return () => {
-      console.log('[UserContext] 取消监听认证状态变化')
       subscription.unsubscribe()
     }
   }, [loadUserData, clearUserData])

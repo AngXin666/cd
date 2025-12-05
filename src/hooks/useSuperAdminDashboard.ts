@@ -104,24 +104,18 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
   // 加载仪表板数据
   const loadData = useCallback(
     async (wid?: string, forceRefresh = false) => {
-      // 防止重复加载
       if (loadingRef.current) {
-        console.log('[useSuperAdminDashboard] 正在加载中，跳过')
         return
       }
-
-      console.log('[useSuperAdminDashboard] 开始加载数据:', {wid, forceRefresh})
 
       loadingRef.current = true
       setLoading(true)
       setError(null)
 
       try {
-        // 如果不是强制刷新，先尝试从缓存读取
         if (!forceRefresh) {
           const cachedData = loadFromCache(wid)
           if (cachedData) {
-            console.log('[useSuperAdminDashboard] 使用缓存数据')
             setData(cachedData)
             setLoading(false)
             loadingRef.current = false
@@ -129,13 +123,9 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
           }
         }
 
-        console.log('[useSuperAdminDashboard] 从服务器加载数据')
-        // 从服务器加载数据
         const stats = wid ? await getWarehouseDashboardStats(wid) : await getAllWarehousesDashboardStats()
-        console.log('[useSuperAdminDashboard] 服务器返回数据:', stats)
         setData(stats)
 
-        // 保存到缓存
         saveToCache(stats, wid)
       } catch (err) {
         console.error('[useSuperAdminDashboard] 加载仪表板数据失败:', err)

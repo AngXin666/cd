@@ -206,8 +206,8 @@ const ClockIn: React.FC = () => {
       const now = new Date()
       const status = determineAttendanceStatus(
         now,
-        rule.work_start_time,
-        rule.work_end_time,
+        rule.work_start_time || rule.start_time,
+        rule.work_end_time || rule.end_time,
         rule.late_threshold,
         rule.early_threshold,
         false
@@ -316,8 +316,8 @@ const ClockIn: React.FC = () => {
       const now = new Date()
       const status = determineAttendanceStatus(
         now,
-        rule.work_start_time,
-        rule.work_end_time,
+        rule.work_start_time || rule.start_time,
+        rule.work_end_time || rule.end_time,
         rule.late_threshold,
         rule.early_threshold,
         true

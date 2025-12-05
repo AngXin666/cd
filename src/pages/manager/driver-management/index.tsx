@@ -425,7 +425,13 @@ const DriverManagement: React.FC = () => {
 
         Taro.showModal({
           title: '司机创建成功',
-          content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverTypeText}\n分配仓库：${warehouseNames}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
+          content: `姓名：${newDriverName.trim()}
+手机号码：${newDriverPhone.trim()}
+司机类型：${driverTypeText}
+分配仓库：${warehouseNames}
+登录账号：${loginAccount}
+默认密码：${defaultPassword}
+车牌号码：${plateNumber}`,
           showCancel: false,
           confirmText: '知道了',
           success: () => {
@@ -597,7 +603,11 @@ const DriverManagement: React.FC = () => {
       // 二次确认
       const result = await Taro.showModal({
         title: '确认保存仓库分配',
-        content: `确定要为 ${driverName} 分配以下仓库吗？\n\n${warehouseText}\n\n${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分配）' : ''}`,
+        content: `确定要为 ${driverName} 分配以下仓库吗？
+
+${warehouseText}
+
+${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分配）' : ''}`,
         confirmText: '确定',
         cancelText: '取消'
       })
@@ -630,7 +640,6 @@ const DriverManagement: React.FC = () => {
 
       // 发送通知
       try {
-        console.log('🔔 [仓库分配-管理员] 开始发送通知')
         const notifications: Array<{
           userId: string
           type: 'warehouse_assigned' | 'warehouse_unassigned'
@@ -676,12 +685,6 @@ const DriverManagement: React.FC = () => {
             title: '仓库分配变更通知',
             message: message,
             relatedId: driverId
-          })
-
-          console.log('📝 [仓库分配-管理员] 准备通知司机:', {
-            司机ID: driverId,
-            司机姓名: driverName,
-            通知内容: message
           })
         }
 

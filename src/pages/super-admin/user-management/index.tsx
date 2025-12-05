@@ -207,11 +207,7 @@ const UserManagement: React.FC = () => {
       try {
         const data = await UsersAPI.getAllUsers()
 
-        console.log('✅ 成功获取用户数据，数量:', data.length)
-        console.log('用户列表:', data)
-
         // 批量并行加载：真实姓名、详细信息、仓库分配（优化性能）
-        console.log('🚀 开始批量并行加载用户详细信息')
         const allWarehouses = await WarehousesAPI.getAllWarehouses()
 
         const userDataPromises = data.map(async (u) => {
@@ -242,7 +238,6 @@ const UserManagement: React.FC = () => {
 
         const userDataResults = await Promise.all(userDataPromises)
 
-        // 处理结果
         const usersWithRealName = userDataResults.map((r) => r.user)
         const driverDetails = new Map<string, DriverDetailInfo>()
         const driverWarehouses = new Map<string, Warehouse[]>()
@@ -260,10 +255,6 @@ const UserManagement: React.FC = () => {
             )
           }
         })
-
-        console.log('✅ 批量加载完成 - 用户数据（含真实姓名）:', usersWithRealName)
-        console.log('✅ 批量加载完成 - 司机详细信息，数量:', driverDetails.size)
-        console.log('✅ 批量加载完成 - 司机仓库分配信息')
 
         setUsers(usersWithRealName)
         filterUsers(usersWithRealName, searchKeyword, roleFilter, currentWarehouseIndex)
@@ -739,7 +730,11 @@ const UserManagement: React.FC = () => {
       // 二次确认
       const result = await Taro.showModal({
         title: '确认保存仓库分配',
-        content: `确定要为 ${userName} 分配以下仓库吗？\n\n${warehouseText}\n\n${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分配）' : ''}`,
+        content: `确定要为 ${userName} 分配以下仓库吗？
+
+${warehouseText}
+
+${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分配）' : ''}`,
         confirmText: '确定',
         cancelText: '取消'
       })
@@ -764,7 +759,7 @@ const UserManagement: React.FC = () => {
         await WarehousesAPI.deleteWarehouseAssignmentsByDriver(userId)
       } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
         // 删除管理员/车队长的仓库分配
-        await supabase.from('warehouse_assignments').delete().eq('id', userId)
+        await supabase.from('warehouse_assignments').delete().eq('user_id', userId)
       }
 
       // 添加新的仓库分配

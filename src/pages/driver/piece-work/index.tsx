@@ -278,13 +278,13 @@ const DriverPieceWork: React.FC = () => {
   const handleEdit = (record: PieceWorkRecord) => {
     setEditingRecord(record)
     setEditForm({
-      quantity: record.quantity.toString(),
-      unitPrice: record.unit_price.toString(),
+      quantity: (record.quantity || 0).toString(),
+      unitPrice: (record.unit_price || 0).toString(),
       needUpstairs: record.need_upstairs,
-      upstairsPrice: record.upstairs_price.toString(),
+      upstairsPrice: (record.upstairs_price || 0).toString(),
       needSorting: record.need_sorting,
-      sortingQuantity: record.sorting_quantity.toString(),
-      sortingUnitPrice: record.sorting_unit_price.toString()
+      sortingQuantity: (record.sorting_quantity || 0).toString(),
+      sortingUnitPrice: (record.sorting_unit_price || 0).toString()
     })
     setIsEditing(true)
   }

@@ -54,22 +54,12 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
 
     setIsLoading(true)
     try {
-      console.log('🔐 开始加载用户权限...', {userId: user.id})
-
-      // 从数据库查询用户权限
       const permissionList = await getUserPermissions(user.id)
 
-      console.log('✅ 权限加载成功:', {
-        userId: user.id,
-        permissionCount: permissionList.length,
-        permissions: permissionList
-      })
-
-      // 缓存到内存
       setPermissions(new Set(permissionList))
       setIsLoaded(true)
     } catch (error) {
-      console.error('❌ 权限加载失败:', error)
+      console.error('权限加载失败:', error)
       setPermissions(new Set())
       setIsLoaded(false)
     } finally {
@@ -82,7 +72,6 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    * 重新从数据库加载权限，用于权限变更后的更新
    */
   const refreshPermissions = useCallback(async () => {
-    console.log('🔄 刷新用户权限...')
     setIsLoaded(false)
     await loadPermissions()
   }, [loadPermissions])
@@ -92,7 +81,6 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    * 用于用户登出时清理权限缓存
    */
   const clearPermissions = useCallback(() => {
-    console.log('🧹 清除权限缓存')
     setPermissions(new Set())
     setIsLoaded(false)
   }, [])
@@ -102,9 +90,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasPermission = useCallback(
     (permissionCode: string): boolean => {
-      const result = permissions.has(permissionCode)
-      console.log('🔍 权限检查:', {permissionCode, result, totalPermissions: permissions.size})
-      return result
+      return permissions.has(permissionCode)
     },
     [permissions]
   )
@@ -114,9 +100,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasAnyPermission = useCallback(
     (permissionCodes: string[]): boolean => {
-      const result = permissionCodes.some((code) => permissions.has(code))
-      console.log('🔍 权限检查(任一):', {permissionCodes, result})
-      return result
+      return permissionCodes.some((code) => permissions.has(code))
     },
     [permissions]
   )
@@ -126,9 +110,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasAllPermissions = useCallback(
     (permissionCodes: string[]): boolean => {
-      const result = permissionCodes.every((code) => permissions.has(code))
-      console.log('🔍 权限检查(全部):', {permissionCodes, result})
-      return result
+      return permissionCodes.every((code) => permissions.has(code))
     },
     [permissions]
   )
@@ -138,7 +120,6 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   useEffect(() => {
     if (isAuthenticated && user?.id && !isLoaded && !isLoading) {
-      console.log('👤 用户已登录，自动加载权限')
       loadPermissions()
     }
   }, [isAuthenticated, user?.id, isLoaded, isLoading, loadPermissions])
@@ -148,7 +129,6 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   useEffect(() => {
     if (!isAuthenticated && isLoaded) {
-      console.log('👋 用户已登出，清除权限')
       clearPermissions()
     }
   }, [isAuthenticated, isLoaded, clearPermissions])

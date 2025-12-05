@@ -764,6 +764,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
         throw new Error('未找到离职申请')
       }
 
+      console.log('📋 开始审批离职申请:', {applicationId, approved, user_id: application.user_id})
+
       // 2. 审批离职申请
       const success = await LeaveAPI.reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
@@ -771,13 +773,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
         reviewed_at: new Date().toISOString()
       })
 
+      console.log('📋 审批结果:', success)
+
       if (success) {
-        // 3. 发送审批结果通知
+        // 3. 发送审批结果通知（即使失败也不影响审批）
         try {
           // 获取当前审批人信息
           const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
-          // 构建审批人显示文本（用于通知其他人）
+          // 构建审批人显示文本
           let reviewerText = '老板'
           if (currentUserProfile) {
             const reviewerRealName = currentUserProfile.real_name
@@ -790,79 +794,57 @@ const SuperAdminLeaveApproval: React.FC = () => {
             }
           }
 
-          // 格式化日期
           const formatDate = (dateStr: string) => {
             const date = new Date(dateStr)
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
           }
 
           const resignationDate = formatDate(application.resignation_date)
-
-          // 构建通知消息
           const statusText = approved ? '通过' : '拒绝'
           const notificationType = approved ? 'resignation_approved' : 'resignation_rejected'
           const approvalStatus = approved ? 'approved' : 'rejected'
 
-          // 🔄 更新原有通知状态（发送给老板和车队长的通知）
-          // 只更新原始申请通知，不更新审批结果通知
+          // 🔄 更新原有通知状态
           const {data: existingNotifications} = await supabase
             .from('notifications')
             .select('*')
             .eq('related_id', applicationId)
-            .eq('type', 'resignation_application_submitted') // 只查询原始申请通知
-
-          console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
+            .eq('type', 'resignation_application_submitted')
 
           if (existingNotifications && existingNotifications.length > 0) {
-            // 针对每个通知接收者单独更新
             for (const notification of existingNotifications) {
-              // 判断接收者是否为审批人本人
               const isReviewer = notification.recipient_id === user.id
               const message = isReviewer
                 ? `您${statusText}了司机的离职申请（离职日期：${resignationDate}）`
                 : `${reviewerText}${statusText}了司机的离职申请（离职日期：${resignationDate}）`
 
-              console.log(
-                `📝 更新通知 ${notification.id}，接收者: ${notification.recipient_id}，是否为审批人: ${isReviewer}`
-              )
-
-              const {error: updateError} = await supabase
+              await supabase
                 .from('notifications')
                 .update({
                   approval_status: approvalStatus,
-                  is_read: false, // 重置为未读
+                  is_read: false,
                   title: '离职审批通知',
                   content: message,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', notification.id)
-
-              if (updateError) {
-                console.error(`❌ 更新通知 ${notification.id} 失败:`, updateError)
-              } else {
-                console.log(`✅ 成功更新通知 ${notification.id}`)
-              }
             }
-
-            console.log(`✅ 已更新 ${existingNotifications.length} 条离职审批通知状态`)
-          } else {
-            console.warn('⚠️ 未找到需要更新的原始申请通知')
           }
 
-          // 🔔 创建新通知给司机（审批结果通知）
+          // 🔔 创建新通知给司机
           const driverMessage = `${reviewerText}${statusText}了您的离职申请（离职日期：${resignationDate}）`
           await createNotification(
-            application.user_id, // 发送给申请人（司机）
+            application.user_id,
             notificationType,
             `离职申请已${statusText}`,
             driverMessage,
-            applicationId // 关联离职申请ID
+            applicationId
           )
 
-          console.log(`✅ 已发送审批结果通知给司机: ${application.user_id}`)
+          console.log('✅ 通知发送完成')
         } catch (notificationError) {
-          console.error('❌ 发送审批结果通知失败:', notificationError)
-          // 通知发送失败不影响审批流程
+          console.error('❌ 通知发送失败:', notificationError)
+          // 通知失败不影响审批
         }
 
         showToast({
@@ -870,18 +852,23 @@ const SuperAdminLeaveApproval: React.FC = () => {
           icon: 'success',
           duration: 1500
         })
+        
+        console.log('✅ 审批完成，刷新数据')
         await loadData()
       } else {
-        throw new Error('操作失败')
+        console.error('❌ 审批接口返回失败')
+        throw new Error('审批失败')
       }
-    } catch (_error) {
+    } catch (error) {
+      console.error('❌ 审批异常:', error)
       showToast({
-        title: '操作失败',
+        title: '审批失败',
         icon: 'none',
         duration: 2000
       })
     } finally {
       Taro.hideLoading()
+      console.log('📍 审批流程结束')
     }
   }
 

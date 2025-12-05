@@ -13,7 +13,7 @@ export type {NotificationType}
  * - SCHEDULER: 调度，负责调度和管理（新增）
  * - DRIVER: 司机，基础用户
  */
-export type UserRole = 'BOSS' | 'MANAGER' | 'DISPATCHER' | 'SCHEDULER' | 'DRIVER'
+export type UserRole = 'BOSS' | 'PEER_ADMIN' | 'MANAGER' | 'DISPATCHER' | 'SCHEDULER' | 'DRIVER'
 
 // 用户信息接口
 export interface User {
@@ -786,14 +786,8 @@ export interface PieceWorkCategory {
 // 创建计件分类的输入接口
 export interface PieceWorkCategoryInput {
   name: string
+  unit?: string
   description?: string
-  warehouse_id?: string
-  category_name?: string
-  unit_price?: number
-  upstairs_price?: number
-  sorting_unit_price?: number
-  driver_only_price?: number
-  driver_with_vehicle_price?: number
   is_active?: boolean
 }
 
@@ -802,9 +796,13 @@ export interface CategoryPrice {
   id: string
   category_id: string
   warehouse_id: string | null
-  unit_price: number
+  price: number // 数据库实际字段
+  driver_type?: string
   effective_date: string
   created_at: string
+  updated_at?: string
+  // 兼容旧代码的字段
+  unit_price?: number
   category_name?: string
   upstairs_price?: number | null
   sorting_unit_price?: number | null
@@ -815,15 +813,10 @@ export interface CategoryPrice {
 // 创建计件分类价格的输入接口
 export interface CategoryPriceInput {
   category_id: string
-  warehouse_id?: string
-  unit_price: number
-  effective_date: string
-  category_name?: string
-  upstairs_price?: number
-  sorting_unit_price?: number
-  driver_only_price?: number
-  driver_with_vehicle_price?: number
-  is_active?: boolean
+  warehouse_id: string
+  price: number
+  driver_type?: string
+  effective_date?: string
 }
 
 // 计件统计接口
@@ -850,7 +843,7 @@ export interface WarehouseWithRule extends Warehouse {
 // 考勤规则接口（保留用于兼容性）
 export interface AttendanceRule {
   id: string
-  warehouse_id: string
+  warehouse_id?: string | null // 可选，NULL表示全局规则
   clock_in_time: string
   clock_out_time: string
   late_threshold: number
@@ -861,11 +854,15 @@ export interface AttendanceRule {
   work_start_time?: string
   work_end_time?: string
   require_clock_out?: boolean
+  // 数据库实际字段
+  start_time?: string
+  end_time?: string
+  enabled?: boolean
 }
 
 // 创建考勤规则的输入接口
 export interface AttendanceRuleInput {
-  warehouse_id: string
+  warehouse_id?: string | null // 可选，NULL表示全局规则
   clock_in_time: string
   clock_out_time: string
   late_threshold?: number
@@ -1177,7 +1174,7 @@ export interface CreateNotificationInput {
   recipient_id: string
   // 兼容旧代码的可选字段
   sender_name?: string
-  sender_role?: string
+  // sender_role?: string // 临时移除：数据库字段不存在
   action_url?: string
 }
 

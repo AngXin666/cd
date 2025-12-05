@@ -8,7 +8,7 @@ import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 
-import type {AttendanceRule, PieceWorkCategory, Profile, Warehouse} from '@/db/types'
+import type {AttendanceRule, CategoryPriceInput, PieceWorkCategory, Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 
 const WarehouseEdit: React.FC = () => {
@@ -397,17 +397,24 @@ const WarehouseEdit: React.FC = () => {
 
     showLoading({title: '创建中...'})
     try {
-      // 直接创建品类价格记录
-      const priceInput = {
-        category_id: '',
+      // 先创建品类，获取 ID
+      const newCategory = await PieceworkAPI.createCategory({
+        name: newCategoryName.trim(),
+        unit: '件'
+      })
+
+      if (!newCategory) {
+        showToast({title: '创建品类失败', icon: 'error'})
+        Taro.hideLoading()
+        return
+      }
+
+      // 再创建价格记录
+      const priceInput: CategoryPriceInput = {
+        category_id: newCategory.id,
         warehouse_id: warehouseId,
-        category_name: newCategoryName.trim(),
-        unit_price: Number(newCategoryDriverPrice || 0),
-        upstairs_price: Number(newCategoryVehiclePrice || 0),
-        sorting_unit_price: Number(newCategorySortingPrice || 0),
-        driver_only_price: 0,
-        driver_with_vehicle_price: 0,
-        is_active: true,
+        price: Number(newCategoryDriverPrice || 0),
+        driver_type: 'driver_only',
         effective_date: new Date().toISOString().split('T')[0]
       }
 
@@ -582,23 +589,24 @@ const WarehouseEdit: React.FC = () => {
       }
 
       // 2. 更新品类价格
-      for (const categoryName of selectedCategories) {
-        const priceInput = {
-          category_id: '',
-          warehouse_id: warehouseId,
-          category_name: categoryName,
-          unit_price: Number(categoryDriverPrices.get(categoryName) || 0),
-          upstairs_price: Number(categoryVehiclePrices.get(categoryName) || 0),
-          sorting_unit_price: Number(categorySortingPrices.get(categoryName) || 0),
-          driver_only_price: 0,
-          driver_with_vehicle_price: 0,
-          is_active: true,
-          effective_date: new Date().toISOString().split('T')[0]
-        }
+      const priceInputs: CategoryPriceInput[] = Array.from(selectedCategories)
+        .map((categoryId) => {
+          const category = allCategories.find((c) => c.id === categoryId)
+          if (!category) return null
+          return {
+            category_id: categoryId,
+            warehouse_id: warehouseId,
+            price: Number(categoryDriverPrices.get(categoryId) || 0),
+            driver_type: 'driver_only',
+            effective_date: new Date().toISOString().split('T')[0]
+          } as CategoryPriceInput
+        })
+        .filter((p) => p !== null) as CategoryPriceInput[]
 
-        const priceSuccess = await PieceworkAPI.upsertCategoryPrice(priceInput)
+      if (priceInputs.length > 0) {
+        const priceSuccess = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
         if (!priceSuccess) {
-          console.warn(`更新品类 ${categoryName} 价格失败`)
+          throw new Error('更新品类价格失败')
         }
       }
 

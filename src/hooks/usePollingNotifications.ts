@@ -210,8 +210,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
   // 执行轮询检查
   const poll = useCallback(async () => {
-    console.log('🔄 [轮询] 开始检查数据更新...')
-
     if (userRole === 'manager' || userRole === 'super_admin') {
       await Promise.all([checkLeaveApplications(), checkResignationApplications(), checkAttendanceRecords()])
     } else if (userRole === 'driver') {
@@ -220,7 +218,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
     // 更新最后检查时间
     lastCheckTime.current = Date.now()
-    console.log('✅ [轮询] 检查完成')
   }, [
     userRole,
     checkLeaveApplications,
@@ -232,16 +229,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
   // 设置轮询
   useEffect(() => {
-    if (!userId) {
-      console.log('⚠️ [轮询] userId 为空，跳过轮询')
-      return
-    }
-
-    console.log('🔄 [轮询] 启动轮询通知系统:', {
-      userId,
-      userRole,
-      pollingInterval: `${pollingInterval / 1000}秒`
-    })
+    if (!userId) return
 
     // 立即执行一次
     poll()
@@ -252,7 +240,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
     // 清理函数
     return () => {
       if (intervalRef.current) {
-        console.log('🧹 [轮询] 清理轮询定时器')
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }

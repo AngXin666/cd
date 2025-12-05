@@ -69,7 +69,7 @@ const pages = [
   'pages/test-login/index'
 ]
 
-export default {
+export default defineAppConfig({
   pages,
   tabBar: {
     color: '#64748b',
@@ -103,4 +103,4 @@ export default {
       desc: '您的位置信息将用于上下班打卡定位'
     }
   }
-}
+})

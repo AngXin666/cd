@@ -150,8 +150,8 @@ function log(level: LogLevel, module: string, message: string, data?: any) {
       break
   }
 
-  // 如果有数据对象，单独打印
-  if (data !== undefined && data !== null) {
+  // 如果有数据对象，单独打印（仅错误时）
+  if (level === LogLevel.ERROR && data !== undefined && data !== null) {
     console.log('📦 数据详情:', data)
   }
 }

@@ -9,11 +9,12 @@ let noticed = false
 export const customFetch: typeof fetch = async (url: string, options: RequestInit) => {
   let headers: HeadersInit = options.headers || {}
   const {method = 'GET', body} = options
-
+  
   if (options.headers instanceof Map) {
     headers = Object.fromEntries(options.headers)
   }
 
+  const startTime = Date.now()
   const res = await Taro.request({
     url,
     method: method as keyof Taro.request.Method,
@@ -21,6 +22,12 @@ export const customFetch: typeof fetch = async (url: string, options: RequestIni
     data: body,
     responseType: 'text'
   })
+  const duration = Date.now() - startTime
+
+  // 只在错误时输出
+  if (res.statusCode >= 400) {
+    console.error('❌ HTTP请求失败:', method, url, res.statusCode)
+  }
 
   // 全局启停提示
   if (res.statusCode > 300 && res.data?.code === 'SupabaseNotReady' && !noticed) {
@@ -49,31 +56,24 @@ export const customFetch: typeof fetch = async (url: string, options: RequestIni
 const taroStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
-      console.log('📦 [Storage] 读取:', key)
       const value = await Taro.getStorage({key})
-      console.log('✅ [Storage] 读取成功:', key, '数据长度:', value.data?.length || 0)
       return value.data
     } catch (error) {
-      console.log('⚠️ [Storage] 读取失败:', key, error)
       return null
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      console.log('📦 [Storage] 写入:', key, '数据长度:', value?.length || 0)
       await Taro.setStorage({key, data: value})
-      console.log('✅ [Storage] 写入成功:', key)
     } catch (error) {
-      console.error('❌ [Storage] 写入失败:', key, error)
+      console.error('Storage写入失败:', key, error)
     }
   },
   removeItem: async (key: string): Promise<void> => {
     try {
-      console.log('📦 [Storage] 删除:', key)
       await Taro.removeStorage({key})
-      console.log('✅ [Storage] 删除成功:', key)
     } catch (error) {
-      console.error('❌ [Storage] 删除失败:', key, error)
+      console.error('Storage删除失败:', key, error)
     }
   }
 }

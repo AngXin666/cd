@@ -50,25 +50,14 @@ export async function getRolePermissions(roleId: string): Promise<string[]> {
 
 /**
  * 获取用户的所有权限
- * 通过关联查询 user_roles 和 role_permissions 表
+ * 注意：权限系统已简化，现在直接基于 users.role 进行权限判断
+ * 此函数保留用于兼容性，始终返回空数组
  */
-export async function getUserPermissions(userId: string): Promise<string[]> {
-  try {
-    // 调用数据库函数获取用户权限
-    const {data, error} = await supabase.rpc('get_user_permissions', {
-      user_id_param: userId
-    })
-
-    if (error) {
-      console.error('获取用户权限失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data.map((item) => item.permission_id) : []
-  } catch (error) {
-    console.error('获取用户权限异常:', error)
-    return []
-  }
+export async function getUserPermissions(_userId: string): Promise<string[]> {
+  // 权限系统已废弃，表 user_roles, permissions, role_permissions 已删除
+  // 现在权限判断直接基于 users.role 字段
+  // 返回空数组以避免报错
+  return []
 }
 
 /**

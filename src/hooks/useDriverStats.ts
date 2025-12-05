@@ -181,11 +181,9 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
    * 刷新数据（强制重新获取，忽略缓存）
    */
   const refresh = useCallback(async () => {
-    // 清除缓存
     if (cacheEnabled) {
       const cacheKey = getCacheKey(warehouseId)
       cache.delete(cacheKey)
-      console.log('[useDriverStats] 清除缓存:', cacheKey)
     }
     return await fetchDriverStats()
   }, [fetchDriverStats, warehouseId, cacheEnabled])
@@ -203,8 +201,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
   useEffect(() => {
     if (!enableRealtime) return
 
-    console.log('[useDriverStats] 启用实时更新监听')
-
     // 监听考勤记录变化
     const attendanceChannel = supabase
       .channel('driver-stats-attendance')
@@ -216,8 +212,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'attendance'
         },
         (payload) => {
-          console.log('[useDriverStats] 考勤记录变化:', payload)
-          // 清除缓存并重新获取数据
           if (cacheEnabled) {
             cache.clear()
           }
@@ -237,8 +231,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'piece_work_records'
         },
         (payload) => {
-          console.log('[useDriverStats] 计件记录变化:', payload)
-          // 清除缓存并重新获取数据
           if (cacheEnabled) {
             cache.clear()
           }
@@ -258,8 +250,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'warehouse_assignments'
         },
         (payload) => {
-          console.log('[useDriverStats] 司机分配变化:', payload)
-          // 清除缓存并重新获取数据
           if (cacheEnabled) {
             cache.clear()
           }
@@ -279,8 +269,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'user_roles'
         },
         (payload) => {
-          console.log('[useDriverStats] 用户角色变化:', payload)
-          // 清除缓存并重新获取数据
           if (cacheEnabled) {
             cache.clear()
           }
@@ -300,8 +288,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'users'
         },
         (payload) => {
-          console.log('[useDriverStats] 用户信息变化:', payload)
-          // 清除缓存并重新获取数据
           if (cacheEnabled) {
             cache.clear()
           }
@@ -311,7 +297,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       .subscribe()
 
     return () => {
-      console.log('[useDriverStats] 取消实时更新监听')
       supabase.removeChannel(attendanceChannel)
       supabase.removeChannel(pieceWorkChannel)
       supabase.removeChannel(assignmentChannel)

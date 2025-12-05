@@ -60,7 +60,7 @@ export interface Notification {
   recipient_id: string // 改为recipient_id以匹配新表结构
   sender_id: string // 新增
   sender_name: string // 新增
-  sender_role: string // 新增
+  // sender_role: string // 临时移除：数据库字段不存在
   type: NotificationType | string // 支持字符串类型
   category: NotificationCategory
   title: string
@@ -534,15 +534,15 @@ export async function createNotification(
     senderName = userData?.name || '系统'
 
     // 自动确定分类
-    const category = getNotificationCategory(type)
+    // const category = getNotificationCategory(type) // 临时移除
 
-    logger.db('创建通知', 'notifications', {userId, type, category, title, message, relatedId})
+    logger.db('创建通知', 'notifications', {userId, type, title, message, relatedId})
 
+    // 直接INSERT（RLS已放开）
     const {error} = await supabase.from('notifications').insert({
       recipient_id: userId,
       sender_id: user.id,
       sender_name: senderName,
-      sender_role: mappedSenderRole,
       type,
       title,
       content: message,
@@ -556,7 +556,7 @@ export async function createNotification(
       return false
     }
 
-    logger.info('通知创建成功', {userId, type, category, title})
+    logger.info('通知创建成功', {userId, type, title})
     return true
   } catch (error) {
     logger.error('创建通知异常', error)
@@ -612,19 +612,19 @@ export async function createNotifications(
       recipient_id: n.userId,
       sender_id: user.id,
       sender_name: senderName,
-      sender_role: mappedSenderRole,
       type: n.type,
       title: n.title,
       content: n.message,
       action_url: null,
       related_id: n.relatedId || null,
-      batch_id: n.batchId || null, // 批次ID
-      approval_status: n.approvalStatus || null, // 审批状态
+      batch_id: n.batchId || null,
+      approval_status: n.approvalStatus || null,
       is_read: false
     }))
 
-    logger.info('📤 准备插入通知数据', {count: notificationData.length, data: notificationData})
+    logger.info('📤 准备插入通知数据', {count: notificationData.length})
 
+    // 直接INSERT（RLS已放开）
     const {error} = await supabase.from('notifications').insert(notificationData)
 
     if (error) {
@@ -717,7 +717,7 @@ export async function createOrUpdateApprovalNotification(
     senderName = userData?.name || '系统'
 
     // 自动确定分类
-    const category = getNotificationCategory(type)
+    // const category = getNotificationCategory(type) // 临时移除
 
     // 1. 查找是否已存在相同 related_id 的通知
     const {data: existingNotifications, error: queryError} = await supabase
@@ -767,18 +767,17 @@ export async function createOrUpdateApprovalNotification(
     logger.db('创建新的审批通知', 'notifications', {
       recipientId,
       type,
-      category,
       title,
       message,
       relatedId,
       approvalStatus
     })
 
+    // 直接INSERT（RLS已放开）
     const {error: insertError} = await supabase.from('notifications').insert({
       recipient_id: recipientId,
       sender_id: user.id,
       sender_name: senderName,
-      sender_role: mappedSenderRole,
       type,
       title,
       content: message,
@@ -793,7 +792,7 @@ export async function createOrUpdateApprovalNotification(
       return false
     }
 
-    logger.info('审批通知创建成功', {recipientId, type, category, title, approvalStatus})
+    logger.info('审批通知创建成功', {recipientId, type, title, approvalStatus})
     return true
   } catch (error) {
     logger.error('创建或更新审批通知异常', error)

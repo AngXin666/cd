@@ -38,9 +38,9 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
 
     const {data: roleData, error: roleError} = await supabase
       .from('users')
-      .select('user_id, role')
+      .select('id, role')
       .eq('role', 'BOSS')
-      .order('user_id', {ascending: true})
+      .order('id', {ascending: true})
       .limit(1)
       .maybeSingle()
 
@@ -57,18 +57,18 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
     }
 
     console.log('  ✅ 找到 BOSS 角色:')
-    console.log('    - 用户ID:', roleData.user_id)
+    console.log('    - 用户ID:', roleData.id)
     console.log('    - 角色:', roleData.role)
 
     // 获取用户信息
     console.log('  📊 查询用户信息:')
     console.log('    - 表: users')
-    console.log('    - 用户ID:', roleData.user_id)
+    console.log('    - 用户ID:', roleData.id)
 
     const {data: userData, error: userError} = await supabase
       .from('users')
       .select('id, name')
-      .eq('id', roleData.user_id)
+      .eq('id', roleData.id)
       .maybeSingle()
 
     if (userError) {
@@ -116,9 +116,9 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
     // 单用户架构：从 users 和 user_roles 表查询所有 PEER_ADMIN
     const {data: roles, error: rolesError} = await supabase
       .from('users')
-      .select('user_id, role')
+      .select('id, role')
       .eq('role', 'PEER_ADMIN')
-      .order('user_id', {ascending: true})
+      .order('id', {ascending: true})
 
     if (rolesError || !roles || roles.length === 0) {
       logger.info('未找到平级账号')
@@ -131,7 +131,7 @@ async function getPeerAccounts(): Promise<NotificationRecipient[]> {
       .select('id, name')
       .in(
         'id',
-        roles.map((r) => r.user_id)
+        roles.map((r) => r.id)
       )
 
     if (usersError || !users) {
@@ -162,7 +162,7 @@ async function _getAllAdmins(): Promise<NotificationRecipient[]> {
     // 单用户架构：从 users 和 user_roles 表查询所有 BOSS 和 PEER_ADMIN 角色的用户
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
       supabase.from('users').select('id, name'),
-      supabase.from('users').select('user_id, role').in('role', ['BOSS', 'PEER_ADMIN'])
+      supabase.from('users').select('id, role').in('role', ['BOSS', 'PEER_ADMIN'])
     ])
 
     if (usersError) {
@@ -172,10 +172,10 @@ async function _getAllAdmins(): Promise<NotificationRecipient[]> {
 
     // 合并用户和角色数据
     const data = users
-      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
+      ?.filter((user) => roles?.some((r) => r.id === user.id))
       .map((user) => ({
         ...user,
-        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+        role: roles?.find((r) => r.id === user.id)?.role || 'DRIVER'
       }))
 
     if (!data || data.length === 0) {
@@ -210,7 +210,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
     const {data: driverWarehouses, error: dwError} = await supabase
       .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('id', driverId)
+      .eq('user_id', driverId)
 
     if (dwError || !driverWarehouses || driverWarehouses.length === 0) {
       logger.warn('司机未分配仓库', {driverId})
@@ -223,7 +223,7 @@ async function _checkManagerHasJurisdiction(managerId: string, driverId: string)
     const {data: managerWarehouses, error: mwError} = await supabase
       .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('id', managerId)
+      .eq('user_id', managerId)
 
     if (mwError || !managerWarehouses || managerWarehouses.length === 0) {
       logger.warn('车队长未管理任何仓库', {managerId})
@@ -273,7 +273,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
     const {data: driverWarehouses, error: dwError} = await supabase
       .from('warehouse_assignments')
       .select('warehouse_id')
-      .eq('id', driverId)
+      .eq('user_id', driverId)
 
     if (dwError) {
       console.error('  ❌ 查询司机仓库失败:', dwError)
@@ -328,7 +328,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
       supabase.from('users').select('id, name').in('id', managerIds),
-      supabase.from('users').select('user_id, role').eq('role', 'MANAGER').in('user_id', managerIds)
+      supabase.from('users').select('id, role').eq('role', 'MANAGER').in('id', managerIds)
     ])
 
     if (usersError) {
@@ -343,10 +343,10 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     // 合并用户和角色数据
     const managers = users
-      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
+      ?.filter((user) => roles?.some((r) => r.id === user.id))
       .map((user) => ({
         ...user,
-        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
+        role: roles?.find((r) => r.id === user.id)?.role || 'DRIVER'
       }))
 
     if (!managers || managers.length === 0) {

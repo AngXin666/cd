@@ -695,6 +695,13 @@ const ManagerLeaveApproval: React.FC = () => {
     try {
       showLoading({title: approved ? '批准中...' : '拒绝中...'})
 
+      // 1. 获取离职申请详情
+      const application = resignationApplications.find((app) => app.id === applicationId)
+      if (!application) {
+        throw new Error('未找到离职申请')
+      }
+
+      // 2. 审批离职申请
       const success = await LeaveAPI.reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
@@ -702,6 +709,85 @@ const ManagerLeaveApproval: React.FC = () => {
       })
 
       if (success) {
+        // 3. 发送审批结果通知
+        try {
+          // 获取当前审批人信息
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
+
+          // 构建审批人显示文本（用于通知其他人）
+          let reviewerText = '车队长'
+          if (currentUserProfile) {
+            const reviewerRealName = currentUserProfile.real_name
+            const reviewerUserName = currentUserProfile.name
+
+            if (reviewerRealName) {
+              reviewerText = `车队长【${reviewerRealName}】`
+            } else if (reviewerUserName && reviewerUserName !== '车队长') {
+              reviewerText = `车队长【${reviewerUserName}】`
+            }
+          }
+
+          // 格式化日期
+          const formatDate = (dateStr: string) => {
+            const date = new Date(dateStr)
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+          }
+
+          const resignationDate = formatDate(application.resignation_date)
+
+          // 构建通知消息
+          const statusText = approved ? '通过' : '拒绝'
+          const notificationType = approved ? 'resignation_approved' : 'resignation_rejected'
+          const approvalStatus = approved ? 'approved' : 'rejected'
+
+          // 🔄 更新原有通知状态（发送给老板和车队长的通知）
+          const {data: existingNotifications} = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('related_id', applicationId)
+            .eq('type', 'resignation_application_submitted')
+
+          console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
+
+          if (existingNotifications && existingNotifications.length > 0) {
+            for (const notification of existingNotifications) {
+              const isReviewer = notification.recipient_id === user.id
+              const message = isReviewer
+                ? `您${statusText}了司机的离职申请（离职日期：${resignationDate}）`
+                : `${reviewerText}${statusText}了司机的离职申请（离职日期：${resignationDate}）`
+
+              const {error: updateError} = await supabase
+                .from('notifications')
+                .update({
+                  approval_status: approvalStatus,
+                  is_read: false,
+                  title: '离职审批通知',
+                  content: message,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', notification.id)
+
+              if (updateError) {
+                console.error(`❌ 更新通知失败:`, updateError)
+              }
+            }
+          }
+
+          // 🔔 创建新通知给司机（审批结果通知）
+          const driverMessage = `${reviewerText}${statusText}了您的离职申请（离职日期：${resignationDate}）`
+          await createNotification(
+            application.user_id,
+            notificationType,
+            `离职申请已${statusText}`,
+            driverMessage,
+            applicationId
+          )
+
+          console.log(`✅ 已发送审批结果通知给司机`)
+        } catch (notificationError) {
+          console.error('❌ 发送审批结果通知失败:', notificationError)
+        }
+
         showToast({
           title: approved ? '已批准' : '已拒绝',
           icon: 'success',
