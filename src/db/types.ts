@@ -1,4 +1,4 @@
-import type {NotificationType} from './notificationApi'
+import type {NotificationType} from '@/db/notificationApi'
 
 // 重新导出 NotificationType 以便其他模块使用
 export type {NotificationType}
