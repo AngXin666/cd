@@ -149,38 +149,16 @@ const Login: React.FC = () => {
 
     setLoading(true)
     try {
-      const accountMapping: Record<string, string> = {
-        admin: '13800000001',
-        admin1: '13800000002',
-        admin2: '13800000003',
-        admin3: '13800000004'
-      }
-
-      const isPhoneNumber = validatePhone(account)
-      
-      let actualAccount = account
-      if (!isPhoneNumber && accountMapping[account.toLowerCase()]) {
-        actualAccount = accountMapping[account.toLowerCase()]
-      }
-
-      const isFinalPhone = validatePhone(actualAccount)
-      let loginEmail = ''
-      
-      if (isFinalPhone) {
-        loginEmail = `${actualAccount}@phone.local`
-      } else {
-        loginEmail = actualAccount.includes('@') ? actualAccount : `${actualAccount}@fleet.local`
-      }
-      
-      let error
-      let authData
+      // 直接使用账号@test.local登录，无需查询
+      const loginEmail = account.includes('@') ? account : `${account}@test.local`
       
       const result = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password
       })
-      error = result.error
-      authData = result.data
+      
+      const error = result.error
+      const authData = result.data
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
