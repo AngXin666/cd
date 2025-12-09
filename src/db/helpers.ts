@@ -17,6 +17,7 @@ export interface UserWithRole {
   phone: string | null
   avatar_url: string | null
   role: UserRole | null
+  driver_type?: 'pure' | 'with_vehicle' | null
   created_at: string
   updated_at: string
 }
@@ -34,6 +35,7 @@ export function convertUserToProfile(user: UserWithRole): Profile {
     name: user.name,
     role: user.role || 'DRIVER', // 默认角色
     avatar_url: user.avatar_url,
+    driver_type: user.driver_type || null, // 司机类型
     created_at: user.created_at,
     updated_at: user.updated_at
   }

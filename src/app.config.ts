@@ -4,7 +4,6 @@ const pages = [
   'pages/driver/index',
   'pages/manager/index',
   'pages/super-admin/index',
-  'pages/test-rls/index',
   'pages/profile/index',
   'pages/profile/settings/index',
   'pages/profile/account-management/index',

@@ -1,6 +1,7 @@
 package com.miaoda.fleet;
 
 import android.os.Bundle;
+import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -8,17 +9,22 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 启用 WebView 的返回键处理
-        this.getBridge().getWebView().setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == android.view.KeyEvent.ACTION_DOWN &&
-                keyCode == android.view.KeyEvent.KEYCODE_BACK) {
-                // 让 WebView 处理返回键，不拦截
-                if (this.getBridge().getWebView().canGoBack()) {
-                    this.getBridge().getWebView().goBack();
-                    return true;
-                }
-            }
-            return false;
-        });
+        // 启用 WebView 调试（仅开发环境）
+        // WebView.setWebContentsDebuggingEnabled(true);
+    }
+
+    @Override
+    public void onBackPressed() {
+        // 获取 WebView
+        WebView webView = getBridge().getWebView();
+        
+        // 检查 WebView 是否可以返回
+        if (webView != null && webView.canGoBack()) {
+            // 如果可以返回，则返回上一级页面
+            webView.goBack();
+        } else {
+            // 否则执行默认返回操作（退出应用）
+            super.onBackPressed();
+        }
     }
 }

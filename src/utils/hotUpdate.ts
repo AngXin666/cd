@@ -73,7 +73,12 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
  */
 export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<boolean> {
   try {
-    console.log(`[热更新] 开始下载更新包: ${updateInfo.version}`)
+    console.log('========================================')
+    console.log('[热更新] 🚀 开始下载更新包')
+    console.log('[热更新] 📋 版本号:', updateInfo.version)
+    console.log('[热更新] 📦 文件大小:', updateInfo.size, 'bytes')
+    console.log('[热更新] 🔗 下载地址:', updateInfo.downloadUrl)
+    console.log('========================================')
     
     // 显示下载进度
     Taro.showLoading({
@@ -85,12 +90,20 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
     const downloadTask = Taro.downloadFile({
       url: updateInfo.downloadUrl,
       success: (res) => {
+        console.log('[热更新] ✅ downloadFile success 回调触发')
+        console.log('[热更新] 📊 响应状态码:', res.statusCode)
+        console.log('[热更新] 📁 临时文件路径:', res.tempFilePath)
+        console.log('[热更新] 📋 响应头:', JSON.stringify(res.header))
+        
         if (res.statusCode === 200) {
-          console.log('[热更新] 下载完成:', res.tempFilePath)
+          console.log('[热更新] ✅ 下载成功，状态码 200')
+          
           // 保存新版本号
+          console.log('[热更新] 💾 保存新版本号到本地存储:', updateInfo.version)
           Taro.setStorageSync(UPDATE_VERSION_KEY, updateInfo.version)
           
           Taro.hideLoading()
+          console.log('[热更新] 🎉 准备重启应用应用更新')
           
           // 提示用户重启应用
           Taro.showModal({
@@ -98,38 +111,85 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
             content: '应用将重新加载以应用更新',
             showCancel: false,
             success: () => {
+              console.log('[热更新] 🔄 用户确认重启，执行 reLaunch')
               // 重新加载页面
               Taro.reLaunch({
                 url: '/pages/index/index'
               })
             }
           })
+        } else {
+          console.error('[热更新] ❌ 下载失败，状态码非 200:', res.statusCode)
+          Taro.hideLoading()
+          Taro.showToast({
+            title: `下载失败 (${res.statusCode})`,
+            icon: 'none'
+          })
         }
       },
       fail: (err) => {
-        console.error('[热更新] 下载失败:', err)
+        console.error('========================================')
+        console.error('[热更新] ❌ downloadFile fail 回调触发')
+        console.error('[热更新] 错误类型:', typeof err)
+        console.error('[热更新] 错误对象:', JSON.stringify(err, null, 2))
+        console.error('[热更新] errMsg:', err.errMsg)
+        
+        // 尝试输出所有可能的错误信息字段
+        if (err) {
+          Object.keys(err).forEach(key => {
+            console.error(`[热更新] err.${key}:`, err[key])
+          })
+        }
+        console.error('========================================')
+        
         Taro.hideLoading()
         Taro.showToast({
-          title: '更新下载失败',
-          icon: 'none'
+          title: err.errMsg || '更新下载失败',
+          icon: 'none',
+          duration: 3000
         })
       }
     })
 
+    console.log('[热更新] 📡 downloadTask 对象:', downloadTask)
+    console.log('[热更新] 📡 downloadTask 类型:', typeof downloadTask)
+    
+    if (!downloadTask) {
+      console.error('[热更新] ❌ downloadTask 为 null 或 undefined！')
+      Taro.hideLoading()
+      Taro.showToast({
+        title: '下载任务创建失败',
+        icon: 'none'
+      })
+      return false
+    }
+
     // 监听下载进度
-    downloadTask.onProgressUpdate((res) => {
-      console.log(`[热更新] 下载进度: ${res.progress}%`)
-      if (res.progress % 10 === 0) {
-        Taro.showLoading({
-          title: `下载中 ${res.progress}%`,
-          mask: true
-        })
-      }
-    })
+    if (downloadTask.onProgressUpdate) {
+      console.log('[热更新] ✅ onProgressUpdate 方法存在，开始监听进度')
+      downloadTask.onProgressUpdate((res) => {
+        console.log(`[热更新] 📊 下载进度: ${res.progress}%, 已下载: ${res.totalBytesWritten}/${res.totalBytesExpectedToWrite}`)
+        if (res.progress % 10 === 0) {
+          Taro.showLoading({
+            title: `下载中 ${res.progress}%`,
+            mask: true
+          })
+        }
+      })
+    } else {
+      console.warn('[热更新] ⚠️ downloadTask.onProgressUpdate 不存在')
+    }
 
     return true
   } catch (error) {
-    console.error('[热更新] 应用更新失败:', error)
+    console.error('========================================')
+    console.error('[热更新] ❌ 捕获到异常')
+    console.error('[热更新] 异常类型:', typeof error)
+    console.error('[热更新] 异常对象:', error)
+    console.error('[热更新] 异常消息:', error instanceof Error ? error.message : String(error))
+    console.error('[热更新] 堆栈信息:', error instanceof Error ? error.stack : 'N/A')
+    console.error('========================================')
+    
     Taro.hideLoading()
     return false
   }

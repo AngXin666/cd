@@ -9,7 +9,6 @@ import * as VehiclesAPI from '@/db/api/vehicles'
 
 import type {DriverLicense, Profile} from '@/db/types'
 import {smartLogout} from '@/utils/auth'
-import {forceCheckUpdate} from '@/utils/hotUpdate'
 
 const ProfilePage: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -421,16 +420,6 @@ const ProfilePage: React.FC = () => {
                 <View className="flex items-center">
                   <View className="i-mdi-cog text-2xl text-blue-900 mr-3" />
                   <Text className="text-sm text-gray-800">设置</Text>
-                </View>
-                <View className="i-mdi-chevron-right text-xl text-gray-400" />
-              </View>
-
-              <View
-                className="flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50 transition-all"
-                onClick={forceCheckUpdate}>
-                <View className="flex items-center">
-                  <View className="i-mdi-update text-2xl text-green-600 mr-3" />
-                  <Text className="text-sm text-gray-800">检查更新</Text>
                 </View>
                 <View className="i-mdi-chevron-right text-xl text-gray-400" />
               </View>
