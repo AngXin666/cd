@@ -201,17 +201,27 @@ refactor: 执行代码清理计划阶段一 - 删除无效代码
 
 ---
 
-### 5. 未使用的shared页面功能
+### 5. ~~Shared通知页面~~ ✅ 保留
 
-**待评估**: shared目录下的通知相关页面
-- `src/pages/shared/driver-notification/`
-- `src/pages/shared/notification-templates/`
-- `src/pages/shared/scheduled-notifications/`
-- `src/pages/shared/notification-records/`
-- `src/pages/shared/auto-reminder-rules/`
+**评估结果**: shared目录下的通知相关页面
+- `src/pages/shared/driver-notification/` - ✅ 保留
+- `src/pages/shared/notification-templates/` - ✅ 保留
+- `src/pages/shared/scheduled-notifications/` - ✅ 保留
+- `src/pages/shared/notification-records/` - ✅ 保留
+- `src/pages/shared/auto-reminder-rules/` - ✅ 保留
 
-**状态**: ✅ 已在app.config.ts注册
-**建议**: 需要测试是否实际使用,如未使用则删除
+**状态**: ✅ 已在app.config.ts注册  
+**使用情况**: ✅ **核心业务功能,正在使用**
+- 车队长首页引用: driver-notification
+- 老板首页引用: driver-notification
+- driver-notification内部导航: 其他4个通知管理页面
+
+**结论**: **必须保留** - 这是完整的通知管理系统,包含:
+- 司机通知发送
+- 通知模板管理
+- 定时通知
+- 通知记录查询
+- 自动提醒规则配置
 
 ---
 
@@ -270,26 +280,31 @@ src/utils/smartDataLoader.ts
 
 ---
 
-### 阶段二: 评估后删除 (优先级: 🟡 中)
+### 阶段二: 评估后删除 (优先级: 🟡 中) - ✅ 已完成
 
-#### 需要评估的功能
+**评估时间**: 2025-12-12  
+**评估结果**: 无需删除
 
-**1. Shared通知页面**
+#### 1. Shared通知页面 - ✅ 保留
 ```bash
-# 测试这些页面是否被使用
-src/pages/shared/driver-notification/
-src/pages/shared/notification-templates/
-src/pages/shared/scheduled-notifications/
-src/pages/shared/notification-records/
-src/pages/shared/auto-reminder-rules/
+# 这些页面正在被使用 - 必须保留
+src/pages/shared/driver-notification/      # 被 manager/index.tsx, super-admin/index.tsx引用
+src/pages/shared/notification-templates/  # 被 driver-notification引用
+src/pages/shared/scheduled-notifications/ # 被 driver-notification引用
+src/pages/shared/notification-records/    # 被 driver-notification引用
+src/pages/shared/auto-reminder-rules/     # 被 driver-notification引用
 ```
 
-**评估方法**:
-1. 在生产环境运行7天
-2. 使用behaviorTracker记录页面访问
-3. 如果访问量=0,则删除
+**使用情况分析**:
+- ✅ 已在app.config.ts注册(第63-67行)
+- ✅ 车队长首页有入口
+- ✅ 老板首页有入口
+- ✅ 页面间有导航跳转
+- ✅ 完整的通知管理系统
 
-**2. ~~PEER_ADMIN功能~~ ✅ 已确认保留**
+**结论**: 这些是**核心业务功能**,不是无效代码,必须保留!
+
+#### 2. PEER_ADMIN功能 - ✅ 已确认保留
 - ✅ 业务确认需要"调度"角色
 - ✅ 保留整套PEER_ADMIN代码
 - 📋 待办: 完成UI界面开发
