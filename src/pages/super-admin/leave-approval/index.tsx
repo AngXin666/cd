@@ -1,5 +1,6 @@
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {showLoading, showToast, hideLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -98,7 +99,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
       // 老板可以看到所有记录，不需要过滤
       setAttendanceRecords(records)
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [user, filterMonth, initCurrentMonth])
 
@@ -696,7 +697,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
         duration: 2000
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 

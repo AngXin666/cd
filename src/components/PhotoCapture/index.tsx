@@ -5,6 +5,7 @@
 
 import {Button, Image, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import type React from 'react'
 import {useEffect, useState} from 'react'
 
@@ -29,7 +30,7 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
   const handleChooseImage = async (sourceType: 'camera' | 'album') => {
     try {
       // 显示加载提示
-      Taro.showLoading({
+      showLoading({
         title: '处理中...',
         mask: true
       })
@@ -58,14 +59,14 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
         onChange?.(path)
 
         // 隐藏加载提示
-        Taro.hideLoading()
+        hideLoading()
       } else {
-        Taro.hideLoading()
+        hideLoading()
       }
     } catch (error) {
       console.error('选择图片失败:', error)
-      Taro.hideLoading()
-      Taro.showToast({
+      hideLoading()
+      showToast({
         title: '选择图片失败',
         icon: 'none'
       })

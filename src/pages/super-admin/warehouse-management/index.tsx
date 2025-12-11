@@ -1,5 +1,6 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {showLoading, showToast, hideLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -44,7 +45,7 @@ const WarehouseManagement: React.FC = () => {
     showLoading({title: '加载中...'})
     const data = await WarehousesAPI.getAllWarehousesWithRules()
     setWarehouses(data)
-    Taro.hideLoading()
+    hideLoading()
   }, [])
 
   useDidShow(() => {
@@ -111,7 +112,7 @@ const WarehouseManagement: React.FC = () => {
         duration: 2000
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -271,7 +272,7 @@ const WarehouseManagement: React.FC = () => {
           duration: 2000
         })
       } finally {
-        Taro.hideLoading()
+        hideLoading()
       }
     })
   }
@@ -325,7 +326,7 @@ const WarehouseManagement: React.FC = () => {
           duration: 2000
         })
       } finally {
-        Taro.hideLoading()
+        hideLoading()
       }
     })
   }

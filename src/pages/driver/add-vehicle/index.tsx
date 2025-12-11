@@ -5,6 +5,7 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -45,7 +46,7 @@ const PHOTO_NAME_MAP: Record<string, string> = {
 const showOcrError = (error: unknown) => {
   console.error('识别失败:', error)
   const errorMessage = error instanceof Error ? error.message : '识别失败，请重新拍摄'
-  Taro.showToast({
+  showToast({
     title: errorMessage,
     icon: 'none',
     duration: 3000
@@ -512,7 +513,11 @@ const AddVehicle: React.FC = () => {
    */
   const showDriverLicenseRecognitionFailureDialog = async (missingFields: string[]) => {
     const fieldList = missingFields.join('、')
-    const message = `以下证件信息未能识别成功：\n\n${fieldList}\n\n请选择后续操作：`
+    const message = `以下证件信息未能识别成功：
+
+${fieldList}
+
+请选择后续操作：`
 
     const res = await Taro.showModal({
       title: '证件识别失败',
@@ -681,7 +686,11 @@ const AddVehicle: React.FC = () => {
    */
   const showRecognitionFailureDialog = async (missingFields: string[]) => {
     const fieldList = missingFields.join('、')
-    const message = `以下信息未能识别成功：\n\n${fieldList}\n\n请选择后续操作：`
+    const message = `以下信息未能识别成功：
+
+${fieldList}
+
+请选择后续操作：`
 
     const res = await Taro.showModal({
       title: '识别失败',
@@ -934,7 +943,12 @@ const AddVehicle: React.FC = () => {
     if (!vehicleValidation.isValid) {
       await Taro.showModal({
         title: '信息不完整',
-        content: `以下信息缺失或格式错误：\n\n${vehicleValidation.errors.join('\n')}\n\n请返回相应步骤补充完整信息。`,
+        content: `以下信息缺失或格式错误：
+
+${vehicleValidation.errors.join('
+')}
+
+请返回相应步骤补充完整信息。`,
         showCancel: false,
         confirmText: '我知道了'
       })
