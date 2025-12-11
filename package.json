@@ -11,10 +11,10 @@
   },
   "scripts": {
     "dev": "npm run dev:weapp",
-    "dev:h5": "taro build --type h5 --watch",
+    "dev:h5": "set NODE_OPTIONS=--max-old-space-size=8192 && taro build --type h5 --watch",
     "dev:weapp": "taro build --type weapp --watch",
     "build": "npm run build:weapp",
-    "build:h5": "taro build --type h5",
+    "build:h5": "set NODE_OPTIONS=--max-old-space-size=8192 && taro build --type h5",
     "build:weapp": "taro build --type weapp",
     "postinstall": "weapp-tw patch",
     "lint": "npx biome check --write --unsafe --diagnostic-level=error || true; tsgo -p tsconfig.check.json; ./scripts/checkAuth.sh; ./scripts/checkNavigation.sh"
