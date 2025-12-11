@@ -19,11 +19,10 @@ export default function TestLogin() {
 
   const getRoleName = useCallback((role: string): string => {
     const roleMap: Record<string, string> = {
-      super_admin: '老板',
-      manager: '车队长',
-      peer_admin: '平级账号',
-
-      driver: '司机'
+      BOSS: '老板',
+      PEER_ADMIN: '调度',
+      MANAGER: '车队长',
+      DRIVER: '司机'
     }
     return roleMap[role] || role
   }, [])
@@ -37,11 +36,12 @@ export default function TestLogin() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      // 单用户架构：从 users 和 user_roles 表查询
-      const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
-        supabase.from('users').select('id, name, phone, email').order('created_at', {ascending: true}).limit(20),
-        supabase.from('users').select('user_id, role')
-      ])
+      // 从 users 表查询账号数据（role字段已直接包含在users表中）
+      const {data: users, error: usersError} = await supabase
+        .from('users')
+        .select('id, name, phone, email, role')
+        .order('created_at', {ascending: true})
+        .limit(20)
 
       if (usersError) {
         console.error('获取账号列表失败', usersError)
@@ -49,13 +49,8 @@ export default function TestLogin() {
         return
       }
 
-      // 合并用户和角色数据
-      const data = users?.map((user) => ({
-        ...user,
-        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
-      }))
-
-      const accountsWithRoleName = (data || []).map((account) => ({
+      // 添加角色名称
+      const accountsWithRoleName = (users || []).map((account) => ({
         ...account,
         role_name: getRoleName(account.role)
       }))
@@ -73,11 +68,10 @@ export default function TestLogin() {
 
   const getRoleColor = (role: string): string => {
     const colorMap: Record<string, string> = {
-      super_admin: 'bg-red-500',
-      manager: 'bg-blue-500',
-      peer_admin: 'bg-purple-500',
-
-      driver: 'bg-gray-500'
+      BOSS: 'bg-red-500',
+      PEER_ADMIN: 'bg-purple-500',
+      MANAGER: 'bg-blue-500',
+      DRIVER: 'bg-gray-500'
     }
     return colorMap[role] || 'bg-gray-500'
   }
