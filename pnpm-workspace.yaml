@@ -1,3 +1,13 @@
 onlyBuiltDependencies:
-- "@ast-grep/cli"
-- "weapp-tailwindcss"
+  - '@ast-grep/cli'
+  - weapp-tailwindcss
+
+overrides:
+  esbuild@<=0.24.2: '>=0.25.0'
+  glob@>=10.2.0 <10.5.0: '>=10.5.0'
+  got@<11.8.5: '>=11.8.5'
+  http-cache-semantics@<4.1.1: '>=4.1.1'
+  vite-plugin-static-copy@>=0.4.3 <=2.3.1: '>=2.3.2'
+  vite@<=5.4.19: '>=5.4.20'
+  vite@>=4.5.3 <5.0.0: '>=5.4.21'
+  webpack@>=5.0.0-alpha.0 <5.94.0: '>=5.94.0'
