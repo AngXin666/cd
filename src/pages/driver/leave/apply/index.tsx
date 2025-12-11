@@ -19,6 +19,27 @@ import {
 } from '@/utils/date'
 import {formatLeaveDate} from '@/utils/dateFormat'
 
+// 环境检测
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储兼容工具函数
+const getStorageSync = (key: string): any => {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync(key)
+  }
+}
+
+const setStorageSync = (key: string, data: any): void => {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
 type LeaveMode = 'quick' | 'makeup'
 
 const ApplyLeave: React.FC = () => {
@@ -145,7 +166,7 @@ const ApplyLeave: React.FC = () => {
     } else {
       // 如果有多个仓库，尝试读取上次选择的仓库
       try {
-        const lastWarehouseId = Taro.getStorageSync(`leave_application_last_warehouse_${user.id}`)
+        const lastWarehouseId = getStorageSync(`leave_application_last_warehouse_${user.id}`)
         if (lastWarehouseId) {
           // 检查上次选择的仓库是否在当前可用仓库列表中
           const isWarehouseAvailable = activeWarehouses.some((w) => w.id === lastWarehouseId)
@@ -288,7 +309,7 @@ const ApplyLeave: React.FC = () => {
     // 保存用户的选择到本地存储
     if (user) {
       try {
-        Taro.setStorageSync(`leave_application_last_warehouse_${user.id}`, selectedWarehouseId)
+        setStorageSync(`leave_application_last_warehouse_${user.id}`, selectedWarehouseId)
       } catch (_error) {}
     }
   }

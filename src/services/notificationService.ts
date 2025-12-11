@@ -25,45 +25,28 @@ interface NotificationRecipient {
  */
 async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
   try {
-    // 单用户架构：从 users 和 user_roles 表查询第一个 BOSS 角色的用户
-    const {data: bossRoles, error: bossRolesError} = await supabase
-      .from('user_roles')
-      .select('user_id, role')
+    // 单用户架构：从 users 表查询第一个 BOSS 角色的用户
+    const {data: bossUser, error: bossUserError} = await supabase
+      .from('users')
+      .select('id, name, role')
       .eq('role', 'BOSS')
       .limit(1)
+      .maybeSingle()
 
-    if (bossRolesError) {
-      logger.error('获取主管理员角色信息失败', bossRolesError)
+    if (bossUserError) {
+      logger.error('获取主管理员角色信息失败', bossUserError)
       return null
     }
 
-    if (!bossRoles || bossRoles.length === 0) {
+    if (!bossUser) {
       logger.error('未找到主管理员角色')
       return null
     }
 
-    const bossId = bossRoles[0].user_id
-    const {data: bossUser, error: bossUserError} = (await supabase
-      .from('users')
-      .select('id, name')
-      .eq('id', bossId)
-      .limit(1)) as {data: Array<{id: string; name: string | null}> | null; error: any}
-
-    if (bossUserError) {
-      logger.error('获取主管理员信息失败', bossUserError)
-      return null
-    }
-
-    const bosses = bossUser ? [{...bossUser[0], role: bossRoles[0].role}] : null
-
-    if (!bosses || !Array.isArray(bosses) || bosses.length === 0) return null
-
-    const boss = bosses[0]
-
     return {
-      userId: boss.id,
-      name: boss.name || '老板',
-      role: boss.role || 'BOSS' // 确保role不为null
+      userId: bossUser.id,
+      name: bossUser.name || '老板',
+      role: bossUser.role || 'BOSS' // 确保role不为null
     }
   } catch (error) {
     logger.error('获取主管理员信息异常', error)
@@ -77,35 +60,23 @@ async function getPrimaryAdmin(): Promise<NotificationRecipient | null> {
  */
 async function getPeerAccounts(): Promise<NotificationRecipient[]> {
   try {
-    // 单用户架构：从 users 和 user_roles 表查询所有 PEER_ADMIN
-    const {data: roles, error: rolesError} = await supabase
-      .from('user_roles')
-      .select('user_id, role')
+    // 单用户架构：从 users 表直接查询所有 PEER_ADMIN 角色的用户
+    const {data: users, error: usersError} = await supabase
+      .from('users')
+      .select('id, name, role')
       .eq('role', 'PEER_ADMIN')
-      .order('user_id', {ascending: true})
+      .order('id', {ascending: true})
 
-    if (rolesError || !roles || roles.length === 0) {
+    if (usersError || !users || users.length === 0) {
       return []
     }
 
-    // 获取用户信息
-    const userIds = roles.map((role) => role.user_id)
-    const {data: users, error: usersError} = await supabase.from('users').select('id, name').in('id', userIds)
-
-    if (usersError || !users) {
-      logger.error('获取平级账号用户信息失败', {error: usersError})
-      return []
-    }
-
-    // 生成消息接收者列表：合并用户信息和角色信息
-    return roles.map((role) => {
-      const user = users.find((u) => u.id === role.user_id)
-      return {
-        userId: role.user_id,
-        name: user?.name || '平级管理员',
-        role: role.role || 'PEER_ADMIN'
-      }
-    })
+    // 生成消息接收者列表
+    return users.map((user) => ({
+      userId: user.id,
+      name: user.name || '平级管理员',
+      role: user.role || 'PEER_ADMIN'
+    }))
   } catch (error) {
     logger.error('获取平级账号异常', error)
     return []
@@ -165,12 +136,13 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     const managerIds = [...new Set(managerWarehouses.map((mw) => mw.user_id))]
 
-    // 步骤3：获取车队长的详细信息（单用户架构：从 users 和 user_roles 表查询）
+    // 步骤3：获取车队长的详细信息（单用户架构：从 users 表查询）
 
-    const [{data: users, error: usersError}, {data: roles}] = await Promise.all([
-      supabase.from('users').select('id, name').in('id', managerIds),
-      supabase.from('user_roles').select('user_id, role').eq('role', 'MANAGER').in('user_id', managerIds)
-    ])
+    const {data: users, error: usersError} = await supabase
+      .from('users')
+      .select('id, name, role')
+      .eq('role', 'MANAGER')
+      .in('id', managerIds)
 
     if (usersError) {
       console.error('  ❌ 查询用户信息失败:', usersError)
@@ -178,22 +150,14 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       return []
     }
 
-    // 合并用户和角色数据
-    const managers = users
-      ?.filter((user) => roles?.some((r) => r.user_id === user.id))
-      .map((user) => ({
-        ...user,
-        role: roles?.find((r) => r.user_id === user.id)?.role || 'DRIVER'
-      }))
-
-    if (!managers || managers.length === 0) {
+    if (!users || users.length === 0) {
       return []
     }
 
-    const result = managers.map((m) => ({
-      userId: m.id,
-      name: m.name || '车队长',
-      role: m.role
+    const result = users.map((user) => ({
+      userId: user.id,
+      name: user.name || '车队长',
+      role: user.role || 'MANAGER'
     }))
 
     result.forEach((_m, _index) => {})

@@ -4,12 +4,32 @@ import type React from 'react'
 import {useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
+// 检测当前运行环境
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储工具函数，兼容H5和小程序
+const removeStorageCompat = (key: string) => {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}
+
+const removeStorageAsyncCompat = async (key: string) => {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    await Taro.removeStorage({key})
+  }
+}
+
 // 清除旧的认证token
 const clearOldAuthTokens = async () => {
   try {
     const appId = process.env.TARO_APP_APP_ID
-    await Taro.removeStorage({key: `${appId}-auth-token`})
-    await Taro.removeStorage({key: `${appId}-auth-token-code-verifier`})
+    await removeStorageAsyncCompat(`${appId}-auth-token`)
+    await removeStorageAsyncCompat(`${appId}-auth-token-code-verifier`)
     await supabase.auth.signOut()
   } catch (_err) {}
 }
@@ -46,8 +66,8 @@ const Login: React.FC = () => {
 
   const handleLoginSuccess = async () => {
     // 清除登录来源标记
-    Taro.removeStorageSync('loginSourcePage')
-    Taro.removeStorageSync('isTestLogin')
+    removeStorageCompat('loginSourcePage')
+    removeStorageCompat('isTestLogin')
 
     // 登录成功后跳转到工作台首页
     try {
@@ -148,6 +168,12 @@ const Login: React.FC = () => {
     try {
       // 直接使用账号@test.local登录，无需查询
       const loginEmail = account.includes('@') ? account : `${account}@test.local`
+      
+      console.log('🔑 [开始登录]', {
+        account,
+        loginEmail,
+        password: password ? '***(已输入)' : '(未输入)'
+      })
 
       const result = await supabase.auth.signInWithPassword({
         email: loginEmail,
@@ -156,23 +182,39 @@ const Login: React.FC = () => {
 
       const error = result.error
       const _authData = result.data
+      
+      console.log('🔑 [登录结果]', {
+        success: !error,
+        error: error ? {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        } : null,
+        hasUser: !!_authData?.user,
+        hasSession: !!_authData?.session
+      })
 
       if (error) {
+        console.error('❌ [登录失败]', error)
         if (error.message.includes('Invalid login credentials')) {
           showToast({title: '账号或密码错误', icon: 'none', duration: 2000})
         } else {
           showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
         }
       } else {
+        console.log('✅ [登录成功]', {
+          userId: _authData?.user?.id,
+          email: _authData?.user?.email
+        })
         try {
           if (rememberMe) {
             setStorageSync('saved_account', account)
             setStorageSync('saved_password', password)
             setStorageSync('remember_me', true)
           } else {
-            Taro.removeStorageSync('saved_account')
-            Taro.removeStorageSync('saved_password')
-            Taro.removeStorageSync('remember_me')
+            removeStorageCompat('saved_account')
+            removeStorageCompat('saved_password')
+            removeStorageCompat('remember_me')
           }
         } catch (error) {
           console.error('保存账号密码失败:', error)
@@ -181,7 +223,8 @@ const Login: React.FC = () => {
         showToast({title: '登录成功', icon: 'success'})
         await handleLoginSuccess()
       }
-    } catch (_err) {
+    } catch (err) {
+      console.error('❌ [登录异常]', err)
       showToast({title: '登录失败，请稍后重试', icon: 'none'})
     } finally {
       setLoading(false)

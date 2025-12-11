@@ -18,6 +18,27 @@ import {
 } from '@/hooks'
 import {smartLogout} from '@/utils/auth'
 
+// 检测当前运行环境
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储工具函数，兼容H5和小程序
+const getStorageSync = (key: string): any => {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync(key)
+  }
+}
+
+const setStorageSync = (key: string, data: any): void => {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
 const SuperAdminHome: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -132,7 +153,7 @@ const SuperAdminHome: React.FC = () => {
 
       // 添加欢迎通知（仅在首次加载时）
       try {
-        const hasShownWelcome = Taro.getStorageSync('super_admin_welcome_shown')
+        const hasShownWelcome = getStorageSync('super_admin_welcome_shown')
         if (!hasShownWelcome) {
           // 添加多条通知以展示滚动效果
           addNotification({
@@ -157,7 +178,7 @@ const SuperAdminHome: React.FC = () => {
             })
           }, 200)
 
-          Taro.setStorageSync('super_admin_welcome_shown', 'true')
+          setStorageSync('super_admin_welcome_shown', 'true')
         }
       } catch (err) {
         console.error('加载欢迎通知失败:', err)

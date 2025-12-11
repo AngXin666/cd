@@ -5,6 +5,35 @@ import {supabase} from '@/client/supabase'
 import {getManagerWarehouses} from '@/db/api'
 import type {Warehouse} from '@/db/types'
 
+// 检测当前运行环境
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储工具函数，兼容H5和小程序
+function getStorageSync(key: string): any {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync(key)
+  }
+}
+
+function setStorageSync(key: string, data: any): void {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
+function removeStorageSync(key: string): void {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}
+
 // 缓存配置
 const WAREHOUSES_CACHE_KEY = 'manager_warehouses_cache'
 const CACHE_EXPIRY_MS = 10 * 60 * 1000 // 10分钟缓存有效期
@@ -38,7 +67,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
     if (!cacheEnabled) return null
 
     try {
-      const cached = Taro.getStorageSync(WAREHOUSES_CACHE_KEY) as CachedWarehouses | null
+      const cached = getStorageSync(WAREHOUSES_CACHE_KEY) as CachedWarehouses | null
 
       if (cached && cached.managerId === managerId) {
         const now = Date.now()
@@ -47,7 +76,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
           return cached.data
         }
         // 缓存过期，删除
-        Taro.removeStorageSync(WAREHOUSES_CACHE_KEY)
+        removeStorageSync(WAREHOUSES_CACHE_KEY)
       }
     } catch (err) {
       console.error('读取仓库缓存失败:', err)
@@ -67,7 +96,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
           timestamp: Date.now(),
           managerId
         }
-        Taro.setStorageSync(WAREHOUSES_CACHE_KEY, cacheData)
+        setStorageSync(WAREHOUSES_CACHE_KEY, cacheData)
       } catch (err) {
         console.error('保存仓库缓存失败:', err)
       }
@@ -78,7 +107,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
   // 清除缓存
   const clearCache = useCallback(() => {
     try {
-      Taro.removeStorageSync(WAREHOUSES_CACHE_KEY)
+      removeStorageSync(WAREHOUSES_CACHE_KEY)
     } catch (err) {
       console.error('清除仓库缓存失败:', err)
     }

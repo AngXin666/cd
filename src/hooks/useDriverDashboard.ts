@@ -5,6 +5,35 @@ import {supabase} from '@/client/supabase'
 import {getDriverAttendanceStats, getDriverWarehouses, getPieceWorkRecordsByUser} from '@/db/api'
 import type {Warehouse} from '@/db/types'
 
+// 环境检测
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储兼容工具函数
+const getStorageSync = <T>(key: string): T | null => {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync<T>(key)
+  }
+}
+
+const setStorageSync = (key: string, data: any): void => {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
+const removeStorageSync = (key: string): void => {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}
+
 // 司机仪表板统计数据
 export interface DriverDashboardStats {
   todayPieceCount: number
@@ -69,7 +98,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
     try {
       const cacheKey = getCacheKey()
-      const cached = Taro.getStorageSync<CachedData>(cacheKey)
+      const cached = getStorageSync<CachedData>(cacheKey)
       if (cached?.data) {
         const age = Date.now() - cached.timestamp
         if (age < CACHE_EXPIRY_MS) {
@@ -94,7 +123,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
           timestamp: Date.now(),
           warehouseId: warehouseId || 'all'
         }
-        Taro.setStorageSync(cacheKey, cacheData)
+        setStorageSync(cacheKey, cacheData)
       } catch (err) {
         console.error('[useDriverDashboard] 写入缓存失败:', err)
       }
@@ -106,7 +135,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
   const clearCache = useCallback(() => {
     try {
       const cacheKey = getCacheKey()
-      Taro.removeStorageSync(cacheKey)
+      removeStorageSync(cacheKey)
     } catch (err) {
       console.error('[useDriverDashboard] 清除缓存失败:', err)
     }
@@ -326,7 +355,7 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
     if (!cacheEnabled) return null
 
     try {
-      const cached = Taro.getStorageSync<{data: Warehouse[]; timestamp: number}>(CACHE_KEY)
+      const cached = getStorageSync<{data: Warehouse[]; timestamp: number}>(CACHE_KEY)
       if (cached?.data) {
         const age = Date.now() - cached.timestamp
         if (age < CACHE_EXPIRY_MS) {
@@ -345,7 +374,7 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
       if (!cacheEnabled) return
 
       try {
-        Taro.setStorageSync(CACHE_KEY, {
+        setStorageSync(CACHE_KEY, {
           data,
           timestamp: Date.now()
         })
@@ -359,7 +388,7 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   // 清除缓存
   const clearCache = useCallback(() => {
     try {
-      Taro.removeStorageSync(CACHE_KEY)
+      removeStorageSync(CACHE_KEY)
     } catch (err) {
       console.error('[useDriverWarehouses] 清除缓存失败:', err)
     }

@@ -1,6 +1,35 @@
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
 
+// 检测当前运行环境
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储工具函数，兼容H5和小程序
+function getStorageSync(key: string): any {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync(key)
+  }
+}
+
+function setStorageSync(key: string, data: any): void {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
+function removeStorageSync(key: string): void {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}
+
 // 通知类型
 export type NotificationType =
   | 'leave_application' // 请假申请
@@ -33,7 +62,7 @@ export function useNotifications() {
   // 从本地存储加载通知
   const loadNotifications = useCallback(() => {
     try {
-      const stored = Taro.getStorageSync(STORAGE_KEY)
+      const stored = getStorageSync(STORAGE_KEY)
       if (stored && Array.isArray(stored)) {
         setNotifications(stored)
         const unread = stored.filter((n) => !n.read).length
@@ -49,7 +78,7 @@ export function useNotifications() {
     try {
       // 只保存最新的 MAX_NOTIFICATIONS 条
       const toSave = notifs.slice(0, MAX_NOTIFICATIONS)
-      Taro.setStorageSync(STORAGE_KEY, toSave)
+      setStorageSync(STORAGE_KEY, toSave)
     } catch (err) {
       console.error('保存通知失败:', err)
     }
@@ -106,7 +135,7 @@ export function useNotifications() {
     setNotifications([])
     setUnreadCount(0)
     try {
-      Taro.removeStorageSync(STORAGE_KEY)
+      removeStorageSync(STORAGE_KEY)
     } catch (err) {
       console.error('清除通知失败:', err)
     }

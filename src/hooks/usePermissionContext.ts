@@ -15,6 +15,35 @@ import type {
   SchedulerPermissionContext
 } from '@/types/permission-context'
 
+// 环境检测
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储兼容工具函数
+const getStorageSync = (key: string): any => {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync(key)
+  }
+}
+
+const setStorageSync = (key: string, data: any): void => {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
+const removeStorageSync = (key: string): void => {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}
+
 /**
  * 权限上下文存储键
  */
@@ -62,8 +91,8 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
    */
   const loadFromCache = useCallback((): PermissionContext | null => {
     try {
-      const cachedContext = Taro.getStorageSync(PERMISSION_CONTEXT_KEY)
-      const cachedTimestamp = Taro.getStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
+      const cachedContext = getStorageSync(PERMISSION_CONTEXT_KEY)
+      const cachedTimestamp = getStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
 
       if (cachedContext && cachedTimestamp) {
         const now = Date.now()
@@ -86,8 +115,8 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
    */
   const saveToCache = useCallback((permissionContext: PermissionContext) => {
     try {
-      Taro.setStorageSync(PERMISSION_CONTEXT_KEY, permissionContext)
-      Taro.setStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY, Date.now())
+      setStorageSync(PERMISSION_CONTEXT_KEY, permissionContext)
+      setStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY, Date.now())
     } catch (error) {
       console.error('❌ [权限上下文] 保存到缓存失败:', error)
     }
@@ -171,8 +200,8 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
     setContext(null)
     setError(null)
     try {
-      Taro.removeStorageSync(PERMISSION_CONTEXT_KEY)
-      Taro.removeStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
+      removeStorageSync(PERMISSION_CONTEXT_KEY)
+      removeStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
     } catch (error) {
       console.error('❌ [权限上下文] 清除权限上下文失败:', error)
     }

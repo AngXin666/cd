@@ -5,6 +5,35 @@ import {supabase} from '@/client/supabase'
 import type {DashboardStats} from '@/db/api'
 import {getAllWarehousesDashboardStats, getWarehouseDashboardStats} from '@/db/api'
 
+// 环境检测
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 存储兼容工具函数
+const getStorageSync = (key: string): any => {
+  if (isH5) {
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
+  } else {
+    return Taro.getStorageSync(key)
+  }
+}
+
+const setStorageSync = (key: string, data: any): void => {
+  if (isH5) {
+    localStorage.setItem(key, JSON.stringify(data))
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
+const removeStorageSync = (key: string): void => {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}
+
 // 缓存配置
 const CACHE_KEY_ALL = 'super_admin_dashboard_all'
 const CACHE_KEY_PREFIX = 'super_admin_dashboard_'
@@ -48,7 +77,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
 
       try {
         const cacheKey = getCacheKey(wid)
-        const cached = Taro.getStorageSync(cacheKey) as CachedData | null
+        const cached = getStorageSync(cacheKey) as CachedData | null
 
         if (cached) {
           const now = Date.now()
@@ -57,7 +86,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
             return cached.data
           }
           // 缓存过期，删除
-          Taro.removeStorageSync(cacheKey)
+          removeStorageSync(cacheKey)
         }
       } catch (err) {
         console.error('读取缓存失败:', err)
@@ -80,7 +109,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
           timestamp: Date.now(),
           warehouseId: wid
         }
-        Taro.setStorageSync(cacheKey, cacheData)
+        setStorageSync(cacheKey, cacheData)
       } catch (err) {
         console.error('保存缓存失败:', err)
       }
@@ -93,7 +122,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
     (wid?: string) => {
       try {
         const cacheKey = getCacheKey(wid)
-        Taro.removeStorageSync(cacheKey)
+        removeStorageSync(cacheKey)
       } catch (err) {
         console.error('清除缓存失败:', err)
       }

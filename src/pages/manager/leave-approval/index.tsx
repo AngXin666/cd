@@ -1,5 +1,5 @@
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -13,6 +13,27 @@ import {supabase} from '@/db/supabase'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
+
+// 检测当前运行环境
+const isH5 = process.env.TARO_ENV === 'h5'
+
+// 兼容H5和小程序的loading函数
+const showLoading = (options: {title: string}) => {
+  if (isH5) {
+    // H5环境不显示loading，或者可以使用自定义的loading组件
+    console.log('Loading:', options.title)
+  } else {
+    Taro.showLoading(options)
+  }
+}
+
+const hideLoading = () => {
+  if (isH5) {
+    // H5环境不需要隐藏
+  } else {
+    Taro.hideLoading()
+  }
+}
 
 // 司机统计数据类型
 interface DriverStats {
@@ -105,7 +126,7 @@ const ManagerLeaveApproval: React.FC = () => {
       const filteredRecords = records.filter((r) => managedWarehouseIds.includes(r.warehouse_id))
       setAttendanceRecords(filteredRecords)
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [user, filterMonth, initCurrentMonth])
 

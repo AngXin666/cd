@@ -80,12 +80,12 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         if (assignedDrivers && assignedDrivers.length > 0) {
           const userIds = assignedDrivers.map((a) => a.user_id)
           const {data: driverRoles} = await supabase
-            .from('user_roles')
-            .select('user_id')
+            .from('users')
+            .select('id')
             .eq('role', 'DRIVER')
-            .in('user_id', userIds)
+            .in('id', userIds)
 
-          driverIds = driverRoles?.map((d) => d.user_id) || []
+          driverIds = driverRoles?.map((d) => d.id) || []
         }
 
         if (driverIds.length === 0) {
@@ -102,8 +102,8 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         }
       } else {
         // 获取所有司机ID（只统计角色为 DRIVER 的用户）
-        const {data: allDrivers} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
-        driverIds = allDrivers?.map((d) => d.user_id) || []
+        const {data: allDrivers} = await supabase.from('users').select('id').eq('role', 'DRIVER')
+        driverIds = allDrivers?.map((d) => d.id) || []
       }
 
       const totalDrivers = driverIds.length
@@ -256,7 +256,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       )
       .subscribe()
 
-    // 监听用户角色变化
+    // 监听用户角色变化 - 单用户架构：监听 users 表
     const roleChannel = supabase
       .channel('driver-stats-role')
       .on(
@@ -264,7 +264,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         {
           event: '*',
           schema: 'public',
-          table: 'user_roles'
+          table: 'users'
         },
         (_payload) => {
           if (cacheEnabled) {
