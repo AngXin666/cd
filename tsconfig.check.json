@@ -1,4 +1,5 @@
 {
+  
   "include": ["./src", "./types"],
   "exclude": ["./src/**/*.test.ts", "./src/**/*.spec.ts"],
   "compilerOptions": {
@@ -9,6 +10,8 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@/*": ["./src/*"]

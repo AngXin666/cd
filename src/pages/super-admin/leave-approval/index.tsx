@@ -563,11 +563,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
           // 🔄 更新原有通知状态（发送给老板和车队长的通知）
           // 只更新原始申请通知，不更新审批结果通知
-          console.log('🔍 开始查询原始申请通知:', {
-            related_id: applicationId,
-            type: 'leave_application_submitted',
-            current_user: user.id
-          })
 
           const {data: existingNotifications, error: queryError} = await supabase
             .from('notifications')
@@ -579,33 +574,14 @@ const SuperAdminLeaveApproval: React.FC = () => {
             console.error('❌ 查询原始通知失败:', queryError)
           }
 
-          console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
-
           if (existingNotifications && existingNotifications.length > 0) {
-            console.log('📋 通知详情:')
-            existingNotifications.forEach((n, index) => {
-              console.log(`  [${index + 1}] ID: ${n.id}`)
-              console.log(`      接收者: ${n.recipient_id}`)
-              console.log(`      类型: ${n.type}`)
-              console.log(`      关联ID: ${n.related_id}`)
-              console.log(`      审批状态: ${n.approval_status}`)
-              console.log(`      标题: ${n.title}`)
-              console.log(`      是否已读: ${n.is_read}`)
-            })
+            existingNotifications.forEach((_n, _index) => {})
           } else {
-            console.warn('⚠️ 未查询到任何原始申请通知！')
-            console.log('🔍 可能的原因:')
-            console.log('  1. related_id 不匹配')
-            console.log('  2. type 不匹配')
-            console.log('  3. 通知已被删除')
-            console.log('  4. 司机提交时没有创建通知')
           }
-
-          console.log('👤 当前审批人 ID:', user.id)
 
           if (existingNotifications && existingNotifications.length > 0) {
             // 统计更新结果
-            let successCount = 0
+            let _successCount = 0
             let failCount = 0
             const errors: string[] = []
 
@@ -616,14 +592,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
               const message = isReviewer
                 ? `您${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
                 : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
-
-              console.log(
-                `📝 准备更新通知 ${notification.id}:`,
-                `\n  - 接收者: ${notification.recipient_id}`,
-                `\n  - 是否为审批人: ${isReviewer}`,
-                `\n  - 新状态: ${approvalStatus}`,
-                `\n  - 新内容: ${message}`
-              )
 
               const {error: updateError} = await supabase
                 .from('notifications')
@@ -641,13 +609,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
                 failCount++
                 errors.push(`通知 ${notification.id.substring(0, 8)}... 更新失败: ${updateError.message}`)
               } else {
-                console.log(`✅ 成功更新通知 ${notification.id}`)
-                successCount++
+                _successCount++
               }
             }
 
             // 显示更新结果摘要
-            console.log(`📊 通知更新结果: 成功 ${successCount} 条, 失败 ${failCount} 条`)
 
             if (failCount > 0) {
               console.error('❌ 更新失败的通知:', errors)
@@ -658,10 +624,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
                 duration: 3000
               })
             } else {
-              console.log(`✅ 已成功更新所有 ${existingNotifications.length} 条请假审批通知状态`)
             }
           } else {
-            console.warn('⚠️ 未找到需要更新的原始申请通知')
           }
 
           // 🔔 创建新通知给司机（审批结果通知）
@@ -673,8 +637,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
             driverMessage,
             applicationId // 关联请假申请ID
           )
-
-          console.log(`✅ 已发送审批结果通知给司机: ${application.user_id}`)
 
           // 4. 如果是拒绝请假，则通知该仓库的调度和车队长
           if (!approved && application.warehouse_id) {
@@ -708,8 +670,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
                   )
                 }
               }
-
-              console.log(`✅ 已发送请假拒绝通知给 ${managersAndDispatchers.length} 位调度和车队长`)
             } catch (managerNotificationError) {
               console.error('❌ 发送调度和车队长通知失败:', managerNotificationError)
               // 通知发送失败不影响审批流程
@@ -764,16 +724,12 @@ const SuperAdminLeaveApproval: React.FC = () => {
         throw new Error('未找到离职申请')
       }
 
-      console.log('📋 开始审批离职申请:', {applicationId, approved, user_id: application.user_id})
-
       // 2. 审批离职申请
       const success = await LeaveAPI.reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString()
       })
-
-      console.log('📋 审批结果:', success)
 
       if (success) {
         // 3. 发送审批结果通知（即使失败也不影响审批）
@@ -840,8 +796,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
             driverMessage,
             applicationId
           )
-
-          console.log('✅ 通知发送完成')
         } catch (notificationError) {
           console.error('❌ 通知发送失败:', notificationError)
           // 通知失败不影响审批
@@ -852,8 +806,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
           icon: 'success',
           duration: 1500
         })
-        
-        console.log('✅ 审批完成，刷新数据')
+
         await loadData()
       } else {
         console.error('❌ 审批接口返回失败')
@@ -868,7 +821,6 @@ const SuperAdminLeaveApproval: React.FC = () => {
       })
     } finally {
       Taro.hideLoading()
-      console.log('📍 审批流程结束')
     }
   }
 

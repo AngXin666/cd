@@ -92,11 +92,8 @@ const DataSummary: React.FC = () => {
         )
         data = allRecords.flat()
       } else {
-        // 获取指定司机在所有管辖仓库的计件记录
+        // 获取指定司机的所有计件记录（不再根据仓库ID过滤）
         data = await PieceworkAPI.getPieceWorkRecordsByUser(selectedDriverId, startDate, endDate)
-        // 筛选出管辖仓库的记录
-        const warehouseIds = warehouses.map((w) => w.id)
-        data = data.filter((r) => warehouseIds.includes(r.warehouse_id))
       }
     } else {
       // 选择了特定仓库
@@ -315,7 +312,8 @@ const DataSummary: React.FC = () => {
                 range={driverOptions}
                 value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
                 onChange={(e) => {
-                  const index = Number(e.detail.value)
+                  if (!e || !e.detail) return
+                  const index = Number(e.detail.value || 0)
                   if (index === 0) {
                     setSelectedDriverId('')
                   } else {

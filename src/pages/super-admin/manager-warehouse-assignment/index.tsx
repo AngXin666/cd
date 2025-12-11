@@ -31,8 +31,16 @@ const ManagerWarehouseAssignment: React.FC = () => {
 
   // 加载管理员的仓库分配
   const loadManagerWarehouses = useCallback(async (managerId: string) => {
+    console.log('[仓库管理-管理员仓库分配] 加载管理员的仓库分配', {managerId})
     const data = await WarehousesAPI.getManagerWarehouses(managerId)
-    setSelectedWarehouseIds(data.map((w) => w.id))
+    const warehouseIds = data.map((w) => w.id)
+    console.log('[仓库管理-管理员仓库分配] 管理员已分配仓库', {
+      managerId,
+      warehouses: data,
+      warehouseIds,
+      count: warehouseIds.length
+    })
+    setSelectedWarehouseIds(warehouseIds)
   }, [])
 
   useEffect(() => {
@@ -53,18 +61,29 @@ const ManagerWarehouseAssignment: React.FC = () => {
 
   // 选择管理员
   const handleSelectManager = async (manager: Profile) => {
+    console.log('[仓库管理-管理员仓库分配] 选择管理员', {
+      managerId: manager.id,
+      managerName: manager.name,
+      role: manager.role
+    })
     setSelectedManager(manager)
     await loadManagerWarehouses(manager.id)
   }
 
   // 处理仓库选择变化
   const handleWarehouseChange = (e: any) => {
-    setSelectedWarehouseIds(e.detail.value)
+    const newSelected = e.detail.value
+    console.log('[仓库管理-管理员仓库分配] 仓库选择变化', {
+      selectedWarehouseIds: newSelected,
+      count: newSelected.length
+    })
+    setSelectedWarehouseIds(newSelected)
   }
 
   // 保存分配
   const handleSave = async () => {
     if (!selectedManager) {
+      console.warn('[仓库管理-管理员仓库分配] 未选择管理员')
       Taro.showToast({
         title: '请先选择管理员',
         icon: 'none'
@@ -72,11 +91,18 @@ const ManagerWarehouseAssignment: React.FC = () => {
       return
     }
 
+    console.log('[仓库管理-管理员仓库分配] 开始保存仓库分配', {
+      managerId: selectedManager.id,
+      managerName: selectedManager.name,
+      selectedWarehouseIds,
+      warehouseCount: selectedWarehouseIds.length
+    })
     setLoading(true)
     const success = await UsersAPI.setManagerWarehouses(selectedManager.id, selectedWarehouseIds)
     setLoading(false)
 
     if (success) {
+      console.log('[仓库管理-管理员仓库分配] 保存成功')
       Taro.showToast({
         title: '分配成功，数据已同步',
         icon: 'success',
@@ -92,6 +118,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
         })
       }, 2000)
     } else {
+      console.error('[仓库管理-管理员仓库分配] 保存失败')
       Taro.showToast({
         title: '保存失败',
         icon: 'error'

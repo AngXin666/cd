@@ -5,6 +5,9 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {PermissionAction} from '@/config/permission-config'
+import {checkCurrentUserPermission} from '@/services/permission-service'
+import {getDriverIdsByWarehouse, getManagerWarehouses} from './api/warehouses'
 import type {Profile, UserRole} from './types'
 
 /**
@@ -93,21 +96,80 @@ export async function getUsersWithRole(userIds?: string[]): Promise<UserWithRole
 }
 
 /**
- * 根据角色查询用户
- * 优化后：直接从users表查询，无需JOIN
+ * 根据角色获取用户列表
  *
  * @param role - 用户角色
+ * @param user - 用户对象，包含id和可选的role字段
  * @returns 用户信息数组
  */
-export async function getUsersByRole(role: UserRole): Promise<UserWithRole[]> {
-  const {data: users, error} = await supabase.from('users').select('*').eq('role', role)
+export async function getUsersByRole(
+  role: UserRole,
+  user?: {id: string; role?: string} | null
+): Promise<UserWithRole[]> {
+  try {
+    if (!user) {
+      console.error('[getUsersByRole] 用户未登录')
+      throw new Error('用户未登录')
+    }
 
-  if (error) {
-    console.error('[getUsersByRole] 查询用户失败:', error)
-    throw new Error(`查询用户失败: ${error.message}`)
+    const permissionResult = checkCurrentUserPermission('users', PermissionAction.SELECT, user)
+    if (!permissionResult.hasPermission) {
+      console.error('[getUsersByRole] 查询用户权限不足:', permissionResult.error)
+      throw new Error('查询用户权限不足')
+    }
+
+    let query = supabase.from('users').select('*').eq('role', role)
+
+    // 应用数据过滤
+    if (permissionResult.filter) {
+      // 对于车队长角色，需要特殊处理：查看管辖仓库下的司机
+      if (user.role === 'MANAGER' && role === 'DRIVER') {
+        // 获取车队长管理的所有仓库
+        const managerWarehouses = await getManagerWarehouses(user.id)
+        const warehouseIds = managerWarehouses.map((warehouse) => warehouse.id)
+
+        if (warehouseIds.length > 0) {
+          // 获取这些仓库下的所有用户ID
+          const allUserIds: string[] = []
+          for (const warehouseId of warehouseIds) {
+            const userIds = await getDriverIdsByWarehouse(warehouseId)
+            allUserIds.push(...userIds)
+          }
+
+          // 去重并添加到查询中
+          const uniqueUserIds = [...new Set(allUserIds)]
+          if (uniqueUserIds.length > 0) {
+            query = query.in('id', uniqueUserIds)
+          } else {
+            // 如果没有管辖的司机，返回空数组
+            return []
+          }
+        } else {
+          // 如果没有管辖的仓库，返回空数组
+          return []
+        }
+      } else {
+        // 其他情况应用普通过滤
+        Object.entries(permissionResult.filter).forEach(([key, value]) => {
+          query = query.eq(key, value)
+        })
+      }
+    }
+    const {data: userData, error} = await query
+
+    if (error) {
+      console.error('[getUsersByRole] 查询用户失败:', error)
+      throw new Error(`查询用户失败: ${error.message}`)
+    }
+
+    // 转换数据格式以匹配UserWithRole类型
+    const users = userData || []
+
+    return users
+  } catch (error) {
+    console.error('[getUsersByRole] 查询用户异常:', error)
+    throw error
   }
-
-  return users || []
 }
 
 /**
@@ -194,14 +256,14 @@ export async function deleteUser(userId: string): Promise<void> {
  * @returns 是否具有该角色
  */
 export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
-  const {data, error} = await supabase.from('users').select('role').eq('id', userId).eq('role', role).maybeSingle()
+  const {data, error} = await supabase.from('users').select('role').eq('id', userId).maybeSingle()
 
   if (error) {
     console.error('[hasRole] 查询角色失败:', error)
     return false
   }
 
-  return data !== null
+  return data?.role === role
 }
 
 /**

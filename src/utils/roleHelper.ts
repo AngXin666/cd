@@ -41,7 +41,7 @@ export function isManager(role: UserRole | undefined | null): boolean {
  * @param managerRole 管理员角色
  * @param targetRole 目标用户角色
  * @returns 是否可以管理
- * 
+ *
  * 权限规则：
  * - BOSS: 可以管理所有角色
  * - PEER_ADMIN: 根据被授予的权限等级管理（需要完整控制权）
@@ -56,12 +56,12 @@ export function canManageUser(managerRole: UserRole | undefined | null, targetRo
 
   // PEER_ADMIN 可以管理所有角色（如果有完整控制权）
   if (managerRole === 'PEER_ADMIN') {
-    return true  // 由RLS策略控制实际权限
+    return true // 由RLS策略控制实际权限
   }
 
   // MANAGER 只能管理被分配仓库内的 DRIVER（需要完整控制权）
   if (managerRole === 'MANAGER') {
-    return targetRole === 'DRIVER'  // 由RLS策略控制实际仓库范围和权限等级
+    return targetRole === 'DRIVER' // 由RLS策略控制实际仓库范围和权限等级
   }
 
   // 其他角色不能管理

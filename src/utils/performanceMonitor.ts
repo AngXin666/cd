@@ -56,7 +56,6 @@ class PerformanceMonitor {
    */
   async init(userId: string) {
     this.userId = userId
-    console.log('[性能监控] 初始化完成', {userId})
   }
 
   /**
@@ -72,7 +71,6 @@ class PerformanceMonitor {
   endTimer(name: string, metricType: MetricType, unit: string = 'ms') {
     const startTime = this.timers.get(name)
     if (!startTime) {
-      console.warn(`[性能监控] 未找到计时器: ${name}`)
       return
     }
 
@@ -100,8 +98,6 @@ class PerformanceMonitor {
     this.saveMetricToDatabase(metric).catch((error) => {
       console.error('[性能监控] 保存指标失败:', error)
     })
-
-    console.log('[性能监控] 记录指标', metric)
   }
 
   /**
@@ -243,7 +239,6 @@ class PerformanceMonitor {
     this.timers.clear()
     this.cacheHits = 0
     this.cacheMisses = 0
-    console.log('[性能监控] 清理完成')
   }
 }
 

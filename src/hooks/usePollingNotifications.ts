@@ -51,11 +51,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
   // 显示通知
   const showNotification = useCallback(
     (title: string, content: string, key: string, type: Notification['type'], data?: any) => {
-      console.log('🔔 [轮询] 尝试显示通知:', {title, content, key, type, data})
-
       if (shouldShowNotification(key)) {
-        console.log('✅ [轮询] 通过防抖检查，显示通知')
-
         // 显示 Toast 通知
         Taro.showToast({
           title,
@@ -68,7 +64,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
         // 添加到通知栏
         if (onNewNotification) {
-          console.log('📢 [轮询] 调用 onNewNotification 回调')
           onNewNotification({
             type,
             title,
@@ -76,10 +71,8 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
             data
           })
         } else {
-          console.warn('⚠️ [轮询] onNewNotification 回调未定义')
         }
       } else {
-        console.log('⏭️ [轮询] 防抖拦截，跳过通知')
       }
     },
     [shouldShowNotification, onNewNotification]
@@ -94,7 +87,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
       )
 
       if (newApplications.length > 0) {
-        console.log('📨 [轮询] 发现新的请假申请:', newApplications.length, '条')
         showNotification(
           '收到新的请假申请',
           `有 ${newApplications.length} 条新的请假申请`,
@@ -121,7 +113,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
       )
 
       if (recentlyUpdated.length > 0) {
-        console.log('📝 [轮询] 发现请假申请状态变化:', recentlyUpdated.length, '条')
         const app = recentlyUpdated[0]
         if (app.status === 'approved') {
           showNotification('您的请假申请已通过', '您的请假申请已通过审批', 'leave_approved', 'approval', {
@@ -148,7 +139,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
       )
 
       if (newApplications.length > 0) {
-        console.log('📨 [轮询] 发现新的离职申请:', newApplications.length, '条')
         showNotification(
           '收到新的离职申请',
           `有 ${newApplications.length} 条新的离职申请`,
@@ -175,7 +165,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
       )
 
       if (recentlyUpdated.length > 0) {
-        console.log('📝 [轮询] 发现离职申请状态变化:', recentlyUpdated.length, '条')
         const app = recentlyUpdated[0]
         if (app.status === 'approved') {
           showNotification('您的离职申请已通过', '您的离职申请已通过审批', 'resignation_approved', 'approval', {
@@ -200,7 +189,6 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
       const newRecords = records.filter((record) => new Date(record.created_at).getTime() > lastCheckTime.current)
 
       if (newRecords.length > 0) {
-        console.log('📨 [轮询] 发现新的打卡记录:', newRecords.length, '条')
         onAttendanceChange?.()
       }
     } catch (error) {
@@ -244,7 +232,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
         intervalRef.current = null
       }
     }
-  }, [userId, userRole, pollingInterval, poll])
+  }, [userId, pollingInterval, poll])
 
   return {
     // 可以添加一些控制方法，比如暂停/恢复轮询

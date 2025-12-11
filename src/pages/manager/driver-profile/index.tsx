@@ -30,7 +30,6 @@ const DriverProfileView: React.FC = () => {
   // 加载司机资料和证件信息
   const loadProfile = useCallback(async () => {
     if (!driverId) {
-      logger.warn('缺少司机ID参数')
       Taro.showToast({
         title: '缺少司机ID',
         icon: 'none'
@@ -42,21 +41,11 @@ const DriverProfileView: React.FC = () => {
     setLoading(true)
     try {
       // 加载司机资料
-      logger.info('开始加载司机资料', {driverId})
       const profileData = await UsersAPI.getProfileById(driverId)
-      logger.info('司机资料加载完成', {driverId, hasData: !!profileData})
       setProfile(profileData)
 
       // 加载驾驶证信息
-      logger.info('开始加载驾驶证信息', {driverId})
       const licenseData = await VehiclesAPI.getDriverLicense(driverId)
-      logger.info('驾驶证信息加载完成', {
-        driverId,
-        hasData: !!licenseData,
-        driverName: licenseData?.id_card_name,
-        hasIdCard: !!licenseData?.id_card_photo_front,
-        hasDriverLicense: !!licenseData?.driving_license_photo
-      })
       setDriverLicense(licenseData)
     } catch (error) {
       logger.error('加载司机资料失败', error)
@@ -76,23 +65,19 @@ const DriverProfileView: React.FC = () => {
   // 获取图片的公开URL
   const getImageUrl = (path: string | null | undefined): string => {
     if (!path) {
-      logger.debug('图片路径为空')
       return ''
     }
 
     // 如果已经是完整的URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      logger.debug('已经是完整URL，直接使用', {path})
       return path
     }
 
     // 否则从storage生成公共URL
     const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
-    logger.debug('从存储桶生成图片URL', {path, bucketName})
 
     try {
       const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
-      logger.debug('图片URL生成成功', {path, url: data.publicUrl})
       return data.publicUrl
     } catch (error) {
       logger.error('获取图片URL失败', {path, bucketName, error})
@@ -441,7 +426,6 @@ const DriverProfileView: React.FC = () => {
                     return
                   }
 
-                  logger.info('重置密码成功', {driverId})
                   Taro.showToast({
                     title: '密码已重置为 123456',
                     icon: 'success'
@@ -488,7 +472,6 @@ const DriverProfileView: React.FC = () => {
                     return
                   }
 
-                  logger.info('提升为管理员成功', {driverId})
                   Taro.showToast({
                     title: '已提升为管理员',
                     icon: 'success',

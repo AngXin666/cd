@@ -13,11 +13,6 @@ import type {PermissionContext, PermissionContextResponse} from '@/types/permiss
  */
 export async function getPermissionContext(userId: string): Promise<PermissionContextResponse> {
   try {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🔐 [权限上下文] 开始获取用户权限上下文')
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('  📋 用户ID:', userId)
-
     const {data, error} = await supabase.rpc('get_permission_context', {
       p_user_id: userId
     })
@@ -39,11 +34,6 @@ export async function getPermissionContext(userId: string): Promise<PermissionCo
         error: '权限上下文数据为空'
       }
     }
-
-    console.log('  ✅ 权限上下文获取成功')
-    console.log('  📊 权限模式:', data.context?.mode)
-    console.log('  📊 权限级别:', data.context?.level)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     return {
       success: data.success,

@@ -41,10 +41,6 @@ class SmartDataLoader {
 
     // 加载用户的功能权重
     await this.loadFeatureWeights()
-
-    console.log('[智能加载] 初始化完成', {
-      weightsCount: this.featureWeights.size
-    })
   }
 
   /**
@@ -74,10 +70,6 @@ class SmartDataLoader {
     const cachedData = getCache<T>(cacheKey)
     if (cachedData !== null) {
       const loadTime = Date.now() - startTime
-      console.log(`[智能加载] 缓存命中: ${featureModule}`, {
-        loadTime,
-        cacheTTL
-      })
       return {
         data: cachedData,
         fromCache: true,
@@ -86,11 +78,9 @@ class SmartDataLoader {
     }
 
     // 缓存未命中，从数据库加载
-    console.log(`[智能加载] 缓存未命中: ${featureModule}，开始加载数据`)
 
     // 检查是否已经在加载中（避免重复加载）
     if (this.loadingQueue.has(cacheKey)) {
-      console.log(`[智能加载] 等待已有加载任务: ${featureModule}`)
       const data = await this.loadingQueue.get(cacheKey)
       const loadTime = Date.now() - startTime
       return {
@@ -111,12 +101,6 @@ class SmartDataLoader {
       // 保存到缓存
       setCache(cacheKey, data, cacheTTL)
 
-      console.log(`[智能加载] 加载完成: ${featureModule}`, {
-        loadTime,
-        cacheTTL,
-        weightScore: weight?.weight_score || 0
-      })
-
       return {
         data,
         fromCache: false,
@@ -132,8 +116,6 @@ class SmartDataLoader {
    * 批量预加载高优先级功能的数据
    */
   async preloadHighPriorityData(loaders: LoaderConfig[]) {
-    console.log('[智能加载] 开始预加载高优先级数据')
-
     // 获取高优先级功能列表
     const highPriorityFeatures = await behaviorTracker.getHighPriorityFeatures(5)
     const priorityModules = new Set(highPriorityFeatures.map((f) => f.feature_module))
@@ -146,11 +128,6 @@ class SmartDataLoader {
       const weightA = this.featureWeights.get(a.featureModule)?.weight_score || 0
       const weightB = this.featureWeights.get(b.featureModule)?.weight_score || 0
       return weightB - weightA
-    })
-
-    console.log('[智能加载] 预加载列表', {
-      total: priorityLoaders.length,
-      modules: priorityLoaders.map((l) => l.featureModule)
     })
 
     // 并行预加载（最多3个）
@@ -166,8 +143,6 @@ class SmartDataLoader {
         )
       )
     }
-
-    console.log('[智能加载] 预加载完成')
   }
 
   /**
@@ -191,9 +166,6 @@ class SmartDataLoader {
    */
   async refreshWeights() {
     await this.loadFeatureWeights()
-    console.log('[智能加载] 权重已刷新', {
-      weightsCount: this.featureWeights.size
-    })
   }
 
   /**
@@ -202,7 +174,6 @@ class SmartDataLoader {
   cleanup() {
     this.loadingQueue.clear()
     this.featureWeights.clear()
-    console.log('[智能加载] 清理完成')
   }
 }
 

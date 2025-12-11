@@ -25,15 +25,11 @@ const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
 // 获取图片公共URL的辅助函数
 const getImageUrl = (path: string | null | undefined): string => {
   if (!path) {
-    logger.warn('图片路径为空')
     return ''
   }
 
-  logger.debug('处理图片路径', {path, pathType: typeof path, pathLength: path.length})
-
   // 如果已经是完整的URL，直接返回
   if (path.startsWith('http://') || path.startsWith('https://')) {
-    logger.debug('已经是完整URL，直接使用', {path})
     return path
   }
 
@@ -44,15 +40,11 @@ const getImageUrl = (path: string | null | undefined): string => {
       return ''
     }
 
-    logger.debug('从存储桶生成图片URL', {bucketName: BUCKET_NAME, relativePath: path})
-
     const {data} = supabase.storage.from(BUCKET_NAME).getPublicUrl(path)
     if (!data?.publicUrl) {
-      logger.warn('无法获取图片公共URL', {path})
       return ''
     }
 
-    logger.debug('图片URL生成成功', {path, url: data.publicUrl})
     return data.publicUrl
   } catch (error) {
     logger.error('获取图片URL失败', {error, path})
@@ -71,14 +63,7 @@ const ImageWithFallback: React.FC<{
   const imageUrl = getImageUrl(path)
 
   // 记录图片URL生成结果
-  useEffect(() => {
-    logger.debug('ImageWithFallback 渲染', {
-      path,
-      imageUrl,
-      hasUrl: !!imageUrl,
-      imageError
-    })
-  }, [path, imageUrl, imageError])
+  useEffect(() => {}, [])
 
   if (!imageUrl || imageError) {
     return (
@@ -107,9 +92,7 @@ const ImageWithFallback: React.FC<{
           })
           setImageError(true)
         }}
-        onLoad={() => {
-          logger.debug('图片加载成功', {path, imageUrl})
-        }}
+        onLoad={() => {}}
       />
       <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
         <Text className="text-white text-xs font-medium text-center block">{label}</Text>
@@ -152,42 +135,25 @@ const UserDetail: React.FC = () => {
       return
     }
 
-    logger.info('开始加载用户信息', {userId})
     setLoading(true)
     try {
       const data = await UsersAPI.getUserById(userId)
       if (data) {
         setUserInfo(data)
-        logger.info('用户信息加载成功', {userId, name: data.name})
 
         // 如果是司机，加载车辆信息和仓库信息
         if (data.role === 'DRIVER') {
           const vehicleData = await VehiclesAPI.getDriverVehicles(userId)
           setVehicles(vehicleData)
-          logger.info('司机车辆信息加载成功', {userId, vehicleCount: vehicleData.length})
 
           const warehouseData = await WarehousesAPI.getDriverWarehouses(userId)
           setWarehouses(warehouseData)
-          logger.info('司机仓库信息加载成功', {userId, warehouseCount: warehouseData.length})
 
           // 加载司机证件信息
           const licenseData = await VehiclesAPI.getDriverLicense(userId)
           setDriverLicense(licenseData)
-          logger.info('司机证件信息加载成功', {
-            userId,
-            hasLicense: !!licenseData,
-            hasIdCardFront: !!licenseData?.id_card_photo_front,
-            hasIdCardBack: !!licenseData?.id_card_photo_back,
-            hasDriverLicense: !!licenseData?.driving_license_photo
-          })
-          logger.debug('证件照片路径详情', {
-            idCardFront: licenseData?.id_card_photo_front,
-            idCardBack: licenseData?.id_card_photo_back,
-            driverLicense: licenseData?.driving_license_photo
-          })
         }
       } else {
-        logger.warn('用户不存在', {userId})
         Taro.showToast({
           title: '用户不存在',
           icon: 'error'

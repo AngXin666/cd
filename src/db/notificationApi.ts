@@ -15,6 +15,7 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {checkCurrentUserPermission, PermissionAction} from '@/services/permission-service'
 import {createLogger} from '@/utils/logger'
 import {getCurrentUserRoleAndTenant} from './api'
 
@@ -216,19 +217,38 @@ export function getNotificationStatusColor(
 /**
  * 获取当前用户的所有通知
  * @param userId 用户ID
+ * @param user 用户对象，包含id和role字段
  * @param limit 限制数量，默认50
  * @returns 通知列表
  */
-export async function getUserNotifications(userId: string, limit = 50): Promise<Notification[]> {
+export async function getUserNotifications(
+  userId: string,
+  user: {id: string; role?: string} | null,
+  limit = 50
+): Promise<Notification[]> {
   try {
     logger.db('查询用户通知', 'notifications', {userId, limit})
 
-    const {data, error} = await supabase
+    // 应用层权限检查：查看通知权限
+    const permissionResult = checkCurrentUserPermission('notifications', PermissionAction.SELECT, user)
+    if (!permissionResult.hasPermission) {
+      return []
+    }
+
+    let query = supabase
       .from('notifications')
       .select('*')
       .eq('recipient_id', userId)
       .order('created_at', {ascending: false})
       .limit(limit)
+
+    // 应用数据过滤
+    if (permissionResult.filter) {
+      Object.entries(permissionResult.filter).forEach(([key, value]) => {
+        query = query.eq(key, value)
+      })
+    }
+    const {data, error} = await query
 
     if (error) {
       logger.error('查询用户通知失败', error)
@@ -323,6 +343,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<boolea
  * 更新通知
  * @param notificationId 通知ID
  * @param updates 更新的字段
+ * @param user 用户对象，包含id和可选的role字段
  * @returns 是否成功
  */
 export async function updateNotification(
@@ -332,12 +353,27 @@ export async function updateNotification(
     title?: string
     message?: string
     is_read?: boolean
-  }
+  },
+  user: {id: string; role?: string} | null
 ): Promise<boolean> {
   try {
     logger.db('更新通知', 'notifications', {notificationId, updates})
 
-    const {error} = await supabase.from('notifications').update(updates).eq('id', notificationId)
+    // 应用层权限检查：更新通知权限
+    const permissionResult = checkCurrentUserPermission('notifications', PermissionAction.UPDATE, user)
+    if (!permissionResult.hasPermission) {
+      return false
+    }
+
+    let query = supabase.from('notifications').update(updates).eq('id', notificationId)
+
+    // 应用数据过滤
+    if (permissionResult.filter) {
+      Object.entries(permissionResult.filter).forEach(([key, value]) => {
+        query = query.eq(key, value)
+      })
+    }
+    const {error} = await query
 
     if (error) {
       logger.error('更新通知失败', error)
@@ -408,8 +444,6 @@ export function subscribeToNotifications(
   onInsert: (notification: Notification) => void,
   onUpdate?: (notification: Notification) => void
 ) {
-  logger.info('订阅通知更新', {userId})
-
   const channel = supabase
     .channel(`notifications:${userId}`)
     .on(
@@ -421,7 +455,6 @@ export function subscribeToNotifications(
         filter: `recipient_id=eq.${userId}`
       },
       (payload) => {
-        logger.info('收到新通知', payload)
         onInsert(payload.new as Notification)
       }
     )
@@ -434,7 +467,6 @@ export function subscribeToNotifications(
         filter: `recipient_id=eq.${userId}`
       },
       (payload) => {
-        logger.info('通知已更新', payload)
         if (onUpdate) {
           onUpdate(payload.new as Notification)
         }
@@ -444,7 +476,6 @@ export function subscribeToNotifications(
 
   // 返回取消订阅函数
   return () => {
-    logger.info('取消订阅通知更新', {userId})
     channel.unsubscribe()
   }
 }
@@ -498,13 +529,6 @@ export async function createNotification(
 ): Promise<boolean> {
   try {
     // 参数验证
-    console.log('🔔 createNotification 调用参数:', {
-      userId,
-      type,
-      title,
-      message,
-      relatedId
-    })
 
     if (!userId) {
       console.error('❌ createNotification: userId 参数为空')
@@ -524,7 +548,7 @@ export async function createNotification(
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
 
-    const mappedSenderRole = senderRole || 'BOSS'
+    const _mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -556,7 +580,6 @@ export async function createNotification(
       return false
     }
 
-    logger.info('通知创建成功', {userId, type, title})
     return true
   } catch (error) {
     logger.error('创建通知异常', error)
@@ -592,12 +615,10 @@ export async function createNotifications(
       return false
     }
 
-    logger.info('📝 当前用户信息', {userId: user.id})
-
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
 
-    const mappedSenderRole = senderRole || 'BOSS'
+    const _mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -605,8 +626,6 @@ export async function createNotifications(
     // 单用户架构：从 users 表中获取姓名
     const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
     senderName = userData?.name || '系统'
-
-    logger.info('👤 发送者信息', {senderName, senderRole: mappedSenderRole})
 
     const notificationData = notifications.map((n) => ({
       recipient_id: n.userId,
@@ -622,8 +641,6 @@ export async function createNotifications(
       is_read: false
     }))
 
-    logger.info('📤 准备插入通知数据', {count: notificationData.length})
-
     // 直接INSERT（RLS已放开）
     const {error} = await supabase.from('notifications').insert(notificationData)
 
@@ -632,7 +649,6 @@ export async function createNotifications(
       return false
     }
 
-    logger.info('✅ 批量通知创建成功', {count: notifications.length})
     return true
   } catch (error) {
     logger.error('💥 批量创建通知异常', error)
@@ -669,21 +685,11 @@ export async function createOrUpdateApprovalNotification(
 
     // 检查是否为审批类型
     if (!approvalTypes.includes(type)) {
-      console.warn(`⚠️ 通知类型 ${type} 不是审批类型，不应使用 createOrUpdateApprovalNotification`)
-      logger.warn('尝试为非审批类型创建审批通知', {type, title})
       // 对于非审批类型，使用普通的通知创建方式
       return false
     }
 
     // 参数验证
-    console.log('🔔 createOrUpdateApprovalNotification 调用参数:', {
-      recipientId,
-      type,
-      title,
-      message,
-      relatedId,
-      approvalStatus
-    })
 
     if (!recipientId) {
       console.error('❌ createOrUpdateApprovalNotification: recipientId 参数为空')
@@ -709,7 +715,7 @@ export async function createOrUpdateApprovalNotification(
     // 获取发送者的角色信息
     const {role: senderRole} = await getCurrentUserRoleAndTenant()
 
-    const mappedSenderRole = senderRole || 'BOSS'
+    const _mappedSenderRole = senderRole || 'BOSS'
 
     // 获取发送者的姓名
     let senderName = '系统'
@@ -736,11 +742,6 @@ export async function createOrUpdateApprovalNotification(
     // 2. 如果存在通知，则更新状态
     if (existingNotifications && existingNotifications.length > 0) {
       const existingNotification = existingNotifications[0]
-      logger.info('找到现有通知，更新状态', {
-        notificationId: existingNotification.id,
-        oldStatus: existingNotification.approval_status,
-        newStatus: approvalStatus
-      })
 
       const {error: updateError} = await supabase
         .from('notifications')
@@ -759,7 +760,6 @@ export async function createOrUpdateApprovalNotification(
         return false
       }
 
-      logger.info('通知更新成功', {notificationId: existingNotification.id, approvalStatus})
       return true
     }
 
@@ -792,7 +792,6 @@ export async function createOrUpdateApprovalNotification(
       return false
     }
 
-    logger.info('审批通知创建成功', {recipientId, type, title, approvalStatus})
     return true
   } catch (error) {
     logger.error('创建或更新审批通知异常', error)
@@ -803,20 +802,20 @@ export async function createOrUpdateApprovalNotification(
 /**
  * 更新审批通知状态
  * 根据 related_id 查找通知并更新审批状态
- * 
+ *
  * ❗️ 审批类通知特别要求：
  * 1. 必须具有原始信息唯一标识 (related_id)
  * 2. 审批后直接在这条信息进行状态更新
  * 3. 不会创建新的通知，只更新现有通知的 approval_status 字段
- * 
+ *
  * 注意：此函数只应用于审批类型的通知（请假、离职、车辆审核等）
- * 
+ *
  * @param relatedId 关联的记录ID（审批申请的ID）
  * @param approvalStatus 审批状态（'approved', 'rejected'）
  * @param newTitle 新的标题（可选）
  * @param newMessage 新的消息内容（可选）
  * @returns 是否成功
- * 
+ *
  * @example
  * // 审批通过请假申请后更新通知
  * await updateApprovalNotificationStatus(
@@ -833,13 +832,6 @@ export async function updateApprovalNotificationStatus(
   newMessage?: string
 ): Promise<boolean> {
   try {
-    console.log('🔄 updateApprovalNotificationStatus 调用参数:', {
-      relatedId,
-      approvalStatus,
-      newTitle,
-      newMessage
-    })
-
     if (!relatedId) {
       console.error('❌ updateApprovalNotificationStatus: relatedId 参数为空')
       logger.error('更新审批通知状态失败：relatedId 为空')
@@ -858,7 +850,6 @@ export async function updateApprovalNotificationStatus(
     }
 
     if (!notifications || notifications.length === 0) {
-      logger.warn('未找到相关通知', {relatedId})
       return false
     }
 
@@ -866,12 +857,16 @@ export async function updateApprovalNotificationStatus(
     const approvalTypes = ['leave_application_submitted', 'resignation_application_submitted', 'vehicle_review_pending']
     const hasNonApprovalType = notifications.some((n) => !approvalTypes.includes(n.type))
     if (hasNonApprovalType) {
-      logger.warn('发现非审批类型的通知，跳过更新', {relatedId})
-      console.warn('⚠️ 发现非审批类型的通知，不应使用 updateApprovalNotificationStatus')
     }
 
     // 更新所有相关通知的状态
-    const updateData: any = {
+    const updateData: {
+      approval_status: 'pending' | 'approved' | 'rejected'
+      is_read: boolean
+      updated_at: string
+      title?: string
+      content?: string
+    } = {
       approval_status: approvalStatus,
       is_read: false, // 重置为未读，提醒用户查看审批结果
       updated_at: new Date().toISOString()
@@ -892,11 +887,6 @@ export async function updateApprovalNotificationStatus(
       return false
     }
 
-    logger.info('审批通知状态更新成功', {
-      relatedId,
-      approvalStatus,
-      count: notifications.length
-    })
     return true
   } catch (error) {
     logger.error('更新审批通知状态异常', error)
@@ -917,15 +907,13 @@ export async function updateNotificationsByBatchId(
   content?: string
 ): Promise<boolean> {
   try {
-    logger.info('📝 根据 batch_id 批量更新通知状态', {batchId, approvalStatus, content})
-
     if (!batchId) {
       logger.error('❌ batch_id 参数为空')
       return false
     }
 
     // 构建更新数据
-    const updateData: any = {
+    const updateData: {approval_status: 'pending' | 'approved' | 'rejected'; updated_at: string; content?: string} = {
       approval_status: approvalStatus,
       updated_at: new Date().toISOString()
     }
@@ -935,18 +923,12 @@ export async function updateNotificationsByBatchId(
     }
 
     // 更新通知
-    const {data, error} = await supabase.from('notifications').update(updateData).eq('batch_id', batchId).select('id')
+    const {error} = await supabase.from('notifications').update(updateData).eq('batch_id', batchId).select('id')
 
     if (error) {
       logger.error('❌ 批量更新通知失败', error)
       return false
     }
-
-    logger.info('✅ 批量更新通知成功', {
-      batchId,
-      approvalStatus,
-      count: data?.length || 0
-    })
 
     return true
   } catch (error) {
@@ -970,15 +952,13 @@ export async function updateNotificationsByRelatedId(
   content?: string
 ): Promise<boolean> {
   try {
-    logger.info('📝 根据 related_id 和 type 批量更新通知状态', {relatedId, type, approvalStatus, content})
-
     if (!relatedId) {
       logger.error('❌ related_id 参数为空')
       return false
     }
 
     // 构建更新数据
-    const updateData: any = {
+    const updateData: {approval_status: 'pending' | 'approved' | 'rejected'; updated_at: string; content?: string} = {
       approval_status: approvalStatus,
       updated_at: new Date().toISOString()
     }
@@ -988,7 +968,7 @@ export async function updateNotificationsByRelatedId(
     }
 
     // 更新通知
-    const {data, error} = await supabase
+    const {error} = await supabase
       .from('notifications')
       .update(updateData)
       .eq('related_id', relatedId)
@@ -999,13 +979,6 @@ export async function updateNotificationsByRelatedId(
       logger.error('❌ 批量更新通知失败', error)
       return false
     }
-
-    logger.info('✅ 批量更新通知成功', {
-      relatedId,
-      type,
-      approvalStatus,
-      count: data?.length || 0
-    })
 
     return true
   } catch (error) {

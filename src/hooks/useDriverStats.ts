@@ -57,7 +57,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         const cacheKey = getCacheKey(warehouseId)
         const cached = cache.get(cacheKey)
         if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-          console.log('[useDriverStats] 使用缓存数据:', cacheKey)
           setData(cached.data)
           setLoading(false)
           return cached.data
@@ -81,7 +80,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         if (assignedDrivers && assignedDrivers.length > 0) {
           const userIds = assignedDrivers.map((a) => a.user_id)
           const {data: driverRoles} = await supabase
-            .from('users')
+            .from('user_roles')
             .select('user_id')
             .eq('role', 'DRIVER')
             .in('user_id', userIds)
@@ -103,7 +102,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         }
       } else {
         // 获取所有司机ID（只统计角色为 DRIVER 的用户）
-        const {data: allDrivers} = await supabase.from('users').select('user_id').eq('role', 'DRIVER')
+        const {data: allDrivers} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
         driverIds = allDrivers?.map((d) => d.user_id) || []
       }
 
@@ -163,7 +162,6 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       if (cacheEnabled) {
         const cacheKey = getCacheKey(warehouseId)
         cache.set(cacheKey, {data: stats, timestamp: Date.now()})
-        console.log('[useDriverStats] 更新缓存:', cacheKey, stats)
       }
 
       setData(stats)
@@ -211,7 +209,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           schema: 'public',
           table: 'attendance'
         },
-        (payload) => {
+        (_payload) => {
           if (cacheEnabled) {
             cache.clear()
           }
@@ -230,7 +228,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           schema: 'public',
           table: 'piece_work_records'
         },
-        (payload) => {
+        (_payload) => {
           if (cacheEnabled) {
             cache.clear()
           }
@@ -249,7 +247,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           schema: 'public',
           table: 'warehouse_assignments'
         },
-        (payload) => {
+        (_payload) => {
           if (cacheEnabled) {
             cache.clear()
           }
@@ -268,7 +266,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           schema: 'public',
           table: 'user_roles'
         },
-        (payload) => {
+        (_payload) => {
           if (cacheEnabled) {
             cache.clear()
           }
@@ -287,7 +285,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           schema: 'public',
           table: 'users'
         },
-        (payload) => {
+        (_payload) => {
           if (cacheEnabled) {
             cache.clear()
           }

@@ -12,7 +12,7 @@ import type {DatabaseColumn, DatabaseConstraint, DatabaseTable} from '@/db/api'
 import * as UsersAPI from '@/db/api/users'
 
 const DatabaseSchema: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user: _user} = useAuth({guard: true})
 
   // 状态管理
   const [tables, setTables] = useState<DatabaseTable[]>([])
@@ -28,7 +28,6 @@ const DatabaseSchema: React.FC = () => {
     try {
       const data = await UsersAPI.getDatabaseTables()
       setTables(data)
-      console.log('✅ 加载数据库表列表成功，共', data.length, '个表')
     } catch (error) {
       console.error('❌ 加载数据库表列表失败:', error)
       showToast({title: '加载失败', icon: 'error'})
@@ -48,7 +47,6 @@ const DatabaseSchema: React.FC = () => {
       setColumns(columnsData)
       setConstraints(constraintsData)
       setSelectedTable(tableName)
-      console.log('✅ 加载表详情成功:', tableName)
     } catch (error) {
       console.error('❌ 加载表详情失败:', error)
       showToast({title: '加载失败', icon: 'error'})

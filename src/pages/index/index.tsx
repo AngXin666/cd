@@ -4,7 +4,6 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useEffect, useRef, useState} from 'react'
 import {useUserContext} from '@/contexts/UserContext'
-import type {UserRole} from '@/db/types'
 
 const IndexPage: React.FC = () => {
   const {user} = useAuth({guard: true}) // 启用 guard，自动处理未登录跳转

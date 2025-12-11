@@ -67,12 +67,12 @@ const SuperAdminHome: React.FC = () => {
   // 监听 dashboardStats 变化
   useEffect(() => {
     // Dashboard stats updated
-  }, [dashboardStats])
+  }, [])
 
   // 监听 driverStats 变化
   useEffect(() => {
     // Driver stats updated
-  }, [driverStats])
+  }, [])
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {

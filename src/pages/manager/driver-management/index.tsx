@@ -90,8 +90,6 @@ const DriverManagement: React.FC = () => {
 
   // 加载司机列表
   const loadDrivers = useCallback(async (forceRefresh: boolean = false) => {
-    logger.info('开始加载司机列表（包含实名）', {forceRefresh})
-
     // 如果不是强制刷新，先尝试从缓存加载
     if (!forceRefresh) {
       const cachedDrivers = getVersionedCache<DriverWithRealName[]>(CACHE_KEYS.MANAGER_DRIVERS)
@@ -99,7 +97,6 @@ const DriverManagement: React.FC = () => {
       const cachedWarehouseMap = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES)
 
       if (cachedDrivers && cachedDetails && cachedWarehouseMap) {
-        logger.info(`从缓存加载司机列表，共 ${cachedDrivers.length} 名司机`)
         setDrivers(cachedDrivers)
         // 将普通对象转换为 Map
         const detailsMap = new Map(Object.entries(cachedDetails))
@@ -114,12 +111,8 @@ const DriverManagement: React.FC = () => {
     try {
       const driverList = await UsersAPI.getAllDriversWithRealName()
       setDrivers(driverList)
-      logger.info(`成功加载司机列表，共 ${driverList.length} 名司机`, {
-        withRealName: driverList.filter((d) => d.real_name).length
-      })
 
       // 批量并行加载所有司机的详细信息和仓库分配（优化性能）
-      logger.info('开始批量加载司机详细信息和仓库分配')
       const detailsPromises = driverList.map((driver) => VehiclesAPI.getDriverDetailInfo(driver.id))
       const warehousePromises = driverList.map((driver) => WarehousesAPI.getDriverWarehouseIds(driver.id))
       const [detailsResults, warehouseResults] = await Promise.all([
@@ -142,8 +135,6 @@ const DriverManagement: React.FC = () => {
 
       setDriverDetails(detailsMap)
       setDriverWarehouseMap(warehouseMap)
-      logger.info(`成功批量加载司机详细信息，共 ${detailsMap.size} 名司机`)
-      logger.info(`成功批量加载仓库分配信息，共 ${warehouseMap.size} 名司机`)
 
       // 使用带版本号的缓存（5分钟有效期）
       setVersionedCache(CACHE_KEYS.MANAGER_DRIVERS, driverList, 5 * 60 * 1000)
@@ -160,12 +151,10 @@ const DriverManagement: React.FC = () => {
   // 加载管理员负责的仓库列表（只加载启用的仓库）
   const loadWarehouses = useCallback(async () => {
     if (!user?.id) return
-    logger.info('开始加载管理员仓库列表', {managerId: user.id})
     try {
       const data = await WarehousesAPI.getManagerWarehouses(user.id)
       const enabledWarehouses = data.filter((w) => w.is_active)
       setWarehouses(enabledWarehouses)
-      logger.info(`成功加载仓库列表，共 ${enabledWarehouses.length} 个启用仓库`)
     } catch (error) {
       logger.error('加载仓库列表失败', error)
     }
@@ -174,14 +163,12 @@ const DriverManagement: React.FC = () => {
   // 加载司机的仓库分配
   const _loadDriverWarehouses = useCallback(
     async (driverId: string) => {
-      logger.info('开始加载司机仓库分配', {driverId})
       try {
         const warehouseIds = await WarehousesAPI.getDriverWarehouseIds(driverId)
         // 只显示管理员负责的且启用的仓库
         const managerWarehouseIds = warehouses.map((w) => w.id)
         const filteredIds = warehouseIds.filter((id) => managerWarehouseIds.includes(id))
         setSelectedWarehouseIds(filteredIds)
-        logger.info(`成功加载司机仓库分配，共 ${filteredIds.length} 个仓库`, {driverId, warehouseIds: filteredIds})
       } catch (error) {
         logger.error('加载司机仓库分配失败', error)
       }
@@ -192,13 +179,11 @@ const DriverManagement: React.FC = () => {
   // 加载车队长权限状态
   const loadManagerPermissions = useCallback(async () => {
     if (!user?.id) return
-    logger.info('开始加载车队长权限状态', {managerId: user.id})
     try {
       const currentUser = await UsersAPI.getCurrentUserWithRealName()
       if (currentUser) {
         const enabled = currentUser.manager_permissions_enabled ?? true // 默认为true
         setManagerPermissionsEnabled(enabled)
-        logger.info(`车队长权限状态: ${enabled ? '已启用' : '已禁用'}`, {managerId: user.id})
       }
     } catch (error) {
       logger.error('加载车队长权限状态失败', error)
@@ -225,14 +210,10 @@ const DriverManagement: React.FC = () => {
   })
 
   // 处理仓库切换
-  const handleWarehouseChange = useCallback(
-    (e: any) => {
-      const index = e.detail.current
-      setCurrentWarehouseIndex(index)
-      logger.info('切换仓库', {index, warehouseName: warehouses[index]?.name})
-    },
-    [warehouses]
-  )
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+  }, [])
 
   // 选择司机（已废弃，保留用于兼容性）
   const _handleSelectDriver = async (driver: DriverWithRealName) => {
@@ -278,7 +259,7 @@ const DriverManagement: React.FC = () => {
       // 获取当前用户的角色
       const userRoles = await UsersAPI.getUserRoles(user.id)
       const isBoss = userRoles.includes('BOSS')
-      const isDispatcher = userRoles.includes('DISPATCHER')
+      const isDispatcher = userRoles.includes('PEER_ADMIN')
       const isManager = userRoles.includes('MANAGER')
 
       // 如果是车队长，需要检查是否对该司机有管辖权
@@ -297,21 +278,16 @@ const DriverManagement: React.FC = () => {
             icon: 'none',
             duration: 2000
           })
-          logger.warn('车队长无权限给该司机发送通知', {
-            driverId: driver.id,
-            driverWarehouses: driverWarehouseIds,
-            managerWarehouses: managerWarehouseIds
-          })
           return
         }
       }
 
       // 确定发送者角色
-      let senderRole: 'MANAGER' | 'BOSS' | 'DISPATCHER' = 'MANAGER'
+      let senderRole: 'MANAGER' | 'BOSS' | 'PEER_ADMIN' = 'MANAGER'
       if (isBoss) {
         senderRole = 'BOSS'
       } else if (isDispatcher) {
-        senderRole = 'DISPATCHER'
+        senderRole = 'PEER_ADMIN'
       }
 
       // 发送通知
@@ -327,7 +303,6 @@ const DriverManagement: React.FC = () => {
           title: '通知已发送',
           icon: 'success'
         })
-        logger.info('实名通知发送成功', {driverId: driver.id, senderRole})
       } else {
         Taro.showToast({
           title: '发送失败，请重试',
@@ -401,14 +376,12 @@ const DriverManagement: React.FC = () => {
 
       if (newDriver) {
         // 分配仓库
-        logger.info('开始为新司机分配仓库', {driverId: newDriver.id, warehouseIds: newDriverWarehouseIds})
         for (const warehouseId of newDriverWarehouseIds) {
           await WarehousesAPI.insertWarehouseAssignment({
             user_id: newDriver.id,
             warehouse_id: warehouseId
           })
         }
-        logger.info('仓库分配完成', {driverId: newDriver.id, count: newDriverWarehouseIds.length})
 
         Taro.hideLoading()
         setAddingDriver(false)
@@ -651,13 +624,6 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分�
         // 计算仓库变更情况
         const addedWarehouseIds = selectedWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
         const removedWarehouseIds = previousWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
-
-        console.log('📊 [仓库分配-管理员] 仓库变更情况:', {
-          之前的仓库: previousWarehouseIds,
-          现在的仓库: selectedWarehouseIds,
-          新增的仓库: addedWarehouseIds,
-          移除的仓库: removedWarehouseIds
-        })
 
         // 通知司机
         if (addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0) {

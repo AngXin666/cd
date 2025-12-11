@@ -153,12 +153,6 @@ const UserManagement: React.FC = () => {
   // 加载用户列表
   const loadUsers = useCallback(
     async (forceRefresh: boolean = false) => {
-      console.log('========================================')
-      console.log('📋 超级管理端用户管理：开始加载用户列表')
-      console.log('当前登录用户:', user)
-      console.log('强制刷新:', forceRefresh)
-      console.log('========================================')
-
       // 先加载当前登录用户的完整信息（包括 main_account_id）
       if (!currentUserProfile && user) {
         try {
@@ -174,9 +168,6 @@ const UserManagement: React.FC = () => {
               role: roleData?.role || 'DRIVER'
             }
             setCurrentUserProfile(profile)
-            console.log('✅ 当前用户信息:', profile)
-            console.log('是否为主账号:', profile.main_account_id === null)
-            console.log('是否为平级账号:', profile.main_account_id !== null)
           }
         } catch (error) {
           console.error('加载当前用户信息失败:', error)
@@ -190,7 +181,6 @@ const UserManagement: React.FC = () => {
         const cachedWarehouseIds = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES)
 
         if (cachedUsers && cachedDetails && cachedWarehouseIds) {
-          console.log(`✅ 从缓存加载用户列表，共 ${cachedUsers.length} 名用户`)
           setUsers(cachedUsers)
           filterUsers(cachedUsers, searchKeyword, roleFilter, currentWarehouseIndex)
           // 将普通对象转换为 Map
@@ -469,12 +459,6 @@ const UserManagement: React.FC = () => {
       if (newUser) {
         // 分配仓库（老板不需要分配仓库）
         if (newUserRole !== 'BOSS') {
-          console.log('开始为新用户分配仓库', {
-            userId: newUser.id,
-            role: newUserRole,
-            warehouseIds: newUserWarehouseIds
-          })
-
           if (newUserRole === 'DRIVER') {
             // 为司机分配仓库（使用 warehouse_assignments 表）
             for (const warehouseId of newUserWarehouseIds) {
@@ -492,8 +476,6 @@ const UserManagement: React.FC = () => {
               })
             }
           }
-
-          console.log('仓库分配完成', {userId: newUser.id, role: newUserRole, count: newUserWarehouseIds.length})
         }
 
         Taro.hideLoading()
@@ -663,7 +645,6 @@ const UserManagement: React.FC = () => {
           // 批量发送通知
           if (notifications.length > 0) {
             await createNotifications(notifications)
-            console.log(`✅ 已发送 ${notifications.length} 条司机类型变更通知`)
           }
         } catch (error) {
           console.error('❌ 发送司机类型变更通知失败:', error)
@@ -792,7 +773,6 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
       // 发送通知
       try {
-        console.log('🔔 [仓库分配] 开始发送通知')
         const notifications: Array<{
           userId: string
           type: 'warehouse_assigned' | 'warehouse_unassigned'
@@ -804,13 +784,6 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
         // 计算仓库变更情况
         const addedWarehouseIds = selectedWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
         const removedWarehouseIds = previousWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
-
-        console.log('📊 [仓库分配] 仓库变更情况:', {
-          之前的仓库: previousWarehouseIds,
-          现在的仓库: selectedWarehouseIds,
-          新增的仓库: addedWarehouseIds,
-          移除的仓库: removedWarehouseIds
-        })
 
         // 1. 通知司机
         if (addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0) {
@@ -839,26 +812,12 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
             message: message,
             relatedId: userId
           })
-
-          console.log('📝 [仓库分配] 准备通知司机:', {
-            司机ID: userId,
-            司机姓名: userName,
-            通知内容: message
-          })
         }
 
         // 2. 如果是老板操作 → 通知相关仓库的车队长
         const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
-        console.log('👤 [仓库分配] 当前用户信息:', {
-          用户ID: currentUserProfile?.id,
-          角色: currentUserProfile?.role,
-          姓名: currentUserProfile?.name,
-          真实姓名: currentUserProfile?.real_name
-        })
 
         if (currentUserProfile && isAdminRole(currentUserProfile.role)) {
-          console.log('👑 [仓库分配] 操作者是老板或超级管理员，准备通知相关车队长')
-
           // 获取操作人的显示名称（优先使用真实姓名）
           const operatorRealName = currentUserProfile.real_name
           const operatorUserName = currentUserProfile.name
@@ -879,27 +838,18 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
           }
           // 否则只显示：老板
 
-          console.log('👤 [仓库分配] 操作人显示文本:', operatorText)
-
           // 获取所有受影响的仓库（新增的和移除的）
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
-          console.log('📦 [仓库分配] 受影响的仓库:', affectedWarehouseIds)
 
           const managersSet = new Set<string>()
 
           // 获取这些仓库的管理员
           for (const warehouseId of affectedWarehouseIds) {
             const managers = await WarehousesAPI.getWarehouseManagers(warehouseId)
-            console.log(
-              `👥 [仓库分配] 仓库 ${warehouseId} 的管理员:`,
-              managers.map((m) => m.name)
-            )
             for (const m of managers) {
               managersSet.add(m.id)
             }
           }
-
-          console.log('👥 [仓库分配] 需要通知的管理员总数:', managersSet.size)
 
           // 通知相关管理员
           for (const managerId of managersSet) {
@@ -920,15 +870,12 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
         // 批量发送通知
         if (notifications.length > 0) {
-          console.log('📤 [仓库分配] 准备发送通知:', notifications)
           const success = await createNotifications(notifications)
           if (success) {
-            console.log(`✅ [仓库分配] 已成功发送 ${notifications.length} 条通知`)
           } else {
             console.error('❌ [仓库分配] 通知发送失败')
           }
         } else {
-          console.log('ℹ️ [仓库分配] 没有需要发送的通知')
         }
       } catch (error) {
         console.error('❌ [仓库分配] 发送通知失败:', error)
@@ -956,9 +903,6 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
   // 页面显示时加载数据（批量并行查询优化）
   useDidShow(() => {
-    console.log('========================================')
-    console.log('📱 用户管理页面显示，强制刷新数据')
-    console.log('========================================')
     // 批量并行刷新，不使用缓存
     Promise.all([loadUsers(true), loadWarehouses()]).catch((error) => {
       console.error('[UserManagement] 批量刷新数据失败:', error)
@@ -967,7 +911,6 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    console.log('🔄 下拉刷新，强制刷新数据')
     await Promise.all([loadUsers(true), loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
@@ -977,11 +920,10 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
     (e: any) => {
       const index = e.detail.current
       setCurrentWarehouseIndex(index)
-      console.log('切换仓库', {index, warehouseName: warehouses[index]?.name})
       // 重新过滤用户列表
       filterUsers(users, searchKeyword, roleFilter, index)
     },
-    [warehouses, users, searchKeyword, roleFilter, filterUsers]
+    [users, searchKeyword, roleFilter, filterUsers]
   )
 
   // 获取角色显示文本

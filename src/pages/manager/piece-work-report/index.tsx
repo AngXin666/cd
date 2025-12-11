@@ -154,7 +154,6 @@ const ManagerPieceWorkReport: React.FC = () => {
       }>(cacheKey)
 
       if (cached) {
-        console.log('✅ 使用缓存的基础数据')
         setProfile(cached.profile)
         setWarehouses(cached.warehouses)
         setDrivers(cached.drivers)
@@ -162,7 +161,6 @@ const ManagerPieceWorkReport: React.FC = () => {
         return
       }
 
-      console.log('🔄 从数据库加载基础数据')
       // 加载当前用户信息
       const profileData = await UsersAPI.getCurrentUserProfile()
       setProfile(profileData)
@@ -224,10 +222,8 @@ const ManagerPieceWorkReport: React.FC = () => {
       let data: PieceWorkRecord[] = []
 
       if (cached) {
-        console.log('✅ 使用缓存的计件记录')
         data = cached
       } else {
-        console.log('🔄 从数据库加载计件记录')
         data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
         // 保存到缓存（3分钟有效期）
         setVersionedCache(cacheKey, data, 3 * 60 * 1000)
@@ -258,7 +254,6 @@ const ManagerPieceWorkReport: React.FC = () => {
     // 使用 setTimeout 模拟 requestIdleCallback（小程序环境不支持 requestIdleCallback）
     setTimeout(async () => {
       try {
-        console.log('🔄 开始预加载其他仓库数据...')
         const today = new Date().toISOString().split('T')[0]
         const actualStartDate = startDate <= today ? startDate : today
         const actualEndDate = endDate >= today ? endDate : today
@@ -272,21 +267,17 @@ const ManagerPieceWorkReport: React.FC = () => {
 
             // 如果缓存中没有数据，则预加载
             if (!cached) {
-              console.log(`📥 预加载仓库 ${warehouse.name} 的数据`)
               const data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(
                 warehouse.id,
                 actualStartDate,
                 actualEndDate
               )
               setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-              console.log(`✅ 仓库 ${warehouse.name} 数据预加载完成`)
             } else {
-              console.log(`⏭️ 仓库 ${warehouse.name} 数据已在缓存中`)
             }
           })
 
         await Promise.all(preloadPromises)
-        console.log('✅ 所有仓库数据预加载完成')
       } catch (error) {
         console.error('预加载数据失败:', error)
         // 预加载失败不影响正常使用，静默处理
@@ -360,12 +351,6 @@ const ManagerPieceWorkReport: React.FC = () => {
   const dailyTarget = useMemo(() => {
     const warehouse = warehouses[currentWarehouseIndex]
     const target = warehouse?.daily_target || 0
-    console.log('📊 每日指标计算：', {
-      currentWarehouseIndex,
-      warehouseName: warehouse?.name,
-      daily_target: warehouse?.daily_target,
-      finalTarget: target
-    })
     return target
   }, [warehouses, currentWarehouseIndex])
 
@@ -710,12 +695,10 @@ const ManagerPieceWorkReport: React.FC = () => {
   useEffect(() => {
     const calculateDashboardData = async () => {
       if (!user?.id) {
-        console.log('仪表盘数据计算：用户未登录')
         return
       }
 
       if (warehouses.length === 0) {
-        console.log('仪表盘数据计算：没有仓库数据')
         setDashboardData({
           totalDrivers: 0,
           todayDrivers: 0,
@@ -728,23 +711,19 @@ const ManagerPieceWorkReport: React.FC = () => {
       try {
         const warehouse = warehouses[currentWarehouseIndex]
         if (!warehouse) {
-          console.log('仪表盘数据计算：当前仓库索引无效', currentWarehouseIndex)
           return
         }
 
-        console.log('仪表盘数据计算：开始计算', warehouse.name)
         const today = getLocalDateString()
 
         // 获取当前分配至指定仓库的所有司机
         const warehouseDrivers = await WarehousesAPI.getDriversByWarehouse(warehouse.id)
         const totalDrivers = warehouseDrivers.length
-        console.log('仪表盘数据计算：仓库司机总数', totalDrivers)
 
         // 获取当日考勤记录
         const todayAttendance = await AttendanceAPI.getAttendanceRecordsByWarehouse(warehouse.id, today, today)
         const todayDriversSet = new Set(todayAttendance.map((a) => a.user_id))
         const todayDriversCount = todayDriversSet.size
-        console.log('仪表盘数据计算：今天出勤司机数', todayDriversCount)
 
         // 获取今天请假的司机
         const leaveApplications = await LeaveAPI.getLeaveApplicationsByWarehouse(warehouse.id)
@@ -765,19 +744,11 @@ const ManagerPieceWorkReport: React.FC = () => {
         })
 
         const todayLeaveDriversCount = todayLeaveDriversSet.size
-        console.log('仪表盘数据计算：今天请假司机数', todayLeaveDriversCount)
 
         // 计算应出勤司机数 = 总司机数 - 请假司机数
         const expectedDriversCount = totalDrivers - todayLeaveDriversCount
-        console.log('仪表盘数据计算：应出勤司机数', expectedDriversCount)
 
         setDashboardData({
-          totalDrivers,
-          todayDrivers: todayDriversCount,
-          todayLeaveDrivers: todayLeaveDriversCount,
-          expectedDrivers: expectedDriversCount
-        })
-        console.log('仪表盘数据计算：完成', {
           totalDrivers,
           todayDrivers: todayDriversCount,
           todayLeaveDrivers: todayLeaveDriversCount,
@@ -792,7 +763,7 @@ const ManagerPieceWorkReport: React.FC = () => {
   }, [user?.id, warehouses, currentWarehouseIndex])
 
   // 计算统计数据
-  const totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
+  const _totalQuantity = records.reduce((sum, r) => sum + (r.quantity || 0), 0)
   const _totalAmount = records.reduce((sum, r) => {
     const baseAmount = (r.quantity || 0) * (r.unit_price || 0)
     const upstairsAmount = r.need_upstairs ? (r.quantity || 0) * (r.upstairs_price || 0) : 0
@@ -828,31 +799,14 @@ const ManagerPieceWorkReport: React.FC = () => {
   // 计算今天有计件记录的司机数
   const _todayDriversWithRecords = useMemo(() => {
     const today = getLocalDateString()
-    console.log('计算今天有计件记录的司机数：', {
-      today,
-      totalRecords: records.length,
-      todayRecords: records.filter((r) => r.work_date === today).length
-    })
     const driverIds = new Set(records.filter((r) => r.work_date === today).map((r) => r.user_id))
-    console.log('今天有计件记录的司机ID：', Array.from(driverIds))
-    console.log('今天有计件记录的司机数：', driverIds.size)
     return driverIds.size
   }, [records])
 
   // 计算今天达标率（使用应出勤司机数）
   const completionRate = useMemo(() => {
-    console.log('今天达标率计算：开始', {
-      todayQuantity,
-      totalQuantity,
-      dailyTarget,
-      totalDrivers: dashboardData.totalDrivers,
-      todayLeaveDrivers: dashboardData.todayLeaveDrivers,
-      expectedDrivers: dashboardData.expectedDrivers
-    })
-
     // 1. 检查每日指标是否有效
     if (dailyTarget === 0) {
-      console.log('今天达标率计算：每日指标为0，返回0')
       return 0
     }
 
@@ -861,7 +815,6 @@ const ManagerPieceWorkReport: React.FC = () => {
 
     // 3. 检查应出勤司机数是否有效
     if (expectedDriversCount === 0) {
-      console.log('今天达标率计算：应出勤司机数为0，返回0')
       return 0
     }
 
@@ -871,48 +824,18 @@ const ManagerPieceWorkReport: React.FC = () => {
     // 5. 计算达标率 = 今天完成件数 / 今天总目标
     const rate = (todayQuantity / todayTotalTarget) * 100
 
-    console.log('今天达标率计算：完成', {
-      todayQuantity,
-      expectedDriversCount,
-      todayTotalTarget,
-      rate: `${rate.toFixed(1)}%`
-    })
-
     return rate
-  }, [
-    todayQuantity,
-    dailyTarget,
-    dashboardData.expectedDrivers,
-    dashboardData.totalDrivers,
-    dashboardData.todayLeaveDrivers,
-    totalQuantity
-  ])
+  }, [todayQuantity, dailyTarget, dashboardData.expectedDrivers])
 
   // 计算月度平均达标率
   const monthlyCompletionRate = useMemo(() => {
-    console.log('月度达标率计算：司机汇总数据', {
-      driverSummariesLength: driverSummaries.length,
-      driverSummaries: driverSummaries.map((s) => ({
-        name: s.driverName,
-        completionRate: s.completionRate,
-        monthlyCompletionRate: s.monthlyCompletionRate
-      }))
-    })
-
     if (driverSummaries.length === 0) {
-      console.log('月度达标率计算：无司机数据，返回 0')
       return 0
     }
 
     // 使用每个司机的月度达标率，而不是总达标率
     const totalRate = driverSummaries.reduce((sum, s) => sum + (s.monthlyCompletionRate || 0), 0)
     const avgRate = totalRate / driverSummaries.length
-
-    console.log('月度达标率计算：完成', {
-      totalRate,
-      avgRate,
-      driverCount: driverSummaries.length
-    })
 
     return avgRate
   }, [driverSummaries])

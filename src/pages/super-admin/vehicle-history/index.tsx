@@ -31,20 +31,12 @@ const VehicleHistory: React.FC = () => {
       return
     }
 
-    logger.info('加载车辆信息', {plateNumber})
     setLoading(true)
 
     try {
       const data = await VehiclesAPI.getVehicleByPlateNumber(plateNumber)
       if (data) {
         setVehicle(data)
-        logger.info('车辆信息加载成功', {
-          vehicleId: data.id,
-          driverId: data.driver_id,
-          hasDriver: !!data.driver,
-          hasDriverLicense: !!(data as any).driver_license,
-          driverLicenseData: (data as any).driver_license
-        })
       } else {
         Taro.showToast({title: '未找到车辆信息', icon: 'none'})
       }
@@ -136,11 +128,6 @@ const VehicleHistory: React.FC = () => {
   const getPickupDamagePhotos = (): string[] => {
     const allDamagePhotos = getDamagePhotos()
     const pickupPhotos = allDamagePhotos.filter((url) => url.includes('pickup_damage'))
-    logger.info('提车车损照片', {
-      total: allDamagePhotos.length,
-      pickup: pickupPhotos.length,
-      photos: pickupPhotos
-    })
     return pickupPhotos
   }
 

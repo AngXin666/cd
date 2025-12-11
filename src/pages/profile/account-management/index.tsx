@@ -54,12 +54,6 @@ const AccountManagement: React.FC = () => {
 
       setMainAccount(main || null)
       setPeerAccounts(peers)
-
-      console.log('账号列表加载完成:', {
-        total: allAccounts.length,
-        main: main?.name,
-        peers: peers.length
-      })
     } catch (error) {
       console.error('加载账号列表失败:', error)
       showToast({title: '加载失败', icon: 'error'})

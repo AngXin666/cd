@@ -9,7 +9,7 @@ let noticed = false
 export const customFetch: typeof fetch = async (url: string, options: RequestInit) => {
   let headers: HeadersInit = options.headers || {}
   const {method = 'GET', body} = options
-  
+
   if (options.headers instanceof Map) {
     headers = Object.fromEntries(options.headers)
   }
@@ -22,7 +22,7 @@ export const customFetch: typeof fetch = async (url: string, options: RequestIni
     data: body,
     responseType: 'text'
   })
-  const duration = Date.now() - startTime
+  const _duration = Date.now() - startTime
 
   // 只在错误时输出
   if (res.statusCode >= 400) {
@@ -58,7 +58,7 @@ const taroStorage = {
     try {
       const value = await Taro.getStorage({key})
       return value.data
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

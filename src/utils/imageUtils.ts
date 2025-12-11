@@ -80,9 +80,7 @@ function getExifOrientation(base64: string): number {
         offset += blockLength
       }
     }
-  } catch (error) {
-    console.warn('读取EXIF信息失败:', error)
-  }
+  } catch (_error) {}
   return 1 // 默认方向
 }
 
@@ -203,8 +201,7 @@ export async function autoRotateImage(imagePath: string): Promise<string> {
     // 需要旋转
     const rotatedBase64 = await rotateImageByOrientation(base64, orientation)
     return rotatedBase64
-  } catch (error) {
-    console.warn('自动旋转图片失败，使用原图:', error)
+  } catch (_error) {
     return imagePath
   }
 }
@@ -219,7 +216,6 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
   try {
     // 小程序环境暂不支持Canvas旋转，直接返回原路径
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-      console.log('⚠️ 小程序环境暂不支持自动旋转，使用原图')
       return imagePath
     }
 
@@ -233,17 +229,13 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
           const width = img.width
           const height = img.height
 
-          console.log(`📐 图片尺寸: ${width}x${height}`)
-
           // 如果图片是横向的（宽度>=高度），直接返回
           if (width >= height) {
-            console.log('✅ 图片已经是横向，无需旋转')
             resolve(base64)
             return
           }
 
           // 图片是竖向的，需要旋转90度
-          console.log('🔄 图片是竖向，逆时针旋转90度使其横向显示')
 
           const canvas = document.createElement('canvas')
           const ctx = canvas.getContext('2d')
@@ -265,7 +257,6 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
           const mimeType = base64.match(/data:(.*?);/)?.[1] || 'image/jpeg'
           const rotatedBase64 = canvas.toDataURL(mimeType, 0.95)
 
-          console.log(`✅ 旋转完成，新尺寸: ${canvas.width}x${canvas.height}`)
           resolve(rotatedBase64)
         } catch (error) {
           console.error('旋转图片失败:', error)
@@ -277,8 +268,7 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
       }
       img.src = base64
     })
-  } catch (error) {
-    console.warn('强制横向显示失败，使用原图:', error)
+  } catch (_error) {
     return imagePath
   }
 }
@@ -399,8 +389,7 @@ export function compressImage(imagePath: string, quality = 0.8): Promise<string>
         success: (res) => {
           resolve(res.tempFilePath)
         },
-        fail: (error) => {
-          console.warn('图片压缩失败，使用原图:', error)
+        fail: (_error) => {
           resolve(imagePath)
         }
       })
@@ -423,12 +412,7 @@ export async function uploadImageToStorage(
   forceLandscape: boolean = true
 ): Promise<string | null> {
   try {
-    console.log('📤 开始上传图片:', fileName)
-    console.log('📍 当前环境:', Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? '小程序' : 'H5')
-    console.log('📁 原始图片路径:', imagePath)
-
     // 检查用户认证状态
-    console.log('🔐 检查用户认证状态...')
     const {
       data: {session}
     } = await supabase.auth.getSession()
@@ -437,28 +421,21 @@ export async function uploadImageToStorage(
       console.error('❌ 提示：请先登录后再上传图片')
       throw new Error('请先登录')
     }
-    console.log('✅ 用户已登录，用户ID:', session.user.id)
 
     // 小程序环境：需要读取文件内容后上传
     if (Taro.getEnv() === Taro.ENV_TYPE.WEAPP) {
-      console.log('📱 小程序环境：使用小程序专用上传流程')
-
       // 1. 压缩图片
       const compressedPath = await compressImage(imagePath, 0.8)
-      console.log('✅ 图片压缩完成，压缩后路径:', compressedPath)
 
       // 2. 读取文件内容为 ArrayBuffer
-      console.log('📖 读取文件内容...')
       const fileContent = await new Promise<ArrayBuffer>((resolve, reject) => {
         const fs = Taro.getFileSystemManager()
         fs.readFile({
           filePath: compressedPath,
           encoding: 'binary', // 使用 binary 编码直接读取为 ArrayBuffer
           success: (res) => {
-            console.log('✅ 文件读取成功')
             // 小程序环境中，binary 编码会返回 ArrayBuffer
             if (res.data instanceof ArrayBuffer) {
-              console.log('✅ 文件大小:', res.data.byteLength, 'bytes')
               resolve(res.data)
             } else {
               console.error('❌ 文件数据格式错误，期望 ArrayBuffer，实际:', typeof res.data)
@@ -483,13 +460,8 @@ export async function uploadImageToStorage(
         const sizeMB = (fileContent.byteLength / 1024 / 1024).toFixed(2)
         throw new Error(`图片过大(${sizeMB}MB)，请重新拍摄`)
       }
-      console.log('✅ 文件大小检查通过')
 
       // 4. 上传 ArrayBuffer 到 Supabase Storage
-      console.log('📤 上传文件到 Supabase Storage...')
-      console.log('📦 Bucket:', bucketName)
-      console.log('📄 文件名:', fileName)
-      console.log('📏 文件大小:', fileContent.byteLength, 'bytes')
 
       const {data, error} = await supabase.storage.from(bucketName).upload(fileName, fileContent, {
         contentType: 'image/jpeg',
@@ -531,12 +503,10 @@ export async function uploadImageToStorage(
 
       // 5. 获取公开URL
       const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
-      console.log('✅ 图片上传成功:', urlData.publicUrl)
       return urlData.publicUrl
     }
 
     // H5环境：完整处理流程
-    console.log('🌐 H5环境：使用完整处理流程')
 
     // 1. 先自动旋转图片（修正EXIF方向）
     const rotatedPath = await autoRotateImage(imagePath)
@@ -544,7 +514,6 @@ export async function uploadImageToStorage(
     // 2. 强制横向显示（如果需要）
     let processedPath = rotatedPath
     if (forceLandscape) {
-      console.log('🔄 检查并调整图片方向...')
       processedPath = await ensureLandscapeOrientation(rotatedPath)
     }
 
@@ -576,7 +545,6 @@ export async function uploadImageToStorage(
 
     // 获取公开URL
     const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
-    console.log('✅ 图片上传成功:', urlData.publicUrl)
     return urlData.publicUrl
   } catch (error) {
     console.error('❌ 上传图片异常:', error)

@@ -65,11 +65,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
   // 显示通知
   const showNotification = useCallback(
     (title: string, content: string, key: string, type: Notification['type'], data?: any) => {
-      console.log('🔔 尝试显示通知:', {title, content, key, type, data})
-
       if (shouldShowNotification(key)) {
-        console.log('✅ 通过防抖检查，显示通知')
-
         // 显示 Toast 通知
         Taro.showToast({
           title,
@@ -82,7 +78,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
 
         // 添加到通知栏
         if (onNewNotification) {
-          console.log('📢 调用 onNewNotification 回调')
           onNewNotification({
             type,
             title,
@@ -90,10 +85,8 @@ export function useRealtimeNotifications(options: NotificationOptions) {
             data
           })
         } else {
-          console.warn('⚠️ onNewNotification 回调未定义')
         }
       } else {
-        console.log('⏭️ 防抖拦截，跳过通知')
       }
     },
     [shouldShowNotification, onNewNotification]
@@ -102,27 +95,20 @@ export function useRealtimeNotifications(options: NotificationOptions) {
   // 设置实时订阅
   useEffect(() => {
     if (!userId) {
-      console.log('⚠️ useRealtimeNotifications: userId 为空，跳过订阅')
       return
     }
 
-    console.log('🔌 开始设置实时通知订阅:', {userId, userRole})
-
     // 清理旧的订阅
     if (channelRef.current) {
-      console.log('🧹 清理旧的订阅通道')
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
     // 创建新的订阅通道
     const channel = supabase.channel(`notifications_${userId}`)
-    console.log('📡 创建新的订阅通道:', `notifications_${userId}`)
 
     // 车队长和老板：监听新的请假申请
     if (userRole === 'MANAGER' || userRole === 'BOSS') {
-      console.log('👔 设置车队长/老板监听')
-
       channel.on(
         'postgres_changes',
         {
@@ -131,7 +117,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           table: 'leave_applications'
         },
         (payload) => {
-          console.log('📨 收到新的请假申请:', payload)
           const record = payload.new as any
           showNotification('收到新的请假申请', `司机提交了新的请假申请`, 'leave_insert', 'leave_application', {
             applicationId: record.id
@@ -147,8 +132,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           schema: 'public',
           table: 'leave_applications'
         },
-        (payload) => {
-          console.log('📝 请假申请已更新:', payload)
+        (_payload) => {
           onLeaveApplicationChange?.()
         }
       )
@@ -161,7 +145,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           table: 'resignation_applications'
         },
         (payload) => {
-          console.log('📨 收到新的离职申请:', payload)
           const record = payload.new as any
           showNotification(
             '收到新的离职申请',
@@ -181,8 +164,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           schema: 'public',
           table: 'resignation_applications'
         },
-        (payload) => {
-          console.log('📝 离职申请已更新:', payload)
+        (_payload) => {
           onResignationApplicationChange?.()
         }
       )
@@ -195,8 +177,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           schema: 'public',
           table: 'attendance'
         },
-        (payload) => {
-          console.log('📨 收到新的打卡记录:', payload)
+        (_payload) => {
           onAttendanceChange?.()
         }
       )
@@ -204,8 +185,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
 
     // 司机：监听自己的申请状态变化
     if (userRole === 'DRIVER') {
-      console.log('🚗 设置司机监听，userId:', userId)
-
       channel.on(
         'postgres_changes',
         {
@@ -215,7 +194,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          console.log('📝 请假申请状态变化:', payload)
           const record = payload.new as any
           if (record.status === 'approved') {
             showNotification('您的请假申请已通过', `您的请假申请已通过审批`, 'leave_approved', 'approval', {
@@ -239,7 +217,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          console.log('📝 离职申请状态变化:', payload)
           const record = payload.new as any
           if (record.status === 'approved') {
             showNotification('您的离职申请已通过', `您的离职申请已通过审批`, 'resignation_approved', 'approval', {
@@ -256,24 +233,11 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     }
 
     // 订阅通道
-    channel.subscribe((status, err) => {
-      console.log('📡 实时通知订阅状态:', status)
+    channel.subscribe((status, _err) => {
       if (status === 'SUBSCRIBED') {
-        console.log('✅ 实时通知订阅成功！')
       } else if (status === 'CHANNEL_ERROR') {
-        console.warn('⚠️ 实时通知订阅失败（WebSocket 连接问题）')
-        console.warn('💡 这不影响应用核心功能，数据会在页面刷新时更新')
-        console.warn('订阅失败详情:', {
-          userId,
-          userRole,
-          channelName: `notifications_${userId}`,
-          error: err,
-          reason: 'WebSocket 连接在当前环境下不可用，这是正常现象'
-        })
       } else if (status === 'TIMED_OUT') {
-        console.warn('⏱️ 实时通知订阅超时（网络延迟）')
       } else if (status === 'CLOSED') {
-        console.info('🔒 实时通知订阅已关闭')
       }
     })
 
@@ -282,7 +246,6 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     // 清理函数
     return () => {
       if (channelRef.current) {
-        console.log('🧹 清理实时通知订阅')
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
       }

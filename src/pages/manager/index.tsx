@@ -26,7 +26,7 @@ const ManagerHome: React.FC = () => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 通知管理
-  const {notifications, addNotification, markAsRead, getRecentNotifications} = useNotifications()
+  const {addNotification} = useNotifications()
 
   // 使用仓库数据管理 Hook（原始列表，启用实时更新）
   const {
@@ -40,11 +40,7 @@ const ManagerHome: React.FC = () => {
   })
 
   // 使用仓库排序 Hook（按数据量排序）
-  const {
-    warehouses: sortedWarehouses,
-    loading: sortingLoading,
-    refresh: refreshSorting
-  } = useWarehousesSorted({
+  const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
     warehouses: rawWarehouses,
     sortByVolume: true,
     hideEmpty: false // 不隐藏空仓库，让车队长能看到所有分配的仓库
@@ -80,11 +76,7 @@ const ManagerHome: React.FC = () => {
   })
 
   // 监听 driverStats 变化
-  useEffect(() => {
-    console.log('[ManagerHome] driverStats 更新:', driverStats)
-    console.log('[ManagerHome] currentWarehouseId:', currentWarehouseId)
-    console.log('[ManagerHome] warehouses:', warehouses)
-  }, [driverStats, currentWarehouseId, warehouses])
+  useEffect(() => {}, [])
 
   // 加载用户资料
   const loadProfile = useCallback(async () => {
@@ -142,11 +134,8 @@ const ManagerHome: React.FC = () => {
       // 添加欢迎通知（仅在首次加载时）
       try {
         const hasShownWelcome = Taro.getStorageSync('manager_welcome_shown')
-        console.log('🎯 检查欢迎通知标记:', hasShownWelcome)
 
         if (!hasShownWelcome) {
-          console.log('✨ 开始添加欢迎通知')
-
           // 添加多条通知以展示滚动效果
           addNotification({
             type: 'system',
@@ -171,7 +160,6 @@ const ManagerHome: React.FC = () => {
           }, 200)
 
           Taro.setStorageSync('manager_welcome_shown', 'true')
-          console.log('✅ 欢迎通知添加完成')
         }
       } catch (err) {
         console.error('❌ 加载欢迎通知失败:', err)

@@ -29,7 +29,6 @@ const VehicleManagement: React.FC = () => {
 
   // 加载车辆列表（带缓存）
   const loadVehicles = useCallback(async () => {
-    logger.info('开始加载车辆列表')
     setLoading(true)
     try {
       // 生成缓存键
@@ -39,23 +38,13 @@ const VehicleManagement: React.FC = () => {
       let data: VehicleWithDriver[]
 
       if (cached) {
-        logger.info('✅ 使用缓存的车辆列表', {vehicleCount: cached.length})
         data = cached
       } else {
-        logger.info('🔄 从数据库加载车辆列表')
         data = await VehiclesAPI.getAllVehiclesWithDrivers()
-        logger.info('📊 API返回的原始数据', {
-          dataLength: data.length,
-          data: data
-        })
         // 保存到缓存（5分钟有效期）
         setVersionedCache(cacheKey, data, 5 * 60 * 1000)
       }
 
-      logger.info('📝 设置车辆列表状态', {
-        vehicleCount: data.length,
-        vehicles: data
-      })
       setVehicles(data)
       setFilteredVehicles(data)
 
@@ -70,21 +59,10 @@ const VehicleManagement: React.FC = () => {
 
           if (!error && count !== null) {
             historyCountMap.set(vehicle.plate_number, count)
-            logger.info('📊 车辆历史记录数量', {
-              plateNumber: vehicle.plate_number,
-              count: count
-            })
           }
-        } catch (err) {
-          logger.warn('查询历史记录数量失败', {
-            plateNumber: vehicle.plate_number,
-            error: err
-          })
-        }
+        } catch (_err) {}
       }
       setVehicleHistoryCount(historyCountMap)
-
-      logger.info('✅ 车辆列表加载成功', {vehicleCount: data.length})
     } catch (error) {
       logger.error('❌ 加载车辆列表失败', error)
       Taro.showToast({
@@ -102,10 +80,7 @@ const VehicleManagement: React.FC = () => {
     const cacheKey = 'super_admin_all_vehicles'
     try {
       Taro.removeStorageSync(cacheKey)
-      logger.info('🗑️ 已清除缓存')
-    } catch (e) {
-      logger.warn('清除缓存失败', e)
-    }
+    } catch (_e) {}
     loadVehicles()
   })
 
@@ -192,14 +167,6 @@ const VehicleManagement: React.FC = () => {
     // 如果有多条记录，也显示历史记录按钮
     const hasMultipleRecords = count > 1
     const result = isInactive || hasMultipleRecords
-    logger.info('🔍 检查车辆历史记录', {
-      plateNumber: vehicle.plate_number,
-      status: vehicle.status,
-      count: count,
-      isInactive: isInactive,
-      hasMultipleRecords: hasMultipleRecords,
-      hasHistory: result
-    })
     return result
   }
 

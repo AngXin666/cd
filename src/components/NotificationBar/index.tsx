@@ -19,12 +19,6 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
   // 只显示未读通知
   const unreadNotifications = notifications.filter((n) => !n.read)
 
-  console.log('🔔 NotificationBar 渲染:', {
-    总通知数: notifications.length,
-    未读通知数: unreadNotifications.length,
-    当前索引: currentIndex
-  })
-
   const currentNotification = unreadNotifications[currentIndex]
 
   // 自动切换通知
@@ -49,7 +43,6 @@ const NotificationBar: React.FC<NotificationBarProps> = ({notifications, onNotif
 
   // 如果当前通知不存在（索引越界等情况），不显示通知栏
   if (!currentNotification) {
-    console.warn('⚠️ NotificationBar: currentNotification 为 undefined')
     return null
   }
 

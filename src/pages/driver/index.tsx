@@ -30,7 +30,7 @@ const DriverHome: React.FC = () => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 通知管理
-  const {notifications, addNotification, markAsRead, getRecentNotifications} = useNotifications()
+  const {addNotification} = useNotifications()
 
   // 打卡检测相关状态
   const [showClockInReminder, setShowClockInReminder] = useState(false)
@@ -91,11 +91,7 @@ const DriverHome: React.FC = () => {
   } = useDriverWarehouses(user?.id || '', true)
 
   // 使用仓库排序 Hook（按数据量排序，隐藏无数据仓库）
-  const {
-    warehouses: sortedWarehouses,
-    loading: sortingLoading,
-    refresh: refreshSorting
-  } = useWarehousesSorted({
+  const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
     warehouses: rawWarehouses,
     userId: user?.id,
     sortByVolume: true,
@@ -148,13 +144,7 @@ const DriverHome: React.FC = () => {
   }, [])
 
   // 监控仓库加载状态
-  useEffect(() => {
-    console.log('=== 司机端仓库状态 ===')
-    console.log('用户ID:', user?.id)
-    console.log('仓库加载中:', warehousesLoading)
-    console.log('仓库数量:', warehouses.length)
-    console.log('仓库列表:', warehouses)
-  }, [user, warehousesLoading, warehouses])
+  useEffect(() => {}, [])
 
   // 初始加载（批量并行查询优化）
   useEffect(() => {

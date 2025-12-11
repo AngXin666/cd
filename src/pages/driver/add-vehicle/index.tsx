@@ -130,9 +130,7 @@ const AddVehicle: React.FC = () => {
   })
 
   // 监控photos state变化
-  useEffect(() => {
-    console.log('photos state更新:', photos)
-  }, [photos])
+  useEffect(() => {}, [])
 
   // 驾驶员证件数据
   const [driverLicenseData, setDriverLicenseData] = useState<Partial<DriverLicenseInput>>({
@@ -844,7 +842,6 @@ const AddVehicle: React.FC = () => {
       }))
 
       setDamagePhotos([...damagePhotos, ...newPhotos])
-      console.log('选择车损照片', {count: newPhotos.length})
     } catch (error) {
       console.error('选择照片失败', error)
     }
@@ -961,7 +958,6 @@ const AddVehicle: React.FC = () => {
       for (const [key, path] of Object.entries(photos)) {
         if (path) {
           const photoName = PHOTO_NAME_MAP[key] || key
-          console.log(`📤 开始上传 ${photoName}...`)
 
           try {
             const fileName = generateUniqueFileName(`vehicle_${key}`, 'jpg')
@@ -969,7 +965,6 @@ const AddVehicle: React.FC = () => {
             // 行驶证照片需要横向显示，其他照片保持原始方向
             const needLandscape = key.includes('driving_license')
             const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, needLandscape)
-            console.log(`✅ ${photoName} 上传成功`)
             uploadedPhotos[key] = uploadedPath
           } catch (error) {
             console.error(`❌ ${photoName} 上传失败:`, error)
@@ -988,13 +983,11 @@ const AddVehicle: React.FC = () => {
       for (const [key, path] of Object.entries(driverPhotos)) {
         if (path) {
           const photoName = PHOTO_NAME_MAP[key] || key
-          console.log(`📤 开始上传 ${photoName}...`)
 
           try {
             const fileName = generateUniqueFileName(`driver_${key}`, 'jpg')
             // 证件照片不需要强制横向显示，保持原始方向
             const uploadedPath = await uploadImageToStorage(path, BUCKET_NAME, fileName, false)
-            console.log(`✅ ${photoName} 上传成功`)
             uploadedDriverPhotos[key] = uploadedPath
           } catch (error) {
             console.error(`❌ ${photoName} 上传失败:`, error)
@@ -1023,8 +1016,6 @@ const AddVehicle: React.FC = () => {
           // 车损照片上传失败不影响整体流程，只记录日志
         }
       }
-
-      console.log('车损照片上传成功', {count: uploadedDamagePhotos.length})
 
       // 插入车辆信息
       const vehicleData: VehicleInput = {
@@ -1092,14 +1083,11 @@ const AddVehicle: React.FC = () => {
       }
 
       // 插入车辆信息
-      console.log('准备插入车辆数据:', vehicleData)
       const insertedVehicle = await VehiclesAPI.insertVehicle(vehicleData)
 
       if (!insertedVehicle) {
         throw new Error('车辆信息保存失败')
       }
-
-      console.log('车辆信息保存成功:', insertedVehicle)
 
       // 插入驾驶员证件信息
       if (Object.keys(uploadedDriverPhotos).length > 0) {
@@ -1123,9 +1111,7 @@ const AddVehicle: React.FC = () => {
           status: 'active'
         }
 
-        console.log('准备插入驾驶员证件数据:', driverLicenseInput)
-        const insertedLicense = await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
-        console.log('驾驶员证件保存结果:', insertedLicense)
+        const _insertedLicense = await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
       }
 
       Taro.hideLoading()

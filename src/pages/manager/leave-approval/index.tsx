@@ -579,21 +579,9 @@ const ManagerLeaveApproval: React.FC = () => {
             .eq('related_id', applicationId)
             .eq('type', 'leave_application_submitted') // 只查询原始申请通知
 
-          console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
-          console.log(
-            '📋 通知详情:',
-            existingNotifications?.map((n) => ({
-              id: n.id,
-              recipient_id: n.recipient_id,
-              approval_status: n.approval_status,
-              title: n.title
-            }))
-          )
-          console.log('👤 当前审批人 ID:', user.id)
-
           if (existingNotifications && existingNotifications.length > 0) {
             // 统计更新结果
-            let successCount = 0
+            let _successCount = 0
             let failCount = 0
             const errors: string[] = []
 
@@ -604,14 +592,6 @@ const ManagerLeaveApproval: React.FC = () => {
               const message = isReviewer
                 ? `您${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
                 : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
-
-              console.log(
-                `📝 准备更新通知 ${notification.id}:`,
-                `\n  - 接收者: ${notification.recipient_id}`,
-                `\n  - 是否为审批人: ${isReviewer}`,
-                `\n  - 新状态: ${approvalStatus}`,
-                `\n  - 新内容: ${message}`
-              )
 
               const {error: updateError} = await supabase
                 .from('notifications')
@@ -629,13 +609,11 @@ const ManagerLeaveApproval: React.FC = () => {
                 failCount++
                 errors.push(`通知 ${notification.id.substring(0, 8)}... 更新失败: ${updateError.message}`)
               } else {
-                console.log(`✅ 成功更新通知 ${notification.id}`)
-                successCount++
+                _successCount++
               }
             }
 
             // 显示更新结果摘要
-            console.log(`📊 通知更新结果: 成功 ${successCount} 条, 失败 ${failCount} 条`)
 
             if (failCount > 0) {
               console.error('❌ 更新失败的通知:', errors)
@@ -646,10 +624,8 @@ const ManagerLeaveApproval: React.FC = () => {
                 duration: 3000
               })
             } else {
-              console.log(`✅ 已成功更新所有 ${existingNotifications.length} 条请假审批通知状态`)
             }
           } else {
-            console.warn('⚠️ 未找到需要更新的原始申请通知')
           }
 
           // 🔔 创建新通知给司机（审批结果通知）
@@ -661,8 +637,6 @@ const ManagerLeaveApproval: React.FC = () => {
             driverMessage,
             applicationId // 关联请假申请ID
           )
-
-          console.log(`✅ 已发送审批结果通知给司机: ${application.user_id}`)
         } catch (notificationError) {
           console.error('❌ 发送审批结果通知失败:', notificationError)
           // 通知发送失败不影响审批流程
@@ -747,8 +721,6 @@ const ManagerLeaveApproval: React.FC = () => {
             .eq('related_id', applicationId)
             .eq('type', 'resignation_application_submitted')
 
-          console.log(`🔍 查询到 ${existingNotifications?.length || 0} 条原始申请通知`)
-
           if (existingNotifications && existingNotifications.length > 0) {
             for (const notification of existingNotifications) {
               const isReviewer = notification.recipient_id === user.id
@@ -782,8 +754,6 @@ const ManagerLeaveApproval: React.FC = () => {
             driverMessage,
             applicationId
           )
-
-          console.log(`✅ 已发送审批结果通知给司机`)
         } catch (notificationError) {
           console.error('❌ 发送审批结果通知失败:', notificationError)
         }

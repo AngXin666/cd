@@ -247,8 +247,6 @@ export async function recognizeDocument(
               // 移除最后一个属性值后的逗号（如果有）
               jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1')
 
-              console.log('清理后的JSON字符串:', jsonStr)
-
               // 5. 解析JSON
               const result = JSON.parse(jsonStr)
               resolve(result)

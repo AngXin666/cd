@@ -93,7 +93,6 @@ export const UserContextProvider: React.FC<{children: React.ReactNode}> = ({chil
    * 清除用户数据
    */
   const clearUserData = useCallback(() => {
-    console.log('[UserContext] 清除用户数据')
     setUserId(null)
     setName(null)
     setEmail(null)

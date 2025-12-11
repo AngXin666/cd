@@ -74,7 +74,6 @@ const VehicleReviewDetail: React.FC = () => {
   // 加载车辆信息
   const loadVehicle = useCallback(async (vehicleId: string) => {
     setLoading(true)
-    logger.info('加载车辆信息', {vehicleId})
 
     try {
       const data = await VehiclesAPI.getVehicleWithDriverDetails(vehicleId)
@@ -86,7 +85,6 @@ const VehicleReviewDetail: React.FC = () => {
       setLockedPhotos(data.locked_photos || {})
       setRequiredPhotos(data.required_photos || [])
       setReviewNotes(data.review_notes || '')
-      logger.info('加载车辆信息成功', {vehicleId})
     } catch (error) {
       logger.error('加载车辆信息失败', error)
       Taro.showToast({title: '加载失败', icon: 'none'})

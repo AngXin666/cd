@@ -6,7 +6,7 @@
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react'
-import {getUserPermissions} from '@/db/permission-api'
+import {checkCurrentUserPermission, type PermissionAction} from '@/services/permission-service'
 
 /**
  * 权限上下文类型定义
@@ -44,19 +44,18 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
 
   /**
    * 加载用户权限
-   * 从数据库查询用户的所有权限并缓存到内存
+   * 现在使用应用层权限控制，不需要从数据库加载
    */
   const loadPermissions = useCallback(async () => {
-    if (!user?.id) {
-      console.warn('用户未登录，无法加载权限')
+    if (!user?.id || !user?.role) {
       return
     }
 
     setIsLoading(true)
     try {
-      const permissionList = await getUserPermissions(user.id)
-
-      setPermissions(new Set(permissionList))
+      // 使用应用层权限控制，不需要从数据库加载权限列表
+      // 基于用户角色和权限配置动态判断权限
+      setPermissions(new Set()) // 保持兼容性，实际权限判断使用 PermissionService
       setIsLoaded(true)
     } catch (error) {
       console.error('权限加载失败:', error)
@@ -65,7 +64,7 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
     } finally {
       setIsLoading(false)
     }
-  }, [user?.id])
+  }, [user?.id, user?.role])
 
   /**
    * 刷新权限
@@ -90,9 +89,16 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasPermission = useCallback(
     (permissionCode: string): boolean => {
-      return permissions.has(permissionCode)
+      // 权限码格式：tableName:action
+      const [tableName, action] = permissionCode.split(':')
+      if (!tableName || !action) {
+        return false
+      }
+
+      const result = checkCurrentUserPermission(tableName, action as PermissionAction, user)
+      return result.hasPermission
     },
-    [permissions]
+    [user?.id, user?.role, user]
   )
 
   /**
@@ -100,9 +106,9 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasAnyPermission = useCallback(
     (permissionCodes: string[]): boolean => {
-      return permissionCodes.some((code) => permissions.has(code))
+      return permissionCodes.some((code) => hasPermission(code))
     },
-    [permissions]
+    [hasPermission]
   )
 
   /**
@@ -110,19 +116,19 @@ export const PermissionProvider: React.FC<{children: React.ReactNode}> = ({child
    */
   const hasAllPermissions = useCallback(
     (permissionCodes: string[]): boolean => {
-      return permissionCodes.every((code) => permissions.has(code))
+      return permissionCodes.every((code) => hasPermission(code))
     },
-    [permissions]
+    [hasPermission]
   )
 
   /**
    * 用户登录时自动加载权限
    */
   useEffect(() => {
-    if (isAuthenticated && user?.id && !isLoaded && !isLoading) {
+    if (isAuthenticated && user?.id && user?.role && !isLoaded && !isLoading) {
       loadPermissions()
     }
-  }, [isAuthenticated, user?.id, isLoaded, isLoading, loadPermissions])
+  }, [isAuthenticated, user?.id, user?.role, isLoaded, isLoading, loadPermissions])
 
   /**
    * 用户登出时清除权限

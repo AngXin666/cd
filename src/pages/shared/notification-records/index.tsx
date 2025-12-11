@@ -11,7 +11,7 @@ import type {NotificationSendRecordWithSender} from '@/db/types'
  * 通知发送记录页面
  */
 const NotificationRecords: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user: _user} = useAuth({guard: true})
 
   const [records, setRecords] = useState<NotificationSendRecordWithSender[]>([])
   const [filter, setFilter] = useState<'all' | 'manual' | 'scheduled' | 'auto'>('all')

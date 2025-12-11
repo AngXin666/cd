@@ -87,7 +87,6 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
   // 加载仓库列表
   const loadWarehouses = useCallback(
     async (forceRefresh = false) => {
-      console.log('[useWarehousesData] 开始加载仓库列表，managerId:', managerId, 'forceRefresh:', forceRefresh)
       setLoading(true)
       setError(null)
 
@@ -96,17 +95,14 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
         if (!forceRefresh) {
           const cachedData = loadFromCache()
           if (cachedData) {
-            console.log('[useWarehousesData] 从缓存加载，仓库数量:', cachedData.length)
             setWarehouses(cachedData)
             setLoading(false)
             return cachedData
           }
         }
 
-        console.log('[useWarehousesData] 从服务器加载数据...')
         // 从服务器加载数据
         const warehousesData = await getManagerWarehouses(managerId)
-        console.log('[useWarehousesData] 服务器返回仓库数量:', warehousesData.length)
         setWarehouses(warehousesData)
 
         // 保存到缓存
@@ -143,8 +139,6 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
       return
     }
 
-    console.log('[useWarehousesData] 启用实时订阅，管理员ID:', managerId)
-
     // 创建实时频道
     const channel = supabase
       .channel(`warehouse_assignments_${managerId}`)
@@ -156,9 +150,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
           table: 'warehouse_assignments',
           filter: `user_id=eq.${managerId}` // 只监听当前管理员的变化
         },
-        (payload) => {
-          console.log('[useWarehousesData] 检测到仓库分配变化:', payload)
-
+        (_payload) => {
           // 显示提示信息
           Taro.showToast({
             title: '仓库分配已更新',
@@ -168,20 +160,16 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
 
           // 自动刷新数据
           setTimeout(() => {
-            console.log('[useWarehousesData] 自动刷新仓库列表')
             refresh()
           }, 500) // 延迟500ms，确保数据库操作完成
         }
       )
-      .subscribe((status) => {
-        console.log('[useWarehousesData] 订阅状态:', status)
-      })
+      .subscribe((_status) => {})
 
     channelRef.current = channel
 
     // 清理函数
     return () => {
-      console.log('[useWarehousesData] 清理实时订阅')
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null

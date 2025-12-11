@@ -43,7 +43,6 @@ const SupplementPhotos: React.FC = () => {
   // 加载车辆信息和需要补录的图片
   const loadVehicle = useCallback(async (vehicleId: string) => {
     setLoading(true)
-    logger.info('加载车辆信息', {vehicleId})
 
     try {
       const data = await VehiclesAPI.getVehicleById(vehicleId)
@@ -56,8 +55,6 @@ const SupplementPhotos: React.FC = () => {
       // 获取需要补录的图片列表
       const required = await VehiclesAPI.getRequiredPhotos(vehicleId)
       setRequiredPhotos(required)
-
-      logger.info('加载车辆信息成功', {vehicleId, requiredCount: required.length})
     } catch (error) {
       logger.error('加载车辆信息失败', error)
       Taro.showToast({title: '加载失败', icon: 'none'})
@@ -158,8 +155,6 @@ const SupplementPhotos: React.FC = () => {
                 throw new Error(`无效的图片索引: ${photoKey}`)
               }
 
-              logger.info('准备上传补录图片', {photoKey, field, index, tempPath})
-
               // 上传图片
               const fileName = generateUniqueFileName(`supplement_${field}_${index}`, 'jpg')
               const uploadedPath = await uploadImageToStorage(tempPath, BUCKET_NAME, fileName, false)
@@ -168,15 +163,11 @@ const SupplementPhotos: React.FC = () => {
                 throw new Error(`上传图片失败: ${photoKey}`)
               }
 
-              logger.info('图片上传成功，准备更新数据库', {photoKey, uploadedPath})
-
               // 更新数据库
               const success = await VehiclesAPI.supplementPhoto(vehicle.id, field, index, uploadedPath)
               if (!success) {
                 throw new Error(`更新图片失败: ${photoKey}`)
               }
-
-              logger.info('图片补录成功', {photoKey})
             }
 
             // 提交审核

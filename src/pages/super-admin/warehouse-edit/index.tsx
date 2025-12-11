@@ -61,10 +61,11 @@ const WarehouseEdit: React.FC = () => {
 
   // 加载仓库信息
   const loadWarehouse = useCallback(async (id: string) => {
+    console.log('[仓库管理-编辑仓库] 开始加载仓库信息', {warehouseId: id})
     showLoading({title: '加载中...'})
     try {
       const warehouseData = await WarehousesAPI.getWarehouseById(id)
-      console.log('加载的仓库数据:', warehouseData)
+      console.log('[仓库管理-编辑仓库] 加载仓库数据成功', warehouseData)
       if (warehouseData) {
         setWarehouse(warehouseData)
         setName(warehouseData.name)
@@ -72,16 +73,17 @@ const WarehouseEdit: React.FC = () => {
         setMaxLeaveDays(String(warehouseData.max_leave_days || 7))
         setResignationNoticeDays(String(warehouseData.resignation_notice_days || 30))
         setDailyTarget(warehouseData.daily_target ? String(warehouseData.daily_target) : '')
-        console.log('设置的状态:', {
+        console.log('[仓库管理-编辑仓库] 仓库状态设置完成', {
           name: warehouseData.name,
           isActive: warehouseData.is_active,
           maxLeaveDays: warehouseData.max_leave_days,
-          resignationNoticeDays: warehouseData.resignation_notice_days,
           dailyTarget: warehouseData.daily_target
         })
+      } else {
+        console.warn('[仓库管理-编辑仓库] 未找到仓库数据', {warehouseId: id})
       }
     } catch (error) {
-      console.error('加载仓库信息失败:', error)
+      console.error('[仓库管理-编辑仓库] 加载仓库信息失败:', error)
       showToast({title: '加载失败', icon: 'error'})
     } finally {
       Taro.hideLoading()
@@ -90,15 +92,16 @@ const WarehouseEdit: React.FC = () => {
 
   // 加载品类和价格
   const loadCategoriesAndPrices = useCallback(async (id: string) => {
+    console.log('[仓库管理-品类价格] 开始加载品类和价格', {warehouseId: id})
     try {
       // 加载所有品类
       const categories = await PieceworkAPI.getAllCategories()
-      console.log('所有品类:', categories)
+      console.log('[仓库管理-品类价格] 加载所有品类成功', {count: categories.length, categories})
       setAllCategories(categories)
 
       // 加载该仓库的品类价格
       const prices = await PieceworkAPI.getCategoryPricesByWarehouse(id)
-      console.log('仓库品类价格:', prices)
+      console.log('[仓库管理-品类价格] 加载仓库品类价格成功', {count: prices.length, prices})
       const driverPriceMap = new Map<string, string>()
       const vehiclePriceMap = new Map<string, string>()
       const sortingPriceMap = new Map<string, string>()
@@ -111,48 +114,60 @@ const WarehouseEdit: React.FC = () => {
         selectedSet.add(price.category_name)
       }
 
-      console.log('已选择的品类:', Array.from(selectedSet))
-      console.log('单价:', Array.from(driverPriceMap.entries()))
-      console.log('上楼价格:', Array.from(vehiclePriceMap.entries()))
-      console.log('分拣单价:', Array.from(sortingPriceMap.entries()))
-
+      console.log('[仓库管理-品类价格] 品类价格映射完成', {
+        selectedCount: selectedSet.size,
+        selectedCategories: Array.from(selectedSet),
+        priceMapSize: driverPriceMap.size
+      })
       setCategoryDriverPrices(driverPriceMap)
       setCategoryVehiclePrices(vehiclePriceMap)
       setCategorySortingPrices(sortingPriceMap)
       setSelectedCategories(selectedSet)
     } catch (error) {
-      console.error('加载品类信息失败:', error)
+      console.error('[仓库管理-品类价格] 加载品类信息失败:', error)
     }
   }, [])
 
   // 加载管理员
   const loadManagers = useCallback(
     async (id?: string) => {
+      console.log('[仓库管理-仓库分配] 开始加载管理员', {warehouseId: id, currentUserId: user?.id})
       try {
         // 加载所有车队长、老板和超级管理员
         const allUsers = await UsersAPI.getAllUsers()
         const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'BOSS')
-        console.log('加载到的车队长列表:', managers)
+        console.log('[仓库管理-仓库分配] 加载管理员成功', {totalUsers: allUsers.length, managerCount: managers.length})
         setAllManagers(managers)
 
         // 加载当前用户信息
         const current = managers.find((m) => m.id === user?.id)
         if (current) {
+          console.log('[仓库管理-仓库分配] 当前用户是管理员', {
+            userId: current.id,
+            userName: current.name,
+            role: current.role
+          })
           setCurrentUser(current)
+        } else {
+          console.warn('[仓库管理-仓库分配] 当前用户不是管理员', {userId: user?.id})
         }
 
         // 如果有仓库ID，加载该仓库的管理员
         if (id) {
           const warehouseManagers = await WarehousesAPI.getWarehouseManagers(id)
-          console.log('仓库已分配的管理员:', warehouseManagers)
+          console.log('[仓库管理-仓库分配] 加载仓库已分配管理员', {
+            count: warehouseManagers.length,
+            managers: warehouseManagers
+          })
           const managerSet = new Set<string>()
           for (const manager of warehouseManagers) {
             managerSet.add(manager.id)
           }
+          console.log('[仓库管理-仓库分配] 已分配管理员ID集合', {managerIds: Array.from(managerSet)})
           setSelectedManagers(managerSet)
         }
       } catch (error) {
-        console.error('加载管理员信息失败:', error)
+        console.error('[仓库管理-仓库分配] 加载管理员信息失败:', error)
       }
     },
     [user?.id]
@@ -162,7 +177,6 @@ const WarehouseEdit: React.FC = () => {
   const loadAttendanceRule = useCallback(async (id: string) => {
     try {
       const rule = await AttendanceAPI.getAttendanceRuleByWarehouseId(id)
-      console.log('加载的考勤规则:', rule)
       if (rule) {
         setCurrentRule(rule)
         setRuleStartTime(rule.work_start_time)
@@ -171,14 +185,6 @@ const WarehouseEdit: React.FC = () => {
         setRuleEarlyThreshold(String(rule.early_threshold))
         setRuleRequireClockOut(rule.require_clock_out ?? true)
         setRuleActive(rule.is_active)
-        console.log('设置的考勤规则状态:', {
-          startTime: rule.work_start_time,
-          endTime: rule.work_end_time,
-          lateThreshold: rule.late_threshold,
-          earlyThreshold: rule.early_threshold,
-          requireClockOut: rule.require_clock_out,
-          isActive: rule.is_active
-        })
       }
     } catch (error) {
       console.error('加载考勤规则失败:', error)
@@ -189,11 +195,8 @@ const WarehouseEdit: React.FC = () => {
   const loadAllWarehouses = useCallback(async () => {
     try {
       const warehouses = await WarehousesAPI.getAllWarehouses()
-      console.log('所有仓库列表:', warehouses)
-      console.log('当前仓库ID:', warehouseId)
       // 排除当前仓库
       const others = warehouses.filter((w) => w.id !== warehouseId)
-      console.log('过滤后的仓库列表:', others)
       setAllWarehouses(others)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
@@ -204,7 +207,6 @@ const WarehouseEdit: React.FC = () => {
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
     const id = instance.router?.params?.id
-    console.log('获取到的仓库ID:', id)
     if (id) {
       setWarehouseId(id)
     } else {
@@ -218,7 +220,6 @@ const WarehouseEdit: React.FC = () => {
   // 当 warehouseId 变化时加载数据
   useEffect(() => {
     if (warehouseId) {
-      console.log('开始加载仓库数据，ID:', warehouseId)
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
       loadAttendanceRule(warehouseId)
@@ -230,7 +231,6 @@ const WarehouseEdit: React.FC = () => {
   // 页面显示时刷新数据
   useDidShow(() => {
     if (warehouseId) {
-      console.log('页面显示，刷新数据')
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
       loadAttendanceRule(warehouseId)
@@ -389,8 +389,14 @@ const WarehouseEdit: React.FC = () => {
 
   // 创建新品类
   const handleCreateCategory = async () => {
+    console.log('[仓库管理-品类操作] 开始创建新品类', {
+      categoryName: newCategoryName,
+      driverPrice: newCategoryDriverPrice,
+      vehiclePrice: newCategoryVehiclePrice
+    })
     // 验证必填项
     if (!newCategoryName.trim()) {
+      console.warn('[仓库管理-品类操作] 品类名称为空')
       showToast({title: '请输入品类名称', icon: 'error'})
       return
     }
@@ -398,17 +404,23 @@ const WarehouseEdit: React.FC = () => {
     showLoading({title: '创建中...'})
     try {
       // 先创建品类，获取 ID
+      console.log('[仓库管理-品类操作] 调用创建品类API', {name: newCategoryName.trim()})
       const newCategory = await PieceworkAPI.createCategory({
         name: newCategoryName.trim(),
         unit: '件'
       })
 
       if (!newCategory) {
+        console.error('[仓库管理-品类操作] 创建品类失败，返回null')
         showToast({title: '创建品类失败', icon: 'error'})
         Taro.hideLoading()
         return
       }
 
+      console.log('[仓库管理-品类操作] 品类创建成功', {
+        categoryId: newCategory.id,
+        categoryName: newCategory.category_name
+      })
       // 再创建价格记录
       const priceInput: CategoryPriceInput = {
         category_id: newCategory.id,
@@ -418,9 +430,11 @@ const WarehouseEdit: React.FC = () => {
         effective_date: new Date().toISOString().split('T')[0]
       }
 
+      console.log('[仓库管理-品类操作] 创建品类价格记录', priceInput)
       const success = await PieceworkAPI.upsertCategoryPrice(priceInput)
 
       if (success) {
+        console.log('[仓库管理-品类操作] 品类价格创建成功')
         // 刷新品类列表
         await loadCategoriesAndPrices(warehouseId)
 
@@ -441,16 +455,18 @@ const WarehouseEdit: React.FC = () => {
         newSortingPrices.set(newCategoryName.trim(), newCategorySortingPrice || '0')
         setCategorySortingPrices(newSortingPrices)
 
+        console.log('[仓库管理-品类操作] 品类已自动选中并设置价格')
         showToast({title: '品类创建成功', icon: 'success'})
         setShowNewCategoryDialog(false)
 
         // 清除缓存
         onDataUpdated([CACHE_KEYS.WAREHOUSE_CATEGORIES])
       } else {
+        console.error('[仓库管理-品类操作] 品类价格创建失败')
         showToast({title: '创建失败', icon: 'error'})
       }
     } catch (error) {
-      console.error('创建品类失败:', error)
+      console.error('[仓库管理-品类操作] 创建品类异常:', error)
       showToast({title: '创建失败', icon: 'error'})
     } finally {
       Taro.hideLoading()
@@ -459,16 +475,12 @@ const WarehouseEdit: React.FC = () => {
 
   // 打开导入品类对话框
   const openImportDialog = async () => {
-    console.log('打开导入对话框，当前仓库ID:', warehouseId)
-
     try {
       // 重新加载仓库列表以确保数据最新
       const warehouses = await WarehousesAPI.getAllWarehouses()
-      console.log('所有仓库:', warehouses)
 
       // 排除当前仓库
       const others = warehouses.filter((w) => w.id !== warehouseId)
-      console.log('可选择的其他仓库:', others)
 
       setAllWarehouses(others)
 
@@ -488,18 +500,23 @@ const WarehouseEdit: React.FC = () => {
   // 导入其他仓库的品类配置
   const handleImportCategories = async () => {
     if (!selectedWarehouseForImport) {
+      console.warn('[仓库管理-导入品类] 未选择仓库')
       showToast({title: '请选择仓库', icon: 'error'})
       return
     }
 
+    console.log('[仓库管理-导入品类] 开始导入品类配置', {
+      sourceWarehouseId: selectedWarehouseForImport,
+      targetWarehouseId: warehouseId
+    })
     showLoading({title: '导入中...'})
     try {
       // 获取选中仓库的品类价格
       const prices = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouseForImport)
-
-      console.log('导入品类数据:', prices)
+      console.log('[仓库管理-导入品类] 获取源仓库品类价格', {count: prices.length, prices})
 
       if (prices.length === 0) {
+        console.warn('[仓库管理-导入品类] 源仓库没有品类配置')
         showToast({title: '该仓库暂无品类配置', icon: 'none'})
         Taro.hideLoading()
         return
@@ -516,6 +533,11 @@ const WarehouseEdit: React.FC = () => {
         newSelected.add(price.category_name)
       }
 
+      console.log('[仓库管理-导入品类] 品类配置合并完成', {
+        beforeCount: selectedCategories.size,
+        afterCount: newSelected.size,
+        importedCategories: Array.from(newSelected)
+      })
       setCategoryDriverPrices(newDriverPrices)
       setCategoryVehiclePrices(newVehiclePrices)
       setSelectedCategories(newSelected)
@@ -524,10 +546,11 @@ const WarehouseEdit: React.FC = () => {
       const categories = await PieceworkAPI.getAllCategories()
       setAllCategories(categories)
 
+      console.log('[仓库管理-导入品类] 品类导入成功')
       showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
       setShowImportDialog(false)
     } catch (error) {
-      console.error('导入品类失败:', error)
+      console.error('[仓库管理-导入品类] 导入品类失败:', error)
       showToast({title: `导入失败: ${error}`, icon: 'error'})
     } finally {
       Taro.hideLoading()
@@ -536,13 +559,16 @@ const WarehouseEdit: React.FC = () => {
 
   // 保存仓库信息
   const handleSave = async () => {
+    console.log('[仓库管理-保存操作] 开始保存仓库信息', {warehouseId, name, isActive})
     // 验证必填项
     if (!name.trim()) {
+      console.warn('[仓库管理-保存操作] 仓库名称为空')
       showToast({title: '请输入仓库名称', icon: 'error'})
       return
     }
 
     if (selectedManagers.size === 0) {
+      console.warn('[仓库管理-保存操作] 未选择管理员')
       showToast({title: '请至少选择一个管理员', icon: 'error'})
       return
     }
@@ -551,31 +577,51 @@ const WarehouseEdit: React.FC = () => {
     if (dailyTarget.trim() !== '') {
       const targetNum = Number(dailyTarget)
       if (Number.isNaN(targetNum) || targetNum < 0) {
+        console.warn('[仓库管理-保存操作] 每日指标格式不正确', {dailyTarget})
         showToast({title: '每日指标必须是非负整数', icon: 'error'})
         return
       }
     }
 
     // 验证品类价格
+    console.log('[仓库管理-保存操作] 开始验证品类价格', {selectedCategoriesCount: selectedCategories.size})
     for (const categoryId of selectedCategories) {
       const driverPrice = categoryDriverPrices.get(categoryId)
       const vehiclePrice = categoryVehiclePrices.get(categoryId)
       const category = allCategories.find((c) => c.id === categoryId)
 
       if (!driverPrice || Number.isNaN(Number(driverPrice)) || Number(driverPrice) < 0) {
+        console.warn('[仓库管理-保存操作] 品类纯司机单价无效', {
+          categoryId,
+          categoryName: category?.category_name,
+          driverPrice
+        })
         showToast({title: `请为品类"${category?.category_name}"设置有效的纯司机单价`, icon: 'error'})
         return
       }
 
       if (!vehiclePrice || Number.isNaN(Number(vehiclePrice)) || Number(vehiclePrice) < 0) {
+        console.warn('[仓库管理-保存操作] 品类带车司机单价无效', {
+          categoryId,
+          categoryName: category?.category_name,
+          vehiclePrice
+        })
         showToast({title: `请为品类"${category?.category_name}"设置有效的带车司机单价`, icon: 'error'})
         return
       }
     }
 
+    console.log('[仓库管理-保存操作] 验证通过，开始保存')
     showLoading({title: '保存中...'})
     try {
       // 1. 更新仓库基本信息
+      console.log('[仓库管理-保存操作] 步骤1: 更新仓库基本信息', {
+        name: name.trim(),
+        isActive,
+        maxLeaveDays: Number(maxLeaveDays),
+        resignationNoticeDays: Number(resignationNoticeDays),
+        dailyTarget: dailyTarget.trim() !== '' ? Number(dailyTarget) : null
+      })
       const success = await WarehousesAPI.updateWarehouse(warehouseId, {
         name: name.trim(),
         is_active: isActive,
@@ -585,10 +631,13 @@ const WarehouseEdit: React.FC = () => {
       })
 
       if (!success) {
+        console.error('[仓库管理-保存操作] 更新仓库基本信息失败')
         throw new Error('更新仓库信息失败')
       }
+      console.log('[仓库管理-保存操作] 步骤1完成: 仓库基本信息更新成功')
 
       // 2. 更新品类价格
+      console.log('[仓库管理-保存操作] 步骤2: 开始更新品类价格')
       const priceInputs: CategoryPriceInput[] = Array.from(selectedCategories)
         .map((categoryId) => {
           const category = allCategories.find((c) => c.id === categoryId)
@@ -603,14 +652,20 @@ const WarehouseEdit: React.FC = () => {
         })
         .filter((p) => p !== null) as CategoryPriceInput[]
 
+      console.log('[仓库管理-保存操作] 品类价格输入数据', {count: priceInputs.length, priceInputs})
       if (priceInputs.length > 0) {
         const priceSuccess = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
         if (!priceSuccess) {
+          console.error('[仓库管理-保存操作] 更新品类价格失败')
           throw new Error('更新品类价格失败')
         }
+        console.log('[仓库管理-保存操作] 步骤2完成: 品类价格更新成功')
+      } else {
+        console.log('[仓库管理-保存操作] 步骤2跳过: 无品类价格需要更新')
       }
 
       // 3. 更新管理员
+      console.log('[仓库管理-保存操作] 步骤3: 开始更新管理员分配')
       // 获取原有管理员
       const oldManagers = await WarehousesAPI.getWarehouseManagers(warehouseId)
       const oldManagerIds = new Set(oldManagers.map((m) => m.id))
@@ -619,17 +674,28 @@ const WarehouseEdit: React.FC = () => {
       const toAdd = Array.from(selectedManagers).filter((id) => !oldManagerIds.has(id))
       const toRemove = Array.from(oldManagerIds).filter((id) => !selectedManagers.has(id))
 
+      console.log('[仓库管理-保存操作] 管理员分配变更', {
+        oldManagerIds: Array.from(oldManagerIds),
+        newManagerIds: Array.from(selectedManagers),
+        toAdd,
+        toRemove
+      })
+
       // 添加新管理员
       for (const managerId of toAdd) {
+        console.log('[仓库管理-保存操作] 添加管理员', {managerId})
         await WarehousesAPI.addManagerWarehouse(managerId, warehouseId)
       }
 
       // 删除旧管理员
       for (const managerId of toRemove) {
+        console.log('[仓库管理-保存操作] 移除管理员', {managerId})
         await WarehousesAPI.removeManagerWarehouse(managerId, warehouseId)
       }
+      console.log('[仓库管理-保存操作] 步骤3完成: 管理员分配更新成功')
 
       // 4. 更新考勤规则
+      console.log('[仓库管理-保存操作] 步骤4: 开始更新考勤规则')
       const ruleInput = {
         warehouse_id: warehouseId,
         clock_in_time: ruleStartTime,
@@ -644,21 +710,28 @@ const WarehouseEdit: React.FC = () => {
 
       if (currentRule) {
         // 更新现有规则
+        console.log('[仓库管理-保存操作] 更新现有考勤规则', {ruleId: currentRule.id, ruleInput})
         const ruleSuccess = await AttendanceAPI.updateAttendanceRule(currentRule.id, ruleInput)
         if (!ruleSuccess) {
-          console.warn('更新考勤规则失败')
+          console.warn('[仓库管理-保存操作] 更新考勤规则失败')
+        } else {
+          console.log('[仓库管理-保存操作] 考勤规则更新成功')
         }
       } else {
         // 创建新规则
+        console.log('[仓库管理-保存操作] 创建新考勤规则', {ruleInput})
         const newRule = await AttendanceAPI.createAttendanceRule(ruleInput)
         if (newRule) {
+          console.log('[仓库管理-保存操作] 考勤规则创建成功', {ruleId: newRule.id})
           setCurrentRule(newRule)
         } else {
-          console.warn('创建考勤规则失败')
+          console.warn('[仓库管理-保存操作] 创建考勤规则失败')
         }
       }
+      console.log('[仓库管理-保存操作] 步骤4完成: 考勤规则更新成功')
 
       // 清除缓存
+      console.log('[仓库管理-保存操作] 清除缓存')
       onDataUpdated([
         CACHE_KEYS.ALL_WAREHOUSES,
         CACHE_KEYS.WAREHOUSE_CATEGORIES,
@@ -667,12 +740,13 @@ const WarehouseEdit: React.FC = () => {
         CACHE_KEYS.DASHBOARD_DATA
       ])
 
+      console.log('[仓库管理-保存操作] 所有步骤完成，保存成功')
       showToast({title: '保存成功', icon: 'success'})
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
     } catch (error) {
-      console.error('保存失败:', error)
+      console.error('[仓库管理-保存操作] 保存失败:', error)
       showToast({title: '保存失败', icon: 'error'})
     } finally {
       Taro.hideLoading()

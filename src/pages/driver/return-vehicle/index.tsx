@@ -161,7 +161,6 @@ const ReturnVehicle: React.FC = () => {
       const data = await VehiclesAPI.getVehicleById(vehicleId)
       if (data) {
         setVehicle(data)
-        logger.info('车辆信息加载成功', {vehicleId, plate: data.plate_number})
       } else {
         Taro.showToast({
           title: '车辆不存在',
@@ -197,7 +196,6 @@ const ReturnVehicle: React.FC = () => {
       }))
 
       setDamagePhotos([...damagePhotos, ...newPhotos])
-      logger.info('选择车损照片', {count: newPhotos.length})
     } catch (error) {
       logger.error('选择照片失败', error)
     }
@@ -272,11 +270,6 @@ const ReturnVehicle: React.FC = () => {
         }
       }
 
-      logger.info('还车照片上传成功', {
-        vehiclePhotos: Object.keys(uploadedVehiclePhotos).length,
-        damagePhotos: uploadedDamagePhotos.length
-      })
-
       // 3. 构建还车照片数组（7张车辆照片）
       const returnPhotoUrls = [
         uploadedVehiclePhotos.left_front,
@@ -309,7 +302,6 @@ const ReturnVehicle: React.FC = () => {
           title: '还车成功',
           icon: 'success'
         })
-        logger.info('还车成功', {vehicleId: vehicle.id})
 
         // 删除草稿
         if (user?.id && vehicleId) {

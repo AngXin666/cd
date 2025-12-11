@@ -33,25 +33,11 @@ const DriverProfile: React.FC = () => {
     setLoading(true)
     try {
       // 加载个人资料
-      logger.info('开始加载个人资料')
       const profileData = await UsersAPI.getCurrentUserProfile()
-      logger.info('个人资料加载完成', {hasData: !!profileData})
       setProfile(profileData)
 
       // 加载驾驶证信息
-      logger.info('开始加载驾驶证信息')
       const licenseData = await VehiclesAPI.getDriverLicense(user.id)
-      logger.info('驾驶证信息加载完成', {
-        hasData: !!licenseData,
-        hasIdCardFront: !!licenseData?.id_card_photo_front,
-        hasIdCardBack: !!licenseData?.id_card_photo_back,
-        hasDriverLicense: !!licenseData?.driving_license_photo
-      })
-      logger.debug('证件照片路径详情', {
-        idCardFront: licenseData?.id_card_photo_front,
-        idCardBack: licenseData?.id_card_photo_back,
-        driverLicense: licenseData?.driving_license_photo
-      })
       setDriverLicense(licenseData)
     } catch (error) {
       logger.error('加载个人资料失败', error)
@@ -84,11 +70,9 @@ const DriverProfile: React.FC = () => {
     })
 
     if (!res.confirm) {
-      logger.info('用户取消删除操作')
       return
     }
 
-    logger.info('开始删除个人信息', {userId: user.id})
     Taro.showLoading({title: '删除中...'})
     try {
       const success = await VehiclesAPI.deleteDriverLicense(user.id)
@@ -99,7 +83,6 @@ const DriverProfile: React.FC = () => {
 
       // 清空本地状态
       setDriverLicense(null)
-      logger.info('个人信息删除成功', {userId: user.id})
 
       Taro.showToast({
         title: '删除成功',
@@ -137,25 +120,19 @@ const DriverProfile: React.FC = () => {
   // 获取图片公共URL
   const getImageUrl = (path: string | null): string => {
     if (!path) {
-      logger.debug('图片路径为空')
       return ''
     }
 
-    logger.debug('处理图片路径', {path, pathType: typeof path, pathLength: path.length})
-
     // 如果已经是完整的URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      logger.debug('已经是完整URL，直接使用', {path})
       return path
     }
 
     // 否则从storage生成公共URL
     const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
-    logger.debug('从存储桶生成图片URL', {bucketName, relativePath: path})
 
     try {
       const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
-      logger.debug('图片URL生成成功', {path, url: data.publicUrl})
       return data.publicUrl
     } catch (error) {
       logger.error('获取图片URL失败', {path, bucketName, error})
@@ -428,9 +405,7 @@ const DriverProfile: React.FC = () => {
                                 generatedUrl: getImageUrl(driverLicense.id_card_photo_front)
                               })
                             }}
-                            onLoad={() => {
-                              logger.debug('身份证正面图片加载成功')
-                            }}
+                            onLoad={() => {}}
                             onClick={() =>
                               previewImage(
                                 getImageUrl(driverLicense.id_card_photo_front),
@@ -463,9 +438,7 @@ const DriverProfile: React.FC = () => {
                                 generatedUrl: getImageUrl(driverLicense.id_card_photo_back)
                               })
                             }}
-                            onLoad={() => {
-                              logger.debug('身份证背面图片加载成功')
-                            }}
+                            onLoad={() => {}}
                             onClick={() =>
                               previewImage(
                                 getImageUrl(driverLicense.id_card_photo_back),
@@ -498,9 +471,7 @@ const DriverProfile: React.FC = () => {
                                 generatedUrl: getImageUrl(driverLicense.driving_license_photo)
                               })
                             }}
-                            onLoad={() => {
-                              logger.debug('驾驶证照片加载成功')
-                            }}
+                            onLoad={() => {}}
                             onClick={() =>
                               previewImage(
                                 getImageUrl(driverLicense.driving_license_photo),

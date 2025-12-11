@@ -35,18 +35,9 @@ const VehicleList: React.FC = () => {
 
   // 加载司机信息
   const loadDriverInfo = useCallback(async (driverId: string) => {
-    logger.info('loadDriverInfo被调用', {
-      driverId,
-      callStack: new Error().stack?.split('\n').slice(0, 5).join('\n')
-    })
     try {
       const driver = await UsersAPI.getProfileById(driverId)
       setTargetDriver(driver)
-      logger.info('司机信息加载成功', {
-        driverId,
-        driverName: driver?.name,
-        driverRole: driver?.role
-      })
     } catch (error) {
       logger.error('加载司机信息失败', error)
     }
@@ -55,16 +46,13 @@ const VehicleList: React.FC = () => {
   // 获取URL参数中的司机ID（只在组件挂载时执行一次）
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
-    logger.info('页面参数', {params})
     if (params?.driverId) {
       const driverId = params.driverId
       setTargetDriverId(driverId)
       setIsManagerView(true)
-      logger.info('管理员查看模式', {targetDriverId: driverId})
       // 加载司机信息
       loadDriverInfo(driverId)
     } else {
-      logger.info('司机自己查看模式', {userId: user?.id})
       // 清空targetDriverId，确保使用当前用户ID
       setTargetDriverId('')
       setIsManagerView(false)
@@ -74,8 +62,7 @@ const VehicleList: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // 加载司机信息
-    loadDriverInfo,
-    user?.id
+    loadDriverInfo
   ]) // 只在组件挂载时执行一次
 
   // 加载车辆列表（带缓存）
@@ -85,20 +72,10 @@ const VehicleList: React.FC = () => {
       // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
       const driverId = targetDriverId || user?.id
 
-      logger.info('loadVehicles被调用', {
-        targetDriverId,
-        userId: user?.id,
-        finalDriverId: driverId,
-        isManagerView,
-        forceRefresh
-      })
-
       if (!driverId) {
-        logger.warn('无法加载车辆：缺少司机ID', {targetDriverId, userId: user?.id})
         return
       }
 
-      logger.info('开始加载车辆列表', {driverId, isManagerView, forceRefresh})
       setLoading(true)
       try {
         // 生成缓存键
@@ -108,20 +85,13 @@ const VehicleList: React.FC = () => {
         let data: Vehicle[]
 
         if (cached) {
-          logger.info('✅ 使用缓存的车辆列表', {driverId, vehicleCount: cached.length})
           data = cached
         } else {
-          logger.info('🔄 从数据库加载车辆列表', {driverId, forceRefresh})
           // 调试：检查认证状态
           const authStatus = await UsersAPI.debugAuthStatus()
-          logger.info('认证状态检查', authStatus)
 
           // 如果认证用户ID与查询的司机ID不匹配，记录警告
           if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
-            logger.warn('认证用户ID与查询司机ID不匹配', {
-              authUserId: authStatus.userId,
-              queryDriverId: driverId
-            })
           }
 
           data = await VehiclesAPI.getDriverVehicles(driverId)
@@ -130,11 +100,6 @@ const VehicleList: React.FC = () => {
         }
 
         setVehicles(data)
-        logger.info('车辆列表加载成功', {
-          driverId,
-          vehicleCount: data.length,
-          vehicles: data.map((v) => ({id: v.id, plate: v.plate_number, review_status: v.review_status}))
-        })
       } catch (error) {
         logger.error('加载车辆列表失败', error)
         Taro.showToast({
@@ -151,12 +116,6 @@ const VehicleList: React.FC = () => {
   // 页面显示时加载数据（只在初始化完成后）
   // 强制刷新以确保看到最新的审核状态
   useDidShow(() => {
-    logger.info('useDidShow被调用', {
-      initialized,
-      targetDriverId,
-      userId: user?.id,
-      isManagerView
-    })
     // 只在初始化完成后才加载数据，并强制刷新以获取最新状态
     if (initialized) {
       loadVehicles(true) // 强制刷新，跳过缓存
@@ -166,10 +125,9 @@ const VehicleList: React.FC = () => {
   // 当初始化完成后，加载车辆列表
   useEffect(() => {
     if (initialized) {
-      logger.info('初始化完成，加载车辆', {targetDriverId, userId: user?.id})
       loadVehicles()
     }
-  }, [initialized, loadVehicles, targetDriverId, user?.id])
+  }, [initialized, loadVehicles])
 
   // 添加车辆
   const handleAddVehicle = () => {

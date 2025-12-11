@@ -13,6 +13,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import {useUserContext} from '@/contexts/UserContext'
 import {getCurrentUserProfile} from '@/db/api'
 import {getUserNotifications, markNotificationAsRead, type Notification} from '@/db/notificationApi'
 import type {Profile} from '@/db/types'
@@ -22,6 +23,7 @@ const logger = createLogger('RealNotificationBar')
 
 const RealNotificationBar: React.FC = () => {
   const {user} = useAuth()
+  const userContext = useUserContext()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [scrollCount, setScrollCount] = useState(0) // 当前通知已滚动次数（0-2，共3次）
@@ -51,15 +53,21 @@ const RealNotificationBar: React.FC = () => {
     if (!user) return
 
     try {
-      const data = await getUserNotifications(user.id, 10)
+      const data = await getUserNotifications(
+        user.id,
+        {
+          ...user,
+          role: userContext.role
+        },
+        10
+      )
       // 只显示未读通知
       const unreadNotifications = data.filter((n) => !n.is_read)
       setNotifications(unreadNotifications)
-      logger.info('通知加载完成', {count: unreadNotifications.length})
     } catch (error) {
       logger.error('加载通知失败', error)
     }
-  }, [user])
+  }, [user, userContext.role])
 
   // 页面显示时重新加载（从通知中心返回时）
   useDidShow(() => {
@@ -70,20 +78,16 @@ const RealNotificationBar: React.FC = () => {
   useEffect(() => {
     if (!user) return
 
-    logger.info('启动通知定时轮询', {userId: user.id})
-
     // 立即加载一次
     loadNotifications()
 
     // 每10秒轮询一次
     const pollInterval = setInterval(() => {
-      logger.info('定时轮询：检查通知更新')
       loadNotifications()
     }, 10000) // 10秒
 
     // 清理定时器
     return () => {
-      logger.info('停止通知定时轮询')
       clearInterval(pollInterval)
     }
   }, [user, loadNotifications])
@@ -91,8 +95,6 @@ const RealNotificationBar: React.FC = () => {
   // 实时订阅通知更新（备用方案）
   useEffect(() => {
     if (!user) return
-
-    logger.info('开始订阅通知实时更新', {userId: user.id})
 
     // 订阅通知表的变化
     const channel = supabase
@@ -106,28 +108,21 @@ const RealNotificationBar: React.FC = () => {
           filter: `user_id=eq.${user.id}` // 只监听当前用户的通知
         },
         (payload) => {
-          logger.info('收到通知实时更新', {event: payload.eventType, payload})
-
           // 当有新通知插入或通知状态更新时，重新加载通知列表
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            logger.info('Realtime触发：重新加载通知列表')
             loadNotifications()
           }
 
           // 当通知被删除时，也重新加载
           if (payload.eventType === 'DELETE') {
-            logger.info('Realtime触发：通知被删除，重新加载列表')
             loadNotifications()
           }
         }
       )
-      .subscribe((status) => {
-        logger.info('通知订阅状态', {status})
-      })
+      .subscribe((_status) => {})
 
     // 清理订阅
     return () => {
-      logger.info('取消订阅通知实时更新')
       supabase.removeChannel(channel)
     }
   }, [user, loadNotifications])
@@ -168,7 +163,6 @@ const RealNotificationBar: React.FC = () => {
         // 滚动3次后的处理
         if (isSingleNotification) {
           // 只有一条通知：延迟10秒后继续滚动
-          logger.info('单条通知滚动3次完成，延迟10秒后继续滚动', {currentIndex})
           switchTimerRef.current = setTimeout(() => {
             setScrollCount(0)
             setIsScrolling(false)
@@ -177,10 +171,6 @@ const RealNotificationBar: React.FC = () => {
           }, singleNotificationDelay)
         } else {
           // 多条通知：切换到下一条通知
-          logger.info('多条通知滚动3次完成，切换到下一条通知', {
-            currentIndex,
-            nextIndex: (currentIndex + 1) % notifications.length
-          })
           switchTimerRef.current = setTimeout(() => {
             setCurrentIndex((prev) => (prev + 1) % notifications.length)
             setScrollCount(0)
@@ -191,18 +181,11 @@ const RealNotificationBar: React.FC = () => {
       }
 
       // 开始滚动
-      logger.info('开始滚动', {
-        currentIndex,
-        scrollCount: count + 1,
-        totalNotifications: notifications.length,
-        isSingleNotification
-      })
       setScrollCount(count)
       setIsScrolling(true)
 
       // 滚动完成后停留
       scrollTimerRef.current = setTimeout(() => {
-        logger.info('滚动完成，停留2秒', {currentIndex, scrollCount: count + 1})
         setIsScrolling(false)
 
         // 停留2秒后开始下一次滚动
@@ -230,7 +213,7 @@ const RealNotificationBar: React.FC = () => {
         clearTimeout(switchTimerRef.current)
       }
     }
-  }, [notifications.length, currentIndex])
+  }, [notifications.length])
 
   // 如果没有未读通知，不显示通知栏
   if (notifications.length === 0) {
@@ -375,7 +358,6 @@ const RealNotificationBar: React.FC = () => {
     // 标记为已读
     const success = await markNotificationAsRead(currentNotification.id)
     if (success) {
-      logger.info('通知已标记为已读', {notificationId: currentNotification.id})
       // 从列表中移除已读通知
       setNotifications((prev) => prev.filter((n) => n.id !== currentNotification.id))
       // 重置索引

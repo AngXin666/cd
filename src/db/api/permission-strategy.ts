@@ -475,7 +475,7 @@ export async function createScheduler(
   try {
     const strategyName = permissionLevel === 'full_control' ? 'scheduler_full_control' : 'scheduler_view_only'
 
-    const {data, error} = await supabase.rpc('assign_permission_strategy', {
+    const {error} = await supabase.rpc('assign_permission_strategy', {
       p_user_id: userId,
       p_strategy_name: strategyName,
       p_granted_by: bossId,
@@ -567,7 +567,7 @@ export async function updateSchedulerPermission(
   try {
     const strategyName = permissionLevel === 'full_control' ? 'scheduler_full_control' : 'scheduler_view_only'
 
-    const {data, error} = await supabase.rpc('update_permission_strategy', {
+    const {error} = await supabase.rpc('update_permission_strategy', {
       p_user_id: userId,
       p_strategy_name: strategyName,
       p_granted_by: bossId,
@@ -604,7 +604,7 @@ export async function updateSchedulerPermission(
  */
 export async function removeScheduler(userId: string, bossId: string): Promise<OperationResult> {
   try {
-    const {data, error} = await supabase.rpc('remove_permission_strategy', {
+    const {error} = await supabase.rpc('remove_permission_strategy', {
       p_user_id: userId,
       p_removed_by: bossId
     })

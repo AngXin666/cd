@@ -58,11 +58,11 @@ const WarehouseCategories: React.FC = () => {
     const edits: CategoryPriceEdit[] = data.map((price) => ({
       categoryId: price.id,
       categoryName: price.category_name,
-      unitPrice: price.unit_price.toString(),
-      upstairsPrice: price.upstairs_price.toString(),
-      sortingUnitPrice: price.sorting_unit_price.toString(),
-      driverOnlyPrice: price.driver_only_price.toString(),
-      driverWithVehiclePrice: price.driver_with_vehicle_price.toString(),
+      unitPrice: price.unit_price?.toString() || '0',
+      upstairsPrice: price.upstairs_price?.toString() || '0',
+      sortingUnitPrice: price.sorting_unit_price?.toString() || '0',
+      driverOnlyPrice: price.driver_only_price?.toString() || '0',
+      driverWithVehiclePrice: price.driver_with_vehicle_price?.toString() || '0',
       isNew: false
     }))
     setPriceEdits(edits)
@@ -185,13 +185,7 @@ const WarehouseCategories: React.FC = () => {
     } else {
       // 如果是已存在的品类，更新数据库
       const success = await PieceworkAPI.updateCategory(edit.categoryId, {
-        warehouse_id: selectedWarehouse.id,
-        category_name: editingCategoryName.trim(),
-        unit_price: Number.parseFloat(edit.unitPrice),
-        upstairs_price: Number.parseFloat(edit.upstairsPrice),
-        sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
-        driver_only_price: Number.parseFloat(edit.driverOnlyPrice),
-        driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice),
+        name: editingCategoryName.trim(),
         is_active: true
       })
 
@@ -288,19 +282,53 @@ const WarehouseCategories: React.FC = () => {
       }
     }
 
-    // 直接保存所有品类价格配置（新品类和已有品类都通过 upsert 处理）
-    const priceInputs = priceEdits.map((edit) => ({
-      category_id: edit.categoryId,
-      warehouse_id: selectedWarehouse.id,
-      category_name: edit.categoryName.trim(),
-      unit_price: Number.parseFloat(edit.unitPrice),
-      upstairs_price: Number.parseFloat(edit.upstairsPrice),
-      sorting_unit_price: Number.parseFloat(edit.sortingUnitPrice),
-      driver_only_price: Number.parseFloat(edit.driverOnlyPrice),
-      driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice),
-      is_active: true,
-      effective_date: new Date().toISOString().split('T')[0]
-    }))
+    // 收集所有品类价格配置
+    const priceInputs = []
+
+    // 遍历所有价格编辑项
+    for (const edit of priceEdits) {
+      // 为当前编辑项创建对应的价格输入对象数组
+      const currentPriceInputs = [
+        {
+          category_id: edit.categoryId,
+          warehouse_id: selectedWarehouse.id,
+          price: Number.parseFloat(edit.unitPrice),
+          driver_type: 'default',
+          effective_date: new Date().toISOString().split('T')[0]
+        },
+        {
+          category_id: edit.categoryId,
+          warehouse_id: selectedWarehouse.id,
+          price: Number.parseFloat(edit.upstairsPrice),
+          driver_type: 'upstairs',
+          effective_date: new Date().toISOString().split('T')[0]
+        },
+        {
+          category_id: edit.categoryId,
+          warehouse_id: selectedWarehouse.id,
+          price: Number.parseFloat(edit.sortingUnitPrice),
+          driver_type: 'sorting',
+          effective_date: new Date().toISOString().split('T')[0]
+        },
+        {
+          category_id: edit.categoryId,
+          warehouse_id: selectedWarehouse.id,
+          price: Number.parseFloat(edit.driverOnlyPrice),
+          driver_type: 'driver_only',
+          effective_date: new Date().toISOString().split('T')[0]
+        },
+        {
+          category_id: edit.categoryId,
+          warehouse_id: selectedWarehouse.id,
+          price: Number.parseFloat(edit.driverWithVehiclePrice),
+          driver_type: 'driver_with_vehicle',
+          effective_date: new Date().toISOString().split('T')[0]
+        }
+      ]
+
+      // 将当前编辑项的价格输入对象添加到总数组中
+      priceInputs.push(...currentPriceInputs)
+    }
 
     const success = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
 

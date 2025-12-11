@@ -11,13 +11,13 @@ export enum LogLevel {
   ERROR = 'ERROR'
 }
 
-// 日志颜色配置
-const _LOG_COLORS = {
-  [LogLevel.DEBUG]: '#6B7280', // 灰色
-  [LogLevel.INFO]: '#3B82F6', // 蓝色
-  [LogLevel.WARN]: '#F59E0B', // 橙色
-  [LogLevel.ERROR]: '#EF4444' // 红色
-}
+// 日志颜色配置（备用）
+// const _LOG_COLORS = {
+//   [LogLevel.DEBUG]: '#6B7280', // 灰色
+//   [LogLevel.INFO]: '#3B82F6', // 蓝色
+//   [LogLevel.WARN]: '#F59E0B', // 橙色
+//   [LogLevel.ERROR]: '#EF4444' // 红色
+// }
 
 // 日志图标
 const LOG_ICONS = {
@@ -137,13 +137,10 @@ function log(level: LogLevel, module: string, message: string, data?: any) {
   // 根据日志级别选择console方法
   switch (level) {
     case LogLevel.DEBUG:
-      console.debug(formattedMessage, data || '')
       break
     case LogLevel.INFO:
-      console.info(formattedMessage, data || '')
       break
     case LogLevel.WARN:
-      console.warn(formattedMessage, data || '')
       break
     case LogLevel.ERROR:
       console.error(formattedMessage, data || '')
@@ -152,7 +149,6 @@ function log(level: LogLevel, module: string, message: string, data?: any) {
 
   // 如果有数据对象，单独打印（仅错误时）
   if (level === LogLevel.ERROR && data !== undefined && data !== null) {
-    console.log('📦 数据详情:', data)
   }
 }
 

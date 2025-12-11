@@ -22,7 +22,7 @@ interface CategoryPriceEdit {
 }
 
 const CategoryManagement: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user: _user} = useAuth({guard: true})
   const [_categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
@@ -57,12 +57,15 @@ const CategoryManagement: React.FC = () => {
 
     // 初始化编辑状态 - 显示当前仓库已配置的品类
     // 按category_id分组，区分driver_only和driver_with_vehicle
-    const categoryMap = new Map<string, {
-      categoryId: string
-      categoryName: string
-      driverOnlyPrice: string
-      driverWithVehiclePrice: string
-    }>()
+    const categoryMap = new Map<
+      string,
+      {
+        categoryId: string
+        categoryName: string
+        driverOnlyPrice: string
+        driverWithVehiclePrice: string
+      }
+    >()
 
     data.forEach((price) => {
       const key = price.category_id
@@ -74,7 +77,7 @@ const CategoryManagement: React.FC = () => {
           driverWithVehiclePrice: '0'
         })
       }
-      
+
       const item = categoryMap.get(key)!
       if (price.driver_type === 'driver_only') {
         item.driverOnlyPrice = (price.price || 0).toString()
@@ -93,7 +96,7 @@ const CategoryManagement: React.FC = () => {
       driverWithVehiclePrice: item.driverWithVehiclePrice,
       isNew: false
     }))
-    
+
     setPriceEdits(edits)
   }, [selectedWarehouse])
 
@@ -288,7 +291,7 @@ const CategoryManagement: React.FC = () => {
             unit: '件',
             description: ''
           })
-          
+
           if (newCategory) {
             // 更新为真实ID
             updatedEdits[i] = {
@@ -304,7 +307,7 @@ const CategoryManagement: React.FC = () => {
 
       // 2. 保存所有品类价格配置（纯司机和带车两种类型）
       const priceInputs: CategoryPriceInput[] = []
-      
+
       updatedEdits.forEach((edit) => {
         // 纯司机价格
         priceInputs.push({
@@ -314,7 +317,7 @@ const CategoryManagement: React.FC = () => {
           driver_type: 'driver_only',
           effective_date: new Date().toISOString().split('T')[0]
         })
-        
+
         // 带车价格
         if (edit.driverWithVehiclePrice && Number.parseFloat(edit.driverWithVehiclePrice) > 0) {
           priceInputs.push({

@@ -179,8 +179,8 @@ export default defineConfig<'vite'>(async (merge) => {
     mini: {
       compile: {
         exclude: [
-          // 排除不需要编译的文件
-          (modulePath: string) => modulePath.indexOf('node_modules') >= 0 && modulePath.indexOf('@tarojs') < 0
+          // 排除不需要编译的文件 - 使用字符串模式替代函数以兼容 Node.js v24
+          'node_modules/**'
         ]
       },
       postcss: {

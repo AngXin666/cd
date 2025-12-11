@@ -31,7 +31,7 @@ interface SupplementPhotoItem {
 }
 
 const SupplementVehicle: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user: _user} = useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -65,7 +65,6 @@ const SupplementVehicle: React.FC = () => {
         const index = Number.parseInt(lastPart, 10)
 
         if (Number.isNaN(index)) {
-          logger.warn('无效的照片key', {photoKey})
           continue
         }
 
@@ -80,7 +79,6 @@ const SupplementVehicle: React.FC = () => {
         } else if (photoKey.startsWith('damage_photos')) {
           field = 'damage_photos'
         } else {
-          logger.warn('未知的照片字段', {photoKey})
           continue
         }
 
@@ -98,7 +96,6 @@ const SupplementVehicle: React.FC = () => {
       }
 
       setSupplementItems(items)
-      logger.info('需要补录的照片', {items})
     } catch (error) {
       logger.error('加载车辆数据失败', error)
       Taro.showToast({

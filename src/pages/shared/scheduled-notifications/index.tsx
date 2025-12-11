@@ -11,7 +11,7 @@ import type {ScheduledNotification} from '@/db/types'
  * 定时通知管理页面
  */
 const ScheduledNotifications: React.FC = () => {
-  const {user} = useAuth({guard: true})
+  const {user: _user} = useAuth({guard: true})
 
   const [notifications, setNotifications] = useState<ScheduledNotification[]>([])
   const [filter, setFilter] = useState<'all' | 'pending' | 'sent'>('pending')

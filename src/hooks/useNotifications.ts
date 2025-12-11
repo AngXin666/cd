@@ -65,12 +65,9 @@ export function useNotifications() {
         read: false
       }
 
-      console.log('📢 添加新通知:', newNotification)
-
       setNotifications((prev) => {
         const updated = [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS)
         saveNotifications(updated)
-        console.log('📋 当前通知列表:', updated)
         return updated
       })
 

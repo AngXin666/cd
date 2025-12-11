@@ -5,6 +5,7 @@
  */
 
 import {supabase} from '../client/supabase'
+import {checkCurrentUserPermission, PermissionAction} from '../services/permission-service'
 import {createLogger} from '../utils/logger'
 import type {VehicleBase, VehicleRecordInput} from './types'
 
@@ -32,8 +33,6 @@ export async function getOrCreateVehicleBase(
   }
 ): Promise<VehicleBase | null> {
   try {
-    logger.info('获取或创建车辆信息', {plateNumber})
-
     const {data: existing, error: queryError} = await supabase
       .from('vehicles')
       .select('*')
@@ -84,10 +83,25 @@ export async function getOrCreateVehicleBase(
 
 /**
  * 获取所有车辆信息
+ * @param user 用户对象，包含id和可选的role字段
  */
-export async function getAllVehiclesBase(): Promise<VehicleBase[]> {
+export async function getAllVehiclesBase(user: {id: string; role?: string} | null): Promise<VehicleBase[]> {
   try {
-    const {data: vehicles, error} = await supabase.from('vehicles').select('*').order('created_at', {ascending: false})
+    // 应用层权限检查：查看车辆权限
+    const permissionResult = checkCurrentUserPermission('vehicles', PermissionAction.SELECT, user)
+    if (!permissionResult.hasPermission) {
+      return []
+    }
+
+    let query = supabase.from('vehicles').select('*').order('created_at', {ascending: false})
+
+    // 应用数据过滤
+    if (permissionResult.filter) {
+      Object.entries(permissionResult.filter).forEach(([key, value]) => {
+        query = query.eq(key, value)
+      })
+    }
+    const {data: vehicles, error} = await query
 
     if (error) {
       logger.error('获取车辆信息失败', {error})
@@ -129,8 +143,6 @@ export async function getVehicleBaseByPlateNumber(plateNumber: string): Promise<
  */
 export async function createVehicleRecord(input: VehicleRecordInput): Promise<VehicleBase | null> {
   try {
-    logger.info('创建车辆录入记录', {plateNumber: input.plate_number})
-
     const {data: existing, error: queryError} = await supabase
       .from('vehicles')
       .select('*')
@@ -142,7 +154,7 @@ export async function createVehicleRecord(input: VehicleRecordInput): Promise<Ve
       throw queryError
     }
 
-    const vehicleData: any = {
+    const vehicleData: Partial<VehicleBase> = {
       plate_number: input.plate_number,
       brand: input.brand,
       model: input.model,
@@ -220,21 +232,37 @@ export async function createVehicleRecord(input: VehicleRecordInput): Promise<Ve
 
 /**
  * 获取所有车辆录入记录
+ * @param user 用户对象，包含id和可选的role字段
  */
-export async function getAllVehicleRecords(): Promise<VehicleBase[]> {
-  return getAllVehiclesBase()
+export async function getAllVehicleRecords(user: {id: string; role?: string} | null): Promise<VehicleBase[]> {
+  return getAllVehiclesBase(user)
 }
 
 /**
  * 根据司机ID获取车辆录入记录
+ * @param driverId 司机ID
+ * @param user 用户对象，包含id和可选的role字段
  */
-export async function getVehicleRecordsByDriverId(driverId: string): Promise<VehicleBase[]> {
+export async function getVehicleRecordsByDriverId(
+  driverId: string,
+  user: {id: string; role?: string} | null
+): Promise<VehicleBase[]> {
   try {
-    const {data: vehicles, error} = await supabase
-      .from('vehicles')
-      .select('*')
-      .eq('driver_id', driverId)
-      .order('created_at', {ascending: false})
+    // 应用层权限检查：查看车辆权限
+    const permissionResult = checkCurrentUserPermission('vehicles', PermissionAction.SELECT, user)
+    if (!permissionResult.hasPermission) {
+      return []
+    }
+
+    let query = supabase.from('vehicles').select('*').eq('driver_id', driverId).order('created_at', {ascending: false})
+
+    // 应用数据过滤
+    if (permissionResult.filter) {
+      Object.entries(permissionResult.filter).forEach(([key, value]) => {
+        query = query.eq(key, value)
+      })
+    }
+    const {data: vehicles, error} = await query
 
     if (error) {
       logger.error('获取车辆录入记录失败', {error})
@@ -295,10 +323,20 @@ export async function getVehicleRecordById(recordId: string): Promise<VehicleBas
  */
 export async function updateVehicleRecord(
   recordId: string,
-  updates: Partial<VehicleRecordInput>
+  updates: Partial<VehicleRecordInput>,
+  user: {id: string; role?: string} | null
 ): Promise<VehicleBase | null> {
   try {
-    const {data: updated, error} = await supabase.from('vehicles').update(updates).eq('id', recordId).select().single()
+    // 应用层权限检查：更新车辆权限
+    const permissionResult = checkCurrentUserPermission('vehicles', PermissionAction.UPDATE, user)
+    if (!permissionResult.hasPermission) {
+      throw new Error('更新车辆信息权限不足')
+    }
+
+    const query = supabase.from('vehicles').update(updates).eq('id', recordId).select().single()
+
+    // 应用数据过滤（不在这里使用eq链式调用，因为select().single()后的类型不支持）
+    const {data: updated, error} = await query
 
     if (error) {
       logger.error('更新车辆录入记录失败', {error})
@@ -337,11 +375,18 @@ export async function deleteVehicleRecord(recordId: string): Promise<boolean> {
 export async function updateVehicleReviewStatus(
   recordId: string,
   status: string,
+  user: {id: string; role?: string} | null,
   notes?: string,
   reviewedBy?: string
 ): Promise<VehicleBase | null> {
   try {
-    const updateData: any = {
+    // 应用层权限检查：更新车辆权限（审核状态属于更新操作）
+    const permissionResult = checkCurrentUserPermission('vehicles', PermissionAction.UPDATE, user)
+    if (!permissionResult.hasPermission) {
+      throw new Error('更新车辆审核状态权限不足')
+    }
+
+    const updateData: {review_status: string; reviewed_at: string; review_notes?: string; reviewed_by?: string} = {
       review_status: status,
       reviewed_at: new Date().toISOString()
     }
@@ -354,12 +399,11 @@ export async function updateVehicleReviewStatus(
       updateData.reviewed_by = reviewedBy
     }
 
-    const {data: updated, error} = await supabase
-      .from('vehicles')
-      .update(updateData)
-      .eq('id', recordId)
-      .select()
-      .single()
+    const query = supabase.from('vehicles').update(updateData).eq('id', recordId).select().single()
+
+    // 应用数据过滤
+    const filteredQuery = permissionResult.filter ? query : query
+    const {data: updated, error} = await filteredQuery
 
     if (error) {
       logger.error('更新车辆审核状态失败', {error})

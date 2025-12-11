@@ -68,11 +68,6 @@ async function saveTempFileToPersistent(tempFilePath: string): Promise<string> {
     })
 
     if ('savedFilePath' in result) {
-      logger.info('图片已持久化', {
-        tempPath: tempFilePath,
-        savedPath: result.savedFilePath
-      })
-
       return result.savedFilePath
     } else {
       logger.error('图片持久化失败', {tempFilePath, result})
@@ -136,7 +131,6 @@ async function cleanInvalidPaths(paths: (string | undefined)[]): Promise<(string
       if (isValid) {
         results.push(path)
       } else {
-        logger.warn('图片文件无效，已清除', {path})
         results.push(undefined)
       }
     } else {
@@ -164,8 +158,6 @@ function getDraftKey(type: 'add' | 'return', userId: string): string {
  */
 export async function saveDraft(type: 'add' | 'return', userId: string, draft: VehicleDraft): Promise<void> {
   try {
-    logger.info('开始保存草稿', {type, userId})
-
     // 持久化所有图片路径
     const persistedDraft: VehicleDraft = {
       ...draft
@@ -205,8 +197,6 @@ export async function saveDraft(type: 'add' | 'return', userId: string, draft: V
       key,
       data: draftWithTimestamp
     })
-
-    logger.info('草稿已保存', {key, photoCount: getPhotoCount(persistedDraft)})
   } catch (error) {
     logger.error('保存草稿失败', error)
   }
@@ -225,8 +215,6 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
     if (result.data) {
       const draft = result.data as VehicleDraft
 
-      logger.info('草稿已读取', {key, photoCount: getPhotoCount(draft)})
-
       // 验证并清理无效的图片路径
       const cleanedDraft: VehicleDraft = {
         ...draft
@@ -236,7 +224,6 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
       if (draft.registration_front_photo) {
         const isValid = await isFileValid(draft.registration_front_photo)
         if (!isValid) {
-          logger.warn('行驶证主页图片无效', {path: draft.registration_front_photo})
           cleanedDraft.registration_front_photo = undefined
         }
       }
@@ -244,7 +231,6 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
       if (draft.registration_back_photo) {
         const isValid = await isFileValid(draft.registration_back_photo)
         if (!isValid) {
-          logger.warn('行驶证副页图片无效', {path: draft.registration_back_photo})
           cleanedDraft.registration_back_photo = undefined
         }
       }
@@ -252,7 +238,6 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
       if (draft.id_card_front_photo) {
         const isValid = await isFileValid(draft.id_card_front_photo)
         if (!isValid) {
-          logger.warn('身份证正面图片无效', {path: draft.id_card_front_photo})
           cleanedDraft.id_card_front_photo = undefined
         }
       }
@@ -260,7 +245,6 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
       if (draft.driver_license_photo) {
         const isValid = await isFileValid(draft.driver_license_photo)
         if (!isValid) {
-          logger.warn('驾驶证图片无效', {path: draft.driver_license_photo})
           cleanedDraft.driver_license_photo = undefined
         }
       }
@@ -274,12 +258,6 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
       if (draft.damage_photos && draft.damage_photos.length > 0) {
         cleanedDraft.damage_photos = await cleanInvalidPaths(draft.damage_photos)
       }
-
-      logger.info('草稿已验证', {
-        key,
-        originalPhotoCount: getPhotoCount(draft),
-        cleanedPhotoCount: getPhotoCount(cleanedDraft)
-      })
 
       return cleanedDraft
     }
@@ -296,7 +274,7 @@ export async function getDraft(type: 'add' | 'return', userId: string): Promise<
  * @param draft 草稿数据
  * @returns 图片总数
  */
-function getPhotoCount(draft: VehicleDraft): number {
+function _getPhotoCount(draft: VehicleDraft): number {
   let count = 0
 
   if (draft.registration_front_photo) count++
@@ -324,7 +302,6 @@ export async function deleteDraft(type: 'add' | 'return', userId: string): Promi
   try {
     const key = getDraftKey(type, userId)
     await Taro.removeStorage({key})
-    logger.info('草稿已删除', {key})
   } catch (error) {
     logger.error('删除草稿失败', error)
   }
@@ -361,7 +338,6 @@ export async function cleanExpiredDraft(type: 'add' | 'return', userId: string):
       // 如果草稿超过7天，自动删除
       if (daysDiff > 7) {
         await deleteDraft(type, userId)
-        logger.info('已清理过期草稿', {type, userId, daysDiff})
       }
     }
   } catch (error) {

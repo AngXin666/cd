@@ -188,7 +188,7 @@ export interface WarehouseUpdate {
 // 权限等级类型
 // - full_control: 完整控制权，可增删改查
 // - view_only: 仅查看权，只能查看不能修改
-// 
+//
 // 适用于：
 // - PEER_ADMIN (调度): 由老板授权，full_control=与老板相同权限, view_only=仅查看所有数据
 // - MANAGER (车队长): 在仓库分配时设置，full_control=可管理该仓库, view_only=只能查看该仓库
@@ -200,7 +200,7 @@ export interface WarehouseAssignment {
   warehouse_id: string
   user_id: string
   assigned_by: string | null
-  permission_level: PermissionLevel | null  // 权限等级：full_control(完整控制) 或 view_only(仅查看)
+  permission_level: PermissionLevel | null // 权限等级：full_control(完整控制) 或 view_only(仅查看)
   created_at: string
 }
 
@@ -209,7 +209,7 @@ export interface WarehouseAssignmentInput {
   warehouse_id: string
   user_id: string
   assigned_by?: string
-  permission_level?: PermissionLevel  // 权限等级：full_control(完整控制) 或 view_only(仅查看)
+  permission_level?: PermissionLevel // 权限等级：full_control(完整控制) 或 view_only(仅查看)
 }
 
 // ==================== 车辆相关类型 ====================
@@ -241,6 +241,30 @@ export interface Vehicle {
   reviewed_at: string | null
   reviewed_by: string | null
   ownership_type: string | null
+  // 扩展字段（支持车辆详情页面使用）
+  review_notes?: string | null
+  required_photos?: string[] | null
+  damage_photos?: string[] | null
+  pickup_time?: string | null
+  pickup_photos?: string[] | null
+  return_time?: string | null
+  return_photos?: string[] | null
+  registration_photos?: string[] | null
+  use_character?: string | null
+  register_date?: string | null
+  // 车辆照片字段
+  left_front_photo?: string | null
+  right_front_photo?: string | null
+  left_rear_photo?: string | null
+  right_rear_photo?: string | null
+  dashboard_photo?: string | null
+  rear_door_photo?: string | null
+  cargo_box_photo?: string | null
+  // 行驶证照片
+  driving_license_main_photo?: string | null
+  driving_license_sub_photo?: string | null
+  driving_license_back_photo?: string | null
+  driving_license_sub_back_photo?: string | null
 }
 
 // 车辆扩展信息接口（对应vehicle_documents表）
@@ -302,6 +326,17 @@ export interface VehicleDocument {
 // 车辆完整信息接口（包含核心信息和扩展信息）
 export interface VehicleWithDocuments extends Vehicle {
   document?: VehicleDocument | null
+  // 允许从vehicle_documents表平铺的字段
+  required_photos?: string[] | null
+  // 租赁相关字段
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
 }
 
 // 创建车辆核心信息的输入接口
@@ -323,6 +358,52 @@ export interface VehicleInput {
   ownership_type?: string
   is_active?: boolean
   notes?: string
+  // 行驶证信息（扩展字段，支持车辆录入页面使用）
+  owner_name?: string
+  use_character?: string
+  register_date?: string
+  issue_date?: string
+  engine_number?: string
+  archive_number?: string
+  total_mass?: number | string
+  approved_passengers?: number | string
+  curb_weight?: number | string
+  approved_load?: number | string
+  overall_dimension_length?: number | string
+  overall_dimension_width?: number | string
+  overall_dimension_height?: number | string
+  inspection_valid_until?: string
+  inspection_date?: string
+  mandatory_scrap_date?: string
+  // 车辆照片字段
+  left_front_photo?: string
+  right_front_photo?: string
+  left_rear_photo?: string
+  right_rear_photo?: string
+  dashboard_photo?: string
+  rear_door_photo?: string
+  cargo_box_photo?: string
+  // 行驶证照片
+  driving_license_main_photo?: string
+  driving_license_sub_photo?: string
+  driving_license_back_photo?: string
+  driving_license_sub_back_photo?: string
+  // 租赁信息
+  lessor_name?: string
+  lessor_contact?: string
+  lessee_name?: string
+  lessee_contact?: string
+  monthly_rent?: number
+  lease_start_date?: string
+  lease_end_date?: string
+  rent_payment_day?: number
+  // 其他字段
+  pickup_time?: string
+  pickup_photos?: string[]
+  return_time?: string
+  return_photos?: string[]
+  registration_photos?: string[]
+  damage_photos?: string[]
 }
 
 // 创建车辆扩展信息的输入接口
@@ -399,6 +480,20 @@ export interface VehicleUpdate {
   notes?: string
   reviewed_at?: string
   reviewed_by?: string
+  // 扩展字段（支持车辆页面更新使用）
+  review_notes?: string
+  required_photos?: string[]
+  damage_photos?: string[]
+  pickup_time?: string
+  // 租赁相关字段
+  lessor_name?: string
+  lessor_contact?: string
+  lessee_name?: string
+  lessee_contact?: string
+  monthly_rent?: number
+  lease_start_date?: string
+  lease_end_date?: string
+  rent_payment_day?: number
 }
 
 // 更新车辆扩展信息的输入接口
@@ -455,7 +550,7 @@ export interface VehicleDocumentUpdate {
 
 // ==================== 车辆基本信息和记录相关类型 ====================
 
-// 车辆基本信息接口（vehicles_base 表）
+// 车辆基本信息接口（vehicles 表）
 export interface VehicleBase {
   id: string
   plate_number: string
@@ -477,6 +572,47 @@ export interface VehicleBase {
   lease_start_date?: string | null
   lease_end_date?: string | null
   rent_payment_day?: number | null
+  // 关联字段
+  driver_id?: string | null
+  warehouse_id?: string | null
+  // 行驶证信息
+  issue_date?: string | null
+  archive_number?: string | null
+  total_mass?: string | null
+  approved_passengers?: string | null
+  curb_weight?: string | null
+  approved_load?: string | null
+  overall_dimension_length?: string | null
+  overall_dimension_width?: string | null
+  overall_dimension_height?: string | null
+  inspection_valid_until?: string | null
+  inspection_date?: string | null
+  mandatory_scrap_date?: string | null
+  // 车辆照片
+  left_front_photo?: string | null
+  right_front_photo?: string | null
+  left_rear_photo?: string | null
+  right_rear_photo?: string | null
+  dashboard_photo?: string | null
+  rear_door_photo?: string | null
+  cargo_box_photo?: string | null
+  // 行驶证照片
+  driving_license_main_photo?: string | null
+  driving_license_sub_photo?: string | null
+  driving_license_sub_back_photo?: string | null
+  // 审核管理
+  review_status?: string | null
+  required_photos?: string[] | null
+  review_notes?: string | null
+  // 时间字段
+  pickup_time?: string | null
+  return_time?: string | null
+  // 照片数组
+  pickup_photos?: string[] | null
+  return_photos?: string[] | null
+  registration_photos?: string[] | null
+  damage_photos?: string[] | null
+  // 时间戳
   created_at: string
   updated_at: string
 }
@@ -922,6 +1058,15 @@ export interface VehicleWithDriver extends Vehicle {
   driver_name?: string | null
   driver_phone?: string | null
   return_time?: string | null // 从vehicle_documents表获取
+  // 租赁相关字段
+  lessor_name?: string | null
+  lessor_contact?: string | null
+  lessee_name?: string | null
+  lessee_contact?: string | null
+  monthly_rent?: number | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  rent_payment_day?: number | null
 }
 
 // 车辆与司机详细信息接口（保留用于兼容性）
@@ -1122,7 +1267,7 @@ export interface LockedPhotos {
 // ==================== 通知模板和定时通知（已废弃 - 多租户相关）====================
 
 // 发送者角色类型（统一使用大写格式）
-export type SenderRole = 'BOSS' | 'MANAGER' | 'DRIVER' | 'DISPATCHER'
+export type SenderRole = 'BOSS' | 'MANAGER' | 'DRIVER' | 'DISPATCHER' | 'PEER_ADMIN'
 
 // 通知模板接口（保留用于兼容性）
 export interface NotificationTemplate {

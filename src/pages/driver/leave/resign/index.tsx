@@ -105,9 +105,7 @@ const ApplyResignation: React.FC = () => {
             }
           }
         }
-      } catch (error) {
-        console.log('读取上次选择的仓库失败:', error)
-      }
+      } catch (_error) {}
     }
   }, [user, isEditMode])
 
@@ -167,9 +165,7 @@ const ApplyResignation: React.FC = () => {
     if (user) {
       try {
         Taro.setStorageSync(`resignation_application_last_warehouse_${user.id}`, selectedWarehouseId)
-      } catch (error) {
-        console.log('保存仓库选择失败:', error)
-      }
+      } catch (_error) {}
     }
   }
 
@@ -275,14 +271,12 @@ const ApplyResignation: React.FC = () => {
       const driverDisplayName = await VehiclesAPI.getDriverDisplayName(user.id)
 
       // 为所有管理员创建通知
-      const notificationCount = await NotificationsAPI.createNotificationForAllManagers({
+      const _notificationCount = await NotificationsAPI.createNotificationForAllManagers({
         type: 'resignation_application_submitted',
         title: '新的离职申请',
         message: `${driverDisplayName} 提交了离职申请，期望离职日期：${expectedDate}，离职原因：${reason.trim()}`,
         related_id: applicationId
       })
-
-      console.log('✅ 离职申请提交成功，已通知', notificationCount, '位管理员')
 
       showToast({title: '提交成功', icon: 'success'})
       setTimeout(() => {

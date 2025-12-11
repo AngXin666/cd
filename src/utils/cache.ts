@@ -87,7 +87,6 @@ export function getCache<T>(key: string): T | null {
   try {
     const cacheData = Taro.getStorageSync(key) as CacheData<T> | undefined
     if (!cacheData) {
-      console.log(`ℹ️ [缓存] 缓存不存在: ${key}`)
       return null
     }
 
@@ -127,12 +126,12 @@ export function clearCacheByPrefix(prefix: string): void {
   try {
     const info = Taro.getStorageInfoSync()
     const keys = info.keys || []
-    let clearedCount = 0
+    let _clearedCount = 0
 
     keys.forEach((key) => {
       if (key.startsWith(prefix)) {
         Taro.removeStorageSync(key)
-        clearedCount++
+        _clearedCount++
       }
     })
   } catch (error) {
@@ -172,12 +171,10 @@ export function clearManagerWarehousesCache(managerId?: string) {
       const cached = Taro.getStorageSync(CACHE_KEYS.MANAGER_WAREHOUSES)
       if (cached && cached.managerId === managerId) {
         Taro.removeStorageSync(CACHE_KEYS.MANAGER_WAREHOUSES)
-        console.log(`[Cache] 已清除管理员 ${managerId} 的仓库缓存`)
       }
     } else {
       // 清除所有仓库缓存
       Taro.removeStorageSync(CACHE_KEYS.MANAGER_WAREHOUSES)
-      console.log('[Cache] 已清除所有仓库缓存')
     }
   } catch (err) {
     console.error('[Cache] 清除仓库缓存失败:', err)
@@ -195,12 +192,10 @@ export function clearDashboardCache(warehouseId?: string) {
       const cached = Taro.getStorageSync(CACHE_KEYS.DASHBOARD_DATA)
       if (cached && cached.warehouseId === warehouseId) {
         Taro.removeStorageSync(CACHE_KEYS.DASHBOARD_DATA)
-        console.log(`[Cache] 已清除仓库 ${warehouseId} 的仪表板缓存`)
       }
     } else {
       // 清除所有仪表板缓存
       Taro.removeStorageSync(CACHE_KEYS.DASHBOARD_DATA)
-      console.log('[Cache] 已清除所有仪表板缓存')
     }
   } catch (err) {
     console.error('[Cache] 清除仪表板缓存失败:', err)
@@ -218,12 +213,10 @@ export function clearDriverStatsCache(warehouseId?: string) {
       const cached = Taro.getStorageSync(CACHE_KEYS.DRIVER_STATS)
       if (cached && cached.warehouseId === warehouseId) {
         Taro.removeStorageSync(CACHE_KEYS.DRIVER_STATS)
-        console.log(`[Cache] 已清除仓库 ${warehouseId} 的司机统计缓存`)
       }
     } else {
       // 清除所有司机统计缓存
       Taro.removeStorageSync(CACHE_KEYS.DRIVER_STATS)
-      console.log('[Cache] 已清除所有司机统计缓存')
     }
   } catch (err) {
     console.error('[Cache] 清除司机统计缓存失败:', err)
@@ -236,7 +229,6 @@ export function clearDriverStatsCache(warehouseId?: string) {
 export function clearSuperAdminDashboardCache() {
   try {
     Taro.removeStorageSync(CACHE_KEYS.SUPER_ADMIN_DASHBOARD)
-    console.log('[Cache] 已清除超级管理员仪表板缓存')
   } catch (err) {
     console.error('[Cache] 清除超级管理员仪表板缓存失败:', err)
   }
@@ -250,7 +242,6 @@ export function clearManagerDriversCache() {
     clearCache(CACHE_KEYS.MANAGER_DRIVERS)
     clearCache(CACHE_KEYS.MANAGER_DRIVER_DETAILS)
     clearCache(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES)
-    console.log('[Cache] 已清除管理员端司机缓存')
   } catch (err) {
     console.error('[Cache] 清除管理员端司机缓存失败:', err)
   }
@@ -264,7 +255,6 @@ export function clearSuperAdminUsersCache() {
     clearCache(CACHE_KEYS.SUPER_ADMIN_USERS)
     clearCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
     clearCache(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES)
-    console.log('[Cache] 已清除超级管理员端用户缓存')
   } catch (err) {
     console.error('[Cache] 清除超级管理员端用户缓存失败:', err)
   }
@@ -278,7 +268,6 @@ export function clearAllCache() {
     Object.values(CACHE_KEYS).forEach((key) => {
       Taro.removeStorageSync(key)
     })
-    console.log('[Cache] 已清除所有缓存')
   } catch (err) {
     console.error('[Cache] 清除所有缓存失败:', err)
   }
@@ -292,7 +281,6 @@ export function clearManagerAllCache(managerId: string) {
   clearManagerWarehousesCache(managerId)
   clearManagerDriversCache()
   // 可以根据需要添加更多缓存清除
-  console.log(`[Cache] 已清除管理员 ${managerId} 的所有相关缓存`)
 }
 
 /**
@@ -303,7 +291,6 @@ export function clearWarehouseCache() {
     clearCache(CACHE_KEYS.ALL_WAREHOUSES)
     clearCache(CACHE_KEYS.WAREHOUSE_CATEGORIES)
     clearCache(CACHE_KEYS.WAREHOUSE_ASSIGNMENTS)
-    console.log('[Cache] 已清除仓库相关缓存')
   } catch (err) {
     console.error('[Cache] 清除仓库缓存失败:', err)
   }
@@ -316,7 +303,6 @@ export function clearLeaveCache() {
   try {
     clearCache(CACHE_KEYS.LEAVE_APPLICATIONS)
     clearCache(CACHE_KEYS.LEAVE_DETAILS)
-    console.log('[Cache] 已清除请假审批缓存')
   } catch (err) {
     console.error('[Cache] 清除请假审批缓存失败:', err)
   }
@@ -329,7 +315,6 @@ export function clearPieceWorkCache() {
   try {
     clearCache(CACHE_KEYS.PIECE_WORK_REPORTS)
     clearCache(CACHE_KEYS.PIECE_WORK_DETAILS)
-    console.log('[Cache] 已清除计件工作缓存')
   } catch (err) {
     console.error('[Cache] 清除计件工作缓存失败:', err)
   }
@@ -339,14 +324,13 @@ export function clearPieceWorkCache() {
  * 清除司机端缓存
  * @param driverId 司机ID（可选）
  */
-export function clearDriverCache(driverId?: string) {
+export function clearDriverCache(_driverId?: string) {
   try {
     clearCache(CACHE_KEYS.DRIVER_PROFILE)
     clearCache(CACHE_KEYS.DRIVER_VEHICLES)
     clearCache(CACHE_KEYS.DRIVER_ATTENDANCE)
     clearCache(CACHE_KEYS.DRIVER_LEAVE)
     clearCache(CACHE_KEYS.DRIVER_PIECE_WORK)
-    console.log(`[Cache] 已清除司机端缓存${driverId ? ` (司机ID: ${driverId})` : ''}`)
   } catch (err) {
     console.error('[Cache] 清除司机端缓存失败:', err)
   }
@@ -359,7 +343,6 @@ export function clearAttendanceCache() {
   try {
     clearCache(CACHE_KEYS.ATTENDANCE_MONTHLY)
     clearCache(CACHE_KEYS.ATTENDANCE_ALL_RECORDS)
-    console.log('[Cache] 已清除考勤管理缓存')
   } catch (err) {
     console.error('[Cache] 清除考勤管理缓存失败:', err)
   }
@@ -397,7 +380,6 @@ export function incrementDataVersion(): void {
       timestamp: Date.now()
     }
     Taro.setStorageSync(CACHE_KEYS.DATA_VERSION, newVersion)
-    console.log(`📈 [缓存] 数据版本号已更新: ${currentVersion} → ${newVersion.version}`)
   } catch (error) {
     console.error('[Cache] 更新数据版本号失败:', error)
   }
@@ -435,7 +417,6 @@ export function setVersionedCache<T>(key: string, data: T, ttl: number = 5 * 60 
       version: getDataVersion()
     }
     Taro.setStorageSync(key, cacheData)
-    console.log(`✅ [缓存] 已设置带版本号的缓存: ${key}, 版本: ${cacheData.version}, TTL: ${ttl / 1000}秒`)
   } catch (error) {
     console.error(`❌ [缓存] 设置带版本号的缓存失败: ${key}`, error)
   }
@@ -450,7 +431,6 @@ export function getVersionedCache<T>(key: string): T | null {
   try {
     const cacheData = Taro.getStorageSync(key) as VersionedCacheData<T> | undefined
     if (!cacheData) {
-      console.log(`ℹ️ [缓存] 缓存不存在: ${key}`)
       return null
     }
 
@@ -459,7 +439,6 @@ export function getVersionedCache<T>(key: string): T | null {
 
     // 检查缓存是否过期
     if (age > cacheData.ttl) {
-      console.log(`⏰ [缓存] 缓存已过期: ${key} (已存在 ${Math.round(age / 1000)}秒)`)
       Taro.removeStorageSync(key)
       return null
     }
@@ -467,12 +446,10 @@ export function getVersionedCache<T>(key: string): T | null {
     // 检查版本号是否匹配
     const currentVersion = getDataVersion()
     if (cacheData.version !== currentVersion) {
-      console.log(`🔄 [缓存] 缓存版本不匹配: ${key} (缓存版本: ${cacheData.version}, 当前版本: ${currentVersion})`)
       Taro.removeStorageSync(key)
       return null
     }
 
-    console.log(`✅ [缓存] 使用带版本号的缓存: ${key} (版本: ${cacheData.version}, 已存在 ${Math.round(age / 1000)}秒)`)
     return cacheData.data
   } catch (error) {
     console.error(`❌ [缓存] 获取带版本号的缓存失败: ${key}`, error)
@@ -495,7 +472,6 @@ export function clearAllCacheAndResetVersion() {
   clearAllCache()
   try {
     Taro.removeStorageSync(CACHE_KEYS.DATA_VERSION)
-    console.log('[Cache] 已重置数据版本号')
   } catch (err) {
     console.error('[Cache] 重置数据版本号失败:', err)
   }
@@ -511,9 +487,7 @@ export function onDataUpdated(cacheKeys?: string[]) {
     for (const key of cacheKeys) {
       clearCache(key)
     }
-    console.log(`🔄 [缓存] 数据更新，已清除 ${cacheKeys.length} 个相关缓存`)
   } else {
     clearAllCache()
-    console.log('🔄 [缓存] 数据更新，已清除所有缓存')
   }
 }

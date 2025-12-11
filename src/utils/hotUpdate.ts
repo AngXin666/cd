@@ -24,9 +24,8 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
     // 检查上次检查时间,避免频繁检查
     const lastCheckTime = Taro.getStorageSync(LAST_CHECK_TIME_KEY) || 0
     const now = Date.now()
-    
+
     if (now - lastCheckTime < CHECK_INTERVAL) {
-      console.log('[热更新] 距离上次检查不足1小时,跳过')
       return null
     }
 
@@ -39,7 +38,7 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
     if (result.statusCode === 200) {
       const lastModified = result.header['last-modified'] || result.header['Last-Modified']
       const contentLength = result.header['content-length'] || result.header['Content-Length']
-      
+
       // 使用文件修改时间作为版本号
       const version = lastModified || new Date().toISOString()
       const currentVersion = Taro.getStorageSync(UPDATE_VERSION_KEY)
@@ -49,14 +48,12 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 
       // 如果版本不同,说明有新版本
       if (version !== currentVersion) {
-        console.log(`[热更新] 发现新版本: ${version}`)
         return {
           version,
-          size: parseInt(contentLength) || 0,
+          size: parseInt(contentLength, 10) || 0,
           downloadUrl: UPDATE_CHECK_URL
         }
       } else {
-        console.log('[热更新] 已是最新版本')
         return null
       }
     }
@@ -73,13 +70,6 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
  */
 export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<boolean> {
   try {
-    console.log('========================================')
-    console.log('[热更新] 🚀 开始下载更新包')
-    console.log('[热更新] 📋 版本号:', updateInfo.version)
-    console.log('[热更新] 📦 文件大小:', updateInfo.size, 'bytes')
-    console.log('[热更新] 🔗 下载地址:', updateInfo.downloadUrl)
-    console.log('========================================')
-    
     // 显示下载进度
     Taro.showLoading({
       title: '下载更新中...',
@@ -90,28 +80,18 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
     const downloadTask = Taro.downloadFile({
       url: updateInfo.downloadUrl,
       success: (res) => {
-        console.log('[热更新] ✅ downloadFile success 回调触发')
-        console.log('[热更新] 📊 响应状态码:', res.statusCode)
-        console.log('[热更新] 📁 临时文件路径:', res.tempFilePath)
-        console.log('[热更新] 📋 响应头:', JSON.stringify(res.header))
-        
         if (res.statusCode === 200) {
-          console.log('[热更新] ✅ 下载成功，状态码 200')
-          
           // 保存新版本号
-          console.log('[热更新] 💾 保存新版本号到本地存储:', updateInfo.version)
           Taro.setStorageSync(UPDATE_VERSION_KEY, updateInfo.version)
-          
+
           Taro.hideLoading()
-          console.log('[热更新] 🎉 准备重启应用应用更新')
-          
+
           // 提示用户重启应用
           Taro.showModal({
             title: '更新下载完成',
             content: '应用将重新加载以应用更新',
             showCancel: false,
             success: () => {
-              console.log('[热更新] 🔄 用户确认重启，执行 reLaunch')
               // 重新加载页面
               Taro.reLaunch({
                 url: '/pages/index/index'
@@ -133,15 +113,15 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
         console.error('[热更新] 错误类型:', typeof err)
         console.error('[热更新] 错误对象:', JSON.stringify(err, null, 2))
         console.error('[热更新] errMsg:', err.errMsg)
-        
+
         // 尝试输出所有可能的错误信息字段
         if (err) {
-          Object.keys(err).forEach(key => {
+          Object.keys(err).forEach((key) => {
             console.error(`[热更新] err.${key}:`, err[key])
           })
         }
         console.error('========================================')
-        
+
         Taro.hideLoading()
         Taro.showToast({
           title: err.errMsg || '更新下载失败',
@@ -151,9 +131,6 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
       }
     })
 
-    console.log('[热更新] 📡 downloadTask 对象:', downloadTask)
-    console.log('[热更新] 📡 downloadTask 类型:', typeof downloadTask)
-    
     if (!downloadTask) {
       console.error('[热更新] ❌ downloadTask 为 null 或 undefined！')
       Taro.hideLoading()
@@ -166,9 +143,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
 
     // 监听下载进度
     if (downloadTask.onProgressUpdate) {
-      console.log('[热更新] ✅ onProgressUpdate 方法存在，开始监听进度')
       downloadTask.onProgressUpdate((res) => {
-        console.log(`[热更新] 📊 下载进度: ${res.progress}%, 已下载: ${res.totalBytesWritten}/${res.totalBytesExpectedToWrite}`)
         if (res.progress % 10 === 0) {
           Taro.showLoading({
             title: `下载中 ${res.progress}%`,
@@ -177,7 +152,6 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
         }
       })
     } else {
-      console.warn('[热更新] ⚠️ downloadTask.onProgressUpdate 不存在')
     }
 
     return true
@@ -189,7 +163,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
     console.error('[热更新] 异常消息:', error instanceof Error ? error.message : String(error))
     console.error('[热更新] 堆栈信息:', error instanceof Error ? error.stack : 'N/A')
     console.error('========================================')
-    
+
     Taro.hideLoading()
     return false
   }
@@ -201,7 +175,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
 export async function silentCheckUpdate(): Promise<void> {
   try {
     const updateInfo = await checkForUpdate()
-    
+
     if (updateInfo) {
       // 发现新版本,询问用户是否更新
       Taro.showModal({
@@ -233,9 +207,9 @@ export async function forceCheckUpdate(): Promise<void> {
   try {
     // 清除上次检查时间,强制检查
     Taro.removeStorageSync(LAST_CHECK_TIME_KEY)
-    
+
     const updateInfo = await checkForUpdate()
-    
+
     Taro.hideLoading()
 
     if (updateInfo) {
@@ -256,7 +230,7 @@ export async function forceCheckUpdate(): Promise<void> {
         icon: 'success'
       })
     }
-  } catch (error) {
+  } catch (_error) {
     Taro.hideLoading()
     Taro.showToast({
       title: '检查更新失败',

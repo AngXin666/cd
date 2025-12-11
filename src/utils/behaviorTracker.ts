@@ -88,7 +88,6 @@ class BehaviorTracker {
    */
   async init(userId: string) {
     this.userId = userId
-    console.log('[行为追踪] 初始化完成', {userId})
   }
 
   /**
@@ -96,7 +95,6 @@ class BehaviorTracker {
    */
   async trackPageView(featureModule: FeatureModule | string, pagePath?: string) {
     if (!this.userId) {
-      console.warn('[行为追踪] 未初始化，跳过追踪')
       return
     }
 
@@ -117,8 +115,6 @@ class BehaviorTracker {
 
     // 更新功能权重
     await this.updateFeatureWeight(featureModule)
-
-    console.log('[行为追踪] 页面访问', {featureModule, pagePath})
   }
 
   /**
@@ -126,7 +122,6 @@ class BehaviorTracker {
    */
   async trackAction(featureModule: FeatureModule | string, actionType: ActionType, pagePath?: string) {
     if (!this.userId) {
-      console.warn('[行为追踪] 未初始化，跳过追踪')
       return
     }
 
@@ -138,8 +133,6 @@ class BehaviorTracker {
 
     // 更新功能权重
     await this.updateFeatureWeight(featureModule)
-
-    console.log('[行为追踪] 操作行为', {featureModule, actionType})
   }
 
   /**
@@ -186,7 +179,6 @@ class BehaviorTracker {
    */
   async getHighPriorityFeatures(limit: number = 5): Promise<FeatureWeight[]> {
     if (!this.userId) {
-      console.warn('[行为追踪] 未初始化，返回空列表')
       return []
     }
 
@@ -213,7 +205,6 @@ class BehaviorTracker {
    */
   async getAllFeatureWeights(): Promise<FeatureWeight[]> {
     if (!this.userId) {
-      console.warn('[行为追踪] 未初始化，返回空列表')
       return []
     }
 
@@ -279,7 +270,6 @@ class BehaviorTracker {
 
     this.pageStartTime = null
     this.currentFeature = null
-    console.log('[行为追踪] 清理完成')
   }
 }
 

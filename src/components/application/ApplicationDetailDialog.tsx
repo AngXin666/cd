@@ -60,7 +60,7 @@ const ApplicationDetailDialog: React.FC<ApplicationDetailDialogProps> = ({
         }
 
         // 获取申请人信息（单用户架构：从 users 表查询）
-        const {data: applicant, error: applicantError} = await supabase
+        const {data: applicant} = await supabase
           .from('users')
           .select('name, phone')
           .eq('id', application.user_id)

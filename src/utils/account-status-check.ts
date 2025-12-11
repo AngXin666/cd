@@ -60,7 +60,6 @@ export async function checkLoginStatus(): Promise<boolean> {
     } = await supabase.auth.getUser()
 
     if (error || !user) {
-      console.log('[checkLoginStatus] 用户未登录')
       return false
     }
 
@@ -79,8 +78,6 @@ export async function checkLoginStatus(): Promise<boolean> {
 
     // 如果不能登录，显示提示信息
     if (!status.can_login) {
-      console.log('[checkLoginStatus] 账号不能登录:', status)
-
       // 显示提示信息
       await Taro.showModal({
         title: '账号状态提示',
@@ -101,7 +98,6 @@ export async function checkLoginStatus(): Promise<boolean> {
     }
 
     // 可以登录
-    console.log('[checkLoginStatus] 账号状态正常:', status)
     return true
   } catch (error) {
     console.error('[checkLoginStatus] 异常:', error)

@@ -21,6 +21,7 @@ import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
+import {useUserContext} from '@/contexts/UserContext'
 import * as UsersAPI from '@/db/api/users'
 
 import {
@@ -65,6 +66,7 @@ const FILTER_CONFIG = [
 
 const NotificationsPage: React.FC = () => {
   const {user} = useAuth({guard: true})
+  const userContext = useUserContext()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [filterType, setFilterType] = useState<FilterType>('all') // 筛选类型：全部、未读、已读
@@ -80,7 +82,10 @@ const NotificationsPage: React.FC = () => {
 
     setLoading(true)
     try {
-      const data = await getUserNotifications(user.id)
+      const data = await getUserNotifications(user.id, {
+        ...user,
+        role: userContext.role
+      })
       // 排序：未读优先，然后按时间倒序
       const sorted = data.sort((a, b) => {
         // 未读优先
@@ -97,7 +102,7 @@ const NotificationsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, userContext.role])
 
   // 页面显示时加载数据
   useDidShow(() => {

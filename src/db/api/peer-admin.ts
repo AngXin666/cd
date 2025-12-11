@@ -59,13 +59,6 @@ export async function createPeerAdmin(
   notes?: string
 ): Promise<string | null> {
   try {
-    console.log('[createPeerAdmin] 创建PEER_ADMIN', {
-      userId,
-      permissionLevel,
-      bossId,
-      notes
-    })
-
     const {data, error} = await supabase.rpc('create_peer_admin', {
       p_user_id: userId,
       p_permission_level: permissionLevel,
@@ -78,7 +71,6 @@ export async function createPeerAdmin(
       throw new Error(error.message)
     }
 
-    console.log('[createPeerAdmin] 成功创建PEER_ADMIN:', data)
     return data
   } catch (error) {
     console.error('[createPeerAdmin] 未预期的错误:', error)
@@ -101,13 +93,6 @@ export async function updatePeerAdminPermission(
   notes?: string
 ): Promise<boolean> {
   try {
-    console.log('[updatePeerAdminPermission] 更新PEER_ADMIN权限', {
-      userId,
-      permissionLevel,
-      bossId,
-      notes
-    })
-
     const {data, error} = await supabase.rpc('update_peer_admin_permission', {
       p_user_id: userId,
       p_permission_level: permissionLevel,
@@ -120,7 +105,6 @@ export async function updatePeerAdminPermission(
       throw new Error(error.message)
     }
 
-    console.log('[updatePeerAdminPermission] 成功更新PEER_ADMIN权限:', data)
     return data === true
   } catch (error) {
     console.error('[updatePeerAdminPermission] 未预期的错误:', error)
@@ -136,8 +120,6 @@ export async function updatePeerAdminPermission(
  */
 export async function removePeerAdmin(userId: string, bossId: string): Promise<boolean> {
   try {
-    console.log('[removePeerAdmin] 删除PEER_ADMIN', {userId, bossId})
-
     const {data, error} = await supabase.rpc('remove_peer_admin', {
       p_user_id: userId,
       p_boss_id: bossId
@@ -148,7 +130,6 @@ export async function removePeerAdmin(userId: string, bossId: string): Promise<b
       throw new Error(error.message)
     }
 
-    console.log('[removePeerAdmin] 成功删除PEER_ADMIN:', data)
     return data === true
   } catch (error) {
     console.error('[removePeerAdmin] 未预期的错误:', error)
@@ -163,8 +144,6 @@ export async function removePeerAdmin(userId: string, bossId: string): Promise<b
  */
 export async function getAllPeerAdmins(bossId: string): Promise<PeerAdminListItem[]> {
   try {
-    console.log('[getAllPeerAdmins] 获取所有PEER_ADMIN列表', {bossId})
-
     const {data, error} = await supabase.rpc('get_all_peer_admins', {
       p_boss_id: bossId
     })
@@ -174,7 +153,6 @@ export async function getAllPeerAdmins(bossId: string): Promise<PeerAdminListIte
       throw new Error(error.message)
     }
 
-    console.log('[getAllPeerAdmins] 成功获取PEER_ADMIN列表:', data)
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error('[getAllPeerAdmins] 未预期的错误:', error)
@@ -189,8 +167,6 @@ export async function getAllPeerAdmins(bossId: string): Promise<PeerAdminListIte
  */
 export async function getPeerAdminPermission(userId: string): Promise<PeerAdminPermission | null> {
   try {
-    console.log('[getPeerAdminPermission] 获取PEER_ADMIN权限详情', {userId})
-
     const {data, error} = await supabase.rpc('get_peer_admin_permission', {
       p_user_id: userId
     })
@@ -201,11 +177,9 @@ export async function getPeerAdminPermission(userId: string): Promise<PeerAdminP
     }
 
     if (!data || data.length === 0) {
-      console.warn('[getPeerAdminPermission] 未找到PEER_ADMIN权限详情')
       return null
     }
 
-    console.log('[getPeerAdminPermission] 成功获取PEER_ADMIN权限详情:', data[0])
     return data[0]
   } catch (error) {
     console.error('[getPeerAdminPermission] 未预期的错误:', error)
@@ -220,8 +194,6 @@ export async function getPeerAdminPermission(userId: string): Promise<PeerAdminP
  */
 export async function isPeerAdmin(userId: string): Promise<boolean> {
   try {
-    console.log('[isPeerAdmin] 检查用户是否为PEER_ADMIN', {userId})
-
     const {data, error} = await supabase.rpc('is_peer_admin', {
       p_user_id: userId
     })
@@ -231,7 +203,6 @@ export async function isPeerAdmin(userId: string): Promise<boolean> {
       return false
     }
 
-    console.log('[isPeerAdmin] 检查结果:', data)
     return data === true
   } catch (error) {
     console.error('[isPeerAdmin] 未预期的错误:', error)
@@ -246,8 +217,6 @@ export async function isPeerAdmin(userId: string): Promise<boolean> {
  */
 export async function peerAdminHasFullControl(userId: string): Promise<boolean> {
   try {
-    console.log('[peerAdminHasFullControl] 检查PEER_ADMIN是否有完整控制权', {userId})
-
     const {data, error} = await supabase.rpc('peer_admin_has_full_control', {
       p_user_id: userId
     })
@@ -257,7 +226,6 @@ export async function peerAdminHasFullControl(userId: string): Promise<boolean> 
       return false
     }
 
-    console.log('[peerAdminHasFullControl] 检查结果:', data)
     return data === true
   } catch (error) {
     console.error('[peerAdminHasFullControl] 未预期的错误:', error)
@@ -272,8 +240,6 @@ export async function peerAdminHasFullControl(userId: string): Promise<boolean> 
  */
 export async function peerAdminIsViewOnly(userId: string): Promise<boolean> {
   try {
-    console.log('[peerAdminIsViewOnly] 检查PEER_ADMIN是否只有查看权', {userId})
-
     const {data, error} = await supabase.rpc('peer_admin_is_view_only', {
       p_user_id: userId
     })
@@ -283,7 +249,6 @@ export async function peerAdminIsViewOnly(userId: string): Promise<boolean> {
       return false
     }
 
-    console.log('[peerAdminIsViewOnly] 检查结果:', data)
     return data === true
   } catch (error) {
     console.error('[peerAdminIsViewOnly] 未预期的错误:', error)
@@ -298,8 +263,6 @@ export async function peerAdminIsViewOnly(userId: string): Promise<boolean> {
  */
 export async function isBossOrFullControlPeerAdmin(userId: string): Promise<boolean> {
   try {
-    console.log('[isBossOrFullControlPeerAdmin] 检查用户权限', {userId})
-
     const {data, error} = await supabase.rpc('is_boss_or_full_control_peer_admin', {
       p_user_id: userId
     })
@@ -309,7 +272,6 @@ export async function isBossOrFullControlPeerAdmin(userId: string): Promise<bool
       return false
     }
 
-    console.log('[isBossOrFullControlPeerAdmin] 检查结果:', data)
     return data === true
   } catch (error) {
     console.error('[isBossOrFullControlPeerAdmin] 未预期的错误:', error)

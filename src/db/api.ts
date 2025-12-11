@@ -1,4 +1,5 @@
 import {supabase} from '@/client/supabase'
+import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import {CACHE_KEYS, clearCache, clearCacheByPrefix, getCache, setCache} from '@/utils/cache'
 import {formatLeaveDate} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
@@ -9,8 +10,6 @@ import {
   getUsersWithRole,
   getUserWithRole
 } from './helpers'
-import {createOrUpdateApprovalNotification} from './notificationApi'
-import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import type {
   ApplicationReviewInput,
   AttendanceRecord,
@@ -114,7 +113,6 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
  */
 export async function getCurrentUserWithRealName(): Promise<(Profile & {real_name: string | null}) | null> {
   try {
-    console.log('[getCurrentUserWithRealName] 开始获取当前用户（含真实姓名）')
     const {
       data: {user},
       error: authError
@@ -126,21 +124,15 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
     }
 
     if (!user) {
-      console.warn('[getCurrentUserWithRealName] 用户未登录')
       return null
     }
-
-    console.log('[getCurrentUserWithRealName] 当前用户ID:', user.id)
 
     // 使用 helpers 中的函数查询用户信息（从 users + user_roles 表）
     const userWithRole = await getUserWithRole(user.id)
 
     if (!userWithRole) {
-      console.warn('[getCurrentUserWithRealName] 用户档案不存在，用户ID:', user.id)
       return null
     }
-
-    
 
     // 查询驾驶证信息获取真实姓名
     const {data: licenseData} = await supabase
@@ -150,16 +142,8 @@ export async function getCurrentUserWithRealName(): Promise<(Profile & {real_nam
       .maybeSingle()
 
     const realName = licenseData?.id_card_name || null
-    console.log('[getCurrentUserWithRealName] 驾驶证真实姓名:', realName)
 
     const profile = convertUserToProfile(userWithRole)
-
-    console.log('[getCurrentUserWithRealName] 成功获取用户档案:', {
-      id: profile.id,
-      name: profile.name,
-      real_name: realName,
-      role: profile.role
-    })
 
     // 返回包含真实姓名的用户信息
     return {
@@ -189,11 +173,8 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
     }
 
     if (!user) {
-      console.warn('[getCurrentUserRole] 用户未登录')
       return null
     }
-
-    console.log('[getCurrentUserRole] 当前用户ID:', user.id)
 
     // 从 users 表查询用户角色
     const {data, error} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
@@ -204,12 +185,9 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
     }
 
     if (!data) {
-      console.warn('[getCurrentUserRole] 用户角色不存在，用户ID:', user.id)
-      console.warn('[getCurrentUserRole] 请检查 users 表中是否存在该用户记录')
       return null
     }
 
-    console.log('[getCurrentUserRole] 成功获取用户角色:', data.role)
     return data.role as UserRole
   } catch (error) {
     console.error('[getCurrentUserRole] 未预期的错误:', error)
@@ -223,8 +201,6 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
  */
 export async function getUserRoles(userId: string): Promise<UserRole[]> {
   try {
-    console.log('[getUserRoles] 开始获取用户角色', {userId})
-
     // 从 users 表查询用户角色
     const {data, error} = await supabase.from('users').select('role').eq('id', userId).maybeSingle()
 
@@ -234,7 +210,6 @@ export async function getUserRoles(userId: string): Promise<UserRole[]> {
     }
 
     const roles = data?.role ? [data.role] : []
-    console.log('[getUserRoles] 成功获取用户角色:', roles)
     return roles
   } catch (error) {
     console.error('[getUserRoles] 未预期的错误:', error)
@@ -257,7 +232,6 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
   tenant_id: string | null
 }> {
   try {
-    console.log('[getCurrentUserRoleAndTenant] 开始获取用户角色')
     const {
       data: {user},
       error: authError
@@ -269,11 +243,8 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
     }
 
     if (!user) {
-      console.warn('[getCurrentUserRoleAndTenant] 用户未登录')
       throw new Error('用户未登录')
     }
-
-    console.log('[getCurrentUserRoleAndTenant] 当前用户ID:', user.id)
 
     // 从 users 表查询用户角色
     const {data: roleData, error: roleError} = await supabase
@@ -292,12 +263,9 @@ export async function getCurrentUserRoleAndTenant(): Promise<{
       throw new Error('用户角色不存在')
     }
 
-    
-
     // 单用户系统不再使用租户概念，tenant_id 始终返回 null
     const tenant_id = null
 
-    
     return {role: roleData.role as UserRole, tenant_id}
   } catch (error) {
     console.error('[getCurrentUserRoleAndTenant] 发生错误:', error)
@@ -316,7 +284,6 @@ export async function getAllProfiles(): Promise<Profile[]> {
     const usersWithRole = await getUsersWithRole()
 
     if (!usersWithRole || usersWithRole.length === 0) {
-      console.log('没有找到任何用户')
       return []
     }
 
@@ -336,11 +303,18 @@ export async function getAllProfiles(): Promise<Profile[]> {
 export async function getAllDriversWithRealName(): Promise<Array<Profile & {real_name: string | null}>> {
   logger.db('查询', 'users + user_roles + driver_licenses', {role: 'DRIVER'})
   try {
+    // 获取当前用户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    // 获取包含角色的完整用户信息
+    const userWithRole = await getUserWithRole(user.id)
+
     // 使用 helpers 中的函数查询所有司机
-    const drivers = await getUsersByRole('DRIVER')
+    const drivers = await getUsersByRole('DRIVER', userWithRole)
 
     if (!drivers || drivers.length === 0) {
-      logger.info('没有找到任何司机')
       return []
     }
 
@@ -363,7 +337,6 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
       }
     })
 
-    logger.info(`成功获取司机列表，共 ${result.length} 名司机`)
     return result
   } catch (error) {
     logger.error('获取司机列表异常', error)
@@ -381,7 +354,6 @@ export async function getProfileById(id: string): Promise<Profile | null> {
     const userWithRole = await getUserWithRole(id)
 
     if (!userWithRole) {
-      console.log('用户不存在:', id)
       return null
     }
 
@@ -394,10 +366,6 @@ export async function getProfileById(id: string): Promise<Profile | null> {
 }
 
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
-  console.log('🔄 updateProfile: 开始更新用户档案')
-  console.log('  - 用户 ID:', id)
-  console.log('  - 更新内容:', updates)
-
   try {
     // 获取当前登录用户
     const {
@@ -408,8 +376,6 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
       console.error('❌ 用户未登录')
       return false
     }
-
-    console.log('👤 当前登录用户:', user.id)
 
     // 单用户架构：直接更新 users 和 user_roles 表
     const {role, ...userUpdates} = updates
@@ -440,7 +406,6 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
       }
     }
 
-    console.log('✅ 用户档案更新成功')
     return true
   } catch (error) {
     console.error('❌ 更新用户档案异常:', error)
@@ -453,19 +418,24 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
  * 单用户架构：直接查询 DRIVER 角色的用户
  */
 export async function getDriverProfiles(): Promise<Profile[]> {
-  console.log('🔍 getDriverProfiles: 开始获取司机列表')
   try {
+    // 获取当前用户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    // 获取包含角色的完整用户信息
+    const userWithRole = await getUserWithRole(user.id)
+
     // 单用户架构：直接查询 DRIVER 角色的用户
-    const drivers = await getUsersByRole('DRIVER')
+    const drivers = await getUsersByRole('DRIVER', userWithRole)
 
     if (!drivers || drivers.length === 0) {
-      console.log('没有找到任何司机')
       return []
     }
 
     // 转换为 Profile 格式
     const profiles = convertUsersToProfiles(drivers)
-    console.log(`✅ getDriverProfiles: 获取到 ${profiles.length} 个司机`)
     return profiles
   } catch (error) {
     console.error('❌ 获取司机档案异常:', error)
@@ -483,7 +453,6 @@ export async function getManagerProfiles(): Promise<Profile[]> {
     const allUsers = await getUsersWithRole()
 
     if (!allUsers || allUsers.length === 0) {
-      console.log('没有找到任何用户')
       return []
     }
 
@@ -492,7 +461,7 @@ export async function getManagerProfiles(): Promise<Profile[]> {
 
     // 转换为 Profile 格式
     const profiles = convertUsersToProfiles(managers)
-    
+
     return profiles
   } catch (error) {
     console.error('获取管理员档案异常:', error)
@@ -540,7 +509,6 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
 
   // 3. 如果已存在，更新现有记录而非创建新记录
   if (existingRecord) {
-    console.log('当天已有打卡记录，更新现有记录:', existingRecord.id)
     const {data, error} = await supabase
       .from('attendance')
       .update(input)
@@ -687,8 +655,31 @@ export async function getMonthlyAttendance(userId: string, year: number, month: 
  * 使用30分钟缓存，减少频繁查询
  */
 export async function getAllAttendanceRecords(year?: number, month?: number): Promise<AttendanceRecord[]> {
+  // 获取当前用户信息，用于权限控制
+  const {
+    data: {user: authUser},
+    error: authError
+  } = await supabase.auth.getUser()
+
+  if (authError || !authUser) {
+    console.error('获取当前用户失败:', authError)
+    return []
+  }
+
+  // 获取当前用户角色
+  const {data: currentUser, error: userError} = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', authUser.id)
+    .maybeSingle()
+
+  if (userError || !currentUser) {
+    console.error('获取当前用户角色失败:', userError)
+    return []
+  }
+
   // 生成缓存键
-  const cacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${year || 'all'}_${month || 'all'}`
+  const cacheKey = `${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${currentUser.role}_${authUser.id}_${year || 'all'}_${month || 'all'}`
 
   // 尝试从缓存获取
   const cached = getCache<AttendanceRecord[]>(cacheKey)
@@ -697,6 +688,49 @@ export async function getAllAttendanceRecords(year?: number, month?: number): Pr
   }
 
   let query = supabase.from('attendance').select('*')
+
+  // 对于车队长角色，需要特殊处理：查看管辖司机的所有考勤记录
+  if (currentUser.role === 'MANAGER') {
+    // 获取车队长管理的所有仓库
+    const {data: managerWarehouses, error: warehouseError} = await supabase
+      .from('warehouse_assignments')
+      .select('warehouse_id')
+      .eq('user_id', authUser.id)
+
+    if (warehouseError) {
+      console.error('获取车队长管辖仓库失败:', warehouseError)
+      return []
+    }
+
+    const warehouseIds = managerWarehouses.map((w) => w.warehouse_id)
+
+    if (warehouseIds.length > 0) {
+      // 获取这些仓库下的所有司机ID
+      const {data: driverAssignments, error: driverError} = await supabase
+        .from('warehouse_drivers')
+        .select('driver_id')
+        .in('warehouse_id', warehouseIds)
+
+      if (driverError) {
+        console.error('获取司机分配信息失败:', driverError)
+        return []
+      }
+
+      // 去重司机ID
+      const uniqueDriverIds = [...new Set(driverAssignments.map((d) => d.driver_id))]
+
+      if (uniqueDriverIds.length > 0) {
+        // 只查询这些司机的考勤记录
+        query = query.in('user_id', uniqueDriverIds)
+      } else {
+        // 如果没有管辖的司机，返回空数组
+        return []
+      }
+    } else {
+      // 如果没有管辖的仓库，返回空数组
+      return []
+    }
+  }
 
   if (year && month) {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`
@@ -961,7 +995,7 @@ export async function getAttendanceRuleByWarehouseId(warehouseId: string): Promi
       .eq('is_active', true)
       .order('created_at', {ascending: false})
       .limit(1)
-    
+
     data = result.data
     error = result.error
   }
@@ -1084,16 +1118,10 @@ export async function getAllWarehousesWithRules(): Promise<WarehouseWithRule[]> 
  * 获取司机的仓库列表
  */
 export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]> {
-  console.log('=== getDriverWarehouses 调用 ===')
-  console.log('司机ID:', driverId)
-
   const {data, error} = await supabase
     .from('warehouse_assignments')
     .select('warehouse_id, warehouses(*)')
     .eq('user_id', driverId)
-
-  console.log('Supabase 查询响应 - data:', data)
-  console.log('Supabase 查询响应 - error:', error)
 
   if (error) {
     console.error('❌ 获取司机仓库失败 - Supabase 错误:', error)
@@ -1102,14 +1130,11 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
   }
 
   if (!data || data.length === 0) {
-    console.warn('⚠️ 未找到司机的仓库分配记录')
     return []
   }
 
   // 提取仓库信息
   const warehouses = data.map((item: any) => item.warehouses).filter(Boolean)
-  console.log('✅ 成功获取司机仓库，数量:', warehouses.length)
-  console.log('仓库列表:', warehouses)
 
   return warehouses
 }
@@ -1442,7 +1467,6 @@ export async function insertManagerWarehouseAssignment(input: {
   }
 
   if (existingAssignment) {
-    console.log('该车队长已经被分配到此仓库，无需重复分配')
     return true
   }
 
@@ -1455,7 +1479,6 @@ export async function insertManagerWarehouseAssignment(input: {
   if (error) {
     // 如果是唯一约束冲突（23505），说明已经存在该分配，返回成功
     if (error.code === '23505') {
-      console.log('该车队长已经被分配到此仓库（重复插入被拦截）')
       return true
     }
     console.error('插入管理员仓库分配失败:', error)
@@ -1535,7 +1558,11 @@ export async function getPieceWorkRecordsByUser(
   startDate?: string,
   endDate?: string
 ): Promise<PieceWorkRecord[]> {
-  let query = supabase.from('piece_work_records').select('*').eq('user_id', userId).order('work_date', {ascending: false})
+  let query = supabase
+    .from('piece_work_records')
+    .select('*')
+    .eq('user_id', userId)
+    .order('work_date', {ascending: false})
 
   if (startDate) {
     query = query.gte('work_date', startDate)
@@ -1699,16 +1726,25 @@ export async function calculatePieceWorkStats(
 ): Promise<PieceWorkStats> {
   const records = await getPieceWorkRecordsByUserAndWarehouse(userId, warehouseId, startDate, endDate)
 
-  // 获取所有品类信息
-  const {data: categories} = await supabase.from('category_prices').select('*')
-  const categoryMap = new Map(categories?.map((c) => [c.id, c.category_name]) || [])
-
+  // 初始化stats变量，确保在任何return语句前都已声明
   const stats: PieceWorkStats = {
     total_orders: records.length,
     total_quantity: 0,
     total_amount: 0,
     by_category: []
   }
+
+  // 获取所有品类信息（新表结构）
+  const {data: categoryPrices} = await supabase.from('category_prices').select('category_id')
+  if (!categoryPrices || categoryPrices.length === 0) {
+    return stats
+  }
+
+  // 从piece_work_categories表获取品类名称
+  const categoryIds = categoryPrices.map((cp) => cp.category_id)
+  const {data: categories} = await supabase.from('piece_work_categories').select('id, name').in('id', categoryIds)
+
+  const categoryMap = new Map(categories?.map((c) => [c.id, c.name]) || [])
 
   const categoryStatsMap = new Map<
     string,
@@ -1750,105 +1786,215 @@ export async function calculatePieceWorkStats(
 
 // 获取所有启用的品类
 export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
-  const {data, error} = await supabase
-    .from('category_prices')
-    .select('*')
-    .eq('is_active', true)
-    .order('category_name', {ascending: true})
+  try {
+    // 新表结构：通过piece_work_categories和category_prices的关联查询获取品类信息
+    const {data, error} = await supabase
+      .from('piece_work_categories')
+      .select('id, name, description, created_at, updated_at')
+      .order('name', {ascending: true})
 
-  if (error) {
-    console.error('获取启用品类失败:', error)
+    if (error) {
+      console.error('获取启用品类失败:', error)
+      return []
+    }
+
+    // 转换字段名以匹配PieceWorkCategory类型，并保持向后兼容
+    if (Array.isArray(data)) {
+      return data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category_name: item.name, // 保持向后兼容，为前端提供旧字段名
+        description: item.description,
+        is_active: true, // piece_work_categories表没有is_active字段，默认都启用
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }))
+    }
+
+    return []
+  } catch (error) {
+    console.error('获取启用品类异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 // 获取所有品类（包括禁用的）
 export async function getAllCategories(): Promise<PieceWorkCategory[]> {
-  const {data, error} = await supabase.from('piece_work_categories').select('*').order('name', {ascending: true})
+  try {
+    const {data, error} = await supabase
+      .from('piece_work_categories')
+      .select('id, name, description, created_at, updated_at')
+      .order('name', {ascending: true})
 
-  if (error) {
-    console.error('获取所有品类失败:', error)
+    if (error) {
+      console.error('获取所有品类失败:', error)
+      return []
+    }
+
+    // 转换字段名以匹配PieceWorkCategory类型，并保持向后兼容
+    if (Array.isArray(data)) {
+      return data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category_name: item.name, // 保持向后兼容，为前端提供旧字段名
+        description: item.description,
+        is_active: true, // piece_work_categories表没有is_active字段，默认都启用
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }))
+    }
+
+    return []
+  } catch (error) {
+    console.error('获取所有品类异常:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 // 创建品类
 export async function createCategory(category: PieceWorkCategoryInput): Promise<PieceWorkCategory | null> {
-  const {data, error} = await supabase.from('piece_work_categories').insert(category).select().maybeSingle()
+  try {
+    // 在piece_work_categories表中创建品类
+    const {data, error} = await supabase
+      .from('piece_work_categories')
+      .insert({
+        name: category.name,
+        description: category.description
+      })
+      .select()
+      .maybeSingle()
 
-  if (error) {
-    console.error('创建品类失败:', error)
+    if (error) {
+      console.error('创建品类失败:', error)
+      return null
+    }
+
+    // 转换为PieceWorkCategory类型
+    if (data) {
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        is_active: true, // piece_work_categories表没有is_active字段，默认都启用
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error('创建品类异常:', error)
     return null
   }
-
-  return data
 }
 
 // 更新品类
 export async function updateCategory(id: string, updates: Partial<PieceWorkCategoryInput>): Promise<boolean> {
-  const {error} = await supabase
-    .from('piece_work_categories')
-    .update({...updates, updated_at: new Date().toISOString()})
-    .eq('id', id)
+  try {
+    // 更新piece_work_categories表中的品类信息
+    const mappedUpdates: Partial<{name: string; description: string; updated_at: string}> = {
+      updated_at: new Date().toISOString()
+    }
 
-  if (error) {
-    console.error('更新品类失败:', error)
+    if (updates.name !== undefined) mappedUpdates.name = updates.name
+    if (updates.description !== undefined) mappedUpdates.description = updates.description
+    // is_active字段在新表结构中不再使用
+
+    const {error} = await supabase.from('piece_work_categories').update(mappedUpdates).eq('id', id)
+
+    if (error) {
+      console.error('更新品类失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('更新品类异常:', error)
     return false
   }
-
-  return true
 }
 
 // 删除品类
 export async function deleteCategory(id: string): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_categories').delete().eq('id', id)
+  try {
+    // 首先删除关联的价格记录
+    const {error: priceError} = await supabase.from('category_prices').delete().eq('category_id', id)
+    if (priceError) {
+      console.error('删除关联价格记录失败:', priceError)
+      return false
+    }
 
-  if (error) {
-    console.error('删除品类失败:', error)
+    // 然后删除品类本身
+    const {error} = await supabase.from('piece_work_categories').delete().eq('id', id)
+
+    if (error) {
+      console.error('删除品类失败:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('删除品类异常:', error)
     return false
   }
-
-  return true
 }
 
 // 删除未被任何仓库使用的品类
 export async function deleteUnusedCategories(): Promise<{success: boolean; deletedCount: number; error?: string}> {
   try {
-    // 查找所有品类
-    const {data: allCategories, error: categoriesError} = await supabase
-      .from('piece_work_categories')
-      .select('id')
-      .order('id', {ascending: true})
+    // 新表结构：获取所有没有关联category_prices记录的品类
+    const {data: usedCategoryIds, error: usedError} = await supabase
+      .from('category_prices')
+      .select('category_id')
+      .order('category_id', {ascending: true})
 
-    if (categoriesError) {
-      console.error('查询品类失败:', categoriesError)
-      return {success: false, deletedCount: 0, error: categoriesError.message}
+    if (usedError) {
+      console.error('查询使用中的品类ID失败:', usedError)
+      return {success: false, deletedCount: 0, error: usedError.message}
+    }
+
+    // 如果没有任何价格记录，那么所有品类都未使用
+    if (!usedCategoryIds || usedCategoryIds.length === 0) {
+      const {data: allCategories, error: allError} = await supabase.from('piece_work_categories').select('id')
+
+      if (allError) {
+        console.error('查询所有品类失败:', allError)
+        return {success: false, deletedCount: 0, error: allError.message}
+      }
+
+      if (!allCategories || allCategories.length === 0) {
+        return {success: true, deletedCount: 0}
+      }
+
+      // 删除所有品类
+      const categoryIdsToDelete = allCategories.map((cat) => cat.id)
+      const {error: deleteError} = await supabase.from('piece_work_categories').delete().in('id', categoryIdsToDelete)
+
+      if (deleteError) {
+        console.error('删除所有未使用品类失败:', deleteError)
+        return {success: false, deletedCount: 0, error: deleteError.message}
+      }
+
+      return {success: true, deletedCount: categoryIdsToDelete.length}
+    }
+
+    // 找出没有关联category_prices记录的品类
+    const usedIds = new Set(usedCategoryIds.map((item) => item.category_id))
+
+    // 获取所有品类
+    const {data: allCategories, error: allError} = await supabase.from('piece_work_categories').select('id')
+
+    if (allError) {
+      console.error('查询所有品类失败:', allError)
+      return {success: false, deletedCount: 0, error: allError.message}
     }
 
     if (!allCategories || allCategories.length === 0) {
       return {success: true, deletedCount: 0}
     }
 
-    // 查找所有被使用的品类ID
-    const {data: usedCategories, error: pricesError} = await supabase
-      .from('category_prices')
-      .select('category_id')
-      .order('category_id', {ascending: true})
-
-    if (pricesError) {
-      console.error('查询品类价格失败:', pricesError)
-      return {success: false, deletedCount: 0, error: pricesError.message}
-    }
-
-    // 获取被使用的品类ID集合
-    const usedCategoryIds = new Set(usedCategories?.map((p) => p.category_id) || [])
-
-    // 找出未被使用的品类
-    const unusedCategoryIds = allCategories.filter((c) => !usedCategoryIds.has(c.id)).map((c) => c.id)
+    // 找出未使用的品类ID
+    const unusedCategoryIds = allCategories.filter((cat) => !usedIds.has(cat.id)).map((cat) => cat.id)
 
     if (unusedCategoryIds.length === 0) {
       return {success: true, deletedCount: 0}
@@ -1875,13 +2021,7 @@ export async function deleteUnusedCategories(): Promise<{success: boolean; delet
 export async function getCategoryPricesByWarehouse(warehouseId: string): Promise<CategoryPrice[]> {
   const {data, error} = await supabase
     .from('category_prices')
-    .select(`
-      *,
-      piece_work_categories!inner(
-        id,
-        name
-      )
-    `)
+    .select('*')
     .eq('warehouse_id', warehouseId)
     .order('created_at', {ascending: true})
 
@@ -1890,13 +2030,7 @@ export async function getCategoryPricesByWarehouse(warehouseId: string): Promise
     return []
   }
 
-  // 将关联的品类名称映射到category_name字段
-  const result = (data || []).map((item: any) => ({
-    ...item,
-    category_name: item.piece_work_categories?.name || '未知品类'
-  }))
-
-  return result
+  return data || []
 }
 
 // 获取指定仓库和品类的价格配置（通过品类ID）
@@ -2009,10 +2143,7 @@ export async function getCategoryPriceForDriver(
     .from('category_prices')
     .select(`
       price,
-      driver_type,
-      piece_work_categories!inner(
-        name
-      )
+      driver_type
     `)
     .eq('warehouse_id', warehouseId)
     .eq('category_id', categoryId)
@@ -2438,14 +2569,6 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     }
 
     // 调试日志：检查获取到的数据
-    console.log('📋 获取到的请假申请数据:', {
-      applicationId,
-      user_id: application.user_id,
-      leave_type: application.leave_type,
-      start_date: application.start_date,
-      end_date: application.end_date,
-      days: application.days
-    })
 
     // 验证 user_id 是否存在
     if (!application.user_id) {
@@ -2477,7 +2600,6 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       return false
     }
 
-    console.log('✅ 请假申请审批成功，更新后状态:', updateData[0].status)
     return true
   } catch (error) {
     console.error('审批请假申请异常:', error)
@@ -2679,8 +2801,6 @@ export async function reviewResignationApplication(
   review: ApplicationReviewInput
 ): Promise<boolean> {
   try {
-    console.log('📋 开始审批离职申请:', {applicationId, review})
-
     // 先获取申请信息（包括司机ID和申请详情）
     const {data: application, error: fetchError} = await supabase
       .from('resignation_applications')
@@ -2693,8 +2813,6 @@ export async function reviewResignationApplication(
       return false
     }
 
-    console.log('📋 离职申请信息:', application)
-
     // 验证 user_id 是否存在
     if (!application.user_id) {
       console.error('❌ 离职申请的 user_id 为空')
@@ -2702,13 +2820,8 @@ export async function reviewResignationApplication(
     }
 
     // 更新审批状态
-    console.log('🔄 准备更新离职申请状态:', {
-      applicationId,
-      status: review.status,
-      reviewed_by: review.reviewed_by
-    })
 
-    const {data: updateData, error: updateError} = await supabase
+    const {error: updateError} = await supabase
       .from('resignation_applications')
       .update({
         status: review.status,
@@ -2730,7 +2843,6 @@ export async function reviewResignationApplication(
       return false
     }
 
-    console.log('✅ 离职申请审批成功:', updateData)
     return true
   } catch (error) {
     console.error('❌ 审批离职申请异常:', error)
@@ -3218,7 +3330,7 @@ export async function uploadAvatar(
     const fileContent = file.originalFileObj || ({tempFilePath: file.path} as any)
 
     // 上传到Supabase Storage
-    const {data, error} = await supabase.storage.from('app-7cdqf07mbu9t_avatars').upload(fileName, fileContent, {
+    const {error} = await supabase.storage.from('app-7cdqf07mbu9t_avatars').upload(fileName, fileContent, {
       cacheControl: '3600',
       upsert: true
     })
@@ -3358,11 +3470,7 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
   // 2. 过滤出司机ID（排除车队长和老板）
   let driverIds: string[] = []
   if (allUserIds.length > 0) {
-    const {data: userRoles} = await supabase
-      .from('users')
-      .select('id, role')
-      .in('id', allUserIds)
-      .eq('role', 'DRIVER') // 只获取司机角色
+    const {data: userRoles} = await supabase.from('users').select('id, role').in('id', allUserIds).eq('role', 'DRIVER') // 只获取司机角色
 
     driverIds = userRoles?.map((ur) => ur.id) || []
   }
@@ -3463,8 +3571,6 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
   const today = getLocalDateString()
   const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
-  
-
   // 并行执行所有统计查询
   const [
     allDriversResult,
@@ -3475,15 +3581,18 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     allTodayAttendanceResult,
     allTodayPieceResult
   ] = await Promise.all([
-    // 所有司机基本信息 - 单用户架构：查询 users 表的 role 字段
+    // 所有司机基本信息 - 从 user_roles 表查询角色信息
     (async () => {
-      const {data: roleData, error: roleError} = await supabase.from('users').select('id').eq('role', 'DRIVER')
+      const {data: roleData, error: roleError} = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'DRIVER')
 
       if (roleError || !roleData) {
         return {data: null, error: roleError}
       }
 
-      const driverIds = roleData.map((r) => r.id)
+      const driverIds = roleData.map((r) => r.user_id)
       if (driverIds.length === 0) {
         return {data: [], error: null}
       }
@@ -3551,8 +3660,6 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     }
   }
 
-  
-
   const result = {
     todayAttendance,
     todayPieceCount,
@@ -3578,7 +3685,6 @@ export async function getAllUsers(): Promise<Profile[]> {
     const users = await getUsersWithRole()
 
     if (!users || users.length === 0) {
-      console.log('没有找到任何用户')
       return []
     }
 
@@ -3596,19 +3702,24 @@ export async function getAllUsers(): Promise<Profile[]> {
  * 单用户架构：直接查询 MANAGER 角色的用户
  */
 export async function getAllManagers(): Promise<Profile[]> {
-  console.log('🔍 getAllManagers: 开始获取管理员列表')
   try {
+    // 获取当前用户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    // 获取包含角色的完整用户信息
+    const userWithRole = await getUserWithRole(user.id)
+
     // 单用户架构：直接查询 MANAGER 角色的用户
-    const managers = await getUsersByRole('MANAGER')
+    const managers = await getUsersByRole('MANAGER', userWithRole)
 
     if (!managers || managers.length === 0) {
-      console.log('没有找到任何管理员')
       return []
     }
 
     // 转换为 Profile 格式
     const profiles = convertUsersToProfiles(managers)
-    console.log(`✅ getAllManagers: 获取到 ${profiles.length} 个管理员`)
     return profiles
   } catch (error) {
     console.error('❌ 获取管理员列表异常:', error)
@@ -3620,19 +3731,24 @@ export async function getAllManagers(): Promise<Profile[]> {
  * 获取所有老板列表
  */
 export async function getAllSuperAdmins(): Promise<Profile[]> {
-  console.log('🔍 getAllSuperAdmins: 开始获取老板列表')
   try {
+    // 获取当前用户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    // 获取包含角色的完整用户信息
+    const userWithRole = await getUserWithRole(user.id)
+
     // 单用户架构：直接查询 BOSS 角色的用户
-    const bosses = await getUsersByRole('BOSS')
+    const bosses = await getUsersByRole('BOSS', userWithRole)
 
     if (!bosses || bosses.length === 0) {
-      console.log('没有找到任何老板')
       return []
     }
 
     // 转换为 Profile 格式
     const profiles = convertUsersToProfiles(bosses)
-    console.log(`✅ getAllSuperAdmins: 获取到 ${profiles.length} 个老板`)
     return profiles
   } catch (error) {
     console.error('❌ 获取老板列表失败:', error)
@@ -3644,19 +3760,24 @@ export async function getAllSuperAdmins(): Promise<Profile[]> {
  * 获取所有调度列表
  */
 export async function getAllPeerAdmins(): Promise<Profile[]> {
-  console.log('🔍 getAllPeerAdmins: 开始获取调度列表')
   try {
+    // 获取当前用户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    // 获取包含角色的完整用户信息
+    const userWithRole = await getUserWithRole(user.id)
+
     // 单用户架构：直接查询 PEER_ADMIN 角色的用户
-    const peerAdmins = await getUsersByRole('PEER_ADMIN')
+    const peerAdmins = await getUsersByRole('PEER_ADMIN', userWithRole)
 
     if (!peerAdmins || peerAdmins.length === 0) {
-      console.log('没有找到任何调度')
       return []
     }
 
     // 转换为 Profile 格式
     const profiles = convertUsersToProfiles(peerAdmins)
-    console.log(`✅ getAllPeerAdmins: 获取到 ${profiles.length} 个调度`)
     return profiles
   } catch (error) {
     console.error('❌ 获取调度列表失败:', error)
@@ -3668,19 +3789,24 @@ export async function getAllPeerAdmins(): Promise<Profile[]> {
  * 获取所有司机列表
  */
 export async function getAllDrivers(): Promise<Profile[]> {
-  console.log('🔍 getAllDrivers: 开始获取司机列表')
   try {
+    // 获取当前用户信息
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
+
+    // 获取包含角色的完整用户信息
+    const userWithRole = await getUserWithRole(user.id)
+
     // 单用户架构：直接查询 DRIVER 角色的用户
-    const drivers = await getUsersByRole('DRIVER')
+    const drivers = await getUsersByRole('DRIVER', userWithRole)
 
     if (!drivers || drivers.length === 0) {
-      console.log('没有找到任何司机')
       return []
     }
 
     // 转换为 Profile 格式
     const profiles = convertUsersToProfiles(drivers)
-    console.log(`✅ getAllDrivers: 获取到 ${profiles.length} 个司机`)
     return profiles
   } catch (error) {
     console.error('❌ 获取司机列表失败:', error)
@@ -3785,7 +3911,6 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
  * 注意：在新的数据库设计中，权限通过角色来管理，此函数已废弃
  */
 export async function upsertManagerPermission(_input: ManagerPermissionInput): Promise<boolean> {
-  console.warn('upsertManagerPermission 已废弃，权限现在通过角色来管理')
   // 保留函数是为了兼容性，但不执行任何操作
   return true
 }
@@ -3798,8 +3923,6 @@ export async function upsertManagerPermission(_input: ManagerPermissionInput): P
  */
 export async function updateManagerPermissionsEnabled(managerId: string, enabled: boolean): Promise<boolean> {
   try {
-    
-
     // 单用户架构：更新 users 表
     const {error} = await supabase.from('users').update({manager_permissions_enabled: enabled}).eq('id', managerId)
 
@@ -3808,7 +3931,6 @@ export async function updateManagerPermissionsEnabled(managerId: string, enabled
       return false
     }
 
-    console.log('[updateManagerPermissionsEnabled] 更新成功')
     return true
   } catch (error) {
     console.error('[updateManagerPermissionsEnabled] 异常:', error)
@@ -3823,8 +3945,6 @@ export async function updateManagerPermissionsEnabled(managerId: string, enabled
  */
 export async function getManagerPermissionsEnabled(managerId: string): Promise<boolean | null> {
   try {
-    
-
     // 单用户架构：从 users 表查询权限状态
     const {data, error} = await supabase
       .from('users')
@@ -3838,12 +3958,10 @@ export async function getManagerPermissionsEnabled(managerId: string): Promise<b
     }
 
     if (!data) {
-      console.warn('[getManagerPermissionsEnabled] 未找到用户')
       return null
     }
 
     const enabled = data.manager_permissions_enabled ?? true // 默认为 true
-    console.log('[getManagerPermissionsEnabled] 获取成功', {enabled})
     return enabled
   } catch (error) {
     console.error('[getManagerPermissionsEnabled] 获取异常:', error)
@@ -3914,7 +4032,6 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
   try {
     const {clearManagerWarehousesCache} = await import('@/utils/cache')
     clearManagerWarehousesCache(managerId)
-    console.log(`[API] 已清除管理员 ${managerId} 的仓库缓存`)
   } catch (err) {
     console.error('清除缓存失败:', err)
   }
@@ -3926,10 +4043,7 @@ export async function setManagerWarehouses(managerId: string, warehouseIds: stri
  * 获取仓库的品类列表（返回品类ID数组）
  */
 export async function getWarehouseCategories(warehouseId: string): Promise<string[]> {
-  const {data, error} = await supabase
-    .from('category_prices')
-    .select('category_id')
-    .eq('warehouse_id', warehouseId)
+  const {data, error} = await supabase.from('category_prices').select('category_id').eq('warehouse_id', warehouseId)
 
   if (error) {
     console.error('获取仓库品类列表失败:', error)
@@ -3942,50 +4056,59 @@ export async function getWarehouseCategories(warehouseId: string): Promise<strin
 }
 
 /**
- * 获取仓库的品类详细信息（关联查询piece_work_categories）
+ * 获取仓库的品类详细信息
  */
 export async function getWarehouseCategoriesWithDetails(warehouseId: string): Promise<PieceWorkCategory[]> {
-  const {data, error} = await supabase
-    .from('category_prices')
-    .select(`
-      category_id,
-      piece_work_categories!inner(
-        id,
-        name,
-        description,
-        created_at,
-        updated_at
-      )
-    `)
-    .eq('warehouse_id', warehouseId)
+  try {
+    // 新表结构：先从category_prices获取仓库关联的品类ID，再从piece_work_categories获取详细信息
+    const {data: categoryPriceData, error: categoryPriceError} = await supabase
+      .from('category_prices')
+      .select('category_id')
+      .eq('warehouse_id', warehouseId)
+      .order('created_at')
 
-  if (error) {
-    console.error('获取仓库品类详细信息失败:', error)
-    return []
-  }
-
-  if (!Array.isArray(data)) {
-    return []
-  }
-
-  // 去重并映射为PieceWorkCategory格式
-  const categoryMap = new Map<string, PieceWorkCategory>()
-  
-  data.forEach((item: any) => {
-    const category = item.piece_work_categories
-    if (category && !categoryMap.has(category.id)) {
-      categoryMap.set(category.id, {
-        id: category.id,
-        category_name: category.name,
-        name: category.name,
-        description: category.description || '',
-        created_at: category.created_at,
-        updated_at: category.updated_at
-      })
+    if (categoryPriceError) {
+      console.error('获取仓库品类关联失败:', categoryPriceError)
+      return []
     }
-  })
 
-  return Array.from(categoryMap.values())
+    if (!Array.isArray(categoryPriceData) || categoryPriceData.length === 0) {
+      return []
+    }
+
+    // 获取所有关联的品类ID
+    const categoryIds = categoryPriceData.map((item) => item.category_id)
+
+    // 从piece_work_categories获取品类详细信息
+    const {data: categoriesData, error: categoriesError} = await supabase
+      .from('piece_work_categories')
+      .select('id, name, description, created_at, updated_at')
+      .in('id', categoryIds)
+      .order('name')
+
+    if (categoriesError) {
+      console.error('获取品类详细信息失败:', categoriesError)
+      return []
+    }
+
+    if (!Array.isArray(categoriesData)) {
+      return []
+    }
+
+    // 转换为PieceWorkCategory格式，并保持向后兼容
+    return categoriesData.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      category_name: item.name, // 保持向后兼容
+      description: item.description || '',
+      created_at: item.created_at || new Date().toISOString(),
+      updated_at: item.updated_at || new Date().toISOString(),
+      is_active: true // 默认启用
+    }))
+  } catch (error) {
+    console.error('获取仓库品类详细信息异常:', error)
+    return []
+  }
 }
 
 /**
@@ -3996,7 +4119,6 @@ export async function setWarehouseCategories(_warehouseId: string, _categoryIds:
   // 在新的设计中，品类已经直接关联到仓库
   // 这个函数保留是为了兼容性，但实际上不需要做任何操作
   // 品类的启用/禁用应该通过更新 category_prices 表的 is_active 字段来实现
-  console.warn('setWarehouseCategories 已废弃，请使用 category_prices 表的 is_active 字段')
   return true
 }
 
@@ -4027,11 +4149,6 @@ export async function createDriver(
   name: string,
   driverType: 'pure' | 'with_vehicle' = 'pure'
 ): Promise<Profile | null> {
-  console.log('🚀 [createDriver] 开始创建司机账号')
-  console.log('📱 手机号:', phone)
-  console.log('👤 姓名:', name)
-  console.log('🚗 司机类型:', driverType, '(注意：租户 Schema 中不使用此字段)')
-
   try {
     // 调用 RPC 函数，在租户 Schema 中创建司机
     const {data, error} = await supabase.rpc('create_driver_in_tenant', {
@@ -4050,12 +4167,6 @@ export async function createDriver(
       console.error('❌ 创建司机失败:', data?.error || '未知错误')
       return null
     }
-
-    console.log('✅ 司机账号创建成功')
-    console.log('  - 用户ID:', data.user_id)
-    console.log('  - 手机号:', data.phone)
-    console.log('  - 登录邮箱:', data.email)
-    console.log('  - 默认密码:', data.default_password)
 
     // 构造 Profile 对象返回
     const profile: Profile = {
@@ -4110,16 +4221,7 @@ export async function createUser(
   role: 'DRIVER' | 'MANAGER',
   driverType?: 'pure' | 'with_vehicle'
 ): Promise<Profile | null> {
-  const timestamp = new Date().toISOString()
-  console.log(`\n${'='.repeat(80)}`)
-  console.log('🚀 [createUser] 函数调用开始')
-  console.log('⏰ 时间戳:', timestamp)
-  console.log('📱 输入参数:')
-  console.log('  - 手机号:', phone)
-  console.log('  - 姓名:', name)
-  console.log('  - 角色:', role)
-  console.log('  - 司机类型:', driverType || 'N/A')
-  console.log(`${'='.repeat(80)}\n`)
+  const _timestamp = new Date().toISOString()
 
   try {
     // 获取当前登录用户
@@ -4132,16 +4234,8 @@ export async function createUser(
       throw new Error('用户未登录')
     }
 
-    console.log('👤 当前登录用户:')
-    console.log('  - 用户 ID:', user.id)
-    console.log('')
-
     // 步骤1: 创建 auth.users 表记录
-    console.log('📋 [步骤1] 创建 auth.users 表记录')
     const loginEmail = `${phone}@fleet.com`
-    console.log('  - 登录邮箱:', loginEmail)
-    console.log('  - 手机号:', phone)
-    console.log('  - 默认密码: 123456')
 
     let userId: string | null = null
 
@@ -4165,8 +4259,6 @@ export async function createUser(
       }
 
       userId = rpcData.user_id
-      console.log('  ✅ auth.users 记录创建成功')
-      console.log('  - 用户ID:', userId)
     } catch (authError: any) {
       console.error('  ❌ 创建 auth.users 记录异常:', authError)
 
@@ -4189,12 +4281,17 @@ export async function createUser(
       throw new Error('创建用户失败：未能获取用户ID')
     }
 
-    console.log('')
-
     // 步骤2: 创建 users 表记录（单用户架构）
-    console.log('📋 [步骤2] 创建 users 表记录')
 
-    const insertData: any = {
+    const insertData: {
+      id: string
+      phone: string
+      name: string
+      email: string
+      role: UserRole
+      driver_type?: string
+      join_date?: string
+    } = {
       id: userId,
       phone,
       name,
@@ -4207,13 +4304,10 @@ export async function createUser(
       insertData.join_date = new Date().toISOString().split('T')[0]
     }
 
-    console.log('  - 插入数据:', JSON.stringify(insertData, null, 2))
-
     const {data: userData, error: userError} = await supabase.from('users').insert(insertData).select().maybeSingle()
 
     if (userError) {
       console.error('  ❌ 插入 users 表失败:', userError)
-      console.warn('  ⚠️ auth.users 记录已创建，但 users 记录创建失败')
       return null
     }
 
@@ -4222,27 +4316,11 @@ export async function createUser(
       return null
     }
 
-    console.log('  ✅ users 表记录创建成功（包含角色）')
-    console.log('  - 用户ID:', userData.id)
-    console.log('  - 姓名:', userData.name)
-    console.log('  - 角色:', userData.role)
-
     // 转换为 Profile 格式
     const profile: Profile = convertUserToProfile({
       ...userData,
       role: role as UserRole
     })
-
-    console.log(`\n${'='.repeat(80)}`)
-    console.log('✅ [createUser] 函数执行完成')
-    console.log('📊 最终结果:')
-    console.log('  - auth.users 表: ✅ 创建成功')
-    console.log('  - users 表: ✅ 创建成功')
-    console.log('  - user_roles 表: ✅ 创建成功')
-    console.log('  💡 用户可以使用以下方式登录:')
-    console.log(`    1. 手机号 + 密码: ${phone} / 123456`)
-    console.log(`    2. 邮箱 + 密码: ${loginEmail} / 123456`)
-    console.log(`${'='.repeat(80)}\n`)
 
     return profile
   } catch (error) {
@@ -4315,7 +4393,10 @@ export async function getDriverStats(userId: string): Promise<{
     }
 
     // 获取分配的仓库数
-    const {data: warehouseData} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', userId)
+    const {data: warehouseData} = await supabase
+      .from('warehouse_assignments')
+      .select('warehouse_id')
+      .eq('user_id', userId)
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
 
@@ -4342,7 +4423,10 @@ export async function getManagerStats(userId: string): Promise<{
 } | null> {
   try {
     // 获取管理的仓库数
-    const {data: warehouseData} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', userId)
+    const {data: warehouseData} = await supabase
+      .from('warehouse_assignments')
+      .select('warehouse_id')
+      .eq('user_id', userId)
 
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
     const warehouseIds = Array.isArray(warehouseData) ? warehouseData.map((w) => w.warehouse_id) : []
@@ -4423,12 +4507,12 @@ export async function getSuperAdminStats(): Promise<{
     const totalWarehouses = Array.isArray(warehouseData) ? warehouseData.length : 0
 
     // 获取总司机数
-    const {data: driverData} = await supabase.from('users').select('id').eq('role', 'DRIVER')
+    const {data: driverData} = await supabase.from('user_roles').select('user_id').eq('role', 'DRIVER')
 
     const totalDrivers = Array.isArray(driverData) ? driverData.length : 0
 
     // 获取总管理员数
-    const {data: managerData} = await supabase.from('users').select('id').eq('role', 'MANAGER')
+    const {data: managerData} = await supabase.from('user_roles').select('user_id').eq('role', 'MANAGER')
 
     const totalManagers = Array.isArray(managerData) ? managerData.length : 0
 
@@ -4480,17 +4564,11 @@ export async function getSuperAdminStats(): Promise<{
  */
 export async function resetUserPassword(userId: string): Promise<{success: boolean; error?: string}> {
   try {
-    console.log('=== 开始重置密码 ===')
-    console.log('目标用户ID:', userId)
-    console.log('使用方法: PostgreSQL RPC 函数')
-
     // 调用 PostgreSQL 函数重置密码
     const {data, error} = await supabase.rpc('reset_user_password_by_admin', {
       target_user_id: userId,
       new_password: '123456'
     })
-
-    console.log('RPC 调用结果:', data)
 
     if (error) {
       console.error('❌ RPC 调用失败:', error)
@@ -4510,7 +4588,6 @@ export async function resetUserPassword(userId: string): Promise<{success: boole
       return {success: false, error: data.error || data.details || '重置密码失败'}
     }
 
-    console.log('✅ 密码重置成功:', data.message)
     return {success: true}
   } catch (error) {
     console.error('❌ 重置密码异常:', error)
@@ -4538,27 +4615,13 @@ export async function updateUserInfo(
     join_date?: string
   }
 ): Promise<boolean> {
-  console.log('========================================')
-  console.log('=== updateUserInfo API 调用 ===')
-  console.log('目标用户ID:', userId)
-  console.log('更新数据:', JSON.stringify(updates, null, 2))
-
   // 特别检查 driver_type 字段
   if ('driver_type' in updates) {
-    console.log('🏷️  检测到 driver_type 字段更新:')
-    console.log('   - 值:', updates.driver_type)
-    console.log('   - 类型:', typeof updates.driver_type)
   }
 
   // 特别检查 vehicle_plate 字段
   if ('vehicle_plate' in updates) {
-    console.log('🚗 检测到 vehicle_plate 字段更新:')
-    console.log('   - 值:', updates.vehicle_plate)
-    console.log('   - 类型:', typeof updates.vehicle_plate)
-    console.log('   - 是否为 null:', updates.vehicle_plate === null)
-    console.log('   - 是否为空字符串:', updates.vehicle_plate === '')
   }
-  console.log('========================================')
 
   try {
     // 单用户架构：分别更新 users 和 user_roles 表
@@ -4574,8 +4637,6 @@ export async function updateUserInfo(
         })
         .eq('id', userId)
         .select()
-
-      
 
       if (error) {
         console.error('========================================')
@@ -4605,19 +4666,9 @@ export async function updateUserInfo(
         return false
       }
 
-      console.log('========================================')
-      console.log('✅ users 表更新成功！')
-      console.log('更新后的完整数据:', JSON.stringify(data[0], null, 2))
-
       // 特别检查更新后的 vehicle_plate 字段
       if (data[0]) {
-        console.log('🚗 更新后的 vehicle_plate 字段:')
-        console.log('   - 值:', data[0].vehicle_plate)
-        console.log('   - 类型:', typeof data[0].vehicle_plate)
-        console.log('   - 是否为 null:', data[0].vehicle_plate === null)
-        console.log('   - 是否为空字符串:', data[0].vehicle_plate === '')
       }
-      console.log('========================================')
     }
 
     // 2. 更新用户角色
@@ -4628,19 +4679,14 @@ export async function updateUserInfo(
         console.error('❌ 更新用户角色失败:', roleError)
         return false
       }
-      console.log('✅ user_roles 表更新成功！')
     }
 
     // 3. 如果更新了 login_account，同时更新/创建 auth.users 表的 email
     if (updates.login_account) {
-      
-
       // 将登录账号转换为邮箱格式
       const newEmail = updates.login_account.includes('@')
         ? updates.login_account
         : `${updates.login_account}@fleet.com`
-
-      console.log('新的邮箱地址:', newEmail)
 
       // 使用 SQL 直接更新/创建 auth.users 表
       const {error: authError} = await supabase.rpc('update_user_email', {
@@ -4651,14 +4697,9 @@ export async function updateUserInfo(
       if (authError) {
         console.error('❌ 更新/创建 auth.users 邮箱失败:', authError)
         console.error('错误详情:', JSON.stringify(authError, null, 2))
-        console.warn('⚠️ users 表已更新，但 auth.users 表操作失败，用户可能无法使用新账号登录')
       } else {
-        console.log('✅ auth.users 表邮箱更新/创建成功！')
-        console.log('💡 如果是新创建的账号，用户需要通过"重置密码"功能设置密码')
-
         // 同时更新 users 表的 email 字段以保持一致
         await supabase.from('users').update({email: newEmail}).eq('id', userId)
-        console.log('✅ users 表 email 字段同步更新成功！')
       }
     }
 
@@ -4679,7 +4720,6 @@ export async function getUserById(userId: string): Promise<Profile | null> {
     const userWithRole = await getUserWithRole(userId)
 
     if (!userWithRole) {
-      console.log('用户不存在:', userId)
       return null
     }
 
@@ -4878,15 +4918,8 @@ export async function debugAuthStatus(): Promise<{
     }
 
     if (!session) {
-      logger.warn('未找到有效session')
       return {authenticated: false, userId: null, email: null, role: null}
     }
-
-    logger.info('当前认证状态', {
-      userId: session.user.id,
-      email: session.user.email,
-      role: session.user.role
-    })
 
     return {
       authenticated: true,
@@ -4906,7 +4939,6 @@ export async function debugAuthStatus(): Promise<{
 export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
   logger.db('查询', 'vehicles', {driverId})
   try {
-    logger.info('开始查询司机车辆', {driverId})
     const {data, error} = await supabase
       .from('vehicles')
       .select('*')
@@ -4924,11 +4956,6 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
       return []
     }
 
-    logger.info(`成功获取司机车辆列表，共 ${data?.length || 0} 辆`, {
-      driverId,
-      count: data?.length,
-      vehicleIds: data?.map((v) => v.id)
-    })
     return Array.isArray(data) ? data : []
   } catch (error) {
     logger.error('获取司机车辆异常', {error, driverId})
@@ -4943,8 +4970,6 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
 export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
   logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
   try {
-    logger.info('🚀 开始查询所有车辆及司机信息（包括所有状态的车辆）')
-
     // 第一步：获取每辆车的最新记录（包括所有状态）
     // 使用 DISTINCT ON 获取每个车牌号的最新记录
     const {data: vehiclesData, error: vehiclesError} = await supabase
@@ -4953,13 +4978,6 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       // 移除 return_time 限制，老板应该能看到所有车辆
       .order('plate_number', {ascending: true})
       .order('created_at', {ascending: false})
-
-    logger.info('📊 Supabase查询结果', {
-      hasError: !!vehiclesError,
-      error: vehiclesError,
-      dataLength: vehiclesData?.length || 0,
-      data: vehiclesData
-    })
 
     if (vehiclesError) {
       logger.error('❌ 获取所有车辆失败', {
@@ -4972,14 +4990,8 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
     }
 
     if (!vehiclesData || vehiclesData.length === 0) {
-      logger.info('⚠️ 没有找到任何车辆记录')
       return []
     }
-
-    logger.info('📝 原始车辆数据', {
-      count: vehiclesData.length,
-      vehicles: vehiclesData
-    })
 
     // 第二步：按车牌号去重，只保留每辆车的最新记录
     const latestVehiclesMap = new Map()
@@ -4989,11 +5001,6 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       }
     })
     const latestVehicles = Array.from(latestVehiclesMap.values())
-
-    logger.info('🔄 去重后的车辆数据', {
-      count: latestVehicles.length,
-      vehicles: latestVehicles
-    })
 
     // 第三步：获取所有相关的司机信息和实名信息 - 单用户架构：查询 users 表
     const userIds = latestVehicles.map((v: any) => v.user_id).filter(Boolean)
@@ -5048,13 +5055,6 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       }
     })
 
-    logger.info(`成功获取所有车辆列表（包括所有状态），共 ${vehicles.length} 辆`, {
-      count: vehicles.length,
-      withDriver: vehicles.filter((v) => v.driver_id).length,
-      withoutDriver: vehicles.filter((v) => !v.driver_id).length,
-      returned: vehicles.filter((v) => v.return_time).length,
-      active: vehicles.filter((v) => !v.return_time).length
-    })
     return vehicles
   } catch (error) {
     logger.error('获取所有车辆异常', {error})
@@ -5083,9 +5083,7 @@ export async function getVehicleById(vehicleId: string): Promise<VehicleWithDocu
     }
 
     if (data) {
-      logger.info('成功获取车辆信息', {vehicleId, plate: data.plate_number})
     } else {
-      logger.warn('车辆不存在', {vehicleId})
     }
     return data
   } catch (error) {
@@ -5103,7 +5101,6 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
     // 1. 获取车辆基本信息
     const vehicle = await getVehicleById(vehicleId)
     if (!vehicle) {
-      logger.warn('车辆不存在', {vehicleId})
       return null
     }
 
@@ -5147,7 +5144,6 @@ export async function getVehicleWithDriverDetails(vehicleId: string): Promise<Ve
       driver_license: driverLicense || null
     }
 
-    logger.info('成功获取车辆和司机详细信息', {vehicleId, hasProfile: !!profile, hasLicense: !!driverLicense})
     return result
   } catch (error) {
     logger.error('获取车辆和司机详细信息异常', error)
@@ -5172,7 +5168,6 @@ export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]
       return []
     }
 
-    logger.info('成功获取司机车辆列表', {driverId, count: data?.length || 0})
     return Array.isArray(data) ? data : []
   } catch (error) {
     logger.error('获取司机车辆列表异常', error)
@@ -5224,7 +5219,6 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('成功添加车辆', {vehicleId: data?.id, plate: data?.plate_number})
     return data
   } catch (error) {
     logger.error('添加车辆异常', error)
@@ -5255,7 +5249,6 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('成功更新车辆信息', {vehicleId, plate: data?.plate_number})
     return data
   } catch (error) {
     logger.error('更新车辆信息异常', error)
@@ -5311,8 +5304,6 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
     // 3. 删除存储桶中的图片文件
     const bucketName = `${process.env.TARO_APP_APP_ID}_images`
     if (allPhotos.length > 0) {
-      logger.info('开始删除图片文件', {vehicleId, photoCount: allPhotos.length})
-
       // 过滤出相对路径（不是完整URL的）
       const photoPaths = allPhotos.filter((photo) => {
         return photo && !photo.startsWith('http://') && !photo.startsWith('https://')
@@ -5322,10 +5313,8 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
         const {error: storageError} = await supabase.storage.from(bucketName).remove(photoPaths)
 
         if (storageError) {
-          logger.warn('删除部分图片文件失败', {error: storageError, paths: photoPaths})
           // 继续删除数据库记录，即使图片删除失败
         } else {
-          logger.info('成功删除图片文件', {vehicleId, deletedCount: photoPaths.length})
         }
       }
     }
@@ -5342,7 +5331,6 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('成功删除车辆及关联文件', {vehicleId, photoCount: allPhotos.length})
     return true
   } catch (error) {
     logger.error('删除车辆异常', error)
@@ -5360,7 +5348,7 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
   logger.db('更新', 'vehicles', {vehicleId, action: '还车录入'})
   try {
     // 1. 更新vehicles表的status
-    const {data: vehicleData, error: vehicleError} = await supabase
+    const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
         status: 'inactive' // 还车后将状态设置为已停用
@@ -5393,8 +5381,6 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
     // 3. 清除相关缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
-
-    logger.info('成功完成还车录入', {vehicleId, status: 'inactive'})
 
     // 4. 返回完整的车辆信息
     return await getVehicleById(vehicleId)
@@ -5434,7 +5420,6 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
     }
 
     if (!data) {
-      logger.warn('车辆不存在', {plateNumber})
       return null
     }
 
@@ -5495,7 +5480,6 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
       }
     }
 
-    logger.info('成功获取车辆信息', {plateNumber, vehicleId: data.id})
     return data as VehicleWithDriver
   } catch (error) {
     logger.error('根据车牌号获取车辆信息异常', {error, plateNumber})
@@ -5519,9 +5503,7 @@ export async function getDriverLicense(driverId: string): Promise<DriverLicense 
     }
 
     if (data) {
-      logger.info('成功获取驾驶员证件信息', {driverId, hasIdCard: !!data.id_card_front_url})
     } else {
-      logger.warn('驾驶员证件信息不存在', {driverId})
     }
     return data
   } catch (error) {
@@ -5547,7 +5529,6 @@ export async function upsertDriverLicense(license: DriverLicenseInput): Promise<
       return null
     }
 
-    logger.info('成功保存驾驶员证件信息', {driverId: license.driver_id})
     return data
   } catch (error) {
     logger.error('保存驾驶员证件信息异常', error)
@@ -5576,7 +5557,6 @@ export async function updateDriverLicense(
       return null
     }
 
-    logger.info('成功更新驾驶员证件信息', {driverId})
     return data
   } catch (error) {
     logger.error('更新驾驶员证件信息异常', error)
@@ -5621,7 +5601,6 @@ export async function deleteDriverLicense(driverId: string): Promise<boolean> {
           const {error: deleteError} = await supabase.storage.from(bucketName).remove(relativeImagePaths)
 
           if (deleteError) {
-            console.warn('删除证件照片失败:', deleteError)
             // 不影响主流程，继续返回成功
           }
         }
@@ -5757,7 +5736,6 @@ export async function submitVehicleForReview(vehicleId: string): Promise<boolean
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('提交车辆审核成功', {vehicleId})
     return true
   } catch (error) {
     logger.error('提交车辆审核异常', error)
@@ -5784,7 +5762,6 @@ export async function getPendingReviewVehicles(): Promise<Vehicle[]> {
       return []
     }
 
-    logger.info('查询待审核车辆列表成功', {count: data?.length || 0})
     return Array.isArray(data) ? data : []
   } catch (error) {
     logger.error('查询待审核车辆列表异常', error)
@@ -5841,7 +5818,6 @@ export async function lockPhoto(vehicleId: string, photoField: string, photoInde
       clearCache(CACHE_KEYS.ALL_VEHICLES)
     }
 
-    logger.info('锁定图片成功', {vehicleId, photoField, photoIndex})
     return true
   } catch (error) {
     logger.error('锁定图片异常', error)
@@ -5896,7 +5872,6 @@ export async function unlockPhoto(vehicleId: string, photoField: string, photoIn
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('解锁图片成功', {vehicleId, photoField, photoIndex})
     return true
   } catch (error) {
     logger.error('解锁图片异常', error)
@@ -5952,7 +5927,6 @@ export async function markPhotoForDeletion(
       }
     }
 
-    logger.info('标记图片需补录成功', {vehicleId, photoField, photoIndex})
     return true
   } catch (error) {
     logger.error('标记图片需补录异常', error)
@@ -6008,7 +5982,6 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('通过车辆审核成功', {vehicleId})
     return true
   } catch (error) {
     logger.error('通过车辆审核异常', error)
@@ -6070,7 +6043,6 @@ export async function lockVehiclePhotos(
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('一键锁定车辆照片成功', {vehicleId})
     return true
   } catch (error) {
     logger.error('一键锁定车辆照片异常', error)
@@ -6125,7 +6097,6 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('要求补录车辆信息成功', {vehicleId})
     return true
   } catch (error) {
     logger.error('要求补录车辆信息异常', error)
@@ -6176,15 +6147,6 @@ export async function supplementPhoto(
     const photoKey = `${photoField}_${photoIndex}`
     const newRequiredPhotos = requiredPhotos.filter((key: string) => key !== photoKey)
 
-    logger.info('准备更新车辆图片', {
-      vehicleId,
-      photoField,
-      photoIndex,
-      photosLength: photos.length,
-      requiredPhotosCount: requiredPhotos.length,
-      newRequiredPhotosCount: newRequiredPhotos.length
-    })
-
     const {error: updateError} = await supabase
       .from('vehicles')
       .update({
@@ -6212,7 +6174,6 @@ export async function supplementPhoto(
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    logger.info('补录图片成功', {vehicleId, photoField, photoIndex})
     return true
   } catch (error) {
     logger.error('补录图片异常', {error, vehicleId, photoField, photoIndex})
@@ -6240,7 +6201,6 @@ export async function getRequiredPhotos(vehicleId: string): Promise<string[]> {
       return []
     }
 
-    logger.info('获取需要补录的图片列表成功', {vehicleId, count: data.required_photos?.length || 0})
     return data.required_photos || []
   } catch (error) {
     logger.error('获取需要补录的图片列表异常', error)
@@ -6263,8 +6223,6 @@ export async function createNotification(notification: {
   related_id?: string
 }): Promise<string | null> {
   try {
-    logger.info('创建通知', notification)
-
     // 获取当前用户信息作为发送者
     const {
       data: {user}
@@ -6272,20 +6230,18 @@ export async function createNotification(notification: {
 
     const senderId = user?.id || null
     let senderName = '系统'
-    let senderRole = 'BOSS'
+    let _senderRole = 'BOSS'
 
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
       const {data: senderUser} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
-      const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+      const {data: roleData} = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = roleData?.role || 'BOSS'
+        _senderRole = roleData?.role || 'BOSS'
       }
     }
-
-    logger.info('发送者信息', {senderId, senderName, senderRole})
 
     const notificationPayload = {
       user_id: notification.user_id,
@@ -6299,10 +6255,8 @@ export async function createNotification(notification: {
       is_read: false
     }
 
-    logger.info('通知载荷', notificationPayload)
-
     // 使用 create_notifications_batch 函数来创建通知，传递完整的发送者信息
-    const {data, error} = await supabase.rpc('create_notifications_batch', {
+    const {error} = await supabase.rpc('create_notifications_batch', {
       notifications: [notificationPayload]
     })
 
@@ -6327,7 +6281,6 @@ export async function createNotification(notification: {
       return null
     }
 
-    logger.info('创建通知成功', {notificationId: createdNotification?.id})
     return createdNotification?.id || null
   } catch (error) {
     logger.error('创建通知异常', error)
@@ -6347,8 +6300,6 @@ export async function createNotificationForAllManagers(notification: {
   related_id?: string
 }): Promise<number> {
   try {
-    logger.info('为所有管理员创建通知', notification)
-
     // 获取当前用户信息作为发送者
     const {
       data: {user}
@@ -6356,7 +6307,7 @@ export async function createNotificationForAllManagers(notification: {
 
     const senderId = user?.id || null
     let senderName = '系统'
-    let senderRole = 'BOSS'
+    let _senderRole = 'BOSS'
 
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
@@ -6365,11 +6316,9 @@ export async function createNotificationForAllManagers(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = roleData?.role || 'BOSS'
+        _senderRole = roleData?.role || 'BOSS'
       }
     }
-
-    logger.info('发送者信息', {senderId, senderName, senderRole})
 
     // 获取所有车队长、老板和调度 - 单用户架构：查询 user_roles 表
 
@@ -6384,11 +6333,8 @@ export async function createNotificationForAllManagers(notification: {
     }
 
     if (!managers || managers.length === 0) {
-      logger.warn('没有找到管理员')
       return 0
     }
-
-    logger.info('找到管理员', {count: managers.length, managers})
 
     // 为每个管理员创建通知
     const notifications = managers.map((manager) => ({
@@ -6403,8 +6349,6 @@ export async function createNotificationForAllManagers(notification: {
       is_read: false
     }))
 
-    logger.info('准备批量创建通知', {notifications})
-
     // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
     const {data, error} = await supabase.rpc('create_notifications_batch', {
       notifications: notifications
@@ -6416,7 +6360,6 @@ export async function createNotificationForAllManagers(notification: {
     }
 
     const count = data || 0
-    logger.info('批量创建通知成功', {count})
     return count
   } catch (error) {
     logger.error('批量创建通知异常', error)
@@ -6436,8 +6379,6 @@ export async function createNotificationForAllSuperAdmins(notification: {
   related_id?: string
 }): Promise<number> {
   try {
-    logger.info('为所有老板创建通知', notification)
-
     // 获取当前用户信息作为发送者
     const {
       data: {user}
@@ -6445,7 +6386,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
     const senderId = user?.id || null
     let senderName = '系统'
-    let senderRole = 'BOSS'
+    let _senderRole = 'BOSS'
 
     // 如果有当前用户，获取其信息 - 单用户架构：查询 users + user_roles
     if (user?.id) {
@@ -6454,16 +6395,14 @@ export async function createNotificationForAllSuperAdmins(notification: {
 
       if (senderUser) {
         senderName = senderUser.name || '系统'
-        senderRole = roleData?.role || 'BOSS'
+        _senderRole = roleData?.role || 'BOSS'
       }
     }
 
-    logger.info('发送者信息', {senderId, senderName, senderRole})
-
     // 获取所有老板 - 单用户架构：查询 user_roles 表
     const {data: superAdmins, error: superAdminsError} = await supabase
-      .from('users')
-      .select('id')
+      .from('user_roles')
+      .select('user_id')
       .eq('role', 'BOSS')
 
     if (superAdminsError) {
@@ -6472,15 +6411,12 @@ export async function createNotificationForAllSuperAdmins(notification: {
     }
 
     if (!superAdmins || superAdmins.length === 0) {
-      logger.warn('没有找到老板')
       return 0
     }
 
-    logger.info('找到老板', {count: superAdmins.length})
-
     // 为每个老板创建通知
     const notifications = superAdmins.map((admin) => ({
-      user_id: admin.id,
+      user_id: admin.user_id,
       sender_id: senderId,
       sender_name: senderName,
       // sender_role: senderRole, // 临时移除
@@ -6502,7 +6438,6 @@ export async function createNotificationForAllSuperAdmins(notification: {
     }
 
     const count = data || 0
-    logger.info('批量创建通知成功', {count})
     return count
   } catch (error) {
     logger.error('批量创建通知异常', error)
@@ -6802,7 +6737,7 @@ export async function updateScheduledNotificationStatus(
   status: 'pending' | 'sent' | 'cancelled' | 'failed'
 ): Promise<boolean> {
   try {
-    const updates: any = {status}
+    const updates: {status: 'pending' | 'sent' | 'cancelled' | 'failed'; sent_at?: string} = {status}
     if (status === 'sent') {
       updates.sent_at = new Date().toISOString()
     }
@@ -6967,10 +6902,10 @@ export async function sendNotificationToDrivers(driverIds: string[], title: stri
     const {
       data: {user}
     } = await supabase.auth.getUser()
-    
+
     const senderId = user?.id || null
     let senderName = '系统'
-    
+
     if (user?.id) {
       const {data: userData} = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
       senderName = userData?.name || '系统'
@@ -7030,7 +6965,7 @@ export async function getAllDriverIds(): Promise<string[]> {
   try {
     // 单用户架构：从 user_roles 表查询所有司机
     const {data, error} = await supabase
-      .from('users')
+      .from('user_roles')
       .select('user_id')
       .eq('role', 'DRIVER')
       .order('user_id', {ascending: true})
@@ -7316,10 +7251,6 @@ export async function createNotificationRecord(input: CreateNotificationInput): 
  */
 export async function getNotifications(userId: string, limit = 50): Promise<Notification[]> {
   try {
-    console.log('🔍 getNotifications: 开始获取通知列表')
-    console.log('  - 用户 ID:', userId)
-    console.log('  - 限制数量:', limit)
-
     // 单用户架构：直接查询 public.notifications
     const {data, error} = await supabase
       .from('notifications')
@@ -7333,7 +7264,6 @@ export async function getNotifications(userId: string, limit = 50): Promise<Noti
       return []
     }
 
-    console.log(`✅ 获取到 ${data?.length || 0} 条通知`)
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error('❌ 获取通知异常:', error)
@@ -7433,7 +7363,7 @@ export async function sendVerificationReminder(
   recipientId: string,
   senderId: string,
   senderName: string,
-  senderRole: SenderRole
+  _senderRole: SenderRole
 ): Promise<boolean> {
   try {
     const notification = await createNotificationRecord({
@@ -7542,12 +7472,12 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
     ] = await Promise.all([
       supabase.from('users').select('id').eq('main_account_id', id),
       supabase
-        .from('users')
+        .from('user_roles')
         .select('user_id')
         .eq('role', 'MANAGER')
         .in('user_id', (await supabase.from('users').select('id')).data?.map((u) => u.id) || []),
       supabase
-        .from('users')
+        .from('user_roles')
         .select('user_id')
         .eq('role', 'DRIVER')
         .in('user_id', (await supabase.from('users').select('id')).data?.map((u) => u.id) || []),
@@ -7585,8 +7515,6 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       stats.pieceWorks +
       stats.notifications
 
-    console.log('准备删除租户:', stats)
-
     // 3. 删除主账号（会自动级联删除所有关联数据）- 单用户架构：删除 users 表记录
     const {error: deleteError} = await supabase.from('users').delete().eq('id', id)
 
@@ -7612,7 +7540,6 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       }
     }
 
-    console.log('成功删除租户及其所有关联数据')
     return {
       success: true,
       message: '删除成功',

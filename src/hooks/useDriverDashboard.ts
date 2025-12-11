@@ -73,10 +73,8 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       if (cached?.data) {
         const age = Date.now() - cached.timestamp
         if (age < CACHE_EXPIRY_MS) {
-          console.log(`[useDriverDashboard] 使用缓存数据，缓存年龄: ${Math.round(age / 1000)}秒`)
           return cached.data
         }
-        console.log(`[useDriverDashboard] 缓存已过期，年龄: ${Math.round(age / 1000)}秒`)
       }
     } catch (err) {
       console.error('[useDriverDashboard] 读取缓存失败:', err)
@@ -97,7 +95,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
           warehouseId: warehouseId || 'all'
         }
         Taro.setStorageSync(cacheKey, cacheData)
-        console.log('[useDriverDashboard] 数据已缓存')
       } catch (err) {
         console.error('[useDriverDashboard] 写入缓存失败:', err)
       }
@@ -110,7 +107,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
     try {
       const cacheKey = getCacheKey()
       Taro.removeStorageSync(cacheKey)
-      console.log('[useDriverDashboard] 缓存已清除')
     } catch (err) {
       console.error('[useDriverDashboard] 清除缓存失败:', err)
     }
@@ -119,14 +115,12 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
   // 加载统计数据
   const loadStats = useCallback(async () => {
     if (!userId) {
-      console.log('[useDriverDashboard] 用户ID不存在，无法加载统计数据')
       setLoading(false)
       return
     }
 
     // 防止重复加载
     if (loadingRef.current) {
-      console.log('[useDriverDashboard] 正在加载中，跳过重复请求')
       return
     }
 
@@ -143,7 +137,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log('[useDriverDashboard] 开始加载统计数据，用户ID:', userId, '仓库ID:', warehouseId)
 
       const today = new Date()
       const year = today.getFullYear()
@@ -152,7 +145,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
       // 加载计件记录
       const pieceWorkRecords = await getPieceWorkRecordsByUser(userId)
-      console.log('[useDriverDashboard] 计件记录数量:', pieceWorkRecords.length)
 
       // 过滤仓库（如果指定了仓库ID）
       const filteredRecords = warehouseId
@@ -198,7 +190,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
       // 加载考勤统计
       const attendanceStats = await getDriverAttendanceStats(userId, firstDay, lastDayStr)
-      console.log('[useDriverDashboard] 考勤统计:', attendanceStats)
 
       const stats: DriverDashboardStats = {
         todayPieceCount,
@@ -211,7 +202,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
       setData(stats)
       writeCache(stats)
-      console.log('[useDriverDashboard] 统计数据加载完成:', stats)
     } catch (err) {
       console.error('[useDriverDashboard] 加载统计数据失败:', err)
       setError(err instanceof Error ? err.message : '加载失败')
@@ -229,7 +219,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
   // 创建稳定的刷新函数，不依赖 loadStats
   const refreshStable = useCallback(() => {
-    console.log('[useDriverDashboard] 手动刷新数据')
     clearCache()
     // 使用 ref 中的最新函数，避免依赖循环
     loadStatsRef.current()
@@ -249,8 +238,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
   useEffect(() => {
     if (!enableRealtime || !userId) return
 
-    console.log('[useDriverDashboard] 设置实时订阅，用户ID:', userId, '仓库ID:', warehouseId)
-
     // 创建订阅频道
     const channel = supabase.channel(`driver_dashboard_${userId}_${warehouseId || 'all'}`)
 
@@ -263,8 +250,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
         table: 'piece_work_records',
         filter: `user_id=eq.${userId}`
       },
-      (payload) => {
-        console.log('[useDriverDashboard] 计件记录变化:', payload)
+      (_payload) => {
         refreshStable()
       }
     )
@@ -278,8 +264,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
         table: 'attendance',
         filter: `user_id=eq.${userId}`
       },
-      (payload) => {
-        console.log('[useDriverDashboard] 考勤记录变化:', payload)
+      (_payload) => {
         refreshStable()
       }
     )
@@ -293,8 +278,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
         table: 'leave_applications',
         filter: `user_id=eq.${userId}`
       },
-      (payload) => {
-        console.log('[useDriverDashboard] 请假申请变化:', payload)
+      (_payload) => {
         refreshStable()
       }
     )
@@ -304,7 +288,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
     // 清理订阅
     return () => {
-      console.log('[useDriverDashboard] 清理实时订阅')
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
@@ -347,7 +330,6 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
       if (cached?.data) {
         const age = Date.now() - cached.timestamp
         if (age < CACHE_EXPIRY_MS) {
-          console.log(`[useDriverWarehouses] 使用缓存数据，缓存年龄: ${Math.round(age / 1000)}秒`)
           return cached.data
         }
       }
@@ -367,7 +349,6 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
           data,
           timestamp: Date.now()
         })
-        console.log('[useDriverWarehouses] 数据已缓存')
       } catch (err) {
         console.error('[useDriverWarehouses] 写入缓存失败:', err)
       }
@@ -379,7 +360,6 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   const clearCache = useCallback(() => {
     try {
       Taro.removeStorageSync(CACHE_KEY)
-      console.log('[useDriverWarehouses] 缓存已清除')
     } catch (err) {
       console.error('[useDriverWarehouses] 清除缓存失败:', err)
     }
@@ -388,14 +368,12 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
     if (!userId) {
-      console.log('[useDriverWarehouses] 用户ID不存在')
       setLoading(false)
       return
     }
 
     // 防止重复加载
     if (loadingRef.current) {
-      console.log('[useDriverWarehouses] 正在加载中，跳过重复请求')
       return
     }
 
@@ -412,10 +390,8 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
       loadingRef.current = true
       setLoading(true)
       setError(null)
-      console.log('[useDriverWarehouses] 开始加载仓库列表，用户ID:', userId)
 
       const data = await getDriverWarehouses(userId)
-      console.log('[useDriverWarehouses] 仓库列表加载完成，数量:', data.length)
 
       setWarehouses(data)
       writeCache(data)
@@ -430,7 +406,6 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
 
   // 刷新数据
   const refresh = useCallback(() => {
-    console.log('[useDriverWarehouses] 手动刷新数据')
     clearCache()
     loadWarehouses()
   }, [clearCache, loadWarehouses])
@@ -444,8 +419,6 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   useEffect(() => {
     if (!userId) return
 
-    console.log('[useDriverWarehouses] 开始订阅仓库分配变化，用户ID:', userId)
-
     // 创建实时订阅频道
     const channel = supabase
       .channel(`warehouse_assignments_${userId}`)
@@ -457,22 +430,18 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
           table: 'warehouse_assignments',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          console.log('[useDriverWarehouses] 检测到仓库分配变化:', payload)
+        (_payload) => {
           // 清除缓存并重新加载数据
           clearCache()
           loadWarehouses()
         }
       )
-      .subscribe((status) => {
-        console.log('[useDriverWarehouses] 订阅状态:', status)
-      })
+      .subscribe((_status) => {})
 
     channelRef.current = channel
 
     // 清理函数：取消订阅
     return () => {
-      console.log('[useDriverWarehouses] 取消订阅仓库分配变化')
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null

@@ -45,7 +45,9 @@ const DriverWarehouseAssignment: React.FC = () => {
 
   // 加载司机的仓库分配
   const loadDriverWarehouses = useCallback(async (driverId: string) => {
+    console.log('[仓库管理-司机仓库分配] 加载司机的仓库分配', {driverId})
     const warehouseIds = await WarehousesAPI.getDriverWarehouseIds(driverId)
+    console.log('[仓库管理-司机仓库分配] 司机已分配仓库', {driverId, warehouseIds, count: warehouseIds.length})
     setSelectedWarehouseIds(warehouseIds)
   }, [])
 
@@ -74,15 +76,6 @@ const DriverWarehouseAssignment: React.FC = () => {
     operatorProfile: Profile | null
   ) => {
     try {
-      console.log('🔔 [通知系统] 开始发送仓库分配通知', {
-        司机: driver.name,
-        司机ID: driver.id,
-        之前的仓库: previousWarehouseIds,
-        新的仓库: newWarehouseIds,
-        操作者: operatorProfile?.name || '未知',
-        操作者角色: operatorProfile?.role || '未知'
-      })
-
       const notifications: Array<{
         userId: string
         type: 'warehouse_assigned' | 'warehouse_unassigned'
@@ -95,15 +88,8 @@ const DriverWarehouseAssignment: React.FC = () => {
       const addedWarehouseIds = newWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
       const removedWarehouseIds = previousWarehouseIds.filter((id) => !newWarehouseIds.includes(id))
 
-      console.log('📊 [通知系统] 仓库变更情况', {
-        新增的仓库: addedWarehouseIds,
-        取消的仓库: removedWarehouseIds,
-        是否有变更: addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0
-      })
-
       // 如果没有任何变更，不发送通知
       if (addedWarehouseIds.length === 0 && removedWarehouseIds.length === 0) {
-        console.log('ℹ️ [通知系统] 仓库没有变更，不发送通知')
         return
       }
 
@@ -113,11 +99,6 @@ const DriverWarehouseAssignment: React.FC = () => {
           .filter((w) => addedWarehouseIds.includes(w.id))
           .map((w) => w.name)
           .join('、')
-
-        console.log('📝 [通知系统] 准备通知司机（新增仓库）', {
-          司机ID: driver.id,
-          仓库: addedWarehouseNames
-        })
 
         notifications.push({
           userId: driver.id,
@@ -135,11 +116,6 @@ const DriverWarehouseAssignment: React.FC = () => {
           .map((w) => w.name)
           .join('、')
 
-        console.log('📝 [通知系统] 准备通知司机（取消仓库）', {
-          司机ID: driver.id,
-          仓库: removedWarehouseNames
-        })
-
         notifications.push({
           userId: driver.id,
           type: 'warehouse_unassigned',
@@ -153,7 +129,6 @@ const DriverWarehouseAssignment: React.FC = () => {
       if (operatorProfile) {
         if (operatorProfile.role === 'MANAGER') {
           // 车队长操作 → 通知所有老板
-          console.log('👤 [通知系统] 操作者是车队长，准备通知所有老板')
 
           const superAdmins = await UsersAPI.getAllSuperAdmins()
           const operationDesc =
@@ -182,11 +157,6 @@ const DriverWarehouseAssignment: React.FC = () => {
                     .map((w) => w.name)
                     .join('、')
 
-          console.log('📝 [通知系统] 准备通知老板', {
-            老板数量: superAdmins.length,
-            操作描述: operationDesc
-          })
-
           for (const admin of superAdmins) {
             notifications.push({
               userId: admin.id,
@@ -198,31 +168,17 @@ const DriverWarehouseAssignment: React.FC = () => {
           }
         } else if (operatorProfile.role === 'BOSS') {
           // 老板操作 → 通知相关仓库的车队长
-          console.log('👤 [通知系统] 操作者是老板，准备通知相关仓库的车队长')
 
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
-
-          console.log('📦 [通知系统] 受影响的仓库', {
-            仓库ID列表: affectedWarehouseIds,
-            仓库数量: affectedWarehouseIds.length
-          })
 
           const managersSet = new Set<string>()
 
           for (const warehouseId of affectedWarehouseIds) {
             const managers = await WarehousesAPI.getWarehouseManagers(warehouseId)
-            console.log(`📦 [通知系统] 仓库 ${warehouseId} 的车队长`, {
-              车队长数量: managers.length,
-              车队长: managers.map((m) => m.name)
-            })
             for (const m of managers) {
               managersSet.add(m.id)
             }
           }
-
-          console.log('👥 [通知系统] 需要通知的车队长总数', {
-            车队长数量: managersSet.size
-          })
 
           const operationDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
@@ -250,11 +206,6 @@ const DriverWarehouseAssignment: React.FC = () => {
                     .map((w) => w.name)
                     .join('、')
 
-          console.log('📝 [通知系统] 准备通知车队长', {
-            车队长数量: managersSet.size,
-            操作描述: operationDesc
-          })
-
           for (const managerId of managersSet) {
             notifications.push({
               userId: managerId,
@@ -266,24 +217,12 @@ const DriverWarehouseAssignment: React.FC = () => {
           }
         }
       } else {
-        console.warn('⚠️ [通知系统] 操作者信息为空，无法通知管理员')
       }
 
       // 批量发送通知
       if (notifications.length > 0) {
-        console.log('📤 [通知系统] 准备发送通知', {
-          通知数量: notifications.length,
-          通知列表: notifications.map((n) => ({
-            接收者ID: n.userId,
-            类型: n.type,
-            标题: n.title,
-            消息: n.message
-          }))
-        })
-
         const success = await createNotifications(notifications)
         if (success) {
-          console.log(`✅ [通知系统] 已成功发送 ${notifications.length} 条仓库分配通知`)
         } else {
           console.error('❌ [通知系统] 发送通知失败')
           showToast({
@@ -293,7 +232,6 @@ const DriverWarehouseAssignment: React.FC = () => {
           })
         }
       } else {
-        console.log('ℹ️ [通知系统] 没有需要发送的通知（可能是操作者信息缺失）')
       }
     } catch (error) {
       console.error('❌ [通知系统] 发送仓库分配通知异常:', error)
@@ -307,41 +245,39 @@ const DriverWarehouseAssignment: React.FC = () => {
 
   // 选择司机
   const handleSelectDriver = async (driver: Profile) => {
+    console.log('[仓库管理-司机仓库分配] 选择司机', {driverId: driver.id, driverName: driver.name})
     setSelectedDriver(driver)
     await loadDriverWarehouses(driver.id)
   }
 
   // 保存仓库分配
   const handleSave = async () => {
-    console.log('💾 [保存] 开始保存仓库分配')
-
     if (!selectedDriver) {
+      console.warn('[仓库管理-司机仓库分配] 未选择司机')
       showToast({title: '请先选择司机', icon: 'none'})
       return
     }
 
-    console.log('💾 [保存] 选中的司机', {
-      司机: selectedDriver.name,
-      司机ID: selectedDriver.id,
-      选中的仓库: selectedWarehouseIds
+    console.log('[仓库管理-司机仓库分配] 开始保存仓库分配', {
+      driverId: selectedDriver.id,
+      driverName: selectedDriver.name,
+      selectedWarehouseIds,
+      warehouseCount: selectedWarehouseIds.length
     })
-
     setLoading(true)
     showLoading({title: '保存中...'})
 
     // 获取保存之前的仓库ID，用于判断是新增还是取消
     const previousWarehouseIds = await WarehousesAPI.getDriverWarehouseIds(selectedDriver.id)
-    console.log('💾 [保存] 之前的仓库', previousWarehouseIds)
+    console.log('[仓库管理-司机仓库分配] 之前的仓库分配', {previousWarehouseIds})
 
     const result = await WarehousesAPI.setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
-    console.log('💾 [保存] 保存结果', result)
 
     Taro.hideLoading()
     setLoading(false)
 
     if (result.success) {
-      console.log('✅ [保存] 保存成功，准备发送通知')
-
+      console.log('[仓库管理-司机仓库分配] 仓库分配保存成功', {result})
       // 显示详细的成功提示
       const warehouseNames = warehouses
         .filter((w) => selectedWarehouseIds.includes(w.id))
@@ -353,13 +289,8 @@ const DriverWarehouseAssignment: React.FC = () => {
           ? `已为 ${selectedDriver.name} 分配仓库：${warehouseNames}。\n\n司机需要重新进入页面才能看到更新。`
           : `已清空 ${selectedDriver.name} 的仓库分配。`
 
-      console.log('💾 [保存] 当前用户信息', {
-        currentUserProfile: currentUserProfile?.name,
-        role: currentUserProfile?.role
-      })
-
+      console.log('[仓库管理-司机仓库分配] 准备发送通知')
       // 发送通知
-      console.log('💾 [保存] 调用通知发送函数')
       await sendWarehouseAssignmentNotifications(
         selectedDriver,
         previousWarehouseIds,
@@ -367,7 +298,6 @@ const DriverWarehouseAssignment: React.FC = () => {
         warehouses,
         currentUserProfile
       )
-      console.log('💾 [保存] 通知发送函数执行完毕')
 
       await Taro.showModal({
         title: '分配成功',
@@ -376,6 +306,7 @@ const DriverWarehouseAssignment: React.FC = () => {
         confirmText: '知道了'
       })
     } else {
+      console.error('[仓库管理-司机仓库分配] 保存失败', {error: result.error})
       showToast({
         title: result.error || '保存失败，请重试',
         icon: 'error',
@@ -386,7 +317,9 @@ const DriverWarehouseAssignment: React.FC = () => {
 
   // 处理复选框变化
   const handleCheckboxChange = (e: any) => {
-    setSelectedWarehouseIds(e.detail.value)
+    const newSelected = e.detail.value
+    console.log('[仓库管理-司机仓库分配] 仓库选择变化', {selectedWarehouseIds: newSelected, count: newSelected.length})
+    setSelectedWarehouseIds(newSelected)
   }
 
   // 切换添加司机表单显示
@@ -435,7 +368,12 @@ const DriverWarehouseAssignment: React.FC = () => {
 
       Taro.showModal({
         title: '司机创建成功',
-        content: `姓名：${newDriverName.trim()}\n手机号码：${newDriverPhone.trim()}\n司机类型：${driverType}\n登录账号：${loginAccount}\n默认密码：${defaultPassword}\n车牌号码：${plateNumber}`,
+        content: `姓名：${newDriverName.trim()}
+手机号码：${newDriverPhone.trim()}
+司机类型：${driverType}
+登录账号：${loginAccount}
+默认密码：${defaultPassword}
+车牌号码：${plateNumber}`,
         showCancel: false,
         confirmText: '知道了',
         success: () => {

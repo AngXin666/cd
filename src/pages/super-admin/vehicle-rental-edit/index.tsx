@@ -49,7 +49,6 @@ const VehicleRentalEdit: React.FC = () => {
   const loadVehicle = useCallback(async (id: string) => {
     if (!id) return
 
-    logger.info('开始加载车辆信息', {vehicleId: id})
     setLoading(true)
     try {
       const data = await VehiclesAPI.getVehicleById(id)
@@ -64,7 +63,6 @@ const VehicleRentalEdit: React.FC = () => {
         return
       }
 
-      logger.info('车辆信息加载成功', {vehicle: data})
       setVehicle(data)
 
       // 填充表单数据
@@ -92,7 +90,6 @@ const VehicleRentalEdit: React.FC = () => {
   useDidShow(() => {
     const instance = Taro.getCurrentInstance()
     const id = instance.router?.params?.vehicleId
-    logger.info('页面显示，获取参数', {vehicleId: id})
     if (id) {
       loadVehicle(id)
     } else {
@@ -111,7 +108,6 @@ const VehicleRentalEdit: React.FC = () => {
   const handleSave = async () => {
     if (!vehicle) return
 
-    logger.info('开始保存租赁信息')
     setSaving(true)
     try {
       // 验证数据
@@ -157,7 +153,6 @@ const VehicleRentalEdit: React.FC = () => {
         rent_payment_day: rentPaymentDay ? Number(rentPaymentDay) : null
       })
 
-      logger.info('租赁信息保存成功')
       Taro.showToast({
         title: '保存成功',
         icon: 'success'

@@ -71,11 +71,8 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
 
         // 如果缓存未过期，返回缓存数据
         if (age < PERMISSION_CONTEXT_CACHE_DURATION) {
-          console.log('✅ [权限上下文] 从缓存加载，缓存年龄:', Math.floor(age / 1000), '秒')
           return cachedContext as PermissionContext
         }
-
-        console.log('⚠️ [权限上下文] 缓存已过期，缓存年龄:', Math.floor(age / 1000), '秒')
       }
     } catch (error) {
       console.error('❌ [权限上下文] 从缓存加载失败:', error)
@@ -91,7 +88,6 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
     try {
       Taro.setStorageSync(PERMISSION_CONTEXT_KEY, permissionContext)
       Taro.setStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY, Date.now())
-      console.log('✅ [权限上下文] 已保存到缓存')
     } catch (error) {
       console.error('❌ [权限上下文] 保存到缓存失败:', error)
     }
@@ -102,7 +98,6 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
    */
   const loadPermissionContext = useCallback(async () => {
     if (!user?.id) {
-      console.warn('⚠️ [权限上下文] 用户未登录，跳过加载')
       return
     }
 
@@ -119,14 +114,12 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
     setError(null)
 
     try {
-      console.log('🔄 [权限上下文] 从服务器加载权限上下文')
       const response = await PermissionContextAPI.getPermissionContext(user.id)
 
       if (response.success && response.context) {
         setContext(response.context)
         saveToCache(response.context)
         setError(null)
-        console.log('✅ [权限上下文] 权限上下文加载成功')
       } else {
         setError(response.error || '获取权限上下文失败')
         console.error('❌ [权限上下文] 权限上下文加载失败:', response.error)
@@ -145,7 +138,6 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
    */
   const refresh = useCallback(async () => {
     if (!user?.id) {
-      console.warn('⚠️ [权限上下文] 用户未登录，跳过刷新')
       return
     }
 
@@ -153,14 +145,12 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
     setError(null)
 
     try {
-      console.log('🔄 [权限上下文] 强制刷新权限上下文')
       const response = await PermissionContextAPI.getPermissionContext(user.id)
 
       if (response.success && response.context) {
         setContext(response.context)
         saveToCache(response.context)
         setError(null)
-        console.log('✅ [权限上下文] 权限上下文刷新成功')
       } else {
         setError(response.error || '刷新权限上下文失败')
         console.error('❌ [权限上下文] 权限上下文刷新失败:', response.error)
@@ -183,7 +173,6 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
     try {
       Taro.removeStorageSync(PERMISSION_CONTEXT_KEY)
       Taro.removeStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
-      console.log('✅ [权限上下文] 权限上下文已清除')
     } catch (error) {
       console.error('❌ [权限上下文] 清除权限上下文失败:', error)
     }

@@ -113,8 +113,6 @@ export interface CurrentUserInfo {
  */
 export async function getSystemStats(userId: string): Promise<SystemStats | null> {
   try {
-    console.log('[getSystemStats] 获取系统统计', {userId})
-
     const {data, error} = await supabase.rpc('get_system_stats', {
       p_user_id: userId
     })
@@ -125,11 +123,9 @@ export async function getSystemStats(userId: string): Promise<SystemStats | null
     }
 
     if (!data || data.length === 0) {
-      console.warn('[getSystemStats] 未获取到统计数据')
       return null
     }
 
-    console.log('[getSystemStats] 成功获取系统统计:', data[0])
     return data[0]
   } catch (error) {
     console.error('[getSystemStats] 未预期的错误:', error)
@@ -142,8 +138,6 @@ export async function getSystemStats(userId: string): Promise<SystemStats | null
  */
 export async function getUserPersonalStats(userId: string): Promise<UserPersonalStats | null> {
   try {
-    console.log('[getUserPersonalStats] 获取用户个人统计', {userId})
-
     const {data, error} = await supabase.rpc('get_user_personal_stats', {
       p_user_id: userId
     })
@@ -154,11 +148,9 @@ export async function getUserPersonalStats(userId: string): Promise<UserPersonal
     }
 
     if (!data || data.length === 0) {
-      console.warn('[getUserPersonalStats] 未获取到统计数据')
       return null
     }
 
-    console.log('[getUserPersonalStats] 成功获取用户个人统计:', data[0])
     return data[0]
   } catch (error) {
     console.error('[getUserPersonalStats] 未预期的错误:', error)
@@ -171,8 +163,6 @@ export async function getUserPersonalStats(userId: string): Promise<UserPersonal
  */
 export async function getWarehouseStats(warehouseId: string, userId: string): Promise<WarehouseStats | null> {
   try {
-    console.log('[getWarehouseStats] 获取仓库统计', {warehouseId, userId})
-
     const {data, error} = await supabase.rpc('get_warehouse_stats', {
       p_warehouse_id: warehouseId,
       p_user_id: userId
@@ -184,11 +174,9 @@ export async function getWarehouseStats(warehouseId: string, userId: string): Pr
     }
 
     if (!data || data.length === 0) {
-      console.warn('[getWarehouseStats] 未获取到统计数据')
       return null
     }
 
-    console.log('[getWarehouseStats] 成功获取仓库统计:', data[0])
     return data[0]
   } catch (error) {
     console.error('[getWarehouseStats] 未预期的错误:', error)
@@ -201,8 +189,6 @@ export async function getWarehouseStats(warehouseId: string, userId: string): Pr
  */
 export async function getAllWarehousesStats(userId: string): Promise<WarehouseStats[]> {
   try {
-    console.log('[getAllWarehousesStats] 获取所有仓库统计', {userId})
-
     const {data, error} = await supabase.rpc('get_all_warehouses_stats', {
       p_user_id: userId
     })
@@ -212,7 +198,6 @@ export async function getAllWarehousesStats(userId: string): Promise<WarehouseSt
       return []
     }
 
-    console.log('[getAllWarehousesStats] 成功获取所有仓库统计:', data)
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error('[getAllWarehousesStats] 未预期的错误:', error)
@@ -225,8 +210,6 @@ export async function getAllWarehousesStats(userId: string): Promise<WarehouseSt
  */
 export async function getUserAllRoles(userId: string): Promise<UserRole[]> {
   try {
-    console.log('[getUserAllRoles] 获取用户所有角色', {userId})
-
     const {data, error} = await supabase.rpc('get_user_all_roles', {
       p_user_id: userId
     })
@@ -236,7 +219,6 @@ export async function getUserAllRoles(userId: string): Promise<UserRole[]> {
       return []
     }
 
-    console.log('[getUserAllRoles] 成功获取用户角色:', data)
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error('[getUserAllRoles] 未预期的错误:', error)
@@ -249,8 +231,6 @@ export async function getUserAllRoles(userId: string): Promise<UserRole[]> {
  */
 export async function userHasRole(userId: string, role: string): Promise<boolean> {
   try {
-    console.log('[userHasRole] 检查用户角色', {userId, role})
-
     const {data, error} = await supabase.rpc('user_has_role', {
       p_user_id: userId,
       p_role: role
@@ -261,7 +241,6 @@ export async function userHasRole(userId: string, role: string): Promise<boolean
       return false
     }
 
-    console.log('[userHasRole] 用户角色检查结果:', data)
     return data === true
   } catch (error) {
     console.error('[userHasRole] 未预期的错误:', error)
@@ -274,8 +253,6 @@ export async function userHasRole(userId: string, role: string): Promise<boolean
  */
 export async function getCurrentUserInfo(): Promise<CurrentUserInfo | null> {
   try {
-    console.log('[getCurrentUserInfo] 获取当前用户信息')
-
     const {data, error} = await supabase.rpc('get_current_user_info')
 
     if (error) {
@@ -284,11 +261,9 @@ export async function getCurrentUserInfo(): Promise<CurrentUserInfo | null> {
     }
 
     if (!data || data.length === 0) {
-      console.warn('[getCurrentUserInfo] 未获取到用户信息')
       return null
     }
 
-    console.log('[getCurrentUserInfo] 成功获取当前用户信息:', data[0])
     return data[0]
   } catch (error) {
     console.error('[getCurrentUserInfo] 未预期的错误:', error)
@@ -301,8 +276,6 @@ export async function getCurrentUserInfo(): Promise<CurrentUserInfo | null> {
  */
 export async function addRoleToUser(userId: string, role: string, adminId: string): Promise<boolean> {
   try {
-    console.log('[addRoleToUser] 添加角色', {userId, role, adminId})
-
     const {data, error} = await supabase.rpc('add_role_to_user', {
       p_user_id: userId,
       p_role: role,
@@ -314,7 +287,6 @@ export async function addRoleToUser(userId: string, role: string, adminId: strin
       return false
     }
 
-    console.log('[addRoleToUser] 成功添加角色:', data)
     return data === true
   } catch (error) {
     console.error('[addRoleToUser] 未预期的错误:', error)
@@ -327,8 +299,6 @@ export async function addRoleToUser(userId: string, role: string, adminId: strin
  */
 export async function removeRoleFromUser(userId: string, role: string, adminId: string): Promise<boolean> {
   try {
-    console.log('[removeRoleFromUser] 移除角色', {userId, role, adminId})
-
     const {data, error} = await supabase.rpc('remove_role_from_user', {
       p_user_id: userId,
       p_role: role,
@@ -340,7 +310,6 @@ export async function removeRoleFromUser(userId: string, role: string, adminId: 
       return false
     }
 
-    console.log('[removeRoleFromUser] 成功移除角色:', data)
     return data === true
   } catch (error) {
     console.error('[removeRoleFromUser] 未预期的错误:', error)
@@ -364,8 +333,6 @@ export async function getUsersByRole(
   }>
 > {
   try {
-    console.log('[getUsersByRole] 获取角色用户列表', {role, adminId})
-
     const {data, error} = await supabase.rpc('get_users_by_role', {
       p_role: role,
       p_admin_id: adminId
@@ -376,7 +343,6 @@ export async function getUsersByRole(
       return []
     }
 
-    console.log('[getUsersByRole] 成功获取角色用户列表:', data)
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error('[getUsersByRole] 未预期的错误:', error)

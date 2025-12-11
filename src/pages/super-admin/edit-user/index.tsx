@@ -37,12 +37,7 @@ const EditUser: React.FC = () => {
 
     setLoading(true)
     try {
-      console.log('========================================')
-      console.log('🔍 开始加载用户信息，用户ID:', userId)
-      console.log('========================================')
-
       const data = await UsersAPI.getUserById(userId)
-      console.log('📦 从数据库获取的用户数据:', JSON.stringify(data, null, 2))
 
       if (data) {
         setUserInfo(data)
@@ -54,33 +49,24 @@ const EditUser: React.FC = () => {
 
         // 设置角色索引：根据 role 和 driver_type 来判断
         let roleIndex = 0
-        let roleLabel = ''
+        let _roleLabel = ''
 
         if (data.role === 'DRIVER') {
           // 司机角色：根据 driver_type 来区分
           if (data.driver_type === 'with_vehicle') {
             // 带车司机（索引1）
             roleIndex = 1
-            roleLabel = '带车司机'
+            _roleLabel = '带车司机'
           } else {
             // 纯司机（索引0）
             roleIndex = 0
-            roleLabel = '纯司机'
+            _roleLabel = '纯司机'
           }
         } else if (data.role === 'MANAGER') {
           // 管理员（索引2）
           roleIndex = 2
-          roleLabel = '管理员'
+          _roleLabel = '管理员'
         }
-
-        console.log('========================================')
-        console.log('🏷️  司机类型判断结果:')
-        console.log('   - 数据库 role 字段:', data.role)
-        console.log('   - 数据库 driver_type 字段:', data.driver_type || '(null)')
-        console.log('   - 数据库 vehicle_plate 字段:', data.vehicle_plate || '(null/空)')
-        console.log('   - 计算出的角色索引:', roleIndex)
-        console.log('   - 计算出的角色标签:', roleLabel)
-        console.log('========================================')
 
         setSelectedRoleIndex(roleIndex)
       } else {
@@ -97,25 +83,12 @@ const EditUser: React.FC = () => {
 
   // 保存用户信息
   const handleSave = useCallback(async () => {
-    console.log('=== 开始保存用户信息 ===')
-    console.log('用户ID:', userId)
-    console.log('当前表单数据:', {
-      name: name.trim(),
-      phone: phone.trim(),
-      loginAccount: loginAccount.trim(),
-      vehiclePlate: vehiclePlate.trim(),
-      joinDate,
-      selectedRoleIndex
-    })
-
     if (!name.trim()) {
-      console.log('❌ 验证失败: 姓名为空')
       Taro.showToast({title: '请输入姓名', icon: 'none'})
       return
     }
 
     if (!phone.trim()) {
-      console.log('❌ 验证失败: 手机号为空')
       Taro.showToast({title: '请输入手机号', icon: 'none'})
       return
     }
@@ -123,31 +96,24 @@ const EditUser: React.FC = () => {
     // 验证手机号格式
     const phoneRegex = /^1[3-9]\d{9}$/
     if (!phoneRegex.test(phone.trim())) {
-      console.log('❌ 验证失败: 手机号格式不正确')
       Taro.showToast({title: '手机号格式不正确', icon: 'none'})
       return
     }
 
     if (!loginAccount.trim()) {
-      console.log('❌ 验证失败: 登录账号为空')
       Taro.showToast({title: '请输入登录账号', icon: 'none'})
       return
     }
 
     if (!joinDate) {
-      console.log('❌ 验证失败: 入职时间为空')
       Taro.showToast({title: '请选择入职时间', icon: 'none'})
       return
     }
 
-    console.log('✅ 表单验证通过，开始保存...')
     Taro.showLoading({title: '保存中...'})
     try {
       const selectedRole = roleOptions[selectedRoleIndex].value
       const selectedLabel = roleOptions[selectedRoleIndex].label
-      console.log('选中的角色索引:', selectedRoleIndex)
-      console.log('选中的角色标签:', selectedLabel)
-      console.log('选中的角色值:', selectedRole)
 
       // 根据选择的角色类型决定 driver_type 和 vehicle_plate 的值
       let finalDriverType: 'pure' | 'with_vehicle' | null = null
@@ -158,18 +124,15 @@ const EditUser: React.FC = () => {
         finalDriverType = 'pure'
         const trimmedPlate = vehiclePlate.trim()
         finalVehiclePlate = trimmedPlate || null
-        console.log('纯司机 - driver_type: pure, 车牌号:', finalVehiclePlate || '(无)')
       } else if (selectedLabel === '带车司机') {
         // 带车司机：driver_type = 'with_vehicle'，vehicle_plate 保留用户输入
         finalDriverType = 'with_vehicle'
         const trimmedPlate = vehiclePlate.trim()
         finalVehiclePlate = trimmedPlate || null
-        console.log('带车司机 - driver_type: with_vehicle, 车牌号:', finalVehiclePlate || '(无)')
       } else if (selectedLabel === '管理员') {
         // 管理员：driver_type = null，vehicle_plate = null
         finalDriverType = null
         finalVehiclePlate = null
-        console.log('管理员 - driver_type: null, 车牌号: null')
       }
 
       const updateData = {
@@ -181,18 +144,14 @@ const EditUser: React.FC = () => {
         join_date: joinDate,
         role: selectedRole
       }
-      console.log('准备更新的数据:', updateData)
 
       const success = await UsersAPI.updateUserInfo(userId, updateData)
-      console.log('updateUserInfo 返回结果:', success)
 
       if (success) {
-        console.log('✅ 保存成功！')
         Taro.showToast({title: '保存成功', icon: 'success', duration: 2000})
 
         // 延迟返回，让用户看到成功提示
         setTimeout(() => {
-          console.log('返回上一页，触发数据刷新')
           Taro.navigateBack()
         }, 1500)
       } else {
@@ -205,7 +164,6 @@ const EditUser: React.FC = () => {
       Taro.showToast({title: '保存失败', icon: 'error'})
     } finally {
       Taro.hideLoading()
-      console.log('=== 保存流程结束 ===')
     }
   }, [
     userId,

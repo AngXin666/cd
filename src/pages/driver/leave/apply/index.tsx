@@ -160,9 +160,7 @@ const ApplyLeave: React.FC = () => {
             }
           }
         }
-      } catch (error) {
-        console.log('读取上次选择的仓库失败:', error)
-      }
+      } catch (_error) {}
     }
 
     // 获取当月已批准和待审批的请假天数
@@ -291,9 +289,7 @@ const ApplyLeave: React.FC = () => {
     if (user) {
       try {
         Taro.setStorageSync(`leave_application_last_warehouse_${user.id}`, selectedWarehouseId)
-      } catch (error) {
-        console.log('保存仓库选择失败:', error)
-      }
+      } catch (_error) {}
     }
   }
 
@@ -465,15 +461,6 @@ const ApplyLeave: React.FC = () => {
         })
         return
       }
-
-      console.log('✅ 请假申请创建成功:', {
-        applicationId,
-        userId: user.id,
-        warehouseId,
-        leaveType,
-        startDate,
-        endDate
-      })
     }
 
     setSubmitting(false)
@@ -489,13 +476,6 @@ const ApplyLeave: React.FC = () => {
         Promise.resolve(formatLeaveDate(startDate, endDate, leaveDays))
       ])
         .then(([driverDisplayName, leaveTypeLabel, dateRangeText]) => {
-          console.log('🔍 调试信息 - 开始发送通知', {
-            userId: user?.id,
-            userObject: user,
-            driverName: driverDisplayName,
-            applicationId: applicationId
-          })
-
           // 验证 user.id 是否有效
           if (!user?.id || user.id === 'anon' || user.id.length < 10) {
             console.error('❌ 无效的用户ID，无法发送通知', {userId: user?.id})
@@ -514,9 +494,7 @@ const ApplyLeave: React.FC = () => {
         })
         .then((notificationSent) => {
           if (notificationSent) {
-            console.log('✅ 请假申请提交成功，已发送通知给老板、平级账号和车队长')
           } else {
-            console.warn('⚠️ 请假申请提交成功，但通知发送失败')
           }
         })
         .catch((error) => {
