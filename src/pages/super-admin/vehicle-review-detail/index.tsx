@@ -6,6 +6,7 @@
 
 import {Button, Image, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -87,7 +88,7 @@ const VehicleReviewDetail: React.FC = () => {
       setReviewNotes(data.review_notes || '')
     } catch (error) {
       logger.error('加载车辆信息失败', error)
-      Taro.showToast({title: '加载失败', icon: 'none'})
+      showToast({title: '加载失败', icon: 'none'})
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
@@ -106,7 +107,7 @@ const VehicleReviewDetail: React.FC = () => {
     if (vehicleId) {
       loadVehicle(vehicleId)
     } else {
-      Taro.showToast({title: '参数错误', icon: 'none'})
+      showToast({title: '参数错误', icon: 'none'})
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
@@ -156,7 +157,7 @@ const VehicleReviewDetail: React.FC = () => {
           const fieldLocks = newLockedPhotos[field] || []
           newLockedPhotos[field] = fieldLocks.filter((i) => i !== index)
           setLockedPhotos(newLockedPhotos)
-          Taro.showToast({title: '已解锁', icon: 'success'})
+          showToast({title: '已解锁', icon: 'success'})
         }
       } else {
         // 锁定
@@ -169,12 +170,12 @@ const VehicleReviewDetail: React.FC = () => {
           }
           newLockedPhotos[field] = fieldLocks
           setLockedPhotos(newLockedPhotos)
-          Taro.showToast({title: '已锁定', icon: 'success'})
+          showToast({title: '已锁定', icon: 'success'})
         }
       }
     } catch (error) {
       logger.error('切换图片锁定状态失败', error)
-      Taro.showToast({title: '操作失败', icon: 'none'})
+      showToast({title: '操作失败', icon: 'none'})
     }
   }
 
@@ -188,7 +189,7 @@ const VehicleReviewDetail: React.FC = () => {
       // 已标记，取消标记
       const photoKey = `${field}_${index}`
       setRequiredPhotos(requiredPhotos.filter((key) => key !== photoKey))
-      Taro.showToast({title: '已取消标记', icon: 'success'})
+      showToast({title: '已取消标记', icon: 'success'})
     } else {
       // 标记为需补录
       try {
@@ -196,11 +197,11 @@ const VehicleReviewDetail: React.FC = () => {
         if (success) {
           const photoKey = `${field}_${index}`
           setRequiredPhotos([...requiredPhotos, photoKey])
-          Taro.showToast({title: '已标记需补录', icon: 'success'})
+          showToast({title: '已标记需补录', icon: 'success'})
         }
       } catch (error) {
         logger.error('标记图片需补录失败', error)
-        Taro.showToast({title: '操作失败', icon: 'none'})
+        showToast({title: '操作失败', icon: 'none'})
       }
     }
   }
@@ -225,13 +226,13 @@ const VehicleReviewDetail: React.FC = () => {
       success: async (res) => {
         if (res.confirm) {
           setSubmitting(true)
-          Taro.showLoading({title: '提交中...'})
+          showLoading({title: '提交中...'})
 
           try {
             const success = await VehiclesAPI.approveVehicle(vehicle.id, user.id, reviewNotes)
             if (success) {
-              Taro.hideLoading()
-              Taro.showToast({title: '审核通过', icon: 'success'})
+              hideLoading()
+              showToast({title: '审核通过', icon: 'success'})
               setTimeout(() => {
                 Taro.navigateBack()
               }, 1500)
@@ -240,8 +241,8 @@ const VehicleReviewDetail: React.FC = () => {
             }
           } catch (error) {
             logger.error('通过审核失败', error)
-            Taro.hideLoading()
-            Taro.showToast({title: '操作失败', icon: 'none'})
+            hideLoading()
+            showToast({title: '操作失败', icon: 'none'})
           } finally {
             setSubmitting(false)
           }
@@ -300,7 +301,7 @@ const VehicleReviewDetail: React.FC = () => {
       success: async (res) => {
         if (res.confirm) {
           setSubmitting(true)
-          Taro.showLoading({title: '提交中...'})
+          showLoading({title: '提交中...'})
 
           try {
             // 先更新需要补录的照片列表和审核状态
@@ -326,8 +327,8 @@ const VehicleReviewDetail: React.FC = () => {
               }
             }
 
-            Taro.hideLoading()
-            Taro.showToast({
+            hideLoading()
+            showToast({
               title: `已要求补录，已锁定 ${totalLockedCount} 张照片`,
               icon: 'success',
               duration: 2000
@@ -337,8 +338,8 @@ const VehicleReviewDetail: React.FC = () => {
             }, 2000)
           } catch (error) {
             logger.error('要求补录失败', error)
-            Taro.hideLoading()
-            Taro.showToast({
+            hideLoading()
+            showToast({
               title: error instanceof Error ? error.message : '操作失败',
               icon: 'none'
             })

@@ -4,6 +4,7 @@
  */
 
 import Taro from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 
 const UPDATE_CHECK_URL = 'https://wxvrwkpkioalqdsfswwu.supabase.co/storage/v1/object/public/app-updates/latest.zip'
 const UPDATE_VERSION_KEY = 'hot_update_version'
@@ -71,7 +72,7 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<boolean> {
   try {
     // 显示下载进度
-    Taro.showLoading({
+    showLoading({
       title: '下载更新中...',
       mask: true
     })
@@ -84,7 +85,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
           // 保存新版本号
           Taro.setStorageSync(UPDATE_VERSION_KEY, updateInfo.version)
 
-          Taro.hideLoading()
+          hideLoading()
 
           // 提示用户重启应用
           Taro.showModal({
@@ -100,8 +101,8 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
           })
         } else {
           console.error('[热更新] ❌ 下载失败，状态码非 200:', res.statusCode)
-          Taro.hideLoading()
-          Taro.showToast({
+          hideLoading()
+          showToast({
             title: `下载失败 (${res.statusCode})`,
             icon: 'none'
           })
@@ -122,8 +123,8 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
         }
         console.error('========================================')
 
-        Taro.hideLoading()
-        Taro.showToast({
+        hideLoading()
+        showToast({
           title: err.errMsg || '更新下载失败',
           icon: 'none',
           duration: 3000
@@ -133,8 +134,8 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
 
     if (!downloadTask) {
       console.error('[热更新] ❌ downloadTask 为 null 或 undefined！')
-      Taro.hideLoading()
-      Taro.showToast({
+      hideLoading()
+      showToast({
         title: '下载任务创建失败',
         icon: 'none'
       })
@@ -145,7 +146,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
     if (downloadTask.onProgressUpdate) {
       downloadTask.onProgressUpdate((res) => {
         if (res.progress % 10 === 0) {
-          Taro.showLoading({
+          showLoading({
             title: `下载中 ${res.progress}%`,
             mask: true
           })
@@ -164,7 +165,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
     console.error('[热更新] 堆栈信息:', error instanceof Error ? error.stack : 'N/A')
     console.error('========================================')
 
-    Taro.hideLoading()
+    hideLoading()
     return false
   }
 }
@@ -199,7 +200,7 @@ export async function silentCheckUpdate(): Promise<void> {
  * 强制检查更新(用户手动触发)
  */
 export async function forceCheckUpdate(): Promise<void> {
-  Taro.showLoading({
+  showLoading({
     title: '检查更新中...',
     mask: true
   })
@@ -210,7 +211,7 @@ export async function forceCheckUpdate(): Promise<void> {
 
     const updateInfo = await checkForUpdate()
 
-    Taro.hideLoading()
+    hideLoading()
 
     if (updateInfo) {
       Taro.showModal({
@@ -225,14 +226,14 @@ export async function forceCheckUpdate(): Promise<void> {
         }
       })
     } else {
-      Taro.showToast({
+      showToast({
         title: '已是最新版本',
         icon: 'success'
       })
     }
   } catch (_error) {
-    Taro.hideLoading()
-    Taro.showToast({
+    hideLoading()
+    showToast({
       title: '检查更新失败',
       icon: 'none'
     })

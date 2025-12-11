@@ -242,7 +242,7 @@ const AddVehicle: React.FC = () => {
                   }))
                 }
 
-                Taro.showToast({
+                showToast({
                   title: '草稿已恢复',
                   icon: 'success'
                 })
@@ -311,15 +311,15 @@ const AddVehicle: React.FC = () => {
   // 识别行驶证主页
   const handleRecognizeDrivingLicenseMain = async () => {
     if (!photos.driving_license_main) {
-      Taro.showToast({title: '请先拍摄行驶证主页', icon: 'none'})
+      showToast({title: '请先拍摄行驶证主页', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '识别中...'})
+    showLoading({title: '识别中...'})
     try {
       const {recognizeDrivingLicenseMain} = await import('@/utils/ocrUtils')
       const result = await recognizeDrivingLicenseMain(photos.driving_license_main, (msg) => {
-        Taro.showLoading({title: msg})
+        showLoading({title: msg})
       })
 
       if (result) {
@@ -336,29 +336,29 @@ const AddVehicle: React.FC = () => {
           register_date: result.register_date || prev.register_date,
           issue_date: result.issue_date || prev.issue_date
         }))
-        Taro.showToast({title: '主页识别成功', icon: 'success'})
+        showToast({title: '主页识别成功', icon: 'success'})
       } else {
-        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
+        showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
       }
     } catch (error) {
       showOcrError(error)
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
   // 识别行驶证副页
   const handleRecognizeDrivingLicenseSub = async () => {
     if (!photos.driving_license_sub) {
-      Taro.showToast({title: '请先拍摄行驶证副页', icon: 'none'})
+      showToast({title: '请先拍摄行驶证副页', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '识别中...'})
+    showLoading({title: '识别中...'})
     try {
       const {recognizeDrivingLicenseSub} = await import('@/utils/ocrUtils')
       const result = await recognizeDrivingLicenseSub(photos.driving_license_sub, (msg) => {
-        Taro.showLoading({title: msg})
+        showLoading({title: msg})
       })
 
       if (result) {
@@ -374,29 +374,29 @@ const AddVehicle: React.FC = () => {
           overall_dimension_height: String(result.overall_dimension_height || prev.overall_dimension_height || ''),
           inspection_valid_until: result.inspection_valid_until || prev.inspection_valid_until
         }))
-        Taro.showToast({title: '副页识别成功', icon: 'success'})
+        showToast({title: '副页识别成功', icon: 'success'})
       } else {
-        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
+        showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
       }
     } catch (error) {
       showOcrError(error)
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
   // 识别行驶证副页背页
   const handleRecognizeDrivingLicenseSubBack = async () => {
     if (!photos.driving_license_sub_back) {
-      Taro.showToast({title: '请先拍摄行驶证副页背页', icon: 'none'})
+      showToast({title: '请先拍摄行驶证副页背页', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '识别中...'})
+    showLoading({title: '识别中...'})
     try {
       const {recognizeDrivingLicenseSubBack} = await import('@/utils/ocrUtils')
       const result = await recognizeDrivingLicenseSubBack(photos.driving_license_sub_back, (msg) => {
-        Taro.showLoading({title: msg})
+        showLoading({title: msg})
       })
 
       if (result) {
@@ -407,28 +407,28 @@ const AddVehicle: React.FC = () => {
           // 优先使用副页背面的检验有效期（因为它是最新的）
           inspection_valid_until: result.inspection_valid_until || prev.inspection_valid_until
         }))
-        Taro.showToast({title: '副页背页识别成功', icon: 'success'})
+        showToast({title: '副页背页识别成功', icon: 'success'})
       } else {
-        Taro.showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
+        showToast({title: '识别失败，请重新拍摄', icon: 'none', duration: 3000})
       }
     } catch (error) {
       showOcrError(error)
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
   // 识别身份证正面
   const handleRecognizeIdCardFront = async () => {
     if (!driverPhotos.id_card_front) {
-      Taro.showToast({title: '请先拍摄身份证正面', icon: 'none'})
+      showToast({title: '请先拍摄身份证正面', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '识别中...'})
+    showLoading({title: '识别中...'})
     try {
       const result = await recognizeIdCardFront(driverPhotos.id_card_front, (msg) => {
-        Taro.showLoading({title: msg})
+        showLoading({title: msg})
       })
 
       if (result) {
@@ -439,27 +439,27 @@ const AddVehicle: React.FC = () => {
           id_card_address: result.address || prev.id_card_address,
           id_card_birth_date: result.birth_date || prev.id_card_birth_date
         }))
-        Taro.showToast({title: '识别成功', icon: 'success'})
+        showToast({title: '识别成功', icon: 'success'})
       }
     } catch (error) {
       showOcrError(error)
       // 错误已通过showOcrError显示
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
   // 识别驾驶证
   const handleRecognizeDriverLicense = async () => {
     if (!driverPhotos.driver_license) {
-      Taro.showToast({title: '请先拍摄驾驶证', icon: 'none'})
+      showToast({title: '请先拍摄驾驶证', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '识别中...'})
+    showLoading({title: '识别中...'})
     try {
       const result = await recognizeDriverLicense(driverPhotos.driver_license, (msg) => {
-        Taro.showLoading({title: msg})
+        showLoading({title: msg})
       })
 
       if (result) {
@@ -473,13 +473,13 @@ const AddVehicle: React.FC = () => {
           valid_to: result.valid_until || prev.valid_to,
           issue_authority: result.issue_authority || prev.issue_authority
         }))
-        Taro.showToast({title: '识别成功', icon: 'success'})
+        showToast({title: '识别成功', icon: 'success'})
       }
     } catch (error) {
       showOcrError(error)
       // 错误已通过showOcrError显示
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -513,11 +513,7 @@ const AddVehicle: React.FC = () => {
    */
   const showDriverLicenseRecognitionFailureDialog = async (missingFields: string[]) => {
     const fieldList = missingFields.join('、')
-    const message = `以下证件信息未能识别成功：
-
-${fieldList}
-
-请选择后续操作：`
+    const message = `以下证件信息未能识别成功：\n\n${fieldList}\n\n请选择后续操作：`
 
     const res = await Taro.showModal({
       title: '证件识别失败',
@@ -541,7 +537,7 @@ ${fieldList}
    * 重新识别驾驶员证件：使用已上传的照片重新进行识别
    */
   const handleReRecognizeDriverLicense = async () => {
-    Taro.showLoading({title: '重新识别中...'})
+    showLoading({title: '重新识别中...'})
     try {
       // 重新识别身份证正面
       if (driverPhotos.id_card_front) {
@@ -556,12 +552,12 @@ ${fieldList}
       // 再次检查识别结果
       const {missingFields, isComplete} = checkDriverLicenseRecognition()
       if (isComplete) {
-        Taro.showToast({
+        showToast({
           title: '重新识别成功',
           icon: 'success'
         })
       } else {
-        Taro.showToast({
+        showToast({
           title: `仍有${missingFields.length}个字段未识别`,
           icon: 'none',
           duration: 3000
@@ -569,12 +565,12 @@ ${fieldList}
       }
     } catch (error) {
       console.error('重新识别失败:', error)
-      Taro.showToast({
+      showToast({
         title: '重新识别失败',
         icon: 'none'
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -602,7 +598,7 @@ ${fieldList}
       issue_authority: ''
     })
 
-    Taro.showToast({
+    showToast({
       title: '已清空，请重新拍摄证件',
       icon: 'none',
       duration: 2000
@@ -613,20 +609,20 @@ ${fieldList}
     switch (step) {
       case 0: // 行驶证识别 - 需要三张照片
         if (!photos.driving_license_main) {
-          Taro.showToast({title: '请拍摄行驶证主页', icon: 'none'})
+          showToast({title: '请拍摄行驶证主页', icon: 'none'})
           return false
         }
         if (!photos.driving_license_sub) {
-          Taro.showToast({title: '请拍摄行驶证副页', icon: 'none'})
+          showToast({title: '请拍摄行驶证副页', icon: 'none'})
           return false
         }
         if (!photos.driving_license_sub_back) {
-          Taro.showToast({title: '请拍摄行驶证副页背页', icon: 'none'})
+          showToast({title: '请拍摄行驶证副页背页', icon: 'none'})
           return false
         }
         // 验证是否已识别出必要信息
         if (!formData.plate_number || !formData.brand || !formData.model) {
-          Taro.showToast({title: '请先识别行驶证主页，确保获取车牌号、品牌和型号', icon: 'none'})
+          showToast({title: '请先识别行驶证主页，确保获取车牌号、品牌和型号', icon: 'none'})
           return false
         }
         return true
@@ -640,13 +636,13 @@ ${fieldList}
           !photos.rear_door ||
           !photos.cargo_box
         ) {
-          Taro.showToast({title: '请拍摄所有角度的车辆照片', icon: 'none'})
+          showToast({title: '请拍摄所有角度的车辆照片', icon: 'none'})
           return false
         }
         return true
       case 2: // 驾驶员证件
         if (!driverPhotos.id_card_front || !driverPhotos.id_card_back || !driverPhotos.driver_license) {
-          Taro.showToast({title: '请拍摄所有证件照片', icon: 'none'})
+          showToast({title: '请拍摄所有证件照片', icon: 'none'})
           return false
         }
         return true
@@ -686,11 +682,7 @@ ${fieldList}
    */
   const showRecognitionFailureDialog = async (missingFields: string[]) => {
     const fieldList = missingFields.join('、')
-    const message = `以下信息未能识别成功：
-
-${fieldList}
-
-请选择后续操作：`
+    const message = `以下信息未能识别成功：\n\n${fieldList}\n\n请选择后续操作：`
 
     const res = await Taro.showModal({
       title: '识别失败',
@@ -714,7 +706,7 @@ ${fieldList}
    * 重新识别：使用已上传的照片重新进行识别
    */
   const handleReRecognize = async () => {
-    Taro.showLoading({title: '重新识别中...'})
+    showLoading({title: '重新识别中...'})
     try {
       // 重新识别主页
       if (photos.driving_license_main) {
@@ -734,12 +726,12 @@ ${fieldList}
       // 再次检查识别结果
       const {missingFields, isComplete} = checkRecognitionResult()
       if (isComplete) {
-        Taro.showToast({
+        showToast({
           title: '重新识别成功',
           icon: 'success'
         })
       } else {
-        Taro.showToast({
+        showToast({
           title: `仍有${missingFields.length}个字段未识别`,
           icon: 'none',
           duration: 3000
@@ -747,12 +739,12 @@ ${fieldList}
       }
     } catch (error) {
       console.error('重新识别失败:', error)
-      Taro.showToast({
+      showToast({
         title: '重新识别失败',
         icon: 'none'
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -787,7 +779,7 @@ ${fieldList}
       inspection_date: ''
     }))
 
-    Taro.showToast({
+    showToast({
       title: '已清空，请重新拍摄',
       icon: 'none',
       duration: 2000
@@ -800,15 +792,15 @@ ${fieldList}
     if (currentStep === 0) {
       // 首先检查是否已拍摄所有照片
       if (!photos.driving_license_main) {
-        Taro.showToast({title: '请拍摄行驶证主页', icon: 'none'})
+        showToast({title: '请拍摄行驶证主页', icon: 'none'})
         return
       }
       if (!photos.driving_license_sub) {
-        Taro.showToast({title: '请拍摄行驶证副页', icon: 'none'})
+        showToast({title: '请拍摄行驶证副页', icon: 'none'})
         return
       }
       if (!photos.driving_license_sub_back) {
-        Taro.showToast({title: '请拍摄行驶证副页背页', icon: 'none'})
+        showToast({title: '请拍摄行驶证副页背页', icon: 'none'})
         return
       }
 
@@ -822,7 +814,7 @@ ${fieldList}
       }
 
       // 识别完整，继续下一步
-      Taro.showToast({
+      showToast({
         title: '识别完成，进入下一步',
         icon: 'success'
       })
@@ -943,12 +935,7 @@ ${fieldList}
     if (!vehicleValidation.isValid) {
       await Taro.showModal({
         title: '信息不完整',
-        content: `以下信息缺失或格式错误：
-
-${vehicleValidation.errors.join('
-')}
-
-请返回相应步骤补充完整信息。`,
+        content: `以下信息缺失或格式错误：\n\n${vehicleValidation.errors.join('\n')}\n\n请返回相应步骤补充完整信息。`,
         showCancel: false,
         confirmText: '我知道了'
       })
@@ -956,12 +943,12 @@ ${vehicleValidation.errors.join('
     }
 
     if (!user) {
-      Taro.showToast({title: '请先登录', icon: 'none'})
+      showToast({title: '请先登录', icon: 'none'})
       return
     }
 
     setSubmitting(true)
-    Taro.showLoading({title: submitForReview ? '提交审核中...' : '保存中...'})
+    showLoading({title: submitForReview ? '提交审核中...' : '保存中...'})
 
     try {
       // 上传所有照片
@@ -1128,8 +1115,8 @@ ${vehicleValidation.errors.join('
         const _insertedLicense = await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
       }
 
-      Taro.hideLoading()
-      Taro.showToast({
+      hideLoading()
+      showToast({
         title: submitForReview ? '提交审核成功' : '保存成功',
         icon: 'success'
       })
@@ -1145,7 +1132,7 @@ ${vehicleValidation.errors.join('
       }, 1500)
     } catch (error) {
       console.error('提交失败详情:', error)
-      Taro.hideLoading()
+      hideLoading()
 
       // 解析错误信息，提供更明确的提示
       let errorMessage = '提交失败，请重试'

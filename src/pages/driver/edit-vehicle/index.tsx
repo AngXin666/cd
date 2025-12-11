@@ -8,6 +8,7 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {chooseImage, useLoad} from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -98,7 +99,7 @@ const SupplementVehicle: React.FC = () => {
       setSupplementItems(items)
     } catch (error) {
       logger.error('加载车辆数据失败', error)
-      Taro.showToast({
+      showToast({
         title: error instanceof Error ? error.message : '加载失败',
         icon: 'none'
       })
@@ -124,7 +125,7 @@ const SupplementVehicle: React.FC = () => {
 
         // 检查文件大小（1MB限制）
         if (file.size > 1024 * 1024) {
-          Taro.showToast({
+          showToast({
             title: '照片大小不能超过1MB',
             icon: 'none'
           })
@@ -138,14 +139,14 @@ const SupplementVehicle: React.FC = () => {
           return newItems
         })
 
-        Taro.showToast({
+        showToast({
           title: '照片已选择',
           icon: 'success'
         })
       }
     } catch (error) {
       logger.error('选择照片失败', error)
-      Taro.showToast({
+      showToast({
         title: '选择照片失败',
         icon: 'none'
       })
@@ -159,7 +160,7 @@ const SupplementVehicle: React.FC = () => {
     // 检查是否所有照片都已补录
     const unfinishedItems = supplementItems.filter((item) => !item.newUrl)
     if (unfinishedItems.length > 0) {
-      Taro.showToast({
+      showToast({
         title: '请补录所有需要的照片',
         icon: 'none'
       })
@@ -167,7 +168,7 @@ const SupplementVehicle: React.FC = () => {
     }
 
     setSubmitting(true)
-    Taro.showLoading({title: '上传中...'})
+    showLoading({title: '上传中...'})
 
     try {
       // 上传所有新照片
@@ -205,8 +206,8 @@ const SupplementVehicle: React.FC = () => {
         review_status: 'pending_review' // 重新提交审核
       })
 
-      Taro.hideLoading()
-      Taro.showToast({
+      hideLoading()
+      showToast({
         title: '补录成功，已重新提交审核',
         icon: 'success',
         duration: 2000
@@ -217,8 +218,8 @@ const SupplementVehicle: React.FC = () => {
       }, 2000)
     } catch (error) {
       logger.error('提交补录失败', error)
-      Taro.hideLoading()
-      Taro.showToast({
+      hideLoading()
+      showToast({
         title: error instanceof Error ? error.message : '提交失败',
         icon: 'none'
       })

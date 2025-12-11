@@ -1,5 +1,6 @@
 import {Button, Radio, RadioGroup, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showModal, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -186,7 +187,7 @@ const ClockIn: React.FC = () => {
       // 再次检查今日是否已打卡（防止并发）
       const existingRecord = await AttendanceAPI.getTodayAttendance(user.id)
       if (existingRecord?.clock_in_time) {
-        Taro.hideLoading()
+        hideLoading()
         setTodayRecord(existingRecord)
         showToast({
           title: '您今天已完成考勤打卡，无需重复操作',
@@ -222,7 +223,7 @@ const ClockIn: React.FC = () => {
         status
       })
 
-      Taro.hideLoading()
+      hideLoading()
 
       if (record) {
         // 立即更新本地状态
@@ -242,7 +243,7 @@ const ClockIn: React.FC = () => {
         throw new Error('打卡失败，请重试')
       }
     } catch (error) {
-      Taro.hideLoading()
+      hideLoading()
       console.error('打卡失败:', error)
 
       // 检查是否是重复打卡错误
@@ -334,7 +335,7 @@ const ClockIn: React.FC = () => {
         status: todayRecord.status === 'late' ? 'late' : status // 如果上班迟到，保持迟到状态
       })
 
-      Taro.hideLoading()
+      hideLoading()
 
       if (success) {
         // 显示打卡结果
@@ -351,7 +352,7 @@ const ClockIn: React.FC = () => {
         throw new Error('打卡失败，请重试')
       }
     } catch (error) {
-      Taro.hideLoading()
+      hideLoading()
       console.error('下班打卡失败:', error)
       const errorMessage = error instanceof Error ? error.message : '打卡失败'
       showToast({

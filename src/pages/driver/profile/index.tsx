@@ -6,6 +6,7 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -41,7 +42,7 @@ const DriverProfile: React.FC = () => {
       setDriverLicense(licenseData)
     } catch (error) {
       logger.error('加载个人资料失败', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'none'
       })
@@ -73,7 +74,7 @@ const DriverProfile: React.FC = () => {
       return
     }
 
-    Taro.showLoading({title: '删除中...'})
+    showLoading({title: '删除中...'})
     try {
       const success = await VehiclesAPI.deleteDriverLicense(user.id)
 
@@ -84,7 +85,7 @@ const DriverProfile: React.FC = () => {
       // 清空本地状态
       setDriverLicense(null)
 
-      Taro.showToast({
+      showToast({
         title: '删除成功',
         icon: 'success',
         duration: 2000
@@ -96,12 +97,12 @@ const DriverProfile: React.FC = () => {
       }, 2000)
     } catch (error) {
       logger.error('删除个人信息失败', error)
-      Taro.showToast({
+      showToast({
         title: '删除失败，请重试',
         icon: 'none'
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 

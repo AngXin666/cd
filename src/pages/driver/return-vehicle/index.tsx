@@ -10,6 +10,7 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -89,7 +90,7 @@ const ReturnVehicle: React.FC = () => {
                   setDamagePhotos(draft.damage_photos.map((path) => ({path, size: 0})))
                 }
 
-                Taro.showToast({
+                showToast({
                   title: '草稿已恢复',
                   icon: 'success'
                 })
@@ -144,7 +145,7 @@ const ReturnVehicle: React.FC = () => {
       setVehicleId(id)
       loadVehicleInfo(id)
     } else {
-      Taro.showToast({
+      showToast({
         title: '缺少车辆ID',
         icon: 'error'
       })
@@ -162,7 +163,7 @@ const ReturnVehicle: React.FC = () => {
       if (data) {
         setVehicle(data)
       } else {
-        Taro.showToast({
+        showToast({
           title: '车辆不存在',
           icon: 'error'
         })
@@ -172,7 +173,7 @@ const ReturnVehicle: React.FC = () => {
       }
     } catch (error) {
       logger.error('加载车辆信息失败', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'error'
       })
@@ -217,7 +218,7 @@ const ReturnVehicle: React.FC = () => {
     })
 
     if (missingPhotos.length > 0) {
-      Taro.showToast({
+      showToast({
         title: `请拍摄：${missingPhotos[0]}`,
         icon: 'none',
         duration: 2000
@@ -230,7 +231,7 @@ const ReturnVehicle: React.FC = () => {
   // 提交还车
   const handleSubmit = async () => {
     if (!vehicle) {
-      Taro.showToast({
+      showToast({
         title: '车辆信息不存在',
         icon: 'error'
       })
@@ -244,7 +245,7 @@ const ReturnVehicle: React.FC = () => {
 
     try {
       setUploading(true)
-      Taro.showLoading({title: '上传中...'})
+      showLoading({title: '上传中...'})
 
       // 1. 上传7张车辆照片
       const uploadedVehiclePhotos: Record<string, string> = {}
@@ -295,10 +296,10 @@ const ReturnVehicle: React.FC = () => {
         })
       }
 
-      Taro.hideLoading()
+      hideLoading()
 
       if (result) {
-        Taro.showToast({
+        showToast({
           title: '还车成功',
           icon: 'success'
         })
@@ -315,9 +316,9 @@ const ReturnVehicle: React.FC = () => {
         throw new Error('还车失败')
       }
     } catch (error) {
-      Taro.hideLoading()
+      hideLoading()
       logger.error('还车失败', error)
-      Taro.showToast({
+      showToast({
         title: '还车失败，请重试',
         icon: 'error'
       })

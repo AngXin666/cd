@@ -5,6 +5,7 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
@@ -138,7 +139,7 @@ const LicenseOCR: React.FC = () => {
       if (res.tempFilePaths.length === 0) return
 
       const tempPath = res.tempFilePaths[0]
-      Taro.showLoading({title: '识别中...'})
+      showLoading({title: '识别中...'})
 
       try {
         // 根据当前步骤识别不同的证件
@@ -163,7 +164,7 @@ const LicenseOCR: React.FC = () => {
           errorMessage = '这不是有效的驾驶证照片，请确保拍摄的是驾驶证主页（有照片和驾驶证号的一面）'
         }
 
-        Taro.hideLoading()
+        hideLoading()
 
         // 验证识别结果
         if (!isValid) {
@@ -195,13 +196,13 @@ const LicenseOCR: React.FC = () => {
           setOcrData((prev) => ({...prev, driverLicense: ocrResult}))
         }
 
-        Taro.showToast({
+        showToast({
           title: '识别成功，请确认信息',
           icon: 'success',
           duration: 2000
         })
       } catch (error) {
-        Taro.hideLoading()
+        hideLoading()
         console.error('识别失败:', error)
         Taro.showModal({
           title: '识别失败',
@@ -211,7 +212,7 @@ const LicenseOCR: React.FC = () => {
       }
     } catch (error) {
       console.error('选择图片失败:', error)
-      Taro.showToast({
+      showToast({
         title: '选择图片失败',
         icon: 'none'
       })
@@ -242,7 +243,7 @@ const LicenseOCR: React.FC = () => {
 
     // 验证是否所有证件都已拍摄
     if (!photos.idCardFront || !photos.idCardBack || !photos.driverLicense) {
-      Taro.showToast({
+      showToast({
         title: '请完成所有证件拍摄',
         icon: 'none'
       })
@@ -250,7 +251,7 @@ const LicenseOCR: React.FC = () => {
     }
 
     setSubmitting(true)
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
 
     try {
       // 上传照片到存储桶
@@ -298,8 +299,8 @@ const LicenseOCR: React.FC = () => {
       // 保存到数据库
       await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
 
-      Taro.hideLoading()
-      Taro.showToast({
+      hideLoading()
+      showToast({
         title: '保存成功',
         icon: 'success',
         duration: 2000
@@ -310,9 +311,9 @@ const LicenseOCR: React.FC = () => {
         Taro.navigateBack()
       }, 2000)
     } catch (error) {
-      Taro.hideLoading()
+      hideLoading()
       console.error('保存失败:', error)
-      Taro.showToast({
+      showToast({
         title: '保存失败，请重试',
         icon: 'none'
       })
