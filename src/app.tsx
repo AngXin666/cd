@@ -7,7 +7,6 @@ import type React from 'react'
 import type {PropsWithChildren} from 'react'
 import {useEffect} from 'react'
 import {supabase} from '@/client/supabase'
-import {PermissionProvider} from '@/contexts/PermissionContext'
 import {UserContextProvider} from '@/contexts/UserContext'
 import {silentCheckUpdate} from '@/utils/hotUpdate'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
@@ -39,9 +38,7 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
 
   return (
     <AuthProvider client={supabase} loginPath="/pages/login/index">
-      <PermissionProvider>
-        <UserContextProvider>{children}</UserContextProvider>
-      </PermissionProvider>
+      <UserContextProvider>{children}</UserContextProvider>
     </AuthProvider>
   )
 }
