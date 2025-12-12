@@ -1,6 +1,5 @@
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
-import {showLoading, showToast, hideLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -8,12 +7,12 @@ import * as AttendanceAPI from '@/db/api/attendance'
 import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import {createNotification} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 // 司机统计数据类型
 interface DriverStats {

@@ -3,7 +3,7 @@
  * 为安卓APP提供原生功能支持
  */
 
-import { platform } from './platform'
+import {platform} from './platform'
 
 // Capacitor 插件类型定义
 interface CapacitorPlugins {
@@ -26,7 +26,7 @@ const getCapacitorPlugins = (): CapacitorPlugins => {
   if (!platform.isAndroid()) {
     return {}
   }
-  
+
   const capacitor = (window as any)?.Capacitor
   return capacitor?.Plugins || {}
 }
@@ -48,7 +48,7 @@ export const capacitorCamera = {
       throw new Error('Camera is only available on Android app')
     }
 
-    const { Camera } = getCapacitorPlugins()
+    const {Camera} = getCapacitorPlugins()
     if (!Camera) {
       throw new Error('Camera plugin not available')
     }
@@ -60,7 +60,7 @@ export const capacitorCamera = {
         resultType: options?.resultType || 'uri',
         source: options?.source || 'camera'
       })
-      
+
       return {
         webPath: image.webPath,
         format: image.format,
@@ -75,15 +75,12 @@ export const capacitorCamera = {
   /**
    * 选择多张图片
    */
-  pickImages: async (options?: {
-    quality?: number
-    limit?: number
-  }) => {
+  pickImages: async (options?: {quality?: number; limit?: number}) => {
     if (!platform.isAndroid()) {
       throw new Error('Camera is only available on Android app')
     }
 
-    const { Camera } = getCapacitorPlugins()
+    const {Camera} = getCapacitorPlugins()
     if (!Camera) {
       throw new Error('Camera plugin not available')
     }
@@ -93,7 +90,7 @@ export const capacitorCamera = {
         quality: options?.quality || 90,
         limit: options?.limit || 5
       })
-      
+
       return images.photos.map((photo: any) => ({
         webPath: photo.webPath,
         format: photo.format
@@ -112,16 +109,12 @@ export const capacitorGeolocation = {
   /**
    * 获取当前位置
    */
-  getCurrentPosition: async (options?: {
-    enableHighAccuracy?: boolean
-    timeout?: number
-    maximumAge?: number
-  }) => {
+  getCurrentPosition: async (options?: {enableHighAccuracy?: boolean; timeout?: number; maximumAge?: number}) => {
     if (!platform.isAndroid()) {
       throw new Error('Geolocation is only available on Android app')
     }
 
-    const { Geolocation } = getCapacitorPlugins()
+    const {Geolocation} = getCapacitorPlugins()
     if (!Geolocation) {
       throw new Error('Geolocation plugin not available')
     }
@@ -132,7 +125,7 @@ export const capacitorGeolocation = {
         timeout: options?.timeout || 10000,
         maximumAge: options?.maximumAge || 3600000
       })
-      
+
       return {
         latitude: coordinates.coords.latitude,
         longitude: coordinates.coords.longitude,
@@ -163,18 +156,21 @@ export const capacitorGeolocation = {
       throw new Error('Geolocation is only available on Android app')
     }
 
-    const { Geolocation } = getCapacitorPlugins()
+    const {Geolocation} = getCapacitorPlugins()
     if (!Geolocation) {
       throw new Error('Geolocation plugin not available')
     }
 
     try {
-      const watchId = await Geolocation.watchPosition({
-        enableHighAccuracy: options?.enableHighAccuracy || true,
-        timeout: options?.timeout || 10000,
-        maximumAge: options?.maximumAge || 3600000
-      }, callback)
-      
+      const watchId = await Geolocation.watchPosition(
+        {
+          enableHighAccuracy: options?.enableHighAccuracy || true,
+          timeout: options?.timeout || 10000,
+          maximumAge: options?.maximumAge || 3600000
+        },
+        callback
+      )
+
       return watchId
     } catch (error) {
       console.error('Watch position error:', error)
@@ -190,13 +186,13 @@ export const capacitorGeolocation = {
       return
     }
 
-    const { Geolocation } = getCapacitorPlugins()
+    const {Geolocation} = getCapacitorPlugins()
     if (!Geolocation) {
       return
     }
 
     try {
-      await Geolocation.clearWatch({ id: watchId })
+      await Geolocation.clearWatch({id: watchId})
     } catch (error) {
       console.error('Clear watch error:', error)
     }
@@ -215,7 +211,7 @@ export const capacitorDevice = {
       return null
     }
 
-    const { Device } = getCapacitorPlugins()
+    const {Device} = getCapacitorPlugins()
     if (!Device) {
       return null
     }
@@ -245,7 +241,7 @@ export const capacitorDevice = {
       return null
     }
 
-    const { Device } = getCapacitorPlugins()
+    const {Device} = getCapacitorPlugins()
     if (!Device) {
       return null
     }
@@ -272,7 +268,7 @@ export const capacitorNetwork = {
       return null
     }
 
-    const { Network } = getCapacitorPlugins()
+    const {Network} = getCapacitorPlugins()
     if (!Network) {
       return null
     }
@@ -297,7 +293,7 @@ export const capacitorNetwork = {
       return () => {}
     }
 
-    const { Network } = getCapacitorPlugins()
+    const {Network} = getCapacitorPlugins()
     if (!Network) {
       return () => {}
     }
@@ -324,13 +320,13 @@ export const capacitorStatusBar = {
       return
     }
 
-    const { StatusBar } = getCapacitorPlugins()
+    const {StatusBar} = getCapacitorPlugins()
     if (!StatusBar) {
       return
     }
 
     try {
-      await StatusBar.setStyle({ style })
+      await StatusBar.setStyle({style})
     } catch (error) {
       console.error('StatusBar style error:', error)
     }
@@ -344,13 +340,13 @@ export const capacitorStatusBar = {
       return
     }
 
-    const { StatusBar } = getCapacitorPlugins()
+    const {StatusBar} = getCapacitorPlugins()
     if (!StatusBar) {
       return
     }
 
     try {
-      await StatusBar.setBackgroundColor({ color })
+      await StatusBar.setBackgroundColor({color})
     } catch (error) {
       console.error('StatusBar background color error:', error)
     }
@@ -364,7 +360,7 @@ export const capacitorStatusBar = {
       return
     }
 
-    const { StatusBar } = getCapacitorPlugins()
+    const {StatusBar} = getCapacitorPlugins()
     if (!StatusBar) {
       return
     }
@@ -384,7 +380,7 @@ export const capacitorStatusBar = {
       return
     }
 
-    const { StatusBar } = getCapacitorPlugins()
+    const {StatusBar} = getCapacitorPlugins()
     if (!StatusBar) {
       return
     }
@@ -409,7 +405,7 @@ export const capacitorSplashScreen = {
       return
     }
 
-    const { SplashScreen } = getCapacitorPlugins()
+    const {SplashScreen} = getCapacitorPlugins()
     if (!SplashScreen) {
       return
     }
@@ -429,7 +425,7 @@ export const capacitorSplashScreen = {
       return
     }
 
-    const { SplashScreen } = getCapacitorPlugins()
+    const {SplashScreen} = getCapacitorPlugins()
     if (!SplashScreen) {
       return
     }
@@ -454,7 +450,7 @@ export const capacitorApp = {
       return null
     }
 
-    const { App } = getCapacitorPlugins()
+    const {App} = getCapacitorPlugins()
     if (!App) {
       return null
     }
@@ -481,7 +477,7 @@ export const capacitorApp = {
       return () => {}
     }
 
-    const { App } = getCapacitorPlugins()
+    const {App} = getCapacitorPlugins()
     if (!App) {
       return () => {}
     }

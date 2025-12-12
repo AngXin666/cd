@@ -15,35 +15,13 @@
 
 // ============= 仅导出类型定义（不会增加运行时内存） =============
 
-// Attendance 模块类型（从 types.ts 导出）
-export type {
-  AttendanceRecord
-} from './types'
-
 // Dashboard 模块类型
-export type {
-  DashboardStats
-} from './api/dashboard'
-
-// Leave 模块类型（从 types.ts 导出）
-export type {
-  LeaveRequest
-} from './types'
-
-// Notifications 模块类型
-export type {
-  Notification,
-  NotificationCategory,
-  NotificationProcessStatus,
-  NotificationType
-} from './notificationApi'
-
+export type {DashboardStats} from './api/dashboard'
 // Peer Admin 模块类型
 export type {
   PeerAdminListItem,
   PeerAdminPermission
 } from './api/peer-admin'
-
 // Permission Strategy 模块类型
 export type {
   OperationResult,
@@ -51,12 +29,6 @@ export type {
   UserPermissionDetail,
   UserPermissionInfo
 } from './api/permission-strategy'
-
-// Piecework 模块类型（从 types.ts 导出）
-export type {
-  PieceworkRecord
-} from './types'
-
 // Stats 模块类型
 export type {
   CurrentUserInfo,
@@ -66,28 +38,33 @@ export type {
   UserRole as StatsUserRole,
   WarehouseStats
 } from './api/stats'
-
 // Users 模块类型
 export type {
   DatabaseColumn,
   DatabaseConstraint,
   DatabaseTable
 } from './api/users'
-
+// Notifications 模块类型
+export type {
+  Notification,
+  NotificationCategory,
+  NotificationProcessStatus,
+  NotificationType
+} from './notificationApi'
+// Attendance 模块类型（从 types.ts 导出）
+// Leave 模块类型（从 types.ts 导出）
+// Piecework 模块类型（从 types.ts 导出）
 // Vehicles 模块类型（从 types.ts 导出）
-export type {
-  Vehicle
-} from './types'
-
 // Warehouses 模块类型（从 types.ts 导出）
-export type {
-  Warehouse
-} from './types'
-
 // 从 types 模块导出基础类型
 export type {
+  AttendanceRecord,
+  LeaveRequest,
+  PieceworkRecord,
   UserRole,
-  UserRoleAssignment
+  UserRoleAssignment,
+  Vehicle,
+  Warehouse
 } from './types'
 
 // ============= 模块路径导出（用于动态导入） =============

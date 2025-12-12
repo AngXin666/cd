@@ -3,11 +3,12 @@
  * 统一处理微信小程序、H5、安卓APP的图片上传差异
  */
 
-import React, { useState } from 'react'
-import { View, Image } from '@tarojs/components'
+import {Image, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { platform } from '@/utils/platform'
-import { capacitorCamera } from '@/utils/capacitor'
+import type React from 'react'
+import {useState} from 'react'
+import {capacitorCamera} from '@/utils/capacitor'
+import {platform} from '@/utils/platform'
 
 interface PlatformImageUploaderProps {
   maxCount?: number
@@ -75,7 +76,7 @@ export const PlatformImageUploader: React.FC<PlatformImageUploaderProps> = ({
           quality: 90,
           limit: maxCount - images.length
         })
-        return photos.map(p => p.webPath)
+        return photos.map((p) => p.webPath)
       }
     } catch (error) {
       console.error('选择图片失败:', error)
@@ -96,13 +97,13 @@ export const PlatformImageUploader: React.FC<PlatformImageUploaderProps> = ({
       input.type = 'file'
       input.accept = 'image/*'
       input.multiple = true
-      
+
       input.onchange = (e: any) => {
         const files = Array.from(e.target.files || []) as File[]
         const limitedFiles = files.slice(0, maxCount - images.length)
-        
+
         // 转换为base64
-        const promises = limitedFiles.map(file => {
+        const promises = limitedFiles.map((file) => {
           return new Promise<string>((resolve) => {
             const reader = new FileReader()
             reader.onload = (e) => {
@@ -111,10 +112,10 @@ export const PlatformImageUploader: React.FC<PlatformImageUploaderProps> = ({
             reader.readAsDataURL(file)
           })
         })
-        
+
         Promise.all(promises).then(resolve)
       }
-      
+
       input.click()
     })
   }
@@ -148,7 +149,7 @@ export const PlatformImageUploader: React.FC<PlatformImageUploaderProps> = ({
 
       // 如果提供了上传函数，则上传图片
       if (onUpload) {
-        const uploadPromises = tempPaths.map(path => onUpload(path))
+        const uploadPromises = tempPaths.map((path) => onUpload(path))
         const uploadedUrls = await Promise.all(uploadPromises)
         const newImages = [...images, ...uploadedUrls]
         setImages(newImages)
@@ -206,37 +207,22 @@ export const PlatformImageUploader: React.FC<PlatformImageUploaderProps> = ({
       <View className="image-list">
         {images.map((image, index) => (
           <View key={index} className="image-item">
-            <Image
-              src={image}
-              mode="aspectFill"
-              className="image"
-              onClick={() => handlePreviewImage(index)}
-            />
+            <Image src={image} mode="aspectFill" className="image" onClick={() => handlePreviewImage(index)} />
             {!disabled && (
-              <View
-                className="delete-btn"
-                onClick={() => handleDeleteImage(index)}
-              >
+              <View className="delete-btn" onClick={() => handleDeleteImage(index)}>
                 ×
               </View>
             )}
           </View>
         ))}
-        
+
         {images.length < maxCount && !disabled && (
-          <View
-            className={`upload-btn ${uploading ? 'uploading' : ''}`}
-            onClick={handleChooseImage}
-          >
-            {uploading ? (
-              <View className="loading">上传中...</View>
-            ) : (
-              <View className="add-icon">+</View>
-            )}
+          <View className={`upload-btn ${uploading ? 'uploading' : ''}`} onClick={handleChooseImage}>
+            {uploading ? <View className="loading">上传中...</View> : <View className="add-icon">+</View>}
           </View>
         )}
       </View>
-      
+
       <View className="upload-tip">
         已上传 {images.length}/{maxCount} 张
       </View>

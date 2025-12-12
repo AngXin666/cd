@@ -75,7 +75,11 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
     return data
   }
 
-  const {data, error} = await supabase.from('attendance').insert({...input}).select().maybeSingle()
+  const {data, error} = await supabase
+    .from('attendance')
+    .insert({...input})
+    .select()
+    .maybeSingle()
 
   if (error) {
     console.error('创建打卡记录失败:', error)

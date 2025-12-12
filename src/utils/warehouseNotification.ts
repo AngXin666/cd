@@ -4,8 +4,8 @@
  */
 
 import {showToast} from '@tarojs/taro'
-import { getAllSuperAdmins } from '@/db/api/users'
-import { getWarehouseManagers } from '@/db/api/warehouses'
+import {getAllSuperAdmins} from '@/db/api/users'
+import {getWarehouseManagers} from '@/db/api/warehouses'
 import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
 

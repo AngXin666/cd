@@ -8,7 +8,7 @@ const appId: string = process.env.TARO_APP_APP_ID
 // 输出环境配置信息(仅开发环境)
 if (process.env.NODE_ENV === 'development') {
   console.log('🔧 [Supabase配置]', {
-    url: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : '(未配置)',
+    url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : '(未配置)',
     hasAnonKey: !!supabaseAnonKey && supabaseAnonKey !== 'TOKEN',
     appId: appId || '(未配置)',
     env: process.env.TARO_ENV || 'unknown'
@@ -47,7 +47,7 @@ export const customFetch: typeof fetch = async (url: string, options: RequestIni
   }
 
   console.log('📱 [小程序 Request]', {url, method, headers})
-  
+
   const startTime = Date.now()
   const res = await Taro.request({
     url,
@@ -61,7 +61,7 @@ export const customFetch: typeof fetch = async (url: string, options: RequestIni
   console.log('✅ [小程序 Response]', {
     url,
     status: res.statusCode,
-    duration: _duration + 'ms'
+    duration: `${_duration}ms`
   })
 
   // 只在错误时输出详细错误

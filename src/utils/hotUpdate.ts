@@ -4,7 +4,15 @@
  */
 
 import Taro from '@tarojs/taro'
-import {showLoading, hideLoading, showToast, getStorageSync, setStorageSync, removeStorageSync, showModal} from '@/utils/taroCompat'
+import {
+  getStorageSync,
+  hideLoading,
+  removeStorageSync,
+  setStorageSync,
+  showLoading,
+  showModal,
+  showToast
+} from '@/utils/taroCompat'
 
 const UPDATE_CHECK_URL = 'https://wxvrwkpkioalqdsfswwu.supabase.co/storage/v1/object/public/app-updates/latest.zip'
 const UPDATE_VERSION_KEY = 'hot_update_version'

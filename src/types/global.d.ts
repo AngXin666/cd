@@ -1,5 +1,28 @@
 /// <reference types="@tarojs/taro" />
 
+declare namespace NodeJS {
+  interface ProcessEnv {
+    TARO_ENV: 'weapp' | 'h5' | 'rn' | 'tt' | 'qq' | 'jd' | 'swan' | 'alipay' | 'quickapp' | 'harmony'
+    NODE_ENV: 'development' | 'production' | 'test'
+    TARO_APP_SUPABASE_URL: string
+    TARO_APP_SUPABASE_ANON_KEY: string
+    TARO_APP_APP_ID: string
+    TARO_APP_SUPABASE_BUCKET: string
+    TARO_APP_NAME: string
+  }
+}
+
+declare const process: {
+  env: NodeJS.ProcessEnv
+  cwd(): string
+  argv: string[]
+}
+
+// 扩展 Headers 接口
+interface Headers {
+  entries(): IterableIterator<[string, string]>
+}
+
 declare module '*.png'
 declare module '*.gif'
 declare module '*.jpg'

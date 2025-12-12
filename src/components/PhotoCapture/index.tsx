@@ -5,9 +5,9 @@
 
 import {Button, Image, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import type React from 'react'
 import {useEffect, useState} from 'react'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 interface PhotoCaptureProps {
   title: string // 标题

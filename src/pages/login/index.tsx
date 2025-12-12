@@ -168,7 +168,7 @@ const Login: React.FC = () => {
     try {
       // 直接使用账号@test.local登录，无需查询
       const loginEmail = account.includes('@') ? account : `${account}@test.local`
-      
+
       console.log('🔑 [开始登录]', {
         account,
         loginEmail,
@@ -182,14 +182,16 @@ const Login: React.FC = () => {
 
       const error = result.error
       const _authData = result.data
-      
+
       console.log('🔑 [登录结果]', {
         success: !error,
-        error: error ? {
-          message: error.message,
-          status: error.status,
-          name: error.name
-        } : null,
+        error: error
+          ? {
+              message: error.message,
+              status: error.status,
+              name: error.name
+            }
+          : null,
         hasUser: !!_authData?.user,
         hasSession: !!_authData?.session
       })

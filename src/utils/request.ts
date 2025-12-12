@@ -4,7 +4,7 @@
  */
 
 import Taro from '@tarojs/taro'
-import { platform, platformNetwork } from './platform'
+import {platform, platformNetwork} from './platform'
 
 // 请求配置接口
 interface RequestConfig {
@@ -38,14 +38,7 @@ interface UploadConfig {
  * 统一的网络请求方法
  */
 export const request = async <T = any>(config: RequestConfig): Promise<RequestResponse<T>> => {
-  const {
-    url,
-    method = 'GET',
-    data,
-    header = {},
-    timeout,
-    responseType = 'text'
-  } = config
+  const {url, method = 'GET', data, header = {}, timeout, responseType = 'text'} = config
 
   // 设置平台特定的超时时间
   const requestTimeout = timeout || platformNetwork.getRequestTimeout()
@@ -57,9 +50,9 @@ export const request = async <T = any>(config: RequestConfig): Promise<RequestRe
   }
 
   // 平台特定的请求处理
-  return platform.isWeapp() 
-    ? requestWeapp({ url, method, data, header: commonHeaders, timeout: requestTimeout, responseType })
-    : requestH5AndAndroid({ url, method, data, header: commonHeaders, timeout: requestTimeout, responseType })
+  return platform.isWeapp()
+    ? requestWeapp({url, method, data, header: commonHeaders, timeout: requestTimeout, responseType})
+    : requestH5AndAndroid({url, method, data, header: commonHeaders, timeout: requestTimeout, responseType})
 }
 
 /**
@@ -88,7 +81,7 @@ const requestWeapp = async <T = any>(config: RequestConfig): Promise<RequestResp
  * H5和安卓APP请求
  */
 const requestH5AndAndroid = async <T = any>(config: RequestConfig): Promise<RequestResponse<T>> => {
-  const { url, method, data, header, timeout } = config
+  const {url, method, data, header, timeout} = config
 
   try {
     const controller = new AbortController()
@@ -108,11 +101,11 @@ const requestH5AndAndroid = async <T = any>(config: RequestConfig): Promise<Requ
     clearTimeout(timeoutId)
 
     const responseData = await response.json()
-    
+
     return {
       data: responseData,
       statusCode: response.status,
-      header: Object.fromEntries(response.headers.entries())
+      header: Object.fromEntries(Array.from(response.headers.entries()))
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -128,18 +121,22 @@ const requestH5AndAndroid = async <T = any>(config: RequestConfig): Promise<Requ
 /**
  * GET 请求
  */
-export const get = <T = any>(url: string, params?: Record<string, any>, config?: Omit<RequestConfig, 'url' | 'method' | 'data'>) => {
+export const get = <T = any>(
+  url: string,
+  params?: Record<string, any>,
+  config?: Omit<RequestConfig, 'url' | 'method' | 'data'>
+) => {
   let requestUrl = url
   if (params) {
     const searchParams = new URLSearchParams()
-    Object.keys(params).forEach(key => {
+    Object.keys(params).forEach((key) => {
       if (params[key] !== undefined && params[key] !== null) {
         searchParams.append(key, String(params[key]))
       }
     })
     requestUrl += `?${searchParams.toString()}`
   }
-  
+
   return request<T>({
     url: requestUrl,
     method: 'GET',
@@ -186,23 +183,16 @@ export const del = <T = any>(url: string, config?: Omit<RequestConfig, 'url' | '
  * 文件上传
  */
 export const uploadFile = async (config: UploadConfig): Promise<RequestResponse> => {
-  const {
-    url,
-    filePath,
-    name,
-    formData = {},
-    header = {},
-    timeout
-  } = config
+  const {url, filePath, name, formData = {}, header = {}, timeout} = config
 
   // 设置平台特定的上传超时时间
   const uploadTimeout = timeout || platformNetwork.getUploadTimeout()
 
   // 平台特定的上传处理
   if (platform.isWeapp()) {
-    return uploadFileWeapp({ url, filePath, name, formData, header, timeout: uploadTimeout })
+    return uploadFileWeapp({url, filePath, name, formData, header, timeout: uploadTimeout})
   } else {
-    return uploadFileH5AndAndroid({ url, filePath, name, formData, header, timeout: uploadTimeout })
+    return uploadFileH5AndAndroid({url, filePath, name, formData, header, timeout: uploadTimeout})
   }
 }
 
@@ -231,7 +221,7 @@ const uploadFileWeapp = async (config: UploadConfig): Promise<RequestResponse> =
  * H5和安卓APP文件上传
  */
 const uploadFileH5AndAndroid = async (config: UploadConfig): Promise<RequestResponse> => {
-  const { url, filePath, name, formData, header, timeout } = config
+  const {url, filePath, name, formData, header, timeout} = config
 
   try {
     const controller = new AbortController()
@@ -239,7 +229,7 @@ const uploadFileH5AndAndroid = async (config: UploadConfig): Promise<RequestResp
 
     // 创建FormData
     const form = new FormData()
-    
+
     // 添加文件
     if (platform.isAndroid()) {
       // 安卓APP中处理文件路径
@@ -254,7 +244,7 @@ const uploadFileH5AndAndroid = async (config: UploadConfig): Promise<RequestResp
     }
 
     // 添加其他表单数据
-    Object.keys(formData).forEach(key => {
+    Object.keys(formData).forEach((key) => {
       form.append(key, formData[key])
     })
 
@@ -268,11 +258,11 @@ const uploadFileH5AndAndroid = async (config: UploadConfig): Promise<RequestResp
     clearTimeout(timeoutId)
 
     const responseData = await response.text()
-    
+
     return {
       data: responseData,
       statusCode: response.status,
-      header: Object.fromEntries(response.headers.entries())
+      header: Object.fromEntries(Array.from(response.headers.entries()))
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -288,11 +278,14 @@ const uploadFileH5AndAndroid = async (config: UploadConfig): Promise<RequestResp
 /**
  * 下载文件
  */
-export const downloadFile = async (url: string, config?: {
-  header?: Record<string, string>
-  timeout?: number
-}): Promise<{ tempFilePath: string }> => {
-  const { header = {}, timeout } = config || {}
+export const downloadFile = async (
+  url: string,
+  config?: {
+    header?: Record<string, string>
+    timeout?: number
+  }
+): Promise<{tempFilePath: string}> => {
+  const {header = {}, timeout} = config || {}
   const downloadTimeout = timeout || platformNetwork.getUploadTimeout()
 
   if (platform.isWeapp()) {
@@ -303,7 +296,7 @@ export const downloadFile = async (url: string, config?: {
         timeout: downloadTimeout,
         success: (res) => {
           if (res.statusCode === 200) {
-            resolve({ tempFilePath: res.tempFilePath })
+            resolve({tempFilePath: res.tempFilePath})
           } else {
             reject(new Error(`下载失败: HTTP ${res.statusCode}`))
           }
@@ -316,15 +309,15 @@ export const downloadFile = async (url: string, config?: {
   } else {
     // H5和安卓APP中的下载处理
     try {
-      const response = await fetch(url, { headers: header })
+      const response = await fetch(url, {headers: header})
       if (!response.ok) {
         throw new Error(`下载失败: HTTP ${response.status}`)
       }
-      
+
       const blob = await response.blob()
       const objectUrl = URL.createObjectURL(blob)
-      
-      return { tempFilePath: objectUrl }
+
+      return {tempFilePath: objectUrl}
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`下载失败: ${error.message}`)

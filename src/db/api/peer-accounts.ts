@@ -7,9 +7,9 @@
  * - 验证主账号身份
  */
 
-import {supabase} from '../supabase'
-import {Profile, UserRole, UserWithRole} from '../types'
 import {convertUsersToProfiles, convertUserToProfile} from '../helpers'
+import {supabase} from '../supabase'
+import type {Profile, UserRole, UserWithRole} from '../types'
 
 /**
  * 创建平级账号

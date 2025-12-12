@@ -36,12 +36,12 @@ interface LoggerConfig {
   showModule: boolean // 是否显示模块名
 }
 
-// 默认配置
+// 默认配置 - 根据环境自动调整
 const defaultConfig: LoggerConfig = {
   enabled: true,
-  minLevel: LogLevel.DEBUG,
+  minLevel: process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG,
   showTimestamp: true,
-  showUserId: true,
+  showUserId: process.env.NODE_ENV !== 'production',
   showModule: true
 }
 
@@ -137,18 +137,17 @@ function log(level: LogLevel, module: string, message: string, data?: any) {
   // 根据日志级别选择console方法
   switch (level) {
     case LogLevel.DEBUG:
+      console.log(formattedMessage, data !== undefined ? data : '')
       break
     case LogLevel.INFO:
+      console.info(formattedMessage, data !== undefined ? data : '')
       break
     case LogLevel.WARN:
+      console.warn(formattedMessage, data !== undefined ? data : '')
       break
     case LogLevel.ERROR:
-      console.error(formattedMessage, data || '')
+      console.error(formattedMessage, data !== undefined ? data : '')
       break
-  }
-
-  // 如果有数据对象，单独打印（仅错误时）
-  if (level === LogLevel.ERROR && data !== undefined && data !== null) {
   }
 }
 

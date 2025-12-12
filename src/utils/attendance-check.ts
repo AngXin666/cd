@@ -3,8 +3,8 @@
  * 用于检测司机的打卡状态和请假状态
  */
 
-import { getApprovedLeaveForToday } from '@/db/api/dashboard'
-import { getTodayAttendance } from '@/db/api/attendance'
+import {getTodayAttendance} from '@/db/api/attendance'
+import {getApprovedLeaveForToday} from '@/db/api/dashboard'
 
 /**
  * 检测结果类型

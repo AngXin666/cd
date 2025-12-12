@@ -64,7 +64,7 @@
   "devDependencies": {
     "@babel/core": "^7.28.3",
     "@babel/preset-react": "^7.24.1",
-    "@biomejs/biome": "2.3.4",
+    "@biomejs/biome": "2.3.8",
     "@capacitor/android": "^7.0.0",
     "@capacitor/cli": "^7.0.0",
     "@capacitor/core": "^7.0.0",

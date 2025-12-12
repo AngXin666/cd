@@ -11,6 +11,10 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {sendDriverSubmissionNotification} from '@/services/notificationService'
+
+// 从aspi.legacy导入通知函数（避免循环依赖）
+import {formatLeaveDate} from '@/utils/dateFormat'
 import type {
   ApplicationReviewInput,
   LeaveApplication,
@@ -18,10 +22,6 @@ import type {
   ResignationApplication,
   ResignationApplicationInput
 } from '../types'
-
-// 从aspi.legacy导入通知函数（避免循环依赖）
-import {formatLeaveDate} from '@/utils/dateFormat'
-import {sendDriverSubmissionNotification} from '@/services/notificationService'
 
 /**
  * 获取本地日期字符串
@@ -40,7 +40,9 @@ function getLocalDateString(date: Date = new Date()): string {
  */
 export async function createLeaveApplication(input: LeaveApplicationInput): Promise<LeaveApplication | null> {
   try {
-    const {data: {user}} = await supabase.auth.getUser()
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
     if (!user) {
       console.error('创建请假申请失败: 用户未登录')
       return null
@@ -99,7 +101,10 @@ export async function saveDraftLeaveApplication(input: LeaveApplicationInput): P
 /**
  * 更新请假申请草稿
  */
-export async function updateDraftLeaveApplication(draftId: string, input: Partial<LeaveApplicationInput>): Promise<boolean> {
+export async function updateDraftLeaveApplication(
+  draftId: string,
+  input: Partial<LeaveApplicationInput>
+): Promise<boolean> {
   const updateData: Record<string, unknown> = {}
   if (input.leave_type !== undefined) updateData.leave_type = input.leave_type
   if (input.start_date !== undefined) updateData.start_date = input.start_date
@@ -229,9 +234,13 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
 /**
  * 创建离职申请
  */
-export async function createResignationApplication(input: ResignationApplicationInput): Promise<ResignationApplication | null> {
+export async function createResignationApplication(
+  input: ResignationApplicationInput
+): Promise<ResignationApplication | null> {
   try {
-    const {data: {user}} = await supabase.auth.getUser()
+    const {
+      data: {user}
+    } = await supabase.auth.getUser()
     if (!user) {
       console.error('创建离职申请失败: 用户未登录')
       return null
@@ -282,14 +291,19 @@ export async function createResignationApplication(input: ResignationApplication
 /**
  * 保存离职申请草稿
  */
-export async function saveDraftResignationApplication(input: ResignationApplicationInput): Promise<ResignationApplication | null> {
+export async function saveDraftResignationApplication(
+  input: ResignationApplicationInput
+): Promise<ResignationApplication | null> {
   return createResignationApplication(input)
 }
 
 /**
  * 更新离职申请草稿
  */
-export async function updateDraftResignationApplication(draftId: string, input: Partial<ResignationApplicationInput>): Promise<boolean> {
+export async function updateDraftResignationApplication(
+  draftId: string,
+  input: Partial<ResignationApplicationInput>
+): Promise<boolean> {
   const updateData: Record<string, unknown> = {}
   if (input.resignation_date !== undefined) updateData.resignation_date = input.resignation_date
   if (input.reason !== undefined) updateData.reason = input.reason
@@ -381,7 +395,10 @@ export async function getAllResignationApplications(): Promise<ResignationApplic
 /**
  * 审批离职申请
  */
-export async function reviewResignationApplication(applicationId: string, review: ApplicationReviewInput): Promise<boolean> {
+export async function reviewResignationApplication(
+  applicationId: string,
+  review: ApplicationReviewInput
+): Promise<boolean> {
   try {
     const {data: application, error: fetchError} = await supabase
       .from('resignation_applications')
@@ -421,7 +438,10 @@ export async function reviewResignationApplication(applicationId: string, review
 /**
  * 验证请假申请
  */
-export async function validateLeaveApplication(warehouseId: string, days: number): Promise<{
+export async function validateLeaveApplication(
+  warehouseId: string,
+  days: number
+): Promise<{
   valid: boolean
   maxDays: number
   message?: string
@@ -450,7 +470,10 @@ export async function validateLeaveApplication(warehouseId: string, days: number
 /**
  * 验证离职日期
  */
-export async function validateResignationDate(warehouseId: string, date: string): Promise<{
+export async function validateResignationDate(
+  warehouseId: string,
+  date: string
+): Promise<{
   valid: boolean
   minDate: string
   noticeDays: number

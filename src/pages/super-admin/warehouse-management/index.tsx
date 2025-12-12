@@ -1,15 +1,14 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
-import {showLoading, showToast, hideLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import PasswordVerifyModal from '@/components/common/PasswordVerifyModal'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})

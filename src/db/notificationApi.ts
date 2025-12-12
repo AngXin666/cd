@@ -17,7 +17,7 @@
 import {supabase} from '@/client/supabase'
 import {checkCurrentUserPermission, PermissionAction} from '@/services/permission-service'
 import {createLogger} from '@/utils/logger'
-import {getCurrentUserRoleAndTenant} from './api'
+import {getCurrentUserRoleAndTenant} from './api/users'
 
 const logger = createLogger('NotificationAPI')
 

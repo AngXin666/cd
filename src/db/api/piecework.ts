@@ -115,7 +115,9 @@ export async function getAllPieceWorkRecords(): Promise<PieceWorkRecord[]> {
  * 创建计件记录
  */
 export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promise<boolean> {
-  const {data: {user}} = await supabase.auth.getUser()
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
   if (!user) {
     console.error('创建计件记录失败: 用户未登录')
     return false
@@ -183,7 +185,10 @@ export async function calculatePieceWorkStats(
   const {data: categories} = await supabase.from('piece_work_categories').select('id, name').in('id', categoryIds)
   const categoryMap = new Map(categories?.map((c) => [c.id, c.name]) || [])
 
-  const categoryStatsMap = new Map<string, {category_id: string; category_name: string; quantity: number; amount: number}>()
+  const categoryStatsMap = new Map<
+    string,
+    {category_id: string; category_name: string; quantity: number; amount: number}
+  >()
 
   for (const record of records) {
     stats.total_quantity += record.quantity
@@ -192,7 +197,7 @@ export async function calculatePieceWorkStats(
     const categoryId = record.category_id
     const categoryName = categoryMap.get(categoryId) || '未知品类'
     const existing = categoryStatsMap.get(categoryId)
-    
+
     if (existing) {
       existing.quantity += record.quantity
       existing.amount += Number(record.total_amount)
@@ -439,7 +444,9 @@ export async function getCategoryPrice(warehouseId: string, categoryId: string):
  * 创建或更新品类价格配置
  */
 export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<boolean> {
-  const {data: {user}} = await supabase.auth.getUser()
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
   if (!user) {
     console.error('保存品类价格配置失败: 用户未登录')
     return false
@@ -467,7 +474,9 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
  * 批量创建或更新品类价格配置
  */
 export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): Promise<boolean> {
-  const {data: {user}} = await supabase.auth.getUser()
+  const {
+    data: {user}
+  } = await supabase.auth.getUser()
   if (!user) {
     console.error('批量保存品类价格配置失败: 用户未登录')
     return false

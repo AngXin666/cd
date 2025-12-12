@@ -5,18 +5,17 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import StepIndicator from '@/components/StepIndicator'
 import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {DriverLicenseInput, VehicleInput} from '@/db/types'
 import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardFront} from '@/utils/ocrUtils'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 

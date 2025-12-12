@@ -19,14 +19,7 @@ import {
   getUsersWithRole,
   getUserWithRole
 } from '../helpers'
-import type {
-  DriverType,
-  ManagerPermission,
-  ManagerPermissionInput,
-  Profile,
-  ProfileUpdate,
-  UserRole
-} from '../types'
+import type {DriverType, ManagerPermission, ManagerPermissionInput, Profile, ProfileUpdate, UserRole} from '../types'
 
 // 创建数据库操作日志记录器
 const logger = createLogger('UsersAPI')
@@ -398,11 +391,7 @@ export async function getAllDriversWithRealName(): Promise<Array<Profile & {real
  */
 export async function getAllDriverIds(): Promise<string[]> {
   try {
-    const {data, error} = await supabase
-      .from('users')
-      .select('id')
-      .eq('role', 'DRIVER')
-      .order('id', {ascending: true})
+    const {data, error} = await supabase.from('users').select('id').eq('role', 'DRIVER').order('id', {ascending: true})
 
     if (error) {
       console.error('获取所有司机失败:', error)

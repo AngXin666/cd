@@ -96,7 +96,11 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
     supabase.from('attendance').select('user_id').eq('warehouse_id', warehouseId).eq('work_date', today),
     supabase.from('piece_work_records').select('quantity').eq('warehouse_id', warehouseId).eq('work_date', today),
     supabase.from('leave_applications').select('id').eq('warehouse_id', warehouseId).eq('status', 'pending'),
-    supabase.from('piece_work_records').select('quantity').eq('warehouse_id', warehouseId).gte('work_date', firstDayOfMonth),
+    supabase
+      .from('piece_work_records')
+      .select('quantity')
+      .eq('warehouse_id', warehouseId)
+      .gte('work_date', firstDayOfMonth),
     driverIds.length > 0
       ? supabase.from('users').select('id, name, phone').in('id', driverIds)
       : Promise.resolve({data: null}),

@@ -2,8 +2,8 @@ import type {RealtimeChannel} from '@supabase/supabase-js'
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import type { DashboardStats } from '@/db/api/dashboard'
-import { getWarehouseDashboardStats } from '@/db/api/dashboard'
+import type {DashboardStats} from '@/db/api/dashboard'
+import {getWarehouseDashboardStats} from '@/db/api/dashboard'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'

@@ -3,11 +3,12 @@
  * 统一处理微信小程序、H5、安卓APP的定位功能
  */
 
-import React, { useState, useEffect } from 'react'
-import { View, Text } from '@tarojs/components'
+import {Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { platform } from '@/utils/platform'
-import { capacitorGeolocation } from '@/utils/capacitor'
+import type React from 'react'
+import {useCallback, useEffect, useState} from 'react'
+import {capacitorGeolocation} from '@/utils/capacitor'
+import {platform} from '@/utils/platform'
 
 export interface LocationInfo {
   latitude: number
@@ -61,7 +62,7 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
           })
           return null
         })
-        
+
         if (!res) {
           return null
         }
@@ -157,7 +158,8 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
   /**
    * 获取定位
    */
-  const getLocation = async () => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Internal functions don't need to be dependencies
+  const getLocation = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -176,7 +178,7 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
       if (locationInfo) {
         setLocation(locationInfo)
         onLocationChange?.(locationInfo)
-        
+
         Taro.showToast({
           title: '定位成功',
           icon: 'success'
@@ -185,7 +187,7 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '获取定位失败'
       setError(errorMsg)
-      
+
       Taro.showToast({
         title: errorMsg,
         icon: 'none'
@@ -193,7 +195,7 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [onLocationChange])
 
   /**
    * 自动获取定位
@@ -202,15 +204,13 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
     if (autoGet) {
       getLocation()
     }
-  }, [autoGet])
+  }, [autoGet, getLocation])
 
   /**
    * 格式化坐标
    */
   const formatCoordinate = (value: number, type: 'lat' | 'lng') => {
-    const direction = type === 'lat' 
-      ? (value >= 0 ? 'N' : 'S')
-      : (value >= 0 ? 'E' : 'W')
+    const direction = type === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W'
     return `${Math.abs(value).toFixed(6)}° ${direction}`
   }
 
@@ -247,31 +247,25 @@ export const PlatformLocation: React.FC<PlatformLocationProps> = ({
               🔄
             </Text>
           </View>
-          
+
           {showAddress && location.address && (
             <View className="location-address">
               <Text>{location.address}</Text>
             </View>
           )}
-          
+
           <View className="location-coordinates">
             <View className="coordinate-item">
               <Text className="coordinate-label">纬度：</Text>
-              <Text className="coordinate-value">
-                {formatCoordinate(location.latitude, 'lat')}
-              </Text>
+              <Text className="coordinate-value">{formatCoordinate(location.latitude, 'lat')}</Text>
             </View>
             <View className="coordinate-item">
               <Text className="coordinate-label">经度：</Text>
-              <Text className="coordinate-value">
-                {formatCoordinate(location.longitude, 'lng')}
-              </Text>
+              <Text className="coordinate-value">{formatCoordinate(location.longitude, 'lng')}</Text>
             </View>
             <View className="coordinate-item">
               <Text className="coordinate-label">精度：</Text>
-              <Text className="coordinate-value">
-                ±{location.accuracy.toFixed(0)}米
-              </Text>
+              <Text className="coordinate-value">±{location.accuracy.toFixed(0)}米</Text>
             </View>
           </View>
         </View>
@@ -325,7 +319,7 @@ export const usePlatformLocation = () => {
               })
             },
             reject,
-            { enableHighAccuracy: true }
+            {enableHighAccuracy: true}
           )
         })
       }

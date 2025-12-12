@@ -3,9 +3,9 @@
  * 根据不同平台提供适配的UI布局
  */
 
-import React from 'react'
-import { View } from '@tarojs/components'
-import { platform, platformUI } from '@/utils/platform'
+import {View} from '@tarojs/components'
+import type React from 'react'
+import {platform, platformUI} from '@/utils/platform'
 
 interface PlatformViewProps {
   children: React.ReactNode
@@ -47,20 +47,17 @@ export const PlatformView: React.FC<PlatformViewProps> = ({
   // 获取平台特定的类名
   const getPlatformClassName = () => {
     const baseClass = 'platform-view'
-    const platformClass = platform.isWeapp() 
-      ? 'platform-weapp' 
-      : platform.isAndroid() 
-        ? 'platform-android' 
+    const platformClass = platform.isWeapp()
+      ? 'platform-weapp'
+      : platform.isAndroid()
+        ? 'platform-android'
         : 'platform-h5'
-    
+
     return `${baseClass} ${platformClass} ${className}`.trim()
   }
 
   return (
-    <View 
-      className={getPlatformClassName()}
-      style={getPlatformStyles()}
-    >
+    <View className={getPlatformClassName()} style={getPlatformStyles()}>
       {children}
     </View>
   )
@@ -114,29 +111,20 @@ export const PlatformNavBar: React.FC<PlatformNavBarProps> = ({
 
   return (
     <View className="platform-navbar" style={navBarStyles}>
-      <View 
-        className="navbar-left" 
-        onClick={onLeftClick}
-        style={{ minWidth: '60px', textAlign: 'left' }}
-      >
+      <View className="navbar-left" onClick={onLeftClick} style={{minWidth: '60px', textAlign: 'left'}}>
         {leftText}
       </View>
-      <View 
-        className="navbar-title" 
-        style={{ 
-          flex: 1, 
-          textAlign: 'center', 
-          fontSize: '18px', 
-          fontWeight: 'bold' 
-        }}
-      >
+      <View
+        className="navbar-title"
+        style={{
+          flex: 1,
+          textAlign: 'center',
+          fontSize: '18px',
+          fontWeight: 'bold'
+        }}>
         {title}
       </View>
-      <View 
-        className="navbar-right" 
-        onClick={onRightClick}
-        style={{ minWidth: '60px', textAlign: 'right' }}
-      >
+      <View className="navbar-right" onClick={onRightClick} style={{minWidth: '60px', textAlign: 'right'}}>
         {rightText}
       </View>
     </View>
@@ -150,9 +138,7 @@ interface PlatformSafeAreaProps {
   backgroundColor?: string
 }
 
-export const PlatformSafeArea: React.FC<PlatformSafeAreaProps> = ({
-  backgroundColor = '#ffffff'
-}) => {
+export const PlatformSafeArea: React.FC<PlatformSafeAreaProps> = ({backgroundColor = '#ffffff'}) => {
   const safeAreaHeight = platformUI.getSafeAreaBottom()
 
   if (safeAreaHeight === 0) {
@@ -160,7 +146,7 @@ export const PlatformSafeArea: React.FC<PlatformSafeAreaProps> = ({
   }
 
   return (
-    <View 
+    <View
       className="platform-safe-area"
       style={{
         height: `${safeAreaHeight}px`,
@@ -208,25 +194,25 @@ export const PlatformButton: React.FC<PlatformButtonProps> = ({
 
     // 尺寸样式
     const sizeStyles = {
-      small: { padding: '8px 16px', fontSize: '14px' },
-      medium: { padding: '12px 24px', fontSize: '16px' },
-      large: { padding: '16px 32px', fontSize: '18px' }
+      small: {padding: '8px 16px', fontSize: '14px'},
+      medium: {padding: '12px 24px', fontSize: '16px'},
+      large: {padding: '16px 32px', fontSize: '18px'}
     }
 
     // 类型样式
     const typeStyles = {
-      primary: { 
-        backgroundColor: '#1E3A8A', 
-        color: '#ffffff' 
+      primary: {
+        backgroundColor: '#1E3A8A',
+        color: '#ffffff'
       },
-      secondary: { 
-        backgroundColor: '#f3f4f6', 
+      secondary: {
+        backgroundColor: '#f3f4f6',
         color: '#374151',
         border: '1px solid #d1d5db'
       },
-      danger: { 
-        backgroundColor: '#dc2626', 
-        color: '#ffffff' 
+      danger: {
+        backgroundColor: '#dc2626',
+        color: '#ffffff'
       }
     }
 
@@ -240,13 +226,9 @@ export const PlatformButton: React.FC<PlatformButtonProps> = ({
   const buttonClassName = `platform-button platform-button-${type} platform-button-${size} ${className}`.trim()
 
   return (
-    <View
-      className={buttonClassName}
-      style={getButtonStyles()}
-      onClick={disabled || loading ? undefined : onClick}
-    >
+    <View className={buttonClassName} style={getButtonStyles()} onClick={disabled || loading ? undefined : onClick}>
       {loading && (
-        <View className="button-loading" style={{ marginRight: '8px' }}>
+        <View className="button-loading" style={{marginRight: '8px'}}>
           ⏳
         </View>
       )}

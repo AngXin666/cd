@@ -3,7 +3,6 @@ import Taro, {useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import * as DashboardAPI from '@/db/api/dashboard'
 import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {AttendanceRule, Profile, WarehouseWithRule} from '@/db/types'

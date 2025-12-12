@@ -2,7 +2,7 @@ import type {RealtimeChannel} from '@supabase/supabase-js'
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import { getManagerWarehouses } from '@/db/api/warehouses'
+import {getManagerWarehouses} from '@/db/api/warehouses'
 import type {Warehouse} from '@/db/types'
 
 // 检测当前运行环境

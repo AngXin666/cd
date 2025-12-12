@@ -1,126 +1,97 @@
-// 主包页面 - 核心功能，首次加载
+// 主包页面 - 包含所有页面（暂时禁用分包）
 const pages = [
   'pages/login/index',
   'pages/index/index',
   'pages/driver/index',
-  'pages/manager/index', 
+  'pages/manager/index',
   'pages/super-admin/index',
   'pages/profile/index',
-  'pages/common/notifications/index'
+  'pages/common/notifications/index',
+  // 司机端页面
+  'pages/driver/notifications/index',
+  'pages/driver/clock-in/index',
+  'pages/driver/attendance/index',
+  'pages/driver/warehouse-stats/index',
+  'pages/driver/piece-work/index',
+  'pages/driver/piece-work-entry/index',
+  'pages/driver/leave/index',
+  'pages/driver/leave/apply/index',
+  'pages/driver/leave/resign/index',
+  'pages/driver/profile/index',
+  'pages/driver/license-ocr/index',
+  'pages/driver/vehicle-list/index',
+  'pages/driver/add-vehicle/index',
+  'pages/driver/vehicle-detail/index',
+  'pages/driver/edit-vehicle/index',
+  'pages/driver/return-vehicle/index',
+  'pages/driver/supplement-photos/index',
+  // 车队长端页面
+  'pages/manager/data-summary/index',
+  'pages/manager/piece-work-report/index',
+  'pages/manager/piece-work-report-detail/index',
+  'pages/manager/leave-approval/index',
+  'pages/manager/driver-leave-detail/index',
+  'pages/manager/warehouse-categories/index',
+  'pages/manager/driver-management/index',
+  'pages/manager/driver-profile/index',
+  'pages/manager/staff-management/index',
+  // 老板端页面
+  'pages/super-admin/warehouse-management/index',
+  'pages/super-admin/warehouse-edit/index',
+  'pages/super-admin/warehouse-detail/index',
+  'pages/super-admin/driver-warehouse-assignment/index',
+  'pages/super-admin/vehicle-management/index',
+  'pages/super-admin/vehicle-rental-edit/index',
+  'pages/super-admin/vehicle-history/index',
+  'pages/super-admin/vehicle-review-detail/index',
+  'pages/super-admin/manager-warehouse-assignment/index',
+  'pages/super-admin/category-management/index',
+  'pages/super-admin/piece-work-report/index',
+  'pages/super-admin/piece-work-report-detail/index',
+  'pages/super-admin/piece-work-report-form/index',
+  'pages/super-admin/leave-approval/index',
+  'pages/super-admin/driver-leave-detail/index',
+  'pages/super-admin/driver-attendance-detail/index',
+  'pages/super-admin/user-management/index',
+  'pages/super-admin/user-detail/index',
+  'pages/super-admin/staff-management/index',
+  'pages/super-admin/permission-config/index',
+  'pages/super-admin/edit-user/index',
+  'pages/super-admin/database-schema/index',
+  // 个人资料页面
+  'pages/profile/settings/index',
+  'pages/profile/account-management/index',
+  'pages/profile/change-phone/index',
+  'pages/profile/change-password/index',
+  'pages/profile/edit-name/index',
+  'pages/profile/help/index',
+  'pages/profile/edit/index',
+  // 共享页面
+  'pages/shared/driver-notification/index',
+  'pages/shared/notification-templates/index',
+  'pages/shared/scheduled-notifications/index',
+  'pages/shared/notification-records/index',
+  'pages/shared/auto-reminder-rules/index',
+  // 测试页面
+  'pages/test-login/index'
 ]
 
 export default defineAppConfig({
   pages,
   // 分包配置 - 按角色和功能模块分包，提升加载性能
-  subPackages: [
-    {
-      root: 'packageDriver',
-      name: 'driver',
-      pages: [
-        'pages/notifications/index',
-        'pages/clock-in/index',
-        'pages/attendance/index',
-        'pages/warehouse-stats/index',
-        'pages/piece-work/index',
-        'pages/piece-work-entry/index',
-        'pages/leave/index',
-        'pages/leave/apply/index',
-        'pages/leave/resign/index',
-        'pages/profile/index',
-        'pages/license-ocr/index',
-        'pages/vehicle-list/index',
-        'pages/add-vehicle/index',
-        'pages/vehicle-detail/index',
-        'pages/edit-vehicle/index',
-        'pages/return-vehicle/index',
-        'pages/supplement-photos/index'
-      ]
-    },
-    {
-      root: 'packageManager',
-      name: 'manager',
-      pages: [
-        'pages/data-summary/index',
-        'pages/piece-work-report/index',
-        'pages/piece-work-report-detail/index',
-        'pages/leave-approval/index',
-        'pages/driver-leave-detail/index',
-        'pages/warehouse-categories/index',
-        'pages/driver-management/index',
-        'pages/driver-profile/index',
-        'pages/staff-management/index'
-      ]
-    },
-    {
-      root: 'packageAdmin',
-      name: 'admin',
-      pages: [
-        'pages/warehouse-management/index',
-        'pages/warehouse-edit/index',
-        'pages/warehouse-detail/index',
-        'pages/driver-warehouse-assignment/index',
-        'pages/vehicle-management/index',
-        'pages/vehicle-rental-edit/index',
-        'pages/vehicle-history/index',
-        'pages/vehicle-review-detail/index',
-        'pages/manager-warehouse-assignment/index',
-        'pages/category-management/index',
-        'pages/piece-work-report/index',
-        'pages/piece-work-report-detail/index',
-        'pages/piece-work-report-form/index',
-        'pages/leave-approval/index',
-        'pages/driver-leave-detail/index',
-        'pages/driver-attendance-detail/index',
-        'pages/user-management/index',
-        'pages/user-detail/index',
-        'pages/staff-management/index',
-        'pages/permission-config/index',
-        'pages/edit-user/index',
-        'pages/database-schema/index'
-      ]
-    },
-    {
-      root: 'packageProfile',
-      name: 'profile',
-      pages: [
-        'pages/settings/index',
-        'pages/account-management/index',
-        'pages/change-phone/index',
-        'pages/change-password/index',
-        'pages/edit-name/index',
-        'pages/help/index'
-      ]
-    },
-    {
-      root: 'packageShared',
-      name: 'shared',
-      pages: [
-        'pages/driver-notification/index',
-        'pages/notification-templates/index',
-        'pages/scheduled-notifications/index',
-        'pages/notification-records/index',
-        'pages/auto-reminder-rules/index'
-      ]
-    },
-    {
-      root: 'packageTest',
-      name: 'test',
-      pages: [
-        'pages/test-login/index'
-      ]
-    }
-  ],
+  // 暂时禁用分包功能，修复构建问题
+  subPackages: [],
   // 预下载配置 - 根据用户角色预下载对应分包
   preloadRule: {
-    'packageDriver': {
+    packageDriver: {
       network: 'all',
       packages: ['driver']
     },
-    'packageManager': {
-      network: 'all', 
+    packageManager: {
+      network: 'all',
       packages: ['manager']
     },
-    'packageAdmin': {
+    packageAdmin: {
       network: 'all',
       packages: ['admin']
     }
@@ -157,12 +128,7 @@ export default defineAppConfig({
     pageOrientation: 'portrait'
   },
   // 小程序权限配置
-  requiredPrivateInfos: [
-    'getLocation',
-    'chooseLocation', 
-    'chooseAddress',
-    'chooseInvoiceTitle'
-  ],
+  requiredPrivateInfos: ['getLocation', 'chooseLocation', 'chooseAddress'],
   permission: {
     'scope.userLocation': {
       desc: '您的位置信息将用于上下班打卡定位验证'
@@ -177,8 +143,6 @@ export default defineAppConfig({
       desc: '需要保存图片到您的相册'
     }
   },
-  // 小程序云开发配置（如果使用）
-  cloud: false,
   // 小程序性能监控
   debug: false,
   // 小程序分享配置

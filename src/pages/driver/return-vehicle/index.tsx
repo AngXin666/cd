@@ -10,17 +10,16 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
-import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {Vehicle} from '@/db/types'
 import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 const logger = createLogger('ReturnVehicle')
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`

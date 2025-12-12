@@ -23,7 +23,7 @@ export function showToast(options: ShowToastOptions): void {
     // H5环境使用console.log或自定义toast组件
     const icon = options.icon === 'success' ? '✅' : options.icon === 'error' ? '❌' : 'ℹ️'
     console.log(`${icon} ${options.title}`)
-    
+
     // TODO: 可以在这里集成第三方toast库，如react-toastify
     // 目前先使用简单的alert（仅在非loading类型时显示）
     if (options.icon !== 'loading') {
@@ -46,7 +46,7 @@ export function showToast(options: ShowToastOptions): void {
         word-wrap: break-word;
       `
       document.body.appendChild(toast)
-      
+
       setTimeout(() => {
         document.body.removeChild(toast)
       }, options.duration || 1500)
@@ -69,7 +69,7 @@ let loadingElement: HTMLElement | null = null
 export function showLoading(options: ShowLoadingOptions): void {
   if (isH5) {
     console.log('⏳ Loading:', options.title)
-    
+
     // 创建loading元素
     if (!loadingElement) {
       loadingElement = document.createElement('div')
@@ -92,7 +92,7 @@ export function showLoading(options: ShowLoadingOptions): void {
         </div>
         <div>${options.title}</div>
       `
-      
+
       // 添加旋转动画
       const style = document.createElement('style')
       style.textContent = `
@@ -102,7 +102,7 @@ export function showLoading(options: ShowLoadingOptions): void {
         }
       `
       document.head.appendChild(style)
-      
+
       document.body.appendChild(loadingElement)
     }
   } else {
@@ -142,11 +142,11 @@ export function showModal(options: ShowModalOptions): Promise<{confirm: boolean;
     return new Promise((resolve) => {
       const confirmed = window.confirm(`${options.title}\n\n${options.content}`)
       const result = {confirm: confirmed, cancel: !confirmed}
-      
+
       if (options.success) {
         options.success(result)
       }
-      
+
       resolve(result)
     })
   } else {
@@ -184,7 +184,7 @@ export function navigateTo(options: NavigateToOptions): void {
     // H5环境使用history API
     const url = options.url.startsWith('/') ? options.url : `/${options.url}`
     window.location.hash = url
-    
+
     if (options.success) {
       options.success()
     }
@@ -215,7 +215,7 @@ export function redirectTo(options: NavigateToOptions): void {
   if (isH5) {
     const url = options.url.startsWith('/') ? options.url : `/${options.url}`
     window.location.replace(`#${url}`)
-    
+
     if (options.success) {
       options.success()
     }
@@ -231,7 +231,7 @@ export function switchTab(options: NavigateToOptions): void {
   if (isH5) {
     const url = options.url.startsWith('/') ? options.url : `/${options.url}`
     window.location.hash = url
-    
+
     if (options.success) {
       options.success()
     }

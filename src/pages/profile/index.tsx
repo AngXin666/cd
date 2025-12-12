@@ -3,7 +3,6 @@ import Taro, {navigateTo, showModal, switchTab, useDidShow, usePullDownRefresh} 
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import * as DashboardAPI from '@/db/api/dashboard'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 

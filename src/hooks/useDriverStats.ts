@@ -79,11 +79,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         // 获取这些用户的角色信息
         if (assignedDrivers && assignedDrivers.length > 0) {
           const userIds = assignedDrivers.map((a) => a.user_id)
-          const {data: driverRoles} = await supabase
-            .from('users')
-            .select('id')
-            .eq('role', 'DRIVER')
-            .in('id', userIds)
+          const {data: driverRoles} = await supabase.from('users').select('id').eq('role', 'DRIVER').in('id', userIds)
 
           driverIds = driverRoles?.map((d) => d.id) || []
         }

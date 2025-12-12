@@ -1,14 +1,13 @@
 import {Button, Radio, RadioGroup, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
-import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
 import {canClockIn} from '@/utils/attendance-check'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 // 获取本地日期字符串（YYYY-MM-DD格式）
 function getLocalDateString(date: Date = new Date()): string {

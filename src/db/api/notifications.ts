@@ -215,10 +215,7 @@ export async function createNotificationForAllSuperAdmins(notification: {
     }
 
     // 获取所有老板 - 单用户架构：查询 users 表
-    const {data: superAdmins, error: superAdminsError} = await supabase
-      .from('users')
-      .select('id')
-      .eq('role', 'BOSS')
+    const {data: superAdmins, error: superAdminsError} = await supabase.from('users').select('id').eq('role', 'BOSS')
 
     if (superAdminsError) {
       logger.error('获取老板列表失败', superAdminsError)

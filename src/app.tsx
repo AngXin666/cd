@@ -8,10 +8,10 @@ import type {PropsWithChildren} from 'react'
 import {useEffect} from 'react'
 import {supabase} from '@/client/supabase'
 import {UserContextProvider} from '@/contexts/UserContext'
+import {capacitorApp, capacitorSplashScreen, capacitorStatusBar} from '@/utils/capacitor'
 import {silentCheckUpdate} from '@/utils/hotUpdate'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
-import {platform, platformExecute} from '@/utils/platform'
-import {capacitorSplashScreen, capacitorStatusBar, capacitorApp} from '@/utils/capacitor'
+import {platformExecute} from '@/utils/platform'
 import './app.scss'
 
 // 设置全局错误处理
@@ -36,23 +36,23 @@ const initializePlatform = async () => {
   // 安卓APP初始化
   platformExecute.onAndroid(async () => {
     console.log('安卓APP环境初始化')
-    
+
     try {
       // 设置状态栏样式
       await capacitorStatusBar.setStyle('DARK')
       await capacitorStatusBar.setBackgroundColor('#1E3A8A')
-      
+
       // 隐藏启动屏
       setTimeout(async () => {
         await capacitorSplashScreen.hide()
       }, 2000)
-      
+
       // 获取应用信息
       const appInfo = await capacitorApp.getInfo()
       if (appInfo) {
         console.log('应用信息:', appInfo)
       }
-      
+
       // 监听应用状态变化
       capacitorApp.addStateChangeListener((state) => {
         console.log('应用状态变化:', state)
@@ -62,7 +62,6 @@ const initializePlatform = async () => {
           // 应用进入后台时的逻辑
         }
       })
-      
     } catch (error) {
       console.error('安卓APP初始化失败:', error)
     }
@@ -73,7 +72,7 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
   useEffect(() => {
     // 平台初始化
     initializePlatform()
-    
+
     // 检查热更新（仅在非生产环境）
     if (process.env.NODE_ENV !== 'production') {
       silentCheckUpdate()
