@@ -411,7 +411,10 @@ export async function deleteUnusedCategories(): Promise<{success: boolean; delet
 export async function getCategoryPricesByWarehouse(warehouseId: string): Promise<CategoryPrice[]> {
   const {data, error} = await supabase
     .from('category_prices')
-    .select('*')
+    .select(`
+      *,
+      piece_work_categories!inner(name)
+    `)
     .eq('warehouse_id', warehouseId)
     .order('created_at', {ascending: true})
 
@@ -419,7 +422,12 @@ export async function getCategoryPricesByWarehouse(warehouseId: string): Promise
     console.error('获取品类价格配置失败:', error)
     return []
   }
-  return data || []
+  
+  // 将 piece_work_categories.name 映射到 category_name
+  return (data || []).map((item: any) => ({
+    ...item,
+    category_name: item.piece_work_categories?.name || item.category_name
+  }))
 }
 
 /**

@@ -238,7 +238,7 @@ const SuperAdminPieceWork: React.FC = () => {
   // 获取品类名称
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId)
-    return category?.category_name || '未知品类'
+    return category?.name || '未知品类'
   }
 
   // 计算统计数据

@@ -200,7 +200,7 @@ const DataSummary: React.FC = () => {
 
   for (const record of records) {
     const category = categories.find((c) => c.id === record.category_id)
-    const categoryName = category?.category_name || '未知品类'
+    const categoryName = category?.name || '未知品类'
 
     if (!categoryStats.has(record.category_id)) {
       categoryStats.set(record.category_id, {
@@ -236,7 +236,7 @@ const DataSummary: React.FC = () => {
   // 获取品类名称
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId)
-    return category?.category_name || '未知品类'
+    return category?.name || '未知品类'
   }
 
   // 仓库选择器选项
