@@ -11,6 +11,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 // 创建页面日志记录器
 const logger = createLogger('DriverManagement')
@@ -513,12 +514,6 @@ const DriverManagement: React.FC = () => {
               }
             }
           }
-
-          // 批量发送通知（旧系统，已废弃）
-          // if (notifications.length > 0) {
-          //   await createNotifications(notifications)
-          //   console.log(`✅ 已发送 ${notifications.length} 条司机类型变更通知`)
-          // }
         } catch (error) {
           console.error('❌ 发送司机类型变更通知失败:', error)
         }
@@ -654,18 +649,6 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分�
           })
         }
 
-        // 批量发送通知（旧系统，已废弃）
-        // if (notifications.length > 0) {
-        //   console.log('📤 [仓库分配-管理员] 准备发送通知:', notifications)
-        //   const success = await createNotifications(notifications)
-        //   if (success) {
-        //     console.log(`✅ [仓库分配-管理员] 已成功发送 ${notifications.length} 条通知`)
-        //   } else {
-        //     console.error('❌ [仓库分配-管理员] 通知发送失败')
-        //   }
-        // } else {
-        //   console.log('ℹ️ [仓库分配-管理员] 没有需要发送的通知')
-        // }
       } catch (error) {
         console.error('❌ [仓库分配-管理员] 发送通知失败:', error)
       }
@@ -674,8 +657,9 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分�
   )
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+    <ErrorBoundary>
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
@@ -1264,6 +1248,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分�
         </View>
       </ScrollView>
     </View>
+    </ErrorBoundary>
   )
 }
 

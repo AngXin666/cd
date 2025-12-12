@@ -14,6 +14,7 @@ import * as VehiclesAPI from '@/db/api/vehicles'
 import type {VehicleWithDriver} from '@/db/types'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 // 创建页面日志记录器
 const logger = createLogger('SuperAdminVehicleManagement')
@@ -256,8 +257,9 @@ const VehicleManagement: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
+    <ErrorBoundary>
+      <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+        <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-2xl p-6 mb-4 shadow-lg">
@@ -576,6 +578,7 @@ const VehicleManagement: React.FC = () => {
         </View>
       </ScrollView>
     </View>
+    </ErrorBoundary>
   )
 }
 

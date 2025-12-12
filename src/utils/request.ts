@@ -7,17 +7,17 @@ import Taro from '@tarojs/taro'
 import {platform, platformNetwork} from './platform'
 
 // 请求配置接口
-interface RequestConfig {
+interface RequestConfig<D = unknown> {
   url: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-  data?: any
+  data?: D
   header?: Record<string, string>
   timeout?: number
   responseType?: 'text' | 'arraybuffer'
 }
 
 // 响应接口
-interface RequestResponse<T = any> {
+interface RequestResponse<T = unknown> {
   data: T
   statusCode: number
   header: Record<string, string>
@@ -147,7 +147,11 @@ export const get = <T = any>(
 /**
  * POST 请求
  */
-export const post = <T = any>(url: string, data?: any, config?: Omit<RequestConfig, 'url' | 'method' | 'data'>) => {
+export const post = <T = unknown, D = unknown>(
+  url: string,
+  data?: D,
+  config?: Omit<RequestConfig<D>, 'url' | 'method' | 'data'>
+) => {
   return request<T>({
     url,
     method: 'POST',
@@ -159,7 +163,11 @@ export const post = <T = any>(url: string, data?: any, config?: Omit<RequestConf
 /**
  * PUT 请求
  */
-export const put = <T = any>(url: string, data?: any, config?: Omit<RequestConfig, 'url' | 'method' | 'data'>) => {
+export const put = <T = unknown, D = unknown>(
+  url: string,
+  data?: D,
+  config?: Omit<RequestConfig<D>, 'url' | 'method' | 'data'>
+) => {
   return request<T>({
     url,
     method: 'PUT',

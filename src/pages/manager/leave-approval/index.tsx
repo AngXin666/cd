@@ -13,6 +13,7 @@ import {supabase} from '@/db/supabase'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -21,7 +22,7 @@ const isH5 = process.env.TARO_ENV === 'h5'
 const showLoading = (options: {title: string}) => {
   if (isH5) {
     // H5环境不显示loading，或者可以使用自定义的loading组件
-    console.log('Loading:', options.title)
+    // 可以在这里集成自定义loading组件
   } else {
     Taro.showLoading(options)
   }
@@ -834,8 +835,9 @@ const ManagerLeaveApproval: React.FC = () => {
   const totalPending = pendingLeave.length + pendingResignation.length
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+    <ErrorBoundary>
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
@@ -1207,6 +1209,7 @@ const ManagerLeaveApproval: React.FC = () => {
         </View>
       </ScrollView>
     </View>
+    </ErrorBoundary>
   )
 }
 

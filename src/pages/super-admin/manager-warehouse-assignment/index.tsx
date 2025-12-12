@@ -16,8 +16,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
   const [selectedWarehouseIds, setSelectedWarehouseIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
-  // 加载管理员列表
-  const loadManagers = useCallback(async () => {
+  // 加载管理员列�?  const loadManagers = useCallback(async () => {
     const allProfiles = await UsersAPI.getAllProfiles()
     const managerList = allProfiles.filter((p) => p.role === 'MANAGER')
     setManagers(managerList)
@@ -31,15 +30,8 @@ const ManagerWarehouseAssignment: React.FC = () => {
 
   // 加载管理员的仓库分配
   const loadManagerWarehouses = useCallback(async (managerId: string) => {
-    console.log('[仓库管理-管理员仓库分配] 加载管理员的仓库分配', {managerId})
     const data = await WarehousesAPI.getManagerWarehouses(managerId)
     const warehouseIds = data.map((w) => w.id)
-    console.log('[仓库管理-管理员仓库分配] 管理员已分配仓库', {
-      managerId,
-      warehouses: data,
-      warehouseIds,
-      count: warehouseIds.length
-    })
     setSelectedWarehouseIds(warehouseIds)
   }, [])
 
@@ -59,13 +51,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
-  // 选择管理员
-  const handleSelectManager = async (manager: Profile) => {
-    console.log('[仓库管理-管理员仓库分配] 选择管理员', {
-      managerId: manager.id,
-      managerName: manager.name,
-      role: manager.role
-    })
+  // 选择管理�?  const handleSelectManager = async (manager: Profile) => {
     setSelectedManager(manager)
     await loadManagerWarehouses(manager.id)
   }
@@ -73,48 +59,36 @@ const ManagerWarehouseAssignment: React.FC = () => {
   // 处理仓库选择变化
   const handleWarehouseChange = (e: any) => {
     const newSelected = e.detail.value
-    console.log('[仓库管理-管理员仓库分配] 仓库选择变化', {
-      selectedWarehouseIds: newSelected,
-      count: newSelected.length
-    })
     setSelectedWarehouseIds(newSelected)
   }
 
   // 保存分配
   const handleSave = async () => {
     if (!selectedManager) {
-      console.warn('[仓库管理-管理员仓库分配] 未选择管理员')
+      console.warn('[仓库管理-管理员仓库分配] 未选择管理�?)
       Taro.showToast({
-        title: '请先选择管理员',
+        title: '请先选择管理�?,
         icon: 'none'
       })
       return
     }
 
-    console.log('[仓库管理-管理员仓库分配] 开始保存仓库分配', {
-      managerId: selectedManager.id,
-      managerName: selectedManager.name,
-      selectedWarehouseIds,
-      warehouseCount: selectedWarehouseIds.length
-    })
     setLoading(true)
     const success = await WarehousesAPI.setManagerWarehouses(selectedManager.id, selectedWarehouseIds)
     setLoading(false)
 
     if (success) {
-      console.log('[仓库管理-管理员仓库分配] 保存成功')
       Taro.showToast({
         title: '分配成功，数据已同步',
         icon: 'success',
         duration: 2000
       })
-      // 提示管理员重新登录以查看最新数据
-      setTimeout(() => {
+      // 提示管理员重新登录以查看最新数�?      setTimeout(() => {
         Taro.showModal({
           title: '提示',
           content: `已为 ${selectedManager.name || selectedManager.phone} 分配仓库。管理员下次登录时将自动同步最新数据。`,
           showCancel: false,
-          confirmText: '知道了'
+          confirmText: '知道�?
         })
       }, 2000)
     } else {
@@ -132,17 +106,17 @@ const ManagerWarehouseAssignment: React.FC = () => {
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">管理员仓库分配</Text>
+            <Text className="text-white text-2xl font-bold block mb-2">管理员仓库分�?/Text>
             <Text className="text-blue-100 text-sm block">为管理员分配可管理的仓库</Text>
           </View>
 
-          {/* 管理员列表 */}
+          {/* 管理员列�?*/}
           <View className="bg-white rounded-lg p-4 mb-4 shadow">
             <View className="flex items-center mb-3">
               <View className="i-mdi-account-group text-blue-600 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">选择管理员</Text>
+              <Text className="text-gray-800 text-base font-bold">选择管理�?/Text>
               <View className="ml-auto">
-                <Text className="text-xs text-gray-500">共 {managers.length} 位管理员</Text>
+                <Text className="text-xs text-gray-500">�?{managers.length} 位管理员</Text>
               </View>
             </View>
 
@@ -158,7 +132,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
                         <View className="i-mdi-account-circle text-3xl text-blue-900 mr-3" />
                         <View>
                           <Text className="text-gray-800 text-base font-medium block">
-                            {manager.name || '未设置姓名'}
+                            {manager.name || '未设置姓�?}
                           </Text>
                           <Text className="text-xs text-gray-500 block">{manager.phone || manager.email}</Text>
                         </View>
@@ -173,7 +147,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
             ) : (
               <View className="text-center py-8">
                 <View className="i-mdi-account-off text-gray-300 text-5xl mb-2" />
-                <Text className="text-gray-400 text-sm block">暂无管理员</Text>
+                <Text className="text-gray-400 text-sm block">暂无管理�?/Text>
               </View>
             )}
           </View>
@@ -185,13 +159,13 @@ const ManagerWarehouseAssignment: React.FC = () => {
                 <View className="i-mdi-warehouse text-orange-600 text-xl mr-2" />
                 <Text className="text-gray-800 text-base font-bold">分配仓库</Text>
                 <View className="ml-auto">
-                  <Text className="text-xs text-gray-500">已选 {selectedWarehouseIds.length} 个</Text>
+                  <Text className="text-xs text-gray-500">已�?{selectedWarehouseIds.length} �?/Text>
                 </View>
               </View>
 
               <View className="mb-4 p-3 bg-blue-50 rounded-lg">
                 <Text className="text-sm text-blue-800 block">
-                  为 <Text className="font-bold">{selectedManager.name || selectedManager.phone}</Text> 分配仓库
+                  �?<Text className="font-bold">{selectedManager.name || selectedManager.phone}</Text> 分配仓库
                 </Text>
               </View>
 
@@ -215,7 +189,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
                               <View
                                 className={`px-2 py-1 rounded ${warehouse.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
                                 <Text className={`text-xs ${warehouse.is_active ? 'text-green-600' : 'text-gray-500'}`}>
-                                  {warehouse.is_active ? '启用中' : '已禁用'}
+                                  {warehouse.is_active ? '启用�? : '已禁�?}
                                 </Text>
                               </View>
                             </View>

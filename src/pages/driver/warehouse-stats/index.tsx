@@ -315,9 +315,7 @@ const WarehouseStats: React.FC = () => {
                       <View className="flex items-center justify-between mb-2">
                         <View className="flex items-center">
                           <View className="i-mdi-tag text-orange-600 text-lg mr-2" />
-                          <Text className="text-gray-800 text-sm font-medium">
-                            {category?.name || '未知品类'}
-                          </Text>
+                          <Text className="text-gray-800 text-sm font-medium">{category?.name || '未知品类'}</Text>
                           {record.need_upstairs && (
                             <View className="ml-2 px-2 py-0.5 bg-blue-100 rounded">
                               <Text className="text-xs text-blue-600">需上楼</Text>

@@ -4,8 +4,7 @@ import type React from 'react'
 import {useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
+// 检测当前运行环�?const isH5 = process.env.TARO_ENV === 'h5'
 
 // 存储工具函数，兼容H5和小程序
 const removeStorageCompat = (key: string) => {
@@ -59,7 +58,7 @@ const Login: React.FC = () => {
           setRememberMe(true)
         }
       } catch (error) {
-        console.error('读取保存的账号密码失败:', error)
+        console.error('读取保存的账号密码失�?', error)
       }
     })
   }, [])
@@ -69,16 +68,14 @@ const Login: React.FC = () => {
     removeStorageCompat('loginSourcePage')
     removeStorageCompat('isTestLogin')
 
-    // 登录成功后跳转到工作台首页
-    try {
+    // 登录成功后跳转到工作台首�?    try {
       switchTab({url: '/pages/index/index'})
     } catch (_e) {
       reLaunch({url: '/pages/index/index'})
     }
   }
 
-  // 验证手机号格式
-  const validatePhone = (phone: string): boolean => {
+  // 验证手机号格�?  const validatePhone = (phone: string): boolean => {
     return /^1[3-9]\d{9}$/.test(phone)
   }
 
@@ -107,7 +104,7 @@ const Login: React.FC = () => {
       if (error) {
         showToast({title: error.message || '发送验证码失败', icon: 'none'})
       } else {
-        showToast({title: '验证码已发送', icon: 'success'})
+        showToast({title: '验证码已发�?, icon: 'success'})
         setCountdown(60)
         const timer = setInterval(() => {
           setCountdown((prev) => {
@@ -169,12 +166,6 @@ const Login: React.FC = () => {
       // 直接使用账号@test.local登录，无需查询
       const loginEmail = account.includes('@') ? account : `${account}@test.local`
 
-      console.log('🔑 [开始登录]', {
-        account,
-        loginEmail,
-        password: password ? '***(已输入)' : '(未输入)'
-      })
-
       const result = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password
@@ -183,31 +174,14 @@ const Login: React.FC = () => {
       const error = result.error
       const _authData = result.data
 
-      console.log('🔑 [登录结果]', {
-        success: !error,
-        error: error
-          ? {
-              message: error.message,
-              status: error.status,
-              name: error.name
-            }
-          : null,
-        hasUser: !!_authData?.user,
-        hasSession: !!_authData?.session
-      })
-
       if (error) {
-        console.error('❌ [登录失败]', error)
+        console.error('�?[登录失败]', error)
         if (error.message.includes('Invalid login credentials')) {
-          showToast({title: '账号或密码错误', icon: 'none', duration: 2000})
+          showToast({title: '账号或密码错�?, icon: 'none', duration: 2000})
         } else {
           showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
         }
       } else {
-        console.log('✅ [登录成功]', {
-          userId: _authData?.user?.id,
-          email: _authData?.user?.email
-        })
         try {
           if (rememberMe) {
             setStorageSync('saved_account', account)
@@ -226,7 +200,7 @@ const Login: React.FC = () => {
         await handleLoginSuccess()
       }
     } catch (err) {
-      console.error('❌ [登录异常]', err)
+      console.error('�?[登录异常]', err)
       showToast({title: '登录失败，请稍后重试', icon: 'none'})
     } finally {
       setLoading(false)
@@ -239,7 +213,7 @@ const Login: React.FC = () => {
         {/* 页面标题 */}
         <View className="pt-16 pb-8 text-center">
           <Text className="text-3xl font-bold text-white block mb-2">车队管家</Text>
-          <Text className="text-sm text-blue-100 block">专业的车队管理系统</Text>
+          <Text className="text-sm text-blue-100 block">专业的车队管理系�?/Text>
         </View>
 
         <View className="px-6 pb-8">
@@ -253,7 +227,7 @@ const Login: React.FC = () => {
                   className="flex-1 py-4 text-base"
                   type={loginType === 'otp' ? 'number' : 'text'}
                   maxlength={loginType === 'otp' ? 11 : 50}
-                  placeholder={loginType === 'otp' ? '请输入11位手机号' : '请输入手机号或账号'}
+                  placeholder={loginType === 'otp' ? '请输�?1位手机号' : '请输入手机号或账�?}
                   value={account}
                   onInput={(e) => setAccount(e.detail.value)}
                   style={{fontSize: '16px'}}
@@ -264,7 +238,7 @@ const Login: React.FC = () => {
               </View>
               {loginType === 'password' && (
                 <View className="mt-2 px-1">
-                  <Text className="text-xs text-gray-500">支持：11位手机号、账号名</Text>
+                  <Text className="text-xs text-gray-500">支持�?1位手机号、账号名</Text>
                 </View>
               )}
             </View>
@@ -279,7 +253,7 @@ const Login: React.FC = () => {
                       className="flex-1 py-4 text-base"
                       type="text"
                       password
-                      placeholder="请输入密码"
+                      placeholder="请输入密�?
                       value={password}
                       onInput={(e) => setPassword(e.detail.value)}
                       style={{fontSize: '16px'}}
@@ -306,7 +280,7 @@ const Login: React.FC = () => {
               </>
             )}
 
-            {/* 验证码登录 */}
+            {/* 验证码登�?*/}
             {loginType === 'otp' && (
               <>
                 <View className="mb-4">
@@ -316,7 +290,7 @@ const Login: React.FC = () => {
                       className="flex-1 py-4 text-base"
                       type="number"
                       maxlength={6}
-                      placeholder="请输入6位验证码"
+                      placeholder="请输�?位验证码"
                       value={otp}
                       onInput={(e) => setOtp(e.detail.value)}
                       style={{fontSize: '16px'}}
@@ -343,7 +317,7 @@ const Login: React.FC = () => {
               </>
             )}
 
-            {/* 登录按钮组 */}
+            {/* 登录按钮�?*/}
             <View className="flex gap-3">
               <Button
                 className="flex-1 text-base break-keep font-bold"
@@ -364,7 +338,7 @@ const Login: React.FC = () => {
                     setLoginType('password')
                   }
                 }}>
-                {loginType === 'password' ? (loading ? '登录中...' : '密码登录') : '密码登录'}
+                {loginType === 'password' ? (loading ? '登录�?..' : '密码登录') : '密码登录'}
               </Button>
 
               <Button
@@ -386,19 +360,19 @@ const Login: React.FC = () => {
                     setLoginType('otp')
                   }
                 }}>
-                {loginType === 'otp' ? (loading ? '登录中...' : '验证码登录') : '验证码登录'}
+                {loginType === 'otp' ? (loading ? '登录�?..' : '验证码登�?) : '验证码登�?}
               </Button>
             </View>
           </View>
 
-          {/* 测试账号快速登录 */}
+          {/* 测试账号快速登�?*/}
           <View className="mt-8">
             <View className="bg-white bg-opacity-10 rounded-lg p-4">
               <View
                 className="flex flex-row items-center justify-between"
                 onClick={() => setShowTestAccounts(!showTestAccounts)}>
-                <Text className="text-xs text-white font-bold">🧪 开发测试 - 快速登录</Text>
-                <Text className="text-xs text-white">{showTestAccounts ? '▲ 收起' : '▼ 展开'}</Text>
+                <Text className="text-xs text-white font-bold">🧪 开发测�?- 快速登�?/Text>
+                <Text className="text-xs text-white">{showTestAccounts ? '�?收起' : '�?展开'}</Text>
               </View>
 
               {showTestAccounts && (
@@ -424,7 +398,7 @@ const Login: React.FC = () => {
                             </View>
                             <Text className="text-xs text-blue-100">老板账号 / 123456</Text>
                           </View>
-                          <Text className="text-xs text-white">点击填充 →</Text>
+                          <Text className="text-xs text-white">点击填充 �?/Text>
                         </View>
                       </View>
 
@@ -446,11 +420,11 @@ const Login: React.FC = () => {
                             </View>
                             <Text className="text-xs text-blue-100">平级账号 / 123456</Text>
                           </View>
-                          <Text className="text-xs text-white">点击填充 →</Text>
+                          <Text className="text-xs text-white">点击填充 �?/Text>
                         </View>
                       </View>
 
-                      {/* admin111 - 车队长账号 */}
+                      {/* admin111 - 车队长账�?*/}
                       <View
                         className="bg-white bg-opacity-20 rounded-lg p-3 mb-2"
                         onClick={() => {
@@ -462,13 +436,13 @@ const Login: React.FC = () => {
                           <View className="flex-1">
                             <View className="flex flex-row items-center mb-1">
                               <View className="px-2 py-1 rounded" style={{backgroundColor: '#3B82F6'}}>
-                                <Text className="text-xs text-white font-bold">车队长</Text>
+                                <Text className="text-xs text-white font-bold">车队�?/Text>
                               </View>
                               <Text className="text-xs text-white ml-2">admin111</Text>
                             </View>
-                            <Text className="text-xs text-blue-100">车队长账号 / 123456</Text>
+                            <Text className="text-xs text-blue-100">车队长账�?/ 123456</Text>
                           </View>
-                          <Text className="text-xs text-white">点击填充 →</Text>
+                          <Text className="text-xs text-white">点击填充 �?/Text>
                         </View>
                       </View>
 
@@ -490,7 +464,7 @@ const Login: React.FC = () => {
                             </View>
                             <Text className="text-xs text-blue-100">司机账号 / 123456</Text>
                           </View>
-                          <Text className="text-xs text-white">点击填充 →</Text>
+                          <Text className="text-xs text-white">点击填充 �?/Text>
                         </View>
                       </View>
 
@@ -512,7 +486,7 @@ const Login: React.FC = () => {
                             </View>
                             <Text className="text-xs text-blue-100">调度账号 / 123456</Text>
                           </View>
-                          <Text className="text-xs text-white">点击填充 →</Text>
+                          <Text className="text-xs text-white">点击填充 �?/Text>
                         </View>
                       </View>
                     </View>
@@ -520,7 +494,7 @@ const Login: React.FC = () => {
 
                   {/* 使用说明 */}
                   <View className="mt-3 bg-white bg-opacity-10 rounded-lg p-3">
-                    <Text className="text-xs text-blue-100 mb-2">💡 使用说明：</Text>
+                    <Text className="text-xs text-blue-100 mb-2">💡 使用说明�?/Text>
                     <Text className="text-xs text-blue-100">1. 点击账号卡片自动填充账号密码</Text>
                     <Text className="text-xs text-blue-100">2. 点击"密码登录"按钮完成登录</Text>
                     <Text className="text-xs text-blue-100">3. 首次登录需要先注册账号</Text>
@@ -533,20 +507,20 @@ const Login: React.FC = () => {
           {/* 功能说明 */}
           <View className="mt-4">
             <View className="bg-white bg-opacity-10 rounded-lg p-4">
-              <Text className="text-xs text-white block mb-2 font-bold">登录方式说明：</Text>
+              <Text className="text-xs text-white block mb-2 font-bold">登录方式说明�?/Text>
               <View className="mb-1">
-                <Text className="text-xs text-blue-100 block">• 密码登录：支持手机号或账号名 + 密码</Text>
+                <Text className="text-xs text-blue-100 block">�?密码登录：支持手机号或账号名 + 密码</Text>
               </View>
               <View className="mb-1">
-                <Text className="text-xs text-blue-100 block">• 验证码登录：仅支持手机号 + 验证码</Text>
+                <Text className="text-xs text-blue-100 block">�?验证码登录：仅支持手机号 + 验证�?/Text>
               </View>
               <View className="mt-2 pt-2 border-t border-white border-opacity-20">
                 <Text className="text-xs text-blue-100 block mb-1">测试账号（默认密码：123456）：</Text>
-                <Text className="text-xs text-blue-100 block">• admin1 - 老板账号</Text>
-                <Text className="text-xs text-blue-100 block">• admin11 - 平级账号</Text>
-                <Text className="text-xs text-blue-100 block">• admin111 - 车队长账号</Text>
-                <Text className="text-xs text-blue-100 block">• admin1111 - 司机账号</Text>
-                <Text className="text-xs text-blue-100 block">• admin1112 - 调度账号</Text>
+                <Text className="text-xs text-blue-100 block">�?admin1 - 老板账号</Text>
+                <Text className="text-xs text-blue-100 block">�?admin11 - 平级账号</Text>
+                <Text className="text-xs text-blue-100 block">�?admin111 - 车队长账�?/Text>
+                <Text className="text-xs text-blue-100 block">�?admin1111 - 司机账号</Text>
+                <Text className="text-xs text-blue-100 block">�?admin1112 - 调度账号</Text>
               </View>
             </View>
           </View>

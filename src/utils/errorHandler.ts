@@ -4,7 +4,8 @@
  */
 
 import Taro from '@tarojs/taro'
-import { createLogger } from './logger'
+import {createLogger} from './logger'
+import {showError} from './toast'
 
 const logger = createLogger('ErrorHandler')
 
@@ -25,9 +26,9 @@ export enum ErrorType {
 export interface AppError {
   type: ErrorType
   message: string
-  originalError?: any
+  originalError?: unknown
   code?: string | number
-  details?: Record<string, any>
+  details?: Record<string, unknown>
 }
 
 /**
@@ -48,9 +49,9 @@ class ErrorHandler {
   /**
    * 处理错误并显示友好提示
    */
-  handle(error: any, customMessage?: string): void {
+  handle(error: unknown, customMessage?: string): void {
     const appError = this.parseError(error)
-    
+
     // 记录错误日志
     logger.error('应用错误', {
       type: appError.type,
@@ -68,9 +69,9 @@ class ErrorHandler {
   /**
    * 解析错误对象
    */
-  private parseError(error: any): AppError {
+  private parseError(error: unknown): AppError {
     // Supabase 错误
-    if (error?.message && error?.code) {
+    if (typeof error === 'object' && error !== null && 'message' in error && 'code' in error) {
       return {
         type: this.getErrorType(error),
         message: error.message,
@@ -86,7 +87,6 @@ class ErrorHandler {
         message: error.errMsg || '网络请求失败',
         code: error.statusCode,
         originalError: error
-
       }
     }
 
@@ -119,8 +119,10 @@ class ErrorHandler {
   /**
    * 根据错误判断错误类型
    */
-  private getErrorType(error: any): ErrorType {
-    const code = error.code || error.statusCode
+  private getErrorType(error: unknown): ErrorType {
+    const code =
+      (typeof error === 'object' && error !== null && ('code' in error ? error.code : 'statusCode' in error ? error.statusCode : undefined)) ||
+      undefined
 
     // 认证错误
     if (code === 401 || code === 'PGRST301' || error.message?.includes('JWT')) {
@@ -162,17 +164,13 @@ class ErrorHandler {
    * 显示错误提示
    */
   private showToast(message: string): void {
-    Taro.showToast({
-      title: message,
-      icon: 'none',
-      duration: 3000
-    })
+    showError(message, 3000)
   }
 
   /**
    * 处理 API 错误
    */
-  handleApiError(error: any, operation?: string): void {
+  handleApiError(error: unknown, operation?: string): void {
     const message = operation ? `${operation}失败` : undefined
     this.handle(error, message)
   }
@@ -180,29 +178,27 @@ class ErrorHandler {
   /**
    * 处理网络错误
    */
-  handleNetworkError(error: any): void {
+  handleNetworkError(error: unknown): void {
     this.handle(error, '网络连接失败，请检查网络设置')
   }
 
   /**
    * 处理认证错误
    */
-  handleAuthError(error: any): void {
+  handleAuthError(error: unknown): void {
     this.handle(error, '登录已过期，请重新登录')
-    
+
     // 跳转到登录页
     setTimeout(() => {
-      Taro.reLaunch({ url: '/pages/login/index' })
+      Taro.reLaunch({url: '/pages/login/index'})
     }, 1500)
   }
 
   /**
    * 处理验证错误
    */
-  handleValidationError(error: any, fieldName?: string): void {
-    const message = fieldName 
-      ? `${fieldName}格式不正确，请检查后重试`
-      : '输入信息有误，请检查后重试'
+  handleValidationError(error: unknown, fieldName?: string): void {
+    const message = fieldName ? `${fieldName}格式不正确，请检查后重试` : '输入信息有误，请检查后重试'
     this.handle(error, message)
   }
 }
@@ -213,10 +209,7 @@ export const errorHandler = new ErrorHandler()
 /**
  * 包装异步函数，自动处理错误
  */
-export function withErrorHandler<T extends (...args: any[]) => Promise<any>>(
-  fn: T,
-  customMessage?: string
-): T {
+export function withErrorHandler<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, customMessage?: string): T {
   return (async (...args: Parameters<T>) => {
     try {
       return await fn(...args)
@@ -231,14 +224,10 @@ export function withErrorHandler<T extends (...args: any[]) => Promise<any>>(
  * 装饰器：自动处理方法错误
  */
 export function handleErrors(customMessage?: string) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return (_target: object, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (this: unknown, ...args: unknown[]) {
       try {
         return await originalMethod.apply(this, args)
       } catch (error) {

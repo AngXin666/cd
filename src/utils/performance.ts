@@ -3,7 +3,7 @@
  * 用于监控关键操作的性能指标
  */
 
-import { createLogger } from './logger'
+import {createLogger} from './logger'
 
 const logger = createLogger('Performance')
 
@@ -56,7 +56,7 @@ class PerformanceMonitor {
     metric.duration = duration
 
     if (additionalMetadata) {
-      metric.metadata = { ...metric.metadata, ...additionalMetadata }
+      metric.metadata = {...metric.metadata, ...additionalMetadata}
     }
 
     // 记录性能数据
@@ -72,7 +72,7 @@ class PerformanceMonitor {
    * 记录性能指标
    */
   private logMetric(metric: PerformanceMetric): void {
-    const { name, duration, metadata } = metric
+    const {name, duration, metadata} = metric
 
     if (duration === undefined) return
 
@@ -89,11 +89,7 @@ class PerformanceMonitor {
   /**
    * 测量一个异步函数的执行时间
    */
-  async measure<T>(
-    name: string,
-    fn: () => Promise<T>,
-    metadata?: Record<string, any>
-  ): Promise<T> {
+  async measure<T>(name: string, fn: () => Promise<T>, metadata?: Record<string, any>): Promise<T> {
     if (!this.enabled) {
       return fn()
     }
@@ -101,10 +97,10 @@ class PerformanceMonitor {
     this.start(name, metadata)
     try {
       const result = await fn()
-      this.end(name, { success: true })
+      this.end(name, {success: true})
       return result
     } catch (error) {
-      this.end(name, { success: false, error: String(error) })
+      this.end(name, {success: false, error: String(error)})
       throw error
     }
   }
@@ -112,11 +108,7 @@ class PerformanceMonitor {
   /**
    * 测量一个同步函数的执行时间
    */
-  measureSync<T>(
-    name: string,
-    fn: () => T,
-    metadata?: Record<string, any>
-  ): T {
+  measureSync<T>(name: string, fn: () => T, metadata?: Record<string, any>): T {
     if (!this.enabled) {
       return fn()
     }
@@ -124,10 +116,10 @@ class PerformanceMonitor {
     this.start(name, metadata)
     try {
       const result = fn()
-      this.end(name, { success: true })
+      this.end(name, {success: true})
       return result
     } catch (error) {
-      this.end(name, { success: false, error: String(error) })
+      this.end(name, {success: false, error: String(error)})
       throw error
     }
   }
@@ -154,19 +146,12 @@ export const performanceMonitor = new PerformanceMonitor()
  * 装饰器：自动监控方法性能
  */
 export function measurePerformance(name?: string) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
     const metricName = name || `${target.constructor.name}.${propertyKey}`
 
     descriptor.value = async function (...args: any[]) {
-      return performanceMonitor.measure(
-        metricName,
-        () => originalMethod.apply(this, args)
-      )
+      return performanceMonitor.measure(metricName, () => originalMethod.apply(this, args))
     }
 
     return descriptor

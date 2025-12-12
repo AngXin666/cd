@@ -10,6 +10,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 const ManagerPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -292,8 +293,9 @@ const ManagerPieceWork: React.FC = () => {
   }, [])
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+    <ErrorBoundary>
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
@@ -715,6 +717,7 @@ const ManagerPieceWork: React.FC = () => {
         </View>
       )}
     </View>
+    </ErrorBoundary>
   )
 }
 

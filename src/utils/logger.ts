@@ -96,7 +96,7 @@ function shouldLog(level: LogLevel): boolean {
 /**
  * 格式化日志消息
  */
-function formatMessage(level: LogLevel, module: string, message: string, _data?: any): string {
+function formatMessage(level: LogLevel, module: string, message: string, _data?: unknown): string {
   const parts: string[] = []
 
   // 添加图标
@@ -129,7 +129,7 @@ function formatMessage(level: LogLevel, module: string, message: string, _data?:
 /**
  * 记录日志的核心函数
  */
-function log(level: LogLevel, module: string, message: string, data?: any) {
+function log(level: LogLevel, module: string, message: string, data?: unknown) {
   if (!shouldLog(level)) return
 
   const formattedMessage = formatMessage(level, module, message, data)
@@ -164,28 +164,28 @@ export class Logger {
   /**
    * DEBUG级别日志 - 用于调试信息
    */
-  debug(message: string, data?: any) {
+  debug(message: string, data?: unknown) {
     log(LogLevel.DEBUG, this.module, message, data)
   }
 
   /**
    * INFO级别日志 - 用于一般信息
    */
-  info(message: string, data?: any) {
+  info(message: string, data?: unknown) {
     log(LogLevel.INFO, this.module, message, data)
   }
 
   /**
    * WARN级别日志 - 用于警告信息
    */
-  warn(message: string, data?: any) {
+  warn(message: string, data?: unknown) {
     log(LogLevel.WARN, this.module, message, data)
   }
 
   /**
    * ERROR级别日志 - 用于错误信息
    */
-  error(message: string, error?: any) {
+  error(message: string, error?: unknown) {
     // 如果是Error对象，提取堆栈信息
     if (error instanceof Error) {
       const errorInfo = {
@@ -202,28 +202,28 @@ export class Logger {
   /**
    * 记录API调用
    */
-  api(method: string, endpoint: string, params?: any, response?: any) {
+  api(method: string, endpoint: string, params?: unknown, response?: unknown) {
     this.info(`API调用: ${method} ${endpoint}`, {params, response})
   }
 
   /**
    * 记录数据库操作
    */
-  db(operation: string, table: string, data?: any) {
+  db(operation: string, table: string, data?: unknown) {
     this.debug(`数据库操作: ${operation} ${table}`, data)
   }
 
   /**
    * 记录用户操作
    */
-  userAction(action: string, details?: any) {
+  userAction(action: string, details?: unknown) {
     this.info(`用户操作: ${action}`, details)
   }
 
   /**
    * 记录页面访问
    */
-  pageView(pageName: string, params?: any) {
+  pageView(pageName: string, params?: unknown) {
     this.info(`页面访问: ${pageName}`, params)
   }
 
@@ -261,11 +261,11 @@ export function setupGlobalErrorHandler() {
 /**
  * 性能监控装饰器
  */
-export function measurePerformance(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function measurePerformance(target: object, propertyKey: string, descriptor: PropertyDescriptor) {
   const originalMethod = descriptor.value
 
-  descriptor.value = async function (...args: any[]) {
-    const logger = createLogger(target.constructor.name)
+  descriptor.value = async function (this: unknown, ...args: unknown[]) {
+    const logger = createLogger((target as {constructor: {name: string}}).constructor.name)
     const startTime = Date.now()
 
     try {

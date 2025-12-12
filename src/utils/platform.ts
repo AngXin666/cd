@@ -190,7 +190,7 @@ export const platformStorage = {
   },
 
   // 设置存储
-  setStorage: async (key: string, data: any): Promise<void> => {
+  setStorage: async <T = unknown>(key: string, data: T): Promise<void> => {
     const prefixedKey = platformStorage.getStoragePrefix() + key
 
     return (

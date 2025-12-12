@@ -20,12 +20,7 @@ export interface ShowToastOptions {
 
 export function showToast(options: ShowToastOptions): void {
   if (isH5) {
-    // H5环境使用console.log或自定义toast组件
-    const icon = options.icon === 'success' ? '✅' : options.icon === 'error' ? '❌' : 'ℹ️'
-    console.log(`${icon} ${options.title}`)
-
-    // TODO: 可以在这里集成第三方toast库，如react-toastify
-    // 目前先使用简单的alert（仅在非loading类型时显示）
+    // H5环境使用自定义toast组件（原生DOM实现，轻量无依赖）
     if (options.icon !== 'loading') {
       // 创建自定义toast元素
       const toast = document.createElement('div')
@@ -68,8 +63,6 @@ let loadingElement: HTMLElement | null = null
 
 export function showLoading(options: ShowLoadingOptions): void {
   if (isH5) {
-    console.log('⏳ Loading:', options.title)
-
     // 创建loading元素
     if (!loadingElement) {
       loadingElement = document.createElement('div')
@@ -262,7 +255,7 @@ export function getStorageSync<T = any>(key: string): T | null {
  * setStorageSync 兼容
  * H5环境使用localStorage
  */
-export function setStorageSync(key: string, data: any): void {
+export function setStorageSync<T = unknown>(key: string, data: T): void {
   if (isH5) {
     try {
       localStorage.setItem(key, JSON.stringify(data))

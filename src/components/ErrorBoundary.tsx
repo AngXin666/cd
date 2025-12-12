@@ -3,10 +3,11 @@
  * 捕获 React 组件树中的错误，防止整个应用崩溃
  */
 
-import React, { Component, ReactNode } from 'react'
-import { View, Text, Button } from '@tarojs/components'
+import {Button, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { createLogger } from '@/utils/logger'
+import type React from 'react'
+import {Component, type ReactNode} from 'react'
+import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('ErrorBoundary')
 
@@ -56,7 +57,6 @@ class ErrorBoundary extends Component<Props, State> {
     }
   }
 
-
   handleReset = (): void => {
     this.setState({
       hasError: false,
@@ -66,7 +66,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleGoHome = (): void => {
-    Taro.reLaunch({ url: '/pages/login/index' })
+    Taro.reLaunch({url: '/pages/login/index'})
   }
 
   render(): ReactNode {
@@ -80,32 +80,20 @@ class ErrorBoundary extends Component<Props, State> {
       return (
         <View className="flex flex-col items-center justify-center min-h-screen p-8 bg-gray-50">
           <View className="text-6xl mb-4">😕</View>
-          <Text className="text-xl font-bold mb-2 text-gray-800">
-            抱歉，页面出现了问题
-          </Text>
-          <Text className="text-sm text-gray-600 mb-6 text-center">
-            我们已经记录了这个错误，会尽快修复
-          </Text>
+          <Text className="text-xl font-bold mb-2 text-gray-800">抱歉，页面出现了问题</Text>
+          <Text className="text-sm text-gray-600 mb-6 text-center">我们已经记录了这个错误，会尽快修复</Text>
 
           {process.env.NODE_ENV === 'development' && this.state.error && (
             <View className="w-full mb-6 p-4 bg-red-50 rounded-lg">
-              <Text className="text-xs text-red-800 font-mono break-all">
-                {this.state.error.message}
-              </Text>
+              <Text className="text-xs text-red-800 font-mono break-all">{this.state.error.message}</Text>
             </View>
           )}
 
           <View className="flex flex-row gap-4">
-            <Button
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg"
-              onClick={this.handleReset}
-            >
+            <Button className="px-6 py-2 bg-blue-500 text-white rounded-lg" onClick={this.handleReset}>
               重试
             </Button>
-            <Button
-              className="px-6 py-2 bg-gray-500 text-white rounded-lg"
-              onClick={this.handleGoHome}
-            >
+            <Button className="px-6 py-2 bg-gray-500 text-white rounded-lg" onClick={this.handleGoHome}>
               返回首页
             </Button>
           </View>

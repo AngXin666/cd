@@ -9,6 +9,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -331,8 +332,9 @@ const WarehouseManagement: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', minHeight: '100vh'}}>
-      <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
+    <ErrorBoundary>
+      <View style={{background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', minHeight: '100vh'}}>
+        <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
         <View className="p-5">
           {/* 页面标题区域 - 简约大气 */}
           <View className="mb-6 pt-2">
@@ -681,6 +683,7 @@ const WarehouseManagement: React.FC = () => {
         description="此操作需要验证您的登录密码以确保安全"
       />
     </View>
+    </ErrorBoundary>
   )
 }
 

@@ -422,7 +422,7 @@ export async function getCategoryPricesByWarehouse(warehouseId: string): Promise
     console.error('获取品类价格配置失败:', error)
     return []
   }
-  
+
   // 将 piece_work_categories.name 映射到 category_name
   return (data || []).map((item: any) => ({
     ...item,
