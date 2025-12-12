@@ -4,7 +4,7 @@
  */
 
 import Taro from '@tarojs/taro'
-import {showLoading, hideLoading, showToast} from '@/utils/taroCompat'
+import {showLoading, hideLoading, showToast, getStorageSync, setStorageSync, removeStorageSync, showModal} from '@/utils/taroCompat'
 
 const UPDATE_CHECK_URL = 'https://wxvrwkpkioalqdsfswwu.supabase.co/storage/v1/object/public/app-updates/latest.zip'
 const UPDATE_VERSION_KEY = 'hot_update_version'
@@ -23,7 +23,7 @@ interface UpdateInfo {
 export async function checkForUpdate(): Promise<UpdateInfo | null> {
   try {
     // 检查上次检查时间,避免频繁检查
-    const lastCheckTime = Taro.getStorageSync(LAST_CHECK_TIME_KEY) || 0
+    const lastCheckTime = getStorageSync<number>(LAST_CHECK_TIME_KEY) || 0
     const now = Date.now()
 
     if (now - lastCheckTime < CHECK_INTERVAL) {
@@ -42,10 +42,10 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 
       // 使用文件修改时间作为版本号
       const version = lastModified || new Date().toISOString()
-      const currentVersion = Taro.getStorageSync(UPDATE_VERSION_KEY)
+      const currentVersion = getStorageSync<string>(UPDATE_VERSION_KEY)
 
       // 更新最后检查时间
-      Taro.setStorageSync(LAST_CHECK_TIME_KEY, now)
+      setStorageSync(LAST_CHECK_TIME_KEY, now)
 
       // 如果版本不同,说明有新版本
       if (version !== currentVersion) {
@@ -83,12 +83,12 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
       success: (res) => {
         if (res.statusCode === 200) {
           // 保存新版本号
-          Taro.setStorageSync(UPDATE_VERSION_KEY, updateInfo.version)
+          setStorageSync(UPDATE_VERSION_KEY, updateInfo.version)
 
           hideLoading()
 
           // 提示用户重启应用
-          Taro.showModal({
+          showModal({
             title: '更新下载完成',
             content: '应用将重新加载以应用更新',
             showCancel: false,
@@ -179,7 +179,7 @@ export async function silentCheckUpdate(): Promise<void> {
 
     if (updateInfo) {
       // 发现新版本,询问用户是否更新
-      Taro.showModal({
+      showModal({
         title: '发现新版本',
         content: `有新功能或修复可用 (${(updateInfo.size / 1024).toFixed(0)}KB),是否立即更新?`,
         confirmText: '立即更新',
@@ -207,14 +207,14 @@ export async function forceCheckUpdate(): Promise<void> {
 
   try {
     // 清除上次检查时间,强制检查
-    Taro.removeStorageSync(LAST_CHECK_TIME_KEY)
+    removeStorageSync(LAST_CHECK_TIME_KEY)
 
     const updateInfo = await checkForUpdate()
 
     hideLoading()
 
     if (updateInfo) {
-      Taro.showModal({
+      showModal({
         title: '发现新版本',
         content: `有新功能或修复可用 (${(updateInfo.size / 1024).toFixed(0)}KB),是否立即更新?`,
         confirmText: '立即更新',

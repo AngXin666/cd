@@ -239,3 +239,49 @@ export function switchTab(options: NavigateToOptions): void {
     Taro.switchTab(options)
   }
 }
+
+/**
+ * getStorageSync 兼容
+ * H5环境使用localStorage
+ */
+export function getStorageSync<T = any>(key: string): T | null {
+  if (isH5) {
+    try {
+      const value = localStorage.getItem(key)
+      if (value === null) return null
+      return JSON.parse(value) as T
+    } catch {
+      return null
+    }
+  } else {
+    return Taro.getStorageSync<T>(key)
+  }
+}
+
+/**
+ * setStorageSync 兼容
+ * H5环境使用localStorage
+ */
+export function setStorageSync(key: string, data: any): void {
+  if (isH5) {
+    try {
+      localStorage.setItem(key, JSON.stringify(data))
+    } catch (e) {
+      console.error('setStorageSync失败:', e)
+    }
+  } else {
+    Taro.setStorageSync(key, data)
+  }
+}
+
+/**
+ * removeStorageSync 兼容
+ * H5环境使用localStorage
+ */
+export function removeStorageSync(key: string): void {
+  if (isH5) {
+    localStorage.removeItem(key)
+  } else {
+    Taro.removeStorageSync(key)
+  }
+}

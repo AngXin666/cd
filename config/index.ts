@@ -234,6 +234,8 @@ export default defineConfig<'vite'>(async (merge) => {
         }
       },
       devServer: {
+        port: 10086,
+        host: '0.0.0.0',
         open: false
       }
     }

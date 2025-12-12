@@ -1407,3 +1407,36 @@ export interface UpdateTenantInput {
   contact_email?: string
   expired_at?: string
 }
+
+// ==================== 仪表盘统计类型 ====================
+
+/**
+ * 仪表盘统计数据接口
+ */
+export interface DashboardStats {
+  todayAttendance: number // 今日出勤人数
+  todayPieceCount: number // 当日总件数
+  pendingLeaveCount: number // 请假待审批
+  monthlyPieceCount: number // 本月完成件数
+  driverList: Array<{
+    id: string
+    name: string
+    phone: string
+    todayAttendance: boolean
+    todayPieceCount: number
+  }>
+}
+
+/**
+ * 仓库数据量统计接口
+ */
+export interface WarehouseDataVolume {
+  warehouseId: string
+  warehouseName: string
+  todayPieceCount: number // 今日计件数
+  monthPieceCount: number // 本月计件数
+  todayAttendanceCount: number // 今日考勤数
+  monthAttendanceCount: number // 本月考勤数
+  totalVolume: number // 总数据量（用于排序）
+  hasData: boolean // 是否有数据
+}

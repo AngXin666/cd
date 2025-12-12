@@ -57,7 +57,7 @@ const WarehouseDetail: React.FC = () => {
       }
 
       // 获取司机数量
-      const count = await DashboardAPI.getWarehouseDriverCount(warehouseId)
+      const count = await WarehousesAPI.getWarehouseDriverCount(warehouseId)
       setDriverCount(count)
 
       // 获取管理员信息

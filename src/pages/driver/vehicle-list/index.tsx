@@ -88,7 +88,7 @@ const VehicleList: React.FC = () => {
           data = cached
         } else {
           // 调试：检查认证状态
-          const authStatus = await UsersAPI.debugAuthStatus()
+          const authStatus = await VehiclesAPI.debugAuthStatus()
 
           // 如果认证用户ID与查询的司机ID不匹配，记录警告
           if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {

@@ -98,7 +98,7 @@ const ManagerWarehouseAssignment: React.FC = () => {
       warehouseCount: selectedWarehouseIds.length
     })
     setLoading(true)
-    const success = await UsersAPI.setManagerWarehouses(selectedManager.id, selectedWarehouseIds)
+    const success = await WarehousesAPI.setManagerWarehouses(selectedManager.id, selectedWarehouseIds)
     setLoading(false)
 
     if (success) {

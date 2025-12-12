@@ -11,10 +11,10 @@
   },
   "scripts": {
     "dev": "npm run dev:weapp",
-    "dev:h5": "cross-env NODE_OPTIONS=--max-old-space-size=8192 taro build --type h5 --watch",
+    "dev:h5": "set NODE_OPTIONS=--max-old-space-size=8192 && taro build --type h5 --watch",
     "dev:weapp": "taro build --type weapp --watch",
     "build": "npm run build:weapp",
-    "build:h5": "cross-env NODE_OPTIONS=--max-old-space-size=8192 taro build --type h5",
+    "build:h5": "set NODE_OPTIONS=--max-old-space-size=8192 && taro build --type h5",
     "build:weapp": "taro build --type weapp",
     "postinstall": "weapp-tw patch",
     "lint": "npx biome check --write --unsafe --diagnostic-level=error || true; tsgo -p tsconfig.check.json; ./scripts/checkAuth.sh; ./scripts/checkNavigation.sh"
@@ -69,7 +69,6 @@
     "@typescript/native-preview": "7.0.0-dev.20250827.1",
     "@vitejs/plugin-react": "^4.7.0",
     "babel-preset-taro": "4.1.5",
-    "cross-env": "^10.1.0",
     "postcss": "^8.5.6",
     "react-refresh": "^0.14.0",
     "supabase": "^2.65.3",

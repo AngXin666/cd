@@ -23,17 +23,17 @@ const ProfilePage: React.FC = () => {
     // 根据角色加载统计数据
     if (data && user) {
       if (data.role === 'DRIVER') {
-        const driverStats = await DashboardAPI.getDriverStats(user.id)
+        const driverStats = await UsersAPI.getDriverStats(user.id)
         setStats(driverStats)
         // 加载司机的驾驶证信息以获取真实姓名
         const license = await VehiclesAPI.getDriverLicense(user.id)
         setDriverLicense(license)
       } else if (data.role === 'MANAGER') {
-        const managerStats = await DashboardAPI.getManagerStats(user.id)
+        const managerStats = await UsersAPI.getManagerStats(user.id)
         setStats(managerStats)
       } else if (data.role === 'BOSS') {
         // 老板使用超级管理员统计
-        const superAdminStats = await DashboardAPI.getSuperAdminStats()
+        const superAdminStats = await UsersAPI.getSuperAdminStats()
         setStats(superAdminStats)
       }
     }
