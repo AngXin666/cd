@@ -7,7 +7,7 @@
  * @deprecated 请逐步迁移到模块化导入方式
  * @example
  * // 旧方式（仍然支持）
- * import { getCurrentUserProfile } from '@/db/api'
+ * import { getCurrentUserProfile } from '@/db/api/users'
  *
  * // 新方式（推荐）
  * import * as UsersAPI from '@/db/api/users'

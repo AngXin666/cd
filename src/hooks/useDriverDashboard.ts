@@ -2,7 +2,8 @@ import type {RealtimeChannel} from '@supabase/supabase-js'
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
-import {getDriverAttendanceStats, getDriverWarehouses, getPieceWorkRecordsByUser} from '@/db/api'
+import { getDriverAttendanceStats, getDriverWarehouses } from '@/db/api/users'
+import { getPieceWorkRecordsByUser } from '@/db/api/piecework'
 import type {Warehouse} from '@/db/types'
 
 // 环境检测

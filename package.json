@@ -13,11 +13,21 @@
     "dev": "npm run dev:weapp",
     "dev:h5": "set NODE_OPTIONS=--max-old-space-size=8192 && taro build --type h5 --watch",
     "dev:weapp": "taro build --type weapp --watch",
+    "dev:android": "npm run build:h5 && npx cap sync android && npx cap run android",
     "build": "npm run build:weapp",
     "build:h5": "set NODE_OPTIONS=--max-old-space-size=8192 && taro build --type h5",
     "build:weapp": "taro build --type weapp",
+    "build:android": "npm run build:h5 && npx cap sync android && cd android && .\\gradlew assembleDebug",
+    "build:android:release": "npm run build:h5 && npx cap sync android && cd android && .\\gradlew assembleRelease",
+    "cap:sync": "npx cap sync",
+    "cap:sync:android": "npx cap sync android",
+    "cap:open:android": "npx cap open android",
+    "cap:update": "npx cap update",
     "postinstall": "weapp-tw patch",
-    "lint": "npx biome check --write --unsafe --diagnostic-level=error || true; tsgo -p tsconfig.check.json; ./scripts/checkAuth.sh; ./scripts/checkNavigation.sh"
+    "lint": "npx biome check --write --unsafe --diagnostic-level=error || true; tsgo -p tsconfig.check.json; ./scripts/checkAuth.sh; ./scripts/checkNavigation.sh",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules/.cache",
+    "clean:android": "cd android && .\\gradlew clean"
   },
   "browserslist": [
     "last 5 years",

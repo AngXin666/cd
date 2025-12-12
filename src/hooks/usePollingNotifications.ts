@@ -1,6 +1,8 @@
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef} from 'react'
-import {getAllAttendanceRecords, getAllLeaveApplications, getAllResignationApplications} from '@/db/api'
+import { getAllAttendanceRecords } from '@/db/api/attendance'
+import { getAllLeaveApplications } from '@/db/api/leave'
+import { getAllResignationApplications } from '@/db/api/piecework'
 import type {Notification} from './useNotifications'
 
 // 前端角色类型（用于 UI 逻辑）

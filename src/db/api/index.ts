@@ -14,7 +14,8 @@
  * import { getAllVehicles, createVehicle } from '@/db/api/vehicles'
  *
  * // 或者从主入口导入（向后兼容）
- * import { getCurrentUserProfile, getAllVehicles } from '@/db/api'
+ * import { getCurrentUserProfile } from '@/db/api/users'
+import { getAllVehicles } from '@/db/api/vehicles'
  * ```
  */
 

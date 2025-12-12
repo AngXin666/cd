@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useState} from 'react'
-import {getWarehousesDataVolume, type WarehouseDataVolume} from '@/db/api'
+import { getWarehousesDataVolume } from '@/db/api/warehouses'
+import type { WarehouseDataVolume } from '@/db/api/dashboard'
 import type {Warehouse} from '@/db/types'
 
 /**

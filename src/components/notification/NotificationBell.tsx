@@ -14,7 +14,7 @@ import {View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {getUnreadNotificationCount} from '@/db/api'
+import { getUnreadNotificationCount } from '@/db/api/notifications'
 
 interface NotificationBellProps {
   userId: string
