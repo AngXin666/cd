@@ -20,6 +20,7 @@ import {Text, View} from '@tarojs/components'
 import React, {memo, useState} from 'react'
 import type {Profile} from '@/db/types'
 import UserCard from '../UserCard'
+import VirtualList from '@/components/VirtualList'
 
 /**
  * UserList组件的Props接口
@@ -69,6 +70,35 @@ const UserList: React.FC<UserListProps> = ({
     )
   }
 
+  // 使用虚拟滚动优化长列表性能
+  // 当用户数量超过20时启用虚拟滚动
+  const useVirtualScroll = users.length > 20
+
+  if (useVirtualScroll) {
+    return (
+      <View className="p-4">
+        <VirtualList
+          data={users}
+          itemHeight={120} // UserCard的大概高度
+          height={600} // 容器高度，约5个卡片的高度
+          getItemKey={(user) => user.id}
+          renderItem={(user) => (
+            <UserCard
+              user={user}
+              showDetail={expandedUserId === user.id}
+              onExpand={handleExpand}
+              onEdit={onUserEdit}
+              onDelete={onUserDelete}
+              onAssignWarehouse={onWarehouseAssign}
+              onToggleType={onToggleUserType}
+            />
+          )}
+        />
+      </View>
+    )
+  }
+
+  // 用户数量较少时使用普通列表
   return (
     <View className="p-4">
       {users.map((user) => (
