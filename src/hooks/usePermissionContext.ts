@@ -3,7 +3,6 @@
  * 用于在React组件中访问和管理用户权限上下文
  */
 
-import Taro from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'
 import * as PermissionContextAPI from '@/db/api/permission-context'
@@ -14,35 +13,7 @@ import type {
   PermissionContext,
   SchedulerPermissionContext
 } from '@/types/permission-context'
-
-// 环境检测
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 存储兼容工具函数
-const getStorageSync = (key: string): any => {
-  if (isH5) {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) : null
-  } else {
-    return Taro.getStorageSync(key)
-  }
-}
-
-const setStorageSync = (key: string, data: any): void => {
-  if (isH5) {
-    localStorage.setItem(key, JSON.stringify(data))
-  } else {
-    Taro.setStorageSync(key, data)
-  }
-}
-
-const removeStorageSync = (key: string): void => {
-  if (isH5) {
-    localStorage.removeItem(key)
-  } else {
-    Taro.removeStorageSync(key)
-  }
-}
+import {TypeSafeStorage} from '@/utils/storage'
 
 /**
  * 权限上下文存储键
@@ -90,21 +61,17 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
    * 从缓存加载权限上下文
    */
   const loadFromCache = useCallback((): PermissionContext | null => {
-    try {
-      const cachedContext = getStorageSync(PERMISSION_CONTEXT_KEY)
-      const cachedTimestamp = getStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
+    const cachedContext = TypeSafeStorage.get<PermissionContext>(PERMISSION_CONTEXT_KEY)
+    const cachedTimestamp = TypeSafeStorage.get<number>(PERMISSION_CONTEXT_TIMESTAMP_KEY)
 
-      if (cachedContext && cachedTimestamp) {
-        const now = Date.now()
-        const age = now - cachedTimestamp
+    if (cachedContext && cachedTimestamp) {
+      const now = Date.now()
+      const age = now - cachedTimestamp
 
-        // 如果缓存未过期，返回缓存数据
-        if (age < PERMISSION_CONTEXT_CACHE_DURATION) {
-          return cachedContext as PermissionContext
-        }
+      // 如果缓存未过期，返回缓存数据
+      if (age < PERMISSION_CONTEXT_CACHE_DURATION) {
+        return cachedContext
       }
-    } catch (error) {
-      console.error('❌ [权限上下文] 从缓存加载失败:', error)
     }
 
     return null
@@ -114,12 +81,8 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
    * 保存权限上下文到缓存
    */
   const saveToCache = useCallback((permissionContext: PermissionContext) => {
-    try {
-      setStorageSync(PERMISSION_CONTEXT_KEY, permissionContext)
-      setStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY, Date.now())
-    } catch (error) {
-      console.error('❌ [权限上下文] 保存到缓存失败:', error)
-    }
+    TypeSafeStorage.set(PERMISSION_CONTEXT_KEY, permissionContext)
+    TypeSafeStorage.set(PERMISSION_CONTEXT_TIMESTAMP_KEY, Date.now())
   }, [])
 
   /**
@@ -199,12 +162,8 @@ export function usePermissionContext(autoLoad: boolean = true): UsePermissionCon
   const clear = useCallback(() => {
     setContext(null)
     setError(null)
-    try {
-      removeStorageSync(PERMISSION_CONTEXT_KEY)
-      removeStorageSync(PERMISSION_CONTEXT_TIMESTAMP_KEY)
-    } catch (error) {
-      console.error('❌ [权限上下文] 清除权限上下文失败:', error)
-    }
+    TypeSafeStorage.remove(PERMISSION_CONTEXT_KEY)
+    TypeSafeStorage.remove(PERMISSION_CONTEXT_TIMESTAMP_KEY)
   }, [])
 
   /**

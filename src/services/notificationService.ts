@@ -93,8 +93,7 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
   try {
     // 参数验证：确保 driverId 是有效的 UUID
     if (!driverId || driverId === 'anon' || driverId.length < 10) {
-      console.error('  ❌ 无效的司机ID:', driverId)
-      logger.error('❌ 无效的司机ID', {driverId})
+      logger.error('无效的司机ID', {driverId})
       return []
     }
 
@@ -106,7 +105,6 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       .eq('user_id', driverId)
 
     if (dwError) {
-      console.error('  ❌ 查询司机仓库失败:', dwError)
       logger.error('获取司机仓库失败', {error: dwError, driverId})
       return []
     }
@@ -125,7 +123,6 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       .in('warehouse_id', driverWarehouseIds)
 
     if (mwError) {
-      console.error('  ❌ 查询仓库管理者失败:', mwError)
       logger.error('获取仓库车队长失败', {error: mwError, warehouseIds: driverWarehouseIds})
       return []
     }
@@ -145,7 +142,6 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
       .in('id', managerIds)
 
     if (usersError) {
-      console.error('  ❌ 查询用户信息失败:', usersError)
       logger.error('获取车队长信息失败', {error: usersError, managerIds})
       return []
     }
@@ -164,9 +160,6 @@ async function getManagersWithJurisdiction(driverId: string): Promise<Notificati
 
     return result
   } catch (error) {
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.error('❌ [通知服务] 获取车队长异常:', error)
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     logger.error('获取有管辖权的车队长异常', error)
     return []
   }
@@ -199,9 +192,7 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
   try {
     // 参数验证：确保 driverId 是有效的 UUID
     if (!params.driverId || params.driverId === 'anon' || params.driverId.length < 10) {
-      console.error('❌ 参数验证失败: 无效的司机ID')
-      console.error('  - 司机ID:', params.driverId)
-      logger.error('❌ 无效的司机ID，无法发送通知', {driverId: params.driverId})
+      logger.error('无效的司机ID，无法发送通知', {driverId: params.driverId})
       return false
     }
 
@@ -265,19 +256,12 @@ export async function sendDriverSubmissionNotification(params: DriverSubmissionN
 
     if (success) {
     } else {
-      console.error('❌ 通知发送失败')
-      console.error('  - 请检查数据库连接和 RLS 策略')
+      logger.error('通知发送失败，请检查数据库连接和 RLS 策略')
     }
 
     return success
   } catch (error) {
-    console.error('╔═══════════════════════════════════════════════════════════════╗')
-    console.error('║                   ❌ 通知发送异常                              ║')
-    console.error('╚═══════════════════════════════════════════════════════════════╝')
-    console.error('')
-    console.error('错误详情:', error)
-    console.error('')
-    logger.error('❌ 发送司机提交申请通知异常', error)
+    logger.error('发送司机提交申请通知异常', error)
     return false
   }
 }
@@ -345,17 +329,12 @@ export async function sendManagerActionNotification(params: ManagerActionNotific
     const success = await createNotifications(notifications)
     if (success) {
     } else {
-      console.error('❌ 通知发送失败')
+      logger.error('通知发送失败')
     }
 
     return success
   } catch (error) {
-    console.error('╭───────────────────────────────────────────────────────────────╮')
-    console.error('│       ❌ 通知发送异常                                            │')
-    console.error('╰───────────────────────────────────────────────────────────────╯')
-    console.error('错误详情:', error)
-    console.error('')
-    logger.error('❌ 发送车队长操作通知异常', error)
+    logger.error('发送车队长操作通知异常', error)
     return false
   }
 }
@@ -448,13 +427,12 @@ export async function sendPeerAdminActionNotification(params: PeerAdminActionNot
     const success = await createNotifications(notifications)
     if (success) {
     } else {
-      console.error('❌ 通知发送失败')
+      logger.error('通知发送失败')
     }
 
     return success
   } catch (error) {
-    console.error('❌ 调度操作通知发送异常:', error)
-    logger.error('❌ 发送调度操作通知异常', error)
+    logger.error('发送调度操作通知异常', error)
     return false
   }
 }
@@ -540,13 +518,12 @@ export async function sendBossActionNotification(params: BossActionNotificationP
     const success = await createNotifications(notifications)
     if (success) {
     } else {
-      console.error('❌ 通知发送失败')
+      logger.error('通知发送失败')
     }
 
     return success
   } catch (error) {
-    console.error('❌ 老板操作通知发送异常:', error)
-    logger.error('❌ 发送老板操作通知异常', error)
+    logger.error('发送老板操作通知异常', error)
     return false
   }
 }
@@ -584,7 +561,7 @@ export async function sendSystemNotification(params: SystemNotificationParams): 
 
     return success
   } catch (error) {
-    logger.error('❌ 发送系统通知异常', error)
+    logger.error('发送系统通知异常', error)
     return false
   }
 }

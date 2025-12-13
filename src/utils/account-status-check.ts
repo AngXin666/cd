@@ -6,6 +6,9 @@
 
 import Taro from '@tarojs/taro'
 import {supabase} from '@/client/supabase'
+import {createLogger} from './logger'
+
+const logger = createLogger('AccountStatusCheck')
 
 /**
  * 账号状态检查结果
@@ -32,13 +35,13 @@ export async function checkAccountStatus(userId: string): Promise<AccountStatusR
     })
 
     if (error) {
-      console.error('[checkAccountStatus] 检查账号状态失败:', error)
+      logger.error('检查账号状态失败', error)
       return null
     }
 
     return data as AccountStatusResult
   } catch (error) {
-    console.error('[checkAccountStatus] 异常:', error)
+    logger.error('检查账号状态异常', error)
     return null
   }
 }
@@ -67,7 +70,7 @@ export async function checkLoginStatus(): Promise<boolean> {
     const status = await checkAccountStatus(user.id)
 
     if (!status) {
-      console.error('[checkLoginStatus] 无法获取账号状态')
+      logger.error('无法获取账号状态')
       Taro.showToast({
         title: '无法获取账号状态，请重试',
         icon: 'none',
@@ -100,7 +103,7 @@ export async function checkLoginStatus(): Promise<boolean> {
     // 可以登录
     return true
   } catch (error) {
-    console.error('[checkLoginStatus] 异常:', error)
+    logger.error('检查登录状态异常', error)
     return false
   }
 }
@@ -169,7 +172,7 @@ export async function checkAccountStatusOnPageShow(excludeRoles: string[] = []):
     // 检查账号状态
     return await checkLoginStatus()
   } catch (error) {
-    console.error('[checkAccountStatusOnPageShow] 异常:', error)
+    logger.error('页面显示时检查账号状态异常', error)
     return false
   }
 }

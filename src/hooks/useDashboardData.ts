@@ -1,38 +1,9 @@
 import type {RealtimeChannel} from '@supabase/supabase-js'
-import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import type {DashboardStats} from '@/db/api/dashboard'
 import {getWarehouseDashboardStats} from '@/db/api/dashboard'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 存储工具函数，兼容H5和小程序
-function getStorageSync(key: string): any {
-  if (isH5) {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) : null
-  } else {
-    return Taro.getStorageSync(key)
-  }
-}
-
-function setStorageSync(key: string, data: any): void {
-  if (isH5) {
-    localStorage.setItem(key, JSON.stringify(data))
-  } else {
-    Taro.setStorageSync(key, data)
-  }
-}
-
-function removeStorageSync(key: string): void {
-  if (isH5) {
-    localStorage.removeItem(key)
-  } else {
-    Taro.removeStorageSync(key)
-  }
-}
+import {TypeSafeStorage} from '@/utils/storage'
 
 // 缓存配置
 const CACHE_KEY_PREFIX = 'dashboard_cache_'
@@ -74,21 +45,17 @@ export function useDashboardData(options: UseDashboardDataOptions) {
     (wid: string): DashboardStats | null => {
       if (!cacheEnabled) return null
 
-      try {
-        const cacheKey = getCacheKey(wid)
-        const cached = getStorageSync(cacheKey) as CachedData | null
+      const cacheKey = getCacheKey(wid)
+      const cached = TypeSafeStorage.get<CachedData>(cacheKey)
 
-        if (cached && cached.warehouseId === wid) {
-          const now = Date.now()
-          // 检查缓存是否过期
-          if (now - cached.timestamp < CACHE_EXPIRY_MS) {
-            return cached.data
-          }
-          // 缓存过期，删除
-          removeStorageSync(cacheKey)
+      if (cached && cached.warehouseId === wid) {
+        const now = Date.now()
+        // 检查缓存是否过期
+        if (now - cached.timestamp < CACHE_EXPIRY_MS) {
+          return cached.data
         }
-      } catch (err) {
-        console.error('读取缓存失败:', err)
+        // 缓存过期，删除
+        TypeSafeStorage.remove(cacheKey)
       }
 
       return null
@@ -101,17 +68,13 @@ export function useDashboardData(options: UseDashboardDataOptions) {
     (wid: string, dashboardData: DashboardStats) => {
       if (!cacheEnabled) return
 
-      try {
-        const cacheKey = getCacheKey(wid)
-        const cacheData: CachedData = {
-          data: dashboardData,
-          timestamp: Date.now(),
-          warehouseId: wid
-        }
-        setStorageSync(cacheKey, cacheData)
-      } catch (err) {
-        console.error('保存缓存失败:', err)
+      const cacheKey = getCacheKey(wid)
+      const cacheData: CachedData = {
+        data: dashboardData,
+        timestamp: Date.now(),
+        warehouseId: wid
       }
+      TypeSafeStorage.set(cacheKey, cacheData)
     },
     [cacheEnabled, getCacheKey]
   )
@@ -119,12 +82,8 @@ export function useDashboardData(options: UseDashboardDataOptions) {
   // 清除指定仓库的缓存
   const clearCache = useCallback(
     (wid: string) => {
-      try {
-        const cacheKey = getCacheKey(wid)
-        removeStorageSync(cacheKey)
-      } catch (err) {
-        console.error('清除缓存失败:', err)
-      }
+      const cacheKey = getCacheKey(wid)
+      TypeSafeStorage.remove(cacheKey)
     },
     [getCacheKey]
   )
@@ -235,7 +194,7 @@ export function useDashboardData(options: UseDashboardDataOptions) {
         },
         (payload) => {
           // 请假申请变化时，检查是否属于当前仓库
-          const record = payload.new as any
+          const record = payload.new as Record<string, unknown>
           if (record && record.warehouse_id === warehouseId) {
             refreshStable()
           }

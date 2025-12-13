@@ -30,10 +30,11 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]
     },
-    // 状态栏配置
+    // 状态栏配置 - 关键：让状态栏不覆盖内容
     StatusBar: {
       style: "DARK",
-      backgroundColor: "#1976d2"
+      backgroundColor: "#1E3A8A",
+      overlaysWebView: false
     },
     // 键盘配置
     Keyboard: {
@@ -70,12 +71,12 @@ const config: CapacitorConfig = {
   android: {
     // 允许HTTP请求（开发环境）
     allowMixedContent: true,
-    // 启用硬件加速
-    hardwareAccelerated: true,
     // 网络安全配置
     useCleartextTraffic: true,
     // 备份配置
-    allowBackup: true
+    allowBackup: true,
+    // 启用左滑返回手势
+    backButtonBehavior: 'close'
   }
 };
 

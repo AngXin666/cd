@@ -19,6 +19,7 @@ const mockUser: Profile & {real_name?: string} = {
   role: 'DRIVER',
   status: 'active',
   driver_type: 'pure',
+  avatar_url: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01'
 }
@@ -30,6 +31,7 @@ const mockManager: Profile = {
   email: 'lisi@example.com',
   role: 'MANAGER',
   status: 'active',
+  avatar_url: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01'
 }

@@ -13,6 +13,12 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- 状态栏配置：透明状态栏，内容延伸到状态栏下方 -->
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <!-- 不使用fitsSystemWindows，通过CSS控制间距 -->
+        <item name="android:fitsSystemWindows">false</item>
     </style>
 
 

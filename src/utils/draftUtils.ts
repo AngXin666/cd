@@ -5,6 +5,7 @@
 
 import Taro from '@tarojs/taro'
 import {createLogger} from './logger'
+import {enhancedErrorHandler} from './errorHandler'
 
 const logger = createLogger('DraftUtils')
 
@@ -70,11 +71,25 @@ async function saveTempFileToPersistent(tempFilePath: string): Promise<string> {
     if ('savedFilePath' in result) {
       return result.savedFilePath
     } else {
-      logger.error('图片持久化失败', {tempFilePath, result})
+      enhancedErrorHandler.handleWithContext(new Error('图片持久化失败: 未返回 savedFilePath'), {
+        showToast: false,
+        context: {
+          component: 'DraftUtils',
+          action: 'saveTempFileToPersistent',
+          metadata: {tempFilePath, result}
+        }
+      })
       return tempFilePath
     }
   } catch (error) {
-    logger.error('图片持久化失败', {tempFilePath, error})
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: false,
+      context: {
+        component: 'DraftUtils',
+        action: 'saveTempFileToPersistent',
+        metadata: {tempFilePath}
+      }
+    })
     // 失败时返回原路径
     return tempFilePath
   }
@@ -198,7 +213,15 @@ export async function saveDraft(type: 'add' | 'return', userId: string, draft: V
       data: draftWithTimestamp
     })
   } catch (error) {
-    logger.error('保存草稿失败', error)
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: true,
+      customMessage: '保存草稿失败',
+      context: {
+        component: 'DraftUtils',
+        action: 'saveDraft',
+        metadata: {type, userId}
+      }
+    })
   }
 }
 
@@ -303,7 +326,14 @@ export async function deleteDraft(type: 'add' | 'return', userId: string): Promi
     const key = getDraftKey(type, userId)
     await Taro.removeStorage({key})
   } catch (error) {
-    logger.error('删除草稿失败', error)
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: false,
+      context: {
+        component: 'DraftUtils',
+        action: 'deleteDraft',
+        metadata: {type, userId}
+      }
+    })
   }
 }
 
@@ -341,6 +371,13 @@ export async function cleanExpiredDraft(type: 'add' | 'return', userId: string):
       }
     }
   } catch (error) {
-    logger.error('清理过期草稿失败', error)
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: false,
+      context: {
+        component: 'DraftUtils',
+        action: 'cleanExpiredDraft',
+        metadata: {type, userId}
+      }
+    })
   }
 }

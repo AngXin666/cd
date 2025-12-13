@@ -5,6 +5,9 @@
 
 import {createChatDataHandler, sendChatStream} from 'miaoda-taro-utils/chatStream'
 import {compressImage, imageToBase64} from './imageUtils'
+import {createLogger} from './logger'
+
+const logger = createLogger('OCRUtils')
 
 const APP_ID = process.env.TARO_APP_APP_ID || ''
 const API_ENDPOINT = 'https://api-integrations.appmiaoda.com/app-7cdqf07mbu9t/api-2jBYdN3A9Jyz/v2/chat/completions'
@@ -251,17 +254,17 @@ export async function recognizeDocument(
               const result = JSON.parse(jsonStr)
               resolve(result)
             } else {
-              console.error('无法从响应中提取JSON:', fullContent)
+              logger.error('无法从响应中提取JSON', {fullContent})
               reject(new Error('识别结果格式错误'))
             }
           } catch (error) {
-            console.error('解析OCR结果失败:', error)
-            console.error('原始内容:', fullContent)
+            logger.error('解析OCR结果失败', error)
+            logger.error('原始内容', {fullContent})
             reject(new Error('识别结果解析失败'))
           }
         },
         onError: (error: Error) => {
-          console.error('OCR识别失败:', error)
+          logger.error('OCR识别失败', error)
 
           // 提供更友好的错误信息
           let errorMessage = '识别失败，请重试'
@@ -281,7 +284,7 @@ export async function recognizeDocument(
       })
     })
   } catch (error) {
-    console.error('OCR识别异常:', error)
+    logger.error('OCR识别异常', error)
 
     // 处理图片处理阶段的错误
     if (error instanceof Error) {

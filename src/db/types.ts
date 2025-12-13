@@ -980,7 +980,7 @@ export interface PieceWorkStats {
 
 // 仓库规则接口（保留用于兼容性）
 export interface WarehouseWithRule extends Warehouse {
-  rule?: any // 规则已废弃，保留字段用于兼容
+  rule?: AttendanceRule | null // 规则已废弃，保留字段用于兼容
   resignation_notice_days?: number
 }
 
@@ -1076,7 +1076,7 @@ export interface VehicleWithDriverDetails extends Vehicle {
   driver_phone?: string | null
   driver_profile?: Profile | null
   driver_license?: DriverLicense | null
-  locked_photos?: Record<string, any>
+  locked_photos?: Record<string, number[]> | null
 }
 
 // ==================== 司机类型和驾照（已废弃 - 多租户相关）====================
@@ -1185,7 +1185,7 @@ export interface LeaseBill {
 
 // 租赁与租户信息接口（保留用于兼容性）
 export interface LeaseWithTenant extends Lease {
-  tenant?: any
+  tenant?: Tenant | null
 }
 
 // ==================== 辞职申请（已废弃 - 多租户相关）====================

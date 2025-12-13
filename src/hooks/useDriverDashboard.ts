@@ -1,40 +1,11 @@
 import type {RealtimeChannel} from '@supabase/supabase-js'
-import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getDriverAttendanceStats} from '@/db/api/dashboard'
 import {getPieceWorkRecordsByUser} from '@/db/api/piecework'
 import {getDriverWarehouses} from '@/db/api/warehouses'
 import type {Warehouse} from '@/db/types'
-
-// 环境检测
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 存储兼容工具函数
-const getStorageSync = <T>(key: string): T | null => {
-  if (isH5) {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) : null
-  } else {
-    return Taro.getStorageSync<T>(key)
-  }
-}
-
-const setStorageSync = (key: string, data: any): void => {
-  if (isH5) {
-    localStorage.setItem(key, JSON.stringify(data))
-  } else {
-    Taro.setStorageSync(key, data)
-  }
-}
-
-const removeStorageSync = (key: string): void => {
-  if (isH5) {
-    localStorage.removeItem(key)
-  } else {
-    Taro.removeStorageSync(key)
-  }
-}
+import {TypeSafeStorage} from '@/utils/storage'
 
 // 司机仪表板统计数据
 export interface DriverDashboardStats {
@@ -98,17 +69,13 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
   const readCache = useCallback((): DriverDashboardStats | null => {
     if (!cacheEnabled) return null
 
-    try {
-      const cacheKey = getCacheKey()
-      const cached = getStorageSync<CachedData>(cacheKey)
-      if (cached?.data) {
-        const age = Date.now() - cached.timestamp
-        if (age < CACHE_EXPIRY_MS) {
-          return cached.data
-        }
+    const cacheKey = getCacheKey()
+    const cached = TypeSafeStorage.get<CachedData>(cacheKey)
+    if (cached?.data) {
+      const age = Date.now() - cached.timestamp
+      if (age < CACHE_EXPIRY_MS) {
+        return cached.data
       }
-    } catch (err) {
-      console.error('[useDriverDashboard] 读取缓存失败:', err)
     }
     return null
   }, [cacheEnabled, getCacheKey])
@@ -118,29 +85,21 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
     (stats: DriverDashboardStats) => {
       if (!cacheEnabled) return
 
-      try {
-        const cacheKey = getCacheKey()
-        const cacheData: CachedData = {
-          data: stats,
-          timestamp: Date.now(),
-          warehouseId: warehouseId || 'all'
-        }
-        setStorageSync(cacheKey, cacheData)
-      } catch (err) {
-        console.error('[useDriverDashboard] 写入缓存失败:', err)
+      const cacheKey = getCacheKey()
+      const cacheData: CachedData = {
+        data: stats,
+        timestamp: Date.now(),
+        warehouseId: warehouseId || 'all'
       }
+      TypeSafeStorage.set(cacheKey, cacheData)
     },
     [cacheEnabled, getCacheKey, warehouseId]
   )
 
   // 清除缓存
   const clearCache = useCallback(() => {
-    try {
-      const cacheKey = getCacheKey()
-      removeStorageSync(cacheKey)
-    } catch (err) {
-      console.error('[useDriverDashboard] 清除缓存失败:', err)
-    }
+    const cacheKey = getCacheKey()
+    TypeSafeStorage.remove(cacheKey)
   }, [getCacheKey])
 
   // 加载统计数据
@@ -356,16 +315,12 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
   const readCache = useCallback((): Warehouse[] | null => {
     if (!cacheEnabled) return null
 
-    try {
-      const cached = getStorageSync<{data: Warehouse[]; timestamp: number}>(CACHE_KEY)
-      if (cached?.data) {
-        const age = Date.now() - cached.timestamp
-        if (age < CACHE_EXPIRY_MS) {
-          return cached.data
-        }
+    const cached = TypeSafeStorage.get<{data: Warehouse[]; timestamp: number}>(CACHE_KEY)
+    if (cached?.data) {
+      const age = Date.now() - cached.timestamp
+      if (age < CACHE_EXPIRY_MS) {
+        return cached.data
       }
-    } catch (err) {
-      console.error('[useDriverWarehouses] 读取缓存失败:', err)
     }
     return null
   }, [cacheEnabled, CACHE_KEY])
@@ -375,25 +330,17 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
     (data: Warehouse[]) => {
       if (!cacheEnabled) return
 
-      try {
-        setStorageSync(CACHE_KEY, {
-          data,
-          timestamp: Date.now()
-        })
-      } catch (err) {
-        console.error('[useDriverWarehouses] 写入缓存失败:', err)
-      }
+      TypeSafeStorage.set(CACHE_KEY, {
+        data,
+        timestamp: Date.now()
+      })
     },
     [cacheEnabled, CACHE_KEY]
   )
 
   // 清除缓存
   const clearCache = useCallback(() => {
-    try {
-      removeStorageSync(CACHE_KEY)
-    } catch (err) {
-      console.error('[useDriverWarehouses] 清除缓存失败:', err)
-    }
+    TypeSafeStorage.remove(CACHE_KEY)
   }, [CACHE_KEY])
 
   // 加载仓库列表

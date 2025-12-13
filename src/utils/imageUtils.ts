@@ -5,6 +5,9 @@
 
 import Taro from '@tarojs/taro'
 import {supabase} from '@/client/supabase'
+import {createLogger} from './logger'
+
+const logger = createLogger('ImageUtils')
 
 /**
  * 从Base64字符串中读取EXIF方向信息
@@ -166,7 +169,7 @@ async function rotateImageByOrientation(base64: string, orientation: number): Pr
         const rotatedBase64 = canvas.toDataURL(mimeType, 0.95)
         resolve(rotatedBase64)
       } catch (error) {
-        console.error('旋转图片失败:', error)
+        logger.error('旋转图片失败', error)
         reject(error)
       }
     }
@@ -259,7 +262,7 @@ export async function ensureLandscapeOrientation(imagePath: string): Promise<str
 
           resolve(rotatedBase64)
         } catch (error) {
-          console.error('旋转图片失败:', error)
+          logger.error('旋转图片失败', error)
           reject(error)
         }
       }
@@ -302,7 +305,7 @@ export const imageToBase64 = async (imagePath: string): Promise<string> => {
             resolve(base64String)
           },
           fail: (error) => {
-            console.error('读取图片文件失败:', error)
+            logger.error('读取图片文件失败', error)
             reject(new Error('图片转换失败'))
           }
         })
@@ -330,7 +333,7 @@ export const imageToBase64 = async (imagePath: string): Promise<string> => {
               reader.readAsDataURL(blob)
             })
             .catch((error) => {
-              console.error('获取Blob失败:', error)
+              logger.error('获取Blob失败', error)
               reject(new Error('图片加载失败'))
             })
           return
@@ -353,18 +356,18 @@ export const imageToBase64 = async (imagePath: string): Promise<string> => {
             const base64String = canvas.toDataURL('image/jpeg', 0.8)
             resolve(base64String)
           } catch (error) {
-            console.error('Canvas转换失败:', error)
+            logger.error('Canvas转换失败', error)
             reject(new Error('图片处理失败'))
           }
         }
         img.onerror = (error) => {
-          console.error('图片加载失败:', error, '路径:', imagePath)
+          logger.error('图片加载失败', {error, path: imagePath})
           reject(new Error('图片加载失败'))
         }
         img.src = imagePath
       }
     } catch (error) {
-      console.error('图片转base64出错:', error)
+      logger.error('图片转base64出错', error)
       reject(new Error('图片处理失败'))
     }
   })
@@ -417,8 +420,7 @@ export async function uploadImageToStorage(
       data: {session}
     } = await supabase.auth.getSession()
     if (!session) {
-      console.error('❌ 用户未登录，无法上传图片')
-      console.error('❌ 提示：请先登录后再上传图片')
+      logger.error('用户未登录，无法上传图片')
       throw new Error('请先登录')
     }
 
@@ -438,13 +440,12 @@ export async function uploadImageToStorage(
             if (res.data instanceof ArrayBuffer) {
               resolve(res.data)
             } else {
-              console.error('❌ 文件数据格式错误，期望 ArrayBuffer，实际:', typeof res.data)
+              logger.error('文件数据格式错误', {expected: 'ArrayBuffer', actual: typeof res.data})
               reject(new Error(`文件数据格式错误: 期望 ArrayBuffer，实际 ${typeof res.data}`))
             }
           },
           fail: (err) => {
-            console.error('❌ 文件读取失败:', err)
-            console.error('❌ 文件路径:', compressedPath)
+            logger.error('文件读取失败', {error: err, path: compressedPath})
             const errorMsg = (err as any).errMsg || '未知错误'
             reject(new Error(`文件读取失败: ${errorMsg}`))
           }
@@ -454,9 +455,10 @@ export async function uploadImageToStorage(
       // 3. 检查文件大小（1MB = 1048576 bytes）
       const maxSize = 1048576 // 1MB
       if (fileContent.byteLength > maxSize) {
-        console.error('❌ 文件大小超过限制')
-        console.error('❌ 当前大小:', fileContent.byteLength, 'bytes')
-        console.error('❌ 最大限制:', maxSize, 'bytes')
+        logger.error('文件大小超过限制', {
+          currentSize: fileContent.byteLength,
+          maxSize
+        })
         const sizeMB = (fileContent.byteLength / 1024 / 1024).toFixed(2)
         throw new Error(`图片过大(${sizeMB}MB)，请重新拍摄`)
       }
@@ -469,25 +471,22 @@ export async function uploadImageToStorage(
       })
 
       if (error) {
-        console.error('❌ Supabase Storage 上传失败')
-        console.error('❌ 错误消息:', error.message)
-        console.error('❌ 错误详情:', JSON.stringify(error))
+        logger.error('Supabase Storage 上传失败', {
+          message: error.message,
+          details: error
+        })
 
         // 根据错误类型提供更具体的提示
         if (error.message?.includes('JWT') || error.message?.includes('token') || error.message?.includes('auth')) {
-          console.error('❌ 认证令牌问题，可能需要重新登录')
           throw new Error('登录已过期，请重新登录')
         }
         if (error.message?.includes('Bucket') || error.message?.includes('not found')) {
-          console.error('❌ Bucket 配置问题')
           throw new Error('存储配置错误，请联系管理员')
         }
         if (error.message?.includes('size') || error.message?.includes('large') || error.message?.includes('limit')) {
-          console.error('❌ 文件大小问题')
           throw new Error('图片过大，请重新拍摄')
         }
         if (error.message?.includes('permission') || error.message?.includes('policy')) {
-          console.error('❌ 权限问题')
           throw new Error('没有上传权限，请联系管理员')
         }
 
@@ -496,8 +495,7 @@ export async function uploadImageToStorage(
       }
 
       if (!data || !data.path) {
-        console.error('❌ 上传返回数据异常')
-        console.error('❌ 返回数据:', data)
+        logger.error('上传返回数据异常', {data})
         throw new Error('上传失败，返回数据异常')
       }
 
@@ -539,7 +537,7 @@ export async function uploadImageToStorage(
     const {data, error} = await supabase.storage.from(bucketName).upload(fileName, blob)
 
     if (error) {
-      console.error('❌ 上传图片失败:', error)
+      logger.error('上传图片失败', error)
       return null
     }
 
@@ -547,8 +545,10 @@ export async function uploadImageToStorage(
     const {data: urlData} = supabase.storage.from(bucketName).getPublicUrl(data.path)
     return urlData.publicUrl
   } catch (error) {
-    console.error('❌ 上传图片异常:', error)
-    console.error('❌ 异常详情:', error instanceof Error ? error.message : String(error))
+    logger.error('上传图片异常', {
+      error,
+      message: error instanceof Error ? error.message : String(error)
+    })
     return null
   }
 }
@@ -588,7 +588,7 @@ export function getImagePublicUrl(path: string | null | undefined, bucketName: s
     const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
     return data.publicUrl
   } catch (error) {
-    console.error('获取图片URL失败:', {path, bucketName, error})
+    logger.error('获取图片URL失败', {path, bucketName, error})
     return ''
   }
 }
@@ -611,7 +611,7 @@ export async function chooseImage(
     })
     return res.tempFilePaths
   } catch (error) {
-    console.error('选择图片失败:', error)
+    logger.error('选择图片失败', error)
     return []
   }
 }

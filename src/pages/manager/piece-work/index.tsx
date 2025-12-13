@@ -2,7 +2,7 @@ import {Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -11,6 +11,12 @@ import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import VirtualList from '@/components/VirtualList'
+
+// 虚拟滚动配置
+const VIRTUAL_LIST_THRESHOLD = 20 // 超过20条记录时启用虚拟滚动
+const RECORD_ITEM_HEIGHT = 160 // 每条记录的估计高度（包含备注时可能更高）
+const VIRTUAL_LIST_HEIGHT = 500 // 虚拟列表容器高度
 
 const ManagerPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -292,6 +298,105 @@ const ManagerPieceWork: React.FC = () => {
     setSelectedDriverId('')
   }, [])
 
+  // 是否启用虚拟滚动
+  const useVirtualScroll = useMemo(() => records.length > VIRTUAL_LIST_THRESHOLD, [records.length])
+
+  // 渲染单条记录
+  const renderRecordItem = useCallback(
+    (record: PieceWorkRecord) => (
+      <View
+        key={record.id}
+        onClick={() => handleViewDetail(record)}
+        className="bg-gray-50 rounded-lg p-3 mb-2">
+        {/* 记录头部 */}
+        <View className="flex items-center justify-between mb-2">
+          <View className="flex items-center flex-1">
+            <View className="i-mdi-account-circle text-2xl text-blue-900 mr-2" />
+            <View className="flex-1">
+              <Text className="text-sm font-medium text-gray-800 block">
+                {getDriverName(record.user_id)}
+              </Text>
+              <Text className="text-xs text-gray-500 block">{record.work_date}</Text>
+            </View>
+          </View>
+          <View
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteRecord(record)
+            }}
+            className="bg-red-100 rounded-lg px-2 py-1">
+            <View className="i-mdi-delete text-red-600 text-base" />
+          </View>
+        </View>
+
+        {/* 记录详情 */}
+        <View className="space-y-1">
+          <View className="flex items-center">
+            <View className="i-mdi-warehouse text-gray-500 text-sm mr-1" />
+            <Text className="text-xs text-gray-600">{getWarehouseName(record.warehouse_id)}</Text>
+          </View>
+          <View className="flex items-center">
+            <View className="i-mdi-tag text-gray-500 text-sm mr-1" />
+            <Text className="text-xs text-gray-600">{getCategoryName(record.category_id)}</Text>
+            {record.need_upstairs && (
+              <View className="ml-2 bg-orange-100 px-2 py-0.5 rounded">
+                <Text className="text-xs text-orange-600">需上楼</Text>
+              </View>
+            )}
+            {record.need_sorting && (
+              <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
+                <Text className="text-xs text-green-600">需分拣</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* 费用信息 */}
+        <View className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
+          <View className="flex items-center gap-3">
+            <View className="flex items-center">
+              <Text className="text-xs text-gray-600">数量: </Text>
+              <Text className="text-sm font-medium text-gray-800">{record.quantity}</Text>
+            </View>
+            <View className="flex items-center">
+              <Text className="text-xs text-gray-600">单价: </Text>
+              <Text className="text-sm font-medium text-gray-800">
+                ¥{Number(record.unit_price).toFixed(2)}
+              </Text>
+            </View>
+            {record.need_upstairs && (
+              <View className="flex items-center">
+                <Text className="text-xs text-gray-600">上楼: </Text>
+                <Text className="text-sm font-medium text-orange-600">
+                  ¥{Number(record.upstairs_price).toFixed(2)}
+                </Text>
+              </View>
+            )}
+            {record.need_sorting && record.sorting_quantity > 0 && (
+              <View className="flex items-center">
+                <Text className="text-xs text-gray-600">分拣: </Text>
+                <Text className="text-sm font-medium text-green-600">
+                  ¥{(record.sorting_quantity * Number(record.sorting_unit_price)).toFixed(2)}
+                </Text>
+              </View>
+            )}
+          </View>
+          <View className="flex items-center">
+            <Text className="text-sm font-bold text-blue-900">
+              ¥{Number(record.total_amount).toFixed(2)}
+            </Text>
+          </View>
+        </View>
+        {record.notes && (
+          <View className="mt-2 pt-2 border-t border-gray-200">
+            <Text className="text-xs text-gray-500">备注: {record.notes}</Text>
+          </View>
+        )}
+      </View>
+    ),
+    [getDriverName, getWarehouseName, getCategoryName, handleViewDetail, handleDeleteRecord]
+  )
+
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
@@ -481,6 +586,11 @@ const ManagerPieceWork: React.FC = () => {
               <Text className="text-gray-800 text-base font-bold">计件记录</Text>
               <View className="ml-auto flex items-center gap-2">
                 <Text className="text-xs text-gray-500">共 {records.length} 条</Text>
+                {useVirtualScroll && (
+                  <View className="bg-blue-100 px-2 py-0.5 rounded">
+                    <Text className="text-xs text-blue-600">虚拟滚动</Text>
+                  </View>
+                )}
                 <View onClick={toggleSortOrder} className="flex items-center bg-gray-100 rounded-lg px-2 py-1">
                   <View
                     className={`text-base mr-1 ${
@@ -493,99 +603,23 @@ const ManagerPieceWork: React.FC = () => {
             </View>
 
             {records.length > 0 ? (
-              <View className="space-y-2">
-                {records.map((record) => (
-                  <View
-                    key={record.id}
-                    onClick={() => handleViewDetail(record)}
-                    className="bg-gray-50 rounded-lg p-3 mb-2">
-                    {/* 记录头部 */}
-                    <View className="flex items-center justify-between mb-2">
-                      <View className="flex items-center flex-1">
-                        <View className="i-mdi-account-circle text-2xl text-blue-900 mr-2" />
-                        <View className="flex-1">
-                          <Text className="text-sm font-medium text-gray-800 block">
-                            {getDriverName(record.user_id)}
-                          </Text>
-                          <Text className="text-xs text-gray-500 block">{record.work_date}</Text>
-                        </View>
-                      </View>
-                      <View
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteRecord(record)
-                        }}
-                        className="bg-red-100 rounded-lg px-2 py-1">
-                        <View className="i-mdi-delete text-red-600 text-base" />
-                      </View>
-                    </View>
-
-                    {/* 记录详情 */}
-                    <View className="space-y-1">
-                      <View className="flex items-center">
-                        <View className="i-mdi-warehouse text-gray-500 text-sm mr-1" />
-                        <Text className="text-xs text-gray-600">{getWarehouseName(record.warehouse_id)}</Text>
-                      </View>
-                      <View className="flex items-center">
-                        <View className="i-mdi-tag text-gray-500 text-sm mr-1" />
-                        <Text className="text-xs text-gray-600">{getCategoryName(record.category_id)}</Text>
-                        {record.need_upstairs && (
-                          <View className="ml-2 bg-orange-100 px-2 py-0.5 rounded">
-                            <Text className="text-xs text-orange-600">需上楼</Text>
-                          </View>
-                        )}
-                        {record.need_sorting && (
-                          <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
-                            <Text className="text-xs text-green-600">需分拣</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* 费用信息 */}
-                    <View className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-                      <View className="flex items-center gap-3">
-                        <View className="flex items-center">
-                          <Text className="text-xs text-gray-600">数量: </Text>
-                          <Text className="text-sm font-medium text-gray-800">{record.quantity}</Text>
-                        </View>
-                        <View className="flex items-center">
-                          <Text className="text-xs text-gray-600">单价: </Text>
-                          <Text className="text-sm font-medium text-gray-800">
-                            ¥{Number(record.unit_price).toFixed(2)}
-                          </Text>
-                        </View>
-                        {record.need_upstairs && (
-                          <View className="flex items-center">
-                            <Text className="text-xs text-gray-600">上楼: </Text>
-                            <Text className="text-sm font-medium text-orange-600">
-                              ¥{Number(record.upstairs_price).toFixed(2)}
-                            </Text>
-                          </View>
-                        )}
-                        {record.need_sorting && record.sorting_quantity > 0 && (
-                          <View className="flex items-center">
-                            <Text className="text-xs text-gray-600">分拣: </Text>
-                            <Text className="text-sm font-medium text-green-600">
-                              ¥{(record.sorting_quantity * Number(record.sorting_unit_price)).toFixed(2)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <View className="flex items-center">
-                        <Text className="text-sm font-bold text-blue-900">
-                          ¥{Number(record.total_amount).toFixed(2)}
-                        </Text>
-                      </View>
-                    </View>
-                    {record.notes && (
-                      <View className="mt-2 pt-2 border-t border-gray-200">
-                        <Text className="text-xs text-gray-500">备注: {record.notes}</Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </View>
+              useVirtualScroll ? (
+                // 使用虚拟滚动（数据量大时）
+                <VirtualList
+                  data={records}
+                  itemHeight={RECORD_ITEM_HEIGHT}
+                  height={VIRTUAL_LIST_HEIGHT}
+                  overscan={3}
+                  getItemKey={(item) => item.id}
+                  renderItem={(record) => renderRecordItem(record)}
+                  emptyText="暂无计件记录"
+                />
+              ) : (
+                // 普通渲染（数据量小时）
+                <View className="space-y-2">
+                  {records.map((record) => renderRecordItem(record))}
+                </View>
+              )
             ) : (
               <View className="text-center py-8">
                 <View className="i-mdi-package-variant-closed text-5xl text-gray-300 mx-auto mb-2" />

@@ -64,7 +64,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
 
   // 显示通知
   const showNotification = useCallback(
-    (title: string, content: string, key: string, type: Notification['type'], data?: any) => {
+    (title: string, content: string, key: string, type: Notification['type'], data?: Record<string, unknown>) => {
       if (shouldShowNotification(key)) {
         // 显示 Toast 通知
         Taro.showToast({
@@ -117,7 +117,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           table: 'leave_applications'
         },
         (payload) => {
-          const record = payload.new as any
+          const record = payload.new as Record<string, unknown>
           showNotification('收到新的请假申请', `司机提交了新的请假申请`, 'leave_insert', 'leave_application', {
             applicationId: record.id
           })
@@ -145,7 +145,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           table: 'resignation_applications'
         },
         (payload) => {
-          const record = payload.new as any
+          const record = payload.new as Record<string, unknown>
           showNotification(
             '收到新的离职申请',
             `司机提交了新的离职申请`,
@@ -194,7 +194,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          const record = payload.new as any
+          const record = payload.new as Record<string, unknown>
           if (record.status === 'approved') {
             showNotification('您的请假申请已通过', `您的请假申请已通过审批`, 'leave_approved', 'approval', {
               applicationId: record.id
@@ -217,7 +217,7 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          const record = payload.new as any
+          const record = payload.new as Record<string, unknown>
           if (record.status === 'approved') {
             showNotification('您的离职申请已通过', `您的离职申请已通过审批`, 'resignation_approved', 'approval', {
               applicationId: record.id

@@ -3,6 +3,70 @@
 @import 'tailwindcss/utilities';
 @import 'miaoda-auth-taro/lib/index.css';
 
+/* 安全区适配 - 状态栏和底部导航栏 */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  
+  /* Android状态栏高度 + 小间距 (状态栏约44px + 8px间距) */
+  --status-bar-height: 52px;
+}
+
+/* 全局body - 添加小间距 */
+body {
+  margin: 0;
+  padding: 0;
+  padding-top: var(--status-bar-height);
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+}
+
+/* 页面容器 - 添加小间距 */
+page,
+.taro_page {
+  padding-top: var(--status-bar-height);
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+}
+
+/* H5容器 - 添加小间距 */
+#app,
+.taro_router {
+  min-height: 100vh;
+  padding-top: var(--status-bar-height);
+  padding-top: calc(env(safe-area-inset-top) + 8px);
+}
+
+/* 导航栏安全区适配 */
+.taro-nav-bar,
+.navigation-bar {
+  padding-top: var(--status-bar-height);
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 固定顶部元素安全区适配 */
+.fixed-top {
+  top: var(--status-bar-height);
+  top: constant(safe-area-inset-top);
+  top: env(safe-area-inset-top);
+}
+
+/* 固定底部元素安全区适配 */
+.fixed-bottom {
+  bottom: constant(safe-area-inset-bottom);
+  bottom: env(safe-area-inset-bottom);
+}
+
+/* TabBar安全区适配 */
+.taro-tabbar__container {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* 通知栏滚动动画 */
 @keyframes scroll-left {
   0% {

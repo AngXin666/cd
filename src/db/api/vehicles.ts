@@ -131,15 +131,15 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       return []
     }
 
-    const latestVehiclesMap = new Map()
-    vehiclesData.forEach((vehicle: any) => {
+    const latestVehiclesMap = new Map<string, Vehicle>()
+    vehiclesData.forEach((vehicle: Vehicle) => {
       if (!latestVehiclesMap.has(vehicle.plate_number)) {
         latestVehiclesMap.set(vehicle.plate_number, vehicle)
       }
     })
     const latestVehicles = Array.from(latestVehiclesMap.values())
 
-    const userIds = latestVehicles.map((v: any) => v.user_id).filter(Boolean)
+    const userIds = latestVehicles.map((v) => v.user_id).filter(Boolean)
     const {data: profilesData, error: profilesError} = await supabase
       .from('users')
       .select('id, name, phone, email')
@@ -158,21 +158,24 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
       logger.error('获取司机实名信息失败', {error: licensesError.message})
     }
 
-    const profilesMap = new Map()
+    type ProfileData = Pick<Profile, 'id' | 'name' | 'phone' | 'email'>
+    type LicenseData = Pick<DriverLicense, 'driver_id' | 'id_card_name'>
+
+    const profilesMap = new Map<string, ProfileData>()
     if (profilesData) {
-      profilesData.forEach((profile: any) => {
+      profilesData.forEach((profile: ProfileData) => {
         profilesMap.set(profile.id, profile)
       })
     }
 
-    const licensesMap = new Map()
+    const licensesMap = new Map<string, LicenseData>()
     if (licensesData) {
-      licensesData.forEach((license: any) => {
+      licensesData.forEach((license: LicenseData) => {
         licensesMap.set(license.driver_id, license)
       })
     }
 
-    const vehicles: VehicleWithDriver[] = latestVehicles.map((item: any) => {
+    const vehicles: VehicleWithDriver[] = latestVehicles.map((item) => {
       const profile = profilesMap.get(item.user_id)
       const license = licensesMap.get(item.user_id)
       const displayName = license?.id_card_name || profile?.name || null
@@ -526,7 +529,8 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
           .maybeSingle()
 
         if (driverData) {
-          ;(data as any).driver = driverData
+          const vehicleWithDriver = data as VehicleWithDriver
+          vehicleWithDriver.driver = driverData as Profile
         }
       }
     }
@@ -553,7 +557,8 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
         .maybeSingle()
 
       if (licenseData) {
-        ;(data as any).driver_license = licenseData
+        const vehicleWithDriver = data as VehicleWithDriver
+        vehicleWithDriver.driver_license = licenseData as DriverLicense
       }
     }
 
@@ -1129,7 +1134,7 @@ export async function supplementPhoto(
       return false
     }
 
-    const photos = (vehicle as any)[photoField] || []
+    const photos = (vehicle as Record<string, string[]>)[photoField] || []
     photos[photoIndex] = photoUrl
 
     const requiredPhotos = vehicle.required_photos || []

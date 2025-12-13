@@ -1,5 +1,8 @@
 import Taro from '@tarojs/taro'
 import {supabase} from '@/client/supabase'
+import {createLogger} from './logger'
+
+const logger = createLogger('Auth')
 
 /**
  * 智能退出登录
@@ -37,7 +40,7 @@ export async function smartLogout(): Promise<void> {
       }
     }, 1500)
   } catch (error) {
-    console.error('退出登录失败:', error)
+    logger.error('退出登录失败', error)
     Taro.showToast({
       title: '退出登录失败',
       icon: 'none'

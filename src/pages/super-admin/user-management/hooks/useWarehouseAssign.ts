@@ -30,6 +30,9 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {Warehouse} from '@/db/types'
+import {createLogger} from '@/utils/logger'
+
+const logger = createLogger('WarehouseAssign')
 
 /** 辅助函数：判断是否是管理员角色（boss） */
 const isAdminRole = (role: string | undefined) => {
@@ -68,7 +71,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
       const data = await WarehousesAPI.getAllWarehouses()
       setWarehouses(data.filter((w) => w.is_active))
     } catch (error) {
-      console.error('加载仓库列表失败:', error)
+      logger.error('加载仓库列表失败', error)
       showToast({title: '加载仓库失败', icon: 'error'})
     }
   }, [])
@@ -87,7 +90,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
 
       setSelectedIds(assignments.map((a) => a.warehouse_id))
     } catch (error) {
-      console.error('加载用户仓库失败:', error)
+      logger.error('加载用户仓库失败', error)
       showToast({title: '加载失败', icon: 'error'})
     } finally {
       Taro.hideLoading()
@@ -222,13 +225,13 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
             await createNotifications(notifications)
           }
         } catch (error) {
-          console.error('发送通知失败:', error)
+          logger.error('发送通知失败', error)
         }
 
         return true
       } catch (error) {
         Taro.hideLoading()
-        console.error('保存仓库分配失败:', error)
+        logger.error('保存仓库分配失败', error)
         showToast({title: '保存失败', icon: 'error'})
         return false
       }

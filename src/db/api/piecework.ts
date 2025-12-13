@@ -424,7 +424,7 @@ export async function getCategoryPricesByWarehouse(warehouseId: string): Promise
   }
 
   // 将 piece_work_categories.name 映射到 category_name
-  return (data || []).map((item: any) => ({
+  return (data || []).map((item: CategoryPrice & {piece_work_categories?: {name: string}}) => ({
     ...item,
     category_name: item.piece_work_categories?.name || item.category_name
   }))
@@ -540,7 +540,7 @@ export async function getCategoryPriceForDriver(
 
   if (!data || data.length === 0) return null
 
-  const driverOnlyPrice = data.find((item: any) => item.driver_type === 'driver_only')
+  const driverOnlyPrice = data.find((item) => item.driver_type === 'driver_only')
   const defaultPrice = driverOnlyPrice || data[0]
 
   return {

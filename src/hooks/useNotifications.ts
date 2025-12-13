@@ -1,34 +1,5 @@
-import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 存储工具函数，兼容H5和小程序
-function getStorageSync(key: string): any {
-  if (isH5) {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) : null
-  } else {
-    return Taro.getStorageSync(key)
-  }
-}
-
-function setStorageSync(key: string, data: any): void {
-  if (isH5) {
-    localStorage.setItem(key, JSON.stringify(data))
-  } else {
-    Taro.setStorageSync(key, data)
-  }
-}
-
-function removeStorageSync(key: string): void {
-  if (isH5) {
-    localStorage.removeItem(key)
-  } else {
-    Taro.removeStorageSync(key)
-  }
-}
+import {TypeSafeStorage} from '@/utils/storage'
 
 // 通知类型
 export type NotificationType =
@@ -46,7 +17,7 @@ export interface Notification {
   content: string
   timestamp: number
   read: boolean
-  data?: any // 额外数据，用于跳转等
+  data?: Record<string, unknown> // 额外数据，用于跳转等
 }
 
 const STORAGE_KEY = 'app_notifications'
@@ -61,27 +32,19 @@ export function useNotifications() {
 
   // 从本地存储加载通知
   const loadNotifications = useCallback(() => {
-    try {
-      const stored = getStorageSync(STORAGE_KEY)
-      if (stored && Array.isArray(stored)) {
-        setNotifications(stored)
-        const unread = stored.filter((n) => !n.read).length
-        setUnreadCount(unread)
-      }
-    } catch (err) {
-      console.error('加载通知失败:', err)
+    const stored = TypeSafeStorage.get<Notification[]>(STORAGE_KEY)
+    if (stored && Array.isArray(stored)) {
+      setNotifications(stored)
+      const unread = stored.filter((n) => !n.read).length
+      setUnreadCount(unread)
     }
   }, [])
 
   // 保存通知到本地存储
   const saveNotifications = useCallback((notifs: Notification[]) => {
-    try {
-      // 只保存最新的 MAX_NOTIFICATIONS 条
-      const toSave = notifs.slice(0, MAX_NOTIFICATIONS)
-      setStorageSync(STORAGE_KEY, toSave)
-    } catch (err) {
-      console.error('保存通知失败:', err)
-    }
+    // 只保存最新的 MAX_NOTIFICATIONS 条
+    const toSave = notifs.slice(0, MAX_NOTIFICATIONS)
+    TypeSafeStorage.set(STORAGE_KEY, toSave)
   }, [])
 
   // 添加新通知
@@ -134,11 +97,7 @@ export function useNotifications() {
   const clearAll = useCallback(() => {
     setNotifications([])
     setUnreadCount(0)
-    try {
-      removeStorageSync(STORAGE_KEY)
-    } catch (err) {
-      console.error('清除通知失败:', err)
-    }
+    TypeSafeStorage.remove(STORAGE_KEY)
   }, [])
 
   // 删除单个通知

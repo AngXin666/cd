@@ -19,6 +19,7 @@ const mockUsers: (Profile & {real_name?: string})[] = [
     email: 'zhangsan@example.com',
     role: 'DRIVER',
     status: 'active',
+    avatar_url: null,
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   },
@@ -29,6 +30,7 @@ const mockUsers: (Profile & {real_name?: string})[] = [
     email: 'lisi@example.com',
     role: 'MANAGER',
     status: 'active',
+    avatar_url: null,
     created_at: '2024-01-01',
     updated_at: '2024-01-01'
   }

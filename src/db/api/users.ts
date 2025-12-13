@@ -892,11 +892,12 @@ export async function createUser(
       }
 
       userId = rpcData.user_id
-    } catch (authError: any) {
-      if (authError.message?.includes('已被注册')) {
-        throw authError
+    } catch (authError: unknown) {
+      const error = authError as Error
+      if (error.message?.includes('已被注册')) {
+        throw error
       }
-      const errorMsg = authError?.message || String(authError)
+      const errorMsg = error?.message || String(authError)
       if (errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists')) {
         throw new Error(`该手机号（${phone}）已被注册，请使用其他手机号`)
       }
@@ -1034,7 +1035,7 @@ export async function uploadAvatar(
     const ext = file.name?.split('.').pop() || 'jpg'
     const fileName = `${userId}/avatar_${timestamp}.${ext}`
 
-    const fileContent = file.originalFileObj || ({tempFilePath: file.path} as any)
+    const fileContent = file.originalFileObj || ({tempFilePath: file.path} as unknown as File)
 
     const {error} = await supabase.storage.from('app-7cdqf07mbu9t_avatars').upload(fileName, fileContent, {
       cacheControl: '3600',

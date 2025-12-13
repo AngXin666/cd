@@ -1,0 +1,48 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // 启用严格模式选项
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    
+    // 额外的类型检查
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    
+    // 模块解析
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    
+    // 其他
+    "skipLibCheck": true
+  },
+  "files": [
+    "./src/types/index.ts",
+    "./src/types/utils.ts",
+    "./src/types/api.ts",
+    "./src/types/capacitor.ts",
+    "./src/utils/errorHandler.ts",
+    "./src/utils/storage.ts",
+    "./src/utils/loggerWrapper.ts",
+    "./src/utils/logger.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
+}

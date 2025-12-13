@@ -51,7 +51,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
   // 显示通知
   const showNotification = useCallback(
-    (title: string, content: string, key: string, type: Notification['type'], data?: any) => {
+    (title: string, content: string, key: string, type: Notification['type'], data?: Record<string, unknown>) => {
       if (shouldShowNotification(key)) {
         // 显示 Toast 通知
         Taro.showToast({

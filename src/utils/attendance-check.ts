@@ -5,6 +5,9 @@
 
 import {getTodayAttendance} from '@/db/api/attendance'
 import {getApprovedLeaveForToday} from '@/db/api/dashboard'
+import {createLogger} from './logger'
+
+const logger = createLogger('AttendanceCheck')
 
 /**
  * 检测结果类型
@@ -67,7 +70,7 @@ export async function checkTodayAttendance(userId: string): Promise<AttendanceCh
       message: '今天尚未打卡'
     }
   } catch (error) {
-    console.error('[checkTodayAttendance] 检测失败:', error)
+    logger.error('检测今日打卡状态失败', error)
     // 发生错误时，默认不阻止操作
     return {
       needClockIn: false,

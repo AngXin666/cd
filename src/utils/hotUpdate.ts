@@ -13,6 +13,10 @@ import {
   showModal,
   showToast
 } from '@/utils/taroCompat'
+import {createLogger} from './logger'
+import {enhancedErrorHandler} from './errorHandler'
+
+const logger = createLogger('HotUpdate')
 
 const UPDATE_CHECK_URL = 'https://wxvrwkpkioalqdsfswwu.supabase.co/storage/v1/object/public/app-updates/latest.zip'
 const UPDATE_VERSION_KEY = 'hot_update_version'
@@ -69,7 +73,13 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 
     return null
   } catch (error) {
-    console.error('[热更新] 检查更新失败:', error)
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: false,
+      context: {
+        component: 'HotUpdate',
+        action: 'checkForUpdate'
+      }
+    })
     return null
   }
 }
@@ -108,7 +118,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
             }
           })
         } else {
-          console.error('[热更新] ❌ 下载失败，状态码非 200:', res.statusCode)
+          logger.error('下载失败，状态码非 200', {statusCode: res.statusCode})
           hideLoading()
           showToast({
             title: `下载失败 (${res.statusCode})`,
@@ -117,19 +127,12 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
         }
       },
       fail: (err) => {
-        console.error('========================================')
-        console.error('[热更新] ❌ downloadFile fail 回调触发')
-        console.error('[热更新] 错误类型:', typeof err)
-        console.error('[热更新] 错误对象:', JSON.stringify(err, null, 2))
-        console.error('[热更新] errMsg:', err.errMsg)
-
-        // 尝试输出所有可能的错误信息字段
-        if (err) {
-          Object.keys(err).forEach((key) => {
-            console.error(`[热更新] err.${key}:`, err[key])
-          })
-        }
-        console.error('========================================')
+        logger.error('downloadFile fail 回调触发', {
+          errorType: typeof err,
+          errorObject: err,
+          errMsg: err.errMsg,
+          allKeys: err ? Object.keys(err) : []
+        })
 
         hideLoading()
         showToast({
@@ -141,7 +144,7 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
     })
 
     if (!downloadTask) {
-      console.error('[热更新] ❌ downloadTask 为 null 或 undefined！')
+      logger.error('downloadTask 为 null 或 undefined')
       hideLoading()
       showToast({
         title: '下载任务创建失败',
@@ -165,13 +168,18 @@ export async function downloadAndApplyUpdate(updateInfo: UpdateInfo): Promise<bo
 
     return true
   } catch (error) {
-    console.error('========================================')
-    console.error('[热更新] ❌ 捕获到异常')
-    console.error('[热更新] 异常类型:', typeof error)
-    console.error('[热更新] 异常对象:', error)
-    console.error('[热更新] 异常消息:', error instanceof Error ? error.message : String(error))
-    console.error('[热更新] 堆栈信息:', error instanceof Error ? error.stack : 'N/A')
-    console.error('========================================')
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: false,
+      context: {
+        component: 'HotUpdate',
+        action: 'downloadAndApplyUpdate',
+        metadata: {
+          errorType: typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : 'N/A'
+        }
+      }
+    })
 
     hideLoading()
     return false
@@ -200,7 +208,13 @@ export async function silentCheckUpdate(): Promise<void> {
       })
     }
   } catch (error) {
-    console.error('[热更新] 静默检查失败:', error)
+    enhancedErrorHandler.handleWithContext(error, {
+      showToast: false,
+      context: {
+        component: 'HotUpdate',
+        action: 'silentCheckUpdate'
+      }
+    })
   }
 }
 

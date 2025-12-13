@@ -4,6 +4,7 @@
  */
 
 import {createLogger} from './logger'
+import {enhancedErrorHandler} from './errorHandler'
 
 const logger = createLogger('CacheManager')
 
@@ -292,4 +293,213 @@ export function withCache<T extends (...args: unknown[]) => Promise<unknown>>(
 
     return result
   }) as T
+}
+
+/**
+ * 缓存键常量（兼容旧API）
+ */
+export const CACHE_KEYS = {
+  // 考勤相关
+  ATTENDANCE_MONTHLY: 'attendance_monthly',
+  ATTENDANCE_ALL_RECORDS: 'attendance_all_records',
+  
+  // 用户相关
+  USER_PROFILE: 'user_profile',
+  ALL_USERS: 'all_users',
+  
+  // 仓库相关
+  WAREHOUSE_LIST: 'warehouse_list',
+  ALL_WAREHOUSES: 'all_warehouses',
+  WAREHOUSE_CATEGORIES: 'warehouse_categories',
+  WAREHOUSE_ASSIGNMENTS: 'warehouse_assignments',
+  MANAGER_WAREHOUSES: 'manager_warehouses',
+  
+  // 品类相关
+  CATEGORY_LIST: 'category_list',
+  
+  // 司机相关
+  MANAGER_DRIVERS: 'manager_drivers',
+  MANAGER_DRIVER_DETAILS: 'manager_driver_details',
+  
+  // 车辆相关
+  ALL_VEHICLES: 'all_vehicles',
+  
+  // 司机仓库关联
+  MANAGER_DRIVER_WAREHOUSES: 'manager_driver_warehouses',
+  
+  // 超级管理员用户管理
+  SUPER_ADMIN_USERS: 'super_admin_users',
+  SUPER_ADMIN_USER_DETAILS: 'super_admin_user_details',
+  SUPER_ADMIN_USER_WAREHOUSES: 'super_admin_user_warehouses',
+  
+  // 仪表盘
+  DASHBOARD_DATA: 'dashboard_data'
+}
+
+/**
+ * 清除管理员仓库缓存（兼容旧API）
+ */
+export function clearManagerWarehousesCache(managerId?: string): void {
+  if (managerId) {
+    clearCache(`${CACHE_KEYS.MANAGER_WAREHOUSES}_${managerId}`)
+    clearCache(`${CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES}_${managerId}`)
+  }
+  clearCacheByPrefix(CACHE_KEYS.MANAGER_WAREHOUSES)
+  clearCacheByPrefix(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES)
+}
+
+/**
+ * 简单缓存存储（兼容旧API）
+ */
+const simpleCache = new Map<string, { value: unknown; expiry: number }>()
+
+/**
+ * 设置缓存（兼容旧API）
+ */
+export function setCache(key: string, value: unknown, ttl: number = 5 * 60 * 1000): void {
+  simpleCache.set(key, {
+    value,
+    expiry: Date.now() + ttl
+  })
+}
+
+/**
+ * 获取缓存（兼容旧API）
+ */
+export function getCache<T = unknown>(key: string): T | null {
+  const entry = simpleCache.get(key)
+  if (!entry) return null
+  if (Date.now() > entry.expiry) {
+    simpleCache.delete(key)
+    return null
+  }
+  return entry.value as T
+}
+
+/**
+ * 清除缓存（兼容旧API）
+ */
+export function clearCache(key: string): void {
+  simpleCache.delete(key)
+}
+
+/**
+ * 清除所有缓存（兼容旧API）
+ */
+export function clearAllCache(): void {
+  simpleCache.clear()
+}
+
+/**
+ * 按前缀清除缓存（兼容旧API）
+ */
+export function clearCacheByPrefix(prefix: string): void {
+  for (const key of simpleCache.keys()) {
+    if (key.startsWith(prefix)) {
+      simpleCache.delete(key)
+    }
+  }
+}
+
+/**
+ * 获取带版本的缓存（兼容旧API）
+ * 支持两种调用方式：
+ * 1. getVersionedCache(key) - 直接获取缓存
+ * 2. getVersionedCache(key, version) - 获取带版本的缓存
+ */
+export function getVersionedCache<T = unknown>(key: string, version?: string): T | null {
+  if (version) {
+    return getCache<T>(`${key}_v${version}`)
+  }
+  return getCache<T>(key)
+}
+
+/**
+ * 设置带版本的缓存（兼容旧API）
+ * 支持两种调用方式：
+ * 1. setVersionedCache(key, value, ttl?) - 直接设置缓存
+ * 2. setVersionedCache(key, version, value, ttl?) - 设置带版本的缓存
+ */
+export function setVersionedCache(key: string, valueOrVersion: unknown, ttlOrValue?: unknown, ttl?: number): void {
+  // 判断调用方式：如果第三个参数是数字或undefined，则是简单模式
+  if (typeof ttlOrValue === 'number' || ttlOrValue === undefined) {
+    // 简单模式: setVersionedCache(key, value, ttl?)
+    setCache(key, valueOrVersion, ttlOrValue as number | undefined)
+  } else {
+    // 版本模式: setVersionedCache(key, version, value, ttl?)
+    const version = valueOrVersion as string
+    setCache(`${key}_v${version}`, ttlOrValue, ttl)
+  }
+}
+
+/**
+ * 清除带版本的缓存（兼容旧API）
+ */
+export function clearVersionedCache(key: string): void {
+  // 清除所有以该key开头的缓存
+  for (const cacheKey of simpleCache.keys()) {
+    if (cacheKey.startsWith(key)) {
+      simpleCache.delete(cacheKey)
+    }
+  }
+}
+
+/**
+ * 数据更新回调存储
+ */
+const dataUpdateCallbacks = new Map<string, Set<() => void>>()
+
+/**
+ * 数据更新通知（兼容旧API）
+ * 支持两种调用方式：
+ * 1. onDataUpdated(keys: string[]) - 清除指定keys的缓存
+ * 2. onDataUpdated(key: string, callback: () => void) - 注册回调
+ */
+export function onDataUpdated(keyOrKeys: string | string[], callback?: () => void): (() => void) | void {
+  // 如果是数组，清除这些key的缓存
+  if (Array.isArray(keyOrKeys)) {
+    for (const key of keyOrKeys) {
+      clearCache(key)
+      clearCacheByPrefix(key)
+      notifyDataUpdated(key)
+    }
+    return
+  }
+  
+  // 如果有callback，注册回调
+  if (callback) {
+    const key = keyOrKeys
+    if (!dataUpdateCallbacks.has(key)) {
+      dataUpdateCallbacks.set(key, new Set())
+    }
+    dataUpdateCallbacks.get(key)!.add(callback)
+    
+    // 返回取消订阅函数
+    return () => {
+      dataUpdateCallbacks.get(key)?.delete(callback)
+    }
+  }
+}
+
+/**
+ * 触发数据更新回调（兼容旧API）
+ */
+export function notifyDataUpdated(key: string): void {
+  const callbacks = dataUpdateCallbacks.get(key)
+  if (callbacks) {
+    for (const callback of callbacks) {
+      try {
+        callback()
+      } catch (error) {
+        enhancedErrorHandler.handleWithContext(error, {
+          showToast: false,
+          context: {
+            component: 'CacheManager',
+            action: 'notifyDataUpdated',
+            metadata: {key}
+          }
+        })
+      }
+    }
+  }
 }

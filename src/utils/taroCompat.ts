@@ -4,6 +4,9 @@
  */
 
 import Taro from '@tarojs/taro'
+import {createLogger} from './logger'
+
+const logger = createLogger('TaroCompat')
 
 // 环境检测
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -260,7 +263,7 @@ export function setStorageSync<T = unknown>(key: string, data: T): void {
     try {
       localStorage.setItem(key, JSON.stringify(data))
     } catch (e) {
-      console.error('setStorageSync失败:', e)
+      logger.error('setStorageSync失败', e)
     }
   } else {
     Taro.setStorageSync(key, data)

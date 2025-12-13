@@ -1,38 +1,9 @@
 import type {RealtimeChannel} from '@supabase/supabase-js'
-import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import type {DashboardStats} from '@/db/api/dashboard'
 import {getAllWarehousesDashboardStats, getWarehouseDashboardStats} from '@/db/api/dashboard'
-
-// 环境检测
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 存储兼容工具函数
-const getStorageSync = (key: string): any => {
-  if (isH5) {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) : null
-  } else {
-    return Taro.getStorageSync(key)
-  }
-}
-
-const setStorageSync = (key: string, data: any): void => {
-  if (isH5) {
-    localStorage.setItem(key, JSON.stringify(data))
-  } else {
-    Taro.setStorageSync(key, data)
-  }
-}
-
-const removeStorageSync = (key: string): void => {
-  if (isH5) {
-    localStorage.removeItem(key)
-  } else {
-    Taro.removeStorageSync(key)
-  }
-}
+import {TypeSafeStorage} from '@/utils/storage'
 
 // 缓存配置
 const CACHE_KEY_ALL = 'super_admin_dashboard_all'
@@ -75,21 +46,17 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
     (wid?: string): DashboardStats | null => {
       if (!cacheEnabled) return null
 
-      try {
-        const cacheKey = getCacheKey(wid)
-        const cached = getStorageSync(cacheKey) as CachedData | null
+      const cacheKey = getCacheKey(wid)
+      const cached = TypeSafeStorage.get<CachedData>(cacheKey)
 
-        if (cached) {
-          const now = Date.now()
-          // 检查缓存是否过期
-          if (now - cached.timestamp < CACHE_EXPIRY_MS) {
-            return cached.data
-          }
-          // 缓存过期，删除
-          removeStorageSync(cacheKey)
+      if (cached) {
+        const now = Date.now()
+        // 检查缓存是否过期
+        if (now - cached.timestamp < CACHE_EXPIRY_MS) {
+          return cached.data
         }
-      } catch (err) {
-        console.error('读取缓存失败:', err)
+        // 缓存过期，删除
+        TypeSafeStorage.remove(cacheKey)
       }
 
       return null
@@ -102,17 +69,13 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
     (dashboardData: DashboardStats, wid?: string) => {
       if (!cacheEnabled) return
 
-      try {
-        const cacheKey = getCacheKey(wid)
-        const cacheData: CachedData = {
-          data: dashboardData,
-          timestamp: Date.now(),
-          warehouseId: wid
-        }
-        setStorageSync(cacheKey, cacheData)
-      } catch (err) {
-        console.error('保存缓存失败:', err)
+      const cacheKey = getCacheKey(wid)
+      const cacheData: CachedData = {
+        data: dashboardData,
+        timestamp: Date.now(),
+        warehouseId: wid
       }
+      TypeSafeStorage.set(cacheKey, cacheData)
     },
     [cacheEnabled, getCacheKey]
   )
@@ -120,12 +83,8 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
   // 清除缓存
   const clearCache = useCallback(
     (wid?: string) => {
-      try {
-        const cacheKey = getCacheKey(wid)
-        removeStorageSync(cacheKey)
-      } catch (err) {
-        console.error('清除缓存失败:', err)
-      }
+      const cacheKey = getCacheKey(wid)
+      TypeSafeStorage.remove(cacheKey)
     },
     [getCacheKey]
   )

@@ -32,6 +32,28 @@ export interface AppError {
 }
 
 /**
+ * 错误上下文信息
+ */
+export interface ErrorContext {
+  component?: string
+  action?: string
+  userId?: string
+  timestamp?: number
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * 错误处理选项
+ */
+export interface ErrorHandleOptions {
+  showToast?: boolean
+  logError?: boolean
+  redirectOnAuth?: boolean
+  customMessage?: string
+  context?: ErrorContext
+}
+
+/**
  * 错误消息映射
  */
 const ERROR_MESSAGES: Record<ErrorType, string> = {
@@ -72,20 +94,22 @@ class ErrorHandler {
   private parseError(error: unknown): AppError {
     // Supabase 错误
     if (typeof error === 'object' && error !== null && 'message' in error && 'code' in error) {
+      const err = error as {message: string; code: string | number}
       return {
         type: this.getErrorType(error),
-        message: error.message,
-        code: error.code,
+        message: err.message,
+        code: err.code,
         originalError: error
       }
     }
 
     // 网络错误
-    if (error?.errMsg || error?.statusCode) {
+    const networkError = error as {errMsg?: string; statusCode?: number} | null
+    if (networkError?.errMsg || networkError?.statusCode) {
       return {
         type: ErrorType.NETWORK,
-        message: error.errMsg || '网络请求失败',
-        code: error.statusCode,
+        message: networkError.errMsg || '网络请求失败',
+        code: networkError.statusCode,
         originalError: error
       }
     }
@@ -120,27 +144,27 @@ class ErrorHandler {
    * 根据错误判断错误类型
    */
   private getErrorType(error: unknown): ErrorType {
-    const code =
-      (typeof error === 'object' && error !== null && ('code' in error ? error.code : 'statusCode' in error ? error.statusCode : undefined)) ||
-      undefined
+    const err = error as {code?: string | number; statusCode?: number; message?: string} | null
+    const code = err?.code ?? err?.statusCode
+    const message = err?.message || ''
 
     // 认证错误
-    if (code === 401 || code === 'PGRST301' || error.message?.includes('JWT')) {
+    if (code === 401 || code === 'PGRST301' || message.includes('JWT')) {
       return ErrorType.AUTH
     }
 
     // 网络错误
-    if (code >= 500 || error.message?.includes('network') || error.message?.includes('timeout')) {
+    if ((typeof code === 'number' && code >= 500) || message.includes('network') || message.includes('timeout')) {
       return ErrorType.NETWORK
     }
 
     // 验证错误
-    if (code === 400 || code === 422 || error.message?.includes('validation')) {
+    if (code === 400 || code === 422 || message.includes('validation')) {
       return ErrorType.VALIDATION
     }
 
     // API 错误
-    if (code >= 400 && code < 500) {
+    if (typeof code === 'number' && code >= 400 && code < 500) {
       return ErrorType.API
     }
 
@@ -201,10 +225,81 @@ class ErrorHandler {
     const message = fieldName ? `${fieldName}格式不正确，请检查后重试` : '输入信息有误，请检查后重试'
     this.handle(error, message)
   }
+
+  /**
+   * 处理错误并提供更多上下文
+   */
+  handleWithContext(error: unknown, options: ErrorHandleOptions = {}): void {
+    const {
+      showToast = true,
+      logError = true,
+      redirectOnAuth = true,
+      customMessage,
+      context
+    } = options
+
+    const appError = this.parseError(error)
+
+    // 记录错误日志(带上下文)
+    if (logError) {
+      logger.error('应用错误', {
+        type: appError.type,
+        message: appError.message,
+        code: appError.code,
+        details: appError.details,
+        originalError: appError.originalError,
+        context
+      })
+    }
+
+    // 显示用户提示
+    if (showToast) {
+      const userMessage = customMessage || this.getUserMessage(appError)
+      this.showToast(userMessage)
+    }
+
+    // 处理认证错误
+    if (appError.type === ErrorType.AUTH && redirectOnAuth) {
+      this.redirectToLogin()
+    }
+  }
+
+  /**
+   * 批量错误处理
+   */
+  handleBatch(errors: Array<{error: unknown; context?: ErrorContext}>): void {
+    const errorSummary = errors.map(({error, context}) => ({
+      error: this.parseError(error),
+      context
+    }))
+
+    logger.error('批量错误', {errors: errorSummary})
+
+    // 显示汇总提示
+    if (errors.length === 1 && errors[0]) {
+      this.handle(errors[0].error)
+    } else {
+      showError(`操作失败: ${errors.length} 个错误`)
+    }
+  }
+
+  /**
+   * 跳转到登录页
+   */
+  private redirectToLogin(): void {
+    setTimeout(() => {
+      Taro.reLaunch({url: '/pages/login/index'})
+    }, 1500)
+  }
 }
 
 // 导出单例
 export const errorHandler = new ErrorHandler()
+
+/**
+ * 增强的错误处理器(向后兼容)
+ */
+export const enhancedErrorHandler = errorHandler
 
 /**
  * 包装异步函数，自动处理错误

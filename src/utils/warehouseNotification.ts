@@ -3,11 +3,14 @@
  * 用于在不同页面发送仓库分配相关的通知
  */
 
-import {showToast} from '@tarojs/taro'
 import {getAllSuperAdmins} from '@/db/api/users'
 import {getWarehouseManagers} from '@/db/api/warehouses'
 import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
+import {createLogger} from './logger'
+import {enhancedErrorHandler} from './errorHandler'
+
+const logger = createLogger('WarehouseNotification')
 
 /**
  * 发送仓库分配通知
@@ -174,22 +177,12 @@ export const sendWarehouseAssignmentNotifications = async (
       if (success) {
         return true
       }
-      console.error('❌ [通知系统] 发送通知失败')
-      showToast({
-        title: '通知发送失败',
-        icon: 'none',
-        duration: 2000
-      })
+      enhancedErrorHandler.handleApiError(new Error('通知创建失败'), '发送通知')
       return false
     }
     return true
   } catch (error) {
-    console.error('❌ [通知系统] 发送通知异常', error)
-    showToast({
-      title: '通知发送异常',
-      icon: 'none',
-      duration: 2000
-    })
+    enhancedErrorHandler.handleApiError(error, '发送通知')
     return false
   }
 }

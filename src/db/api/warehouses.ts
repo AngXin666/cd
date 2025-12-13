@@ -234,7 +234,13 @@ export async function getDriverWarehouses(driverId: string): Promise<Warehouse[]
   }
 
   // 提取仓库信息
-  const warehouses = data.map((item: any) => item.warehouses).filter(Boolean)
+  type WarehouseAssignmentData = {warehouse_id: string; warehouses: Warehouse | Warehouse[]}
+  const warehouses = data
+    .map((item: WarehouseAssignmentData) => {
+      // warehouses 可能是数组或单个对象
+      return Array.isArray(item.warehouses) ? item.warehouses[0] : item.warehouses
+    })
+    .filter(Boolean)
 
   return warehouses
 }
@@ -1083,7 +1089,7 @@ export async function getWarehouseCategoriesWithDetails(warehouseId: string): Pr
     }
 
     // 转换为PieceWorkCategory格式，并保持向后兼容
-    return categoriesData.map((item: any) => ({
+    return categoriesData.map((item: PieceWorkCategory) => ({
       id: item.id,
       name: item.name,
       category_name: item.name, // 保持向后兼容

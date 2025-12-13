@@ -748,16 +748,16 @@ const WarehouseEdit: React.FC = () => {
                   onInput={(e) => setResignationNoticeDays(e.detail.value)}
                 />
               </View>
-              <Text className="text-gray-500 text-xs mt-1">司机离职需要提前通知的天�?/Text>
+              <Text className="text-gray-500 text-xs mt-1">司机离职需要提前通知的天数</Text>
             </View>
 
             <View>
-              <Text className="text-gray-700 text-sm mb-2">每日指标数（选填�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">每日指标数（选填）</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                   type="number"
-                  placeholder="请输入每日指标数（件�?
+                  placeholder="请输入每日指标数（件）"
                   value={dailyTarget}
                   onInput={(e) => setDailyTarget(e.detail.value)}
                 />
@@ -789,26 +789,26 @@ const WarehouseEdit: React.FC = () => {
             </View>
 
             <View className="mb-4">
-              <Text className="text-gray-700 text-sm mb-2">迟到阈值（分钟�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">迟到阈值（分钟）</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                   type="number"
-                  placeholder="请输入迟到阈�?
+                  placeholder="请输入迟到阈值"
                   value={ruleLateThreshold}
                   onInput={(e) => setRuleLateThreshold(e.detail.value)}
                 />
               </View>
-              <Text className="text-gray-500 text-xs mt-1">超过上班时间多少分钟算迟�?/Text>
+              <Text className="text-gray-500 text-xs mt-1">超过上班时间多少分钟算迟到</Text>
             </View>
 
             <View className="mb-4">
-              <Text className="text-gray-700 text-sm mb-2">早退阈值（分钟�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">早退阈值（分钟）</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                   type="number"
-                  placeholder="请输入早退阈�?
+                  placeholder="请输入早退阈值"
                   value={ruleEarlyThreshold}
                   onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
                 />
@@ -818,9 +818,9 @@ const WarehouseEdit: React.FC = () => {
 
             <View className="mb-4">
               <View className="flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">是否需要打下班�?/Text>
+                <Text className="text-gray-700 text-sm">是否需要打下班卡</Text>
                 <View className="flex items-center">
-                  <Text className="text-gray-600 text-sm mr-2">{ruleRequireClockOut ? '需�? : '不需�?}</Text>
+                  <Text className="text-gray-600 text-sm mr-2">{ruleRequireClockOut ? '需要' : '不需要'}</Text>
                   <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
                 </View>
               </View>
@@ -829,7 +829,7 @@ const WarehouseEdit: React.FC = () => {
 
             <View>
               <View className="flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">规则状�?/Text>
+                <Text className="text-gray-700 text-sm">规则状态</Text>
                 <View className="flex items-center">
                   <Text className="text-gray-600 text-sm mr-2">{ruleActive ? '启用' : '停用'}</Text>
                   <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
@@ -843,7 +843,7 @@ const WarehouseEdit: React.FC = () => {
             <View className="flex items-center justify-between mb-4">
               <Text className="text-gray-800 font-bold text-lg">品类设置</Text>
               <View className="flex items-center gap-2">
-                <Text className="text-gray-500 text-sm mr-2">已选择 {selectedCategories.size} 个品�?/Text>
+                <Text className="text-gray-500 text-sm mr-2">已选择 {selectedCategories.size} 个品类</Text>
                 <Button
                   size="mini"
                   className="bg-green-500 text-white text-xs break-keep mr-2"
@@ -867,7 +867,8 @@ const WarehouseEdit: React.FC = () => {
                   <View className="flex-1">
                     <Text className="text-blue-900 font-medium text-sm">快捷提示</Text>
                     <Text className="text-blue-700 text-xs mt-1">
-                      可以点击"导入品类"从其他仓库快速导入品类配置，或点�?新建品类"直接创建新品�?                    </Text>
+                      可以点击"导入品类"从其他仓库快速导入品类配置，或点击"新建品类"直接创建新品类
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -907,7 +908,7 @@ const WarehouseEdit: React.FC = () => {
                           </Text>
                         </View>
                         <Text className={`text-xs ${category.is_active ? 'text-green-600' : 'text-gray-400'}`}>
-                          {category.is_active ? '启用�? : '已停�?}
+                          {category.is_active ? '启用中' : '已停用'}
                         </Text>
                       </View>
 
@@ -919,7 +920,7 @@ const WarehouseEdit: React.FC = () => {
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入单�?
+                                placeholder="请输入单价"
                                 value={driverPrice}
                                 onInput={(e) => updateDriverPrice(category.category_name, e.detail.value)}
                               />
@@ -931,7 +932,7 @@ const WarehouseEdit: React.FC = () => {
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入上楼价�?
+                                placeholder="请输入上楼价格"
                                 value={vehiclePrice}
                                 onInput={(e) => updateVehiclePrice(category.category_name, e.detail.value)}
                               />
@@ -943,7 +944,7 @@ const WarehouseEdit: React.FC = () => {
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入分拣单�?
+                                placeholder="请输入分拣单价"
                                 value={sortingPrice}
                                 onInput={(e) => updateSortingPrice(category.category_name, e.detail.value)}
                               />
@@ -958,22 +959,22 @@ const WarehouseEdit: React.FC = () => {
             )}
           </View>
 
-          {/* 管理员设�?*/}
+          {/* 管理员设置 */}
           <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
             <View className="flex items-center justify-between mb-4">
               <Text className="text-gray-800 font-bold text-lg">
-                管理员设�?<Text className="text-red-500 text-sm">*</Text>
+                管理员设置 <Text className="text-red-500 text-sm">*</Text>
               </Text>
               <Text className="text-gray-500 text-sm">已选择 {selectedManagers.size} 个管理员</Text>
             </View>
 
-            {/* 快速添加自�?*/}
+            {/* 快速添加自己 */}
             {currentUser && !selectedManagers.has(currentUser.id) && (
               <View className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
                 <View className="flex items-center justify-between">
                   <View className="flex-1">
-                    <Text className="text-orange-900 font-medium text-sm">快速添�?/Text>
-                    <Text className="text-orange-700 text-xs mt-1">将自己设置为该仓库的管理�?/Text>
+                    <Text className="text-orange-900 font-medium text-sm">快速添加</Text>
+                    <Text className="text-orange-700 text-xs mt-1">将自己设置为该仓库的管理员</Text>
                   </View>
                   <Button
                     size="mini"
@@ -988,7 +989,7 @@ const WarehouseEdit: React.FC = () => {
             {allManagers.length === 0 ? (
               <View className="text-center py-8">
                 <View className="i-mdi-account-supervisor text-5xl text-gray-300 mx-auto mb-2" />
-                <Text className="text-gray-400 text-sm">暂无可用管理�?/Text>
+                <Text className="text-gray-400 text-sm">暂无可用管理员</Text>
               </View>
             ) : (
               <View>
@@ -1013,16 +1014,16 @@ const WarehouseEdit: React.FC = () => {
                         <View className="flex-1">
                           <View className="flex items-center">
                             <Text className={`font-medium ${isSelected ? 'text-green-900' : 'text-gray-700'}`}>
-                              {manager.name || manager.phone || manager.email || '未命�?}
+                              {manager.name || manager.phone || manager.email || '未命名'}
                             </Text>
                             {isSelf && (
                               <View className="ml-2 bg-blue-100 px-2 py-0.5 rounded">
-                                <Text className="text-blue-700 text-xs">�?/Text>
+                                <Text className="text-blue-700 text-xs">我</Text>
                               </View>
                             )}
                           </View>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {manager.role === 'BOSS' ? '超级管理�? : '车队�?}
+                            {manager.role === 'BOSS' ? '超级管理员' : '车队长'}
                           </Text>
                         </View>
                       </View>
@@ -1040,7 +1041,7 @@ const WarehouseEdit: React.FC = () => {
           </View>
         </View>
 
-        {/* 新建品类对话�?*/}
+        {/* 新建品类对话框 */}
         {showNewCategoryDialog && (
           <View className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <View className="bg-white rounded-lg p-6 m-4 w-full max-w-md">
@@ -1059,7 +1060,7 @@ const WarehouseEdit: React.FC = () => {
                 <View style={{overflow: 'hidden'}}>
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
-                    placeholder="例如：装卸货�?
+                    placeholder="例如：装卸货物"
                     value={newCategoryName}
                     onInput={(e) => setNewCategoryName(e.detail.value)}
                   />
@@ -1072,7 +1073,7 @@ const WarehouseEdit: React.FC = () => {
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入单�?
+                    placeholder="请输入单价"
                     value={newCategoryDriverPrice}
                     onInput={(e) => setNewCategoryDriverPrice(e.detail.value)}
                   />
@@ -1086,7 +1087,7 @@ const WarehouseEdit: React.FC = () => {
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入上楼价�?
+                    placeholder="请输入上楼价格"
                     value={newCategoryVehiclePrice}
                     onInput={(e) => setNewCategoryVehiclePrice(e.detail.value)}
                   />
@@ -1099,7 +1100,7 @@ const WarehouseEdit: React.FC = () => {
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入分拣单�?
+                    placeholder="请输入分拣单价"
                     value={newCategorySortingPrice}
                     onInput={(e) => setNewCategorySortingPrice(e.detail.value)}
                   />
@@ -1124,7 +1125,7 @@ const WarehouseEdit: React.FC = () => {
           </View>
         )}
 
-        {/* 导入品类对话�?*/}
+        {/* 导入品类对话框 */}
         {showImportDialog && (
           <View className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <View className="bg-white rounded-lg p-6 m-4 w-full max-w-md">
@@ -1142,7 +1143,8 @@ const WarehouseEdit: React.FC = () => {
                   <View className="flex items-start">
                     <View className="i-mdi-information text-lg text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
                     <Text className="text-blue-700 text-xs flex-1">
-                      将会导入选中仓库的所有品类配置（包括品类和单价），并与当前配置合�?                    </Text>
+                      将会导入选中仓库的所有品类配置（包括品类和单价），并与当前配置合并
+                    </Text>
                   </View>
                 </View>
 
@@ -1170,7 +1172,7 @@ const WarehouseEdit: React.FC = () => {
                             {warehouse.name}
                           </Text>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {warehouse.is_active ? '运营�? : '已停�?}
+                            {warehouse.is_active ? '运营中' : '已停用'}
                           </Text>
                         </View>
                         {selectedWarehouseForImport === warehouse.id && (

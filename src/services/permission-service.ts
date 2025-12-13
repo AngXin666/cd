@@ -10,13 +10,21 @@ import type {UserRole} from '@/db/types'
 export {PermissionAction}
 
 /**
+ * 查询构建器泛型接口
+ * 定义了查询构建器必须实现的方法
+ */
+export interface QueryBuilder<T> {
+  eq: (key: string, value: unknown) => T
+}
+
+/**
  * 权限验证结果
  */
 export interface PermissionCheckResult {
   /** 是否有权限 */
   hasPermission: boolean
   /** 数据过滤条件 */
-  filter?: Record<string, any> | null
+  filter?: Record<string, unknown> | null
   /** 错误信息 */
   error?: string
 }
@@ -84,11 +92,7 @@ export class PermissionService {
    * @param action 操作类型
    * @returns 增强后的查询构建器
    */
-  applyFilter<T extends {eq: (key: string, value: any) => T}>(
-    query: T,
-    tableName: string,
-    action: PermissionAction
-  ): T {
+  applyFilter<T extends QueryBuilder<T>>(query: T, tableName: string, action: PermissionAction): T {
     const result = this.checkPermission(tableName, action)
     if (!result.hasPermission) {
       throw new Error(result.error)

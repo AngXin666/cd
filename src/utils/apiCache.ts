@@ -10,8 +10,10 @@ const logger = createLogger('APICache')
 
 /**
  * API缓存实例
+ * 使用 any 类型以支持多种返回类型的API
  */
-export const apiCache = createCache({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const apiCache = createCache<any>({
   ttl: 5 * 60 * 1000, // 5分钟
   maxSize: 200,
   strategy: 'LRU'
@@ -20,7 +22,8 @@ export const apiCache = createCache({
 /**
  * 用户数据缓存（较短TTL，因为用户数据可能频繁变化）
  */
-export const userCache = createCache({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const userCache = createCache<any>({
   ttl: 3 * 60 * 1000, // 3分钟
   maxSize: 100,
   strategy: 'LRU'
@@ -29,7 +32,8 @@ export const userCache = createCache({
 /**
  * 仓库数据缓存（中等TTL）
  */
-export const warehouseCache = createCache({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const warehouseCache = createCache<any>({
   ttl: 5 * 60 * 1000, // 5分钟
   maxSize: 50,
   strategy: 'LRU'
@@ -38,7 +42,8 @@ export const warehouseCache = createCache({
 /**
  * 字典数据缓存（长TTL，因为字典数据很少变化）
  */
-export const dictionaryCache = createCache({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const dictionaryCache = createCache<any>({
   ttl: 30 * 60 * 1000, // 30分钟
   maxSize: 100,
   strategy: 'LRU'
@@ -47,7 +52,8 @@ export const dictionaryCache = createCache({
 /**
  * 配置数据缓存（很长TTL）
  */
-export const configCache = createCache({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const configCache = createCache<any>({
   ttl: 60 * 60 * 1000, // 1小时
   maxSize: 50,
   strategy: 'LRU'
@@ -191,7 +197,7 @@ export function startCacheCleanup(interval: number = 5 * 60 * 1000): () => void 
 /**
  * 包装API函数，自动添加缓存
  */
-export function cachedAPI<T extends (...args: any[]) => Promise<any>>(
+export function cachedAPI<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   cache: CacheManager<Awaited<ReturnType<T>>>,
   keyGenerator: (...args: Parameters<T>) => string,

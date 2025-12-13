@@ -4,35 +4,7 @@ import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getManagerWarehouses} from '@/db/api/warehouses'
 import type {Warehouse} from '@/db/types'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 存储工具函数，兼容H5和小程序
-function getStorageSync(key: string): any {
-  if (isH5) {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) : null
-  } else {
-    return Taro.getStorageSync(key)
-  }
-}
-
-function setStorageSync(key: string, data: any): void {
-  if (isH5) {
-    localStorage.setItem(key, JSON.stringify(data))
-  } else {
-    Taro.setStorageSync(key, data)
-  }
-}
-
-function removeStorageSync(key: string): void {
-  if (isH5) {
-    localStorage.removeItem(key)
-  } else {
-    Taro.removeStorageSync(key)
-  }
-}
+import {TypeSafeStorage} from '@/utils/storage'
 
 // 缓存配置
 const WAREHOUSES_CACHE_KEY = 'manager_warehouses_cache'
@@ -66,20 +38,16 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
   const loadFromCache = useCallback((): Warehouse[] | null => {
     if (!cacheEnabled) return null
 
-    try {
-      const cached = getStorageSync(WAREHOUSES_CACHE_KEY) as CachedWarehouses | null
+    const cached = TypeSafeStorage.get<CachedWarehouses>(WAREHOUSES_CACHE_KEY)
 
-      if (cached && cached.managerId === managerId) {
-        const now = Date.now()
-        // 检查缓存是否过期
-        if (now - cached.timestamp < CACHE_EXPIRY_MS) {
-          return cached.data
-        }
-        // 缓存过期，删除
-        removeStorageSync(WAREHOUSES_CACHE_KEY)
+    if (cached && cached.managerId === managerId) {
+      const now = Date.now()
+      // 检查缓存是否过期
+      if (now - cached.timestamp < CACHE_EXPIRY_MS) {
+        return cached.data
       }
-    } catch (err) {
-      console.error('读取仓库缓存失败:', err)
+      // 缓存过期，删除
+      TypeSafeStorage.remove(WAREHOUSES_CACHE_KEY)
     }
 
     return null
@@ -90,27 +58,19 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
     (warehousesData: Warehouse[]) => {
       if (!cacheEnabled) return
 
-      try {
-        const cacheData: CachedWarehouses = {
-          data: warehousesData,
-          timestamp: Date.now(),
-          managerId
-        }
-        setStorageSync(WAREHOUSES_CACHE_KEY, cacheData)
-      } catch (err) {
-        console.error('保存仓库缓存失败:', err)
+      const cacheData: CachedWarehouses = {
+        data: warehousesData,
+        timestamp: Date.now(),
+        managerId
       }
+      TypeSafeStorage.set(WAREHOUSES_CACHE_KEY, cacheData)
     },
     [managerId, cacheEnabled]
   )
 
   // 清除缓存
   const clearCache = useCallback(() => {
-    try {
-      removeStorageSync(WAREHOUSES_CACHE_KEY)
-    } catch (err) {
-      console.error('清除仓库缓存失败:', err)
-    }
+    TypeSafeStorage.remove(WAREHOUSES_CACHE_KEY)
   }, [])
 
   // 加载仓库列表

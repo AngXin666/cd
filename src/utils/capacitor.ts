@@ -4,19 +4,35 @@
  */
 
 import {platform} from './platform'
+import {createLogger} from './logger'
+import type {
+  CameraPlugin,
+  GeolocationPlugin,
+  DevicePlugin,
+  NetworkPlugin,
+  StatusBarPlugin,
+  AppPlugin,
+  FilesystemPlugin,
+  PushNotificationsPlugin,
+  KeyboardPlugin,
+  Position,
+  NetworkStatus
+} from '@/types/capacitor'
+
+const logger = createLogger('Capacitor')
 
 // Capacitor 插件类型定义
 interface CapacitorPlugins {
-  Camera?: any
-  Geolocation?: any
-  Device?: any
-  Network?: any
-  StatusBar?: any
-  SplashScreen?: any
-  Keyboard?: any
-  App?: any
-  Filesystem?: any
-  PushNotifications?: any
+  Camera?: CameraPlugin
+  Geolocation?: GeolocationPlugin
+  Device?: DevicePlugin
+  Network?: NetworkPlugin
+  StatusBar?: StatusBarPlugin
+  SplashScreen?: {show: () => Promise<void>; hide: () => Promise<void>}
+  Keyboard?: KeyboardPlugin
+  App?: AppPlugin
+  Filesystem?: FilesystemPlugin
+  PushNotifications?: PushNotificationsPlugin
 }
 
 /**
@@ -27,7 +43,7 @@ const getCapacitorPlugins = (): CapacitorPlugins => {
     return {}
   }
 
-  const capacitor = (window as any)?.Capacitor
+  const capacitor = (window as {Capacitor?: {Plugins?: CapacitorPlugins}})?.Capacitor
   return capacitor?.Plugins || {}
 }
 
@@ -57,17 +73,17 @@ export const capacitorCamera = {
       const image = await Camera.getPhoto({
         quality: options?.quality || 90,
         allowEditing: options?.allowEditing || false,
-        resultType: options?.resultType || 'uri',
-        source: options?.source || 'camera'
+        resultType: (options?.resultType || 'uri') as 'uri' | 'base64' | 'dataUrl',
+        source: (options?.source || 'camera') as 'camera' | 'photos'
       })
 
       return {
         webPath: image.webPath,
         format: image.format,
-        base64String: image.base64String
+        base64String: image.path // 使用 path 代替 base64String
       }
     } catch (error) {
-      console.error('Camera error:', error)
+      logger.error('Camera error', error)
       throw error
     }
   },
@@ -91,12 +107,12 @@ export const capacitorCamera = {
         limit: options?.limit || 5
       })
 
-      return images.photos.map((photo: any) => ({
+      return images.photos.map((photo) => ({
         webPath: photo.webPath,
         format: photo.format
       }))
     } catch (error) {
-      console.error('Pick images error:', error)
+      logger.error('Pick images error', error)
       throw error
     }
   }
@@ -136,7 +152,7 @@ export const capacitorGeolocation = {
         timestamp: coordinates.timestamp
       }
     } catch (error) {
-      console.error('Geolocation error:', error)
+      logger.error('Geolocation error', error)
       throw error
     }
   },
@@ -145,7 +161,7 @@ export const capacitorGeolocation = {
    * 监听位置变化
    */
   watchPosition: async (
-    callback: (position: any) => void,
+    callback: (position: Position | null, error?: Error) => void,
     options?: {
       enableHighAccuracy?: boolean
       timeout?: number
@@ -173,7 +189,7 @@ export const capacitorGeolocation = {
 
       return watchId
     } catch (error) {
-      console.error('Watch position error:', error)
+      logger.error('Watch position error', error)
       throw error
     }
   },
@@ -194,7 +210,7 @@ export const capacitorGeolocation = {
     try {
       await Geolocation.clearWatch({id: watchId})
     } catch (error) {
-      console.error('Clear watch error:', error)
+      logger.error('Clear watch error', error)
     }
   }
 }
@@ -228,7 +244,7 @@ export const capacitorDevice = {
         webViewVersion: info.webViewVersion
       }
     } catch (error) {
-      console.error('Device info error:', error)
+      logger.error('Device info error', error)
       return null
     }
   },
@@ -250,7 +266,7 @@ export const capacitorDevice = {
       const id = await Device.getId()
       return id.identifier
     } catch (error) {
-      console.error('Device ID error:', error)
+      logger.error('Device ID error', error)
       return null
     }
   }
@@ -280,7 +296,7 @@ export const capacitorNetwork = {
         connectionType: status.connectionType
       }
     } catch (error) {
-      console.error('Network status error:', error)
+      logger.error('Network status error', error)
       return null
     }
   },
@@ -288,7 +304,7 @@ export const capacitorNetwork = {
   /**
    * 监听网络状态变化
    */
-  addListener: (callback: (status: any) => void) => {
+  addListener: (callback: (status: NetworkStatus) => void) => {
     if (!platform.isAndroid()) {
       return () => {}
     }
@@ -299,10 +315,13 @@ export const capacitorNetwork = {
     }
 
     try {
-      const listener = Network.addListener('networkStatusChange', callback)
-      return () => listener.remove()
+      const listenerPromise = Network.addListener('networkStatusChange', callback)
+      return async () => {
+        const listener = await listenerPromise
+        await listener.remove()
+      }
     } catch (error) {
-      console.error('Network listener error:', error)
+      logger.error('Network listener error', error)
       return () => {}
     }
   }
@@ -328,7 +347,7 @@ export const capacitorStatusBar = {
     try {
       await StatusBar.setStyle({style})
     } catch (error) {
-      console.error('StatusBar style error:', error)
+      logger.error('StatusBar style error', error)
     }
   },
 
@@ -348,7 +367,7 @@ export const capacitorStatusBar = {
     try {
       await StatusBar.setBackgroundColor({color})
     } catch (error) {
-      console.error('StatusBar background color error:', error)
+      logger.error('StatusBar background color error', error)
     }
   },
 
@@ -368,7 +387,7 @@ export const capacitorStatusBar = {
     try {
       await StatusBar.show()
     } catch (error) {
-      console.error('StatusBar show error:', error)
+      logger.error('StatusBar show error', error)
     }
   },
 
@@ -388,7 +407,7 @@ export const capacitorStatusBar = {
     try {
       await StatusBar.hide()
     } catch (error) {
-      console.error('StatusBar hide error:', error)
+      logger.error('StatusBar hide error', error)
     }
   }
 }
@@ -413,7 +432,7 @@ export const capacitorSplashScreen = {
     try {
       await SplashScreen.hide()
     } catch (error) {
-      console.error('SplashScreen hide error:', error)
+      logger.error('SplashScreen hide error', error)
     }
   },
 
@@ -433,7 +452,7 @@ export const capacitorSplashScreen = {
     try {
       await SplashScreen.show()
     } catch (error) {
-      console.error('SplashScreen show error:', error)
+      logger.error('SplashScreen show error', error)
     }
   }
 }
@@ -464,7 +483,7 @@ export const capacitorApp = {
         version: info.version
       }
     } catch (error) {
-      console.error('App info error:', error)
+      logger.error('App info error', error)
       return null
     }
   },
@@ -472,7 +491,7 @@ export const capacitorApp = {
   /**
    * 监听应用状态变化
    */
-  addStateChangeListener: (callback: (state: any) => void) => {
+  addStateChangeListener: (callback: (state: {isActive: boolean}) => void) => {
     if (!platform.isAndroid()) {
       return () => {}
     }
@@ -483,11 +502,37 @@ export const capacitorApp = {
     }
 
     try {
-      const listener = App.addListener('appStateChange', callback)
-      return () => listener.remove()
+      const listenerPromise = App.addListener('appStateChange', callback)
+      return async () => {
+        const listener = await listenerPromise
+        await listener.remove()
+      }
     } catch (error) {
-      console.error('App state listener error:', error)
+      logger.error('App state listener error', error)
       return () => {}
+    }
+  },
+
+  /**
+   * 退出应用
+   */
+  exitApp: async () => {
+    if (!platform.isAndroid()) {
+      logger.warn('exitApp is only available on Android app')
+      return
+    }
+
+    const {App} = getCapacitorPlugins()
+    if (!App) {
+      logger.error('App plugin not available')
+      return
+    }
+
+    try {
+      await App.exitApp()
+    } catch (error) {
+      logger.error('Exit app error', error)
+      throw error
     }
   }
 }

@@ -1,4 +1,7 @@
 import Taro from '@tarojs/taro'
+import {createLogger} from './logger'
+
+const logger = createLogger('Preferences')
 
 /**
  * 用户偏好设置管理工具
@@ -23,7 +26,7 @@ export function saveLastWarehouse(warehouseId: string, warehouseName: string): v
       timestamp: Date.now()
     })
   } catch (error) {
-    console.error('保存仓库偏好失败:', error)
+    logger.error('保存仓库偏好失败', error)
   }
 }
 
@@ -35,7 +38,7 @@ export function getLastWarehouse(): {id: string; name: string} | null {
     const data = Taro.getStorageSync(STORAGE_KEYS.LAST_WAREHOUSE)
     return data || null
   } catch (error) {
-    console.error('获取仓库偏好失败:', error)
+    logger.error('获取仓库偏好失败', error)
     return null
   }
 }
@@ -51,7 +54,7 @@ export function saveLastCategory(categoryId: string, categoryName: string): void
       timestamp: Date.now()
     })
   } catch (error) {
-    console.error('保存品类偏好失败:', error)
+    logger.error('保存品类偏好失败', error)
   }
 }
 
@@ -63,7 +66,7 @@ export function getLastCategory(): {id: string; name: string} | null {
     const data = Taro.getStorageSync(STORAGE_KEYS.LAST_CATEGORY)
     return data || null
   } catch (error) {
-    console.error('获取品类偏好失败:', error)
+    logger.error('获取品类偏好失败', error)
     return null
   }
 }
@@ -78,7 +81,7 @@ export function saveLastWorkDate(date: string): void {
       timestamp: Date.now()
     })
   } catch (error) {
-    console.error('保存日期偏好失败:', error)
+    logger.error('保存日期偏好失败', error)
   }
 }
 
@@ -90,7 +93,7 @@ export function getLastWorkDate(): string | null {
     const data = Taro.getStorageSync(STORAGE_KEYS.LAST_WORK_DATE)
     return data?.date || null
   } catch (error) {
-    console.error('获取日期偏好失败:', error)
+    logger.error('获取日期偏好失败', error)
     return null
   }
 }
@@ -109,7 +112,7 @@ export function savePieceWorkFormDefaults(formData: {
       timestamp: Date.now()
     })
   } catch (error) {
-    console.error('保存表单偏好失败:', error)
+    logger.error('保存表单偏好失败', error)
   }
 }
 
@@ -125,7 +128,7 @@ export function getPieceWorkFormDefaults(): {
     const data = Taro.getStorageSync(STORAGE_KEYS.PIECE_WORK_FORM)
     return data || null
   } catch (error) {
-    console.error('获取表单偏好失败:', error)
+    logger.error('获取表单偏好失败', error)
     return null
   }
 }
@@ -139,6 +142,6 @@ export function clearAllPreferences(): void {
       Taro.removeStorageSync(key)
     })
   } catch (error) {
-    console.error('清除偏好设置失败:', error)
+    logger.error('清除偏好设置失败', error)
   }
 }
