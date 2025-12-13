@@ -15,6 +15,7 @@ import * as VehiclesAPI from '@/db/api/vehicles'
 import type {DriverLicense, Profile} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
+import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('DriverProfileView')
 
@@ -114,6 +115,8 @@ const DriverProfileView: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center min-h-screen bg-gray-50">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <View className="i-mdi-loading animate-spin text-5xl text-blue-500" />
         <Text className="text-gray-600 mt-4 text-base">加载中...</Text>
       </View>

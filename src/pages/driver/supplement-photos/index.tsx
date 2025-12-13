@@ -15,6 +15,7 @@ import type {Vehicle} from '@/db/types'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
 
+import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('SupplementPhotos')
 
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
@@ -201,6 +202,8 @@ const SupplementPhotos: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center h-screen">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <View className="i-mdi-loading animate-spin text-4xl text-red-600 mb-4"></View>
         <Text className="text-gray-600">加载中...</Text>
       </View>

@@ -11,6 +11,7 @@ import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import TopNavBar from '@/components/TopNavBar'
 import VirtualList from '@/components/VirtualList'
 
 // 虚拟滚动配置
@@ -400,7 +401,9 @@ const ManagerPieceWork: React.FC = () => {
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">

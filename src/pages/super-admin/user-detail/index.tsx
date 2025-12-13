@@ -16,6 +16,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {DriverLicense, Profile, Vehicle, Warehouse} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
+import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('SuperAdminUserDetail')
 
@@ -68,6 +69,8 @@ const ImageWithFallback: React.FC<{
   if (!imageUrl || imageError) {
     return (
       <View className={`${className} bg-gray-100 rounded-xl flex items-center justify-center`}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <View className="text-center">
           <View className="i-mdi-image-off text-4xl text-gray-400 mb-2"></View>
           <Text className="text-xs text-gray-400 block">{imageError ? '图片加载失败' : '暂无图片'}</Text>

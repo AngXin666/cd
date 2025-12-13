@@ -7,6 +7,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {AttendanceRule, Profile, WarehouseWithRule} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 /**
  * 仓库详情页面
  * 显示仓库的完整信息，包括基本信息、考勤规则、请假规则、司机数量、管理员信息
@@ -87,6 +88,8 @@ const WarehouseDetail: React.FC = () => {
   if (!warehouse) {
     return (
       <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <Text className="text-gray-400 text-base">加载中...</Text>
       </View>
     )

@@ -12,6 +12,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {LeaveApplication, Profile, ResignationApplication} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 
+import TopNavBar from '@/components/TopNavBar'
 const DriverLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -258,6 +259,8 @@ const DriverLeave: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #fef2f2, #fee2e2)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 欢迎卡片 */}

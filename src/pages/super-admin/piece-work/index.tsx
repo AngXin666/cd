@@ -11,6 +11,7 @@ import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/
 import {getLocalDateString} from '@/utils/date'
 import {matchWithPinyin} from '@/utils/pinyin'
 
+import TopNavBar from '@/components/TopNavBar'
 const SuperAdminPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
 
@@ -256,6 +257,8 @@ const SuperAdminPieceWork: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}

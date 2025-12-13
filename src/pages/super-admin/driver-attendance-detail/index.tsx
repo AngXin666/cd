@@ -10,6 +10,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const DriverAttendanceDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
@@ -174,6 +175,8 @@ const DriverAttendanceDetail: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-gray-50">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border">
         <View className="p-4">
           {/* 司机信息卡片 */}

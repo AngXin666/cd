@@ -16,6 +16,7 @@ import {createLogger} from '@/utils/logger'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import VirtualList from '@/components/VirtualList'
 
+import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('SuperAdminVehicleManagement')
 
@@ -340,6 +341,8 @@ const VehicleManagement: React.FC = () => {
                   <View
                     key={vehicle.id}
                     className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
                     {/* 车辆照片 */}
                     {vehicle.left_front_photo && (
                       <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">

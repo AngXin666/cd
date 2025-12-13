@@ -14,6 +14,7 @@ import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
+import TopNavBar from '@/components/TopNavBar'
 // 司机统计数据类型
 interface DriverStats {
   driverId: string
@@ -860,6 +861,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题卡片 */}

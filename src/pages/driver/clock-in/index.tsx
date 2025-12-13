@@ -9,6 +9,7 @@ import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from
 import {canClockIn} from '@/utils/attendance-check'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
+import TopNavBar from '@/components/TopNavBar'
 // 获取本地日期字符串（YYYY-MM-DD格式）
 function getLocalDateString(date: Date = new Date()): string {
   const year = date.getFullYear()
@@ -454,6 +455,8 @@ const ClockIn: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F0F9FF, #E0F2FE)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
         <View className="p-4">
           {/* 顶部时间卡片 */}

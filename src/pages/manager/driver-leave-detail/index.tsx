@@ -10,6 +10,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const DriverLeaveDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [driverId, setDriverId] = useState<string>('')
@@ -347,6 +348,8 @@ const DriverLeaveDetail: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 返回按钮 */}

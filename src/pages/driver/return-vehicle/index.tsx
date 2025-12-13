@@ -21,6 +21,7 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
+import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('ReturnVehicle')
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
 
@@ -329,6 +330,8 @@ const ReturnVehicle: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center h-screen bg-gray-50">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
         <Text className="text-gray-600">加载中...</Text>
       </View>

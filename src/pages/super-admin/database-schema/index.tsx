@@ -11,6 +11,7 @@ import {useCallback, useState} from 'react'
 import type {DatabaseColumn, DatabaseConstraint, DatabaseTable} from '@/db/api/users'
 import * as UsersAPI from '@/db/api/users'
 
+import TopNavBar from '@/components/TopNavBar'
 const DatabaseSchema: React.FC = () => {
   const {user: _user} = useAuth({guard: true})
 
@@ -87,6 +88,8 @@ const DatabaseSchema: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       {/* 顶部标题栏 */}
       <View className="bg-gradient-to-r from-blue-900 to-blue-700 px-6 pt-12 pb-6 shadow-lg">
         <View className="flex items-center justify-between mb-2">

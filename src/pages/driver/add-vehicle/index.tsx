@@ -17,6 +17,7 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardFront} from '@/utils/ocrUtils'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
+import TopNavBar from '@/components/TopNavBar'
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 
 /**
@@ -1181,6 +1182,8 @@ const AddVehicle: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4">
           {/* 步骤指示器 */}

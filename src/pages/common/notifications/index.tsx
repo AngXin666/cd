@@ -39,6 +39,7 @@ import {
 } from '@/db/notificationApi'
 import {createLogger} from '@/utils/logger'
 
+import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('NotificationsPage')
 
 // 通知分组类型
@@ -533,6 +534,8 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-background flex flex-col">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       {/* 顶部标题栏 */}
       <View className="bg-card px-4 py-3 border-b border-border flex items-center justify-between">
         <Text className="text-xl font-bold text-foreground">通知中心</Text>

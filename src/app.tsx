@@ -13,11 +13,7 @@ import {capacitorApp, capacitorSplashScreen, capacitorStatusBar} from '@/utils/c
 import {silentCheckUpdate} from '@/utils/hotUpdate'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
 import {platformExecute} from '@/utils/platform'
-import {
-  checkForH5Update,
-  applyH5Update,
-  initLiveUpdate
-} from '@/services/h5UpdateService'
+import {checkForH5Update, applyH5Update, initLiveUpdate} from '@/services/h5UpdateService'
 import './app.scss'
 
 // 设置全局错误处理
@@ -67,8 +63,9 @@ const initializePlatform = async () => {
   })
 }
 
+
 /**
- * 显示更新弹窗并处理更新流程
+ * 显示更新弹窗并处理更新流程（使用原生confirm/alert）
  */
 const showUpdateModal = async (versionInfo: {
   version: string
@@ -77,7 +74,7 @@ const showUpdateModal = async (versionInfo: {
   is_force_update: boolean
 }) => {
   const content = versionInfo.release_notes || '修复已知问题，优化用户体验'
-  
+
   // 1. 提示更新
   const userConfirmed = confirm(
     `发现新版本 v${versionInfo.version}\n\n更新内容：\n${content}\n\n是否立即更新？`
@@ -86,14 +83,10 @@ const showUpdateModal = async (versionInfo: {
   if (userConfirmed) {
     // 2. 下载更新
     alert('正在下载更新，请稍候...')
-    
-    const success = await applyH5Update(
-      versionInfo.h5_url,
-      versionInfo.version,
-      (progress) => {
-        console.log('更新进度:', progress)
-      }
-    )
+
+    const success = await applyH5Update(versionInfo.h5_url, versionInfo.version, (progress) => {
+      console.log('更新进度:', progress)
+    })
 
     if (success) {
       // 3. 更新成功，提示用户手动退出
@@ -106,7 +99,6 @@ const showUpdateModal = async (versionInfo: {
 }
 
 const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
-
   useEffect(() => {
     // 初始化数据库迁移
     initMigrations()

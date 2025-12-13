@@ -14,6 +14,7 @@ import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication
 import {useRealtimeNotifications} from '@/hooks'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import TopNavBar from '@/components/TopNavBar'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -837,7 +838,9 @@ const ManagerLeaveApproval: React.FC = () => {
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">

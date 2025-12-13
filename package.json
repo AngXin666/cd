@@ -88,6 +88,7 @@
     "@typescript/native-preview": "7.0.0-dev.20250827.1",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^4.0.15",
+    "archiver": "^7.0.1",
     "babel-preset-taro": "4.1.5",
     "fast-check": "^4.4.0",
     "happy-dom": "^20.0.11",

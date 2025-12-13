@@ -10,6 +10,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {ManagerPermission, Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
+import TopNavBar from '@/components/TopNavBar'
 const StaffManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [currentTab, setCurrentTab] = useState<'MANAGER' | 'DRIVER'>('MANAGER')
@@ -593,6 +594,8 @@ const StaffManagement: React.FC = () => {
     if (isEditing) {
       return (
         <View key={manager.id} className="bg-white rounded-xl p-4 mb-3 shadow-sm">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
           <View className="mb-3">
             <Text className="text-sm text-gray-600 mb-1">姓名</Text>
             <View style={{overflow: 'hidden'}}>

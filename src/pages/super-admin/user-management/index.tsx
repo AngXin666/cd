@@ -19,6 +19,7 @@ import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {matchWithPinyin} from '@/utils/pinyin'
 
+import TopNavBar from '@/components/TopNavBar'
 // 司机详细信息类型
 type DriverDetailInfo = Awaited<ReturnType<typeof VehiclesAPI.getDriverDetailInfo>>
 
@@ -964,6 +965,8 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}

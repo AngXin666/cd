@@ -8,6 +8,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {Profile, Warehouse} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const ManagerWarehouseAssignment: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [managers, setManagers] = useState<Profile[]>([])
@@ -105,6 +106,8 @@ const ManagerWarehouseAssignment: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}

@@ -11,6 +11,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import {getLocalDateString} from '@/utils/date'
 
+import TopNavBar from '@/components/TopNavBar'
 const ApplyResignation: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [expectedDate, setExpectedDate] = useState('')
@@ -289,6 +290,8 @@ const ApplyResignation: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #FEF2F2, #FEE2E2)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题 */}

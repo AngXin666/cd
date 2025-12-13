@@ -3,6 +3,7 @@ import Taro, {getStorageSync, reLaunch, setStorageSync, showToast, switchTab} fr
 import type React from 'react'
 import {useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import TopNavBar from '@/components/TopNavBar'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -212,9 +213,11 @@ const Login: React.FC = () => {
 
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #1E3A8A, #3B82F6)'}}>
-      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        {/* 页面标题 */}
-        <View className="pt-16 pb-8 text-center">
+      {/* 顶部导航栏 */}
+      <TopNavBar backgroundColor="#1E3A8A" />
+      <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>
+        {/* 页面标题 - 紧贴状态栏，间距合理 */}
+        <View className="pt-4 pb-4 text-center">
           <Text className="text-3xl font-bold text-white block mb-2">车队管家</Text>
           <Text className="text-sm text-blue-100 block">专业的车队管理系统</Text>
         </View>

@@ -3,6 +3,7 @@ import Taro, {switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useEffect, useRef, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import {useUserContext} from '@/contexts/UserContext'
 
 const IndexPage: React.FC = () => {
@@ -64,7 +65,9 @@ const IndexPage: React.FC = () => {
   }, [role])
 
   return (
-    <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
+    <View style={{minHeight: '100vh', background: '#F8FAFC'}}>
+      <TopNavBar />
+      <View className="flex items-center justify-center" style={{minHeight: 'calc(100vh - 44px)'}}>
       <View className="text-center px-8">
         <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
         <Text className="text-gray-800 text-lg block mb-2">{loadingStatus}</Text>
@@ -79,6 +82,7 @@ const IndexPage: React.FC = () => {
             {user ? `用户ID: ${user.id.substring(0, 8)}...` : '等待认证...'}
           </Text>
         )}
+      </View>
       </View>
     </View>
   )

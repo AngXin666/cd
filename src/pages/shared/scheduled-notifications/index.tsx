@@ -7,6 +7,7 @@ import * as NotificationsAPI from '@/db/api/notifications'
 
 import type {ScheduledNotification} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 /**
  * 定时通知管理页面
  */
@@ -81,6 +82,8 @@ const ScheduledNotifications: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 筛选器 */}

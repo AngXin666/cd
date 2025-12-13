@@ -7,6 +7,7 @@ import * as UsersAPI from '@/db/api/users'
 
 import type {Profile} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const SettingsPage: React.FC = () => {
   useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -22,6 +23,8 @@ const SettingsPage: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 账户与安全 */}

@@ -5,6 +5,7 @@ import type React from 'react'
 import {useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
 
+import TopNavBar from '@/components/TopNavBar'
 const ChangePasswordPage: React.FC = () => {
   useAuth({guard: true})
 
@@ -101,6 +102,8 @@ const ChangePasswordPage: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 提示信息 */}

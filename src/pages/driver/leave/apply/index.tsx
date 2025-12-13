@@ -19,6 +19,7 @@ import {
 } from '@/utils/date'
 import {formatLeaveDate} from '@/utils/dateFormat'
 
+import TopNavBar from '@/components/TopNavBar'
 // 环境检测
 const isH5 = process.env.TARO_ENV === 'h5'
 
@@ -536,6 +537,8 @@ const ApplyLeave: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题 */}

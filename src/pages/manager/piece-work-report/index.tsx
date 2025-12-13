@@ -15,6 +15,7 @@ import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/
 import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
+import TopNavBar from '@/components/TopNavBar'
 // 完成率状态判断和样式配置
 interface CompletionRateStatus {
   label: string // 状态文字
@@ -842,6 +843,8 @@ const ManagerPieceWorkReport: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 仪表盘卡片 - 可滑动切换 */}

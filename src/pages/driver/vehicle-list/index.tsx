@@ -21,6 +21,7 @@ import type {Profile, Vehicle} from '@/db/types'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 
+import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('VehicleList')
 
@@ -256,6 +257,8 @@ const VehicleList: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题卡片 */}

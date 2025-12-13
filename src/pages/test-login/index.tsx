@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
+import TopNavBar from '@/components/TopNavBar'
 interface TestAccount {
   id: string
   name: string | null
@@ -142,6 +143,8 @@ export default function TestLogin() {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 标题 */}

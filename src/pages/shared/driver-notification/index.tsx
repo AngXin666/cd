@@ -9,6 +9,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {NotificationTemplate, Profile, Warehouse} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 /**
  * 司机通知发送页面
  * 支持立即发送和定时发送
@@ -215,6 +216,8 @@ const DriverNotification: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 快捷模板 */}

@@ -14,6 +14,7 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardBack, recognizeIdCardFront} from '@/utils/ocrUtils'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
+import TopNavBar from '@/components/TopNavBar'
 const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
 
 /**
@@ -341,6 +342,8 @@ const LicenseOCR: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4 pb-20">
           {/* 页面标题 */}

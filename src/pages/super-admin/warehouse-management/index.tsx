@@ -10,6 +10,7 @@ import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import TopNavBar from '@/components/TopNavBar'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -334,7 +335,9 @@ const WarehouseManagement: React.FC = () => {
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', minHeight: '100vh'}}>
-        <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY style={{height: 'calc(100vh - 44px)', background: 'transparent'}} className="box-border">
         <View className="p-5">
           {/* 页面标题区域 - 简约大气 */}
           <View className="mb-6 pt-2">

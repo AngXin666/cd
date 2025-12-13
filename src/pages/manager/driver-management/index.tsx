@@ -13,6 +13,7 @@ import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@
 import {createLogger} from '@/utils/logger'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
+import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('DriverManagement')
 
@@ -921,6 +922,8 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分�
 
                       return (
                         <View key={driver.id} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
                           {/* 司机头部信息 */}
                           <View className="p-4 flex items-center justify-between">
                             <View className="flex items-center flex-1">

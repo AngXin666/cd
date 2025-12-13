@@ -10,6 +10,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const SuperAdminPieceWorkReportDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()
@@ -179,6 +180,8 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to-bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 司机信息卡片 */}

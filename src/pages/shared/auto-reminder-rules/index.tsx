@@ -8,6 +8,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 
 import type {AutoReminderRuleWithWarehouse, Warehouse} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 /**
  * 自动提醒规则管理页面
  */
@@ -171,6 +172,8 @@ const AutoReminderRules: React.FC = () => {
   if (showForm) {
     return (
       <View style={{background: 'linear-gradient(to bottom, #fce7f3, #fbcfe8)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
           <View className="p-4">
             {/* 表单标题 */}

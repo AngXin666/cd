@@ -11,6 +11,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRule, CategoryPriceInput, PieceWorkCategory, Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 
+import TopNavBar from '@/components/TopNavBar'
 const WarehouseEdit: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [warehouseId, setWarehouseId] = useState<string>('')
@@ -665,6 +666,8 @@ const WarehouseEdit: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border">
         <View className="p-4 pb-24">
           {/* 说明卡片 */}

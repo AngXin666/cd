@@ -9,6 +9,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {CategoryPrice, CategoryPriceInput, PieceWorkCategory, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 
+import TopNavBar from '@/components/TopNavBar'
 // 品类价格编辑状态
 interface CategoryPriceEdit {
   categoryId: string
@@ -402,6 +403,8 @@ const CategoryManagement: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #f0fdf4, #dcfce7)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 页面标题 */}

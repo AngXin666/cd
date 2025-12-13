@@ -16,6 +16,7 @@ import type {VehicleWithDriverDetails} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
+import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('VehicleReviewDetail')
 
 // 锁定照片的类型
@@ -361,6 +362,8 @@ const VehicleReviewDetail: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center h-screen">
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <View className="i-mdi-loading animate-spin text-4xl text-orange-600 mb-4"></View>
         <Text className="text-gray-600">加载中...</Text>
       </View>

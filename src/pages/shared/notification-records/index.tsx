@@ -7,6 +7,7 @@ import * as NotificationsAPI from '@/db/api/notifications'
 
 import type {NotificationSendRecordWithSender} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 /**
  * 通知发送记录页面
  */
@@ -50,6 +51,8 @@ const NotificationRecords: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #d1fae5, #a7f3d0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 筛选器 */}

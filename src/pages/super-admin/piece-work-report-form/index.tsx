@@ -10,6 +10,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {PieceWorkCategory, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 
+import TopNavBar from '@/components/TopNavBar'
 const SuperAdminPieceWorkReportForm: React.FC = () => {
   const {user} = useAuth({guard: true})
   const instance = getCurrentInstance()
@@ -277,6 +278,8 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           <View className="bg-white rounded-lg p-4 shadow">

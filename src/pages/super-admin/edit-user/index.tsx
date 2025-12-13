@@ -7,6 +7,7 @@ import * as UsersAPI from '@/db/api/users'
 
 import type {Profile, UserRole} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const EditUser: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()
@@ -197,6 +198,8 @@ const EditUser: React.FC = () => {
       <View
         className="min-h-screen flex items-center justify-center"
         style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
         <Text className="text-white">加载中...</Text>
       </View>
     )

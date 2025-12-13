@@ -11,6 +11,7 @@ import {useCallback, useEffect, useState} from 'react'
 import type {PermissionLevel} from '@/db/api/permission-strategy'
 import * as PermissionStrategyAPI from '@/db/api/permission-strategy'
 
+import TopNavBar from '@/components/TopNavBar'
 const PermissionConfig: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()
@@ -182,6 +183,8 @@ const PermissionConfig: React.FC = () => {
 
   return (
     <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         {/* 页面标题 */}
         <View className="px-4 pt-6 pb-4">

@@ -7,6 +7,7 @@ import * as AttendanceAPI from '@/db/api/attendance'
 
 import type {AttendanceRecord} from '@/db/types'
 
+import TopNavBar from '@/components/TopNavBar'
 const Attendance: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [records, setRecords] = useState<AttendanceRecord[]>([])
@@ -99,6 +100,8 @@ const Attendance: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
           {/* 月份选择器 */}
