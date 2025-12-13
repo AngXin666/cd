@@ -18,7 +18,8 @@ const DriverWarehouseAssignment: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
 
-  // 添加司机相关状�?  const [showAddDriver, setShowAddDriver] = useState(false)
+  // 添加司机相关状态
+  const [showAddDriver, setShowAddDriver] = useState(false)
   const [newDriverPhone, setNewDriverPhone] = useState('')
   const [newDriverName, setNewDriverName] = useState('')
   const [addingDriver, setAddingDriver] = useState(false)
@@ -42,7 +43,8 @@ const DriverWarehouseAssignment: React.FC = () => {
     setWarehouses(data)
   }, [])
 
-  // 加载司机的仓库分�?  const loadDriverWarehouses = useCallback(async (driverId: string) => {
+  // 加载司机的仓库分配
+  const loadDriverWarehouses = useCallback(async (driverId: string) => {
     const warehouseIds = await WarehousesAPI.getDriverWarehouseIds(driverId)
     setSelectedWarehouseIds(warehouseIds)
   }, [])
@@ -80,7 +82,8 @@ const DriverWarehouseAssignment: React.FC = () => {
         relatedId?: string
       }> = []
 
-      // 判断是新增还是取消仓�?      const addedWarehouseIds = newWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
+      // 判断是新增还是取消仓库
+      const addedWarehouseIds = newWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
       const removedWarehouseIds = previousWarehouseIds.filter((id) => !newWarehouseIds.includes(id))
 
       // 如果没有任何变更，不发送通知
@@ -93,13 +96,13 @@ const DriverWarehouseAssignment: React.FC = () => {
         const addedWarehouseNames = allWarehouses
           .filter((w) => addedWarehouseIds.includes(w.id))
           .map((w) => w.name)
-          .join('�?)
+          .join('、')
 
         notifications.push({
           userId: driver.id,
           type: 'warehouse_assigned',
           title: '仓库分配通知',
-          message: `您已被分配到新的仓库�?{addedWarehouseNames}`,
+          message: `您已被分配到新的仓库：${addedWarehouseNames}`,
           relatedId: driver.id
         })
       }
@@ -109,59 +112,60 @@ const DriverWarehouseAssignment: React.FC = () => {
         const removedWarehouseNames = allWarehouses
           .filter((w) => removedWarehouseIds.includes(w.id))
           .map((w) => w.name)
-          .join('�?)
+          .join('、')
 
         notifications.push({
           userId: driver.id,
           type: 'warehouse_unassigned',
           title: '仓库取消分配通知',
-          message: `您已被取消以下仓库的分配�?{removedWarehouseNames}`,
+          message: `您已被取消以下仓库的分配：${removedWarehouseNames}`,
           relatedId: driver.id
         })
       }
 
-      // 3. 通知相关管理�?      if (operatorProfile) {
+      // 3. 通知相关管理员
+      if (operatorProfile) {
         if (operatorProfile.role === 'MANAGER') {
-          // 车队长操�?�?通知所有老板
+          // 车队长操作 → 通知所有老板
 
           const superAdmins = await UsersAPI.getAllSuperAdmins()
           const operationDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
-              ? '修改了仓库分�?
+              ? '修改了仓库分配'
               : addedWarehouseIds.length > 0
                 ? '分配了新仓库'
-                : '取消了仓库分�?
+                : '取消了仓库分配'
 
           const warehouseDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
-              ? `新增�?{allWarehouses
+              ? `新增：${allWarehouses
                   .filter((w) => addedWarehouseIds.includes(w.id))
                   .map((w) => w.name)
-                  .join('�?)}；取消：${allWarehouses
+                  .join('、')}；取消：${allWarehouses
                   .filter((w) => removedWarehouseIds.includes(w.id))
                   .map((w) => w.name)
-                  .join('�?)}`
+                  .join('、')}`
               : addedWarehouseIds.length > 0
                 ? allWarehouses
                     .filter((w) => addedWarehouseIds.includes(w.id))
                     .map((w) => w.name)
-                    .join('�?)
+                    .join('、')
                 : allWarehouses
                     .filter((w) => removedWarehouseIds.includes(w.id))
                     .map((w) => w.name)
-                    .join('�?)
+                    .join('、')
 
           for (const admin of superAdmins) {
             notifications.push({
               userId: admin.id,
               type: 'warehouse_assigned',
               title: '仓库分配操作通知',
-              message: `车队�?${operatorProfile.name} ${operationDesc}：司�?${driver.name}，仓�?${warehouseDesc}`,
+              message: `车队长 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
               relatedId: driver.id
             })
           }
         } else if (operatorProfile.role === 'BOSS') {
-          // 老板操作 �?通知相关仓库的车队长
+          // 老板操作 → 通知相关仓库的车队长
 
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
 
@@ -176,36 +180,36 @@ const DriverWarehouseAssignment: React.FC = () => {
 
           const operationDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
-              ? '修改了仓库分�?
+              ? '修改了仓库分配'
               : addedWarehouseIds.length > 0
                 ? '分配了新仓库'
-                : '取消了仓库分�?
+                : '取消了仓库分配'
 
           const warehouseDesc =
             addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0
-              ? `新增�?{allWarehouses
+              ? `新增：${allWarehouses
                   .filter((w) => addedWarehouseIds.includes(w.id))
                   .map((w) => w.name)
-                  .join('�?)}；取消：${allWarehouses
+                  .join('、')}；取消：${allWarehouses
                   .filter((w) => removedWarehouseIds.includes(w.id))
                   .map((w) => w.name)
-                  .join('�?)}`
+                  .join('、')}`
               : addedWarehouseIds.length > 0
                 ? allWarehouses
                     .filter((w) => addedWarehouseIds.includes(w.id))
                     .map((w) => w.name)
-                    .join('�?)
+                    .join('、')
                 : allWarehouses
                     .filter((w) => removedWarehouseIds.includes(w.id))
                     .map((w) => w.name)
-                    .join('�?)
+                    .join('、')
 
           for (const managerId of managersSet) {
             notifications.push({
               userId: managerId,
               type: 'warehouse_assigned',
               title: '仓库分配操作通知',
-              message: `老板 ${operatorProfile.name} ${operationDesc}：司�?${driver.name}，仓�?${warehouseDesc}`,
+              message: `老板 ${operatorProfile.name} ${operationDesc}：司机 ${driver.name}，仓库 ${warehouseDesc}`,
               relatedId: driver.id
             })
           }
@@ -218,9 +222,9 @@ const DriverWarehouseAssignment: React.FC = () => {
         const success = await createNotifications(notifications)
         if (success) {
         } else {
-          console.error('�?[通知系统] 发送通知失败')
+          console.error('[通知系统] 发送通知失败')
           showToast({
-            title: '通知发送失�?,
+            title: '通知发送失败',
             icon: 'none',
             duration: 2000
           })
@@ -228,9 +232,9 @@ const DriverWarehouseAssignment: React.FC = () => {
       } else {
       }
     } catch (error) {
-      console.error('�?[通知系统] 发送仓库分配通知异常:', error)
+      console.error('[通知系统] 发送仓库分配通知异常:', error)
       showToast({
-        title: '通知发送异�?,
+        title: '通知发送异常',
         icon: 'none',
         duration: 2000
       })
@@ -252,7 +256,7 @@ const DriverWarehouseAssignment: React.FC = () => {
     }
 
     setLoading(true)
-    showLoading({title: '保存�?..'})
+    showLoading({title: '保存中...'})
 
     // 获取保存之前的仓库ID，用于判断是新增还是取消
     const previousWarehouseIds = await WarehousesAPI.getDriverWarehouseIds(selectedDriver.id)
@@ -262,15 +266,16 @@ const DriverWarehouseAssignment: React.FC = () => {
     setLoading(false)
 
     if (result.success) {
-      // 显示详细的成功提�?      const warehouseNames = warehouses
+      // 显示详细的成功提示
+      const warehouseNames = warehouses
         .filter((w) => selectedWarehouseIds.includes(w.id))
         .map((w) => w.name)
-        .join('�?)
+        .join('、')
 
       const message =
         selectedWarehouseIds.length > 0
-          ? `已为 ${selectedDriver.name} 分配仓库�?{warehouseNames}。\n\n司机需要重新进入页面才能看到更新。`
-          : `已清�?${selectedDriver.name} 的仓库分配。`
+          ? `已为 ${selectedDriver.name} 分配仓库：${warehouseNames}。\n\n司机需要重新进入页面才能看到更新。`
+          : `已清除 ${selectedDriver.name} 的仓库分配。`
 
       // 发送通知
       await sendWarehouseAssignmentNotifications(
@@ -285,7 +290,7 @@ const DriverWarehouseAssignment: React.FC = () => {
         title: '分配成功',
         content: message,
         showCancel: false,
-        confirmText: '知道�?
+        confirmText: '知道了'
       })
     } else {
       console.error('[仓库管理-司机仓库分配] 保存失败', {error: result.error})
@@ -321,18 +326,19 @@ const DriverWarehouseAssignment: React.FC = () => {
       return
     }
     if (!newDriverName.trim()) {
-      showToast({title: '请输入姓�?, icon: 'none'})
+      showToast({title: '请输入姓名', icon: 'none'})
       return
     }
 
-    // 验证手机号格�?    const phoneRegex = /^1[3-9]\d{9}$/
+    // 验证手机号格式
+    const phoneRegex = /^1[3-9]\d{9}$/
     if (!phoneRegex.test(newDriverPhone.trim())) {
-      showToast({title: '请输入正确的手机�?, icon: 'none'})
+      showToast({title: '请输入正确的手机号', icon: 'none'})
       return
     }
 
     setAddingDriver(true)
-    showLoading({title: '添加�?..'})
+    showLoading({title: '添加中...'})
 
     const newDriver = await UsersAPI.createDriver(newDriverPhone.trim(), newDriverName.trim())
 
@@ -340,21 +346,22 @@ const DriverWarehouseAssignment: React.FC = () => {
     setAddingDriver(false)
 
     if (newDriver) {
-      // 显示详细的创建成功信�?      const loginAccount = `${newDriverPhone.trim()}@fleet.com`
-      const driverType = '普通司�?
+      // 显示详细的创建成功信息
+      const loginAccount = `${newDriverPhone.trim()}@fleet.com`
+      const driverType = '普通司机'
       const defaultPassword = '123456'
-      const plateNumber = newDriver.vehicle_plate || '未设�?
+      const plateNumber = newDriver.vehicle_plate || '未设置'
 
       Taro.showModal({
         title: '司机创建成功',
-        content: `姓名�?{newDriverName.trim()}
-手机号码�?{newDriverPhone.trim()}
-司机类型�?{driverType}
-登录账号�?{loginAccount}
-默认密码�?{defaultPassword}
-车牌号码�?{plateNumber}`,
+        content: `姓名：${newDriverName.trim()}
+手机号码：${newDriverPhone.trim()}
+司机类型：${driverType}
+登录账号：${loginAccount}
+默认密码：${defaultPassword}
+车牌号码：${plateNumber}`,
         showCancel: false,
-        confirmText: '知道�?,
+        confirmText: '知道了',
         success: () => {
           // 重置表单
           setNewDriverPhone('')
@@ -365,7 +372,7 @@ const DriverWarehouseAssignment: React.FC = () => {
         }
       })
     } else {
-      showToast({title: '添加失败，手机号可能已存�?, icon: 'error'})
+      showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
     }
   }
 
@@ -376,7 +383,7 @@ const DriverWarehouseAssignment: React.FC = () => {
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
             <Text className="text-white text-2xl font-bold block mb-2">司机仓库分配</Text>
-            <Text className="text-blue-100 text-sm block">为司机分配工作仓�?/Text>
+            <Text className="text-blue-100 text-sm block">为司机分配工作仓库</Text>
           </View>
 
           {/* 司机列表 */}
@@ -399,11 +406,11 @@ const DriverWarehouseAssignment: React.FC = () => {
             {showAddDriver && (
               <View className="bg-blue-50 rounded-lg p-4 mb-3 border-2 border-blue-200">
                 <View className="mb-3">
-                  <Text className="text-gray-700 text-sm block mb-2">手机�?/Text>
+                  <Text className="text-gray-700 text-sm block mb-2">手机号</Text>
                   <Input
                     type="number"
                     maxlength={11}
-                    placeholder="请输�?1位手机号"
+                    placeholder="请输入11位手机号"
                     value={newDriverPhone}
                     onInput={(e) => setNewDriverPhone(e.detail.value)}
                     className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
@@ -413,7 +420,7 @@ const DriverWarehouseAssignment: React.FC = () => {
                   <Text className="text-gray-700 text-sm block mb-2">姓名</Text>
                   <Input
                     type="text"
-                    placeholder="请输入司机姓�?
+                    placeholder="请输入司机姓名"
                     value={newDriverName}
                     onInput={(e) => setNewDriverName(e.detail.value)}
                     className="bg-white rounded-lg px-3 py-2 text-sm border border-gray-300"
@@ -444,7 +451,7 @@ const DriverWarehouseAssignment: React.FC = () => {
                         <View className="i-mdi-account text-blue-600 text-2xl mr-3" />
                         <View className="flex-1">
                           <Text className="text-gray-800 text-base font-medium block">
-                            {driver.name || '未设置姓�?}
+                            {driver.name || '未设置姓名'}
                           </Text>
                           <Text className="text-gray-500 text-xs block">{driver.phone || driver.email}</Text>
                         </View>
@@ -528,9 +535,9 @@ const DriverWarehouseAssignment: React.FC = () => {
                 <View className="flex-1">
                   <Text className="text-yellow-800 text-sm block mb-1 font-medium">操作提示</Text>
                   <Text className="text-yellow-700 text-xs block">1. 先选择要分配仓库的司机</Text>
-                  <Text className="text-yellow-700 text-xs block">2. 勾选该司机可以工作的仓�?/Text>
+                  <Text className="text-yellow-700 text-xs block">2. 勾选该司机可以工作的仓库</Text>
                   <Text className="text-yellow-700 text-xs block">3. 点击保存按钮完成分配</Text>
-                  <Text className="text-yellow-700 text-xs block">4. 司机只能在被分配的仓库打�?/Text>
+                  <Text className="text-yellow-700 text-xs block">4. 司机只能在被分配的仓库打卡</Text>
                 </View>
               </View>
             </View>

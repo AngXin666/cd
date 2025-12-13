@@ -23,13 +23,15 @@ const WarehouseEdit: React.FC = () => {
   const [resignationNoticeDays, setResignationNoticeDays] = useState('30')
   const [dailyTarget, setDailyTarget] = useState('')
 
-  // 品类和价�?  const [allCategories, setAllCategories] = useState<PieceWorkCategory[]>([])
+  // 品类和价格
+  const [allCategories, setAllCategories] = useState<PieceWorkCategory[]>([])
   const [categoryDriverPrices, setCategoryDriverPrices] = useState<Map<string, string>>(new Map())
   const [categoryVehiclePrices, setCategoryVehiclePrices] = useState<Map<string, string>>(new Map())
   const [categorySortingPrices, setCategorySortingPrices] = useState<Map<string, string>>(new Map())
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
 
-  // 管理�?  const [allManagers, setAllManagers] = useState<Profile[]>([])
+  // 管理员
+  const [allManagers, setAllManagers] = useState<Profile[]>([])
   const [selectedManagers, setSelectedManagers] = useState<Set<string>>(new Set())
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
 
@@ -59,7 +61,7 @@ const WarehouseEdit: React.FC = () => {
 
   // 加载仓库信息
   const loadWarehouse = useCallback(async (id: string) => {
-    showLoading({title: '加载�?..'})
+    showLoading({title: '加载中...'})
     try {
       const warehouseData = await WarehousesAPI.getWarehouseById(id)
       if (warehouseData) {
@@ -70,7 +72,7 @@ const WarehouseEdit: React.FC = () => {
         setResignationNoticeDays(String(warehouseData.resignation_notice_days || 30))
         setDailyTarget(warehouseData.daily_target ? String(warehouseData.daily_target) : '')
       } else {
-        console.warn('[仓库管理-编辑仓库] 未找到仓库数�?, {warehouseId: id})
+        console.warn('[仓库管理-编辑仓库] 未找到仓库数据', {warehouseId: id})
       }
     } catch (error) {
       console.error('[仓库管理-编辑仓库] 加载仓库信息失败:', error)
@@ -80,9 +82,11 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [])
 
-  // 加载品类和价�?  const loadCategoriesAndPrices = useCallback(async (id: string) => {
+  // 加载品类和价格
+  const loadCategoriesAndPrices = useCallback(async (id: string) => {
     try {
-      // 加载所有品�?      const categories = await PieceworkAPI.getAllCategories()
+      // 加载所有品类
+      const categories = await PieceworkAPI.getAllCategories()
       setAllCategories(categories)
 
       // 加载该仓库的品类价格
@@ -108,7 +112,8 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [])
 
-  // 加载管理�?  const loadManagers = useCallback(
+  // 加载管理员
+  const loadManagers = useCallback(
     async (id?: string) => {
             try {
         // 加载所有车队长、老板和超级管理员
@@ -121,7 +126,7 @@ const WarehouseEdit: React.FC = () => {
         if (current) {
                     setCurrentUser(current)
         } else {
-          console.warn('[仓库管理-仓库分配] 当前用户不是管理�?, {userId: user?.id})
+          console.warn('[仓库管理-仓库分配] 当前用户不是管理员', {userId: user?.id})
         }
 
         // 如果有仓库ID，加载该仓库的管理员
@@ -131,11 +136,10 @@ const WarehouseEdit: React.FC = () => {
           for (const manager of warehouseManagers) {
             managerSet.add(manager.id)
           }
-          })
           setSelectedManagers(managerSet)
         }
       } catch (error) {
-        console.error('[仓库管理-仓库分配] 加载管理员信息失�?', error)
+        console.error('[仓库管理-仓库分配] 加载管理员信息失败', error)
       }
     },
     [user?.id]
@@ -159,7 +163,8 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [])
 
-  // 加载所有仓库（用于复制配置�?  const loadAllWarehouses = useCallback(async () => {
+  // 加载所有仓库（用于复制配置）
+  const loadAllWarehouses = useCallback(async () => {
     try {
       const warehouses = await WarehousesAPI.getAllWarehouses()
       // 排除当前仓库
@@ -170,7 +175,7 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [warehouseId])
 
-  // 页面加载时获取仓�?ID
+  // 页面加载时获取仓库ID
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
     const id = instance.router?.params?.id
@@ -184,7 +189,8 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [])
 
-  // �?warehouseId 变化时加载数�?  useEffect(() => {
+  // 当warehouseId变化时加载数据
+  useEffect(() => {
     if (warehouseId) {
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
@@ -194,7 +200,8 @@ const WarehouseEdit: React.FC = () => {
     }
   }, [warehouseId, loadWarehouse, loadCategoriesAndPrices, loadAttendanceRule, loadManagers, loadAllWarehouses])
 
-  // 页面显示时刷新数�?  useDidShow(() => {
+  // 页面显示时刷新数据
+  useDidShow(() => {
     if (warehouseId) {
       loadWarehouse(warehouseId)
       loadCategoriesAndPrices(warehouseId)
@@ -272,11 +279,12 @@ const WarehouseEdit: React.FC = () => {
       const newSelected = new Set(selectedManagers)
       newSelected.add(currentUser.id)
       setSelectedManagers(newSelected)
-      showToast({title: '已添加自己为管理�?, icon: 'success'})
+      showToast({title: '已添加自己为管理员', icon: 'success'})
     }
   }
 
-  // 从其他仓库复制配�?  const _handleCopyFromWarehouse = async () => {
+  // 从其他仓库复制配置
+  const _handleCopyFromWarehouse = async () => {
     if (allWarehouses.length === 0) {
       showToast({title: '暂无其他仓库', icon: 'none'})
       return
@@ -301,7 +309,7 @@ const WarehouseEdit: React.FC = () => {
 
   // 复制仓库配置
   const copyWarehouseConfig = async (sourceWarehouseId: string) => {
-    showLoading({title: '复制�?..'})
+    showLoading({title: '复制中...'})
     try {
       // 复制品类价格
       const prices = await PieceworkAPI.getCategoryPricesByWarehouse(sourceWarehouseId)
@@ -333,7 +341,7 @@ const WarehouseEdit: React.FC = () => {
         setRuleActive(rule.is_active)
       }
 
-      showToast({title: '配置已复�?, icon: 'success'})
+      showToast({title: '配置已复制', icon: 'success'})
     } catch (error) {
       console.error('复制配置失败:', error)
       showToast({title: '复制失败', icon: 'error'})
@@ -342,7 +350,8 @@ const WarehouseEdit: React.FC = () => {
     }
   }
 
-  // 打开新建品类对话�?  const openNewCategoryDialog = () => {
+  // 打开新建品类对话框
+  const openNewCategoryDialog = () => {
     setNewCategoryName('')
     setNewCategoryDriverPrice('')
     setNewCategoryVehiclePrice('')
@@ -350,20 +359,21 @@ const WarehouseEdit: React.FC = () => {
     setShowNewCategoryDialog(true)
   }
 
-  // 创建新品�?  const handleCreateCategory = async () => {
-        // 验证必填�?    if (!newCategoryName.trim()) {
+  // 创建新品类
+  const handleCreateCategory = async () => {
+        // 验证必填项
+    if (!newCategoryName.trim()) {
       console.warn('[仓库管理-品类操作] 品类名称为空')
-      showToast({title: '请输入品类名�?, icon: 'error'})
+      showToast({title: '请输入品类名称', icon: 'error'})
       return
     }
 
-    showLoading({title: '创建�?..'})
+    showLoading({title: '创建中...'})
     try {
       // 先创建品类，获取 ID
-      })
       const newCategory = await PieceworkAPI.createCategory({
         name: newCategoryName.trim(),
-        unit: '�?
+        unit: '件'
       })
 
       if (!newCategory) {
@@ -373,7 +383,8 @@ const WarehouseEdit: React.FC = () => {
         return
       }
 
-            // 再创建价格记�?      const priceInput: CategoryPriceInput = {
+            // 再创建价格记录
+      const priceInput: CategoryPriceInput = {
         category_id: newCategory.id,
         warehouse_id: warehouseId,
         price: Number(newCategoryDriverPrice || 0),
@@ -421,9 +432,11 @@ const WarehouseEdit: React.FC = () => {
     }
   }
 
-  // 打开导入品类对话�?  const openImportDialog = async () => {
+  // 打开导入品类对话框
+  const openImportDialog = async () => {
     try {
-      // 重新加载仓库列表以确保数据最�?      const warehouses = await WarehousesAPI.getAllWarehouses()
+      // 重新加载仓库列表以确保数据最新
+      const warehouses = await WarehousesAPI.getAllWarehouses()
 
       // 排除当前仓库
       const others = warehouses.filter((w) => w.id !== warehouseId)
@@ -443,24 +456,27 @@ const WarehouseEdit: React.FC = () => {
     }
   }
 
-  // 导入其他仓库的品类配�?  const handleImportCategories = async () => {
+  // 导入其他仓库的品类配置
+  const handleImportCategories = async () => {
     if (!selectedWarehouseForImport) {
       console.warn('[仓库管理-导入品类] 未选择仓库')
       showToast({title: '请选择仓库', icon: 'error'})
       return
     }
 
-        showLoading({title: '导入�?..'})
+        showLoading({title: '导入中...'})
     try {
-      // 获取选中仓库的品类价�?      const prices = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouseForImport)
+      // 获取选中仓库的品类价格
+      const prices = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouseForImport)
             if (prices.length === 0) {
-        console.warn('[仓库管理-导入品类] 源仓库没有品类配�?)
-        showToast({title: '该仓库暂无品类配�?, icon: 'none'})
+        console.warn('[仓库管理-导入品类] 源仓库没有品类配置')
+        showToast({title: '该仓库暂无品类配置', icon: 'none'})
         Taro.hideLoading()
         return
       }
 
-      // 合并到当前配�?      const newDriverPrices = new Map(categoryDriverPrices)
+      // 合并到当前配置
+      const newDriverPrices = new Map(categoryDriverPrices)
       const newVehiclePrices = new Map(categoryVehiclePrices)
       const newSelected = new Set(selectedCategories)
 
@@ -470,12 +486,12 @@ const WarehouseEdit: React.FC = () => {
         newSelected.add(price.category_name)
       }
 
-            })
       setCategoryDriverPrices(newDriverPrices)
       setCategoryVehiclePrices(newVehiclePrices)
       setSelectedCategories(newSelected)
 
-      // 重新加载品类列表以确保所有品类都能显�?      const categories = await PieceworkAPI.getAllCategories()
+      // 重新加载品类列表以确保所有品类都能显示
+      const categories = await PieceworkAPI.getAllCategories()
       setAllCategories(categories)
 
             showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
@@ -490,23 +506,25 @@ const WarehouseEdit: React.FC = () => {
 
   // 保存仓库信息
   const handleSave = async () => {
-        // 验证必填�?    if (!name.trim()) {
+        // 验证必填项
+    if (!name.trim()) {
       console.warn('[仓库管理-保存操作] 仓库名称为空')
-      showToast({title: '请输入仓库名�?, icon: 'error'})
+      showToast({title: '请输入仓库名称', icon: 'error'})
       return
     }
 
     if (selectedManagers.size === 0) {
-      console.warn('[仓库管理-保存操作] 未选择管理�?)
+      console.warn('[仓库管理-保存操作] 未选择管理员')
       showToast({title: '请至少选择一个管理员', icon: 'error'})
       return
     }
 
-    // 验证每日指标（如果填写了�?    if (dailyTarget.trim() !== '') {
+    // 验证每日指标（如果填写了）
+    if (dailyTarget.trim() !== '') {
       const targetNum = Number(dailyTarget)
       if (Number.isNaN(targetNum) || targetNum < 0) {
-        console.warn('[仓库管理-保存操作] 每日指标格式不正�?, {dailyTarget})
-        showToast({title: '每日指标必须是非负整�?, icon: 'error'})
+        console.warn('[仓库管理-保存操作] 每日指标格式不正确', {dailyTarget})
+        showToast({title: '每日指标必须是非负整数', icon: 'error'})
         return
       }
     }
@@ -518,7 +536,7 @@ const WarehouseEdit: React.FC = () => {
       const category = allCategories.find((c) => c.id === categoryId)
 
       if (!driverPrice || Number.isNaN(Number(driverPrice)) || Number(driverPrice) < 0) {
-        console.warn('[仓库管理-保存操作] 品类纯司机单价无�?, {
+        console.warn('[仓库管理-保存操作] 品类纯司机单价无效', {
           categoryId,
           categoryName: category?.category_name,
           driverPrice
@@ -538,15 +556,9 @@ const WarehouseEdit: React.FC = () => {
       }
     }
 
-        showLoading({title: '保存�?..'})
+        showLoading({title: '保存中...'})
     try {
       // 1. 更新仓库基本信息
-      ,
-        isActive,
-        maxLeaveDays: Number(maxLeaveDays),
-        resignationNoticeDays: Number(resignationNoticeDays),
-        dailyTarget: dailyTarget.trim() !== '' ? Number(dailyTarget) : null
-      })
       const success = await WarehousesAPI.updateWarehouse(warehouseId, {
         name: name.trim(),
         is_active: isActive,
@@ -583,18 +595,14 @@ const WarehouseEdit: React.FC = () => {
               } else {
               }
 
-      // 3. 更新管理�?            // 获取原有管理�?      const oldManagers = await WarehousesAPI.getWarehouseManagers(warehouseId)
+      // 3. 更新管理员
+            // 获取原有管理员
+      const oldManagers = await WarehousesAPI.getWarehouseManagers(warehouseId)
       const oldManagerIds = new Set(oldManagers.map((m) => m.id))
 
       // 找出需要添加和删除的管理员
       const toAdd = Array.from(selectedManagers).filter((id) => !oldManagerIds.has(id))
       const toRemove = Array.from(oldManagerIds).filter((id) => !selectedManagers.has(id))
-
-      ,
-        newManagerIds: Array.from(selectedManagers),
-        toAdd,
-        toRemove
-      })
 
       // 添加新管理员
       for (const managerId of toAdd) {
@@ -626,7 +634,8 @@ const WarehouseEdit: React.FC = () => {
         } else {
                   }
       } else {
-        // 创建新规�?                const newRule = await AttendanceAPI.createAttendanceRule(ruleInput)
+        // 创建新规则
+                const newRule = await AttendanceAPI.createAttendanceRule(ruleInput)
         if (newRule) {
                     setCurrentRule(newRule)
         } else {
@@ -668,16 +677,19 @@ const WarehouseEdit: React.FC = () => {
               <View className="mb-2">
                 <Text className="text-blue-800 text-sm">
                   1. <Text className="font-bold">品类设置</Text>
-                  ：为仓库配置可用的计件品类和单价，司机才能在该仓库提交计件工作报�?                </Text>
+                  ：为仓库配置可用的计件品类和单价，司机才能在该仓库提交计件工作报表
+                </Text>
               </View>
               <View className="mb-2">
                 <Text className="text-blue-800 text-sm">
-                  2. <Text className="font-bold">管理员设�?/Text>
-                  ：必须为仓库指定至少一个管理员，管理员可以审批该仓库的请假申请和计件报�?                </Text>
+                  2. <Text className="font-bold">管理员设置</Text>
+                  ：必须为仓库指定至少一个管理员，管理员可以审批该仓库的请假申请和计件报表
+                </Text>
               </View>
               <View>
                 <Text className="text-blue-800 text-sm">
-                  3. <Text className="font-bold">老板</Text>：您可以将自己设置为车队长，这样就能直接管理该仓�?                </Text>
+                  3. <Text className="font-bold">老板</Text>：您可以将自己设置为车队长，这样就能直接管理该仓库
+                </Text>
               </View>
             </View>
           </View>
@@ -693,7 +705,7 @@ const WarehouseEdit: React.FC = () => {
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
-                  placeholder="请输入仓库名�?
+                  placeholder="请输入仓库名称"
                   value={name}
                   onInput={(e) => setName(e.detail.value)}
                 />
@@ -702,7 +714,7 @@ const WarehouseEdit: React.FC = () => {
 
             <View className="mb-4">
               <View className="flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">仓库状�?/Text>
+                <Text className="text-gray-700 text-sm">仓库状态</Text>
                 <View className="flex items-center">
                   <Text className="text-gray-600 text-sm mr-2">{isActive ? '启用' : '停用'}</Text>
                   <Switch checked={isActive} onChange={(e) => setIsActive(e.detail.value)} />
@@ -712,17 +724,17 @@ const WarehouseEdit: React.FC = () => {
             </View>
 
             <View className="mb-4">
-              <Text className="text-gray-700 text-sm mb-2">最大请假天�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">最大请假天数</Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                   type="number"
-                  placeholder="请输入最大请假天�?
+                  placeholder="请输入最大请假天数"
                   value={maxLeaveDays}
                   onInput={(e) => setMaxLeaveDays(e.detail.value)}
                 />
               </View>
-              <Text className="text-gray-500 text-xs mt-1">司机单次请假不能超过此天�?/Text>
+              <Text className="text-gray-500 text-xs mt-1">司机单次请假不能超过此天数</Text>
             </View>
 
             <View className="mb-4">
@@ -736,16 +748,16 @@ const WarehouseEdit: React.FC = () => {
                   onInput={(e) => setResignationNoticeDays(e.detail.value)}
                 />
               </View>
-              <Text className="text-gray-500 text-xs mt-1">司机离职需要提前通知的天�?/Text>
+              <Text className="text-gray-500 text-xs mt-1">司机离职需要提前通知的天�?/Text>
             </View>
 
             <View>
-              <Text className="text-gray-700 text-sm mb-2">每日指标数（选填�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">每日指标数（选填�?/Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                   type="number"
-                  placeholder="请输入每日指标数（件�?
+                  placeholder="请输入每日指标数（件�?
                   value={dailyTarget}
                   onInput={(e) => setDailyTarget(e.detail.value)}
                 />
@@ -777,21 +789,21 @@ const WarehouseEdit: React.FC = () => {
             </View>
 
             <View className="mb-4">
-              <Text className="text-gray-700 text-sm mb-2">迟到阈值（分钟�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">迟到阈值（分钟�?/Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                   type="number"
-                  placeholder="请输入迟到阈�?
+                  placeholder="请输入迟到阈�?
                   value={ruleLateThreshold}
                   onInput={(e) => setRuleLateThreshold(e.detail.value)}
                 />
               </View>
-              <Text className="text-gray-500 text-xs mt-1">超过上班时间多少分钟算迟�?/Text>
+              <Text className="text-gray-500 text-xs mt-1">超过上班时间多少分钟算迟�?/Text>
             </View>
 
             <View className="mb-4">
-              <Text className="text-gray-700 text-sm mb-2">早退阈值（分钟�?/Text>
+              <Text className="text-gray-700 text-sm mb-2">早退阈值（分钟�?/Text>
               <View style={{overflow: 'hidden'}}>
                 <Input
                   className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
@@ -806,9 +818,9 @@ const WarehouseEdit: React.FC = () => {
 
             <View className="mb-4">
               <View className="flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">是否需要打下班�?/Text>
+                <Text className="text-gray-700 text-sm">是否需要打下班�?/Text>
                 <View className="flex items-center">
-                  <Text className="text-gray-600 text-sm mr-2">{ruleRequireClockOut ? '需�? : '不需�?}</Text>
+                  <Text className="text-gray-600 text-sm mr-2">{ruleRequireClockOut ? '需�? : '不需�?}</Text>
                   <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
                 </View>
               </View>
@@ -831,7 +843,7 @@ const WarehouseEdit: React.FC = () => {
             <View className="flex items-center justify-between mb-4">
               <Text className="text-gray-800 font-bold text-lg">品类设置</Text>
               <View className="flex items-center gap-2">
-                <Text className="text-gray-500 text-sm mr-2">已选择 {selectedCategories.size} 个品�?/Text>
+                <Text className="text-gray-500 text-sm mr-2">已选择 {selectedCategories.size} 个品�?/Text>
                 <Button
                   size="mini"
                   className="bg-green-500 text-white text-xs break-keep mr-2"
@@ -855,7 +867,7 @@ const WarehouseEdit: React.FC = () => {
                   <View className="flex-1">
                     <Text className="text-blue-900 font-medium text-sm">快捷提示</Text>
                     <Text className="text-blue-700 text-xs mt-1">
-                      可以点击"导入品类"从其他仓库快速导入品类配置，或点�?新建品类"直接创建新品�?                    </Text>
+                      可以点击"导入品类"从其他仓库快速导入品类配置，或点�?新建品类"直接创建新品�?                    </Text>
                   </View>
                 </View>
               </View>
@@ -895,7 +907,7 @@ const WarehouseEdit: React.FC = () => {
                           </Text>
                         </View>
                         <Text className={`text-xs ${category.is_active ? 'text-green-600' : 'text-gray-400'}`}>
-                          {category.is_active ? '启用�? : '已停�?}
+                          {category.is_active ? '启用�? : '已停�?}
                         </Text>
                       </View>
 
@@ -907,7 +919,7 @@ const WarehouseEdit: React.FC = () => {
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入单�?
+                                placeholder="请输入单�?
                                 value={driverPrice}
                                 onInput={(e) => updateDriverPrice(category.category_name, e.detail.value)}
                               />
@@ -919,7 +931,7 @@ const WarehouseEdit: React.FC = () => {
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入上楼价�?
+                                placeholder="请输入上楼价�?
                                 value={vehiclePrice}
                                 onInput={(e) => updateVehiclePrice(category.category_name, e.detail.value)}
                               />
@@ -931,7 +943,7 @@ const WarehouseEdit: React.FC = () => {
                               <Input
                                 className="bg-white px-2 py-1 rounded border border-blue-300 w-full text-sm"
                                 type="digit"
-                                placeholder="请输入分拣单�?
+                                placeholder="请输入分拣单�?
                                 value={sortingPrice}
                                 onInput={(e) => updateSortingPrice(category.category_name, e.detail.value)}
                               />
@@ -946,22 +958,22 @@ const WarehouseEdit: React.FC = () => {
             )}
           </View>
 
-          {/* 管理员设�?*/}
+          {/* 管理员设�?*/}
           <View className="bg-white rounded-lg p-4 mb-4 shadow-sm">
             <View className="flex items-center justify-between mb-4">
               <Text className="text-gray-800 font-bold text-lg">
-                管理员设�?<Text className="text-red-500 text-sm">*</Text>
+                管理员设�?<Text className="text-red-500 text-sm">*</Text>
               </Text>
               <Text className="text-gray-500 text-sm">已选择 {selectedManagers.size} 个管理员</Text>
             </View>
 
-            {/* 快速添加自�?*/}
+            {/* 快速添加自�?*/}
             {currentUser && !selectedManagers.has(currentUser.id) && (
               <View className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
                 <View className="flex items-center justify-between">
                   <View className="flex-1">
-                    <Text className="text-orange-900 font-medium text-sm">快速添�?/Text>
-                    <Text className="text-orange-700 text-xs mt-1">将自己设置为该仓库的管理�?/Text>
+                    <Text className="text-orange-900 font-medium text-sm">快速添�?/Text>
+                    <Text className="text-orange-700 text-xs mt-1">将自己设置为该仓库的管理�?/Text>
                   </View>
                   <Button
                     size="mini"
@@ -976,7 +988,7 @@ const WarehouseEdit: React.FC = () => {
             {allManagers.length === 0 ? (
               <View className="text-center py-8">
                 <View className="i-mdi-account-supervisor text-5xl text-gray-300 mx-auto mb-2" />
-                <Text className="text-gray-400 text-sm">暂无可用管理�?/Text>
+                <Text className="text-gray-400 text-sm">暂无可用管理�?/Text>
               </View>
             ) : (
               <View>
@@ -1001,16 +1013,16 @@ const WarehouseEdit: React.FC = () => {
                         <View className="flex-1">
                           <View className="flex items-center">
                             <Text className={`font-medium ${isSelected ? 'text-green-900' : 'text-gray-700'}`}>
-                              {manager.name || manager.phone || manager.email || '未命�?}
+                              {manager.name || manager.phone || manager.email || '未命�?}
                             </Text>
                             {isSelf && (
                               <View className="ml-2 bg-blue-100 px-2 py-0.5 rounded">
-                                <Text className="text-blue-700 text-xs">�?/Text>
+                                <Text className="text-blue-700 text-xs">�?/Text>
                               </View>
                             )}
                           </View>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {manager.role === 'BOSS' ? '超级管理�? : '车队�?}
+                            {manager.role === 'BOSS' ? '超级管理�? : '车队�?}
                           </Text>
                         </View>
                       </View>
@@ -1028,7 +1040,7 @@ const WarehouseEdit: React.FC = () => {
           </View>
         </View>
 
-        {/* 新建品类对话�?*/}
+        {/* 新建品类对话�?*/}
         {showNewCategoryDialog && (
           <View className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <View className="bg-white rounded-lg p-6 m-4 w-full max-w-md">
@@ -1047,7 +1059,7 @@ const WarehouseEdit: React.FC = () => {
                 <View style={{overflow: 'hidden'}}>
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
-                    placeholder="例如：装卸货�?
+                    placeholder="例如：装卸货�?
                     value={newCategoryName}
                     onInput={(e) => setNewCategoryName(e.detail.value)}
                   />
@@ -1060,7 +1072,7 @@ const WarehouseEdit: React.FC = () => {
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入单�?
+                    placeholder="请输入单�?
                     value={newCategoryDriverPrice}
                     onInput={(e) => setNewCategoryDriverPrice(e.detail.value)}
                   />
@@ -1074,7 +1086,7 @@ const WarehouseEdit: React.FC = () => {
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入上楼价�?
+                    placeholder="请输入上楼价�?
                     value={newCategoryVehiclePrice}
                     onInput={(e) => setNewCategoryVehiclePrice(e.detail.value)}
                   />
@@ -1087,7 +1099,7 @@ const WarehouseEdit: React.FC = () => {
                   <Input
                     className="bg-gray-50 px-3 py-2 rounded border border-gray-200 w-full"
                     type="digit"
-                    placeholder="请输入分拣单�?
+                    placeholder="请输入分拣单�?
                     value={newCategorySortingPrice}
                     onInput={(e) => setNewCategorySortingPrice(e.detail.value)}
                   />
@@ -1112,7 +1124,7 @@ const WarehouseEdit: React.FC = () => {
           </View>
         )}
 
-        {/* 导入品类对话�?*/}
+        {/* 导入品类对话�?*/}
         {showImportDialog && (
           <View className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <View className="bg-white rounded-lg p-6 m-4 w-full max-w-md">
@@ -1130,7 +1142,7 @@ const WarehouseEdit: React.FC = () => {
                   <View className="flex items-start">
                     <View className="i-mdi-information text-lg text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
                     <Text className="text-blue-700 text-xs flex-1">
-                      将会导入选中仓库的所有品类配置（包括品类和单价），并与当前配置合�?                    </Text>
+                      将会导入选中仓库的所有品类配置（包括品类和单价），并与当前配置合�?                    </Text>
                   </View>
                 </View>
 
@@ -1158,7 +1170,7 @@ const WarehouseEdit: React.FC = () => {
                             {warehouse.name}
                           </Text>
                           <Text className="text-gray-500 text-xs mt-1">
-                            {warehouse.is_active ? '运营�? : '已停�?}
+                            {warehouse.is_active ? '运营�? : '已停�?}
                           </Text>
                         </View>
                         {selectedWarehouseForImport === warehouse.id && (

@@ -12,9 +12,9 @@ import {supabase} from '@/client/supabase'
 import * as VehiclesAPI from '@/db/api/vehicles'
 
 import type {VehicleWithDriver} from '@/db/types'
-import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import VirtualList from '@/components/VirtualList'
 
 // 创建页面日志记录器
 const logger = createLogger('SuperAdminVehicleManagement')
@@ -28,24 +28,11 @@ const VehicleManagement: React.FC = () => {
   // 存储每辆车的历史记录数量
   const [vehicleHistoryCount, setVehicleHistoryCount] = useState<Map<string, number>>(new Map())
 
-  // 加载车辆列表（带缓存）
+  // 加载车辆列表
   const loadVehicles = useCallback(async () => {
     setLoading(true)
     try {
-      // 生成缓存键
-      const cacheKey = 'super_admin_all_vehicles'
-      const cached = getVersionedCache<VehicleWithDriver[]>(cacheKey)
-
-      let data: VehicleWithDriver[]
-
-      if (cached) {
-        data = cached
-      } else {
-        data = await VehiclesAPI.getAllVehiclesWithDrivers()
-        // 保存到缓存（5分钟有效期）
-        setVersionedCache(cacheKey, data, 5 * 60 * 1000)
-      }
-
+      const data = await VehiclesAPI.getAllVehiclesWithDrivers()
       setVehicles(data)
       setFilteredVehicles(data)
 
@@ -77,11 +64,6 @@ const VehicleManagement: React.FC = () => {
 
   // 页面显示时加载数据
   useDidShow(() => {
-    // 清除缓存，强制重新加载
-    const cacheKey = 'super_admin_all_vehicles'
-    try {
-      Taro.removeStorageSync(cacheKey)
-    } catch (_e) {}
     loadVehicles()
   })
 
@@ -345,7 +327,242 @@ const VehicleManagement: React.FC = () => {
                 </Text>
               </View>
             </View>
+          ) : filteredVehicles.length > 20 ? (
+            // 车辆数量超过20时使用虚拟滚动
+            <VirtualList
+              data={filteredVehicles}
+              itemHeight={280}
+              height={600}
+              getItemKey={(vehicle) => vehicle.id}
+              renderItem={(vehicle) => {
+                const statusBadge = getVehicleStatusBadge(vehicle)
+                return (
+                  <View
+                    key={vehicle.id}
+                    className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all">
+                    {/* 车辆照片 */}
+                    {vehicle.left_front_photo && (
+                      <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+                        <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
+                        {/* 状态标签 - 使用综合状态 */}
+                        <View className="absolute top-3 right-3">
+                          <View className={`backdrop-blur rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
+                            <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
+                            <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 车辆信息 */}
+                    <View className="p-4">
+                      {/* 车牌号和品牌 */}
+                      <View className="mb-3">
+                        <View className="flex items-center mb-2">
+                          <View className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-3 py-1 mr-2">
+                            <Text className="text-white text-lg font-bold">{vehicle.plate_number}</Text>
+                          </View>
+                          {!vehicle.left_front_photo && (
+                            <View className={`rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>
+                              <View className={`${statusBadge.icon} text-sm mr-1 ${statusBadge.textColor}`}></View>
+                              <Text className={`text-xs font-medium ${statusBadge.textColor}`}>{statusBadge.text}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text className="text-gray-800 text-base font-medium">
+                          {vehicle.brand} {vehicle.model}
+                        </Text>
+                      </View>
+
+                      {/* 使用人信息 */}
+                      {vehicle.driver_id && vehicle.driver_name ? (
+                        <View
+                          className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-3 mb-3"
+                          onClick={() => handleViewDriver(vehicle.driver_id!)}>
+                          <View className="flex items-center justify-between">
+                            <View className="flex items-center flex-1">
+                              <View className="bg-purple-200 rounded-full w-10 h-10 flex items-center justify-center mr-3">
+                                <View className="i-mdi-account text-xl text-purple-700"></View>
+                              </View>
+                              <View className="flex-1">
+                                <Text className="text-xs text-purple-600 mb-1 block">使用人</Text>
+                                <Text className="text-sm text-purple-900 font-medium block">{vehicle.driver_name}</Text>
+                                {vehicle.driver_phone && (
+                                  <Text className="text-xs text-purple-700 block">{vehicle.driver_phone}</Text>
+                                )}
+                              </View>
+                            </View>
+                            <View className="i-mdi-chevron-right text-xl text-purple-400"></View>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className="bg-gray-50 rounded-xl p-3 mb-3">
+                          <View className="flex items-center">
+                            <View className="bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center mr-3">
+                              <View className="i-mdi-account-off text-xl text-gray-500"></View>
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-xs text-gray-500 mb-1 block">使用人</Text>
+                              <Text className="text-sm text-gray-600 font-medium block">未分配</Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 租赁信息 - 始终显示 */}
+                      <View className="mb-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
+                        <View className="flex items-center justify-between mb-2">
+                          <View className="flex items-center">
+                            <View className="i-mdi-file-document-outline text-base text-amber-600 mr-1"></View>
+                            <Text className="text-xs font-bold text-amber-800">租赁信息</Text>
+                          </View>
+                          {/* 编辑按钮 */}
+                          <View
+                            className="flex items-center bg-amber-600 rounded-full px-2 py-1 active:scale-95 transition-all"
+                            onClick={() => handleEditRental(vehicle.id)}>
+                            <View className="i-mdi-pencil text-xs text-white mr-0.5"></View>
+                            <Text className="text-xs text-white font-medium">编辑</Text>
+                          </View>
+                        </View>
+                        <View className="space-y-1.5">
+                          {/* 车辆归属类型 */}
+                          <View className="flex items-start">
+                            <Text className="text-xs text-gray-600 w-16 flex-shrink-0">车辆类型：</Text>
+                            <Text className="text-xs text-gray-800 flex-1">
+                              {vehicle.ownership_type === 'company'
+                                ? '公司车'
+                                : vehicle.ownership_type === 'personal'
+                                  ? '个人车'
+                                  : '未设置'}
+                            </Text>
+                          </View>
+
+                          {/* 租赁方 */}
+                          <View className="flex items-start">
+                            <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租赁方：</Text>
+                            <Text className="text-xs text-gray-800 flex-1">{vehicle.lessor_name || '未设置'}</Text>
+                          </View>
+
+                          {/* 承租方 */}
+                          <View className="flex items-start">
+                            <Text className="text-xs text-gray-600 w-16 flex-shrink-0">承租方：</Text>
+                            <Text className="text-xs text-gray-800 flex-1">{vehicle.lessee_name || '未设置'}</Text>
+                          </View>
+
+                          {/* 租期 */}
+                          <View className="flex items-start">
+                            <Text className="text-xs text-gray-600 w-16 flex-shrink-0">租期：</Text>
+                            <Text className="text-xs text-gray-800 flex-1">
+                              {vehicle.lease_start_date
+                                ? new Date(vehicle.lease_start_date).toLocaleDateString('zh-CN')
+                                : '未设置'}
+                              {' 至 '}
+                              {vehicle.lease_end_date
+                                ? new Date(vehicle.lease_end_date).toLocaleDateString('zh-CN')
+                                : '未设置'}
+                            </Text>
+                          </View>
+
+                          {/* 交租时间 */}
+                          <View className="flex items-start">
+                            <Text className="text-xs text-gray-600 w-16 flex-shrink-0">交租时间：</Text>
+                            <Text className="text-xs text-gray-800 flex-1">
+                              {vehicle.rent_payment_day ? `每月${vehicle.rent_payment_day}号` : '未设置'}
+                            </Text>
+                          </View>
+
+                          {/* 月租金 */}
+                          <View className="flex items-start">
+                            <Text className="text-xs text-gray-600 w-16 flex-shrink-0">月租金：</Text>
+                            <Text className="text-xs font-bold text-amber-700 flex-1">
+                              {vehicle.monthly_rent !== undefined && vehicle.monthly_rent !== null
+                                ? `¥${vehicle.monthly_rent.toLocaleString()}`
+                                : '未设置'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* 车辆详细信息 */}
+                      <View className="flex flex-wrap gap-2 mb-4">
+                        {vehicle.color && (
+                          <View className="flex items-center bg-gradient-to-r from-purple-50 to-purple-100 px-3 py-1.5 rounded-lg">
+                            <View className="i-mdi-palette text-base text-purple-600 mr-1"></View>
+                            <Text className="text-xs text-purple-700 font-medium">{vehicle.color}</Text>
+                          </View>
+                        )}
+                        {vehicle.vehicle_type && (
+                          <View className="flex items-center bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1.5 rounded-lg">
+                            <View className="i-mdi-car-info text-base text-blue-600 mr-1"></View>
+                            <Text className="text-xs text-blue-700 font-medium">{vehicle.vehicle_type}</Text>
+                          </View>
+                        )}
+                        {vehicle.vin && (
+                          <View className="flex items-center bg-gradient-to-r from-gray-50 to-gray-100 px-3 py-1.5 rounded-lg">
+                            <View className="i-mdi-barcode text-base text-gray-600 mr-1"></View>
+                            <Text className="text-xs text-gray-700 font-medium">{vehicle.vin.slice(0, 8)}...</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* 操作按钮 - 始终显示 */}
+                      <View className="flex flex-col gap-2">
+                        {/* 第一行：查看详情、查看司机、车辆审核 */}
+                        <View className="flex gap-2">
+                          {/* 查看详情按钮 */}
+                          <View
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg py-2 active:scale-95 transition-all"
+                            onClick={() => handleViewDetail(vehicle.id)}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-eye text-base text-white mr-1"></View>
+                              <Text className="text-white text-sm font-medium">查看详情</Text>
+                            </View>
+                          </View>
+
+                          {/* 查看司机按钮 - 仅当有司机时显示 */}
+                          {vehicle.driver_id && (
+                            <View
+                              className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleViewDriver(vehicle.driver_id!)}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-account text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">查看司机</Text>
+                              </View>
+                            </View>
+                          )}
+
+                          {/* 车辆审核按钮 - 仅当需要审核时显示 */}
+                          {shouldShowReviewButton(vehicle) && (
+                            <View
+                              className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg py-2 active:scale-95 transition-all"
+                              onClick={() => handleReview(vehicle.id)}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-clipboard-check text-base text-white mr-1"></View>
+                                <Text className="text-white text-sm font-medium">车辆审核</Text>
+                              </View>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* 第二行：查看历史记录 - 仅当有历史记录时显示 */}
+                        {hasHistory(vehicle) && (
+                          <View
+                            className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg py-2 active:scale-95 transition-all"
+                            onClick={() => handleViewHistory(vehicle.plate_number)}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-history text-base text-white mr-1"></View>
+                              <Text className="text-white text-sm font-medium">查看历史记录</Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                )
+              }}
+            />
           ) : (
+            // 车辆数量较少时使用普通列表
             <View className="space-y-4">
               {filteredVehicles.map((vehicle) => {
                 const statusBadge = getVehicleStatusBadge(vehicle)
