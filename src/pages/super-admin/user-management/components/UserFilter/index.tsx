@@ -17,7 +17,8 @@
  */
 
 import {Input, Text, View} from '@tarojs/components'
-import React, {memo} from 'react'
+import type React from 'react'
+import {memo} from 'react'
 
 /**
  * UserFilter组件的Props接口

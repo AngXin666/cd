@@ -8,11 +8,10 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
-
 import type {Profile} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 const ChangePhonePage: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)

@@ -9,11 +9,11 @@ import {useEffect} from 'react'
 import {supabase} from '@/client/supabase'
 import {UserContextProvider} from '@/contexts/UserContext'
 import {initMigrations} from '@/db/migrations/runMigrations'
+import {applyH5Update, checkForH5Update, initLiveUpdate} from '@/services/h5UpdateService'
 import {capacitorApp, capacitorSplashScreen, capacitorStatusBar} from '@/utils/capacitor'
 import {silentCheckUpdate} from '@/utils/hotUpdate'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
 import {platformExecute} from '@/utils/platform'
-import {checkForH5Update, applyH5Update, initLiveUpdate} from '@/services/h5UpdateService'
 import './app.scss'
 
 // 设置全局错误处理
@@ -63,7 +63,6 @@ const initializePlatform = async () => {
   })
 }
 
-
 /**
  * 显示更新弹窗并处理更新流程（使用原生confirm/alert）
  */
@@ -76,9 +75,7 @@ const showUpdateModal = async (versionInfo: {
   const content = versionInfo.release_notes || '修复已知问题，优化用户体验'
 
   // 1. 提示更新
-  const userConfirmed = confirm(
-    `发现新版本 v${versionInfo.version}\n\n更新内容：\n${content}\n\n是否立即更新？`
-  )
+  const userConfirmed = confirm(`发现新版本 v${versionInfo.version}\n\n更新内容：\n${content}\n\n是否立即更新？`)
 
   if (userConfirmed) {
     // 2. 下载更新

@@ -4,18 +4,16 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import CircularProgress from '@/components/CircularProgress'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
 import * as PieceworkAPI from '@/db/api/piecework'
-import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
-import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
-import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
+import type {PieceWorkCategory, PieceWorkRecord, Warehouse} from '@/db/types'
+import {useUserListCache} from '@/hooks/useUserListCache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
-import TopNavBar from '@/components/TopNavBar'
 // 完成率状态判断和样式配置
 interface CompletionRateStatus {
   label: string // 状态文字
@@ -94,9 +92,18 @@ interface DriverSummary {
 
 const ManagerPieceWorkReport: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [_profile, setProfile] = useState<Profile | null>(null)
+
+  // 使用新的用户列表缓存 Hook
+  // 提供用户列表、详情、仓库映射等数据，并支持自动实时更新
+  const {users, userWarehouseIdsMap, refresh: refreshUsers, clearCache: clearUsersCache} = useUserListCache()
+
+  // 从用户列表中过滤出司机
+  // 使用 useMemo 优化性能，只在 users 变化时重新计算
+  const drivers = useMemo(() => users.filter((u) => u.role === 'DRIVER'), [users])
+
+  // 数据状态
+  // 注意：仓库和品类数据仍需独立加载，因为 useUserListCache 不提供完整的仓库列表
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [drivers, setDrivers] = useState<Profile[]>([])
   const [_categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
 
@@ -140,57 +147,30 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
   }, [])
 
-  // 加载基础数据
-  const loadData = useCallback(async () => {
+  /**
+   * 加载基础数据（仓库和品类）
+   *
+   * 注意：
+   * - 司机数据已从 useUserListCache 获取，不需要在这里加载
+   * - 仓库数据需要完整的仓库列表，useUserListCache 只提供用户-仓库映射
+   * - 品类数据与用户缓存无关，需要独立加载
+   * - 车队长只能看到自己管理的仓库（通过 getManagerWarehouses 过滤）
+   */
+  const loadBaseData = useCallback(async () => {
     if (!user?.id) return
 
     try {
-      // 生成缓存键（包含管理员ID）
-      const cacheKey = `manager_piece_work_base_data_${user.id}`
-      const cached = getVersionedCache<{
-        profile: Profile | null
-        warehouses: Warehouse[]
-        drivers: Profile[]
-        categories: PieceWorkCategory[]
-      }>(cacheKey)
+      // 并行加载仓库和品类数据
+      // 车队长端：使用 getManagerWarehouses 获取管理的仓库
+      const [warehousesData, categoriesData] = await Promise.all([
+        WarehousesAPI.getManagerWarehouses(user.id),
+        PieceworkAPI.getActiveCategories()
+      ])
 
-      if (cached) {
-        setProfile(cached.profile)
-        setWarehouses(cached.warehouses)
-        setDrivers(cached.drivers)
-        setCategories(cached.categories)
-        return
-      }
-
-      // 加载当前用户信息
-      const profileData = await UsersAPI.getCurrentUserProfile()
-      setProfile(profileData)
-
-      // 加载管辖的仓库
-      const warehousesData = await WarehousesAPI.getManagerWarehouses(user.id)
       setWarehouses(warehousesData)
-
-      // 加载所有司机
-      const driversData = await UsersAPI.getDriverProfiles()
-      setDrivers(driversData)
-
-      // 加载所有品类
-      const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
-
-      // 保存到缓存（5分钟有效期）
-      setVersionedCache(
-        cacheKey,
-        {
-          profile: profileData,
-          warehouses: warehousesData,
-          drivers: driversData,
-          categories: categoriesData
-        },
-        5 * 60 * 1000
-      )
     } catch (error) {
-      console.error('加载数据失败:', error)
+      console.error('加载基础数据失败:', error)
       Taro.showToast({
         title: '加载数据失败',
         icon: 'error',
@@ -199,9 +179,9 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
   }, [user?.id])
 
-  // 加载计件记录（带缓存）- 移除司机筛选功能
+  // 加载计件记录 - 移除旧缓存逻辑
   const loadRecords = useCallback(async () => {
-    if (!startDate || !endDate || warehouses.length === 0) return
+    if (warehouses.length === 0) return
 
     try {
       // 加载当前选中仓库的记录
@@ -216,21 +196,10 @@ const ManagerPieceWorkReport: React.FC = () => {
       const actualStartDate = startDate <= today ? startDate : today
       const actualEndDate = endDate >= today ? endDate : today
 
-      // 生成缓存键（包含仓库ID、日期范围）
-      const cacheKey = `manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
-      const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
+      // 加载计件记录
+      const data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
 
-      let data: PieceWorkRecord[] = []
-
-      if (cached) {
-        data = cached
-      } else {
-        data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
-        // 保存到缓存（3分钟有效期）
-        setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-      }
-
-      // 按日期排序
+      // 排序
       data.sort((a, b) => {
         const dateA = new Date(a.work_date).getTime()
         const dateB = new Date(b.work_date).getTime()
@@ -246,81 +215,50 @@ const ManagerPieceWorkReport: React.FC = () => {
         duration: 2000
       })
     }
-  }, [startDate, endDate, warehouses, currentWarehouseIndex, sortOrder])
+  }, [warehouses, currentWarehouseIndex, startDate, endDate, sortOrder])
 
-  // 预加载其他仓库的数据（在空闲时后台加载）
-  const preloadOtherWarehouses = useCallback(async () => {
-    if (!startDate || !endDate || warehouses.length <= 1) return
-
-    // 使用 setTimeout 模拟 requestIdleCallback（小程序环境不支持 requestIdleCallback）
-    setTimeout(async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0]
-        const actualStartDate = startDate <= today ? startDate : today
-        const actualEndDate = endDate >= today ? endDate : today
-
-        // 预加载除当前仓库外的所有仓库数据
-        const preloadPromises = warehouses
-          .filter((_, index) => index !== currentWarehouseIndex)
-          .map(async (warehouse) => {
-            const cacheKey = `manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
-            const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
-
-            // 如果缓存中没有数据，则预加载
-            if (!cached) {
-              const data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(
-                warehouse.id,
-                actualStartDate,
-                actualEndDate
-              )
-              setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-            } else {
-            }
-          })
-
-        await Promise.all(preloadPromises)
-      } catch (error) {
-        console.error('预加载数据失败:', error)
-        // 预加载失败不影响正常使用，静默处理
-      }
-    }, 1000) // 延迟1秒后开始预加载，确保不影响当前页面加载
-  }, [startDate, endDate, warehouses, currentWarehouseIndex])
-
+  // 初始加载基础数据
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadBaseData()
+  }, [loadBaseData])
 
+  // 加载计件记录
   useEffect(() => {
     loadRecords()
   }, [loadRecords])
 
-  // 在当前仓库数据加载完成后，预加载其他仓库数据
-  useEffect(() => {
-    if (records.length > 0 && warehouses.length > 1) {
-      preloadOtherWarehouses()
-    }
-  }, [records.length, warehouses.length, preloadOtherWarehouses])
-
+  /**
+   * 页面显示时的处理
+   *
+   * 注意：
+   * - useUserListCache 会自动处理实时更新，不需要手动清除缓存
+   * - 只需重新加载计件记录即可
+   */
   useDidShow(() => {
-    // 清除缓存，强制重新加载最新数据
-    if (user?.id) {
-      clearVersionedCache(`manager_piece_work_base_data_${user.id}`)
-      // 清除所有计件记录缓存
-      warehouses.forEach((warehouse) => {
-        const today = new Date().toISOString().split('T')[0]
-        const actualStartDate = startDate <= today ? startDate : today
-        const actualEndDate = endDate >= today ? endDate : today
-        clearVersionedCache(`manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`)
-      })
-    }
-    loadData()
-    loadRecords() // 添加：页面显示时重新加载记录
+    // 重新加载计件记录（用户数据会自动更新）
+    loadRecords()
   })
 
-  // 下拉刷新
+  /**
+   * 下拉刷新处理
+   *
+   * 刷新流程：
+   * 1. 清除用户列表缓存
+   * 2. 刷新用户数据
+   * 3. 重新加载基础数据（仓库、品类）
+   * 4. 重新加载计件记录
+   */
   usePullDownRefresh(async () => {
-    await Promise.all([loadData(), loadRecords()])
-    Taro.stopPullDownRefresh()
+    try {
+      // 清除并刷新用户列表缓存
+      clearUsersCache()
+      await refreshUsers()
+
+      // 重新加载基础数据和计件记录
+      await Promise.all([loadBaseData(), loadRecords()])
+    } finally {
+      Taro.stopPullDownRefresh()
+    }
   })
 
   // 查看司机详情

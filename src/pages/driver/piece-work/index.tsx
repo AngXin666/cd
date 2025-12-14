@@ -3,14 +3,13 @@ import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {PieceWorkCategory, PieceWorkRecord, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString} from '@/utils/date'
 
-import TopNavBar from '@/components/TopNavBar'
 const DriverPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
@@ -442,8 +441,8 @@ const DriverPieceWork: React.FC = () => {
   if (isEditing && editingRecord) {
     return (
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
           <View className="p-4">
             {/* 编辑标题 */}

@@ -2,6 +2,11 @@
  * 老板端 - 用户管理页面
  * 功能：管理所有用户（司机、车队长、老板）
  * 参考车队长端的司机管理实现
+ *
+ * 使用全局缓存系统优化性能：
+ * - 使用 useUserListCache Hook 实现缓存优先加载
+ * - 实时监听数据库变更自动更新
+ * - 支持离线模式显示缓存数据
  */
 
 import {Checkbox, CheckboxGroup, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
@@ -9,25 +14,18 @@ import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
-import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
+import {type UserWithRealName, useUserListCache} from '@/hooks/useUserListCache'
 import {matchWithPinyin} from '@/utils/pinyin'
 
-import TopNavBar from '@/components/TopNavBar'
 // 司机详细信息类型
 type DriverDetailInfo = Awaited<ReturnType<typeof VehiclesAPI.getDriverDetailInfo>>
-
-// 扩展用户类型，包含真实姓名
-interface UserWithRealName extends Profile {
-  real_name?: string
-  login_account?: string
-}
 
 // 辅助函数：判断是否是管理员角色（boss）
 const isAdminRole = (role: string | undefined) => {
@@ -37,12 +35,23 @@ const isAdminRole = (role: string | undefined) => {
 const UserManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null) // 当前登录用户的完整信息
-  const [users, setUsers] = useState<UserWithRealName[]>([])
+
+  // 使用全局缓存 Hook 加载用户列表
+  const {
+    users,
+    userDetails: cachedUserDetails,
+    userWarehouseIdsMap: cachedUserWarehouseIdsMap,
+    loading: cacheLoading,
+    error: cacheError,
+    fromCache,
+    refresh: refreshCache,
+    clearCache
+  } = useUserListCache()
+
   const [searchKeyword, setSearchKeyword] = useState('')
   const [showSearch, setShowSearch] = useState(false) // 搜索框展开状态
   // 默认角色过滤：如果是老板或超级管理员登录，显示车队长；否则显示司机
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>(isAdminRole(user?.role) ? 'MANAGER' : 'DRIVER')
-  const [loading, setLoading] = useState(false)
 
   // 标签页状态：'DRIVER' 或 'MANAGER'
   // 默认值：如果是老板或超级管理员登录，显示管理员标签页；否则显示司机标签页
@@ -50,7 +59,16 @@ const UserManagement: React.FC = () => {
 
   // 用户详细信息展开状态
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
-  const [userDetails, setUserDetails] = useState<Map<string, DriverDetailInfo>>(new Map())
+  // 使用缓存的用户详情，但允许本地扩展
+  const [localUserDetails, setLocalUserDetails] = useState<Map<string, DriverDetailInfo>>(new Map())
+  // 合并缓存和本地的用户详情
+  const userDetails = useMemo(() => {
+    const merged = new Map(cachedUserDetails)
+    localUserDetails.forEach((value, key) => {
+      merged.set(key, value)
+    })
+    return merged
+  }, [cachedUserDetails, localUserDetails])
 
   // 仓库相关状态
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -60,8 +78,8 @@ const UserManagement: React.FC = () => {
   const [_driverWarehouseMap, setDriverWarehouseMap] = useState<Map<string, Warehouse[]>>(new Map())
   // 仓库切换状态
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
-  // 存储每个用户的仓库ID列表（用于过滤）
-  const [userWarehouseIdsMap, setUserWarehouseIdsMap] = useState<Map<string, string[]>>(new Map())
+  // 使用缓存的用户仓库映射
+  const userWarehouseIdsMap = cachedUserWarehouseIdsMap
 
   // 添加用户相关状态
   const [showAddUser, setShowAddUser] = useState(false)
@@ -138,7 +156,16 @@ const UserManagement: React.FC = () => {
     }
 
     return filtered
-  }, [users, searchKeyword, roleFilter, currentWarehouseIndex, warehouses, userWarehouseIdsMap, currentUserProfile, user])
+  }, [
+    users,
+    searchKeyword,
+    roleFilter,
+    currentWarehouseIndex,
+    warehouses,
+    userWarehouseIdsMap,
+    currentUserProfile,
+    user
+  ])
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -147,146 +174,46 @@ const UserManagement: React.FC = () => {
     setWarehouses(data.filter((w) => w.is_active))
   }, [])
 
-  // 加载用户列表
-  const loadUsers = useCallback(
-    async (forceRefresh: boolean = false) => {
-      // 先加载当前登录用户的完整信息（包括 main_account_id）
-      if (!currentUserProfile && user) {
-        try {
-          // 单用户架构：从 users 和 user_roles 表查询
-          const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
-            supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
-            supabase.from('users').select('role').eq('id', user.id).maybeSingle()
-          ])
-
-          if (!userError && userData) {
-            const profile = {
-              ...userData,
-              role: roleData?.role || 'DRIVER'
-            }
-            setCurrentUserProfile(profile)
-          }
-        } catch (error) {
-          console.error('加载当前用户信息失败:', error)
-        }
-      }
-
-      // 如果不是强制刷新，先尝试从缓存加载
-      if (!forceRefresh) {
-        const cachedUsers = getVersionedCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
-        const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
-        const cachedWarehouseIds = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES)
-
-        if (cachedUsers && cachedDetails && cachedWarehouseIds) {
-          setUsers(cachedUsers)
-          // 将普通对象转换为 Map
-          const detailsMap = new Map(Object.entries(cachedDetails))
-          setUserDetails(detailsMap)
-          const warehouseIdsMap = new Map(Object.entries(cachedWarehouseIds))
-          setUserWarehouseIdsMap(warehouseIdsMap)
-          return
-        }
-      }
-
-      // 从数据库加载
-      setLoading(true)
+  // 加载当前登录用户的完整信息（包括 main_account_id）
+  const loadCurrentUserProfile = useCallback(async () => {
+    if (!currentUserProfile && user) {
       try {
-        const data = await UsersAPI.getAllUsers()
+        // 单用户架构：从 users 和 user_roles 表查询
+        const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
+          supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
+          supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+        ])
 
-        // 批量并行加载：真实姓名、详细信息、仓库分配（优化性能）
-        const allWarehouses = await WarehousesAPI.getAllWarehouses()
-
-        const userDataPromises = data.map(async (u) => {
-          // 并行加载每个用户的所有信息
-          let assignments: {warehouse_id: string}[] = []
-
-          // 根据角色加载不同的仓库分配
-          if (u.role === 'DRIVER') {
-            assignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(u.id)
-          } else if (u.role === 'MANAGER' || isAdminRole(u.role)) {
-            assignments = await WarehousesAPI.getWarehouseAssignmentsByManager(u.id)
+        if (!userError && userData) {
+          const profile = {
+            ...userData,
+            role: roleData?.role || 'DRIVER'
           }
-
-          const [license, detail] = await Promise.all([
-            u.role === 'DRIVER' ? VehiclesAPI.getDriverLicense(u.id) : Promise.resolve(null),
-            u.role === 'DRIVER' ? VehiclesAPI.getDriverDetailInfo(u.id) : Promise.resolve(null)
-          ])
-
-          return {
-            user: {
-              ...u,
-              real_name: license?.id_card_name || u.name
-            },
-            detail,
-            warehouses: allWarehouses.filter((w) => assignments.some((a) => a.warehouse_id === w.id))
-          }
-        })
-
-        const userDataResults = await Promise.all(userDataPromises)
-
-        const usersWithRealName = userDataResults.map((r) => r.user)
-        const driverDetails = new Map<string, DriverDetailInfo>()
-        const driverWarehouses = new Map<string, Warehouse[]>()
-        const userWarehouseIds = new Map<string, string[]>()
-
-        userDataResults.forEach((result) => {
-          if (result.detail) {
-            driverDetails.set(result.user.id, result.detail)
-          }
-          if (result.warehouses.length > 0) {
-            driverWarehouses.set(result.user.id, result.warehouses)
-            userWarehouseIds.set(
-              result.user.id,
-              result.warehouses.map((w) => w.id)
-            )
-          }
-        })
-
-        setUsers(usersWithRealName)
-        setUserDetails(driverDetails)
-        setDriverWarehouseMap(driverWarehouses)
-        setUserWarehouseIdsMap(userWarehouseIds)
-
-        // 使用带版本号的缓存（5分钟有效期）
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
-        // Map 需要转换为普通对象才能缓存
-        const detailsObj = Object.fromEntries(driverDetails)
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
-        const warehouseIdsObj = Object.fromEntries(userWarehouseIds)
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES, warehouseIdsObj, 5 * 60 * 1000)
+          setCurrentUserProfile(profile)
+        }
       } catch (error) {
-        console.error('❌ 加载用户列表失败:', error)
-        showToast({title: '加载失败', icon: 'error'})
-      } finally {
-        setLoading(false)
+        console.error('加载当前用户信息失败:', error)
       }
-    },
-    [searchKeyword, roleFilter, currentWarehouseIndex, user, currentUserProfile]
-  )
+    }
+  }, [currentUserProfile, user])
 
   // 搜索关键词变化 - filteredUsers 会自动更新
-  const handleSearchChange = useCallback(
-    (e: {detail: {value: string}}) => {
-      const keyword = e.detail.value
-      setSearchKeyword(keyword)
-    },
-    []
-  )
+  const handleSearchChange = useCallback((e: {detail: {value: string}}) => {
+    const keyword = e.detail.value
+    setSearchKeyword(keyword)
+  }, [])
 
   // 标签页切换 - filteredUsers 会自动更新
-  const handleTabChange = useCallback(
-    (tab: 'DRIVER' | 'MANAGER') => {
-      setActiveTab(tab)
-      // 切换标签时自动设置角色筛选
-      // 管理员标签页显示车队长（manager），不显示老板账号（super_admin）
-      const role: UserRole = tab === 'DRIVER' ? 'DRIVER' : 'MANAGER'
-      setRoleFilter(role)
-      // 收起所有展开的详情
-      setExpandedUserId(null)
-      setWarehouseAssignExpanded(null)
-    },
-    []
-  )
+  const handleTabChange = useCallback((tab: 'DRIVER' | 'MANAGER') => {
+    setActiveTab(tab)
+    // 切换标签时自动设置角色筛选
+    // 管理员标签页显示车队长（manager），不显示老板账号（super_admin）
+    const role: UserRole = tab === 'DRIVER' ? 'DRIVER' : 'MANAGER'
+    setRoleFilter(role)
+    // 收起所有展开的详情
+    setExpandedUserId(null)
+    setWarehouseAssignExpanded(null)
+  }, [])
 
   // 切换用户详细信息展开状态
   const _handleToggleUserDetail = useCallback(
@@ -303,7 +230,7 @@ const UserManagement: React.FC = () => {
           const detail = await VehiclesAPI.getDriverDetailInfo(userId)
           Taro.hideLoading()
           if (detail) {
-            setUserDetails((prev) => new Map(prev).set(userId, detail))
+            setLocalUserDetails((prev) => new Map(prev).set(userId, detail))
           }
         }
       }
@@ -509,9 +436,9 @@ const UserManagement: React.FC = () => {
             setNewDriverType('pure')
             setNewUserWarehouseIds([])
             setShowAddUser(false)
-            // 数据更新，增加版本号并清除相关缓存
-            onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-            loadUsers(true)
+            // 清除缓存并刷新数据
+            clearCache()
+            refreshCache()
           }
         })
       } else {
@@ -643,19 +570,19 @@ const UserManagement: React.FC = () => {
           console.error('❌ 发送司机类型变更通知失败:', error)
         }
 
-        // 数据更新，增加版本号并清除相关缓存
-        onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-        await loadUsers(true)
+        // 清除缓存并刷新数据
+        clearCache()
+        await refreshCache()
         // 重新加载该用户的详细信息
         const detail = await VehiclesAPI.getDriverDetailInfo(targetUser.id)
         if (detail) {
-          setUserDetails((prev) => new Map(prev).set(targetUser.id, detail))
+          setLocalUserDetails((prev) => new Map(prev).set(targetUser.id, detail))
         }
       } else {
         showToast({title: '切换失败', icon: 'error'})
       }
     },
-    [loadUsers]
+    [clearCache, refreshCache]
   )
 
   // 处理仓库分配按钮点击
@@ -896,26 +823,25 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
   // 页面显示时加载数据（批量并行查询优化）
   useDidShow(() => {
-    // 批量并行刷新，不使用缓存
-    Promise.all([loadUsers(true), loadWarehouses()]).catch((error) => {
+    // 批量并行刷新
+    Promise.all([loadCurrentUserProfile(), loadWarehouses()]).catch((error) => {
       console.error('[UserManagement] 批量刷新数据失败:', error)
     })
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadUsers(true), loadWarehouses()])
+    // 清除缓存并刷新
+    clearCache()
+    await Promise.all([refreshCache(), loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
 
   // 处理仓库切换 - filteredUsers 会自动更新
-  const handleWarehouseChange = useCallback(
-    (e: any) => {
-      const index = e.detail.current
-      setCurrentWarehouseIndex(index)
-    },
-    []
-  )
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+  }, [])
 
   // 获取角色显示文本
   const getRoleText = (role: UserRole) => {
@@ -969,6 +895,16 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
         <View className="p-4">
+          {/* 离线数据提示 */}
+          {fromCache && cacheError && (
+            <View className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded-r-lg">
+              <View className="flex flex-row items-center">
+                <View className="i-mdi-alert-circle text-yellow-600 text-xl mr-2" />
+                <Text className="text-yellow-800 text-sm">⚠️ 网络连接异常，显示的是离线数据，请检查网络连接</Text>
+              </View>
+            </View>
+          )}
+
           {/* 页面标题 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
             <Text className="text-white text-2xl font-bold block mb-2">用户管理</Text>
@@ -1275,10 +1211,10 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
           )}
 
           {/* 用户列表 */}
-          {loading ? (
+          {cacheLoading ? (
             <View className="flex items-center justify-center py-12">
               <View className="i-mdi-loading animate-spin text-4xl text-blue-500" />
-              <Text className="text-gray-500 mt-2 block">加载中...</Text>
+              <Text className="text-gray-500 mt-2 block">{fromCache ? '加载缓存数据...' : '加载中...'}</Text>
             </View>
           ) : filteredUsers.length === 0 ? (
             <View className="bg-white rounded-lg p-8 text-center shadow-sm">

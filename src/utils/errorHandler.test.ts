@@ -3,9 +3,8 @@
  * 验证错误解析、上下文记录和批量处理
  */
 
-import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {errorHandler, ErrorType, type ErrorContext} from './errorHandler'
-import * as logger from './logger'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {type ErrorContext, errorHandler} from './errorHandler'
 import * as toast from './toast'
 
 // Mock dependencies
@@ -203,11 +202,7 @@ describe('ErrorHandler', () => {
     })
 
     it('应处理多个错误并显示汇总', () => {
-      const errors = [
-        {error: new Error('Error 1')},
-        {error: new Error('Error 2')},
-        {error: new Error('Error 3')}
-      ]
+      const errors = [{error: new Error('Error 1')}, {error: new Error('Error 2')}, {error: new Error('Error 3')}]
       errorHandler.handleBatch(errors)
 
       expect(toast.showError).toHaveBeenCalledWith('操作失败: 3 个错误')

@@ -1,15 +1,15 @@
 /**
  * 角色辅助工具 - 单元测试
  */
-import {describe, it, expect} from 'vitest'
+import {describe, expect, it} from 'vitest'
 import {
-  isSuperAdmin,
-  isBoss,
-  isTenantAdmin,
-  isManager,
   canManageUser,
+  getCreatableRoles,
   getRoleDisplayName,
-  getCreatableRoles
+  isBoss,
+  isManager,
+  isSuperAdmin,
+  isTenantAdmin
 } from './roleHelper'
 
 describe('roleHelper utils', () => {

@@ -4,8 +4,8 @@
  * Validates: Requirements 2.3, 2.4, 5.4
  */
 
-import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
-import {TypeSafeStorage, getStorage, setStorage, removeStorage, clearStorage} from './storage'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {clearStorage, getStorage, removeStorage, setStorage, TypeSafeStorage} from './storage'
 
 // Mock Taro
 vi.mock('@tarojs/taro', () => ({

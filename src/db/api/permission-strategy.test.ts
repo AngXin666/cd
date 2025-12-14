@@ -1,7 +1,7 @@
 /**
  * 策略模板权限管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 vi.mock('@/client/supabase', () => ({
@@ -275,9 +275,7 @@ describe('permission-strategy API', () => {
 
   describe('getAllManagers', () => {
     it('应该返回MANAGER列表', async () => {
-      const mockManagers = [
-        {user_id: 'u-1', user_name: '张三', permission_level: 'full_control'}
-      ]
+      const mockManagers = [{user_id: 'u-1', user_name: '张三', permission_level: 'full_control'}]
 
       vi.mocked(supabase.rpc).mockResolvedValue({
         data: mockManagers,

@@ -3,13 +3,12 @@ import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {ManagerPermission, Profile, Warehouse} from '@/db/types'
 import {matchWithPinyin} from '@/utils/pinyin'
 
-import TopNavBar from '@/components/TopNavBar'
 const StaffManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [currentTab, setCurrentTab] = useState<'DRIVER' | 'assignment'>('DRIVER')
@@ -435,8 +434,8 @@ const StaffManagement: React.FC = () => {
 
     return (
       <View key={driver.id} className="bg-white rounded-xl p-4 mb-3 shadow-sm">
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <View className="flex items-start justify-between mb-3">
           <View className="flex-1">
             <View className="flex items-center mb-2">

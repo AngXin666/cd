@@ -21,9 +21,9 @@ import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
+import TopNavBar from '@/components/TopNavBar'
 import {useUserContext} from '@/contexts/UserContext'
 import * as UsersAPI from '@/db/api/users'
-
 import {
   deleteNotification,
   deleteReadNotifications,
@@ -39,7 +39,6 @@ import {
 } from '@/db/notificationApi'
 import {createLogger} from '@/utils/logger'
 
-import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('NotificationsPage')
 
 // 通知分组类型

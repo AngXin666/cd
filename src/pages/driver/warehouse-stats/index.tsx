@@ -3,14 +3,13 @@ import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {AttendanceRecord, PieceWorkCategory, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
 import {getDaysAgoDateString, getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
-import TopNavBar from '@/components/TopNavBar'
 const WarehouseStats: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null)

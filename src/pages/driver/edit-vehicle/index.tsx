@@ -11,6 +11,7 @@ import Taro, {chooseImage, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Vehicle} from '@/db/types'
@@ -18,7 +19,6 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
-import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('SupplementVehicle')
 const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
 
@@ -240,8 +240,8 @@ const SupplementVehicle: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center h-screen bg-gradient-to-b from-blue-50 to-blue-100">
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-4"></View>
         <Text className="text-gray-600">加载中...</Text>
       </View>

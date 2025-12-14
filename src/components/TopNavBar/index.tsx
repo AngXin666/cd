@@ -2,7 +2,7 @@
  * 顶部导航栏组件
  * 提供状态栏安全区域隔离，确保页面内容不会与设备状态栏重叠
  */
-import { View } from '@tarojs/components'
+import {View} from '@tarojs/components'
 import type React from 'react'
 import './index.scss'
 
@@ -13,10 +13,7 @@ interface TopNavBarProps {
   className?: string
 }
 
-const TopNavBar: React.FC<TopNavBarProps> = ({
-  backgroundColor = '#F8FAFC',
-  className = ''
-}) => {
+const TopNavBar: React.FC<TopNavBarProps> = ({backgroundColor = '#F8FAFC', className = ''}) => {
   return (
     <View
       className={`top-nav-bar ${className}`}

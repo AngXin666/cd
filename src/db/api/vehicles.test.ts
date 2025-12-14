@@ -1,7 +1,7 @@
 /**
  * 车辆管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 const mockSelect = vi.fn().mockReturnThis()
@@ -485,7 +485,8 @@ describe('vehicles API', () => {
         select: vi.fn().mockReturnThis(),
         update: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn()
+        maybeSingle: vi
+          .fn()
           .mockResolvedValueOnce({data: {locked_photos: {}}, error: null})
           .mockResolvedValueOnce({error: null})
       } as any)
@@ -503,7 +504,8 @@ describe('vehicles API', () => {
         select: vi.fn().mockReturnThis(),
         update: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn()
+        maybeSingle: vi
+          .fn()
           .mockResolvedValueOnce({data: {locked_photos: {pickup_photos: [0, 1]}}, error: null})
           .mockResolvedValueOnce({error: null})
       } as any)
@@ -517,7 +519,7 @@ describe('vehicles API', () => {
 
   describe('approveVehicle', () => {
     it('应该成功通过审核', async () => {
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
+      vi.mocked(supabase.from).mockImplementation((_table: string) => {
         return {
           update: vi.fn().mockReturnThis(),
           eq: vi.fn().mockResolvedValue({error: null})
@@ -533,7 +535,7 @@ describe('vehicles API', () => {
 
   describe('requireSupplement', () => {
     it('应该成功要求补录', async () => {
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
+      vi.mocked(supabase.from).mockImplementation((_table: string) => {
         return {
           update: vi.fn().mockReturnThis(),
           eq: vi.fn().mockResolvedValue({error: null})

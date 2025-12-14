@@ -4,10 +4,10 @@
  */
 
 import Taro from '@tarojs/taro'
-import {createLogger} from './logger'
 import {enhancedErrorHandler} from './errorHandler'
+import {createLogger} from './logger'
 
-const logger = createLogger('DraftUtils')
+const _logger = createLogger('DraftUtils')
 
 // 草稿数据接口
 export interface VehicleDraft {

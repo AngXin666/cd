@@ -3,7 +3,7 @@
  * 在状态栏下方提供一个固定高度的安全区域
  * 确保内容不会与状态栏重叠
  */
-import { View } from '@tarojs/components'
+import {View} from '@tarojs/components'
 import type React from 'react'
 
 interface SafeAreaTopProps {
@@ -13,14 +13,11 @@ interface SafeAreaTopProps {
   className?: string
 }
 
-const SafeAreaTop: React.FC<SafeAreaTopProps> = ({ 
-  backgroundColor = 'transparent',
-  className = ''
-}) => {
+const SafeAreaTop: React.FC<SafeAreaTopProps> = ({backgroundColor = 'transparent', className = ''}) => {
   return (
-    <View 
+    <View
       className={`safe-area-top ${className}`}
-      style={{ 
+      style={{
         height: '24px',
         backgroundColor,
         width: '100%',

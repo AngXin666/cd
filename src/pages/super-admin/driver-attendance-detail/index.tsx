@@ -3,14 +3,13 @@ import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 const DriverAttendanceDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])

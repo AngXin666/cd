@@ -3,11 +3,10 @@ import {showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as NotificationsAPI from '@/db/api/notifications'
-
 import type {NotificationTemplate, NotificationType} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 /**
  * 通知模板管理页面
  */
@@ -157,8 +156,8 @@ const NotificationTemplates: React.FC = () => {
   if (showForm) {
     return (
       <View style={{background: 'linear-gradient(to bottom, #fef3c7, #fde68a)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
           <View className="p-4">
             {/* 表单标题 */}

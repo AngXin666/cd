@@ -8,13 +8,12 @@ import Taro, {useDidShow, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {VehicleWithDriver} from '@/db/types'
 import {calculateAge, calculateDrivingYears} from '@/utils/date'
 import {createLogger} from '@/utils/logger'
 
-import TopNavBar from '@/components/TopNavBar'
 const logger = createLogger('VehicleHistory')
 
 const VehicleHistory: React.FC = () => {
@@ -144,8 +143,8 @@ const VehicleHistory: React.FC = () => {
 
     return (
       <View className="mb-4">
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <Text className="text-sm font-medium text-foreground mb-2">{title}</Text>
         <View className="flex flex-wrap gap-2">
           {photos.map((photo, index) => (

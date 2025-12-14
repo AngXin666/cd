@@ -15,7 +15,8 @@
  */
 
 import {Text, View} from '@tarojs/components'
-import React, {memo} from 'react'
+import type React from 'react'
+import {memo} from 'react'
 
 /**
  * UserTabs组件的Props接口

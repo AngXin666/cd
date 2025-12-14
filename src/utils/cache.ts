@@ -1,10 +1,23 @@
 /**
  * 缓存管理器
  * 提供智能缓存功能，支持TTL和LRU淘汰策略
+ *
+ * ⚠️ 注意：本文件包含两套缓存系统
+ *
+ * 1. **新的 CacheManager 类**（推荐使用）
+ *    - 智能缓存管理器，支持LRU/LFU淘汰策略
+ *    - 适用于需要高级缓存功能的场景
+ *
+ * 2. **旧的简单缓存函数**（兼容API，逐步废弃）
+ *    - 简单的键值对缓存
+ *    - 为了向后兼容保留
+ *    - 新代码请使用 `src/utils/cacheManager.ts` 和 `src/hooks/useDataCache.ts`
+ *
+ * @module utils/cache
  */
 
-import {createLogger} from './logger'
 import {enhancedErrorHandler} from './errorHandler'
+import {createLogger} from './logger'
 
 const logger = createLogger('CacheManager')
 
@@ -237,11 +250,7 @@ export const apiCache = createCache({
  * 缓存装饰器
  * 自动缓存函数返回值
  */
-export function cached<T>(
-  cache: CacheManager<T>,
-  keyGenerator: (...args: unknown[]) => string,
-  ttl?: number
-) {
+export function cached<T>(cache: CacheManager<T>, keyGenerator: (...args: unknown[]) => string, ttl?: number) {
   return (_target: object, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
@@ -295,43 +304,54 @@ export function withCache<T extends (...args: unknown[]) => Promise<unknown>>(
   }) as T
 }
 
+// ==================== 旧的简单缓存API（兼容，逐步废弃） ====================
+// ⚠️ 以下函数为旧API，为了向后兼容保留
+// 新代码请使用：
+// - `src/utils/cacheManager.ts` - 新的缓存管理器
+// - `src/hooks/useDataCache.ts` - 通用缓存 Hook
+// - `src/hooks/useUserListCache.ts` - 用户列表缓存
+// - `src/hooks/useWarehousesCache.ts` - 仓库列表缓存
+// - 等等...
+
 /**
  * 缓存键常量（兼容旧API）
+ *
+ * @deprecated 请使用 `src/utils/cacheManager.ts` 中的 CACHE_KEYS
  */
 export const CACHE_KEYS = {
   // 考勤相关
   ATTENDANCE_MONTHLY: 'attendance_monthly',
   ATTENDANCE_ALL_RECORDS: 'attendance_all_records',
-  
+
   // 用户相关
   USER_PROFILE: 'user_profile',
   ALL_USERS: 'all_users',
-  
+
   // 仓库相关
   WAREHOUSE_LIST: 'warehouse_list',
   ALL_WAREHOUSES: 'all_warehouses',
   WAREHOUSE_CATEGORIES: 'warehouse_categories',
   WAREHOUSE_ASSIGNMENTS: 'warehouse_assignments',
   MANAGER_WAREHOUSES: 'manager_warehouses',
-  
+
   // 品类相关
   CATEGORY_LIST: 'category_list',
-  
+
   // 司机相关
   MANAGER_DRIVERS: 'manager_drivers',
   MANAGER_DRIVER_DETAILS: 'manager_driver_details',
-  
+
   // 车辆相关
   ALL_VEHICLES: 'all_vehicles',
-  
+
   // 司机仓库关联
   MANAGER_DRIVER_WAREHOUSES: 'manager_driver_warehouses',
-  
+
   // 超级管理员用户管理
   SUPER_ADMIN_USERS: 'super_admin_users',
   SUPER_ADMIN_USER_DETAILS: 'super_admin_user_details',
   SUPER_ADMIN_USER_WAREHOUSES: 'super_admin_user_warehouses',
-  
+
   // 仪表盘
   DASHBOARD_DATA: 'dashboard_data'
 }
@@ -350,11 +370,17 @@ export function clearManagerWarehousesCache(managerId?: string): void {
 
 /**
  * 简单缓存存储（兼容旧API）
+ * @deprecated 请使用新的缓存系统
  */
-const simpleCache = new Map<string, { value: unknown; expiry: number }>()
+const simpleCache = new Map<string, {value: unknown; expiry: number}>()
 
 /**
  * 设置缓存（兼容旧API）
+ *
+ * @deprecated 请使用 `src/utils/cacheManager.ts` 中的 cacheManager.set()
+ * @param key - 缓存键
+ * @param value - 缓存值
+ * @param ttl - 过期时间（毫秒），默认5分钟
  */
 export function setCache(key: string, value: unknown, ttl: number = 5 * 60 * 1000): void {
   simpleCache.set(key, {
@@ -365,6 +391,10 @@ export function setCache(key: string, value: unknown, ttl: number = 5 * 60 * 100
 
 /**
  * 获取缓存（兼容旧API）
+ *
+ * @deprecated 请使用 `src/utils/cacheManager.ts` 中的 cacheManager.get()
+ * @param key - 缓存键
+ * @returns 缓存值，如果不存在或已过期则返回 null
  */
 export function getCache<T = unknown>(key: string): T | null {
   const entry = simpleCache.get(key)
@@ -403,9 +433,16 @@ export function clearCacheByPrefix(prefix: string): void {
 
 /**
  * 获取带版本的缓存（兼容旧API）
+ *
+ * @deprecated 请使用新的缓存系统：`src/hooks/useDataCache.ts`
+ *
  * 支持两种调用方式：
  * 1. getVersionedCache(key) - 直接获取缓存
  * 2. getVersionedCache(key, version) - 获取带版本的缓存
+ *
+ * @param key - 缓存键
+ * @param version - 可选的版本号
+ * @returns 缓存值，如果不存在或已过期则返回 null
  */
 export function getVersionedCache<T = unknown>(key: string, version?: string): T | null {
   if (version) {
@@ -416,9 +453,17 @@ export function getVersionedCache<T = unknown>(key: string, version?: string): T
 
 /**
  * 设置带版本的缓存（兼容旧API）
+ *
+ * @deprecated 请使用新的缓存系统：`src/hooks/useDataCache.ts`
+ *
  * 支持两种调用方式：
  * 1. setVersionedCache(key, value, ttl?) - 直接设置缓存
  * 2. setVersionedCache(key, version, value, ttl?) - 设置带版本的缓存
+ *
+ * @param key - 缓存键
+ * @param valueOrVersion - 缓存值或版本号
+ * @param ttlOrValue - TTL或缓存值
+ * @param ttl - 可选的TTL
  */
 export function setVersionedCache(key: string, valueOrVersion: unknown, ttlOrValue?: unknown, ttl?: number): void {
   // 判断调用方式：如果第三个参数是数字或undefined，则是简单模式
@@ -451,11 +496,18 @@ const dataUpdateCallbacks = new Map<string, Set<() => void>>()
 
 /**
  * 数据更新通知（兼容旧API）
+ *
+ * @deprecated 请使用新的缓存系统：`src/hooks/useDataCache.ts` 自动处理实时更新
+ *
  * 支持两种调用方式：
  * 1. onDataUpdated(keys: string[]) - 清除指定keys的缓存
  * 2. onDataUpdated(key: string, callback: () => void) - 注册回调
+ *
+ * @param keyOrKeys - 缓存键或键数组
+ * @param callback - 可选的回调函数
+ * @returns 取消订阅函数（如果注册了回调）
  */
-export function onDataUpdated(keyOrKeys: string | string[], callback?: () => void): (() => void) | void {
+export function onDataUpdated(keyOrKeys: string | string[], callback?: () => void): (() => void) | undefined {
   // 如果是数组，清除这些key的缓存
   if (Array.isArray(keyOrKeys)) {
     for (const key of keyOrKeys) {
@@ -465,15 +517,15 @@ export function onDataUpdated(keyOrKeys: string | string[], callback?: () => voi
     }
     return
   }
-  
+
   // 如果有callback，注册回调
   if (callback) {
     const key = keyOrKeys
     if (!dataUpdateCallbacks.has(key)) {
       dataUpdateCallbacks.set(key, new Set())
     }
-    dataUpdateCallbacks.get(key)!.add(callback)
-    
+    dataUpdateCallbacks.get(key)?.add(callback)
+
     // 返回取消订阅函数
     return () => {
       dataUpdateCallbacks.get(key)?.delete(callback)

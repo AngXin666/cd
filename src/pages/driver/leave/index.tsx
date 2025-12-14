@@ -4,15 +4,14 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
+import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {LeaveApplication, Profile, ResignationApplication} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
 
-import TopNavBar from '@/components/TopNavBar'
 const DriverLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)

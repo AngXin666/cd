@@ -1,7 +1,7 @@
 import {renderHook, waitFor} from '@testing-library/react'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import {usePermissionContext} from './usePermissionContext'
 import type {PermissionContext} from '@/types/permission-context'
+import {usePermissionContext} from './usePermissionContext'
 
 // Mock auth
 const mockUser = {id: 'user-123', email: 'test@example.com'}
@@ -140,10 +140,7 @@ describe('usePermissionContext', () => {
       })
 
       expect(mockStorageSet).toHaveBeenCalledWith('permission_context', mockDriverContext)
-      expect(mockStorageSet).toHaveBeenCalledWith(
-        'permission_context_timestamp',
-        expect.any(Number)
-      )
+      expect(mockStorageSet).toHaveBeenCalledWith('permission_context_timestamp', expect.any(Number))
     })
   })
 

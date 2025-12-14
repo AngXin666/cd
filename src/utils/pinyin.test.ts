@@ -1,8 +1,8 @@
 /**
  * 拼音工具函数 - 单元测试
  */
-import {describe, it, expect} from 'vitest'
-import {matchWithPinyin, getPinyinInitials} from './pinyin'
+import {describe, expect, it} from 'vitest'
+import {getPinyinInitials, matchWithPinyin} from './pinyin'
 
 describe('pinyin utils', () => {
   describe('matchWithPinyin', () => {

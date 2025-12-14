@@ -3,14 +3,13 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 const ManagerPieceWorkReportDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()

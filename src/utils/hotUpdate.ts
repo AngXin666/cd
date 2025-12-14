@@ -13,8 +13,8 @@ import {
   showModal,
   showToast
 } from '@/utils/taroCompat'
-import {createLogger} from './logger'
 import {enhancedErrorHandler} from './errorHandler'
+import {createLogger} from './logger'
 
 const logger = createLogger('HotUpdate')
 

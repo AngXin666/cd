@@ -3,8 +3,8 @@
  * 使用 fast-check 进行基于属性的测试
  */
 
-import {describe, it, expect, beforeEach} from 'vitest'
 import * as fc from 'fast-check'
+import {beforeEach, describe, expect, it} from 'vitest'
 import {TypeSafeStorage} from './storage'
 
 describe('TypeSafeStorage 属性测试', () => {
@@ -148,9 +148,7 @@ describe('TypeSafeStorage 属性测试', () => {
             // 过滤掉可能与localStorage原型冲突的键
             const validEntries = entries.filter(
               ([key]) =>
-                key &&
-                key.trim().length > 0 &&
-                !['valueOf', 'toString', 'constructor', 'hasOwnProperty'].includes(key)
+                key && key.trim().length > 0 && !['valueOf', 'toString', 'constructor', 'hasOwnProperty'].includes(key)
             )
             if (validEntries.length === 0) return true
 
@@ -178,32 +176,27 @@ describe('TypeSafeStorage 属性测试', () => {
 
     it('属性: 批量操作应保持一致性', () => {
       fc.assert(
-        fc.property(
-          fc.dictionary(fc.string(), fc.string(), {minKeys: 1, maxKeys: 10}),
-          (data) => {
-            const validData = Object.fromEntries(
-              Object.entries(data).filter(([key]) => key)
-            )
+        fc.property(fc.dictionary(fc.string(), fc.string(), {minKeys: 1, maxKeys: 10}), (data) => {
+          const validData = Object.fromEntries(Object.entries(data).filter(([key]) => key))
 
-            if (Object.keys(validData).length === 0) return true
+          if (Object.keys(validData).length === 0) return true
 
-            TypeSafeStorage.clear()
+          TypeSafeStorage.clear()
 
-            // 批量设置
-            TypeSafeStorage.setMultiple(validData)
+          // 批量设置
+          TypeSafeStorage.setMultiple(validData)
 
-            // 批量获取
-            const keys = Object.keys(validData)
-            const retrieved = TypeSafeStorage.getMultiple<string>(keys)
+          // 批量获取
+          const keys = Object.keys(validData)
+          const retrieved = TypeSafeStorage.getMultiple<string>(keys)
 
-            // 验证所有值
-            for (const key of keys) {
-              expect(retrieved[key]).toBe(validData[key])
-            }
-
-            return true
+          // 验证所有值
+          for (const key of keys) {
+            expect(retrieved[key]).toBe(validData[key])
           }
-        ),
+
+          return true
+        }),
         {numRuns: 50}
       )
     })
@@ -222,9 +215,7 @@ describe('TypeSafeStorage 属性测试', () => {
             // 过滤掉可能与localStorage原型冲突的键
             const validEntries = entries.filter(
               ([key]) =>
-                key &&
-                key.trim().length > 0 &&
-                !['valueOf', 'toString', 'constructor', 'hasOwnProperty'].includes(key)
+                key && key.trim().length > 0 && !['valueOf', 'toString', 'constructor', 'hasOwnProperty'].includes(key)
             )
             if (validEntries.length === 0) return true
 

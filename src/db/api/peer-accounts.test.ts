@@ -1,7 +1,7 @@
 /**
  * 平级账号管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock helpers
 vi.mock('../helpers', () => ({

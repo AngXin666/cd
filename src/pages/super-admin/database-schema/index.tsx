@@ -8,10 +8,10 @@ import Taro, {showLoading, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import type {DatabaseColumn, DatabaseConstraint, DatabaseTable} from '@/db/api/users'
 import * as UsersAPI from '@/db/api/users'
 
-import TopNavBar from '@/components/TopNavBar'
 const DatabaseSchema: React.FC = () => {
   const {user: _user} = useAuth({guard: true})
 

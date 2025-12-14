@@ -2,11 +2,21 @@
  * 车辆列表页面 - 提车/还车管理版
  * 显示司机名下的所有车辆
  * 支持管理员查看指定司机的车辆
+ *
  * 功能：
  * - 提车录入：添加新车辆时自动记录提车时间
  * - 还车录入：对已提车的车辆进行还车操作
  * - 动态按钮：根据车辆状态显示不同的操作按钮
  * - 智能控制：有未还车车辆时隐藏"添加新车辆"按钮
+ *
+ * 缓存系统：
+ * - 使用 useVehiclesCache Hook 实现数据缓存和实时更新
+ * - 缓存有效期：30 分钟
+ * - 实时更新：监听 vehicles 表变化，自动刷新缓存
+ * - 离线支持：网络断开时显示缓存数据
+ *
+ * @module pages/driver/vehicle-list
+ * @feature user-list-cache-optimization
  */
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
@@ -14,25 +24,27 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
-import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {Profile, Vehicle} from '@/db/types'
-import {getVersionedCache, setVersionedCache} from '@/utils/cache'
+import {useVehiclesCache} from '@/hooks/useVehiclesCache'
 import {createLogger} from '@/utils/logger'
 
-import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('VehicleList')
 
 const VehicleList: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [loading, setLoading] = useState(false)
   const [targetDriverId, setTargetDriverId] = useState<string>('')
   const [targetDriver, setTargetDriver] = useState<Profile | null>(null)
   const [isManagerView, setIsManagerView] = useState(false)
   const [initialized, setInitialized] = useState(false) // 添加初始化标记
+
+  // 确定要查询的司机 ID
+  const driverId = targetDriverId || user?.id
+
+  // 使用车辆缓存 Hook
+  const {data: vehicles = [], loading, error, fromCache, refresh, clearCache} = useVehiclesCache(driverId)
 
   // 加载司机信息
   const loadDriverInfo = useCallback(async (driverId: string) => {
@@ -66,69 +78,13 @@ const VehicleList: React.FC = () => {
     loadDriverInfo
   ]) // 只在组件挂载时执行一次
 
-  // 加载车辆列表（带缓存）
-  // forceRefresh: 是否强制刷新（跳过缓存）
-  const loadVehicles = useCallback(
-    async (forceRefresh = false) => {
-      // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
-      const driverId = targetDriverId || user?.id
-
-      if (!driverId) {
-        return
-      }
-
-      setLoading(true)
-      try {
-        // 生成缓存键
-        const cacheKey = `driver_vehicles_${driverId}`
-        const cached = !forceRefresh ? getVersionedCache<Vehicle[]>(cacheKey) : null
-
-        let data: Vehicle[]
-
-        if (cached) {
-          data = cached
-        } else {
-          // 调试：检查认证状态
-          const authStatus = await VehiclesAPI.debugAuthStatus()
-
-          // 如果认证用户ID与查询的司机ID不匹配，记录警告
-          if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
-          }
-
-          data = await VehiclesAPI.getDriverVehicles(driverId)
-          // 保存到缓存（30秒有效期，缩短缓存时间以便更快看到审核结果）
-          setVersionedCache(cacheKey, data, 30 * 1000)
-        }
-
-        setVehicles(data)
-      } catch (error) {
-        logger.error('加载车辆列表失败', error)
-        Taro.showToast({
-          title: '加载失败',
-          icon: 'none'
-        })
-      } finally {
-        setLoading(false)
-      }
-    },
-    [user, targetDriverId, isManagerView]
-  )
-
-  // 页面显示时加载数据（只在初始化完成后）
-  // 强制刷新以确保看到最新的审核状态
+  // 页面显示时刷新数据（只在初始化完成后）
   useDidShow(() => {
-    // 只在初始化完成后才加载数据，并强制刷新以获取最新状态
+    // 只在初始化完成后才刷新数据
     if (initialized) {
-      loadVehicles(true) // 强制刷新，跳过缓存
+      refresh() // 刷新缓存数据
     }
   })
-
-  // 当初始化完成后，加载车辆列表
-  useEffect(() => {
-    if (initialized) {
-      loadVehicles()
-    }
-  }, [initialized, loadVehicles])
 
   // 添加车辆
   const handleAddVehicle = () => {
@@ -145,10 +101,12 @@ const VehicleList: React.FC = () => {
   }
 
   // 还车录入
-  const handleReturnVehicle = (vehicleId: string, plateNumber: string) => {
-    Taro.navigateTo({
+  const handleReturnVehicle = async (vehicleId: string, plateNumber: string) => {
+    // 导航到还车页面
+    await Taro.navigateTo({
       url: `/pages/driver/return-vehicle/index?id=${vehicleId}&plate=${plateNumber}`
     })
+    // 还车操作完成后会自动刷新（通过实时监听）
   }
 
   // 判断是否应该显示"添加新车辆"按钮
@@ -278,7 +236,10 @@ const VehicleList: React.FC = () => {
                 <Button
                   className="bg-white/20 backdrop-blur rounded-full p-2 mr-3"
                   size="mini"
-                  onClick={() => loadVehicles(true)}
+                  onClick={() => {
+                    clearCache()
+                    refresh()
+                  }}
                   disabled={loading}>
                   <View className={`i-mdi-refresh text-white text-xl ${loading ? 'animate-spin' : ''}`}></View>
                 </Button>
@@ -290,6 +251,21 @@ const VehicleList: React.FC = () => {
               </View>
             </View>
           </View>
+
+          {/* 离线数据提示 */}
+          {fromCache && error && (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+              <View className="flex items-start">
+                <View className="i-mdi-wifi-off text-yellow-600 text-lg mr-2 mt-0.5" />
+                <View className="flex-1">
+                  <Text className="text-yellow-800 text-xs block mb-1 font-medium">离线模式</Text>
+                  <Text className="text-yellow-700 text-xs block">
+                    当前显示的是缓存数据，请检查网络连接以获取最新信息
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* 管理员查看提示 */}
           {isManagerView && targetDriver && (

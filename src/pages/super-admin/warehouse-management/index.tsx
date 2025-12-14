@@ -1,20 +1,46 @@
+/**
+ * 老板端 - 仓库管理页面
+ * 功能：管理所有仓库及其考勤规则
+ *
+ * 使用全局缓存系统优化性能：
+ * - 使用 useWarehousesCache Hook 实现缓存优先加载
+ * - 实时监听数据库变更自动更新
+ * - 支持离线模式显示缓存数据
+ * - 所有数据变更操作后自动刷新缓存
+ */
+
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import PasswordVerifyModal from '@/components/common/PasswordVerifyModal'
+import ErrorBoundary from '@/components/ErrorBoundary'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
+import {useWarehousesCache} from '@/hooks/useWarehousesCache'
 import {confirmDelete} from '@/utils/confirm'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
-import ErrorBoundary from '@/components/ErrorBoundary'
-import TopNavBar from '@/components/TopNavBar'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
-  const [warehouses, setWarehouses] = useState<WarehouseWithRule[]>([])
+
+  // 使用全局缓存 Hook 加载仓库列表（基础仓库数据）
+  const {
+    data: cachedWarehouses,
+    loading: cacheLoading,
+    error: cacheError,
+    fromCache,
+    refresh: refreshCache,
+    clearCache
+  } = useWarehousesCache()
+
+  // 本地状态：仓库详细信息（包含考勤规则）
+  const [warehousesWithRules, setWarehousesWithRules] = useState<WarehouseWithRule[]>([])
+  const [detailsLoading, setDetailsLoading] = useState(false)
+
   const [showAddWarehouse, setShowAddWarehouse] = useState(false)
   const [showEditWarehouse, setShowEditWarehouse] = useState(false)
   const [currentWarehouse, _setCurrentWarehouse] = useState<WarehouseWithRule | null>(null)
@@ -41,21 +67,44 @@ const WarehouseManagement: React.FC = () => {
   const [showPasswordVerify, setShowPasswordVerify] = useState(false)
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null)
 
-  // 加载仓库列表
-  const loadWarehouses = useCallback(async () => {
-    showLoading({title: '加载中...'})
-    const data = await WarehousesAPI.getAllWarehousesWithRules()
-    setWarehouses(data)
-    hideLoading()
-  }, [])
+  // 加载仓库详细信息（包含考勤规则）
+  const loadWarehouseDetails = useCallback(async () => {
+    if (!cachedWarehouses || cachedWarehouses.length === 0) {
+      setWarehousesWithRules([])
+      return
+    }
+
+    try {
+      setDetailsLoading(true)
+      const data = await WarehousesAPI.getAllWarehousesWithRules()
+      setWarehousesWithRules(data)
+    } catch (error) {
+      console.error('加载仓库详细信息失败:', error)
+      showToast({
+        title: '加载详细信息失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      setDetailsLoading(false)
+    }
+  }, [cachedWarehouses])
+
+  // 当缓存数据变化时，加载详细信息
+  useEffect(() => {
+    if (cachedWarehouses && cachedWarehouses.length > 0) {
+      loadWarehouseDetails()
+    }
+  }, [cachedWarehouses, loadWarehouseDetails])
 
   useDidShow(() => {
-    loadWarehouses()
+    // 页面显示时刷新缓存
+    refreshCache()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadWarehouses()])
+    await refreshCache()
     Taro.stopPullDownRefresh()
   })
 
@@ -103,7 +152,10 @@ const WarehouseManagement: React.FC = () => {
         })
 
         setShowAddWarehouse(false)
-        await loadWarehouses()
+
+        // 清除缓存并刷新
+        clearCache()
+        await refreshCache()
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '创建失败'
@@ -265,7 +317,10 @@ const WarehouseManagement: React.FC = () => {
         })
 
         setShowEditWarehouse(false)
-        await loadWarehouses()
+
+        // 清除缓存并刷新
+        clearCache()
+        await refreshCache()
       } catch (_error) {
         showToast({
           title: '保存失败',
@@ -281,7 +336,7 @@ const WarehouseManagement: React.FC = () => {
   // 删除仓库
   const handleDeleteWarehouse = async (warehouse: WarehouseWithRule) => {
     // 检查是否是最后一个仓库
-    if (warehouses.length <= 1) {
+    if (warehousesWithRules.length <= 1) {
       showToast({
         title: '无法删除：每个老板号必须保留至少一个仓库',
         icon: 'none',
@@ -311,7 +366,9 @@ const WarehouseManagement: React.FC = () => {
             duration: 1500
           })
 
-          await loadWarehouses()
+          // 清除缓存并刷新
+          clearCache()
+          await refreshCache()
         } else {
           showToast({
             title: '删除失败',
@@ -332,360 +389,384 @@ const WarehouseManagement: React.FC = () => {
     })
   }
 
+  // 计算加载状态
+  const isLoading = cacheLoading || detailsLoading
+
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', minHeight: '100vh'}}>
         {/* 顶部导航栏 */}
         <TopNavBar />
         <ScrollView scrollY style={{height: 'calc(100vh - 44px)', background: 'transparent'}} className="box-border">
-        <View className="p-5">
-          {/* 页面标题区域 - 简约大气 */}
-          <View className="mb-6 pt-2">
-            <View className="flex items-center justify-between mb-6">
-              <View>
-                <Text className="text-gray-900 text-3xl font-bold block mb-1">仓库管理</Text>
-                <Text className="text-gray-500 text-sm block">Warehouse Management</Text>
-              </View>
-              <View className="i-mdi-warehouse text-gray-300 text-5xl" />
-            </View>
-
-            {/* 统计卡片 */}
-            <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <View className="flex items-center justify-around">
-                <View className="text-center flex-1">
-                  <Text className="text-gray-500 text-xs block mb-1">总仓库数</Text>
-                  <Text className="text-gray-900 text-2xl font-bold block">{warehouses.length}</Text>
-                </View>
-                <View className="w-px h-10 bg-gray-200" />
-                <View className="text-center flex-1">
-                  <Text className="text-gray-500 text-xs block mb-1">启用中</Text>
-                  <Text className="text-green-600 text-2xl font-bold block">
-                    {warehouses.filter((w) => w.is_active).length}
-                  </Text>
-                </View>
-                <View className="w-px h-10 bg-gray-200" />
-                <View className="text-center flex-1">
-                  <Text className="text-gray-500 text-xs block mb-1">已禁用</Text>
-                  <Text className="text-gray-400 text-2xl font-bold block">
-                    {warehouses.filter((w) => !w.is_active).length}
-                  </Text>
+          <View className="p-5">
+            {/* 离线数据提示 */}
+            {fromCache && cacheError && (
+              <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 flex items-center">
+                <View className="i-mdi-wifi-off text-yellow-600 text-xl mr-2" />
+                <View className="flex-1">
+                  <Text className="text-yellow-800 text-sm font-medium block">离线模式</Text>
+                  <Text className="text-yellow-600 text-xs block">显示的是缓存数据，请检查网络连接</Text>
                 </View>
               </View>
-            </View>
-          </View>
+            )}
 
-          {/* 添加仓库按钮 - 简约设计 */}
-          <View
-            onClick={handleShowAddWarehouse}
-            className="bg-white rounded-2xl p-4 mb-5 shadow-sm border border-gray-100 active:bg-gray-50 transition-all">
-            <View className="flex items-center justify-center">
-              <View className="i-mdi-plus-circle text-blue-600 text-2xl mr-3" />
-              <Text className="text-gray-800 text-base font-bold">添加新仓库</Text>
-            </View>
-          </View>
+            {/* 页面标题区域 - 简约大气 */}
+            <View className="mb-6 pt-2">
+              <View className="flex items-center justify-between mb-6">
+                <View>
+                  <Text className="text-gray-900 text-3xl font-bold block mb-1">仓库管理</Text>
+                  <Text className="text-gray-500 text-sm block">Warehouse Management</Text>
+                </View>
+                <View className="i-mdi-warehouse text-gray-300 text-5xl" />
+              </View>
 
-          {/* 仓库列表 - 卡片式设计 */}
-          {warehouses.length === 0 ? (
-            <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
-              <View className="i-mdi-warehouse-off text-gray-300 text-7xl mb-4" />
-              <Text className="text-gray-400 text-base block mb-1">暂无仓库</Text>
-              <Text className="text-gray-300 text-xs block">点击上方按钮添加第一个仓库</Text>
+              {/* 统计卡片 */}
+              <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                <View className="flex items-center justify-around">
+                  <View className="text-center flex-1">
+                    <Text className="text-gray-500 text-xs block mb-1">总仓库数</Text>
+                    <Text className="text-gray-900 text-2xl font-bold block">{warehousesWithRules.length}</Text>
+                  </View>
+                  <View className="w-px h-10 bg-gray-200" />
+                  <View className="text-center flex-1">
+                    <Text className="text-gray-500 text-xs block mb-1">启用中</Text>
+                    <Text className="text-green-600 text-2xl font-bold block">
+                      {warehousesWithRules.filter((w) => w.is_active).length}
+                    </Text>
+                  </View>
+                  <View className="w-px h-10 bg-gray-200" />
+                  <View className="text-center flex-1">
+                    <Text className="text-gray-500 text-xs block mb-1">已禁用</Text>
+                    <Text className="text-gray-400 text-2xl font-bold block">
+                      {warehousesWithRules.filter((w) => !w.is_active).length}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
-          ) : (
-            <View className="space-y-4">
-              {warehouses.map((warehouse) => (
-                <View
-                  key={warehouse.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  {/* 仓库头部 */}
-                  <View className={`p-4 ${warehouse.is_active ? 'bg-blue-50/50' : 'bg-gray-50'}`}>
-                    <View className="flex items-center justify-between">
-                      <View className="flex items-center flex-1">
-                        <View
-                          className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 ${
-                            warehouse.is_active ? 'bg-blue-100' : 'bg-gray-200'
-                          }`}>
+
+            {/* 添加仓库按钮 - 简约设计 */}
+            <View
+              onClick={handleShowAddWarehouse}
+              className="bg-white rounded-2xl p-4 mb-5 shadow-sm border border-gray-100 active:bg-gray-50 transition-all">
+              <View className="flex items-center justify-center">
+                <View className="i-mdi-plus-circle text-blue-600 text-2xl mr-3" />
+                <Text className="text-gray-800 text-base font-bold">添加新仓库</Text>
+              </View>
+            </View>
+
+            {/* 加载状态 */}
+            {isLoading && warehousesWithRules.length === 0 && (
+              <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+                <View className="i-mdi-loading animate-spin text-blue-600 text-7xl mb-4" />
+                <Text className="text-gray-400 text-base block">加载中...</Text>
+              </View>
+            )}
+
+            {/* 仓库列表 - 卡片式设计 */}
+            {!isLoading && warehousesWithRules.length === 0 ? (
+              <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+                <View className="i-mdi-warehouse-off text-gray-300 text-7xl mb-4" />
+                <Text className="text-gray-400 text-base block mb-1">暂无仓库</Text>
+                <Text className="text-gray-300 text-xs block">点击上方按钮添加第一个仓库</Text>
+              </View>
+            ) : (
+              <View className="space-y-4">
+                {warehousesWithRules.map((warehouse) => (
+                  <View
+                    key={warehouse.id}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    {/* 仓库头部 */}
+                    <View className={`p-4 ${warehouse.is_active ? 'bg-blue-50/50' : 'bg-gray-50'}`}>
+                      <View className="flex items-center justify-between">
+                        <View className="flex items-center flex-1">
                           <View
-                            className={`i-mdi-warehouse text-2xl ${warehouse.is_active ? 'text-blue-600' : 'text-gray-400'}`}
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <View className="flex items-center gap-2 mb-1">
-                            <Text
-                              className={`text-xl font-bold block ${warehouse.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
-                              {warehouse.name}
-                            </Text>
-                            {!warehouse.is_active && (
-                              <View className="bg-red-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-white text-xs">已禁用</Text>
-                              </View>
-                            )}
-                          </View>
-                          <View className="flex items-center gap-2">
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 ${
+                              warehouse.is_active ? 'bg-blue-100' : 'bg-gray-200'
+                            }`}>
                             <View
-                              className={`w-2 h-2 rounded-full ${warehouse.is_active ? 'bg-green-500' : 'bg-gray-400'}`}
+                              className={`i-mdi-warehouse text-2xl ${warehouse.is_active ? 'text-blue-600' : 'text-gray-400'}`}
                             />
-                            <Text className="text-gray-500 text-xs">{warehouse.is_active ? '运营中' : '已停用'}</Text>
+                          </View>
+                          <View className="flex-1">
+                            <View className="flex items-center gap-2 mb-1">
+                              <Text
+                                className={`text-xl font-bold block ${warehouse.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
+                                {warehouse.name}
+                              </Text>
+                              {!warehouse.is_active && (
+                                <View className="bg-red-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-white text-xs">已禁用</Text>
+                                </View>
+                              )}
+                            </View>
+                            <View className="flex items-center gap-2">
+                              <View
+                                className={`w-2 h-2 rounded-full ${warehouse.is_active ? 'bg-green-500' : 'bg-gray-400'}`}
+                              />
+                              <Text className="text-gray-500 text-xs">{warehouse.is_active ? '运营中' : '已停用'}</Text>
+                            </View>
                           </View>
                         </View>
                       </View>
                     </View>
-                  </View>
 
-                  {/* 考勤规则信息 */}
-                  <View className="p-4 border-t border-gray-100">
-                    <View className="flex items-center mb-3">
-                      <View className="i-mdi-clock-outline text-blue-600 text-lg mr-2" />
-                      <Text className="text-gray-700 text-sm font-bold">考勤规则</Text>
+                    {/* 考勤规则信息 */}
+                    <View className="p-4 border-t border-gray-100">
+                      <View className="flex items-center mb-3">
+                        <View className="i-mdi-clock-outline text-blue-600 text-lg mr-2" />
+                        <Text className="text-gray-700 text-sm font-bold">考勤规则</Text>
+                      </View>
+                      {warehouse.rule ? (
+                        <View className="grid grid-cols-2 gap-3">
+                          <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                            <Text className="text-gray-400 text-xs block mb-1">上班时间</Text>
+                            <Text className="text-gray-900 text-sm font-bold block">
+                              {warehouse.rule.work_start_time}
+                            </Text>
+                          </View>
+                          <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                            <Text className="text-gray-400 text-xs block mb-1">下班时间</Text>
+                            <Text className="text-gray-900 text-sm font-bold block">
+                              {warehouse.rule.work_end_time}
+                            </Text>
+                          </View>
+                          <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                            <Text className="text-gray-400 text-xs block mb-1">迟到阈值</Text>
+                            <Text className="text-orange-600 text-sm font-bold block">
+                              {warehouse.rule.late_threshold}分钟
+                            </Text>
+                          </View>
+                          <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                            <Text className="text-gray-400 text-xs block mb-1">早退阈值</Text>
+                            <Text className="text-orange-600 text-sm font-bold block">
+                              {warehouse.rule.early_threshold}分钟
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                          <Text className="text-gray-400 text-xs">未设置考勤规则</Text>
+                        </View>
+                      )}
                     </View>
-                    {warehouse.rule ? (
-                      <View className="grid grid-cols-2 gap-3">
-                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
-                          <Text className="text-gray-400 text-xs block mb-1">上班时间</Text>
-                          <Text className="text-gray-900 text-sm font-bold block">
-                            {warehouse.rule.work_start_time}
-                          </Text>
-                        </View>
-                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
-                          <Text className="text-gray-400 text-xs block mb-1">下班时间</Text>
-                          <Text className="text-gray-900 text-sm font-bold block">{warehouse.rule.work_end_time}</Text>
-                        </View>
-                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
-                          <Text className="text-gray-400 text-xs block mb-1">迟到阈值</Text>
-                          <Text className="text-orange-600 text-sm font-bold block">
-                            {warehouse.rule.late_threshold}分钟
-                          </Text>
-                        </View>
-                        <View className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
-                          <Text className="text-gray-400 text-xs block mb-1">早退阈值</Text>
-                          <Text className="text-orange-600 text-sm font-bold block">
-                            {warehouse.rule.early_threshold}分钟
-                          </Text>
-                        </View>
-                      </View>
-                    ) : (
-                      <View className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
-                        <Text className="text-gray-400 text-xs">未设置考勤规则</Text>
-                      </View>
-                    )}
-                  </View>
 
-                  {/* 操作按钮 */}
-                  <View className="p-4 bg-gray-50 border-t border-gray-100">
-                    <View className="grid grid-cols-3 gap-2">
-                      <View
-                        onClick={() => handleViewWarehouseDetail(warehouse)}
-                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
-                        <View className="i-mdi-information-outline text-blue-600 text-lg mr-1.5" />
-                        <Text className="text-blue-600 text-sm font-medium">详情</Text>
-                      </View>
-                      <View
-                        onClick={() => handleShowEditWarehouse(warehouse)}
-                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
-                        <View className="i-mdi-pencil-outline text-green-600 text-lg mr-1.5" />
-                        <Text className="text-green-600 text-sm font-medium">编辑</Text>
-                      </View>
-                      <View
-                        onClick={() => handleDeleteWarehouse(warehouse)}
-                        className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
-                        <View className="i-mdi-delete-outline text-red-600 text-lg mr-1.5" />
-                        <Text className="text-red-600 text-sm font-medium">删除</Text>
+                    {/* 操作按钮 */}
+                    <View className="p-4 bg-gray-50 border-t border-gray-100">
+                      <View className="grid grid-cols-3 gap-2">
+                        <View
+                          onClick={() => handleViewWarehouseDetail(warehouse)}
+                          className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
+                          <View className="i-mdi-information-outline text-blue-600 text-lg mr-1.5" />
+                          <Text className="text-blue-600 text-sm font-medium">详情</Text>
+                        </View>
+                        <View
+                          onClick={() => handleShowEditWarehouse(warehouse)}
+                          className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
+                          <View className="i-mdi-pencil-outline text-green-600 text-lg mr-1.5" />
+                          <Text className="text-green-600 text-sm font-medium">编辑</Text>
+                        </View>
+                        <View
+                          onClick={() => handleDeleteWarehouse(warehouse)}
+                          className="bg-white rounded-lg py-2.5 flex items-center justify-center active:bg-gray-100 transition-all border border-gray-200">
+                          <View className="i-mdi-delete-outline text-red-600 text-lg mr-1.5" />
+                          <Text className="text-red-600 text-sm font-medium">删除</Text>
+                        </View>
                       </View>
                     </View>
                   </View>
+                ))}
+              </View>
+            )}
+
+            {/* 底部安全距离 */}
+            <View className="h-6" />
+          </View>
+        </ScrollView>
+
+        {/* 添加仓库对话框 - 优化设计 */}
+        {showAddWarehouse && (
+          <View className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5">
+            <View className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+              {/* 标题 */}
+              <View className="flex items-center mb-6">
+                <View className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mr-3">
+                  <View className="i-mdi-warehouse-plus text-blue-600 text-2xl" />
                 </View>
-              ))}
-            </View>
-          )}
-
-          {/* 底部安全距离 */}
-          <View className="h-6" />
-        </View>
-      </ScrollView>
-
-      {/* 添加仓库对话框 - 优化设计 */}
-      {showAddWarehouse && (
-        <View className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5">
-          <View className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
-            {/* 标题 */}
-            <View className="flex items-center mb-6">
-              <View className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mr-3">
-                <View className="i-mdi-warehouse-plus text-blue-600 text-2xl" />
+                <View className="flex-1">
+                  <Text className="text-gray-900 text-xl font-bold block">添加仓库</Text>
+                  <Text className="text-gray-400 text-xs block">Create New Warehouse</Text>
+                </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-gray-900 text-xl font-bold block">添加仓库</Text>
-                <Text className="text-gray-400 text-xs block">Create New Warehouse</Text>
-              </View>
-            </View>
 
-            {/* 表单 */}
-            <View className="mb-6">
-              <Text className="text-gray-700 text-sm font-medium block mb-2">仓库名称</Text>
-              <View style={{overflow: 'hidden'}}>
-                <Input
-                  className="bg-gray-50 rounded-xl px-4 py-3 text-gray-800 border-2 border-gray-200 focus:border-blue-500 transition-all"
-                  placeholder="请输入仓库名称"
-                  value={newWarehouseName}
-                  onInput={(e) => setNewWarehouseName(e.detail.value)}
-                />
+              {/* 表单 */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-sm font-medium block mb-2">仓库名称</Text>
+                <View style={{overflow: 'hidden'}}>
+                  <Input
+                    className="bg-gray-50 rounded-xl px-4 py-3 text-gray-800 border-2 border-gray-200 focus:border-blue-500 transition-all"
+                    placeholder="请输入仓库名称"
+                    value={newWarehouseName}
+                    onInput={(e) => setNewWarehouseName(e.detail.value)}
+                  />
+                </View>
               </View>
-            </View>
 
-            {/* 按钮 */}
-            <View className="flex gap-3">
-              <View
-                onClick={() => setShowAddWarehouse(false)}
-                className="flex-1 bg-gray-100 rounded-xl py-3.5 flex items-center justify-center active:bg-gray-200 transition-all">
-                <Text className="text-gray-700 text-base font-medium">取消</Text>
-              </View>
-              <View
-                onClick={handleAddWarehouse}
-                className="flex-1 bg-blue-600 rounded-xl py-3.5 flex items-center justify-center active:bg-blue-700 transition-all shadow-sm">
-                <View className="i-mdi-check text-white text-lg mr-1.5" />
-                <Text className="text-white text-base font-medium">确定</Text>
+              {/* 按钮 */}
+              <View className="flex gap-3">
+                <View
+                  onClick={() => setShowAddWarehouse(false)}
+                  className="flex-1 bg-gray-100 rounded-xl py-3.5 flex items-center justify-center active:bg-gray-200 transition-all">
+                  <Text className="text-gray-700 text-base font-medium">取消</Text>
+                </View>
+                <View
+                  onClick={handleAddWarehouse}
+                  className="flex-1 bg-blue-600 rounded-xl py-3.5 flex items-center justify-center active:bg-blue-700 transition-all shadow-sm">
+                  <View className="i-mdi-check text-white text-lg mr-1.5" />
+                  <Text className="text-white text-base font-medium">确定</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* 编辑仓库对话框（合并考勤规则） */}
-      {showEditWarehouse && currentWarehouse && (
-        <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md max-h-[85vh] overflow-y-auto">
-            <Text className="text-gray-800 text-lg font-bold block mb-4">编辑仓库信息</Text>
+        {/* 编辑仓库对话框（合并考勤规则） */}
+        {showEditWarehouse && currentWarehouse && (
+          <View className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <View className="bg-white rounded-lg p-6 m-6 w-full max-w-md max-h-[85vh] overflow-y-auto">
+              <Text className="text-gray-800 text-lg font-bold block mb-4">编辑仓库信息</Text>
 
-            {/* 基本信息 */}
-            <View className="mb-4">
-              <Text className="text-gray-800 text-base font-bold block mb-3">基本信息</Text>
+              {/* 基本信息 */}
+              <View className="mb-4">
+                <Text className="text-gray-800 text-base font-bold block mb-3">基本信息</Text>
 
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
-                <Input
-                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                  placeholder="请输入仓库名称"
-                  value={editWarehouseName}
-                  onInput={(e) => setEditWarehouseName(e.detail.value)}
-                />
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">仓库名称</Text>
+                  <Input
+                    className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                    placeholder="请输入仓库名称"
+                    value={editWarehouseName}
+                    onInput={(e) => setEditWarehouseName(e.detail.value)}
+                  />
+                </View>
+
+                <View className="flex items-center justify-between">
+                  <Text className="text-gray-700 text-sm">启用状态</Text>
+                  <Switch checked={editWarehouseActive} onChange={(e) => setEditWarehouseActive(e.detail.value)} />
+                </View>
               </View>
 
-              <View className="flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">启用状态</Text>
-                <Switch checked={editWarehouseActive} onChange={(e) => setEditWarehouseActive(e.detail.value)} />
-              </View>
-            </View>
+              {/* 考勤规则 */}
+              <View className="mb-4 border-t border-gray-200 pt-4">
+                <Text className="text-gray-800 text-base font-bold block mb-3">考勤规则</Text>
 
-            {/* 考勤规则 */}
-            <View className="mb-4 border-t border-gray-200 pt-4">
-              <Text className="text-gray-800 text-base font-bold block mb-3">考勤规则</Text>
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">上班时间</Text>
+                  <Picker mode="time" value={ruleStartTime} onChange={(e) => setRuleStartTime(e.detail.value)}>
+                    <View className="bg-gray-50 rounded-lg p-3">
+                      <Text className="text-gray-800">{ruleStartTime}</Text>
+                    </View>
+                  </Picker>
+                </View>
 
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">上班时间</Text>
-                <Picker mode="time" value={ruleStartTime} onChange={(e) => setRuleStartTime(e.detail.value)}>
-                  <View className="bg-gray-50 rounded-lg p-3">
-                    <Text className="text-gray-800">{ruleStartTime}</Text>
-                  </View>
-                </Picker>
-              </View>
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">下班时间</Text>
+                  <Picker mode="time" value={ruleEndTime} onChange={(e) => setRuleEndTime(e.detail.value)}>
+                    <View className="bg-gray-50 rounded-lg p-3">
+                      <Text className="text-gray-800">{ruleEndTime}</Text>
+                    </View>
+                  </Picker>
+                </View>
 
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">下班时间</Text>
-                <Picker mode="time" value={ruleEndTime} onChange={(e) => setRuleEndTime(e.detail.value)}>
-                  <View className="bg-gray-50 rounded-lg p-3">
-                    <Text className="text-gray-800">{ruleEndTime}</Text>
-                  </View>
-                </Picker>
-              </View>
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">迟到阈值（分钟）</Text>
+                  <Input
+                    className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                    type="number"
+                    placeholder="请输入迟到阈值"
+                    value={ruleLateThreshold}
+                    onInput={(e) => setRuleLateThreshold(e.detail.value)}
+                  />
+                </View>
 
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">迟到阈值（分钟）</Text>
-                <Input
-                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                  type="number"
-                  placeholder="请输入迟到阈值"
-                  value={ruleLateThreshold}
-                  onInput={(e) => setRuleLateThreshold(e.detail.value)}
-                />
-              </View>
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">早退阈值（分钟）</Text>
+                  <Input
+                    className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                    type="number"
+                    placeholder="请输入早退阈值"
+                    value={ruleEarlyThreshold}
+                    onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
+                  />
+                </View>
 
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">早退阈值（分钟）</Text>
-                <Input
-                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                  type="number"
-                  placeholder="请输入早退阈值"
-                  value={ruleEarlyThreshold}
-                  onInput={(e) => setRuleEarlyThreshold(e.detail.value)}
-                />
-              </View>
+                <View className="mb-3 flex items-center justify-between">
+                  <Text className="text-gray-700 text-sm">需要打下班卡</Text>
+                  <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
+                </View>
 
-              <View className="mb-3 flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">需要打下班卡</Text>
-                <Switch checked={ruleRequireClockOut} onChange={(e) => setRuleRequireClockOut(e.detail.value)} />
-              </View>
-
-              <View className="flex items-center justify-between">
-                <Text className="text-gray-700 text-sm">启用考勤规则</Text>
-                <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
-              </View>
-            </View>
-
-            {/* 请假与离职设置 */}
-            <View className="mb-4 border-t border-gray-200 pt-4">
-              <Text className="text-gray-800 text-base font-bold block mb-3">请假与离职设置</Text>
-
-              <View className="mb-3">
-                <Text className="text-gray-700 text-sm block mb-2">月度请假天数上限</Text>
-                <Input
-                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                  type="number"
-                  placeholder="请输入天数(1-365)"
-                  value={editMaxLeaveDays}
-                  onInput={(e) => setEditMaxLeaveDays(e.detail.value)}
-                />
-                <Text className="text-gray-400 text-xs block mt-1">司机每月请假总天数不能超过此上限</Text>
+                <View className="flex items-center justify-between">
+                  <Text className="text-gray-700 text-sm">启用考勤规则</Text>
+                  <Switch checked={ruleActive} onChange={(e) => setRuleActive(e.detail.value)} />
+                </View>
               </View>
 
-              <View className="mb-0">
-                <Text className="text-gray-700 text-sm block mb-2">离职申请提前天数</Text>
-                <Input
-                  className="bg-gray-50 rounded-lg p-3 text-gray-800"
-                  type="number"
-                  placeholder="请输入天数(1-365)"
-                  value={editResignationNoticeDays}
-                  onInput={(e) => setEditResignationNoticeDays(e.detail.value)}
-                />
-                <Text className="text-gray-400 text-xs block mt-1">司机离职申请需提前此天数提交</Text>
-              </View>
-            </View>
+              {/* 请假与离职设置 */}
+              <View className="mb-4 border-t border-gray-200 pt-4">
+                <Text className="text-gray-800 text-base font-bold block mb-3">请假与离职设置</Text>
 
-            <View className="flex gap-3">
-              <Button
-                size="default"
-                className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
-                onClick={() => setShowEditWarehouse(false)}>
-                取消
-              </Button>
-              <Button
-                size="default"
-                className="flex-1 bg-blue-600 text-white text-base break-keep"
-                onClick={handleUpdateWarehouse}>
-                保存
-              </Button>
+                <View className="mb-3">
+                  <Text className="text-gray-700 text-sm block mb-2">月度请假天数上限</Text>
+                  <Input
+                    className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                    type="number"
+                    placeholder="请输入天数(1-365)"
+                    value={editMaxLeaveDays}
+                    onInput={(e) => setEditMaxLeaveDays(e.detail.value)}
+                  />
+                  <Text className="text-gray-400 text-xs block mt-1">司机每月请假总天数不能超过此上限</Text>
+                </View>
+
+                <View className="mb-0">
+                  <Text className="text-gray-700 text-sm block mb-2">离职申请提前天数</Text>
+                  <Input
+                    className="bg-gray-50 rounded-lg p-3 text-gray-800"
+                    type="number"
+                    placeholder="请输入天数(1-365)"
+                    value={editResignationNoticeDays}
+                    onInput={(e) => setEditResignationNoticeDays(e.detail.value)}
+                  />
+                  <Text className="text-gray-400 text-xs block mt-1">司机离职申请需提前此天数提交</Text>
+                </View>
+              </View>
+
+              <View className="flex gap-3">
+                <Button
+                  size="default"
+                  className="flex-1 bg-gray-200 text-gray-700 text-base break-keep"
+                  onClick={() => setShowEditWarehouse(false)}>
+                  取消
+                </Button>
+                <Button
+                  size="default"
+                  className="flex-1 bg-blue-600 text-white text-base break-keep"
+                  onClick={handleUpdateWarehouse}>
+                  保存
+                </Button>
+              </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* 密码验证弹窗 */}
-      <PasswordVerifyModal
-        visible={showPasswordVerify}
-        onCancel={handlePasswordVerifyCancel}
-        onSuccess={handlePasswordVerifySuccess}
-        title="安全验证"
-        description="此操作需要验证您的登录密码以确保安全"
-      />
-    </View>
+        {/* 密码验证弹窗 */}
+        <PasswordVerifyModal
+          visible={showPasswordVerify}
+          onCancel={handlePasswordVerifyCancel}
+          onSuccess={handlePasswordVerifySuccess}
+          title="安全验证"
+          description="此操作需要验证您的登录密码以确保安全"
+        />
+      </View>
     </ErrorBoundary>
   )
 }

@@ -2,7 +2,7 @@
  * 缓存管理器单元测试
  */
 
-import {describe, test, expect, beforeEach, vi} from 'vitest'
+import {beforeEach, describe, expect, test, vi} from 'vitest'
 import {CacheManager, createCache, withCache} from './cache'
 
 describe('CacheManager', () => {

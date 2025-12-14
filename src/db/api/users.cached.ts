@@ -3,7 +3,7 @@
  * 为用户相关API添加缓存支持
  */
 
-import {cachedAPI, CacheKeys, clearUserCache, userCache} from '@/utils/apiCache'
+import {CacheKeys, cachedAPI, clearUserCache, userCache} from '@/utils/apiCache'
 import * as usersAPI from './users'
 
 /**
@@ -22,7 +22,7 @@ export const getAllDrivers = cachedAPI(usersAPI.getAllDrivers, userCache, () => 
 export const getAllDriversWithRealName = cachedAPI(
   usersAPI.getAllDriversWithRealName,
   userCache,
-  () => CacheKeys.userList('DRIVER') + ':realname'
+  () => `${CacheKeys.userList('DRIVER')}:realname`
 )
 
 /**
@@ -46,7 +46,7 @@ export const getUserById = cachedAPI(usersAPI.getUserById, userCache, (userId: s
 export const getProfileById = cachedAPI(
   usersAPI.getProfileById,
   userCache,
-  (userId: string) => CacheKeys.userById(userId) + ':profile'
+  (userId: string) => `${CacheKeys.userById(userId)}:profile`
 )
 
 /**
@@ -57,10 +57,8 @@ export const getUserRoles = cachedAPI(usersAPI.getUserRoles, userCache, (userId:
 /**
  * 获取管理员权限（带缓存）
  */
-export const getManagerPermission = cachedAPI(
-  usersAPI.getManagerPermission,
-  userCache,
-  (managerId: string) => CacheKeys.managerPermission(managerId)
+export const getManagerPermission = cachedAPI(usersAPI.getManagerPermission, userCache, (managerId: string) =>
+  CacheKeys.managerPermission(managerId)
 )
 
 /**
@@ -148,24 +146,24 @@ export async function createDriver(
 
 // 导出其他不需要缓存的API
 export {
+  changePassword,
+  getAllDriverIds,
+  getAllProfiles,
+  getCurrentUserPermissions,
   getCurrentUserProfile,
-  getCurrentUserWithRealName,
   getCurrentUserRole,
   getCurrentUserRoleAndTenant,
-  getCurrentUserPermissions,
-  getAllProfiles,
+  getCurrentUserWithRealName,
   getDriverProfiles,
-  getAllDriverIds,
-  getManagerProfiles,
-  getManagerWarehouseIds,
-  upsertManagerPermission,
-  updateManagerPermissionsEnabled,
-  getManagerPermissionsEnabled,
-  updateProfile,
-  changePassword,
-  resetUserPassword,
-  uploadAvatar,
   getDriverStats,
+  getManagerPermissionsEnabled,
+  getManagerProfiles,
   getManagerStats,
-  getSuperAdminStats
+  getManagerWarehouseIds,
+  getSuperAdminStats,
+  resetUserPassword,
+  updateManagerPermissionsEnabled,
+  updateProfile,
+  uploadAvatar,
+  upsertManagerPermission
 } from './users'

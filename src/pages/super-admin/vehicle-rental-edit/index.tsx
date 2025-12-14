@@ -8,12 +8,11 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {OwnershipType, Vehicle} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
-import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('VehicleRentalEdit')
 
@@ -198,8 +197,8 @@ const VehicleRentalEdit: React.FC = () => {
   if (loading) {
     return (
       <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <View className="flex flex-col items-center justify-center py-20">
           <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
           <Text className="text-gray-600 font-medium">加载中...</Text>

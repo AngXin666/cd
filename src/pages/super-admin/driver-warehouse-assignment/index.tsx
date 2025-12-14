@@ -3,13 +3,12 @@ import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tar
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 const DriverWarehouseAssignment: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [drivers, setDrivers] = useState<Profile[]>([])

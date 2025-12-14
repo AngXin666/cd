@@ -1,3 +1,15 @@
+/**
+ * 车队长端 - 首页
+ * 功能：显示仪表板统计数据、仓库列表、司机统计
+ *
+ * 使用缓存系统优化性能：
+ * - 使用 useWarehousesData Hook 缓存仓库列表（10分钟缓存）
+ * - 使用 useDashboardData Hook 缓存仪表板数据
+ * - 使用 useDriverStats Hook 缓存司机统计数据
+ * - 实时监听数据库变更自动更新
+ * - 支持离线模式显示缓存数据
+ */
+
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'

@@ -2,8 +2,8 @@
  * useWarehouseAssign Hook 单元测试
  */
 
-import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {renderHook, act, waitFor} from '@testing-library/react'
+import {act, renderHook, waitFor} from '@testing-library/react'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {useWarehouseAssign} from './useWarehouseAssign'
 
 // Mock dependencies
@@ -44,18 +44,12 @@ vi.mock('@/db/api/warehouses', () => ({
     {id: 'wh-2', name: '仓库B', is_active: true},
     {id: 'wh-3', name: '仓库C', is_active: false}
   ]),
-  getWarehouseAssignmentsByDriver: vi.fn().mockResolvedValue([
-    {warehouse_id: 'wh-1'}
-  ]),
-  getWarehouseAssignmentsByManager: vi.fn().mockResolvedValue([
-    {warehouse_id: 'wh-2'}
-  ]),
+  getWarehouseAssignmentsByDriver: vi.fn().mockResolvedValue([{warehouse_id: 'wh-1'}]),
+  getWarehouseAssignmentsByManager: vi.fn().mockResolvedValue([{warehouse_id: 'wh-2'}]),
   deleteWarehouseAssignmentsByDriver: vi.fn().mockResolvedValue(true),
   insertWarehouseAssignment: vi.fn().mockResolvedValue(true),
   insertManagerWarehouseAssignment: vi.fn().mockResolvedValue(true),
-  getWarehouseManagers: vi.fn().mockResolvedValue([
-    {id: 'manager-1', name: '管理员1'}
-  ])
+  getWarehouseManagers: vi.fn().mockResolvedValue([{id: 'manager-1', name: '管理员1'}])
 }))
 
 vi.mock('@/db/notificationApi', () => ({
@@ -93,7 +87,7 @@ describe('useWarehouseAssign', () => {
       await waitFor(() => {
         // 只加载 is_active: true 的仓库
         expect(result.current.warehouses.length).toBe(2)
-        expect(result.current.warehouses.every(w => w.is_active)).toBe(true)
+        expect(result.current.warehouses.every((w) => w.is_active)).toBe(true)
       })
     })
 
@@ -101,7 +95,7 @@ describe('useWarehouseAssign', () => {
       const {result} = renderHook(() => useWarehouseAssign())
 
       await waitFor(() => {
-        const inactiveWarehouse = result.current.warehouses.find(w => w.id === 'wh-3')
+        const inactiveWarehouse = result.current.warehouses.find((w) => w.id === 'wh-3')
         expect(inactiveWarehouse).toBeUndefined()
       })
     })

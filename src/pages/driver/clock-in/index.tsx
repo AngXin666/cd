@@ -3,13 +3,13 @@ import Taro, {showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
 import {canClockIn} from '@/utils/attendance-check'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
-import TopNavBar from '@/components/TopNavBar'
 // 获取本地日期字符串（YYYY-MM-DD格式）
 function getLocalDateString(date: Date = new Date()): string {
   const year = date.getFullYear()

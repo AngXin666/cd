@@ -3,8 +3,8 @@
  * 验证 API 相关类型的正确性
  */
 
-import {describe, it, expect} from 'vitest'
-import type {ApiResponse, ApiError, PaginationParams, PaginationResponse} from './api'
+import {describe, expect, it} from 'vitest'
+import type {ApiError, ApiResponse, PaginationParams, PaginationResponse} from './api'
 
 describe('API 类型', () => {
   describe('ApiResponse', () => {

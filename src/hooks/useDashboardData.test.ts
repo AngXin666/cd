@@ -62,9 +62,7 @@ describe('useDashboardData', () => {
 
   describe('基础功能', () => {
     it('应该初始化为空状态', () => {
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: '', enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: '', enableRealtime: false}))
 
       expect(result.current.data).toBeNull()
       expect(result.current.loading).toBe(false)
@@ -72,9 +70,7 @@ describe('useDashboardData', () => {
     })
 
     it('应该在挂载时加载数据', async () => {
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -89,9 +85,7 @@ describe('useDashboardData', () => {
       const mockError = new Error('加载失败')
       mockGetWarehouseDashboardStats.mockRejectedValue(mockError)
 
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -196,9 +190,7 @@ describe('useDashboardData', () => {
         warehouseId: mockWarehouseId
       })
 
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -216,9 +208,7 @@ describe('useDashboardData', () => {
     })
 
     it('应该清除缓存', async () => {
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -226,9 +216,7 @@ describe('useDashboardData', () => {
 
       result.current.clearCache()
 
-      expect(mockStorageRemove).toHaveBeenCalledWith(
-        expect.stringContaining('dashboard_cache_')
-      )
+      expect(mockStorageRemove).toHaveBeenCalledWith(expect.stringContaining('dashboard_cache_'))
     })
   })
 
@@ -236,9 +224,7 @@ describe('useDashboardData', () => {
     it('应该在启用实时更新时创建频道', async () => {
       const {supabase} = await import('@/client/supabase')
 
-      renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: true})
-      )
+      renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: true}))
 
       await waitFor(() => {
         expect(supabase.channel).toHaveBeenCalled()
@@ -265,9 +251,7 @@ describe('useDashboardData', () => {
     it('应该在卸载时清理订阅', async () => {
       const {supabase} = await import('@/client/supabase')
 
-      const {unmount} = renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: true})
-      )
+      const {unmount} = renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: true}))
 
       await waitFor(() => {
         expect(supabase.channel).toHaveBeenCalled()
@@ -283,19 +267,16 @@ describe('useDashboardData', () => {
 
   describe('边界情况', () => {
     it('应该处理空仓库ID', () => {
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: '', enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: '', enableRealtime: false}))
 
       expect(result.current.data).toBeNull()
       expect(mockGetWarehouseDashboardStats).not.toHaveBeenCalled()
     })
 
     it('应该处理仓库ID变化', async () => {
-      const {result, rerender} = renderHook(
-        ({warehouseId}) => useDashboardData({warehouseId, enableRealtime: false}),
-        {initialProps: {warehouseId: mockWarehouseId}}
-      )
+      const {result, rerender} = renderHook(({warehouseId}) => useDashboardData({warehouseId, enableRealtime: false}), {
+        initialProps: {warehouseId: mockWarehouseId}
+      })
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -320,9 +301,7 @@ describe('useDashboardData', () => {
         () => new Promise((resolve) => setTimeout(() => resolve(mockDashboardData), 100))
       )
 
-      const {result} = renderHook(() =>
-        useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useDashboardData({warehouseId: mockWarehouseId, enableRealtime: false}))
 
       // 快速调用多次刷新
       result.current.refresh()

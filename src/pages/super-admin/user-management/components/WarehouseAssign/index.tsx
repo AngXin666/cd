@@ -19,7 +19,8 @@
  */
 
 import {Checkbox, CheckboxGroup, Text, View} from '@tarojs/components'
-import React, {memo} from 'react'
+import type React from 'react'
+import {memo} from 'react'
 import type {Profile, Warehouse} from '@/db/types'
 
 /**

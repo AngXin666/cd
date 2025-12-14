@@ -3,14 +3,13 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {PieceWorkCategory, PieceWorkRecord, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {canStartPieceWork} from '@/utils/attendance-check'
-import TopNavBar from '@/components/TopNavBar'
 import {
   getLastCategory,
   getLastWarehouse,
