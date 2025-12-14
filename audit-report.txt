@@ -1,0 +1,171 @@
+﻿# npm audit report
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install @tarojs/cli@3.6.7, which is a breaking change
+node_modules/esbuild
+  @tarojs/helper  >=3.6.6-alpha.0
+  Depends on vulnerable versions of esbuild
+  node_modules/@tarojs/helper
+    @tarojs/cli  0.0.0-experimental.2 || >=0.0.56
+    Depends on vulnerable versions of @tarojs/helper
+    Depends on vulnerable versions of @tarojs/plugin-doctor
+    Depends on vulnerable versions of @tarojs/service
+    Depends on vulnerable versions of download-git-repo
+    Depends on vulnerable versions of latest-version
+    node_modules/@tarojs/cli
+    @tarojs/plugin-framework-react  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.6-alpha.0
+    Depends on vulnerable versions of @tarojs/helper
+    Depends on vulnerable versions of vite
+    node_modules/@tarojs/plugin-framework-react
+    @tarojs/plugin-generator  *
+    Depends on vulnerable versions of @tarojs/helper
+    Depends on vulnerable versions of @tarojs/service
+    node_modules/@tarojs/plugin-generator
+    @tarojs/plugin-html  >=3.7.0-alpha.0
+    Depends on vulnerable versions of @tarojs/helper
+    node_modules/@tarojs/plugin-html
+    @tarojs/plugin-platform-h5  >=3.6.6-alpha.0
+    Depends on vulnerable versions of @tarojs/components
+    Depends on vulnerable versions of @tarojs/components-react
+    Depends on vulnerable versions of @tarojs/helper
+    Depends on vulnerable versions of @tarojs/service
+    Depends on vulnerable versions of @tarojs/taro-h5
+    node_modules/@tarojs/plugin-platform-h5
+    @tarojs/runner-utils  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.6-alpha.0
+    Depends on vulnerable versions of @tarojs/helper
+    node_modules/@tarojs/runner-utils
+      @tarojs/service  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.6-alpha.0
+      Depends on vulnerable versions of @tarojs/helper
+      Depends on vulnerable versions of @tarojs/runner-utils
+      node_modules/@tarojs/service
+        @tarojs/plugin-platform-weapp  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.6-alpha.0
+        Depends on vulnerable versions of @tarojs/service
+        node_modules/@tarojs/plugin-platform-weapp
+    @tarojs/taro  >=3.6.23-nightly.0
+    Depends on vulnerable versions of @tarojs/components
+    Depends on vulnerable versions of @tarojs/helper
+    node_modules/@tarojs/taro
+      @tarojs/components  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.23-nightly.0
+      Depends on vulnerable versions of @tarojs/taro
+      node_modules/@tarojs/components
+        @tarojs/taro-h5  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.23-nightly.0
+        Depends on vulnerable versions of @tarojs/components
+        Depends on vulnerable versions of @tarojs/router
+        node_modules/@tarojs/taro-h5
+      @tarojs/components-react  >=3.6.23-nightly.0
+      Depends on vulnerable versions of @tarojs/components
+      Depends on vulnerable versions of @tarojs/taro
+      node_modules/@tarojs/components-react
+      @tarojs/plugin-http  >=3.7.0-alpha.0
+      Depends on vulnerable versions of @tarojs/taro
+      node_modules/@tarojs/plugin-http
+      @tarojs/router  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.23-nightly.0
+      Depends on vulnerable versions of @tarojs/taro
+      node_modules/@tarojs/router
+      miaoda-taro-utils  *
+      Depends on vulnerable versions of @tarojs/taro
+      node_modules/miaoda-taro-utils
+    @tarojs/taro-loader  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.6-alpha.0
+    Depends on vulnerable versions of @tarojs/helper
+    node_modules/@tarojs/taro-loader
+    babel-preset-taro  3.5.0-alpha.0 - 3.5.0-theta.0 || >=3.6.6-alpha.0
+    Depends on vulnerable versions of @tarojs/helper
+    node_modules/babel-preset-taro
+  vite  0.11.0 - 6.1.6
+  Depends on vulnerable versions of esbuild
+  node_modules/vite
+    @vitejs/plugin-legacy  1.0.1 - 5.4.3
+    Depends on vulnerable versions of vite
+    node_modules/@tarojs/vite-runner/node_modules/@vitejs/plugin-legacy
+    miaoda-sc-plugin  *
+    Depends on vulnerable versions of vite
+    node_modules/miaoda-sc-plugin
+    vite-node  <=2.2.0-beta.2
+    Depends on vulnerable versions of vite
+    node_modules/vite-node
+      vitest  0.0.1 - 0.0.12 || 0.0.29 - 0.0.122 || 0.3.3 - 2.2.0-beta.2
+      Depends on vulnerable versions of vite
+      Depends on vulnerable versions of vite-node
+      node_modules/vitest
+    vite-plugin-static-copy  <=2.3.1
+    Depends on vulnerable versions of vite
+    node_modules/vite-plugin-static-copy
+
+git-clone  *
+Severity: high
+Command injection in git-clone - https://github.com/advisories/GHSA-8jmw-wjr8-2x66
+fix available via `npm audit fix --force`
+Will install @tarojs/cli@3.6.7, which is a breaking change
+node_modules/git-clone
+  download-git-repo  *
+  Depends on vulnerable versions of download
+  Depends on vulnerable versions of git-clone
+  node_modules/download-git-repo
+
+glob  10.2.0 - 10.4.5
+Severity: high
+glob CLI: Command injection via -c/--cmd executes matches with shell:true - https://github.com/advisories/GHSA-5j98-mcp5-4vw2
+fix available via `npm audit fix --force`
+Will install @tarojs/cli@3.6.7, which is a breaking change
+node_modules/glob
+  @tarojs/plugin-doctor  *
+  Depends on vulnerable versions of glob
+  node_modules/@tarojs/plugin-doctor
+
+got  <=11.8.3
+Severity: high
+Got allows a redirect to a UNIX socket - https://github.com/advisories/GHSA-pfrx-2q88-qq97
+Depends on vulnerable versions of cacheable-request
+fix available via `npm audit fix --force`
+Will install @tarojs/cli@3.6.7, which is a breaking change
+node_modules/got
+node_modules/package-json/node_modules/got
+  download  >=4.0.0
+  Depends on vulnerable versions of got
+  node_modules/download
+  package-json  <=6.5.0
+  Depends on vulnerable versions of got
+  node_modules/package-json
+    latest-version  0.2.0 - 5.1.0
+    Depends on vulnerable versions of package-json
+    node_modules/latest-version
+
+html-minifier  *
+Severity: high
+kangax html-minifier REDoS vulnerability - https://github.com/advisories/GHSA-pfq8-rq6v-vf5m
+No fix available
+node_modules/html-minifier
+  @tarojs/vite-runner  *
+  Depends on vulnerable versions of @tarojs/helper
+  Depends on vulnerable versions of @tarojs/runner-utils
+  Depends on vulnerable versions of @vitejs/plugin-legacy
+  Depends on vulnerable versions of html-minifier
+  Depends on vulnerable versions of vite
+  Depends on vulnerable versions of vite-plugin-static-copy
+  node_modules/@tarojs/vite-runner
+
+http-cache-semantics  <4.1.1
+Severity: high
+http-cache-semantics vulnerable to Regular Expression Denial of Service - https://github.com/advisories/GHSA-rc47-6667-2j5j
+fix available via `npm audit fix --force`
+Will install @tarojs/cli@3.6.7, which is a breaking change
+node_modules/http-cache-semantics
+  cacheable-request  0.1.0 - 2.1.4
+  Depends on vulnerable versions of http-cache-semantics
+  node_modules/cacheable-request
+
+
+
+37 vulnerabilities (26 moderate, 10 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.

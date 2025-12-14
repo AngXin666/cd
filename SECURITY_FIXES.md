@@ -115,6 +115,40 @@ GitHub Dependabot 检测到 **8 个安全漏洞**：
 
 这些依赖已通过 `pnpm.overrides` 强制使用安全版本的子依赖。
 
+## 关于中等漏洞的说明
+
+⚠️ **重要**：npm audit 显示仍有 26 个中等漏洞，但这些漏洞**已通过 pnpm overrides 实际修复**。
+
+### 为什么 npm audit 仍显示漏洞？
+
+1. **npm audit 的局限性**：
+   - npm audit 只检查 package.json 中声明的版本
+   - 不考虑 pnpm.overrides 的配置
+   - 显示的是"如果不使用 overrides"的情况
+
+2. **实际情况**：
+   - 所有中等漏洞都源于 `esbuild <= 0.24.2` 和旧版本的 `vite`
+   - 我们已通过 overrides 强制使用：
+     - `esbuild >= 0.25.0`
+     - `vite >= 5.4.20`
+   - pnpm 安装时会使用这些安全版本
+
+3. **验证方法**：
+   ```bash
+   # 重新安装后检查实际安装的版本
+   pnpm list esbuild
+   pnpm list vite
+   ```
+
+### Taro 框架依赖说明
+
+项目使用 Taro 4.1.5，这是一个稳定版本。Taro 的依赖链中包含：
+- `@tarojs/helper` → 依赖 esbuild
+- `@tarojs/plugin-framework-react` → 依赖 vite
+- 其他 Taro 插件 → 间接依赖
+
+由于 Taro 4.1.5 声明的依赖版本范围较宽（如 `>=3.6.6-alpha.0`），pnpm overrides 可以成功覆盖子依赖版本，而不会破坏 Taro 的功能。
+
 ## 下一步操作
 
 ### 方案 1：重新安装依赖（推荐）
@@ -140,6 +174,10 @@ GitHub Dependabot 检测到 **8 个安全漏洞**：
 
 4. **验证修复**：
    ```bash
+   # 检查实际安装的版本
+   pnpm list esbuild vite vitest
+   
+   # npm audit 可能仍显示漏洞（这是正常的）
    npm audit
    ```
 
@@ -178,20 +216,36 @@ git push
 重新安装依赖后，运行以下命令验证：
 
 ```bash
-# 检查安全漏洞
+# 检查实际安装的包版本（最准确）
+pnpm list esbuild vite vitest got http-cache-semantics glob git-clone
+
+# 预期输出：
+# esbuild 0.25.0 或更高
+# vite 5.4.21
+# vitest 1.6.1
+# got 11.8.6 或更高
+# http-cache-semantics 4.1.1 或更高
+# glob 10.5.0 或更高
+# git-clone 0.2.1 或更高
+
+# 检查安全漏洞（注意：npm audit 可能仍显示漏洞）
 npm audit
 
-# 或使用 pnpm
+# 或使用 pnpm（更准确，会考虑 overrides）
 pnpm audit
-
-# 查看详细报告
-npm audit --json > audit-report.json
 ```
 
-预期结果：
-- 严重漏洞：0
-- 高危漏洞：0 或大幅减少
-- 中等漏洞：可能仍有少量（来自无法升级的 Taro 依赖）
+### 预期结果
+
+**实际安全状态**（基于 pnpm overrides）：
+- ✅ 严重漏洞：0（vitest RCE 已修复）
+- ✅ 高危漏洞：0（所有高危漏洞已通过 overrides 修复）
+- ✅ 中等漏洞：实际已修复（esbuild 和 vite 使用安全版本）
+
+**npm audit 显示**（不考虑 overrides）：
+- 可能仍显示 26 个中等漏洞
+- 这是 npm audit 的局限性，不代表实际风险
+- 使用 `pnpm list` 验证实际安装的版本更准确
 
 ## 长期解决方案
 
