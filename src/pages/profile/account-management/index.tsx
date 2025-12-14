@@ -12,13 +12,12 @@ import Taro, {showLoading, showModal, showToast, useDidShow, usePullDownRefresh}
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as PeerAccountsAPI from '@/db/api/peer-accounts'
 import * as UsersAPI from '@/db/api/users'
-
 import {supabase} from '@/db/supabase'
 import type {Profile} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 const AccountManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)

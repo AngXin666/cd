@@ -1,7 +1,7 @@
 /**
  * 计件管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 const mockSelect = vi.fn().mockReturnThis()
@@ -250,7 +250,7 @@ describe('piecework API', () => {
       } as any)
 
       const {createPieceWorkRecord} = await import('./piecework')
-      
+
       // 缺少 user_id
       const result1 = await createPieceWorkRecord({quantity: 100} as any)
       expect(result1).toBe(false)
@@ -420,7 +420,13 @@ describe('piecework API', () => {
 
   describe('createCategory', () => {
     it('应该成功创建品类', async () => {
-      const newCategory = {id: 'cat-new', name: '新品类', description: '描述', created_at: '2024-01-01', updated_at: '2024-01-01'}
+      const newCategory = {
+        id: 'cat-new',
+        name: '新品类',
+        description: '描述',
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01'
+      }
 
       vi.mocked(supabase.from).mockReturnValue({
         insert: vi.fn().mockReturnThis(),
@@ -477,7 +483,7 @@ describe('piecework API', () => {
 
   describe('deleteCategory', () => {
     it('应该成功删除品类及关联价格', async () => {
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
+      vi.mocked(supabase.from).mockImplementation((_table: string) => {
         return {
           delete: vi.fn().mockReturnThis(),
           eq: vi.fn().mockResolvedValue({error: null})
@@ -675,9 +681,7 @@ describe('piecework API', () => {
       } as any)
 
       const {batchUpsertCategoryPrices} = await import('./piecework')
-      const result = await batchUpsertCategoryPrices([
-        {warehouse_id: 'wh-1', category_id: 'cat-1', price: 10} as any
-      ])
+      const result = await batchUpsertCategoryPrices([{warehouse_id: 'wh-1', category_id: 'cat-1', price: 10} as any])
 
       expect(result).toBe(false)
     })
@@ -694,8 +698,20 @@ describe('piecework API', () => {
 
       const {batchUpsertCategoryPrices} = await import('./piecework')
       const result = await batchUpsertCategoryPrices([
-        {warehouse_id: 'wh-1', category_id: 'cat-1', price: 10, driver_type: 'driver_only', effective_date: '2024-01-01'},
-        {warehouse_id: 'wh-1', category_id: 'cat-2', price: 20, driver_type: 'driver_only', effective_date: '2024-01-01'}
+        {
+          warehouse_id: 'wh-1',
+          category_id: 'cat-1',
+          price: 10,
+          driver_type: 'driver_only',
+          effective_date: '2024-01-01'
+        },
+        {
+          warehouse_id: 'wh-1',
+          category_id: 'cat-2',
+          price: 20,
+          driver_type: 'driver_only',
+          effective_date: '2024-01-01'
+        }
       ])
 
       expect(result).toBe(true)
@@ -712,9 +728,7 @@ describe('piecework API', () => {
       } as any)
 
       const {batchUpsertCategoryPrices} = await import('./piecework')
-      const result = await batchUpsertCategoryPrices([
-        {warehouse_id: 'wh-1', category_id: 'cat-1', price: 10} as any
-      ])
+      const result = await batchUpsertCategoryPrices([{warehouse_id: 'wh-1', category_id: 'cat-1', price: 10} as any])
 
       expect(result).toBe(false)
     })
@@ -825,7 +839,7 @@ describe('piecework API', () => {
         {id: 'cat-2', name: '品类B'}
       ]
 
-      let callCount = 0
+      const _callCount = 0
       vi.mocked(supabase.from).mockImplementation((table: string) => {
         if (table === 'piece_work_records') {
           return {

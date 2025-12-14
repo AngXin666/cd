@@ -1,7 +1,7 @@
 /**
  * 请假/离职管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 vi.mock('@/client/supabase', () => ({
@@ -207,9 +207,7 @@ describe('leave API', () => {
 
   describe('getLeaveApplicationsByWarehouse', () => {
     it('应该返回仓库的请假申请列表', async () => {
-      const mockApplications = [
-        {id: 'app-1', warehouse_id: 'wh-1', status: 'pending'}
-      ]
+      const mockApplications = [{id: 'app-1', warehouse_id: 'wh-1', status: 'pending'}]
 
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -281,7 +279,7 @@ describe('leave API', () => {
       } as any)
 
       // 模拟 update 操作
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
+      vi.mocked(supabase.from).mockImplementation((_table: string) => {
         return {
           select: vi.fn().mockReturnThis(),
           update: vi.fn().mockReturnThis(),
@@ -424,9 +422,7 @@ describe('leave API', () => {
 
   describe('getResignationApplicationsByUser', () => {
     it('应该返回用户的离职申请列表', async () => {
-      const mockApplications = [
-        {id: 'resign-1', user_id: 'user-1', status: 'pending'}
-      ]
+      const mockApplications = [{id: 'resign-1', user_id: 'user-1', status: 'pending'}]
 
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -456,9 +452,7 @@ describe('leave API', () => {
 
   describe('getResignationApplicationsByWarehouse', () => {
     it('应该返回仓库的离职申请列表', async () => {
-      const mockApplications = [
-        {id: 'resign-1', warehouse_id: 'wh-1', status: 'pending'}
-      ]
+      const mockApplications = [{id: 'resign-1', warehouse_id: 'wh-1', status: 'pending'}]
 
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -576,7 +570,7 @@ describe('leave API', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 60)
       const futureDateStr = futureDate.toISOString().split('T')[0]
-      
+
       const result = await validateResignationDate('wh-1', futureDateStr)
 
       expect(result.valid).toBe(true)
@@ -595,7 +589,7 @@ describe('leave API', () => {
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
       const tomorrowStr = tomorrow.toISOString().split('T')[0]
-      
+
       const result = await validateResignationDate('wh-1', tomorrowStr)
 
       expect(result.valid).toBe(false)

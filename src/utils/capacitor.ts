@@ -3,21 +3,21 @@
  * 为安卓APP提供原生功能支持
  */
 
-import {platform} from './platform'
-import {createLogger} from './logger'
 import type {
-  CameraPlugin,
-  GeolocationPlugin,
-  DevicePlugin,
-  NetworkPlugin,
-  StatusBarPlugin,
   AppPlugin,
+  CameraPlugin,
+  DevicePlugin,
   FilesystemPlugin,
-  PushNotificationsPlugin,
+  GeolocationPlugin,
   KeyboardPlugin,
+  NetworkPlugin,
+  NetworkStatus,
   Position,
-  NetworkStatus
+  PushNotificationsPlugin,
+  StatusBarPlugin
 } from '@/types/capacitor'
+import {createLogger} from './logger'
+import {platform} from './platform'
 
 const logger = createLogger('Capacitor')
 

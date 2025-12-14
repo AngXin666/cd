@@ -3,7 +3,7 @@
  * 为API调用提供统一的缓存支持
  */
 
-import {createCache, withCache, type CacheManager} from './cache'
+import {type CacheManager, createCache, withCache} from './cache'
 import {createLogger} from './logger'
 
 const logger = createLogger('APICache')

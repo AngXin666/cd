@@ -9,13 +9,12 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {DriverLicense, Profile} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
-import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('DriverProfileView')
 
@@ -115,8 +114,8 @@ const DriverProfileView: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center min-h-screen bg-gray-50">
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <View className="i-mdi-loading animate-spin text-5xl text-blue-500" />
         <Text className="text-gray-600 mt-4 text-base">加载中...</Text>
       </View>

@@ -3,11 +3,10 @@ import {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as NotificationsAPI from '@/db/api/notifications'
-
 import type {NotificationSendRecordWithSender} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 /**
  * 通知发送记录页面
  */

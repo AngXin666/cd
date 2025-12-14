@@ -17,10 +17,11 @@
  */
 
 import {Text, View} from '@tarojs/components'
-import React, {memo, useState} from 'react'
+import type React from 'react'
+import {memo, useState} from 'react'
+import VirtualList from '@/components/VirtualList'
 import type {Profile} from '@/db/types'
 import UserCard from '../UserCard'
-import VirtualList from '@/components/VirtualList'
 
 /**
  * UserList组件的Props接口

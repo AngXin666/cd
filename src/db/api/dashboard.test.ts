@@ -1,7 +1,7 @@
 /**
  * 仪表盘统计 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 vi.mock('@/client/supabase', () => ({
@@ -177,7 +177,7 @@ describe('dashboard API', () => {
     it('应该返回用户当月已批准的请假天数', async () => {
       const mockLeaveData = [
         {start_date: '2024-12-01', end_date: '2024-12-03'}, // 3天
-        {start_date: '2024-12-10', end_date: '2024-12-11'}  // 2天
+        {start_date: '2024-12-10', end_date: '2024-12-11'} // 2天
       ]
 
       const createChain = (resolveData: any) => {
@@ -294,11 +294,9 @@ describe('dashboard API', () => {
         {user_id: 'user-1', work_date: '2024-12-03', status: 'normal'}
       ]
 
-      const mockLeaveData = [
-        {start_date: '2024-12-05', end_date: '2024-12-06'}
-      ]
+      const mockLeaveData = [{start_date: '2024-12-05', end_date: '2024-12-06'}]
 
-      let callCount = 0
+      const _callCount = 0
       vi.mocked(supabase.from).mockImplementation((table: string) => {
         if (table === 'attendance') {
           const chain: any = {
@@ -331,7 +329,7 @@ describe('dashboard API', () => {
     })
 
     it('应该在考勤查询失败时返回默认值', async () => {
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
+      vi.mocked(supabase.from).mockImplementation((_table: string) => {
         const chain: any = {
           select: vi.fn(() => chain),
           eq: vi.fn(() => chain),
@@ -359,9 +357,7 @@ describe('dashboard API', () => {
         {user_id: 'user-2', work_date: '2024-12-01', status: 'late'}
       ]
 
-      const mockLeaveData = [
-        {user_id: 'user-1', start_date: '2024-12-05', end_date: '2024-12-06'}
-      ]
+      const mockLeaveData = [{user_id: 'user-1', start_date: '2024-12-05', end_date: '2024-12-06'}]
 
       vi.mocked(supabase.from).mockImplementation((table: string) => {
         if (table === 'attendance') {
@@ -403,7 +399,7 @@ describe('dashboard API', () => {
     })
 
     it('应该在查询失败时返回初始化的Map', async () => {
-      vi.mocked(supabase.from).mockImplementation((table: string) => {
+      vi.mocked(supabase.from).mockImplementation((_table: string) => {
         const chain: any = {
           select: vi.fn(() => chain),
           in: vi.fn(() => chain),

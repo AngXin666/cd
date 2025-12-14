@@ -3,11 +3,10 @@ import Taro, {chooseImage, navigateBack, showLoading, showToast, useDidShow, use
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
-
 import type {Profile} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 // 中国省份列表
 const provinces = [
   '北京市',

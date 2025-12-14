@@ -4,6 +4,7 @@ import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
 import TopNavBar from '@/components/TopNavBar'
+
 interface TestAccount {
   id: string
   name: string | null

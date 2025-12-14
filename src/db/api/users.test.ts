@@ -1,7 +1,7 @@
 /**
  * 用户管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase - 使用内联函数避免变量提升问题
 vi.mock('@/client/supabase', () => ({
@@ -66,7 +66,7 @@ vi.mock('@/utils/logger', () => ({
 }))
 
 import {supabase} from '@/client/supabase'
-import {getUserWithRole, getUsersWithRole, getUsersByRole} from '../helpers'
+import {getUsersByRole, getUsersWithRole, getUserWithRole} from '../helpers'
 
 describe('users API', () => {
   beforeEach(() => {

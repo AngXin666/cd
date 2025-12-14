@@ -1,7 +1,7 @@
 /**
  * 权限上下文 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 vi.mock('@/client/supabase', () => ({

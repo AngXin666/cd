@@ -3,14 +3,13 @@ import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {PieceWorkCategory, PieceWorkRecordInput, Profile, Warehouse} from '@/db/types'
 import {getLocalDateString} from '@/utils/date'
 
-import TopNavBar from '@/components/TopNavBar'
 const ManagerPieceWorkForm: React.FC = () => {
   const {user} = useAuth({guard: true})
   const instance = getCurrentInstance()

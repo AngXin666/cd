@@ -4,18 +4,17 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import CircularProgress from '@/components/CircularProgress'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
-import TopNavBar from '@/components/TopNavBar'
 // 完成率状态判断和样式配置
 interface CompletionRateStatus {
   label: string // 状态文字

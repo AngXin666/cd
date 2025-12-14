@@ -1,7 +1,7 @@
 /**
  * 统计数据 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 vi.mock('../supabase', () => ({
@@ -440,8 +440,20 @@ describe('stats API', () => {
   describe('getUsersByRole', () => {
     it('应该返回指定角色的用户列表', async () => {
       const mockUsers = [
-        {user_id: 'u-1', user_name: '张三', user_phone: '13800138001', user_email: 'a@test.com', created_at: '2024-01-01'},
-        {user_id: 'u-2', user_name: '李四', user_phone: '13800138002', user_email: 'b@test.com', created_at: '2024-01-02'}
+        {
+          user_id: 'u-1',
+          user_name: '张三',
+          user_phone: '13800138001',
+          user_email: 'a@test.com',
+          created_at: '2024-01-01'
+        },
+        {
+          user_id: 'u-2',
+          user_name: '李四',
+          user_phone: '13800138002',
+          user_email: 'b@test.com',
+          created_at: '2024-01-02'
+        }
       ]
 
       vi.mocked(supabase.rpc).mockResolvedValue({

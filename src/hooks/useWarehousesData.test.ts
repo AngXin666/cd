@@ -1,7 +1,7 @@
 import {renderHook, waitFor} from '@testing-library/react'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import {useWarehousesData} from './useWarehousesData'
 import type {Warehouse} from '@/db/types'
+import {useWarehousesData} from './useWarehousesData'
 
 // Mock Taro
 vi.mock('@tarojs/taro', () => ({
@@ -80,9 +80,7 @@ describe('useWarehousesData', () => {
 
   describe('基础功能', () => {
     it('应该初始化为空状态', () => {
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: '', enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: '', enableRealtime: false}))
 
       expect(result.current.warehouses).toEqual([])
       expect(result.current.loading).toBe(false)
@@ -90,9 +88,7 @@ describe('useWarehousesData', () => {
     })
 
     it('应该在挂载时加载仓库列表', async () => {
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -107,9 +103,7 @@ describe('useWarehousesData', () => {
       const mockError = new Error('加载失败')
       mockGetManagerWarehouses.mockRejectedValue(mockError)
 
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -233,9 +227,7 @@ describe('useWarehousesData', () => {
         managerId: mockManagerId
       })
 
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -251,9 +243,7 @@ describe('useWarehousesData', () => {
     })
 
     it('应该清除缓存', async () => {
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -265,9 +255,7 @@ describe('useWarehousesData', () => {
     })
 
     it('应该在刷新时清除缓存', async () => {
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -285,9 +273,7 @@ describe('useWarehousesData', () => {
     it('应该在启用实时更新时创建频道', async () => {
       const {supabase} = await import('@/client/supabase')
 
-      renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: true})
-      )
+      renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: true}))
 
       await waitFor(() => {
         expect(supabase.channel).toHaveBeenCalled()
@@ -298,9 +284,7 @@ describe('useWarehousesData', () => {
       const {supabase} = await import('@/client/supabase')
       vi.mocked(supabase.channel).mockClear()
 
-      renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(mockGetManagerWarehouses).toHaveBeenCalled()
@@ -312,9 +296,7 @@ describe('useWarehousesData', () => {
     it('应该在卸载时清理订阅', async () => {
       const {supabase} = await import('@/client/supabase')
 
-      const {unmount} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: true})
-      )
+      const {unmount} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: true}))
 
       await waitFor(() => {
         expect(supabase.channel).toHaveBeenCalled()
@@ -330,19 +312,16 @@ describe('useWarehousesData', () => {
 
   describe('边界情况', () => {
     it('应该处理空管理员ID', () => {
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: '', enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: '', enableRealtime: false}))
 
       expect(result.current.warehouses).toEqual([])
       expect(mockGetManagerWarehouses).not.toHaveBeenCalled()
     })
 
     it('应该处理管理员ID变化', async () => {
-      const {result, rerender} = renderHook(
-        ({managerId}) => useWarehousesData({managerId, enableRealtime: false}),
-        {initialProps: {managerId: mockManagerId}}
-      )
+      const {result, rerender} = renderHook(({managerId}) => useWarehousesData({managerId, enableRealtime: false}), {
+        initialProps: {managerId: mockManagerId}
+      })
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -361,9 +340,7 @@ describe('useWarehousesData', () => {
     it('应该处理空仓库列表', async () => {
       mockGetManagerWarehouses.mockResolvedValue([])
 
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -376,9 +353,7 @@ describe('useWarehousesData', () => {
     it('应该在错误时返回空数组', async () => {
       mockGetManagerWarehouses.mockRejectedValue(new Error('网络错误'))
 
-      const {result} = renderHook(() =>
-        useWarehousesData({managerId: mockManagerId, enableRealtime: false})
-      )
+      const {result} = renderHook(() => useWarehousesData({managerId: mockManagerId, enableRealtime: false}))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)

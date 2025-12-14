@@ -15,8 +15,7 @@ const filesToFix = [
   'src/pages/driver/profile/index.tsx',
   'src/pages/driver/return-vehicle/index.tsx',
   'src/pages/super-admin/vehicle-review-detail/index.tsx',
-  'src/pages/profile/change-password/index.tsx',
-  'src/utils/hotUpdate.ts'
+  'src/pages/profile/change-password/index.tsx'
 ];
 
 function fixFile(filePath) {

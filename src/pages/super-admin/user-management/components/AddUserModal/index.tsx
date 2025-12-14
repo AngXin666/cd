@@ -18,7 +18,8 @@
 
 import {Checkbox, CheckboxGroup, Input, Picker, Text, View} from '@tarojs/components'
 import {showToast} from '@tarojs/taro'
-import React, {memo, useState} from 'react'
+import type React from 'react'
+import {memo, useState} from 'react'
 import type {Warehouse} from '@/db/types'
 
 /**

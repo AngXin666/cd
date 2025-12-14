@@ -4,8 +4,8 @@
  */
 
 import Taro from '@tarojs/taro'
-import {createLogger} from './logger'
 import type {StorageValue} from '@/types/utils'
+import {createLogger} from './logger'
 
 const logger = createLogger('Storage')
 
@@ -187,7 +187,7 @@ export class TypeSafeStorage {
   static getMultiple<T = StorageValue>(keys: string[]): Record<string, T | null> {
     const result: Record<string, T | null> = {}
     for (const key of keys) {
-      result[key] = this.get<T>(key)
+      result[key] = TypeSafeStorage.get<T>(key)
     }
     return result
   }
@@ -200,7 +200,7 @@ export class TypeSafeStorage {
   static setMultiple<T = StorageValue>(data: Record<string, T>): boolean {
     let allSuccess = true
     for (const [key, value] of Object.entries(data)) {
-      if (!this.set(key, value)) {
+      if (!TypeSafeStorage.set(key, value)) {
         allSuccess = false
       }
     }
@@ -215,7 +215,7 @@ export class TypeSafeStorage {
   static removeMultiple(keys: string[]): boolean {
     let allSuccess = true
     for (const key of keys) {
-      if (!this.remove(key)) {
+      if (!TypeSafeStorage.remove(key)) {
         allSuccess = false
       }
     }

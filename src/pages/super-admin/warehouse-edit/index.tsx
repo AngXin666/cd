@@ -3,15 +3,14 @@ import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {AttendanceRule, CategoryPriceInput, PieceWorkCategory, Profile, Warehouse} from '@/db/types'
 import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 
-import TopNavBar from '@/components/TopNavBar'
 const WarehouseEdit: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [warehouseId, setWarehouseId] = useState<string>('')
@@ -116,16 +115,16 @@ const WarehouseEdit: React.FC = () => {
   // 加载管理员
   const loadManagers = useCallback(
     async (id?: string) => {
-            try {
+      try {
         // 加载所有车队长、老板和超级管理员
         const allUsers = await UsersAPI.getAllUsers()
         const managers = allUsers.filter((u) => u.role === 'MANAGER' || u.role === 'BOSS')
-                setAllManagers(managers)
+        setAllManagers(managers)
 
         // 加载当前用户信息
         const current = managers.find((m) => m.id === user?.id)
         if (current) {
-                    setCurrentUser(current)
+          setCurrentUser(current)
         } else {
           console.warn('[仓库管理-仓库分配] 当前用户不是管理员', {userId: user?.id})
         }
@@ -133,7 +132,7 @@ const WarehouseEdit: React.FC = () => {
         // 如果有仓库ID，加载该仓库的管理员
         if (id) {
           const warehouseManagers = await WarehousesAPI.getWarehouseManagers(id)
-                    const managerSet = new Set<string>()
+          const managerSet = new Set<string>()
           for (const manager of warehouseManagers) {
             managerSet.add(manager.id)
           }
@@ -362,7 +361,7 @@ const WarehouseEdit: React.FC = () => {
 
   // 创建新品类
   const handleCreateCategory = async () => {
-        // 验证必填项
+    // 验证必填项
     if (!newCategoryName.trim()) {
       console.warn('[仓库管理-品类操作] 品类名称为空')
       showToast({title: '请输入品类名称', icon: 'error'})
@@ -384,7 +383,7 @@ const WarehouseEdit: React.FC = () => {
         return
       }
 
-            // 再创建价格记录
+      // 再创建价格记录
       const priceInput: CategoryPriceInput = {
         category_id: newCategory.id,
         warehouse_id: warehouseId,
@@ -393,10 +392,10 @@ const WarehouseEdit: React.FC = () => {
         effective_date: new Date().toISOString().split('T')[0]
       }
 
-            const success = await PieceworkAPI.upsertCategoryPrice(priceInput)
+      const success = await PieceworkAPI.upsertCategoryPrice(priceInput)
 
       if (success) {
-                // 刷新品类列表
+        // 刷新品类列表
         await loadCategoriesAndPrices(warehouseId)
 
         // 自动选中新品类并设置价格
@@ -416,7 +415,7 @@ const WarehouseEdit: React.FC = () => {
         newSortingPrices.set(newCategoryName.trim(), newCategorySortingPrice || '0')
         setCategorySortingPrices(newSortingPrices)
 
-                showToast({title: '品类创建成功', icon: 'success'})
+        showToast({title: '品类创建成功', icon: 'success'})
         setShowNewCategoryDialog(false)
 
         // 清除缓存
@@ -465,11 +464,11 @@ const WarehouseEdit: React.FC = () => {
       return
     }
 
-        showLoading({title: '导入中...'})
+    showLoading({title: '导入中...'})
     try {
       // 获取选中仓库的品类价格
       const prices = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouseForImport)
-            if (prices.length === 0) {
+      if (prices.length === 0) {
         console.warn('[仓库管理-导入品类] 源仓库没有品类配置')
         showToast({title: '该仓库暂无品类配置', icon: 'none'})
         Taro.hideLoading()
@@ -495,7 +494,7 @@ const WarehouseEdit: React.FC = () => {
       const categories = await PieceworkAPI.getAllCategories()
       setAllCategories(categories)
 
-            showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
+      showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
       setShowImportDialog(false)
     } catch (error) {
       console.error('[仓库管理-导入品类] 导入品类失败:', error)
@@ -507,7 +506,7 @@ const WarehouseEdit: React.FC = () => {
 
   // 保存仓库信息
   const handleSave = async () => {
-        // 验证必填项
+    // 验证必填项
     if (!name.trim()) {
       console.warn('[仓库管理-保存操作] 仓库名称为空')
       showToast({title: '请输入仓库名称', icon: 'error'})
@@ -531,7 +530,7 @@ const WarehouseEdit: React.FC = () => {
     }
 
     // 验证品类价格
-        for (const categoryId of selectedCategories) {
+    for (const categoryId of selectedCategories) {
       const driverPrice = categoryDriverPrices.get(categoryId)
       const vehiclePrice = categoryVehiclePrices.get(categoryId)
       const category = allCategories.find((c) => c.id === categoryId)
@@ -557,7 +556,7 @@ const WarehouseEdit: React.FC = () => {
       }
     }
 
-        showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       // 1. 更新仓库基本信息
       const success = await WarehousesAPI.updateWarehouse(warehouseId, {
@@ -572,8 +571,8 @@ const WarehouseEdit: React.FC = () => {
         console.error('[仓库管理-保存操作] 更新仓库基本信息失败')
         throw new Error('更新仓库信息失败')
       }
-            // 2. 更新品类价格
-            const priceInputs: CategoryPriceInput[] = Array.from(selectedCategories)
+      // 2. 更新品类价格
+      const priceInputs: CategoryPriceInput[] = Array.from(selectedCategories)
         .map((categoryId) => {
           const category = allCategories.find((c) => c.id === categoryId)
           if (!category) return null
@@ -587,17 +586,17 @@ const WarehouseEdit: React.FC = () => {
         })
         .filter((p) => p !== null) as CategoryPriceInput[]
 
-            if (priceInputs.length > 0) {
+      if (priceInputs.length > 0) {
         const priceSuccess = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
         if (!priceSuccess) {
           console.error('[仓库管理-保存操作] 更新品类价格失败')
           throw new Error('更新品类价格失败')
         }
-              } else {
-              }
+      } else {
+      }
 
       // 3. 更新管理员
-            // 获取原有管理员
+      // 获取原有管理员
       const oldManagers = await WarehousesAPI.getWarehouseManagers(warehouseId)
       const oldManagerIds = new Set(oldManagers.map((m) => m.id))
 
@@ -607,15 +606,15 @@ const WarehouseEdit: React.FC = () => {
 
       // 添加新管理员
       for (const managerId of toAdd) {
-                await WarehousesAPI.addManagerWarehouse(managerId, warehouseId)
+        await WarehousesAPI.addManagerWarehouse(managerId, warehouseId)
       }
 
       // 删除旧管理员
       for (const managerId of toRemove) {
-                await WarehousesAPI.removeManagerWarehouse(managerId, warehouseId)
+        await WarehousesAPI.removeManagerWarehouse(managerId, warehouseId)
       }
-            // 4. 更新考勤规则
-            const ruleInput = {
+      // 4. 更新考勤规则
+      const ruleInput = {
         warehouse_id: warehouseId,
         clock_in_time: ruleStartTime,
         clock_out_time: ruleEndTime,
@@ -629,22 +628,22 @@ const WarehouseEdit: React.FC = () => {
 
       if (currentRule) {
         // 更新现有规则
-                const ruleSuccess = await AttendanceAPI.updateAttendanceRule(currentRule.id, ruleInput)
+        const ruleSuccess = await AttendanceAPI.updateAttendanceRule(currentRule.id, ruleInput)
         if (!ruleSuccess) {
           console.warn('[仓库管理-保存操作] 更新考勤规则失败')
         } else {
-                  }
+        }
       } else {
         // 创建新规则
-                const newRule = await AttendanceAPI.createAttendanceRule(ruleInput)
+        const newRule = await AttendanceAPI.createAttendanceRule(ruleInput)
         if (newRule) {
-                    setCurrentRule(newRule)
+          setCurrentRule(newRule)
         } else {
           console.warn('[仓库管理-保存操作] 创建考勤规则失败')
         }
       }
-            // 清除缓存
-            onDataUpdated([
+      // 清除缓存
+      onDataUpdated([
         CACHE_KEYS.ALL_WAREHOUSES,
         CACHE_KEYS.WAREHOUSE_CATEGORIES,
         CACHE_KEYS.WAREHOUSE_ASSIGNMENTS,
@@ -652,7 +651,7 @@ const WarehouseEdit: React.FC = () => {
         CACHE_KEYS.DASHBOARD_DATA
       ])
 
-            showToast({title: '保存成功', icon: 'success'})
+      showToast({title: '保存成功', icon: 'success'})
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)

@@ -11,13 +11,12 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
-
 import type {Vehicle} from '@/db/types'
 import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
 
-import TopNavBar from '@/components/TopNavBar'
 type TabType = 'pickup' | 'return' | 'registration' | 'damage'
 
 const VehicleDetail: React.FC = () => {
@@ -122,8 +121,8 @@ const VehicleDetail: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
+        {/* 顶部导航栏 */}
+        <TopNavBar />
         <View className="text-center">
           <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
           <Text className="text-gray-600 font-medium">加载中...</Text>

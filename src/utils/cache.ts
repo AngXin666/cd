@@ -3,8 +3,8 @@
  * 提供智能缓存功能，支持TTL和LRU淘汰策略
  */
 
-import {createLogger} from './logger'
 import {enhancedErrorHandler} from './errorHandler'
+import {createLogger} from './logger'
 
 const logger = createLogger('CacheManager')
 
@@ -237,11 +237,7 @@ export const apiCache = createCache({
  * 缓存装饰器
  * 自动缓存函数返回值
  */
-export function cached<T>(
-  cache: CacheManager<T>,
-  keyGenerator: (...args: unknown[]) => string,
-  ttl?: number
-) {
+export function cached<T>(cache: CacheManager<T>, keyGenerator: (...args: unknown[]) => string, ttl?: number) {
   return (_target: object, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
@@ -302,36 +298,36 @@ export const CACHE_KEYS = {
   // 考勤相关
   ATTENDANCE_MONTHLY: 'attendance_monthly',
   ATTENDANCE_ALL_RECORDS: 'attendance_all_records',
-  
+
   // 用户相关
   USER_PROFILE: 'user_profile',
   ALL_USERS: 'all_users',
-  
+
   // 仓库相关
   WAREHOUSE_LIST: 'warehouse_list',
   ALL_WAREHOUSES: 'all_warehouses',
   WAREHOUSE_CATEGORIES: 'warehouse_categories',
   WAREHOUSE_ASSIGNMENTS: 'warehouse_assignments',
   MANAGER_WAREHOUSES: 'manager_warehouses',
-  
+
   // 品类相关
   CATEGORY_LIST: 'category_list',
-  
+
   // 司机相关
   MANAGER_DRIVERS: 'manager_drivers',
   MANAGER_DRIVER_DETAILS: 'manager_driver_details',
-  
+
   // 车辆相关
   ALL_VEHICLES: 'all_vehicles',
-  
+
   // 司机仓库关联
   MANAGER_DRIVER_WAREHOUSES: 'manager_driver_warehouses',
-  
+
   // 超级管理员用户管理
   SUPER_ADMIN_USERS: 'super_admin_users',
   SUPER_ADMIN_USER_DETAILS: 'super_admin_user_details',
   SUPER_ADMIN_USER_WAREHOUSES: 'super_admin_user_warehouses',
-  
+
   // 仪表盘
   DASHBOARD_DATA: 'dashboard_data'
 }
@@ -351,7 +347,7 @@ export function clearManagerWarehousesCache(managerId?: string): void {
 /**
  * 简单缓存存储（兼容旧API）
  */
-const simpleCache = new Map<string, { value: unknown; expiry: number }>()
+const simpleCache = new Map<string, {value: unknown; expiry: number}>()
 
 /**
  * 设置缓存（兼容旧API）
@@ -455,7 +451,7 @@ const dataUpdateCallbacks = new Map<string, Set<() => void>>()
  * 1. onDataUpdated(keys: string[]) - 清除指定keys的缓存
  * 2. onDataUpdated(key: string, callback: () => void) - 注册回调
  */
-export function onDataUpdated(keyOrKeys: string | string[], callback?: () => void): (() => void) | void {
+export function onDataUpdated(keyOrKeys: string | string[], callback?: () => void): (() => void) | undefined {
   // 如果是数组，清除这些key的缓存
   if (Array.isArray(keyOrKeys)) {
     for (const key of keyOrKeys) {
@@ -465,15 +461,15 @@ export function onDataUpdated(keyOrKeys: string | string[], callback?: () => voi
     }
     return
   }
-  
+
   // 如果有callback，注册回调
   if (callback) {
     const key = keyOrKeys
     if (!dataUpdateCallbacks.has(key)) {
       dataUpdateCallbacks.set(key, new Set())
     }
-    dataUpdateCallbacks.get(key)!.add(callback)
-    
+    dataUpdateCallbacks.get(key)?.add(callback)
+
     // 返回取消订阅函数
     return () => {
       dataUpdateCallbacks.get(key)?.delete(callback)

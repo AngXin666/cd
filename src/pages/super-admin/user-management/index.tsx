@@ -9,17 +9,16 @@ import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {matchWithPinyin} from '@/utils/pinyin'
 
-import TopNavBar from '@/components/TopNavBar'
 // 司机详细信息类型
 type DriverDetailInfo = Awaited<ReturnType<typeof VehiclesAPI.getDriverDetailInfo>>
 
@@ -138,7 +137,16 @@ const UserManagement: React.FC = () => {
     }
 
     return filtered
-  }, [users, searchKeyword, roleFilter, currentWarehouseIndex, warehouses, userWarehouseIdsMap, currentUserProfile, user])
+  }, [
+    users,
+    searchKeyword,
+    roleFilter,
+    currentWarehouseIndex,
+    warehouses,
+    userWarehouseIdsMap,
+    currentUserProfile,
+    user
+  ])
 
   // 加载仓库列表
   const loadWarehouses = useCallback(async () => {
@@ -261,32 +269,26 @@ const UserManagement: React.FC = () => {
         setLoading(false)
       }
     },
-    [searchKeyword, roleFilter, currentWarehouseIndex, user, currentUserProfile]
+    [user, currentUserProfile]
   )
 
   // 搜索关键词变化 - filteredUsers 会自动更新
-  const handleSearchChange = useCallback(
-    (e: {detail: {value: string}}) => {
-      const keyword = e.detail.value
-      setSearchKeyword(keyword)
-    },
-    []
-  )
+  const handleSearchChange = useCallback((e: {detail: {value: string}}) => {
+    const keyword = e.detail.value
+    setSearchKeyword(keyword)
+  }, [])
 
   // 标签页切换 - filteredUsers 会自动更新
-  const handleTabChange = useCallback(
-    (tab: 'DRIVER' | 'MANAGER') => {
-      setActiveTab(tab)
-      // 切换标签时自动设置角色筛选
-      // 管理员标签页显示车队长（manager），不显示老板账号（super_admin）
-      const role: UserRole = tab === 'DRIVER' ? 'DRIVER' : 'MANAGER'
-      setRoleFilter(role)
-      // 收起所有展开的详情
-      setExpandedUserId(null)
-      setWarehouseAssignExpanded(null)
-    },
-    []
-  )
+  const handleTabChange = useCallback((tab: 'DRIVER' | 'MANAGER') => {
+    setActiveTab(tab)
+    // 切换标签时自动设置角色筛选
+    // 管理员标签页显示车队长（manager），不显示老板账号（super_admin）
+    const role: UserRole = tab === 'DRIVER' ? 'DRIVER' : 'MANAGER'
+    setRoleFilter(role)
+    // 收起所有展开的详情
+    setExpandedUserId(null)
+    setWarehouseAssignExpanded(null)
+  }, [])
 
   // 切换用户详细信息展开状态
   const _handleToggleUserDetail = useCallback(
@@ -909,13 +911,10 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
   })
 
   // 处理仓库切换 - filteredUsers 会自动更新
-  const handleWarehouseChange = useCallback(
-    (e: any) => {
-      const index = e.detail.current
-      setCurrentWarehouseIndex(index)
-    },
-    []
-  )
+  const handleWarehouseChange = useCallback((e: any) => {
+    const index = e.detail.current
+    setCurrentWarehouseIndex(index)
+  }, [])
 
   // 获取角色显示文本
   const getRoleText = (role: UserRole) => {

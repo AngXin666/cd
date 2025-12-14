@@ -26,6 +26,13 @@ docs/
 ├── 技术文档/           # 🔧 技术文档
 │   ├── 平台优化/       # 平台适配和优化
 │   └── 架构设计/       # 架构文档
+├── unified-hot-update/ # 🔄 统一热更新系统
+│   ├── README.md       # 热更新文档中心
+│   ├── DEVELOPER_GUIDE.md  # 开发者指南
+│   ├── TROUBLESHOOTING.md  # 故障排查指南
+│   ├── QUICK_TEST_GUIDE.md # 快速测试指南
+│   ├── PLATFORM_TESTING_GUIDE.md # 平台测试指南
+│   └── TEST_EXECUTION_CHECKLIST.md # 测试检查清单
 └── README.md           # 本文件
 ```
 
@@ -123,6 +130,43 @@ docs/
 
 ---
 
+## 🔄 统一热更新系统 (unified-hot-update/)
+
+### 核心文档
+- **README.md** - 热更新系统文档中心
+  - 使用说明
+  - 配置指南
+  - 平台差异说明
+  - 常见问题
+
+### 开发文档
+- **DEVELOPER_GUIDE.md** - 开发者指南
+  - 系统架构
+  - 核心组件
+  - 开发指南
+  - 调试技巧
+  - 最佳实践
+
+### 测试文档
+- **QUICK_TEST_GUIDE.md** - 快速测试指南
+- **PLATFORM_TESTING_GUIDE.md** - 平台测试指南
+- **TEST_EXECUTION_CHECKLIST.md** - 测试执行检查清单
+
+### 故障排查
+- **TROUBLESHOOTING.md** - 故障排查指南
+  - 常见问题
+  - 平台特定问题
+  - 错误代码
+  - 调试工具
+
+**适用场景**：
+- 了解热更新机制
+- 配置和测试热更新
+- 排查更新问题
+- 开发和维护热更新功能
+
+---
+
 ## 🔍 快速查找
 
 ### 我想...
@@ -178,6 +222,28 @@ docs/技术文档/平台优化/API导入优化指南.md
 #### 了解系统架构
 ```
 docs/技术文档/架构设计/系统深度分析报告.md
+```
+
+#### 了解热更新系统
+```
+docs/unified-hot-update/README.md
+docs/unified-hot-update/DEVELOPER_GUIDE.md
+```
+
+#### 配置热更新
+```
+docs/unified-hot-update/README.md#配置指南
+```
+
+#### 测试热更新
+```
+docs/unified-hot-update/QUICK_TEST_GUIDE.md
+docs/unified-hot-update/PLATFORM_TESTING_GUIDE.md
+```
+
+#### 排查更新问题
+```
+docs/unified-hot-update/TROUBLESHOOTING.md
 ```
 
 ---
@@ -251,6 +317,13 @@ docs/技术文档/架构设计/系统深度分析报告.md
 ---
 
 ## 🎯 文档更新历史
+
+### 2025-12-14 - 统一热更新系统文档
+- ✅ 创建统一热更新系统完整文档
+- ✅ 添加使用说明和配置指南
+- ✅ 添加开发者指南和故障排查指南
+- ✅ 添加测试文档和检查清单
+- ✅ 更新 README 和 CHANGELOG
 
 ### 2025-12-14 - 文档结构重组
 - ✅ 合并 `docs/` 和 `文档/` 两个文档文件夹

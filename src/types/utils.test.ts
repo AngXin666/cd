@@ -3,15 +3,8 @@
  * 验证类型推断和约束是否正确
  */
 
-import {describe, it, expect} from 'vitest'
-import type {
-  StorageValue,
-  AsyncResult,
-  PaginatedData,
-  VoidCallback,
-  ErrorCallback,
-  DataCallback
-} from './utils'
+import {describe, expect, it} from 'vitest'
+import type {AsyncResult, DataCallback, ErrorCallback, PaginatedData, StorageValue, VoidCallback} from './utils'
 
 describe('通用工具类型', () => {
   describe('StorageValue', () => {

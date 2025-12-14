@@ -3,13 +3,12 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {CategoryPrice, PieceWorkCategory, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 
-import TopNavBar from '@/components/TopNavBar'
 // 品类价格编辑状态
 interface CategoryPriceEdit {
   categoryId: string

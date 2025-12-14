@@ -5,9 +5,9 @@
  * **验证需求: 4.1, 4.2, 4.3, 4.4**
  */
 
-import {describe, it, expect, vi, beforeEach} from 'vitest'
 import * as fc from 'fast-check'
-import {errorHandler, ErrorType} from './errorHandler'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {ErrorType, errorHandler} from './errorHandler'
 
 // Mock toast 模块
 vi.mock('./toast', () => ({
@@ -50,7 +50,9 @@ describe('ErrorHandler 属性测试', () => {
               message: fc.string()
             }),
             // 标准 Error
-            fc.string().map((msg) => new Error(msg)),
+            fc
+              .string()
+              .map((msg) => new Error(msg)),
             // 字符串错误
             fc.string()
           ),
@@ -302,11 +304,7 @@ describe('ErrorHandler 属性测试', () => {
 
   describe('错误类型判断', () => {
     it('应正确识别 JWT 相关的认证错误', () => {
-      const jwtErrors = [
-        {message: 'JWT expired'},
-        {message: 'Invalid JWT token'},
-        {message: 'JWT verification failed'}
-      ]
+      const jwtErrors = [{message: 'JWT expired'}, {message: 'Invalid JWT token'}, {message: 'JWT verification failed'}]
 
       for (const error of jwtErrors) {
         const type = (errorHandler as any).getErrorType(error)

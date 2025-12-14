@@ -1,11 +1,12 @@
 /**
  * 车辆卡片组件
- * 
+ *
  * @description 显示单个车辆的信息卡片
  */
 
 import {Image, Text, View} from '@tarojs/components'
-import React, {memo} from 'react'
+import type React from 'react'
+import {memo} from 'react'
 import type {VehicleWithDriver} from '@/db/types'
 
 export interface VehicleCardProps {
@@ -33,7 +34,7 @@ const getVehicleStatusBadge = (vehicle: VehicleWithDriver): StatusBadge => {
       textColor: 'text-green-700'
     }
   }
-  
+
   if (vehicle.pickup_time) {
     return {
       text: '使用中',
@@ -42,7 +43,7 @@ const getVehicleStatusBadge = (vehicle: VehicleWithDriver): StatusBadge => {
       textColor: 'text-blue-700'
     }
   }
-  
+
   return {
     text: '待提车',
     icon: 'i-mdi-clock-outline',
@@ -51,12 +52,7 @@ const getVehicleStatusBadge = (vehicle: VehicleWithDriver): StatusBadge => {
   }
 }
 
-const VehicleCard: React.FC<VehicleCardProps> = ({
-  vehicle,
-  historyCount = 0,
-  onViewHistory,
-  onViewPhotos
-}) => {
+const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, historyCount = 0, onViewHistory, onViewPhotos}) => {
   const statusBadge = getVehicleStatusBadge(vehicle)
 
   return (
@@ -90,9 +86,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
               </View>
             )}
           </View>
-          {vehicle.brand && (
-            <Text className="text-gray-600 text-sm">{vehicle.brand}</Text>
-          )}
+          {vehicle.brand && <Text className="text-gray-600 text-sm">{vehicle.brand}</Text>}
         </View>
 
         {/* 司机信息 */}
@@ -114,9 +108,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
               onClick={() => onViewHistory?.(vehicle)}>
               <View className="flex items-center justify-center">
                 <View className="i-mdi-history text-lg text-blue-600 mr-2"></View>
-                <Text className="text-blue-700 font-medium text-sm">
-                  历史记录 ({historyCount})
-                </Text>
+                <Text className="text-blue-700 font-medium text-sm">历史记录 ({historyCount})</Text>
               </View>
             </View>
           )}

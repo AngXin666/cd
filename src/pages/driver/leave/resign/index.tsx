@@ -4,14 +4,13 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import TopNavBar from '@/components/TopNavBar'
 import * as LeaveAPI from '@/db/api/leave'
 import * as NotificationsAPI from '@/db/api/notifications'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import {getLocalDateString} from '@/utils/date'
 
-import TopNavBar from '@/components/TopNavBar'
 const ApplyResignation: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [expectedDate, setExpectedDate] = useState('')

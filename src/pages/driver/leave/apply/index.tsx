@@ -4,11 +4,11 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
-
 import type {LeaveType} from '@/db/types'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import {
@@ -19,7 +19,6 @@ import {
 } from '@/utils/date'
 import {formatLeaveDate} from '@/utils/dateFormat'
 
-import TopNavBar from '@/components/TopNavBar'
 // 环境检测
 const isH5 = process.env.TARO_ENV === 'h5'
 

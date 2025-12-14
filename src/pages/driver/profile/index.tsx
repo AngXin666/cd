@@ -10,13 +10,13 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {DriverLicense, Profile} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
-import TopNavBar from '@/components/TopNavBar'
 // 创建页面日志记录器
 const logger = createLogger('DriverProfile')
 

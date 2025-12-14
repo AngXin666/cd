@@ -7,10 +7,10 @@ import {getAllSuperAdmins} from '@/db/api/users'
 import {getWarehouseManagers} from '@/db/api/warehouses'
 import {createNotifications} from '@/db/notificationApi'
 import type {Profile, Warehouse} from '@/db/types'
-import {createLogger} from './logger'
 import {enhancedErrorHandler} from './errorHandler'
+import {createLogger} from './logger'
 
-const logger = createLogger('WarehouseNotification')
+const _logger = createLogger('WarehouseNotification')
 
 /**
  * 发送仓库分配通知

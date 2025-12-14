@@ -1,5 +1,6 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
-import { View, ScrollView } from '@tarojs/components'
+import {ScrollView, View} from '@tarojs/components'
+import type React from 'react'
+import {useCallback, useMemo, useRef, useState} from 'react'
 import './index.scss'
 
 export interface VirtualListProps<T = any> {
@@ -25,9 +26,9 @@ export interface VirtualListProps<T = any> {
 
 /**
  * 虚拟滚动列表组件
- * 
+ *
  * 只渲染可见区域的列表项，大幅提升长列表性能
- * 
+ *
  * @example
  * ```tsx
  * <VirtualList
@@ -57,11 +58,8 @@ export function VirtualList<T = any>(props: VirtualListProps<T>) {
   // 计算可见区域
   const visibleRange = useMemo(() => {
     const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
-    const endIndex = Math.min(
-      data.length - 1,
-      Math.ceil((scrollTop + height) / itemHeight) + overscan
-    )
-    return { startIndex, endIndex }
+    const endIndex = Math.min(data.length - 1, Math.ceil((scrollTop + height) / itemHeight) + overscan)
+    return {startIndex, endIndex}
   }, [scrollTop, itemHeight, height, overscan, data.length])
 
   // 计算总高度
@@ -80,16 +78,19 @@ export function VirtualList<T = any>(props: VirtualListProps<T>) {
   }, [data, visibleRange.startIndex, visibleRange.endIndex])
 
   // 处理滚动事件
-  const handleScroll = useCallback((e: any) => {
-    const newScrollTop = e.detail.scrollTop
-    setScrollTop(newScrollTop)
-    onScroll?.(newScrollTop)
-  }, [onScroll])
+  const handleScroll = useCallback(
+    (e: any) => {
+      const newScrollTop = e.detail.scrollTop
+      setScrollTop(newScrollTop)
+      onScroll?.(newScrollTop)
+    },
+    [onScroll]
+  )
 
   // 空列表
   if (data.length === 0) {
     return (
-      <View className={`virtual-list virtual-list--empty ${className}`} style={{ height: `${height}px` }}>
+      <View className={`virtual-list virtual-list--empty ${className}`} style={{height: `${height}px`}}>
         <View className="virtual-list__empty">{emptyText}</View>
       </View>
     )
@@ -99,22 +100,17 @@ export function VirtualList<T = any>(props: VirtualListProps<T>) {
     <ScrollView
       ref={scrollViewRef}
       className={`virtual-list ${className}`}
-      style={{ height: `${height}px` }}
+      style={{height: `${height}px`}}
       scrollY
       onScroll={handleScroll}
-      scrollTop={scrollTop}
-    >
-      <View className="virtual-list__phantom" style={{ height: `${totalHeight}px` }}>
-        <View className="virtual-list__content" style={{ transform: `translateY(${offsetY}px)` }}>
+      scrollTop={scrollTop}>
+      <View className="virtual-list__phantom" style={{height: `${totalHeight}px`}}>
+        <View className="virtual-list__content" style={{transform: `translateY(${offsetY}px)`}}>
           {visibleItems.map((item, index) => {
             const actualIndex = visibleRange.startIndex + index
             const key = getItemKey(item, actualIndex)
             return (
-              <View
-                key={key}
-                className="virtual-list__item"
-                style={{ height: `${itemHeight}px` }}
-              >
+              <View key={key} className="virtual-list__item" style={{height: `${itemHeight}px`}}>
                 {renderItem(item, actualIndex)}
               </View>
             )

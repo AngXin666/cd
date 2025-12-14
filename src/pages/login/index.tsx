@@ -8,11 +8,7 @@ import TopNavBar from '@/components/TopNavBar'
 const isH5 = process.env.TARO_ENV === 'h5'
 
 // 背景图片列表 - 使用静态资源路径
-const BG_IMAGES = [
-  '/assets/images/login-bg-1.jpg',
-  '/assets/images/login-bg-2.jpg',
-  '/assets/images/login-bg-3.jpg'
-]
+const BG_IMAGES = ['/assets/images/login-bg-1.jpg', '/assets/images/login-bg-2.jpg', '/assets/images/login-bg-3.jpg']
 
 // 存储工具函数，兼容H5和小程序
 const removeStorageCompat = (key: string) => {
@@ -51,7 +47,7 @@ const setBgIndex = (index: number) => {
 
 // 获取随机背景图索引（不重复上一次）
 const getRandomBgIndex = (lastIndex: number): number => {
-  const availableIndexes = BG_IMAGES.map((_, i) => i).filter(i => i !== lastIndex)
+  const availableIndexes = BG_IMAGES.map((_, i) => i).filter((i) => i !== lastIndex)
   return availableIndexes[Math.floor(Math.random() * availableIndexes.length)]
 }
 
@@ -95,11 +91,11 @@ const Login: React.FC = () => {
 
       // 获取上次的背景图索引
       const lastIndex = getBgIndex()
-      
+
       // 随机选择一张不同的背景图
       const newIndex = getRandomBgIndex(lastIndex)
       setBgIndexState(newIndex)
-      
+
       // 保存新的索引
       setBgIndex(newIndex)
     } catch (error) {
@@ -239,8 +235,8 @@ const Login: React.FC = () => {
   }
 
   return (
-    <View 
-      className="min-h-screen" 
+    <View
+      className="min-h-screen"
       style={{
         position: 'fixed',
         top: 0,
@@ -257,20 +253,24 @@ const Login: React.FC = () => {
       <View className="flex flex-col items-center px-6" style={{paddingTop: '15vh'}}>
         {/* 页面标题 */}
         <View className="pb-4 text-center w-full">
-          <Text className="text-3xl font-bold text-white block mb-2" style={{textShadow: '0 2px 4px rgba(0,0,0,0.3)'}}>车队管家</Text>
-          <Text className="text-sm text-white block" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>专业的车队管理系统</Text>
+          <Text className="text-3xl font-bold text-white block mb-2" style={{textShadow: '0 2px 4px rgba(0,0,0,0.3)'}}>
+            车队管家
+          </Text>
+          <Text className="text-sm text-white block" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>
+            专业的车队管理系统
+          </Text>
         </View>
 
         {/* 登录表单卡片 - 50% 透明度，无毛玻璃 */}
-        <View 
-          className="rounded-2xl p-6 shadow-lg w-full" 
+        <View
+          className="rounded-2xl p-6 shadow-lg w-full"
           style={{
             maxWidth: '400px',
             backgroundColor: 'rgba(255, 255, 255, 0.5)'
           }}>
           {/* 账号输入 - 45% 透明度 */}
           <View className="mb-4">
-            <View 
+            <View
               className="flex items-center rounded-xl px-4 border-2 border-transparent"
               style={{backgroundColor: 'rgba(255, 255, 255, 0.45)'}}>
               <View className="i-mdi-account text-2xl text-primary mr-3" />
@@ -293,7 +293,7 @@ const Login: React.FC = () => {
           {loginType === 'password' && (
             <>
               <View className="mb-4">
-                <View 
+                <View
                   className="flex items-center rounded-xl px-4 border-2 border-transparent"
                   style={{backgroundColor: 'rgba(255, 255, 255, 0.45)'}}>
                   <View className="i-mdi-lock text-2xl text-primary mr-3" />
@@ -335,7 +335,7 @@ const Login: React.FC = () => {
           {loginType === 'otp' && (
             <>
               <View className="mb-4">
-                <View 
+                <View
                   className="flex items-center rounded-xl px-4 border-2 border-transparent"
                   style={{backgroundColor: 'rgba(255, 255, 255, 0.45)'}}>
                   <View className="i-mdi-message-text text-2xl text-primary mr-3" />
@@ -348,9 +348,7 @@ const Login: React.FC = () => {
                     onInput={(e) => setOtp(e.detail.value)}
                     style={{fontSize: '16px'}}
                   />
-                  {otp && (
-                    <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setOtp('')} />
-                  )}
+                  {otp && <View className="i-mdi-close-circle text-xl text-gray-400 ml-2" onClick={() => setOtp('')} />}
                 </View>
               </View>
               <Button
@@ -377,9 +375,12 @@ const Login: React.FC = () => {
               size="default"
               disabled={loading}
               style={{
-                backgroundColor: loginType === 'password' 
-                  ? (loading ? 'rgba(147, 197, 253, 0.8)' : 'rgba(30, 58, 138, 0.9)') 
-                  : 'rgba(243, 244, 246, 0.8)',
+                backgroundColor:
+                  loginType === 'password'
+                    ? loading
+                      ? 'rgba(147, 197, 253, 0.8)'
+                      : 'rgba(30, 58, 138, 0.9)'
+                    : 'rgba(243, 244, 246, 0.8)',
                 color: loginType === 'password' ? 'white' : '#1E3A8A',
                 borderRadius: '12px',
                 border: loginType === 'password' ? 'none' : '2px solid rgba(229, 231, 235, 0.5)',
@@ -400,9 +401,12 @@ const Login: React.FC = () => {
               size="default"
               disabled={loading}
               style={{
-                backgroundColor: loginType === 'otp' 
-                  ? (loading ? 'rgba(147, 197, 253, 0.8)' : 'rgba(30, 58, 138, 0.9)') 
-                  : 'rgba(243, 244, 246, 0.8)',
+                backgroundColor:
+                  loginType === 'otp'
+                    ? loading
+                      ? 'rgba(147, 197, 253, 0.8)'
+                      : 'rgba(30, 58, 138, 0.9)'
+                    : 'rgba(243, 244, 246, 0.8)',
                 color: loginType === 'otp' ? 'white' : '#1E3A8A',
                 borderRadius: '12px',
                 border: loginType === 'otp' ? 'none' : '2px solid rgba(229, 231, 235, 0.5)',

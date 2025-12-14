@@ -8,10 +8,10 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import type {PermissionLevel} from '@/db/api/permission-strategy'
 import * as PermissionStrategyAPI from '@/db/api/permission-strategy'
 
-import TopNavBar from '@/components/TopNavBar'
 const PermissionConfig: React.FC = () => {
   const {user} = useAuth({guard: true})
   const router = useRouter()

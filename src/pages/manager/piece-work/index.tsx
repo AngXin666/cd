@@ -3,16 +3,15 @@ import Taro, {navigateTo, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import * as PieceworkAPI from '@/db/api/piecework'
-import * as UsersAPI from '@/db/api/users'
-import * as WarehousesAPI from '@/db/api/warehouses'
-
-import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
-import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
-import {matchWithPinyin} from '@/utils/pinyin'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import TopNavBar from '@/components/TopNavBar'
 import VirtualList from '@/components/VirtualList'
+import * as PieceworkAPI from '@/db/api/piecework'
+import * as UsersAPI from '@/db/api/users'
+import * as WarehousesAPI from '@/db/api/warehouses'
+import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
+import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
+import {matchWithPinyin} from '@/utils/pinyin'
 
 // 虚拟滚动配置
 const VIRTUAL_LIST_THRESHOLD = 20 // 超过20条记录时启用虚拟滚动
@@ -305,18 +304,13 @@ const ManagerPieceWork: React.FC = () => {
   // 渲染单条记录
   const renderRecordItem = useCallback(
     (record: PieceWorkRecord) => (
-      <View
-        key={record.id}
-        onClick={() => handleViewDetail(record)}
-        className="bg-gray-50 rounded-lg p-3 mb-2">
+      <View key={record.id} onClick={() => handleViewDetail(record)} className="bg-gray-50 rounded-lg p-3 mb-2">
         {/* 记录头部 */}
         <View className="flex items-center justify-between mb-2">
           <View className="flex items-center flex-1">
             <View className="i-mdi-account-circle text-2xl text-blue-900 mr-2" />
             <View className="flex-1">
-              <Text className="text-sm font-medium text-gray-800 block">
-                {getDriverName(record.user_id)}
-              </Text>
+              <Text className="text-sm font-medium text-gray-800 block">{getDriverName(record.user_id)}</Text>
               <Text className="text-xs text-gray-500 block">{record.work_date}</Text>
             </View>
           </View>
@@ -361,16 +355,12 @@ const ManagerPieceWork: React.FC = () => {
             </View>
             <View className="flex items-center">
               <Text className="text-xs text-gray-600">单价: </Text>
-              <Text className="text-sm font-medium text-gray-800">
-                ¥{Number(record.unit_price).toFixed(2)}
-              </Text>
+              <Text className="text-sm font-medium text-gray-800">¥{Number(record.unit_price).toFixed(2)}</Text>
             </View>
             {record.need_upstairs && (
               <View className="flex items-center">
                 <Text className="text-xs text-gray-600">上楼: </Text>
-                <Text className="text-sm font-medium text-orange-600">
-                  ¥{Number(record.upstairs_price).toFixed(2)}
-                </Text>
+                <Text className="text-sm font-medium text-orange-600">¥{Number(record.upstairs_price).toFixed(2)}</Text>
               </View>
             )}
             {record.need_sorting && record.sorting_quantity > 0 && (
@@ -383,9 +373,7 @@ const ManagerPieceWork: React.FC = () => {
             )}
           </View>
           <View className="flex items-center">
-            <Text className="text-sm font-bold text-blue-900">
-              ¥{Number(record.total_amount).toFixed(2)}
-            </Text>
+            <Text className="text-sm font-bold text-blue-900">¥{Number(record.total_amount).toFixed(2)}</Text>
           </View>
         </View>
         {record.notes && (
@@ -404,356 +392,354 @@ const ManagerPieceWork: React.FC = () => {
         {/* 顶部导航栏 */}
         <TopNavBar />
         <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 页面标题 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">计件管理</Text>
-            <Text className="text-blue-100 text-sm block">管理和查看计件记录</Text>
-          </View>
-
-          {/* 筛选条件 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-filter text-blue-900 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">筛选条件</Text>
+          <View className="p-4">
+            {/* 页面标题 */}
+            <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
+              <Text className="text-white text-2xl font-bold block mb-2">计件管理</Text>
+              <Text className="text-blue-100 text-sm block">管理和查看计件记录</Text>
             </View>
 
-            {/* 仓库选择 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">仓库</Text>
-              <Picker
-                mode="selector"
-                range={warehouseOptions}
-                value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">{warehouseOptions[selectedWarehouseIndex]}</Text>
-                  <View className="i-mdi-chevron-down text-gray-400 text-xl" />
-                </View>
-              </Picker>
-            </View>
+            {/* 筛选条件 */}
+            <View className="bg-white rounded-lg p-4 mb-4 shadow">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-filter text-blue-900 text-xl mr-2" />
+                <Text className="text-gray-800 text-base font-bold">筛选条件</Text>
+              </View>
 
-            {/* 司机搜索和选择 */}
-            <View className="mb-3">
-              <Text className="text-sm text-gray-700 block mb-2">司机搜索（支持拼音首字母）</Text>
-              <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center mb-2">
-                <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
-                <Input
-                  className="flex-1 text-gray-800"
-                  placeholder="输入司机名字、拼音首字母或电话号码"
-                  value={driverSearchKeyword}
-                  onInput={(e) => {
-                    setDriverSearchKeyword(e.detail.value)
-                    // 搜索关键词变化时，重置选中的司机
-                    setSelectedDriverId('')
-                  }}
-                />
-                {driverSearchKeyword && (
-                  <View
-                    className="i-mdi-close-circle text-gray-400 text-xl"
-                    onClick={() => {
-                      setDriverSearchKeyword('')
+              {/* 仓库选择 */}
+              <View className="mb-3">
+                <Text className="text-sm text-gray-700 block mb-2">仓库</Text>
+                <Picker
+                  mode="selector"
+                  range={warehouseOptions}
+                  value={selectedWarehouseIndex}
+                  onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">{warehouseOptions[selectedWarehouseIndex]}</Text>
+                    <View className="i-mdi-chevron-down text-gray-400 text-xl" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 司机搜索和选择 */}
+              <View className="mb-3">
+                <Text className="text-sm text-gray-700 block mb-2">司机搜索（支持拼音首字母）</Text>
+                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center mb-2">
+                  <View className="i-mdi-magnify text-gray-400 text-xl mr-2" />
+                  <Input
+                    className="flex-1 text-gray-800"
+                    placeholder="输入司机名字、拼音首字母或电话号码"
+                    value={driverSearchKeyword}
+                    onInput={(e) => {
+                      setDriverSearchKeyword(e.detail.value)
+                      // 搜索关键词变化时，重置选中的司机
                       setSelectedDriverId('')
                     }}
                   />
-                )}
-              </View>
-              <Picker
-                mode="selector"
-                range={driverOptions}
-                value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
-                onChange={(e) => {
-                  const index = Number(e.detail.value)
-                  if (index === 0) {
-                    setSelectedDriverId('')
-                  } else {
-                    const driver = filteredDrivers[index - 1]
-                    if (driver) {
-                      setSelectedDriverId(driver.id)
+                  {driverSearchKeyword && (
+                    <View
+                      className="i-mdi-close-circle text-gray-400 text-xl"
+                      onClick={() => {
+                        setDriverSearchKeyword('')
+                        setSelectedDriverId('')
+                      }}
+                    />
+                  )}
+                </View>
+                <Picker
+                  mode="selector"
+                  range={driverOptions}
+                  value={selectedDriverId ? filteredDrivers.findIndex((d) => d.id === selectedDriverId) + 1 : 0}
+                  onChange={(e) => {
+                    const index = Number(e.detail.value)
+                    if (index === 0) {
+                      setSelectedDriverId('')
+                    } else {
+                      const driver = filteredDrivers[index - 1]
+                      if (driver) {
+                        setSelectedDriverId(driver.id)
+                      }
                     }
-                  }
-                }}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">
-                    {selectedDriverId
-                      ? drivers.find((d) => d.id === selectedDriverId)?.name ||
-                        drivers.find((d) => d.id === selectedDriverId)?.phone ||
-                        '未知'
-                      : '所有司机'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-gray-400 text-xl" />
+                  }}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">
+                      {selectedDriverId
+                        ? drivers.find((d) => d.id === selectedDriverId)?.name ||
+                          drivers.find((d) => d.id === selectedDriverId)?.phone ||
+                          '未知'
+                        : '所有司机'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-gray-400 text-xl" />
+                  </View>
+                </Picker>
+                {driverSearchKeyword && filteredDrivers.length === 0 && (
+                  <Text className="text-xs text-orange-600 mt-1">未找到匹配的司机</Text>
+                )}
+              </View>
+
+              {/* 日期范围 */}
+              <View className="grid grid-cols-2 gap-3 mb-3">
+                <View>
+                  <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
+                  <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
+                    <View className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{startDate}</Text>
+                      <View className="i-mdi-calendar text-gray-400 text-lg" />
+                    </View>
+                  </Picker>
                 </View>
-              </Picker>
-              {driverSearchKeyword && filteredDrivers.length === 0 && (
-                <Text className="text-xs text-orange-600 mt-1">未找到匹配的司机</Text>
+                <View>
+                  <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
+                  <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
+                    <View className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{endDate}</Text>
+                      <View className="i-mdi-calendar text-gray-400 text-lg" />
+                    </View>
+                  </Picker>
+                </View>
+              </View>
+
+              {/* 快捷筛选按钮 */}
+              <View className="flex gap-2">
+                <View
+                  onClick={handleYesterdayFilter}
+                  className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+                    activeQuickFilter === 'yesterday'
+                      ? 'bg-gradient-to-r from-blue-900 to-blue-700 shadow-md'
+                      : 'bg-gradient-to-r from-blue-50 to-blue-100'
+                  }`}>
+                  <Text
+                    className={`text-sm font-medium ${
+                      activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-900'
+                    }`}>
+                    前一天
+                  </Text>
+                </View>
+                <View
+                  onClick={handleWeekFilter}
+                  className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+                    activeQuickFilter === 'week'
+                      ? 'bg-gradient-to-r from-green-700 to-green-600 shadow-md'
+                      : 'bg-gradient-to-r from-green-50 to-green-100'
+                  }`}>
+                  <Text
+                    className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
+                    本周
+                  </Text>
+                </View>
+                <View
+                  onClick={handleMonthFilter}
+                  className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+                    activeQuickFilter === 'month'
+                      ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
+                      : 'bg-gradient-to-r from-orange-50 to-orange-100'
+                  }`}>
+                  <Text
+                    className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}>
+                    本月
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 统计卡片 */}
+            <View className="grid grid-cols-2 gap-4 mb-4">
+              <View className="bg-white rounded-lg p-4 shadow">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-sm text-gray-600">总件数</Text>
+                  <View className="i-mdi-package-variant text-2xl text-blue-900" />
+                </View>
+                <Text className="text-3xl font-bold text-blue-900 block">{totalQuantity}</Text>
+              </View>
+              <View className="bg-white rounded-lg p-4 shadow">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-sm text-gray-600">总金额</Text>
+                  <View className="i-mdi-currency-cny text-2xl text-orange-600" />
+                </View>
+                <Text className="text-3xl font-bold text-orange-600 block">¥{totalAmount.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            {/* 添加按钮 */}
+            <View className="mb-4">
+              <View
+                onClick={handleAddRecord}
+                className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-4 shadow-lg flex items-center justify-center">
+                <View className="i-mdi-plus-circle text-white text-2xl mr-2" />
+                <Text className="text-white text-base font-bold">添加计件记录</Text>
+              </View>
+            </View>
+
+            {/* 计件记录列表 */}
+            <View className="bg-white rounded-lg p-4 shadow">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-clipboard-list text-blue-900 text-xl mr-2" />
+                <Text className="text-gray-800 text-base font-bold">计件记录</Text>
+                <View className="ml-auto flex items-center gap-2">
+                  <Text className="text-xs text-gray-500">共 {records.length} 条</Text>
+                  {useVirtualScroll && (
+                    <View className="bg-blue-100 px-2 py-0.5 rounded">
+                      <Text className="text-xs text-blue-600">虚拟滚动</Text>
+                    </View>
+                  )}
+                  <View onClick={toggleSortOrder} className="flex items-center bg-gray-100 rounded-lg px-2 py-1">
+                    <View
+                      className={`text-base mr-1 ${
+                        sortOrder === 'asc' ? 'i-mdi-sort-calendar-ascending' : 'i-mdi-sort-calendar-descending'
+                      } text-blue-900`}
+                    />
+                    <Text className="text-xs text-gray-700">{sortOrder === 'asc' ? '升序' : '降序'}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {records.length > 0 ? (
+                useVirtualScroll ? (
+                  // 使用虚拟滚动（数据量大时）
+                  <VirtualList
+                    data={records}
+                    itemHeight={RECORD_ITEM_HEIGHT}
+                    height={VIRTUAL_LIST_HEIGHT}
+                    overscan={3}
+                    getItemKey={(item) => item.id}
+                    renderItem={(record) => renderRecordItem(record)}
+                    emptyText="暂无计件记录"
+                  />
+                ) : (
+                  // 普通渲染（数据量小时）
+                  <View className="space-y-2">{records.map((record) => renderRecordItem(record))}</View>
+                )
+              ) : (
+                <View className="text-center py-8">
+                  <View className="i-mdi-package-variant-closed text-5xl text-gray-300 mx-auto mb-2" />
+                  <Text className="text-gray-400 text-sm block">暂无计件记录</Text>
+                </View>
               )}
             </View>
+          </View>
+        </ScrollView>
 
-            {/* 日期范围 */}
-            <View className="grid grid-cols-2 gap-3 mb-3">
-              <View>
-                <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
-                <Picker mode="date" value={startDate} onChange={handleStartDateChange}>
-                  <View className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                    <Text className="text-sm text-gray-800">{startDate}</Text>
-                    <View className="i-mdi-calendar text-gray-400 text-lg" />
+        {/* 详情弹窗 */}
+        {showDetailModal && selectedRecord && (
+          <View
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={handleCloseDetail}>
+            <View className="bg-white rounded-lg p-6 m-4 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              {/* 弹窗标题 */}
+              <View className="flex items-center justify-between mb-4">
+                <Text className="text-lg font-bold text-gray-800">计件记录详情</Text>
+                <View onClick={handleCloseDetail} className="i-mdi-close text-2xl text-gray-500" />
+              </View>
+
+              {/* 详情内容 */}
+              <View className="space-y-3">
+                {/* 司机信息 */}
+                <View className="bg-blue-50 rounded-lg p-3">
+                  <Text className="text-xs text-gray-600 block mb-1">司机</Text>
+                  <Text className="text-base font-medium text-gray-800">{getDriverName(selectedRecord.user_id)}</Text>
+                </View>
+
+                {/* 工作日期 */}
+                <View className="bg-gray-50 rounded-lg p-3">
+                  <Text className="text-xs text-gray-600 block mb-1">工作日期</Text>
+                  <Text className="text-base font-medium text-gray-800">{selectedRecord.work_date}</Text>
+                </View>
+
+                {/* 仓库 */}
+                <View className="bg-gray-50 rounded-lg p-3">
+                  <Text className="text-xs text-gray-600 block mb-1">仓库</Text>
+                  <Text className="text-base font-medium text-gray-800">
+                    {getWarehouseName(selectedRecord.warehouse_id)}
+                  </Text>
+                </View>
+
+                {/* 品类 */}
+                <View className="bg-gray-50 rounded-lg p-3">
+                  <Text className="text-xs text-gray-600 block mb-1">品类</Text>
+                  <View className="flex items-center">
+                    <Text className="text-base font-medium text-gray-800">
+                      {getCategoryName(selectedRecord.category_id)}
+                    </Text>
+                    {selectedRecord.need_upstairs && (
+                      <View className="ml-2 bg-orange-100 px-2 py-1 rounded">
+                        <Text className="text-xs text-orange-600">需上楼</Text>
+                      </View>
+                    )}
                   </View>
-                </Picker>
-              </View>
-              <View>
-                <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
-                <Picker mode="date" value={endDate} onChange={handleEndDateChange}>
-                  <View className="bg-gray-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                    <Text className="text-sm text-gray-800">{endDate}</Text>
-                    <View className="i-mdi-calendar text-gray-400 text-lg" />
+                </View>
+
+                {/* 费用明细 */}
+                <View className="bg-blue-50 rounded-lg p-3">
+                  <Text className="text-xs text-gray-600 block mb-2">费用明细</Text>
+                  <View className="space-y-2">
+                    <View className="flex items-center justify-between">
+                      <Text className="text-sm text-gray-700">数量</Text>
+                      <Text className="text-sm font-medium text-gray-800">{selectedRecord.quantity} 件</Text>
+                    </View>
+                    <View className="flex items-center justify-between">
+                      <Text className="text-sm text-gray-700">单价</Text>
+                      <Text className="text-sm font-medium text-gray-800">
+                        ¥{Number(selectedRecord.unit_price).toFixed(2)}
+                      </Text>
+                    </View>
+                    <View className="flex items-center justify-between">
+                      <Text className="text-sm text-gray-700">基础费用</Text>
+                      <Text className="text-sm font-medium text-gray-800">
+                        ¥{(selectedRecord.quantity * Number(selectedRecord.unit_price)).toFixed(2)}
+                      </Text>
+                    </View>
+                    {selectedRecord.need_upstairs && (
+                      <View className="flex items-center justify-between">
+                        <Text className="text-sm text-gray-700">上楼费</Text>
+                        <Text className="text-sm font-medium text-orange-600">
+                          ¥{Number(selectedRecord.upstairs_price).toFixed(2)}
+                        </Text>
+                      </View>
+                    )}
+                    {selectedRecord.need_sorting && selectedRecord.sorting_quantity > 0 && (
+                      <View className="flex items-center justify-between">
+                        <Text className="text-sm text-gray-700">分拣费</Text>
+                        <Text className="text-sm font-medium text-green-600">
+                          ¥{(selectedRecord.sorting_quantity * Number(selectedRecord.sorting_unit_price)).toFixed(2)}
+                        </Text>
+                      </View>
+                    )}
+                    <View className="border-t border-blue-200 pt-2 mt-2">
+                      <View className="flex items-center justify-between">
+                        <Text className="text-base font-bold text-gray-800">总金额</Text>
+                        <Text className="text-lg font-bold text-blue-900">
+                          ¥{Number(selectedRecord.total_amount).toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </Picker>
-              </View>
-            </View>
+                </View>
 
-            {/* 快捷筛选按钮 */}
-            <View className="flex gap-2">
-              <View
-                onClick={handleYesterdayFilter}
-                className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
-                  activeQuickFilter === 'yesterday'
-                    ? 'bg-gradient-to-r from-blue-900 to-blue-700 shadow-md'
-                    : 'bg-gradient-to-r from-blue-50 to-blue-100'
-                }`}>
-                <Text
-                  className={`text-sm font-medium ${
-                    activeQuickFilter === 'yesterday' ? 'text-white' : 'text-blue-900'
-                  }`}>
-                  前一天
-                </Text>
-              </View>
-              <View
-                onClick={handleWeekFilter}
-                className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
-                  activeQuickFilter === 'week'
-                    ? 'bg-gradient-to-r from-green-700 to-green-600 shadow-md'
-                    : 'bg-gradient-to-r from-green-50 to-green-100'
-                }`}>
-                <Text
-                  className={`text-sm font-medium ${activeQuickFilter === 'week' ? 'text-white' : 'text-green-700'}`}>
-                  本周
-                </Text>
-              </View>
-              <View
-                onClick={handleMonthFilter}
-                className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
-                  activeQuickFilter === 'month'
-                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 shadow-md'
-                    : 'bg-gradient-to-r from-orange-50 to-orange-100'
-                }`}>
-                <Text
-                  className={`text-sm font-medium ${activeQuickFilter === 'month' ? 'text-white' : 'text-orange-600'}`}>
-                  本月
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 统计卡片 */}
-          <View className="grid grid-cols-2 gap-4 mb-4">
-            <View className="bg-white rounded-lg p-4 shadow">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-600">总件数</Text>
-                <View className="i-mdi-package-variant text-2xl text-blue-900" />
-              </View>
-              <Text className="text-3xl font-bold text-blue-900 block">{totalQuantity}</Text>
-            </View>
-            <View className="bg-white rounded-lg p-4 shadow">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-600">总金额</Text>
-                <View className="i-mdi-currency-cny text-2xl text-orange-600" />
-              </View>
-              <Text className="text-3xl font-bold text-orange-600 block">¥{totalAmount.toFixed(2)}</Text>
-            </View>
-          </View>
-
-          {/* 添加按钮 */}
-          <View className="mb-4">
-            <View
-              onClick={handleAddRecord}
-              className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-4 shadow-lg flex items-center justify-center">
-              <View className="i-mdi-plus-circle text-white text-2xl mr-2" />
-              <Text className="text-white text-base font-bold">添加计件记录</Text>
-            </View>
-          </View>
-
-          {/* 计件记录列表 */}
-          <View className="bg-white rounded-lg p-4 shadow">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-clipboard-list text-blue-900 text-xl mr-2" />
-              <Text className="text-gray-800 text-base font-bold">计件记录</Text>
-              <View className="ml-auto flex items-center gap-2">
-                <Text className="text-xs text-gray-500">共 {records.length} 条</Text>
-                {useVirtualScroll && (
-                  <View className="bg-blue-100 px-2 py-0.5 rounded">
-                    <Text className="text-xs text-blue-600">虚拟滚动</Text>
+                {/* 备注 */}
+                {selectedRecord.notes && (
+                  <View className="bg-gray-50 rounded-lg p-3">
+                    <Text className="text-xs text-gray-600 block mb-1">备注</Text>
+                    <Text className="text-sm text-gray-800">{selectedRecord.notes}</Text>
                   </View>
                 )}
-                <View onClick={toggleSortOrder} className="flex items-center bg-gray-100 rounded-lg px-2 py-1">
-                  <View
-                    className={`text-base mr-1 ${
-                      sortOrder === 'asc' ? 'i-mdi-sort-calendar-ascending' : 'i-mdi-sort-calendar-descending'
-                    } text-blue-900`}
-                  />
-                  <Text className="text-xs text-gray-700">{sortOrder === 'asc' ? '升序' : '降序'}</Text>
-                </View>
-              </View>
-            </View>
 
-            {records.length > 0 ? (
-              useVirtualScroll ? (
-                // 使用虚拟滚动（数据量大时）
-                <VirtualList
-                  data={records}
-                  itemHeight={RECORD_ITEM_HEIGHT}
-                  height={VIRTUAL_LIST_HEIGHT}
-                  overscan={3}
-                  getItemKey={(item) => item.id}
-                  renderItem={(record) => renderRecordItem(record)}
-                  emptyText="暂无计件记录"
-                />
-              ) : (
-                // 普通渲染（数据量小时）
-                <View className="space-y-2">
-                  {records.map((record) => renderRecordItem(record))}
-                </View>
-              )
-            ) : (
-              <View className="text-center py-8">
-                <View className="i-mdi-package-variant-closed text-5xl text-gray-300 mx-auto mb-2" />
-                <Text className="text-gray-400 text-sm block">暂无计件记录</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* 详情弹窗 */}
-      {showDetailModal && selectedRecord && (
-        <View
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={handleCloseDetail}>
-          <View className="bg-white rounded-lg p-6 m-4 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            {/* 弹窗标题 */}
-            <View className="flex items-center justify-between mb-4">
-              <Text className="text-lg font-bold text-gray-800">计件记录详情</Text>
-              <View onClick={handleCloseDetail} className="i-mdi-close text-2xl text-gray-500" />
-            </View>
-
-            {/* 详情内容 */}
-            <View className="space-y-3">
-              {/* 司机信息 */}
-              <View className="bg-blue-50 rounded-lg p-3">
-                <Text className="text-xs text-gray-600 block mb-1">司机</Text>
-                <Text className="text-base font-medium text-gray-800">{getDriverName(selectedRecord.user_id)}</Text>
-              </View>
-
-              {/* 工作日期 */}
-              <View className="bg-gray-50 rounded-lg p-3">
-                <Text className="text-xs text-gray-600 block mb-1">工作日期</Text>
-                <Text className="text-base font-medium text-gray-800">{selectedRecord.work_date}</Text>
-              </View>
-
-              {/* 仓库 */}
-              <View className="bg-gray-50 rounded-lg p-3">
-                <Text className="text-xs text-gray-600 block mb-1">仓库</Text>
-                <Text className="text-base font-medium text-gray-800">
-                  {getWarehouseName(selectedRecord.warehouse_id)}
-                </Text>
-              </View>
-
-              {/* 品类 */}
-              <View className="bg-gray-50 rounded-lg p-3">
-                <Text className="text-xs text-gray-600 block mb-1">品类</Text>
-                <View className="flex items-center">
-                  <Text className="text-base font-medium text-gray-800">
-                    {getCategoryName(selectedRecord.category_id)}
-                  </Text>
-                  {selectedRecord.need_upstairs && (
-                    <View className="ml-2 bg-orange-100 px-2 py-1 rounded">
-                      <Text className="text-xs text-orange-600">需上楼</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {/* 费用明细 */}
-              <View className="bg-blue-50 rounded-lg p-3">
-                <Text className="text-xs text-gray-600 block mb-2">费用明细</Text>
-                <View className="space-y-2">
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-gray-700">数量</Text>
-                    <Text className="text-sm font-medium text-gray-800">{selectedRecord.quantity} 件</Text>
-                  </View>
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-gray-700">单价</Text>
-                    <Text className="text-sm font-medium text-gray-800">
-                      ¥{Number(selectedRecord.unit_price).toFixed(2)}
-                    </Text>
-                  </View>
-                  <View className="flex items-center justify-between">
-                    <Text className="text-sm text-gray-700">基础费用</Text>
-                    <Text className="text-sm font-medium text-gray-800">
-                      ¥{(selectedRecord.quantity * Number(selectedRecord.unit_price)).toFixed(2)}
-                    </Text>
-                  </View>
-                  {selectedRecord.need_upstairs && (
-                    <View className="flex items-center justify-between">
-                      <Text className="text-sm text-gray-700">上楼费</Text>
-                      <Text className="text-sm font-medium text-orange-600">
-                        ¥{Number(selectedRecord.upstairs_price).toFixed(2)}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedRecord.need_sorting && selectedRecord.sorting_quantity > 0 && (
-                    <View className="flex items-center justify-between">
-                      <Text className="text-sm text-gray-700">分拣费</Text>
-                      <Text className="text-sm font-medium text-green-600">
-                        ¥{(selectedRecord.sorting_quantity * Number(selectedRecord.sorting_unit_price)).toFixed(2)}
-                      </Text>
-                    </View>
-                  )}
-                  <View className="border-t border-blue-200 pt-2 mt-2">
-                    <View className="flex items-center justify-between">
-                      <Text className="text-base font-bold text-gray-800">总金额</Text>
-                      <Text className="text-lg font-bold text-blue-900">
-                        ¥{Number(selectedRecord.total_amount).toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* 备注 */}
-              {selectedRecord.notes && (
+                {/* 创建时间 */}
                 <View className="bg-gray-50 rounded-lg p-3">
-                  <Text className="text-xs text-gray-600 block mb-1">备注</Text>
-                  <Text className="text-sm text-gray-800">{selectedRecord.notes}</Text>
+                  <Text className="text-xs text-gray-600 block mb-1">创建时间</Text>
+                  <Text className="text-sm text-gray-800">{formatDateTime(selectedRecord.created_at)}</Text>
                 </View>
-              )}
-
-              {/* 创建时间 */}
-              <View className="bg-gray-50 rounded-lg p-3">
-                <Text className="text-xs text-gray-600 block mb-1">创建时间</Text>
-                <Text className="text-sm text-gray-800">{formatDateTime(selectedRecord.created_at)}</Text>
               </View>
-            </View>
 
-            {/* 关闭按钮 */}
-            <View className="mt-4">
-              <View onClick={handleCloseDetail} className="bg-gray-200 rounded-lg p-3 text-center">
-                <Text className="text-gray-800 font-medium">关闭</Text>
+              {/* 关闭按钮 */}
+              <View className="mt-4">
+                <View onClick={handleCloseDetail} className="bg-gray-200 rounded-lg p-3 text-center">
+                  <Text className="text-gray-800 font-medium">关闭</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      )}
-    </View>
+        )}
+      </View>
     </ErrorBoundary>
   )
 }

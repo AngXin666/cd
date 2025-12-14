@@ -1,7 +1,7 @@
 /**
  * 考勤管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 const mockSelect = vi.fn().mockReturnThis()
@@ -51,7 +51,7 @@ vi.mock('@/utils/cache', () => ({
 }))
 
 import {supabase} from '@/client/supabase'
-import {getCache, setCache, clearCache} from '@/utils/cache'
+import {clearCache, getCache, setCache} from '@/utils/cache'
 
 describe('attendance API', () => {
   beforeEach(() => {
@@ -74,7 +74,7 @@ describe('attendance API', () => {
     it('应该返回正确格式的日期字符串', async () => {
       // 通过 getTodayAttendance 间接测试
       const {getTodayAttendance} = await import('./attendance')
-      
+
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -144,7 +144,8 @@ describe('attendance API', () => {
             select: vi.fn().mockReturnThis(),
             update: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn()
+            maybeSingle: vi
+              .fn()
               .mockResolvedValueOnce({data: existingRecord, error: null})
               .mockResolvedValueOnce({data: updatedRecord, error: null})
           } as any
@@ -153,7 +154,7 @@ describe('attendance API', () => {
       })
 
       const {createClockIn} = await import('./attendance')
-      const result = await createClockIn({
+      const _result = await createClockIn({
         user_id: 'user-1',
         work_date: '2024-12-13',
         clock_in_time: '08:00:00',
@@ -219,7 +220,7 @@ describe('attendance API', () => {
 
     it('应该从数据库查询并缓存结果', async () => {
       vi.mocked(getCache).mockReturnValue(null)
-      
+
       const mockRecords = [
         {id: 'attendance-1', work_date: '2024-12-01'},
         {id: 'attendance-2', work_date: '2024-12-02'}
@@ -243,7 +244,7 @@ describe('attendance API', () => {
 
     it('应该在查询失败时返回空数组', async () => {
       vi.mocked(getCache).mockReturnValue(null)
-      
+
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -265,7 +266,8 @@ describe('attendance API', () => {
         update: vi.fn().mockReturnThis(),
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn()
+        maybeSingle: vi
+          .fn()
           .mockResolvedValueOnce({error: null})
           .mockResolvedValueOnce({data: {user_id: 'user-1', work_date: '2024-12-13'}, error: null})
       } as any)
@@ -357,12 +359,14 @@ describe('attendance API', () => {
       } as any)
 
       const {createAttendanceRule} = await import('./attendance')
-      
-      await expect(createAttendanceRule({
-        warehouse_id: 'warehouse-1',
-        clock_in_time: '08:00',
-        clock_out_time: '18:00'
-      })).rejects.toThrow('用户未登录')
+
+      await expect(
+        createAttendanceRule({
+          warehouse_id: 'warehouse-1',
+          clock_in_time: '08:00',
+          clock_out_time: '18:00'
+        })
+      ).rejects.toThrow('用户未登录')
     })
 
     it('应该成功创建考勤规则', async () => {
@@ -497,7 +501,7 @@ describe('attendance API', () => {
         ...mockChain,
         then: (resolve: any) => resolve({data: [], error: null})
       })
-      
+
       vi.mocked(supabase.from).mockReturnValue(mockChain as any)
 
       const {getAttendanceRecordsByWarehouse} = await import('./attendance')

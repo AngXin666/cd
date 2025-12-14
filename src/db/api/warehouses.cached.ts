@@ -4,8 +4,8 @@
  */
 
 import {
-  cachedAPI,
   CacheKeys,
+  cachedAPI,
   clearDriverWarehouseCache,
   clearManagerWarehouseCache,
   clearWarehouseCache,
@@ -59,7 +59,7 @@ export const getWarehouseWithRule = cachedAPI(
 export const getWarehousesWithRules = cachedAPI(
   warehousesAPI.getWarehousesWithRules,
   warehouseCache,
-  () => CacheKeys.warehouseList(true) + ':rules',
+  () => `${CacheKeys.warehouseList(true)}:rules`,
   5 * 60 * 1000 // 5分钟
 )
 
@@ -69,7 +69,7 @@ export const getWarehousesWithRules = cachedAPI(
 export const getAllWarehousesWithRules = cachedAPI(
   warehousesAPI.getAllWarehousesWithRules,
   warehouseCache,
-  () => CacheKeys.warehouseList(false) + ':rules',
+  () => `${CacheKeys.warehouseList(false)}:rules`,
   5 * 60 * 1000 // 5分钟
 )
 
@@ -272,18 +272,18 @@ export async function removeManagerWarehouse(
 
 // 导出其他不需要缓存的API
 export {
+  deleteWarehouseAssignmentsByDriver,
   getAllDriverWarehouses,
+  getDriverIdsByWarehouse,
   getWarehouseAssignmentsByDriver,
   getWarehouseAssignmentsByManager,
-  deleteWarehouseAssignmentsByDriver,
-  insertWarehouseAssignment,
-  insertManagerWarehouseAssignment,
+  getWarehouseCategories,
   getWarehouseDispatchersAndManagers,
-  getWarehouseSettings,
-  updateWarehouseSettings,
   getWarehouseDriverCount,
   getWarehouseManager,
-  getWarehouseCategories,
+  getWarehouseSettings,
+  insertManagerWarehouseAssignment,
+  insertWarehouseAssignment,
   setWarehouseCategories,
-  getDriverIdsByWarehouse
+  updateWarehouseSettings
 } from './warehouses'

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import {useCallback, useMemo, useState} from 'react'
 
 export interface UseVirtualListOptions {
   /** 每项的高度 */
@@ -28,9 +28,9 @@ export interface UseVirtualListResult {
 
 /**
  * 虚拟滚动Hook
- * 
+ *
  * 提供虚拟滚动所需的状态和计算逻辑
- * 
+ *
  * @example
  * ```tsx
  * const virtualList = useVirtualList({
@@ -40,21 +40,15 @@ export interface UseVirtualListResult {
  * })
  * ```
  */
-export function useVirtualList(
-  itemCount: number,
-  options: UseVirtualListOptions
-): UseVirtualListResult {
-  const { itemHeight, containerHeight, overscan = 3 } = options
+export function useVirtualList(itemCount: number, options: UseVirtualListOptions): UseVirtualListResult {
+  const {itemHeight, containerHeight, overscan = 3} = options
   const [scrollTop, setScrollTop] = useState(0)
 
   // 计算可见区域
-  const { startIndex, endIndex } = useMemo(() => {
+  const {startIndex, endIndex} = useMemo(() => {
     const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
-    const end = Math.min(
-      itemCount - 1,
-      Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan
-    )
-    return { startIndex: start, endIndex: end }
+    const end = Math.min(itemCount - 1, Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan)
+    return {startIndex: start, endIndex: end}
   }, [scrollTop, itemHeight, containerHeight, overscan, itemCount])
 
   // 计算总高度
@@ -68,10 +62,13 @@ export function useVirtualList(
   }, [startIndex, itemHeight])
 
   // 滚动到指定索引
-  const scrollToIndex = useCallback((index: number) => {
-    const targetScrollTop = Math.max(0, Math.min(index * itemHeight, totalHeight - containerHeight))
-    setScrollTop(targetScrollTop)
-  }, [itemHeight, totalHeight, containerHeight])
+  const scrollToIndex = useCallback(
+    (index: number) => {
+      const targetScrollTop = Math.max(0, Math.min(index * itemHeight, totalHeight - containerHeight))
+      setScrollTop(targetScrollTop)
+    },
+    [itemHeight, totalHeight, containerHeight]
+  )
 
   return {
     scrollTop,

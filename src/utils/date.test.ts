@@ -1,20 +1,20 @@
 /**
  * 日期工具函数 - 单元测试
  */
-import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {
-  getLocalDateString,
-  getTomorrowDateString,
-  getYesterdayDateString,
-  getDaysAgoDateString,
-  getMondayDateString,
-  getFirstDayOfMonthString,
-  extractBirthDateFromIdCard,
   calculateAge,
   calculateDrivingYears,
-  getDayAfterTomorrowDateString,
+  extractBirthDateFromIdCard,
   formatLeaveDateDisplay,
-  formatLeaveDateRangeDisplay
+  formatLeaveDateRangeDisplay,
+  getDayAfterTomorrowDateString,
+  getDaysAgoDateString,
+  getFirstDayOfMonthString,
+  getLocalDateString,
+  getMondayDateString,
+  getTomorrowDateString,
+  getYesterdayDateString
 } from './date'
 
 describe('date utils', () => {
@@ -42,7 +42,7 @@ describe('date utils', () => {
       const today = new Date()
       const tomorrow = new Date(today)
       tomorrow.setDate(tomorrow.getDate() + 1)
-      
+
       const result = getTomorrowDateString()
       const expected = getLocalDateString(tomorrow)
       expect(result).toBe(expected)
@@ -54,7 +54,7 @@ describe('date utils', () => {
       const today = new Date()
       const yesterday = new Date(today)
       yesterday.setDate(yesterday.getDate() - 1)
-      
+
       const result = getYesterdayDateString()
       const expected = getLocalDateString(yesterday)
       expect(result).toBe(expected)
@@ -66,7 +66,7 @@ describe('date utils', () => {
       const today = new Date()
       const sevenDaysAgo = new Date(today)
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-      
+
       const result = getDaysAgoDateString(7)
       const expected = getLocalDateString(sevenDaysAgo)
       expect(result).toBe(expected)
@@ -99,7 +99,7 @@ describe('date utils', () => {
       const today = new Date()
       const dayAfterTomorrow = new Date(today)
       dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
-      
+
       const result = getDayAfterTomorrowDateString()
       const expected = getLocalDateString(dayAfterTomorrow)
       expect(result).toBe(expected)

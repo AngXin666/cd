@@ -1,7 +1,7 @@
 /**
  * 仓库管理 API - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock Supabase
 const mockSelect = vi.fn().mockReturnThis()
@@ -73,7 +73,7 @@ vi.mock('./attendance', () => ({
 }))
 
 import {supabase} from '@/client/supabase'
-import {getCache, setCache} from '@/utils/cache'
+import {getCache} from '@/utils/cache'
 
 describe('warehouses API', () => {
   beforeEach(() => {
@@ -181,9 +181,7 @@ describe('warehouses API', () => {
 
       const {createWarehouse} = await import('./warehouses')
 
-      await expect(
-        createWarehouse({name: '新仓库', address: '地址'})
-      ).rejects.toThrow('用户未登录')
+      await expect(createWarehouse({name: '新仓库', address: '地址'})).rejects.toThrow('用户未登录')
     })
 
     it('应该在名称为空时抛出错误', async () => {
@@ -194,9 +192,7 @@ describe('warehouses API', () => {
 
       const {createWarehouse} = await import('./warehouses')
 
-      await expect(
-        createWarehouse({name: '', address: '地址'})
-      ).rejects.toThrow('仓库名称不能为空')
+      await expect(createWarehouse({name: '', address: '地址'})).rejects.toThrow('仓库名称不能为空')
     })
 
     it('应该在地址为空时抛出错误', async () => {
@@ -207,9 +203,7 @@ describe('warehouses API', () => {
 
       const {createWarehouse} = await import('./warehouses')
 
-      await expect(
-        createWarehouse({name: '仓库', address: ''})
-      ).rejects.toThrow('仓库地址不能为空')
+      await expect(createWarehouse({name: '仓库', address: ''})).rejects.toThrow('仓库地址不能为空')
     })
 
     it('应该成功创建仓库', async () => {
@@ -249,9 +243,7 @@ describe('warehouses API', () => {
 
       const {createWarehouse} = await import('./warehouses')
 
-      await expect(
-        createWarehouse({name: '重复仓库', address: '地址'})
-      ).rejects.toThrow('仓库名称已存在')
+      await expect(createWarehouse({name: '重复仓库', address: '地址'})).rejects.toThrow('仓库名称已存在')
     })
   })
 
@@ -400,9 +392,9 @@ describe('warehouses API', () => {
     })
 
     it('应该在仓库被禁用时返回错误', async () => {
-      let callCount = 0
+      let _callCount = 0
       vi.mocked(supabase.from).mockImplementation((table: string) => {
-        callCount++
+        _callCount++
         if (table === 'users') {
           return {
             select: vi.fn().mockReturnThis(),
@@ -481,7 +473,10 @@ describe('warehouses API', () => {
           return {
             select: vi.fn().mockReturnThis(),
             in: vi.fn().mockResolvedValue({
-              data: [{id: 'wh-1', is_active: true}, {id: 'wh-2', is_active: true}],
+              data: [
+                {id: 'wh-1', is_active: true},
+                {id: 'wh-2', is_active: true}
+              ],
               error: null
             })
           } as any

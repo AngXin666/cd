@@ -3,9 +3,9 @@ import {hideLoading, navigateBack, showLoading, showToast} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 
-import TopNavBar from '@/components/TopNavBar'
 const ChangePasswordPage: React.FC = () => {
   useAuth({guard: true})
 

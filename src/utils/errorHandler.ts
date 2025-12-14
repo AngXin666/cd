@@ -230,13 +230,7 @@ class ErrorHandler {
    * 处理错误并提供更多上下文
    */
   handleWithContext(error: unknown, options: ErrorHandleOptions = {}): void {
-    const {
-      showToast = true,
-      logError = true,
-      redirectOnAuth = true,
-      customMessage,
-      context
-    } = options
+    const {showToast = true, logError = true, redirectOnAuth = true, customMessage, context} = options
 
     const appError = this.parseError(error)
 

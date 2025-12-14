@@ -48,7 +48,7 @@ export function useLoading(initialLoading: boolean = false): UseLoadingReturn {
     setLoading(false)
   }, [])
 
-  const withLoading = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
+  const withLoading = useCallback(async <T>(fn: () => Promise<T>): Promise<T> => {
     try {
       setLoading(true)
       const result = await fn()
@@ -74,7 +74,7 @@ export function useLoading(initialLoading: boolean = false): UseLoadingReturn {
 export function useGlobalLoading() {
   const [loading, setLoading] = useState(false)
 
-  const showLoading = useCallback((title: string = '加载中...') => {
+  const showLoading = useCallback((_title: string = '加载中...') => {
     setLoading(true)
     // 这里可以调用全局loading管理器
     // showGlobalLoading(title)
@@ -85,15 +85,18 @@ export function useGlobalLoading() {
     // hideGlobalLoading()
   }, [])
 
-  const withLoading = useCallback(async <T,>(fn: () => Promise<T>, title?: string): Promise<T> => {
-    try {
-      showLoading(title)
-      const result = await fn()
-      return result
-    } finally {
-      hideLoading()
-    }
-  }, [showLoading, hideLoading])
+  const withLoading = useCallback(
+    async <T>(fn: () => Promise<T>, title?: string): Promise<T> => {
+      try {
+        showLoading(title)
+        const result = await fn()
+        return result
+      } finally {
+        hideLoading()
+      }
+    },
+    [showLoading, hideLoading]
+  )
 
   return {
     loading,

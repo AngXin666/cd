@@ -3,11 +3,10 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
-
 import type {AttendanceRecord} from '@/db/types'
 
-import TopNavBar from '@/components/TopNavBar'
 const Attendance: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [records, setRecords] = useState<AttendanceRecord[]>([])

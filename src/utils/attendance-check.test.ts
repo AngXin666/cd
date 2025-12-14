@@ -1,8 +1,7 @@
 /**
  * 考勤打卡检测工具 - 单元测试
  */
-import {describe, it, expect, vi, beforeEach} from 'vitest'
-import type {AttendanceCheckResult} from './attendance-check'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 // Mock 依赖
 vi.mock('@/db/api/attendance', () => ({
@@ -21,10 +20,10 @@ vi.mock('./logger', () => ({
   }))
 }))
 
-// 导入被测试的函数
-import {checkTodayAttendance, canStartPieceWork, canClockIn} from './attendance-check'
 import {getTodayAttendance} from '@/db/api/attendance'
 import {getApprovedLeaveForToday} from '@/db/api/dashboard'
+// 导入被测试的函数
+import {canClockIn, canStartPieceWork, checkTodayAttendance} from './attendance-check'
 
 describe('attendance-check', () => {
   beforeEach(() => {
