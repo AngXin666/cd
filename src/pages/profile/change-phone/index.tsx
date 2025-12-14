@@ -8,6 +8,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import type {Profile} from '@/db/types'
@@ -100,6 +101,8 @@ const ChangePhonePage: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>

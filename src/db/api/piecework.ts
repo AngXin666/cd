@@ -10,6 +10,7 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {publish} from '@/utils/eventBus'
 import type {
   CategoryPrice,
   CategoryPriceInput,
@@ -133,6 +134,10 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
     console.error('创建计件记录失败:', error)
     return false
   }
+  
+  // 发布事件通知其他组件刷新数据
+  publish('piece_work:created', {userId: record.user_id})
+  
   return true
 }
 
@@ -145,6 +150,10 @@ export async function updatePieceWorkRecord(id: string, record: Partial<PieceWor
     console.error('更新计件记录失败:', error)
     return false
   }
+  
+  // 发布事件通知其他组件刷新数据
+  publish('piece_work:updated', {id})
+  
   return true
 }
 

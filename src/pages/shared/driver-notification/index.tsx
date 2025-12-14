@@ -3,6 +3,7 @@ import {navigateTo, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as NotificationsAPI from '@/db/api/notifications'
 import * as UsersAPI from '@/db/api/users'
@@ -215,6 +216,8 @@ const DriverNotification: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)', minHeight: '100vh'}}>
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>

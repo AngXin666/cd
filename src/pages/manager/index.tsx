@@ -17,6 +17,7 @@ import type React from 'react'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 
@@ -87,25 +88,26 @@ const ManagerHome: React.FC = () => {
   const currentWarehouseId = warehouses[currentWarehouseIndex]?.id
 
   // 使用仪表板数据管理 Hook
+  // 注意：禁用实时更新，避免与轮询通知冲突导致频繁请求
   const {
     data: dashboardStats,
     loading: dashboardLoading,
     refresh: refreshDashboard
   } = useDashboardData({
     warehouseId: currentWarehouseId,
-    enableRealtime: true, // 启用实时更新
+    enableRealtime: false, // 禁用实时更新，使用轮询代替
     cacheEnabled: true // 启用缓存
   })
 
-  // 使用司机统计数据管理Hook（带缓存和实时更新）
-  // 只有当有仓库ID时才启用统计
+  // 使用司机统计数据管理Hook（带缓存）
+  // 注意：禁用实时更新，避免与轮询通知冲突导致频繁请求
   const {
     data: driverStats,
     loading: driverStatsLoading,
     refresh: refreshDriverStats
   } = useDriverStats({
     warehouseId: currentWarehouseId,
-    enableRealtime: !!currentWarehouseId, // 只有当有仓库ID时才启用实时更新
+    enableRealtime: false, // 禁用实时更新，使用轮询代替
     cacheEnabled: true
   })
 
@@ -202,6 +204,7 @@ const ManagerHome: React.FC = () => {
   })
 
   // 启用轮询通知（代替 Realtime）
+  // 注意：轮询间隔设置为 60 秒，避免频繁请求
   usePollingNotifications({
     userId: user?.id || '',
     userRole: 'manager',
@@ -216,7 +219,7 @@ const ManagerHome: React.FC = () => {
       refreshDriverStats()
     },
     onNewNotification: addNotification,
-    pollingInterval: 10000 // 10 秒轮询一次
+    pollingInterval: 60000 // 60 秒轮询一次，避免频繁请求
   })
 
   // 下拉刷新（批量并行查询优化）
@@ -367,6 +370,8 @@ const ManagerHome: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>

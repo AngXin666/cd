@@ -181,7 +181,10 @@ export class RealtimeListener {
 
     // 订阅通道
     channel.subscribe((status) => {
-      console.log(`[RealtimeListener] 订阅状态: ${status}`)
+      // 减少日志输出，只在状态变化时记录
+      if (status !== 'SUBSCRIBED') {
+        console.log(`[RealtimeListener] 订阅状态: ${status}`)
+      }
 
       if (status === 'SUBSCRIBED') {
         console.log('[RealtimeListener] Realtime 已连接')
@@ -192,7 +195,17 @@ export class RealtimeListener {
           clearInterval(this.pollingTimer)
           this.pollingTimer = null
         }
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        // 处理 CLOSED 状态，避免无限重试
+        if (status === 'CLOSED') {
+          console.log('[RealtimeListener] 订阅已关闭，不再重试')
+          // CLOSED 状态下不触发重连，只降级到轮询
+          if (this.options.enablePolling && !this.isPollingMode) {
+            this.startPolling()
+          }
+          return
+        }
+
         console.error(`[RealtimeListener] Realtime 连接错误: ${status}`)
 
         // 降级到轮询

@@ -8,6 +8,7 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import type {PermissionLevel} from '@/db/api/permission-strategy'
 import * as PermissionStrategyAPI from '@/db/api/permission-strategy'
@@ -182,164 +183,167 @@ const PermissionConfig: React.FC = () => {
   }, [userId, user, userRole, userName, currentPermission])
 
   return (
-    <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
-        {/* 页面标题 */}
-        <View className="px-4 pt-6 pb-4">
-          <Text className="text-2xl max-sm:text-xl font-bold text-gray-800">权限配置</Text>
-          <Text className="text-sm text-gray-500 mt-1">
-            为 {decodeURIComponent(userName || '')} 配置
-            {userRole === 'PEER_ADMIN' ? '平级管理员' : userRole === 'MANAGER' ? '车队长' : '调度'}权限
-          </Text>
-        </View>
-
-        {loading ? (
-          <View className="text-center py-8">
-            <Text className="text-gray-500">加载中...</Text>
+    <>
+      <SafeAreaTop />
+      <View className="min-h-screen" style={{background: 'linear-gradient(to bottom, #eff6ff, #dbeafe)'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
+          {/* 页面标题 */}
+          <View className="px-4 pt-6 pb-4">
+            <Text className="text-2xl max-sm:text-xl font-bold text-gray-800">权限配置</Text>
+            <Text className="text-sm text-gray-500 mt-1">
+              为 {decodeURIComponent(userName || '')} 配置
+              {userRole === 'PEER_ADMIN' ? '平级管理员' : userRole === 'MANAGER' ? '车队长' : '调度'}权限
+            </Text>
           </View>
-        ) : (
-          <>
-            {/* 当前权限信息 */}
-            {currentPermission && (
+
+          {loading ? (
+            <View className="text-center py-8">
+              <Text className="text-gray-500">加载中...</Text>
+            </View>
+          ) : (
+            <>
+              {/* 当前权限信息 */}
+              {currentPermission && (
+                <View className="px-4 mb-4">
+                  <View className="bg-white rounded-lg p-4 shadow-sm">
+                    <View className="flex items-center mb-3">
+                      <View className="i-mdi-information text-xl text-blue-600 mr-2" />
+                      <Text className="text-lg font-semibold text-gray-800">当前权限信息</Text>
+                    </View>
+                    <View className="space-y-2">
+                      <View className="flex items-center">
+                        <Text className="text-sm text-gray-500 w-24">权限级别：</Text>
+                        <Text className="text-sm text-gray-800">
+                          {currentPermission.permission_level === 'full_control' ? '完整控制权' : '仅查看权'}
+                        </Text>
+                      </View>
+                      <View className="flex items-center">
+                        <Text className="text-sm text-gray-500 w-24">授权时间：</Text>
+                        <Text className="text-sm text-gray-800">
+                          {new Date(currentPermission.granted_at).toLocaleString('zh-CN')}
+                        </Text>
+                      </View>
+                      {currentPermission.granted_by_name && (
+                        <View className="flex items-center">
+                          <Text className="text-sm text-gray-500 w-24">授权人：</Text>
+                          <Text className="text-sm text-gray-800">{currentPermission.granted_by_name}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* 权限级别选择 */}
               <View className="px-4 mb-4">
                 <View className="bg-white rounded-lg p-4 shadow-sm">
                   <View className="flex items-center mb-3">
-                    <View className="i-mdi-information text-xl text-blue-600 mr-2" />
-                    <Text className="text-lg font-semibold text-gray-800">当前权限信息</Text>
+                    <View className="i-mdi-shield-account text-xl text-blue-600 mr-2" />
+                    <Text className="text-lg font-semibold text-gray-800">权限级别</Text>
                   </View>
-                  <View className="space-y-2">
-                    <View className="flex items-center">
-                      <Text className="text-sm text-gray-500 w-24">权限级别：</Text>
-                      <Text className="text-sm text-gray-800">
-                        {currentPermission.permission_level === 'full_control' ? '完整控制权' : '仅查看权'}
+                  <Text className="text-sm text-gray-500 mb-3">选择该用户的权限级别</Text>
+
+                  <Picker
+                    mode="selector"
+                    range={permissionLevelOptions.map((opt) => opt.label)}
+                    value={permissionLevelIndex}
+                    onChange={handlePermissionLevelChange}>
+                    <View className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                      <Text className="text-base text-gray-800">
+                        {permissionLevelOptions[permissionLevelIndex].label}
                       </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
                     </View>
-                    <View className="flex items-center">
-                      <Text className="text-sm text-gray-500 w-24">授权时间：</Text>
-                      <Text className="text-sm text-gray-800">
-                        {new Date(currentPermission.granted_at).toLocaleString('zh-CN')}
-                      </Text>
-                    </View>
-                    {currentPermission.granted_by_name && (
-                      <View className="flex items-center">
-                        <Text className="text-sm text-gray-500 w-24">授权人：</Text>
-                        <Text className="text-sm text-gray-800">{currentPermission.granted_by_name}</Text>
+                  </Picker>
+
+                  {/* 权限说明 */}
+                  <View className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <Text className="text-sm text-blue-800 font-medium mb-2">权限说明：</Text>
+                    {permissionLevel === 'full_control' ? (
+                      <View>
+                        <Text className="text-xs text-blue-700">• 可以查看所有数据</Text>
+                        <Text className="text-xs text-blue-700">• 可以创建、编辑、删除数据</Text>
+                        <Text className="text-xs text-blue-700">• 可以管理用户和权限</Text>
+                        <Text className="text-xs text-blue-700">• 拥有完整的管理功能</Text>
+                        {userRole === 'SCHEDULER' && (
+                          <Text className="text-xs text-blue-700 font-semibold mt-1">
+                            ⭐ 调度完整权限等同于老板权限，拥有全系统访问权限
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <View>
+                        <Text className="text-xs text-blue-700">• 可以查看所有数据</Text>
+                        <Text className="text-xs text-blue-700">• 不能创建、编辑、删除数据</Text>
+                        <Text className="text-xs text-blue-700">• 不能管理用户和权限</Text>
+                        <Text className="text-xs text-blue-700">• 仅用于数据查看和统计</Text>
                       </View>
                     )}
                   </View>
                 </View>
               </View>
-            )}
 
-            {/* 权限级别选择 */}
-            <View className="px-4 mb-4">
-              <View className="bg-white rounded-lg p-4 shadow-sm">
-                <View className="flex items-center mb-3">
-                  <View className="i-mdi-shield-account text-xl text-blue-600 mr-2" />
-                  <Text className="text-lg font-semibold text-gray-800">权限级别</Text>
-                </View>
-                <Text className="text-sm text-gray-500 mb-3">选择该用户的权限级别</Text>
-
-                <Picker
-                  mode="selector"
-                  range={permissionLevelOptions.map((opt) => opt.label)}
-                  value={permissionLevelIndex}
-                  onChange={handlePermissionLevelChange}>
-                  <View className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
-                    <Text className="text-base text-gray-800">
-                      {permissionLevelOptions[permissionLevelIndex].label}
-                    </Text>
-                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+              {/* 备注 */}
+              <View className="px-4 mb-4">
+                <View className="bg-white rounded-lg p-4 shadow-sm">
+                  <View className="flex items-center mb-3">
+                    <View className="i-mdi-note-text text-xl text-blue-600 mr-2" />
+                    <Text className="text-lg font-semibold text-gray-800">备注</Text>
                   </View>
-                </Picker>
-
-                {/* 权限说明 */}
-                <View className="mt-3 p-3 bg-blue-50 rounded-lg">
-                  <Text className="text-sm text-blue-800 font-medium mb-2">权限说明：</Text>
-                  {permissionLevel === 'full_control' ? (
-                    <View>
-                      <Text className="text-xs text-blue-700">• 可以查看所有数据</Text>
-                      <Text className="text-xs text-blue-700">• 可以创建、编辑、删除数据</Text>
-                      <Text className="text-xs text-blue-700">• 可以管理用户和权限</Text>
-                      <Text className="text-xs text-blue-700">• 拥有完整的管理功能</Text>
-                      {userRole === 'SCHEDULER' && (
-                        <Text className="text-xs text-blue-700 font-semibold mt-1">
-                          ⭐ 调度完整权限等同于老板权限，拥有全系统访问权限
-                        </Text>
-                      )}
-                    </View>
-                  ) : (
-                    <View>
-                      <Text className="text-xs text-blue-700">• 可以查看所有数据</Text>
-                      <Text className="text-xs text-blue-700">• 不能创建、编辑、删除数据</Text>
-                      <Text className="text-xs text-blue-700">• 不能管理用户和权限</Text>
-                      <Text className="text-xs text-blue-700">• 仅用于数据查看和统计</Text>
-                    </View>
-                  )}
+                  <View style={{overflow: 'hidden'}}>
+                    <Textarea
+                      className="w-full p-3 bg-gray-50 rounded-lg text-sm"
+                      placeholder="请输入备注信息（可选）"
+                      value={notes}
+                      onInput={(e) => setNotes(e.detail.value)}
+                      maxlength={200}
+                      style={{minHeight: '80px'}}
+                    />
+                  </View>
+                  <Text className="text-xs text-gray-400 mt-2">{notes.length}/200</Text>
                 </View>
               </View>
-            </View>
 
-            {/* 备注 */}
-            <View className="px-4 mb-4">
-              <View className="bg-white rounded-lg p-4 shadow-sm">
-                <View className="flex items-center mb-3">
-                  <View className="i-mdi-note-text text-xl text-blue-600 mr-2" />
-                  <Text className="text-lg font-semibold text-gray-800">备注</Text>
-                </View>
-                <View style={{overflow: 'hidden'}}>
-                  <Textarea
-                    className="w-full p-3 bg-gray-50 rounded-lg text-sm"
-                    placeholder="请输入备注信息（可选）"
-                    value={notes}
-                    onInput={(e) => setNotes(e.detail.value)}
-                    maxlength={200}
-                    style={{minHeight: '80px'}}
-                  />
-                </View>
-                <Text className="text-xs text-gray-400 mt-2">{notes.length}/200</Text>
-              </View>
-            </View>
-
-            {/* 操作按钮 */}
-            <View className="px-4 pb-6">
-              <Button
-                size="default"
-                className="w-full text-base break-keep mb-3"
-                style={{
-                  backgroundColor: '#3b82f6',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  height: '48px',
-                  lineHeight: '48px'
-                }}
-                onClick={handleSave}
-                disabled={saving}>
-                {currentPermission ? '更新权限' : '创建权限'}
-              </Button>
-
-              {currentPermission && (
+              {/* 操作按钮 */}
+              <View className="px-4 pb-6">
                 <Button
                   size="default"
-                  className="w-full text-base break-keep"
+                  className="w-full text-base break-keep mb-3"
                   style={{
-                    backgroundColor: '#ef4444',
+                    backgroundColor: '#3b82f6',
                     color: '#fff',
                     borderRadius: '8px',
                     height: '48px',
                     lineHeight: '48px'
                   }}
-                  onClick={handleDelete}>
-                  删除权限
+                  onClick={handleSave}
+                  disabled={saving}>
+                  {currentPermission ? '更新权限' : '创建权限'}
                 </Button>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
-    </View>
+
+                {currentPermission && (
+                  <Button
+                    size="default"
+                    className="w-full text-base break-keep"
+                    style={{
+                      backgroundColor: '#ef4444',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      height: '48px',
+                      lineHeight: '48px'
+                    }}
+                    onClick={handleDelete}>
+                    删除权限
+                  </Button>
+                )}
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

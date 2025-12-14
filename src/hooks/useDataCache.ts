@@ -85,9 +85,10 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
     loadData,
     cacheEnabled = true,
     cacheTTL = CACHE_CONFIG.DEFAULT_TTL,
-    realtimeEnabled = true,
+    // 默认禁用实时更新，避免无限循环问题
+    realtimeEnabled = false,
     realtimeTables = [],
-    enablePolling = true,
+    enablePolling = false,
     pollingInterval = CACHE_CONFIG.POLLING_INTERVAL,
     dependencies = []
   } = options
@@ -181,9 +182,29 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, ...dependencies])
 
+  // 将 realtimeTables 转换为稳定的字符串，避免数组引用变化导致 effect 重复执行
+  const realtimeTablesKey = realtimeTables.join(',')
+
+  // 使用 ref 存储 load 和 clearCache 函数，避免在 effect 中引用导致循环
+  const loadRef = useRef(load)
+  const clearCacheRef = useRef(clearCache)
+  loadRef.current = load
+  clearCacheRef.current = clearCache
+
+  // 防抖标记，避免短时间内重复触发
+  const isLoadingRef = useRef(false)
+  const lastLoadTimeRef = useRef(0)
+
   // 实时更新监听
   useEffect(() => {
+    // 默认禁用实时更新，避免无限循环问题
+    // 如果需要实时更新，请在调用时显式设置 realtimeEnabled: true
     if (!realtimeEnabled || realtimeTables.length === 0) {
+      return
+    }
+
+    // 避免重复创建监听器
+    if (realtimeRef.current) {
       return
     }
 
@@ -192,15 +213,29 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
     const listener = new RealtimeListener({
       tables: realtimeTables,
       onChange: (event) => {
+        // 防抖：如果正在加载或距离上次加载不足 5 秒，跳过
+        const now = Date.now()
+        if (isLoadingRef.current || now - lastLoadTimeRef.current < 5000) {
+          console.log(`[useDataCache] 跳过重复加载: ${cacheKey}`)
+          return
+        }
+
         console.log(`[useDataCache] 数据变更: ${cacheKey}`, event.type, event.table)
+
+        // 标记正在加载
+        isLoadingRef.current = true
+        lastLoadTimeRef.current = now
+
         // 清除缓存并重新加载
-        clearCache()
-        load(true)
+        clearCacheRef.current()
+        loadRef.current(true).finally(() => {
+          isLoadingRef.current = false
+        })
       },
       onError: (err) => {
         console.error(`[useDataCache] Realtime 错误: ${cacheKey}`, err)
       },
-      enablePolling,
+      enablePolling: false, // 禁用轮询，避免频繁刷新
       pollingInterval
     })
 
@@ -212,7 +247,9 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
       listener.stop()
       realtimeRef.current = null
     }
-  }, [realtimeEnabled, realtimeTables, enablePolling, pollingInterval, cacheKey, clearCache, load])
+    // 使用 realtimeTablesKey 代替 realtimeTables 数组，避免引用变化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtimeEnabled, realtimeTablesKey, pollingInterval, cacheKey])
 
   return {
     data,

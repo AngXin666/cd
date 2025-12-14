@@ -3,6 +3,7 @@ import Taro, {useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import type {Profile, UserRole} from '@/db/types'
@@ -197,6 +198,8 @@ const EditUser: React.FC = () => {
       <View
         className="min-h-screen flex items-center justify-center"
         style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)'}}>
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <Text className="text-white">加载中...</Text>
@@ -216,6 +219,8 @@ const EditUser: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #1e3a8a, #3b82f6)', minHeight: '100vh'}}>
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">
         <View className="p-4">
           {/* 页面标题 */}

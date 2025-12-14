@@ -14,6 +14,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -256,6 +257,8 @@ const VehicleList: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>

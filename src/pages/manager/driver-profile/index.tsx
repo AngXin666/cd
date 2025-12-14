@@ -9,6 +9,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -114,6 +115,8 @@ const DriverProfileView: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center min-h-screen bg-gray-50">
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <View className="i-mdi-loading animate-spin text-5xl text-blue-500" />
@@ -125,6 +128,8 @@ const DriverProfileView: React.FC = () => {
   if (!profile) {
     return (
       <ScrollView scrollY className="min-h-screen bg-gray-50">
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         <View className="p-6">
           <View className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
             <View className="i-mdi-alert-circle text-7xl text-gray-300 mx-auto mb-4" />
@@ -141,6 +146,8 @@ const DriverProfileView: React.FC = () => {
 
   return (
     <ScrollView scrollY className="min-h-screen bg-gray-50">
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       <View className="p-4 pb-8">
         {/* 司机头部信息卡片 */}
         <View className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 mb-4 shadow-lg">

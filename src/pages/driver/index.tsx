@@ -6,6 +6,7 @@ import {useCallback, useEffect, useRef, useState} from 'react'
 import {ClockInReminderModal} from '@/components/attendance'
 import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -218,6 +219,7 @@ const DriverHome: React.FC = () => {
   })
 
   // 启用轮询通知（代替 Realtime）
+  // 注意：轮询间隔设置为 60 秒，避免频繁请求
   usePollingNotifications({
     userId: user?.id || '',
     userRole: 'driver',
@@ -232,7 +234,7 @@ const DriverHome: React.FC = () => {
       checkAttendance()
     },
     onNewNotification: addNotification,
-    pollingInterval: 10000 // 10 秒轮询一次
+    pollingInterval: 60000 // 60 秒轮询一次，避免频繁请求
   })
 
   // 下拉刷新
@@ -353,6 +355,8 @@ const DriverHome: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>

@@ -3,6 +3,7 @@ import Taro, {showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -455,6 +456,8 @@ const ClockIn: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F0F9FF, #E0F2FE)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY style={{background: 'transparent'}} className="box-border">

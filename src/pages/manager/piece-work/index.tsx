@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import VirtualList from '@/components/VirtualList'
 import * as PieceworkAPI from '@/db/api/piecework'
@@ -215,38 +216,47 @@ const ManagerPieceWork: React.FC = () => {
     })
   }
 
-  // 删除记录
-  const handleDeleteRecord = async (record: PieceWorkRecord) => {
-    const result = await Taro.showModal({
-      title: '确认删除',
-      content: '确定要删除这条计件记录吗？此操作不可恢复。'
-    })
+  /**
+   * 删除计件记录
+   * @param record - 要删除的计件记录
+   */
+  const handleDeleteRecord = useCallback(
+    async (record: PieceWorkRecord) => {
+      const result = await Taro.showModal({
+        title: '确认删除',
+        content: '确定要删除这条计件记录吗？此操作不可恢复。'
+      })
 
-    if (result.confirm) {
-      try {
-        await PieceworkAPI.deletePieceWorkRecord(record.id)
-        Taro.showToast({
-          title: '删除成功',
-          icon: 'success',
-          duration: 2000
-        })
-        loadRecords()
-      } catch (error) {
-        console.error('删除记录失败:', error)
-        Taro.showToast({
-          title: '删除失败',
-          icon: 'error',
-          duration: 2000
-        })
+      if (result.confirm) {
+        try {
+          await PieceworkAPI.deletePieceWorkRecord(record.id)
+          Taro.showToast({
+            title: '删除成功',
+            icon: 'success',
+            duration: 2000
+          })
+          loadRecords()
+        } catch (error) {
+          console.error('删除记录失败:', error)
+          Taro.showToast({
+            title: '删除失败',
+            icon: 'error',
+            duration: 2000
+          })
+        }
       }
-    }
-  }
+    },
+    [loadRecords]
+  )
 
-  // 查看详情
-  const handleViewDetail = (record: PieceWorkRecord) => {
+  /**
+   * 查看计件记录详情
+   * @param record - 要查看的计件记录
+   */
+  const handleViewDetail = useCallback((record: PieceWorkRecord) => {
     setSelectedRecord(record)
     setShowDetailModal(true)
-  }
+  }, [])
 
   // 关闭详情弹窗
   const handleCloseDetail = () => {
@@ -254,23 +264,44 @@ const ManagerPieceWork: React.FC = () => {
     setSelectedRecord(null)
   }
 
-  // 获取仓库名称
-  const getWarehouseName = (warehouseId: string) => {
-    const warehouse = warehouses.find((w) => w.id === warehouseId)
-    return warehouse?.name || '未知仓库'
-  }
+  /**
+   * 获取仓库名称
+   * @param warehouseId - 仓库ID
+   * @returns 仓库名称，如果未找到则返回"未知仓库"
+   */
+  const getWarehouseName = useCallback(
+    (warehouseId: string) => {
+      const warehouse = warehouses.find((w) => w.id === warehouseId)
+      return warehouse?.name || '未知仓库'
+    },
+    [warehouses]
+  )
 
-  // 获取品类名称
-  const getCategoryName = (categoryId: string) => {
-    const category = categories.find((c) => c.id === categoryId)
-    return category?.name || '未知品类'
-  }
+  /**
+   * 获取品类名称
+   * @param categoryId - 品类ID
+   * @returns 品类名称，如果未找到则返回"未知品类"
+   */
+  const getCategoryName = useCallback(
+    (categoryId: string) => {
+      const category = categories.find((c) => c.id === categoryId)
+      return category?.name || '未知品类'
+    },
+    [categories]
+  )
 
-  // 获取司机名称
-  const getDriverName = (userId: string) => {
-    const driver = drivers.find((d) => d.id === userId)
-    return driver?.name || driver?.phone || '未知司机'
-  }
+  /**
+   * 获取司机名称
+   * @param userId - 用户ID
+   * @returns 司机名称，如果未找到则返回"未知司机"
+   */
+  const getDriverName = useCallback(
+    (userId: string) => {
+      const driver = drivers.find((d) => d.id === userId)
+      return driver?.name || driver?.phone || '未知司机'
+    },
+    [drivers]
+  )
 
   // 格式化日期时间
   const formatDateTime = (dateStr: string) => {
@@ -389,6 +420,8 @@ const ManagerPieceWork: React.FC = () => {
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>

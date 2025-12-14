@@ -49,8 +49,26 @@
       "recommended": true,
       "suspicious": {
         "noImplicitAnyLet": "warn",
-        "noArrayIndexKey": "warn"
+        "noArrayIndexKey": "warn",
+        "noThenProperty": "off",
+        "useIterableCallbackReturn": "warn"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/test/**/*.tsx", "src/test/**/*.ts"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useKeyWithClickEvents": "off",
+            "noStaticElementInteractions": "off"
+          }
+        }
+      }
+    }
+  ]
 }

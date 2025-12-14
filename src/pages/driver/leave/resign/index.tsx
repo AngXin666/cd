@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as LeaveAPI from '@/db/api/leave'
 import * as NotificationsAPI from '@/db/api/notifications'
@@ -288,122 +289,125 @@ const ApplyResignation: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #FEF2F2, #FEE2E2)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 标题 */}
-          <View className="mb-4">
-            <Text className="text-2xl font-bold text-gray-800">离职申请</Text>
-          </View>
+    <>
+      <SafeAreaTop />
+      <View style={{background: 'linear-gradient(to bottom, #FEF2F2, #FEE2E2)', minHeight: '100vh'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            {/* 标题 */}
+            <View className="mb-4">
+              <Text className="text-2xl font-bold text-gray-800">离职申请</Text>
+            </View>
 
-          {/* 温馨提示 */}
-          <View className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <View className="flex items-start">
-              <View className="i-mdi-information text-2xl text-blue-600 mr-2 mt-0.5" />
-              <View className="flex-1">
-                <Text className="text-blue-900 font-bold text-sm block mb-1">温馨提示</Text>
-                <Text className="text-blue-800 text-sm">离职申请需提前 {noticeDays} 天提交</Text>
+            {/* 温馨提示 */}
+            <View className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <View className="flex items-start">
+                <View className="i-mdi-information text-2xl text-blue-600 mr-2 mt-0.5" />
+                <View className="flex-1">
+                  <Text className="text-blue-900 font-bold text-sm block mb-1">温馨提示</Text>
+                  <Text className="text-blue-800 text-sm">离职申请需提前 {noticeDays} 天提交</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* 表单内容 */}
-          <View className="bg-white rounded-lg p-4 shadow-sm">
-            {/* 仓库选择（只在有多个仓库时显示） */}
-            {warehouses.length > 1 && (
+            {/* 表单内容 */}
+            <View className="bg-white rounded-lg p-4 shadow-sm">
+              {/* 仓库选择（只在有多个仓库时显示） */}
+              {warehouses.length > 1 && (
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">选择仓库 *</Text>
+                  <Picker
+                    mode="selector"
+                    range={warehouses.map((w) => w.name)}
+                    value={warehouses.findIndex((w) => w.id === warehouseId)}
+                    onChange={handleWarehouseChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">
+                        {warehouseId ? warehouses.find((w) => w.id === warehouseId)?.name : '请选择仓库'}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                  <Text className="text-xs text-red-500 block mt-1">请选择您要离职的仓库</Text>
+                </View>
+              )}
+
+              {/* 期望离职日期 */}
               <View className="mb-4">
-                <Text className="text-sm text-gray-700 block mb-2">选择仓库 *</Text>
-                <Picker
-                  mode="selector"
-                  range={warehouses.map((w) => w.name)}
-                  value={warehouses.findIndex((w) => w.id === warehouseId)}
-                  onChange={handleWarehouseChange}>
+                <Text className="text-sm text-gray-700 block mb-2">期望离职日期</Text>
+                <Picker mode="date" value={expectedDate} start={minDate} onChange={handleDateChange}>
                   <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                    <Text className="text-sm text-gray-800">
-                      {warehouseId ? warehouses.find((w) => w.id === warehouseId)?.name : '请选择仓库'}
-                    </Text>
-                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    <Text className="text-sm text-gray-800">{expectedDate || '请选择离职日期'}</Text>
+                    <View className="i-mdi-calendar text-xl text-gray-400" />
                   </View>
                 </Picker>
-                <Text className="text-xs text-red-500 block mt-1">请选择您要离职的仓库</Text>
+                {minDate && <Text className="text-xs text-gray-400 block mt-1">最早可选日期：{minDate}</Text>}
               </View>
-            )}
 
-            {/* 期望离职日期 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">期望离职日期</Text>
-              <Picker mode="date" value={expectedDate} start={minDate} onChange={handleDateChange}>
-                <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                  <Text className="text-sm text-gray-800">{expectedDate || '请选择离职日期'}</Text>
-                  <View className="i-mdi-calendar text-xl text-gray-400" />
-                </View>
-              </Picker>
-              {minDate && <Text className="text-xs text-gray-400 block mt-1">最早可选日期：{minDate}</Text>}
-            </View>
-
-            {/* 日期验证提示 */}
-            {validationMessage && (
-              <View className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <View className="flex items-start">
-                  <View className="i-mdi-alert-circle text-2xl text-red-600 mr-2 mt-0.5" />
-                  <View className="flex-1">
-                    <Text className="text-red-900 text-sm">{validationMessage}</Text>
+              {/* 日期验证提示 */}
+              {validationMessage && (
+                <View className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <View className="flex items-start">
+                    <View className="i-mdi-alert-circle text-2xl text-red-600 mr-2 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-red-900 text-sm">{validationMessage}</Text>
+                    </View>
                   </View>
                 </View>
+              )}
+
+              {/* 离职原因 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">离职原因</Text>
+                <Textarea
+                  className="border border-gray-300 rounded-lg p-3 text-sm"
+                  style={{minHeight: '150px', width: '100%'}}
+                  placeholder="请详细说明离职原因"
+                  value={reason}
+                  onInput={(e) => setReason(e.detail.value)}
+                  maxlength={500}
+                />
+                <Text className="text-xs text-gray-400 block mt-1">{reason.length}/500</Text>
               </View>
-            )}
 
-            {/* 离职原因 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">离职原因</Text>
-              <Textarea
-                className="border border-gray-300 rounded-lg p-3 text-sm"
-                style={{minHeight: '150px', width: '100%'}}
-                placeholder="请详细说明离职原因"
-                value={reason}
-                onInput={(e) => setReason(e.detail.value)}
-                maxlength={500}
-              />
-              <Text className="text-xs text-gray-400 block mt-1">{reason.length}/500</Text>
-            </View>
-
-            {/* 按钮组 */}
-            <View className="flex gap-3">
-              <Button
-                className="text-sm break-keep flex-1"
-                size="default"
-                style={{
-                  backgroundColor: submitting ? '#9CA3AF' : '#7C3AED',
-                  color: 'white',
-                  borderRadius: '8px',
-                  border: 'none',
-                  padding: '12px'
-                }}
-                onClick={handleSaveDraft}
-                disabled={submitting}>
-                {submitting ? '保存中...' : '保存草稿'}
-              </Button>
-              <Button
-                className="text-sm break-keep flex-1"
-                size="default"
-                style={{
-                  backgroundColor: submitting ? '#9CA3AF' : '#DC2626',
-                  color: 'white',
-                  borderRadius: '8px',
-                  border: 'none',
-                  padding: '12px'
-                }}
-                onClick={handleSubmit}
-                disabled={submitting}>
-                {submitting ? '提交中...' : '提交申请'}
-              </Button>
+              {/* 按钮组 */}
+              <View className="flex gap-3">
+                <Button
+                  className="text-sm break-keep flex-1"
+                  size="default"
+                  style={{
+                    backgroundColor: submitting ? '#9CA3AF' : '#7C3AED',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px'
+                  }}
+                  onClick={handleSaveDraft}
+                  disabled={submitting}>
+                  {submitting ? '保存中...' : '保存草稿'}
+                </Button>
+                <Button
+                  className="text-sm break-keep flex-1"
+                  size="default"
+                  style={{
+                    backgroundColor: submitting ? '#9CA3AF' : '#DC2626',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px'
+                  }}
+                  onClick={handleSubmit}
+                  disabled={submitting}>
+                  {submitting ? '提交中...' : '提交申请'}
+                </Button>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

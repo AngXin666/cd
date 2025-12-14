@@ -3,6 +3,7 @@ import Taro, {switchTab} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useEffect, useRef, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import {useUserContext} from '@/contexts/UserContext'
 
@@ -66,6 +67,7 @@ const IndexPage: React.FC = () => {
 
   return (
     <View style={{minHeight: '100vh', background: '#F8FAFC'}}>
+      <SafeAreaTop backgroundColor="#F8FAFC" />
       <TopNavBar />
       <View className="flex items-center justify-center" style={{minHeight: 'calc(100vh - 44px)'}}>
         <View className="text-center px-8">

@@ -9,6 +9,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -318,6 +319,8 @@ const UserDetail: React.FC = () => {
 
   return (
     <ScrollView scrollY className="min-h-screen bg-gray-50">
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       <View className="p-4 pb-8">
         {/* 司机头部信息卡片 */}
         {userInfo.role === 'DRIVER' && driverLicense && (

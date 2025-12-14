@@ -3,6 +3,7 @@ import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
@@ -236,248 +237,251 @@ const SuperAdminPieceWorkForm: React.FC = () => {
   const categoryOptions = categories.map((c) => c.category_name)
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 页面标题 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <Text className="text-white text-2xl font-bold block mb-2">添加计件记录</Text>
-            <Text className="text-blue-100 text-sm block">填写计件信息</Text>
-          </View>
-
-          {/* 表单 */}
-          <View className="bg-white rounded-lg p-4 mb-4 shadow">
-            {/* 司机 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                司机 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker
-                mode="selector"
-                range={driverOptions}
-                value={selectedDriverIndex}
-                onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">
-                    {driverOptions.length > 0 ? driverOptions[selectedDriverIndex] : '请选择司机'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-gray-500 text-xl" />
-                </View>
-              </Picker>
+    <>
+      <SafeAreaTop />
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            {/* 页面标题 */}
+            <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
+              <Text className="text-white text-2xl font-bold block mb-2">添加计件记录</Text>
+              <Text className="text-blue-100 text-sm block">填写计件信息</Text>
             </View>
 
-            {/* 仓库 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                仓库 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker
-                mode="selector"
-                range={warehouseOptions}
-                value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">
-                    {warehouseOptions.length > 0 ? warehouseOptions[selectedWarehouseIndex] : '请选择仓库'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-gray-500 text-xl" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 品类 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                品类 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker
-                mode="selector"
-                range={categoryOptions}
-                value={selectedCategoryIndex}
-                onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">
-                    {categoryOptions.length > 0 ? categoryOptions[selectedCategoryIndex] : '请选择品类'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-gray-500 text-xl" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 工作日期 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                工作日期 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker mode="date" value={workDate} onChange={(e) => setWorkDate(e.detail.value)}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">{workDate || '请选择日期'}</Text>
-                  <View className="i-mdi-calendar text-gray-500 text-xl" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 工作时间 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                工作时间 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker mode="time" value={workTime} onChange={(e) => setWorkTime(e.detail.value)}>
-                <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <Text className="text-gray-800">{workTime || '请选择时间'}</Text>
-                  <View className="i-mdi-clock text-gray-500 text-xl" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 数量 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                数量 <Text className="text-red-500">*</Text>
-              </Text>
-              <Input
-                type="number"
-                value={quantity}
-                onInput={(e) => setQuantity(e.detail.value)}
-                placeholder="请输入数量"
-                className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-              />
-            </View>
-
-            {/* 单价 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                单价（元） <Text className="text-red-500">*</Text>
-              </Text>
-              <Input
-                type="digit"
-                value={unitPrice}
-                onInput={(e) => setUnitPrice(e.detail.value)}
-                placeholder="请输入单价"
-                className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-              />
-            </View>
-
-            {/* 是否需要上楼 */}
-            <View className="mb-4">
-              <View className="flex items-center justify-between">
-                <Text className="text-sm text-gray-700">是否需要上楼</Text>
-                <Switch checked={needUpstairs} onChange={(e) => setNeedUpstairs(e.detail.value)} />
-              </View>
-            </View>
-
-            {/* 上楼费 */}
-            {needUpstairs && (
+            {/* 表单 */}
+            <View className="bg-white rounded-lg p-4 mb-4 shadow">
+              {/* 司机 */}
               <View className="mb-4">
                 <Text className="text-sm text-gray-700 block mb-2">
-                  上楼费（元） <Text className="text-red-500">*</Text>
+                  司机 <Text className="text-red-500">*</Text>
                 </Text>
-                <Input
-                  type="digit"
-                  value={upstairsPrice}
-                  onInput={(e) => setUpstairsPrice(e.detail.value)}
-                  placeholder="请输入上楼费"
-                  className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-                />
+                <Picker
+                  mode="selector"
+                  range={driverOptions}
+                  value={selectedDriverIndex}
+                  onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">
+                      {driverOptions.length > 0 ? driverOptions[selectedDriverIndex] : '请选择司机'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-gray-500 text-xl" />
+                  </View>
+                </Picker>
               </View>
-            )}
 
-            {/* 是否需要分拣 */}
-            <View className="mb-4">
-              <View className="flex items-center justify-between">
-                <Text className="text-sm text-gray-700">是否需要分拣</Text>
-                <Switch checked={needSorting} onChange={(e) => setNeedSorting(e.detail.value)} />
-              </View>
-            </View>
-
-            {/* 分拣数量 */}
-            {needSorting && (
+              {/* 仓库 */}
               <View className="mb-4">
                 <Text className="text-sm text-gray-700 block mb-2">
-                  分拣数量 <Text className="text-red-500">*</Text>
+                  仓库 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker
+                  mode="selector"
+                  range={warehouseOptions}
+                  value={selectedWarehouseIndex}
+                  onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">
+                      {warehouseOptions.length > 0 ? warehouseOptions[selectedWarehouseIndex] : '请选择仓库'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-gray-500 text-xl" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 品类 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  品类 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker
+                  mode="selector"
+                  range={categoryOptions}
+                  value={selectedCategoryIndex}
+                  onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">
+                      {categoryOptions.length > 0 ? categoryOptions[selectedCategoryIndex] : '请选择品类'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-gray-500 text-xl" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 工作日期 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  工作日期 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker mode="date" value={workDate} onChange={(e) => setWorkDate(e.detail.value)}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">{workDate || '请选择日期'}</Text>
+                    <View className="i-mdi-calendar text-gray-500 text-xl" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 工作时间 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  工作时间 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker mode="time" value={workTime} onChange={(e) => setWorkTime(e.detail.value)}>
+                  <View className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <Text className="text-gray-800">{workTime || '请选择时间'}</Text>
+                    <View className="i-mdi-clock text-gray-500 text-xl" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 数量 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  数量 <Text className="text-red-500">*</Text>
                 </Text>
                 <Input
                   type="number"
-                  value={sortingQuantity}
-                  onInput={(e) => setSortingQuantity(e.detail.value)}
-                  placeholder="请输入分拣数量"
+                  value={quantity}
+                  onInput={(e) => setQuantity(e.detail.value)}
+                  placeholder="请输入数量"
                   className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
                 />
               </View>
-            )}
 
-            {/* 分拣单价 */}
-            {needSorting && (
+              {/* 单价 */}
               <View className="mb-4">
                 <Text className="text-sm text-gray-700 block mb-2">
-                  分拣单价（元） <Text className="text-red-500">*</Text>
+                  单价（元） <Text className="text-red-500">*</Text>
                 </Text>
                 <Input
                   type="digit"
-                  value={sortingUnitPrice}
-                  onInput={(e) => setSortingUnitPrice(e.detail.value)}
-                  placeholder="请输入分拣单价"
+                  value={unitPrice}
+                  onInput={(e) => setUnitPrice(e.detail.value)}
+                  placeholder="请输入单价"
                   className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
                 />
               </View>
-            )}
 
-            {/* 备注 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">备注</Text>
-              <Textarea
-                value={notes}
-                onInput={(e) => setNotes(e.detail.value)}
-                placeholder="请输入备注信息（可选）"
-                maxlength={200}
-                className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
-                style={{minHeight: '80px'}}
-              />
-            </View>
+              {/* 是否需要上楼 */}
+              <View className="mb-4">
+                <View className="flex items-center justify-between">
+                  <Text className="text-sm text-gray-700">是否需要上楼</Text>
+                  <Switch checked={needUpstairs} onChange={(e) => setNeedUpstairs(e.detail.value)} />
+                </View>
+              </View>
 
-            {/* 总金额预览 */}
-            <View className="bg-blue-50 rounded-lg p-4">
-              <View className="flex items-center justify-between">
-                <Text className="text-base font-bold text-gray-800">预计总金额</Text>
-                <Text className="text-2xl font-bold text-blue-900">¥{calculateTotalAmount().toFixed(2)}</Text>
+              {/* 上楼费 */}
+              {needUpstairs && (
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">
+                    上楼费（元） <Text className="text-red-500">*</Text>
+                  </Text>
+                  <Input
+                    type="digit"
+                    value={upstairsPrice}
+                    onInput={(e) => setUpstairsPrice(e.detail.value)}
+                    placeholder="请输入上楼费"
+                    className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
+                  />
+                </View>
+              )}
+
+              {/* 是否需要分拣 */}
+              <View className="mb-4">
+                <View className="flex items-center justify-between">
+                  <Text className="text-sm text-gray-700">是否需要分拣</Text>
+                  <Switch checked={needSorting} onChange={(e) => setNeedSorting(e.detail.value)} />
+                </View>
+              </View>
+
+              {/* 分拣数量 */}
+              {needSorting && (
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">
+                    分拣数量 <Text className="text-red-500">*</Text>
+                  </Text>
+                  <Input
+                    type="number"
+                    value={sortingQuantity}
+                    onInput={(e) => setSortingQuantity(e.detail.value)}
+                    placeholder="请输入分拣数量"
+                    className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
+                  />
+                </View>
+              )}
+
+              {/* 分拣单价 */}
+              {needSorting && (
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">
+                    分拣单价（元） <Text className="text-red-500">*</Text>
+                  </Text>
+                  <Input
+                    type="digit"
+                    value={sortingUnitPrice}
+                    onInput={(e) => setSortingUnitPrice(e.detail.value)}
+                    placeholder="请输入分拣单价"
+                    className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
+                  />
+                </View>
+              )}
+
+              {/* 备注 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">备注</Text>
+                <Textarea
+                  value={notes}
+                  onInput={(e) => setNotes(e.detail.value)}
+                  placeholder="请输入备注信息（可选）"
+                  maxlength={200}
+                  className="bg-gray-50 rounded-lg px-4 py-3 text-gray-800"
+                  style={{minHeight: '80px'}}
+                />
+              </View>
+
+              {/* 总金额预览 */}
+              <View className="bg-blue-50 rounded-lg p-4">
+                <View className="flex items-center justify-between">
+                  <Text className="text-base font-bold text-gray-800">预计总金额</Text>
+                  <Text className="text-2xl font-bold text-blue-900">¥{calculateTotalAmount().toFixed(2)}</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* 操作按钮 */}
-          <View className="flex gap-4">
-            <Button
-              className="text-sm break-keep flex-1"
-              size="default"
-              style={{
-                backgroundColor: '#E5E7EB',
-                color: '#374151',
-                borderRadius: '8px',
-                border: 'none',
-                padding: '12px'
-              }}
-              onClick={handleCancel}>
-              取消
-            </Button>
-            <Button
-              className="text-sm break-keep flex-1"
-              size="default"
-              style={{
-                backgroundColor: '#1E3A8A',
-                color: 'white',
-                borderRadius: '8px',
-                border: 'none',
-                padding: '12px'
-              }}
-              onClick={handleSave}>
-              保存
-            </Button>
+            {/* 操作按钮 */}
+            <View className="flex gap-4">
+              <Button
+                className="text-sm break-keep flex-1"
+                size="default"
+                style={{
+                  backgroundColor: '#E5E7EB',
+                  color: '#374151',
+                  borderRadius: '8px',
+                  border: 'none',
+                  padding: '12px'
+                }}
+                onClick={handleCancel}>
+                取消
+              </Button>
+              <Button
+                className="text-sm break-keep flex-1"
+                size="default"
+                style={{
+                  backgroundColor: '#1E3A8A',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  padding: '12px'
+                }}
+                onClick={handleSave}>
+                保存
+              </Button>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

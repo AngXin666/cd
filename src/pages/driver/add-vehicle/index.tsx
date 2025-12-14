@@ -9,6 +9,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import StepIndicator from '@/components/StepIndicator'
 import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -1182,6 +1183,8 @@ const AddVehicle: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>

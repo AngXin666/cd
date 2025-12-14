@@ -1,0 +1,882 @@
+[
+  {
+    "path": "src\\pages\\common\\notifications\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\driver\\add-vehicle\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\driver\\attendance\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\clock-in\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\driver\\edit-vehicle\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\driver\\leave\\apply\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\leave\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\leave\\resign\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\license-ocr\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\notifications\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\driver\\piece-work\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\piece-work-entry\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\profile\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\return-vehicle\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\driver\\supplement-photos\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\vehicle-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\vehicle-list\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\driver\\warehouse-stats\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\index\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\login\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\data-summary\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\driver-leave-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\driver-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "TopNavBar 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\manager\\driver-profile\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\manager\\leave-approval\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\piece-work\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\piece-work-form\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\piece-work-report\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\piece-work-report-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\manager\\staff-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\manager\\warehouse-categories\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\account-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\change-password\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\change-phone\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\edit\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\edit-name\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\help\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\profile\\settings\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\shared\\auto-reminder-rules\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\shared\\driver-notification\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\shared\\notification-records\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\shared\\notification-templates\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\shared\\scheduled-notifications\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\category-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\database-schema\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\driver-attendance-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\driver-leave-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\driver-warehouse-assignment\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\edit-user\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\leave-approval\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\manager-warehouse-assignment\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\permission-config\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\piece-work\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\piece-work-form\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\piece-work-report\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\piece-work-report-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\piece-work-report-form\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\staff-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\AddUserModal\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\ErrorBoundary\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\UserCard\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\UserDetail\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\UserFilter\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\UserList\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\UserTabs\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\components\\WarehouseAssign\\index.tsx",
+    "hasImport": false,
+    "hasUsage": false,
+    "hasTopNavBar": false,
+    "positionCheck": {
+      "correct": false,
+      "reason": "SafeAreaTop 未使用"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\user-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "无法找到第一个组件"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\vehicle-history\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\vehicle-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": false,
+      "reason": "TopNavBar 未找到"
+    },
+    "status": "FAIL"
+  },
+  {
+    "path": "src\\pages\\super-admin\\vehicle-rental-edit\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\vehicle-review-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\warehouse-detail\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\warehouse-edit\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\super-admin\\warehouse-management\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  },
+  {
+    "path": "src\\pages\\test-login\\index.tsx",
+    "hasImport": true,
+    "hasUsage": true,
+    "hasTopNavBar": true,
+    "positionCheck": {
+      "correct": true,
+      "reason": "SafeAreaTop 在 TopNavBar 之前（正确）"
+    },
+    "status": "PASS"
+  }
+]

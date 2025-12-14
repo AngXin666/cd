@@ -10,6 +10,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -361,12 +362,15 @@ const VehicleReviewDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <View className="flex items-center justify-center h-screen">
-        {/* 顶部导航栏 */}
-        <TopNavBar />
-        <View className="i-mdi-loading animate-spin text-4xl text-orange-600 mb-4"></View>
-        <Text className="text-gray-600">加载中...</Text>
-      </View>
+      <>
+        <SafeAreaTop />
+        <View className="flex items-center justify-center h-screen">
+          {/* 顶部导航栏 */}
+          <TopNavBar />
+          <View className="i-mdi-loading animate-spin text-4xl text-orange-600 mb-4"></View>
+          <Text className="text-gray-600">加载中...</Text>
+        </View>
+      </>
     )
   }
 

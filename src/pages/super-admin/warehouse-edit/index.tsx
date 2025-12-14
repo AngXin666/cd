@@ -3,6 +3,7 @@ import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as PieceworkAPI from '@/db/api/piecework'
@@ -665,6 +666,8 @@ const WarehouseEdit: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="h-screen box-border">

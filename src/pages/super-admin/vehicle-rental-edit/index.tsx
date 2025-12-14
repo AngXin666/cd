@@ -8,6 +8,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {OwnershipType, Vehicle} from '@/db/types'
@@ -196,14 +197,17 @@ const VehicleRentalEdit: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
-        {/* 顶部导航栏 */}
-        <TopNavBar />
-        <View className="flex flex-col items-center justify-center py-20">
-          <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
-          <Text className="text-gray-600 font-medium">加载中...</Text>
+      <>
+        <SafeAreaTop />
+        <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+          {/* 顶部导航栏 */}
+          <TopNavBar />
+          <View className="flex flex-col items-center justify-center py-20">
+            <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
+            <Text className="text-gray-600 font-medium">加载中...</Text>
+          </View>
         </View>
-      </View>
+      </>
     )
   }
 

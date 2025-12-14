@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import CircularProgress from '@/components/CircularProgress'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as DashboardAPI from '@/db/api/dashboard'
@@ -872,516 +873,521 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   }, [driverSummaries])
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 仪表盘卡片 - 可滑动切换 */}
-          <View className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-5 mb-4 shadow-xl">
-            <View className="flex items-center justify-between mb-3">
-              <View className="flex items-center gap-2">
-                <View className="i-mdi-view-dashboard text-white text-2xl" />
-                <Text className="text-white text-lg font-bold">数据仪表盘</Text>
+    <>
+      <SafeAreaTop />
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            {/* 仪表盘卡片 - 可滑动切换 */}
+            <View className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-5 mb-4 shadow-xl">
+              <View className="flex items-center justify-between mb-3">
+                <View className="flex items-center gap-2">
+                  <View className="i-mdi-view-dashboard text-white text-2xl" />
+                  <Text className="text-white text-lg font-bold">数据仪表盘</Text>
+                </View>
+                <View className="bg-white bg-opacity-20 rounded-full px-3 py-1.5">
+                  <Text className="text-white text-xs">左右滑动查看</Text>
+                </View>
               </View>
-              <View className="bg-white bg-opacity-20 rounded-full px-3 py-1.5">
-                <Text className="text-white text-xs">左右滑动查看</Text>
-              </View>
+
+              {/* 滑动切换容器 */}
+              <Swiper
+                className="h-72"
+                autoplay
+                interval={10000}
+                circular
+                indicatorDots
+                indicatorColor="rgba(255, 255, 255, 0.3)"
+                indicatorActiveColor="rgba(255, 255, 255, 1)">
+                {/* 第一页：达标率和出勤率 */}
+                <SwiperItem>
+                  <View className="h-full">
+                    <View className="grid grid-cols-2 gap-3">
+                      {/* 今天达标率 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-target text-yellow-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">今天达标率</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">{completionRate.toFixed(1)}%</Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">
+                            完成 {todayQuantity} / {(dailyTarget * dashboardData.expectedDrivers).toFixed(0)} 件
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 月度达标率 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-calendar-month text-green-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">月度达标率</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">
+                          {monthlyCompletionRate.toFixed(1)}%
+                        </Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">
+                            当月 {driverSummaries.length} 位司机
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 今天出勤率 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-account-check text-blue-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">今天出勤率</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">
+                          {dashboardData.totalDrivers > 0
+                            ? Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
+                            : 0}
+                          %
+                        </Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">
+                            出勤 {dashboardData.todayDrivers} / {dashboardData.totalDrivers} 人
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 司机总数 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-account-group text-purple-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">司机总数</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">{dashboardData.totalDrivers}</Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">当前仓库分配</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                </SwiperItem>
+
+                {/* 第二页：件数统计 */}
+                <SwiperItem>
+                  <View className="h-full">
+                    <View className="grid grid-cols-2 gap-3">
+                      {/* 今天总件数 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-package-variant text-orange-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">今天总件数</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">{todayQuantity}</Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">
+                            {dashboardData.todayDrivers} 位司机完成
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 本周总件数 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-calendar-week text-cyan-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">本周总件数</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">
+                          {driverSummaries.reduce((sum, driver) => sum + (driver.weeklyQuantity || 0), 0)}
+                        </Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">本周累计完成</Text>
+                        </View>
+                      </View>
+
+                      {/* 本月总件数 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-calendar-range text-pink-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">本月总件数</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">
+                          {driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)}
+                        </Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">本月累计完成</Text>
+                        </View>
+                      </View>
+
+                      {/* 平均每日件数 */}
+                      <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
+                        <View className="flex items-center gap-1.5 mb-2">
+                          <View className="i-mdi-chart-line text-lime-300 text-lg" />
+                          <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold mb-1.5">{dailyAverageQuantity}</Text>
+                        <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
+                          <Text className="text-white text-opacity-80 text-xs leading-tight">
+                            本月 {daysInCurrentMonth} 天平均
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                </SwiperItem>
+              </Swiper>
             </View>
 
-            {/* 滑动切换容器 */}
-            <Swiper
-              className="h-72"
-              autoplay
-              interval={10000}
-              circular
-              indicatorDots
-              indicatorColor="rgba(255, 255, 255, 0.3)"
-              indicatorActiveColor="rgba(255, 255, 255, 1)">
-              {/* 第一页：达标率和出勤率 */}
-              <SwiperItem>
-                <View className="h-full">
-                  <View className="grid grid-cols-2 gap-3">
-                    {/* 今天达标率 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-target text-yellow-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">今天达标率</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">{completionRate.toFixed(1)}%</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          完成 {todayQuantity} / {(dailyTarget * dashboardData.expectedDrivers).toFixed(0)} 件
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 月度达标率 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-calendar-month text-green-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">月度达标率</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">{monthlyCompletionRate.toFixed(1)}%</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          当月 {driverSummaries.length} 位司机
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 今天出勤率 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-account-check text-blue-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">今天出勤率</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">
-                        {dashboardData.totalDrivers > 0
-                          ? Math.round((dashboardData.todayDrivers / dashboardData.totalDrivers) * 100)
-                          : 0}
-                        %
-                      </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          出勤 {dashboardData.todayDrivers} / {dashboardData.totalDrivers} 人
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 司机总数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-account-group text-purple-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">司机总数</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">{dashboardData.totalDrivers}</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">当前仓库分配</Text>
-                      </View>
-                    </View>
+            {/* 仓库切换 */}
+            {warehouses.length > 0 && (
+              <View className="mb-4">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-sm text-gray-600">
+                    当前仓库 ({currentWarehouseIndex + 1}/{warehouses.length})
+                  </Text>
+                  {/* 刷新按钮 */}
+                  <View
+                    onClick={async () => {
+                      Taro.showLoading({title: '刷新中...'})
+                      await Promise.all([loadData(), loadRecords()])
+                      Taro.hideLoading()
+                      Taro.showToast({
+                        title: '刷新成功',
+                        icon: 'success',
+                        duration: 1500
+                      })
+                    }}
+                    className="flex items-center gap-1 bg-blue-900 text-white px-3 py-1.5 rounded-full">
+                    <View className="i-mdi-refresh text-base" />
+                    <Text className="text-xs">刷新数据</Text>
                   </View>
                 </View>
-              </SwiperItem>
-
-              {/* 第二页：件数统计 */}
-              <SwiperItem>
-                <View className="h-full">
-                  <View className="grid grid-cols-2 gap-3">
-                    {/* 今天总件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-package-variant text-orange-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">今天总件数</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">{todayQuantity}</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          {dashboardData.todayDrivers} 位司机完成
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 本周总件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-calendar-week text-cyan-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">本周总件数</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">
-                        {driverSummaries.reduce((sum, driver) => sum + (driver.weeklyQuantity || 0), 0)}
-                      </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">本周累计完成</Text>
-                      </View>
-                    </View>
-
-                    {/* 本月总件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-calendar-range text-pink-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">本月总件数</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">
-                        {driverSummaries.reduce((sum, driver) => sum + (driver.monthlyQuantity || 0), 0)}
-                      </Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">本月累计完成</Text>
-                      </View>
-                    </View>
-
-                    {/* 平均每日件数 */}
-                    <View className="bg-white bg-opacity-15 backdrop-blur rounded-xl p-4 border border-white border-opacity-20">
-                      <View className="flex items-center gap-1.5 mb-2">
-                        <View className="i-mdi-chart-line text-lime-300 text-lg" />
-                        <Text className="text-white text-opacity-95 text-xs font-medium">日均件数</Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold mb-1.5">{dailyAverageQuantity}</Text>
-                      <View className="bg-white bg-opacity-10 rounded px-2 py-1.5">
-                        <Text className="text-white text-opacity-80 text-xs leading-tight">
-                          本月 {daysInCurrentMonth} 天平均
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+                <View className="bg-white rounded-xl shadow-md overflow-hidden">
+                  <Swiper
+                    className="h-16"
+                    current={currentWarehouseIndex}
+                    onChange={handleWarehouseChange}
+                    indicatorDots
+                    indicatorColor="rgba(0, 0, 0, 0.2)"
+                    indicatorActiveColor="#1E3A8A">
+                    {warehouses.map((warehouse) => (
+                      <SwiperItem key={warehouse.id}>
+                        <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
+                          <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
+                          <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
+                        </View>
+                      </SwiperItem>
+                    ))}
+                  </Swiper>
                 </View>
-              </SwiperItem>
-            </Swiper>
-          </View>
+              </View>
+            )}
 
-          {/* 仓库切换 */}
-          {warehouses.length > 0 && (
+            {/* 操作按钮 - 仅老板可见 */}
             <View className="mb-4">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-600">
-                  当前仓库 ({currentWarehouseIndex + 1}/{warehouses.length})
-                </Text>
-                {/* 刷新按钮 */}
-                <View
-                  onClick={async () => {
-                    Taro.showLoading({title: '刷新中...'})
-                    await Promise.all([loadData(), loadRecords()])
-                    Taro.hideLoading()
-                    Taro.showToast({
-                      title: '刷新成功',
-                      icon: 'success',
-                      duration: 1500
-                    })
-                  }}
-                  className="flex items-center gap-1 bg-blue-900 text-white px-3 py-1.5 rounded-full">
-                  <View className="i-mdi-refresh text-base" />
-                  <Text className="text-xs">刷新数据</Text>
+              <View
+                onClick={handleAddRecord}
+                className="bg-blue-900 rounded-lg p-4 shadow flex items-center justify-center">
+                <View className="i-mdi-plus-circle text-2xl text-white mr-2" />
+                <Text className="text-white font-medium">添加计件记录</Text>
+              </View>
+            </View>
+
+            {/* 筛选区域 - 已移除，直接显示所有数据 */}
+
+            {/* 排序按钮 */}
+            <View className="flex gap-2 mb-4">
+              <View
+                className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'today' ? 'bg-blue-600' : 'bg-white'}`}
+                onClick={() => {
+                  if (sortBy === 'today') {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                  } else {
+                    setSortBy('today')
+                    setSortOrder('desc')
+                  }
+                }}>
+                <View className="flex items-center justify-center gap-1">
+                  <View
+                    className={`i-mdi-calendar-today text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                  <Text className={`text-xs font-bold ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}>
+                    今天 ({sortBy === 'today' && sortOrder === 'asc' ? '升序' : '降序'})
+                  </Text>
+                  <View
+                    className={`i-mdi-arrow-${sortBy === 'today' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
+                  />
                 </View>
               </View>
-              <View className="bg-white rounded-xl shadow-md overflow-hidden">
-                <Swiper
-                  className="h-16"
-                  current={currentWarehouseIndex}
-                  onChange={handleWarehouseChange}
-                  indicatorDots
-                  indicatorColor="rgba(0, 0, 0, 0.2)"
-                  indicatorActiveColor="#1E3A8A">
-                  {warehouses.map((warehouse) => (
-                    <SwiperItem key={warehouse.id}>
-                      <View className="h-full flex items-center justify-center bg-gradient-to-r from-blue-50 to-blue-100 px-4">
-                        <View className="i-mdi-warehouse text-2xl text-blue-600 mr-2" />
-                        <Text className="text-lg font-bold text-blue-900">{warehouse.name}</Text>
-                      </View>
-                    </SwiperItem>
-                  ))}
-                </Swiper>
+              <View
+                className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'week' ? 'bg-blue-600' : 'bg-white'}`}
+                onClick={() => {
+                  if (sortBy === 'week') {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                  } else {
+                    setSortBy('week')
+                    setSortOrder('desc')
+                  }
+                }}>
+                <View className="flex items-center justify-center gap-1">
+                  <View
+                    className={`i-mdi-calendar-week text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                  <Text className={`text-xs font-bold ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}>
+                    本周 ({sortBy === 'week' && sortOrder === 'asc' ? '升序' : '降序'})
+                  </Text>
+                  <View
+                    className={`i-mdi-arrow-${sortBy === 'week' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                </View>
+              </View>
+              <View
+                className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'month' ? 'bg-blue-600' : 'bg-white'}`}
+                onClick={() => {
+                  if (sortBy === 'month') {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+                  } else {
+                    setSortBy('month')
+                    setSortOrder('desc')
+                  }
+                }}>
+                <View className="flex items-center justify-center gap-1">
+                  <View
+                    className={`i-mdi-calendar-month text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                  <Text className={`text-xs font-bold ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}>
+                    本月 ({sortBy === 'month' && sortOrder === 'asc' ? '升序' : '降序'})
+                  </Text>
+                  <View
+                    className={`i-mdi-arrow-${sortBy === 'month' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
+                  />
+                </View>
               </View>
             </View>
-          )}
 
-          {/* 操作按钮 - 仅老板可见 */}
-          <View className="mb-4">
-            <View
-              onClick={handleAddRecord}
-              className="bg-blue-900 rounded-lg p-4 shadow flex items-center justify-center">
-              <View className="i-mdi-plus-circle text-2xl text-white mr-2" />
-              <Text className="text-white font-medium">添加计件记录</Text>
+            {/* 司机汇总列表 */}
+            <View className="flex items-center justify-between mb-3">
+              <Text className="text-base font-bold text-gray-800">司机汇总</Text>
+              <Text className="text-xs text-gray-500">共 {driverSummaries.length} 位司机</Text>
             </View>
-          </View>
 
-          {/* 筛选区域 - 已移除，直接显示所有数据 */}
-
-          {/* 排序按钮 */}
-          <View className="flex gap-2 mb-4">
-            <View
-              className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'today' ? 'bg-blue-600' : 'bg-white'}`}
-              onClick={() => {
-                if (sortBy === 'today') {
-                  setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-                } else {
-                  setSortBy('today')
-                  setSortOrder('desc')
-                }
-              }}>
-              <View className="flex items-center justify-center gap-1">
-                <View
-                  className={`i-mdi-calendar-today text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
-                />
-                <Text className={`text-xs font-bold ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}>
-                  今天 ({sortBy === 'today' && sortOrder === 'asc' ? '升序' : '降序'})
-                </Text>
-                <View
-                  className={`i-mdi-arrow-${sortBy === 'today' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'today' ? 'text-white' : 'text-gray-600'}`}
-                />
+            {driverSummaries.length === 0 ? (
+              <View className="bg-white rounded-lg p-8 text-center shadow">
+                <View className="i-mdi-account-off text-6xl text-gray-300 mb-4 mx-auto" />
+                <Text className="text-gray-500 block">暂无司机数据</Text>
               </View>
-            </View>
-            <View
-              className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'week' ? 'bg-blue-600' : 'bg-white'}`}
-              onClick={() => {
-                if (sortBy === 'week') {
-                  setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-                } else {
-                  setSortBy('week')
-                  setSortOrder('desc')
-                }
-              }}>
-              <View className="flex items-center justify-center gap-1">
-                <View
-                  className={`i-mdi-calendar-week text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
-                />
-                <Text className={`text-xs font-bold ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}>
-                  本周 ({sortBy === 'week' && sortOrder === 'asc' ? '升序' : '降序'})
-                </Text>
-                <View
-                  className={`i-mdi-arrow-${sortBy === 'week' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'week' ? 'text-white' : 'text-gray-600'}`}
-                />
-              </View>
-            </View>
-            <View
-              className={`flex-1 text-center py-2 rounded-lg transition-all active:scale-95 ${sortBy === 'month' ? 'bg-blue-600' : 'bg-white'}`}
-              onClick={() => {
-                if (sortBy === 'month') {
-                  setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-                } else {
-                  setSortBy('month')
-                  setSortOrder('desc')
-                }
-              }}>
-              <View className="flex items-center justify-center gap-1">
-                <View
-                  className={`i-mdi-calendar-month text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
-                />
-                <Text className={`text-xs font-bold ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}>
-                  本月 ({sortBy === 'month' && sortOrder === 'asc' ? '升序' : '降序'})
-                </Text>
-                <View
-                  className={`i-mdi-arrow-${sortBy === 'month' && sortOrder === 'asc' ? 'up' : 'down'} text-base ${sortBy === 'month' ? 'text-white' : 'text-gray-600'}`}
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* 司机汇总列表 */}
-          <View className="flex items-center justify-between mb-3">
-            <Text className="text-base font-bold text-gray-800">司机汇总</Text>
-            <Text className="text-xs text-gray-500">共 {driverSummaries.length} 位司机</Text>
-          </View>
-
-          {driverSummaries.length === 0 ? (
-            <View className="bg-white rounded-lg p-8 text-center shadow">
-              <View className="i-mdi-account-off text-6xl text-gray-300 mb-4 mx-auto" />
-              <Text className="text-gray-500 block">暂无司机数据</Text>
-            </View>
-          ) : (
-            driverSummaries.map((summary) => {
-              return (
-                <View
-                  key={summary.driverId}
-                  className="bg-white rounded-xl p-4 mb-3 shadow-md"
-                  onClick={() => handleViewDriverDetail(summary.driverId)}>
-                  {/* 司机信息头部 */}
-                  <View className="flex items-center justify-between mb-4">
-                    <View className="flex items-center flex-1">
-                      <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
-                      <View className="flex-1">
-                        <View className="flex items-center justify-between mb-1.5">
-                          {/* 左侧：姓名和类型标签 */}
-                          <View className="flex items-center gap-2">
-                            <Text className="text-base font-bold text-gray-800">
-                              {summary.driverName || summary.driverPhone || '未知司机'}
-                            </Text>
-                            {/* 司机类型标签 */}
-                            {summary.driverType && (
-                              <View className="bg-gradient-to-r from-purple-400 to-purple-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">
-                                  {summary.driverType === 'pure' ? '纯司机' : '带车司机'}
-                                </Text>
+            ) : (
+              driverSummaries.map((summary) => {
+                return (
+                  <View
+                    key={summary.driverId}
+                    className="bg-white rounded-xl p-4 mb-3 shadow-md"
+                    onClick={() => handleViewDriverDetail(summary.driverId)}>
+                    {/* 司机信息头部 */}
+                    <View className="flex items-center justify-between mb-4">
+                      <View className="flex items-center flex-1">
+                        <View className="i-mdi-account-circle text-4xl text-blue-600 mr-3" />
+                        <View className="flex-1">
+                          <View className="flex items-center justify-between mb-1.5">
+                            {/* 左侧：姓名和类型标签 */}
+                            <View className="flex items-center gap-2">
+                              <Text className="text-base font-bold text-gray-800">
+                                {summary.driverName || summary.driverPhone || '未知司机'}
+                              </Text>
+                              {/* 司机类型标签 */}
+                              {summary.driverType && (
+                                <View className="bg-gradient-to-r from-purple-400 to-purple-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-xs text-white font-bold">
+                                    {summary.driverType === 'pure' ? '纯司机' : '带车司机'}
+                                  </Text>
+                                </View>
+                              )}
+                              {/* 新司机标签 */}
+                              {summary.daysEmployed < 7 && (
+                                <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-xs text-white font-bold">新司机</Text>
+                                </View>
+                              )}
+                            </View>
+                            {/* 右侧：今日状态标签 */}
+                            {typeof summary.todayStatus === 'number' && (
+                              <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">已记{summary.todayStatus}次</Text>
                               </View>
                             )}
-                            {/* 新司机标签 */}
-                            {summary.daysEmployed < 7 && (
-                              <View className="bg-gradient-to-r from-green-400 to-green-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">新司机</Text>
+                            {summary.todayStatus === 'on_leave' && (
+                              <View className="bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">休假</Text>
+                              </View>
+                            )}
+                            {summary.todayStatus === 'not_recorded' && (
+                              <View className="bg-gradient-to-r from-red-500 to-red-600 px-2 py-0.5 rounded-full">
+                                <Text className="text-xs text-white font-bold">未记录</Text>
                               </View>
                             )}
                           </View>
-                          {/* 右侧：今日状态标签 */}
-                          {typeof summary.todayStatus === 'number' && (
-                            <View className="bg-gradient-to-r from-green-500 to-green-600 px-2 py-0.5 rounded-full">
-                              <Text className="text-xs text-white font-bold">已记{summary.todayStatus}次</Text>
-                            </View>
+                          {summary.driverPhone && summary.driverName && (
+                            <Text className="text-xs text-gray-500 block">{summary.driverPhone}</Text>
                           )}
-                          {summary.todayStatus === 'on_leave' && (
-                            <View className="bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 rounded-full">
-                              <Text className="text-xs text-white font-bold">休假</Text>
-                            </View>
-                          )}
-                          {summary.todayStatus === 'not_recorded' && (
-                            <View className="bg-gradient-to-r from-red-500 to-red-600 px-2 py-0.5 rounded-full">
-                              <Text className="text-xs text-white font-bold">未记录</Text>
-                            </View>
-                          )}
+                          <Text className="text-xs text-gray-500 block mt-1">
+                            {summary.warehouseNames.length > 0 ? summary.warehouseNames.join('、') : '未分配仓库'}
+                          </Text>
                         </View>
-                        {summary.driverPhone && summary.driverName && (
-                          <Text className="text-xs text-gray-500 block">{summary.driverPhone}</Text>
+                      </View>
+                    </View>
+
+                    {/* 三个环形图达标率 */}
+                    <View className="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
+                      {/* 今天达标率环形图 */}
+                      <View className="flex flex-col items-center">
+                        <CircularProgress
+                          percentage={summary.dailyCompletionRate || 0}
+                          size={70}
+                          strokeWidth={6}
+                          label="今天达标率"
+                        />
+                        {dailyTarget > 0 ? (
+                          <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}件</Text>
+                        ) : (
+                          <Text className="text-xs text-warning mt-1">未设置目标</Text>
                         )}
-                        <Text className="text-xs text-gray-500 block mt-1">
-                          {summary.warehouseNames.length > 0 ? summary.warehouseNames.join('、') : '未分配仓库'}
+                      </View>
+
+                      {/* 本周达标率环形图 */}
+                      <View className="flex flex-col items-center">
+                        <CircularProgress
+                          percentage={summary.weeklyCompletionRate || 0}
+                          size={70}
+                          strokeWidth={6}
+                          label="本周达标率"
+                        />
+                        <Text className="text-xs text-gray-500 mt-1">
+                          应工作{(() => {
+                            const today = new Date()
+                            // 计算本周一的日期
+                            const dayOfWeek = today.getDay()
+                            const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // 周日为0，需要特殊处理
+                            const weekStart = new Date(today)
+                            weekStart.setDate(today.getDate() - diff)
+                            weekStart.setHours(0, 0, 0, 0)
+
+                            // 计算实际工作的起始日期（本周一或入职日，取较晚的）
+                            let startDate = weekStart
+                            if (summary.joinDate) {
+                              const joinDate = new Date(summary.joinDate)
+                              if (joinDate > weekStart) {
+                                startDate = joinDate
+                              }
+                            }
+
+                            // 计算从起始日期到今天的天数（包含起始日和今天）
+                            const diffTime = today.getTime() - startDate.getTime()
+                            const daysInWeek = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+                            // 获取本周的请假天数（从 summary 中获取，需要在数据加载时计算）
+                            // 注意：这里简化处理，实际应该从后端获取本周请假天数
+                            // 暂时使用 0，因为 summary 中没有 weeklyLeaveDays 字段
+                            const weeklyLeaveDays = 0
+
+                            // 获取当前仓库的允许请假天数（按比例计算本周允许的请假天数）
+                            const currentWarehouse = warehouses[currentWarehouseIndex]
+                            const monthlyMaxLeaveDays = currentWarehouse?.max_leave_days || 0
+                            // 假设一个月30天，计算本周允许的请假天数
+                            const weeklyMaxLeaveDays = Math.floor((monthlyMaxLeaveDays * daysInWeek) / 30)
+
+                            // 计算合规请假天数（不超过允许的请假天数）
+                            const validLeaveDays = Math.min(weeklyLeaveDays, weeklyMaxLeaveDays)
+
+                            // 计算本周应工作天数 = 本周天数 - 合规请假天数
+                            const workDaysInWeek = Math.max(daysInWeek - validLeaveDays, 0)
+
+                            return workDaysInWeek
+                          })()}天
+                        </Text>
+                      </View>
+
+                      {/* 本月达标率环形图 */}
+                      <View className="flex flex-col items-center">
+                        <CircularProgress
+                          percentage={summary.monthlyCompletionRate || 0}
+                          size={70}
+                          strokeWidth={6}
+                          label="本月达标率"
+                        />
+                        <Text className="text-xs text-gray-500 mt-1">
+                          应工作{(() => {
+                            const today = new Date()
+                            const monthStart = new Date(getFirstDayOfMonthString())
+
+                            // 计算实际工作的起始日期（本月1号或入职日，取较晚的）
+                            let startDate = monthStart
+                            if (summary.joinDate) {
+                              const joinDate = new Date(summary.joinDate)
+                              if (joinDate > monthStart) {
+                                startDate = joinDate
+                              }
+                            }
+
+                            // 计算从起始日期到今天的天数（包含起始日和今天）
+                            const diffTime = today.getTime() - startDate.getTime()
+                            const daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+                            // 获取本月的请假天数
+                            const monthlyLeaveDays = summary.leaveDays || 0
+
+                            // 获取当前仓库的允许请假天数
+                            const currentWarehouse = warehouses[currentWarehouseIndex]
+                            const maxLeaveDays = currentWarehouse?.max_leave_days || 0
+
+                            // 计算合规请假天数（不超过允许的请假天数）
+                            const validLeaveDays = Math.min(monthlyLeaveDays, maxLeaveDays)
+
+                            // 计算本月应工作天数 = 本月天数 - 合规请假天数
+                            const workDaysInMonth = Math.max(daysInMonth - validLeaveDays, 0)
+
+                            return workDaysInMonth
+                          })()}天
                         </Text>
                       </View>
                     </View>
-                  </View>
 
-                  {/* 三个环形图达标率 */}
-                  <View className="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
-                    {/* 今天达标率环形图 */}
-                    <View className="flex flex-col items-center">
-                      <CircularProgress
-                        percentage={summary.dailyCompletionRate || 0}
-                        size={70}
-                        strokeWidth={6}
-                        label="今天达标率"
-                      />
-                      {dailyTarget > 0 ? (
-                        <Text className="text-xs text-gray-500 mt-1">目标: {dailyTarget}件</Text>
-                      ) : (
-                        <Text className="text-xs text-warning mt-1">未设置目标</Text>
-                      )}
+                    {/* 入职信息 */}
+                    <View className="bg-blue-50 rounded-lg px-3 py-2 mb-4">
+                      <View className="flex items-center justify-between mb-1.5">
+                        <Text className="text-xs text-gray-600">入职日期</Text>
+                        <Text className="text-sm font-bold text-blue-700">{summary.joinDate || '未设置'}</Text>
+                      </View>
+                      <View className="flex items-center justify-between">
+                        <Text className="text-xs text-gray-600">在职天数</Text>
+                        <Text className="text-sm font-bold text-blue-700">{summary.daysEmployed} 天</Text>
+                      </View>
                     </View>
 
-                    {/* 本周达标率环形图 */}
-                    <View className="flex flex-col items-center">
-                      <CircularProgress
-                        percentage={summary.weeklyCompletionRate || 0}
-                        size={70}
-                        strokeWidth={6}
-                        label="本周达标率"
-                      />
-                      <Text className="text-xs text-gray-500 mt-1">
-                        应工作{(() => {
-                          const today = new Date()
-                          // 计算本周一的日期
-                          const dayOfWeek = today.getDay()
-                          const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // 周日为0，需要特殊处理
-                          const weekStart = new Date(today)
-                          weekStart.setDate(today.getDate() - diff)
-                          weekStart.setHours(0, 0, 0, 0)
-
-                          // 计算实际工作的起始日期（本周一或入职日，取较晚的）
-                          let startDate = weekStart
-                          if (summary.joinDate) {
-                            const joinDate = new Date(summary.joinDate)
-                            if (joinDate > weekStart) {
-                              startDate = joinDate
-                            }
-                          }
-
-                          // 计算从起始日期到今天的天数（包含起始日和今天）
-                          const diffTime = today.getTime() - startDate.getTime()
-                          const daysInWeek = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-
-                          // 获取本周的请假天数（从 summary 中获取，需要在数据加载时计算）
-                          // 注意：这里简化处理，实际应该从后端获取本周请假天数
-                          // 暂时使用 0，因为 summary 中没有 weeklyLeaveDays 字段
-                          const weeklyLeaveDays = 0
-
-                          // 获取当前仓库的允许请假天数（按比例计算本周允许的请假天数）
-                          const currentWarehouse = warehouses[currentWarehouseIndex]
-                          const monthlyMaxLeaveDays = currentWarehouse?.max_leave_days || 0
-                          // 假设一个月30天，计算本周允许的请假天数
-                          const weeklyMaxLeaveDays = Math.floor((monthlyMaxLeaveDays * daysInWeek) / 30)
-
-                          // 计算合规请假天数（不超过允许的请假天数）
-                          const validLeaveDays = Math.min(weeklyLeaveDays, weeklyMaxLeaveDays)
-
-                          // 计算本周应工作天数 = 本周天数 - 合规请假天数
-                          const workDaysInWeek = Math.max(daysInWeek - validLeaveDays, 0)
-
-                          return workDaysInWeek
-                        })()}天
-                      </Text>
+                    {/* 件数统计 */}
+                    <View className="grid grid-cols-3 gap-3">
+                      <View className="text-center bg-blue-50 rounded-lg py-2">
+                        <Text className="text-xl font-bold text-blue-600 block">{summary.dailyQuantity}</Text>
+                        <Text className="text-xs text-gray-600">今天件数</Text>
+                      </View>
+                      <View className="text-center bg-green-50 rounded-lg py-2">
+                        <Text className="text-xl font-bold text-green-600 block">{summary.weeklyQuantity}</Text>
+                        <Text className="text-xs text-gray-600">本周件数</Text>
+                      </View>
+                      <View className="text-center bg-purple-50 rounded-lg py-2">
+                        <Text className="text-xl font-bold text-purple-600 block">{summary.monthlyQuantity}</Text>
+                        <Text className="text-xs text-gray-600">本月件数</Text>
+                      </View>
                     </View>
 
-                    {/* 本月达标率环形图 */}
-                    <View className="flex flex-col items-center">
-                      <CircularProgress
-                        percentage={summary.monthlyCompletionRate || 0}
-                        size={70}
-                        strokeWidth={6}
-                        label="本月达标率"
-                      />
-                      <Text className="text-xs text-gray-500 mt-1">
-                        应工作{(() => {
-                          const today = new Date()
-                          const monthStart = new Date(getFirstDayOfMonthString())
-
-                          // 计算实际工作的起始日期（本月1号或入职日，取较晚的）
-                          let startDate = monthStart
-                          if (summary.joinDate) {
-                            const joinDate = new Date(summary.joinDate)
-                            if (joinDate > monthStart) {
-                              startDate = joinDate
-                            }
-                          }
-
-                          // 计算从起始日期到今天的天数（包含起始日和今天）
-                          const diffTime = today.getTime() - startDate.getTime()
-                          const daysInMonth = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-
-                          // 获取本月的请假天数
-                          const monthlyLeaveDays = summary.leaveDays || 0
-
-                          // 获取当前仓库的允许请假天数
-                          const currentWarehouse = warehouses[currentWarehouseIndex]
-                          const maxLeaveDays = currentWarehouse?.max_leave_days || 0
-
-                          // 计算合规请假天数（不超过允许的请假天数）
-                          const validLeaveDays = Math.min(monthlyLeaveDays, maxLeaveDays)
-
-                          // 计算本月应工作天数 = 本月天数 - 合规请假天数
-                          const workDaysInMonth = Math.max(daysInMonth - validLeaveDays, 0)
-
-                          return workDaysInMonth
-                        })()}天
-                      </Text>
+                    {/* 查看详情提示 */}
+                    <View className="flex items-center justify-center mt-3 pt-3 border-t border-gray-100">
+                      <Text className="text-xs text-blue-600 mr-1">查看详细记录</Text>
+                      <View className="i-mdi-chevron-right text-sm text-blue-600" />
                     </View>
                   </View>
-
-                  {/* 入职信息 */}
-                  <View className="bg-blue-50 rounded-lg px-3 py-2 mb-4">
-                    <View className="flex items-center justify-between mb-1.5">
-                      <Text className="text-xs text-gray-600">入职日期</Text>
-                      <Text className="text-sm font-bold text-blue-700">{summary.joinDate || '未设置'}</Text>
-                    </View>
-                    <View className="flex items-center justify-between">
-                      <Text className="text-xs text-gray-600">在职天数</Text>
-                      <Text className="text-sm font-bold text-blue-700">{summary.daysEmployed} 天</Text>
-                    </View>
-                  </View>
-
-                  {/* 件数统计 */}
-                  <View className="grid grid-cols-3 gap-3">
-                    <View className="text-center bg-blue-50 rounded-lg py-2">
-                      <Text className="text-xl font-bold text-blue-600 block">{summary.dailyQuantity}</Text>
-                      <Text className="text-xs text-gray-600">今天件数</Text>
-                    </View>
-                    <View className="text-center bg-green-50 rounded-lg py-2">
-                      <Text className="text-xl font-bold text-green-600 block">{summary.weeklyQuantity}</Text>
-                      <Text className="text-xs text-gray-600">本周件数</Text>
-                    </View>
-                    <View className="text-center bg-purple-50 rounded-lg py-2">
-                      <Text className="text-xl font-bold text-purple-600 block">{summary.monthlyQuantity}</Text>
-                      <Text className="text-xs text-gray-600">本月件数</Text>
-                    </View>
-                  </View>
-
-                  {/* 查看详情提示 */}
-                  <View className="flex items-center justify-center mt-3 pt-3 border-t border-gray-100">
-                    <Text className="text-xs text-blue-600 mr-1">查看详细记录</Text>
-                    <View className="i-mdi-chevron-right text-sm text-blue-600" />
-                  </View>
-                </View>
-              )
-            })
-          )}
-        </View>
-      </ScrollView>
-    </View>
+                )
+              })
+            )}
+          </View>
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
@@ -535,324 +536,329 @@ const ApplyLeave: React.FC = () => {
   const daysOptions = Array.from({length: availableQuickDays}, (_, i) => `${i + 1}天`)
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 标题 */}
-          <View className="mb-4">
-            <Text className="text-2xl font-bold text-gray-800">请假申请</Text>
-          </View>
-
-          {/* 模式切换 */}
-          <View className="flex gap-3 mb-4">
-            <View
-              className="flex-1 text-center py-3 rounded-lg"
-              style={{
-                backgroundColor: mode === 'quick' ? '#1E3A8A' : '#E5E7EB',
-                cursor: 'pointer'
-              }}
-              onClick={() => handleModeChange('quick')}>
-              <Text
-                className="text-sm font-bold"
-                style={{
-                  color: mode === 'quick' ? 'white' : '#6B7280'
-                }}>
-                快捷请假
-              </Text>
+    <>
+      <SafeAreaTop />
+      <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            {/* 标题 */}
+            <View className="mb-4">
+              <Text className="text-2xl font-bold text-gray-800">请假申请</Text>
             </View>
-            <View
-              className="flex-1 text-center py-3 rounded-lg"
-              style={{
-                backgroundColor: mode === 'makeup' ? '#1E3A8A' : '#E5E7EB',
-                cursor: 'pointer'
-              }}
-              onClick={() => handleModeChange('makeup')}>
-              <Text
-                className="text-sm font-bold"
-                style={{
-                  color: mode === 'makeup' ? 'white' : '#6B7280'
-                }}>
-                补请假
-              </Text>
-            </View>
-          </View>
 
-          {/* 月度请假统计 */}
-          {monthlyLimit > 0 && (
-            <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-4 border border-blue-200">
-              <View className="flex items-center mb-3">
-                <View className="i-mdi-calendar-month text-2xl text-blue-600 mr-2"></View>
-                <Text className="text-gray-800 text-base font-bold">本月请假统计</Text>
+            {/* 模式切换 */}
+            <View className="flex gap-3 mb-4">
+              <View
+                className="flex-1 text-center py-3 rounded-lg"
+                style={{
+                  backgroundColor: mode === 'quick' ? '#1E3A8A' : '#E5E7EB',
+                  cursor: 'pointer'
+                }}
+                onClick={() => handleModeChange('quick')}>
+                <Text
+                  className="text-sm font-bold"
+                  style={{
+                    color: mode === 'quick' ? 'white' : '#6B7280'
+                  }}>
+                  快捷请假
+                </Text>
               </View>
+              <View
+                className="flex-1 text-center py-3 rounded-lg"
+                style={{
+                  backgroundColor: mode === 'makeup' ? '#1E3A8A' : '#E5E7EB',
+                  cursor: 'pointer'
+                }}
+                onClick={() => handleModeChange('makeup')}>
+                <Text
+                  className="text-sm font-bold"
+                  style={{
+                    color: mode === 'makeup' ? 'white' : '#6B7280'
+                  }}>
+                  补请假
+                </Text>
+              </View>
+            </View>
 
-              <View className="space-y-2">
-                <View className="flex items-center justify-between">
-                  <Text className="text-gray-600 text-sm">已批准天数</Text>
-                  <Text className="text-green-600 text-sm font-medium">{monthlyApprovedDays} 天</Text>
+            {/* 月度请假统计 */}
+            {monthlyLimit > 0 && (
+              <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-4 border border-blue-200">
+                <View className="flex items-center mb-3">
+                  <View className="i-mdi-calendar-month text-2xl text-blue-600 mr-2"></View>
+                  <Text className="text-gray-800 text-base font-bold">本月请假统计</Text>
                 </View>
 
-                <View className="flex items-center justify-between">
-                  <Text className="text-gray-600 text-sm">待审批天数</Text>
-                  <Text className="text-orange-600 text-sm font-medium">{monthlyPendingDays} 天</Text>
-                </View>
-
-                <View className="flex items-center justify-between">
-                  <Text className="text-gray-600 text-sm">本次申请天数</Text>
-                  <Text className="text-blue-600 text-sm font-medium">{leaveDays} 天</Text>
-                </View>
-
-                <View className="border-t border-blue-200 pt-2 mt-2">
+                <View className="space-y-2">
                   <View className="flex items-center justify-between">
-                    <Text className="text-gray-700 text-sm font-bold">累计天数 / 月度上限</Text>
-                    <Text
-                      className={`text-sm font-bold ${
-                        monthlyApprovedDays + monthlyPendingDays + leaveDays > monthlyLimit
-                          ? 'text-red-600'
-                          : 'text-blue-600'
-                      }`}>
-                      {monthlyApprovedDays + monthlyPendingDays + leaveDays} / {monthlyLimit} 天
-                    </Text>
+                    <Text className="text-gray-600 text-sm">已批准天数</Text>
+                    <Text className="text-green-600 text-sm font-medium">{monthlyApprovedDays} 天</Text>
                   </View>
-                </View>
 
-                {monthlyApprovedDays + monthlyPendingDays + leaveDays > monthlyLimit && (
-                  <View className="bg-red-50 rounded-lg p-2 border border-red-200 mt-2">
-                    <View className="flex items-start">
-                      <View className="i-mdi-alert text-lg text-red-600 mr-2 mt-0.5"></View>
-                      <Text className="text-red-700 text-xs flex-1">
-                        本月请假天数已超过上限，无法提交申请。请调整请假天数或联系管理员。
+                  <View className="flex items-center justify-between">
+                    <Text className="text-gray-600 text-sm">待审批天数</Text>
+                    <Text className="text-orange-600 text-sm font-medium">{monthlyPendingDays} 天</Text>
+                  </View>
+
+                  <View className="flex items-center justify-between">
+                    <Text className="text-gray-600 text-sm">本次申请天数</Text>
+                    <Text className="text-blue-600 text-sm font-medium">{leaveDays} 天</Text>
+                  </View>
+
+                  <View className="border-t border-blue-200 pt-2 mt-2">
+                    <View className="flex items-center justify-between">
+                      <Text className="text-gray-700 text-sm font-bold">累计天数 / 月度上限</Text>
+                      <Text
+                        className={`text-sm font-bold ${
+                          monthlyApprovedDays + monthlyPendingDays + leaveDays > monthlyLimit
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`}>
+                        {monthlyApprovedDays + monthlyPendingDays + leaveDays} / {monthlyLimit} 天
                       </Text>
                     </View>
                   </View>
-                )}
-              </View>
-            </View>
-          )}
 
-          {/* 表单内容 */}
-          <View className="bg-white rounded-lg p-4 shadow-sm">
-            {/* 仓库选择（只在有多个仓库时显示） */}
-            {warehouses.length > 1 && (
+                  {monthlyApprovedDays + monthlyPendingDays + leaveDays > monthlyLimit && (
+                    <View className="bg-red-50 rounded-lg p-2 border border-red-200 mt-2">
+                      <View className="flex items-start">
+                        <View className="i-mdi-alert text-lg text-red-600 mr-2 mt-0.5"></View>
+                        <Text className="text-red-700 text-xs flex-1">
+                          本月请假天数已超过上限，无法提交申请。请调整请假天数或联系管理员。
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* 表单内容 */}
+            <View className="bg-white rounded-lg p-4 shadow-sm">
+              {/* 仓库选择（只在有多个仓库时显示） */}
+              {warehouses.length > 1 && (
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-700 block mb-2">选择仓库 *</Text>
+                  <Picker
+                    mode="selector"
+                    range={warehouses.map((w) => w.name)}
+                    value={warehouses.findIndex((w) => w.id === warehouseId)}
+                    onChange={handleWarehouseChange}>
+                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">
+                        {warehouseId ? warehouses.find((w) => w.id === warehouseId)?.name : '请选择仓库'}
+                      </Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                  <Text className="text-xs text-red-500 block mt-1">请选择您要请假的仓库</Text>
+                </View>
+              )}
+
+              {/* 请假类型 */}
               <View className="mb-4">
-                <Text className="text-sm text-gray-700 block mb-2">选择仓库 *</Text>
-                <Picker
-                  mode="selector"
-                  range={warehouses.map((w) => w.name)}
-                  value={warehouses.findIndex((w) => w.id === warehouseId)}
-                  onChange={handleWarehouseChange}>
+                <Text className="text-sm text-gray-700 block mb-2">请假类型</Text>
+                <Picker mode="selector" range={leaveTypes.map((t) => t.label)} onChange={handleLeaveTypeChange}>
                   <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
                     <Text className="text-sm text-gray-800">
-                      {warehouseId ? warehouses.find((w) => w.id === warehouseId)?.name : '请选择仓库'}
+                      {leaveTypes.find((t) => t.value === leaveType)?.label}
                     </Text>
                     <View className="i-mdi-chevron-down text-xl text-gray-400" />
                   </View>
                 </Picker>
-                <Text className="text-xs text-red-500 block mt-1">请选择您要请假的仓库</Text>
               </View>
-            )}
 
-            {/* 请假类型 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">请假类型</Text>
-              <Picker mode="selector" range={leaveTypes.map((t) => t.label)} onChange={handleLeaveTypeChange}>
-                <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                  <Text className="text-sm text-gray-800">{leaveTypes.find((t) => t.value === leaveType)?.label}</Text>
-                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
-
-            {mode === 'quick' ? (
-              <>
-                {/* 快捷请假模式 */}
-                {/* 快捷日期选择按钮 */}
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-700 block mb-2">快捷选择</Text>
-                  <View className="flex gap-3">
-                    <View
-                      className="flex-1 text-center py-3 rounded-lg"
-                      style={{
-                        backgroundColor: startDate === getTomorrowDateString() ? '#1E3A8A' : '#E5E7EB',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => {
-                        const tomorrow = getTomorrowDateString()
-                        setStartDate(tomorrow)
-                        const end = calculateEndDate(tomorrow, quickDays)
-                        setEndDate(end)
-                      }}>
-                      <Text
-                        className="text-sm font-bold"
+              {mode === 'quick' ? (
+                <>
+                  {/* 快捷请假模式 */}
+                  {/* 快捷日期选择按钮 */}
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-700 block mb-2">快捷选择</Text>
+                    <View className="flex gap-3">
+                      <View
+                        className="flex-1 text-center py-3 rounded-lg"
                         style={{
-                          color: startDate === getTomorrowDateString() ? 'white' : '#6B7280'
+                          backgroundColor: startDate === getTomorrowDateString() ? '#1E3A8A' : '#E5E7EB',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          const tomorrow = getTomorrowDateString()
+                          setStartDate(tomorrow)
+                          const end = calculateEndDate(tomorrow, quickDays)
+                          setEndDate(end)
                         }}>
-                        明天
-                      </Text>
-                    </View>
-                    <View
-                      className="flex-1 text-center py-3 rounded-lg"
-                      style={{
-                        backgroundColor: startDate === getDayAfterTomorrowDateString() ? '#1E3A8A' : '#E5E7EB',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => {
-                        const dayAfterTomorrow = getDayAfterTomorrowDateString()
-                        setStartDate(dayAfterTomorrow)
-                        const end = calculateEndDate(dayAfterTomorrow, quickDays)
-                        setEndDate(end)
-                      }}>
-                      <Text
-                        className="text-sm font-bold"
+                        <Text
+                          className="text-sm font-bold"
+                          style={{
+                            color: startDate === getTomorrowDateString() ? 'white' : '#6B7280'
+                          }}>
+                          明天
+                        </Text>
+                      </View>
+                      <View
+                        className="flex-1 text-center py-3 rounded-lg"
                         style={{
-                          color: startDate === getDayAfterTomorrowDateString() ? 'white' : '#6B7280'
+                          backgroundColor: startDate === getDayAfterTomorrowDateString() ? '#1E3A8A' : '#E5E7EB',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          const dayAfterTomorrow = getDayAfterTomorrowDateString()
+                          setStartDate(dayAfterTomorrow)
+                          const end = calculateEndDate(dayAfterTomorrow, quickDays)
+                          setEndDate(end)
                         }}>
-                        后天
-                      </Text>
+                        <Text
+                          className="text-sm font-bold"
+                          style={{
+                            color: startDate === getDayAfterTomorrowDateString() ? 'white' : '#6B7280'
+                          }}>
+                          后天
+                        </Text>
+                      </View>
                     </View>
+                    <Text className="text-xs text-gray-400 block mt-1">点击快捷按钮快速选择日期</Text>
                   </View>
-                  <Text className="text-xs text-gray-400 block mt-1">点击快捷按钮快速选择日期</Text>
-                </View>
 
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-700 block mb-2">请假天数</Text>
-                  <Picker mode="selector" range={daysOptions} value={quickDays - 1} onChange={handleQuickDaysChange}>
-                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">{quickDays}天</Text>
-                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                  <Text className="text-xs text-gray-400 block mt-1">
-                    {monthlyLimit > 0
-                      ? `根据剩余额度，最多可选${availableQuickDays}天`
-                      : `最多可选${availableQuickDays}天`}
-                  </Text>
-                </View>
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-700 block mb-2">请假天数</Text>
+                    <Picker mode="selector" range={daysOptions} value={quickDays - 1} onChange={handleQuickDaysChange}>
+                      <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{quickDays}天</Text>
+                        <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                    <Text className="text-xs text-gray-400 block mt-1">
+                      {monthlyLimit > 0
+                        ? `根据剩余额度，最多可选${availableQuickDays}天`
+                        : `最多可选${availableQuickDays}天`}
+                    </Text>
+                  </View>
 
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-700 block mb-2">起始日期</Text>
-                  <Picker
-                    mode="date"
-                    value={startDate}
-                    start={getTomorrowDateString()}
-                    onChange={handleStartDateChange}>
-                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">{startDate}</Text>
-                      <View className="i-mdi-calendar text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                  <Text className="text-xs text-gray-400 block mt-1">可选明天及之后的日期</Text>
-                </View>
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-700 block mb-2">起始日期</Text>
+                    <Picker
+                      mode="date"
+                      value={startDate}
+                      start={getTomorrowDateString()}
+                      onChange={handleStartDateChange}>
+                      <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{startDate}</Text>
+                        <View className="i-mdi-calendar text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                    <Text className="text-xs text-gray-400 block mt-1">可选明天及之后的日期</Text>
+                  </View>
 
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
-                  <Picker mode="date" value={endDate} start={startDate} onChange={handleEndDateChange}>
-                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">{endDate}</Text>
-                      <View className="i-mdi-calendar text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                  <Text className="text-xs text-gray-400 block mt-1">自动计算或手动调整</Text>
-                </View>
-              </>
-            ) : (
-              <>
-                {/* 补请假模式 */}
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
-                  <Picker mode="date" value={startDate} end={getTodayDate()} onChange={handleStartDateChange}>
-                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">{startDate || '请选择开始日期'}</Text>
-                      <View className="i-mdi-calendar text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                  <Text className="text-xs text-gray-400 block mt-1">可选今天及之前的日期</Text>
-                </View>
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
+                    <Picker mode="date" value={endDate} start={startDate} onChange={handleEndDateChange}>
+                      <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{endDate}</Text>
+                        <View className="i-mdi-calendar text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                    <Text className="text-xs text-gray-400 block mt-1">自动计算或手动调整</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* 补请假模式 */}
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-700 block mb-2">开始日期</Text>
+                    <Picker mode="date" value={startDate} end={getTodayDate()} onChange={handleStartDateChange}>
+                      <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{startDate || '请选择开始日期'}</Text>
+                        <View className="i-mdi-calendar text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                    <Text className="text-xs text-gray-400 block mt-1">可选今天及之前的日期</Text>
+                  </View>
 
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
-                  <Picker mode="date" value={endDate} start={startDate} onChange={handleEndDateChange}>
-                    <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
-                      <Text className="text-sm text-gray-800">{endDate || '请选择结束日期'}</Text>
-                      <View className="i-mdi-calendar text-xl text-gray-400" />
-                    </View>
-                  </Picker>
-                </View>
-              </>
-            )}
+                  <View className="mb-4">
+                    <Text className="text-sm text-gray-700 block mb-2">结束日期</Text>
+                    <Picker mode="date" value={endDate} start={startDate} onChange={handleEndDateChange}>
+                      <View className="border border-gray-300 rounded-lg p-3 flex items-center justify-between">
+                        <Text className="text-sm text-gray-800">{endDate || '请选择结束日期'}</Text>
+                        <View className="i-mdi-calendar text-xl text-gray-400" />
+                      </View>
+                    </Picker>
+                  </View>
+                </>
+              )}
 
-            {/* 请假天数显示 */}
-            {leaveDays > 0 && (
-              <View className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <View className="flex items-center">
-                  <View className="i-mdi-calendar-clock text-2xl text-blue-600 mr-2" />
-                  <Text className="text-blue-900 font-bold">请假天数：{leaveDays} 天</Text>
-                </View>
-              </View>
-            )}
-
-            {/* 超限提示 */}
-            {validationMessage && (
-              <View className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <View className="flex items-start">
-                  <View className="i-mdi-alert text-2xl text-orange-600 mr-2 mt-0.5" />
-                  <View className="flex-1">
-                    <Text className="text-orange-900 text-sm">{validationMessage}</Text>
+              {/* 请假天数显示 */}
+              {leaveDays > 0 && (
+                <View className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <View className="flex items-center">
+                    <View className="i-mdi-calendar-clock text-2xl text-blue-600 mr-2" />
+                    <Text className="text-blue-900 font-bold">请假天数：{leaveDays} 天</Text>
                   </View>
                 </View>
+              )}
+
+              {/* 超限提示 */}
+              {validationMessage && (
+                <View className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <View className="flex items-start">
+                    <View className="i-mdi-alert text-2xl text-orange-600 mr-2 mt-0.5" />
+                    <View className="flex-1">
+                      <Text className="text-orange-900 text-sm">{validationMessage}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* 请假事由 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">请假事由</Text>
+                <Textarea
+                  className="border border-gray-300 rounded-lg p-3 text-sm"
+                  style={{minHeight: '120px', width: '100%'}}
+                  placeholder="请详细说明请假原因"
+                  value={reason}
+                  onInput={(e) => setReason(e.detail.value)}
+                  maxlength={500}
+                />
+                <Text className="text-xs text-gray-400 block mt-1">{reason.length}/500</Text>
               </View>
-            )}
 
-            {/* 请假事由 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">请假事由</Text>
-              <Textarea
-                className="border border-gray-300 rounded-lg p-3 text-sm"
-                style={{minHeight: '120px', width: '100%'}}
-                placeholder="请详细说明请假原因"
-                value={reason}
-                onInput={(e) => setReason(e.detail.value)}
-                maxlength={500}
-              />
-              <Text className="text-xs text-gray-400 block mt-1">{reason.length}/500</Text>
-            </View>
-
-            {/* 按钮组 */}
-            <View className="flex gap-3">
-              <Button
-                className="text-sm break-keep flex-1"
-                size="default"
-                style={{
-                  backgroundColor: submitting ? '#9CA3AF' : '#7C3AED',
-                  color: 'white',
-                  borderRadius: '8px',
-                  border: 'none',
-                  padding: '12px'
-                }}
-                onClick={handleSaveDraft}
-                disabled={submitting}>
-                {submitting ? '保存中...' : '保存草稿'}
-              </Button>
-              <Button
-                className="text-sm break-keep flex-1"
-                size="default"
-                style={{
-                  backgroundColor: submitting ? '#9CA3AF' : '#1E3A8A',
-                  color: 'white',
-                  borderRadius: '8px',
-                  border: 'none',
-                  padding: '12px'
-                }}
-                onClick={handleSubmit}
-                disabled={submitting}>
-                {submitting ? '提交中...' : '提交申请'}
-              </Button>
+              {/* 按钮组 */}
+              <View className="flex gap-3">
+                <Button
+                  className="text-sm break-keep flex-1"
+                  size="default"
+                  style={{
+                    backgroundColor: submitting ? '#9CA3AF' : '#7C3AED',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px'
+                  }}
+                  onClick={handleSaveDraft}
+                  disabled={submitting}>
+                  {submitting ? '保存中...' : '保存草稿'}
+                </Button>
+                <Button
+                  className="text-sm break-keep flex-1"
+                  size="default"
+                  style={{
+                    backgroundColor: submitting ? '#9CA3AF' : '#1E3A8A',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                    padding: '12px'
+                  }}
+                  onClick={handleSubmit}
+                  disabled={submitting}>
+                  {submitting ? '提交中...' : '提交申请'}
+                </Button>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

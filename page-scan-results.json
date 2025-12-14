@@ -1,0 +1,627 @@
+{
+  "scanDate": "2025-12-14T14:18:28.062Z",
+  "stats": {
+    "total": 80,
+    "withTopNavBar": 72,
+    "withSafeAreaTop": 0,
+    "withoutSafeAreaTop": 80,
+    "byType": {
+      "common": {
+        "total": 1,
+        "withTopNavBar": 1,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 1
+      },
+      "driver": {
+        "total": 18,
+        "withTopNavBar": 18,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 18
+      },
+      "index": {
+        "total": 1,
+        "withTopNavBar": 1,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 1
+      },
+      "login": {
+        "total": 1,
+        "withTopNavBar": 1,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 1
+      },
+      "manager": {
+        "total": 12,
+        "withTopNavBar": 12,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 12
+      },
+      "profile": {
+        "total": 8,
+        "withTopNavBar": 8,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 8
+      },
+      "shared": {
+        "total": 5,
+        "withTopNavBar": 5,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 5
+      },
+      "super-admin": {
+        "total": 33,
+        "withTopNavBar": 25,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 33
+      },
+      "other": {
+        "total": 1,
+        "withTopNavBar": 1,
+        "withSafeAreaTop": 0,
+        "withoutSafeAreaTop": 1
+      }
+    }
+  },
+  "pages": [
+    {
+      "filePath": "src/pages/common/notifications/index.tsx",
+      "pageName": "common/notifications",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "common"
+    },
+    {
+      "filePath": "src/pages/driver/add-vehicle/index.tsx",
+      "pageName": "driver/add-vehicle",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/attendance/index.tsx",
+      "pageName": "driver/attendance",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/clock-in/index.tsx",
+      "pageName": "driver/clock-in",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/edit-vehicle/index.tsx",
+      "pageName": "driver/edit-vehicle",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/index.tsx",
+      "pageName": "driver",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/leave/apply/index.tsx",
+      "pageName": "driver/leave/apply",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/leave/index.tsx",
+      "pageName": "driver/leave",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/leave/resign/index.tsx",
+      "pageName": "driver/leave/resign",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/license-ocr/index.tsx",
+      "pageName": "driver/license-ocr",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/notifications/index.tsx",
+      "pageName": "driver/notifications",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/piece-work/index.tsx",
+      "pageName": "driver/piece-work",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/piece-work-entry/index.tsx",
+      "pageName": "driver/piece-work-entry",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/profile/index.tsx",
+      "pageName": "driver/profile",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/return-vehicle/index.tsx",
+      "pageName": "driver/return-vehicle",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/supplement-photos/index.tsx",
+      "pageName": "driver/supplement-photos",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/vehicle-detail/index.tsx",
+      "pageName": "driver/vehicle-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/vehicle-list/index.tsx",
+      "pageName": "driver/vehicle-list",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/driver/warehouse-stats/index.tsx",
+      "pageName": "driver/warehouse-stats",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "driver"
+    },
+    {
+      "filePath": "src/pages/index/index.tsx",
+      "pageName": "index",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "index"
+    },
+    {
+      "filePath": "src/pages/login/index.tsx",
+      "pageName": "login",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "login"
+    },
+    {
+      "filePath": "src/pages/manager/data-summary/index.tsx",
+      "pageName": "manager/data-summary",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/driver-leave-detail/index.tsx",
+      "pageName": "manager/driver-leave-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/driver-management/index.tsx",
+      "pageName": "manager/driver-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/driver-profile/index.tsx",
+      "pageName": "manager/driver-profile",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/index.tsx",
+      "pageName": "manager",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/leave-approval/index.tsx",
+      "pageName": "manager/leave-approval",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/piece-work/index.tsx",
+      "pageName": "manager/piece-work",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/piece-work-form/index.tsx",
+      "pageName": "manager/piece-work-form",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/piece-work-report/index.tsx",
+      "pageName": "manager/piece-work-report",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/piece-work-report-detail/index.tsx",
+      "pageName": "manager/piece-work-report-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/staff-management/index.tsx",
+      "pageName": "manager/staff-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/manager/warehouse-categories/index.tsx",
+      "pageName": "manager/warehouse-categories",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "manager"
+    },
+    {
+      "filePath": "src/pages/profile/account-management/index.tsx",
+      "pageName": "profile/account-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/change-password/index.tsx",
+      "pageName": "profile/change-password",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/change-phone/index.tsx",
+      "pageName": "profile/change-phone",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/edit/index.tsx",
+      "pageName": "profile/edit",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/edit-name/index.tsx",
+      "pageName": "profile/edit-name",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/help/index.tsx",
+      "pageName": "profile/help",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/index.tsx",
+      "pageName": "profile",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/profile/settings/index.tsx",
+      "pageName": "profile/settings",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "profile"
+    },
+    {
+      "filePath": "src/pages/shared/auto-reminder-rules/index.tsx",
+      "pageName": "shared/auto-reminder-rules",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "shared"
+    },
+    {
+      "filePath": "src/pages/shared/driver-notification/index.tsx",
+      "pageName": "shared/driver-notification",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "shared"
+    },
+    {
+      "filePath": "src/pages/shared/notification-records/index.tsx",
+      "pageName": "shared/notification-records",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "shared"
+    },
+    {
+      "filePath": "src/pages/shared/notification-templates/index.tsx",
+      "pageName": "shared/notification-templates",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "shared"
+    },
+    {
+      "filePath": "src/pages/shared/scheduled-notifications/index.tsx",
+      "pageName": "shared/scheduled-notifications",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "shared"
+    },
+    {
+      "filePath": "src/pages/super-admin/category-management/index.tsx",
+      "pageName": "super-admin/category-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/database-schema/index.tsx",
+      "pageName": "super-admin/database-schema",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/driver-attendance-detail/index.tsx",
+      "pageName": "super-admin/driver-attendance-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/driver-leave-detail/index.tsx",
+      "pageName": "super-admin/driver-leave-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/driver-warehouse-assignment/index.tsx",
+      "pageName": "super-admin/driver-warehouse-assignment",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/edit-user/index.tsx",
+      "pageName": "super-admin/edit-user",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/index.tsx",
+      "pageName": "super-admin",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/leave-approval/index.tsx",
+      "pageName": "super-admin/leave-approval",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/manager-warehouse-assignment/index.tsx",
+      "pageName": "super-admin/manager-warehouse-assignment",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/permission-config/index.tsx",
+      "pageName": "super-admin/permission-config",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/piece-work/index.tsx",
+      "pageName": "super-admin/piece-work",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/piece-work-form/index.tsx",
+      "pageName": "super-admin/piece-work-form",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/piece-work-report/index.tsx",
+      "pageName": "super-admin/piece-work-report",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/piece-work-report-detail/index.tsx",
+      "pageName": "super-admin/piece-work-report-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/piece-work-report-form/index.tsx",
+      "pageName": "super-admin/piece-work-report-form",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/staff-management/index.tsx",
+      "pageName": "super-admin/staff-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-detail/index.tsx",
+      "pageName": "super-admin/user-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/AddUserModal/index.tsx",
+      "pageName": "super-admin/user-management/components/AddUserModal",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/ErrorBoundary/index.tsx",
+      "pageName": "super-admin/user-management/components/ErrorBoundary",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/UserCard/index.tsx",
+      "pageName": "super-admin/user-management/components/UserCard",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/UserDetail/index.tsx",
+      "pageName": "super-admin/user-management/components/UserDetail",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/UserFilter/index.tsx",
+      "pageName": "super-admin/user-management/components/UserFilter",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/UserList/index.tsx",
+      "pageName": "super-admin/user-management/components/UserList",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/UserTabs/index.tsx",
+      "pageName": "super-admin/user-management/components/UserTabs",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/components/WarehouseAssign/index.tsx",
+      "pageName": "super-admin/user-management/components/WarehouseAssign",
+      "hasTopNavBar": false,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/user-management/index.tsx",
+      "pageName": "super-admin/user-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/vehicle-history/index.tsx",
+      "pageName": "super-admin/vehicle-history",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/vehicle-management/index.tsx",
+      "pageName": "super-admin/vehicle-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/vehicle-rental-edit/index.tsx",
+      "pageName": "super-admin/vehicle-rental-edit",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/vehicle-review-detail/index.tsx",
+      "pageName": "super-admin/vehicle-review-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/warehouse-detail/index.tsx",
+      "pageName": "super-admin/warehouse-detail",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/warehouse-edit/index.tsx",
+      "pageName": "super-admin/warehouse-edit",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/super-admin/warehouse-management/index.tsx",
+      "pageName": "super-admin/warehouse-management",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "super-admin"
+    },
+    {
+      "filePath": "src/pages/test-login/index.tsx",
+      "pageName": "test-login",
+      "hasTopNavBar": true,
+      "hasSafeAreaTop": false,
+      "pageType": "other"
+    }
+  ]
+}

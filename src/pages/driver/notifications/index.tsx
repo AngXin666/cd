@@ -21,6 +21,7 @@ import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import {useUserContext} from '@/contexts/UserContext'
 import * as UsersAPI from '@/db/api/users'
@@ -523,6 +524,8 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-background flex flex-col">
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       {/* 顶部标题栏 */}

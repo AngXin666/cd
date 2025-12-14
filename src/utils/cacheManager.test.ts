@@ -94,13 +94,22 @@ describe('CacheManager', () => {
 
     it('应该正确清除多个缓存', () => {
       const keys = ['key1', 'key2', 'key3']
-      keys.forEach((key) => cacheManager.set(key, {data: key}))
+      // 设置多个缓存
+      for (const key of keys) {
+        cacheManager.set(key, {data: key})
+      }
 
-      keys.forEach((key) => expect(cacheManager.has(key)).toBe(true))
+      // 验证缓存已设置
+      for (const key of keys) {
+        expect(cacheManager.has(key)).toBe(true)
+      }
 
       cacheManager.invalidate(keys)
 
-      keys.forEach((key) => expect(cacheManager.has(key)).toBe(false))
+      // 验证缓存已清除
+      for (const key of keys) {
+        expect(cacheManager.has(key)).toBe(false)
+      }
     })
   })
 

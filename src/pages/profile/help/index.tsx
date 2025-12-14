@@ -3,6 +3,7 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import SwipeBack from '@/components/SwipeBack'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
@@ -126,6 +127,8 @@ const HelpPage: React.FC = () => {
   return (
     <SwipeBack>
       <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>

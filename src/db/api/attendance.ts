@@ -10,6 +10,7 @@
 
 import {supabase} from '@/client/supabase'
 import {CACHE_KEYS, clearCache, getCache, setCache} from '@/utils/cache'
+import {publish} from '@/utils/eventBus'
 import type {
   AttendanceRecord,
   AttendanceRecordInput,
@@ -90,6 +91,9 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
     const date = new Date(data.work_date)
     clearCache(`${CACHE_KEYS.ATTENDANCE_MONTHLY}_${data.user_id}_${date.getFullYear()}_${date.getMonth() + 1}`)
     clearCache(`${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${date.getFullYear()}_${date.getMonth() + 1}`)
+    
+    // 发布事件通知其他组件刷新数据
+    publish('attendance:created', {id: data.id, userId: data.user_id})
   }
   return data
 }

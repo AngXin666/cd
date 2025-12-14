@@ -2,6 +2,7 @@ import {Button, Checkbox, Input, Text, View} from '@tarojs/components'
 import Taro, {getStorageSync, reLaunch, setStorageSync, showToast, switchTab} from '@tarojs/taro'
 import type React from 'react'
 import {useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 
 // 检测当前运行环境
@@ -248,6 +249,8 @@ const Login: React.FC = () => {
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
       }}>
+      {/* 顶部安全区域 - 透明背景以匹配登录页背景 */}
+      <SafeAreaTop backgroundColor="transparent" />
       <TopNavBar backgroundColor="transparent" />
       {/* 上移容器 - 从顶部15%开始 */}
       <View className="flex flex-col items-center px-6" style={{paddingTop: '15vh'}}>

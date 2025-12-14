@@ -3,6 +3,7 @@ import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as LeaveAPI from '@/db/api/leave'
@@ -346,467 +347,476 @@ const DriverLeaveDetail: React.FC = () => {
   const pendingResignationCount = resignationApplications.filter((app) => app.status === 'pending').length
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          {/* 返回按钮 */}
-          <View className="mb-4" onClick={goBack}>
-            <View className="flex items-center">
-              <View className="i-mdi-arrow-left text-2xl text-blue-900 mr-2" />
-              <Text className="text-sm text-blue-900 font-bold">返回</Text>
-            </View>
-          </View>
-
-          {/* 司机信息卡片 */}
-          <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
-            <View className="flex items-center mb-3">
-              <View className="i-mdi-account-circle text-5xl text-white mr-4" />
-              <View>
-                <Text className="text-white text-2xl font-bold block mb-1">
-                  {driver?.name || driver?.phone || '未知司机'}
-                </Text>
-                <Text className="text-blue-100 text-sm block">司机详细记录</Text>
-              </View>
-            </View>
-            <View className="grid grid-cols-3 gap-3 mt-4">
-              <View className="text-center">
-                <Text className="text-3xl font-bold text-white block">{totalLeaveDays}</Text>
-                <Text className="text-xs text-blue-100">请假天数</Text>
-              </View>
-              <View className="text-center">
-                <Text className="text-3xl font-bold text-white block">{leaveApplications.length}</Text>
-                <Text className="text-xs text-blue-100">请假次数</Text>
-              </View>
-              <View className="text-center">
-                <Text className="text-3xl font-bold text-white block">{resignationApplications.length}</Text>
-                <Text className="text-xs text-blue-100">离职申请</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* 待审批提示 */}
-          {(pendingLeaveCount > 0 || pendingResignationCount > 0) && (
-            <View className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+    <>
+      <SafeAreaTop />
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            {/* 返回按钮 */}
+            <View className="mb-4" onClick={goBack}>
               <View className="flex items-center">
-                <View className="i-mdi-alert-circle text-2xl text-orange-600 mr-3" />
+                <View className="i-mdi-arrow-left text-2xl text-blue-900 mr-2" />
+                <Text className="text-sm text-blue-900 font-bold">返回</Text>
+              </View>
+            </View>
+
+            {/* 司机信息卡片 */}
+            <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg p-6 mb-4 shadow-lg">
+              <View className="flex items-center mb-3">
+                <View className="i-mdi-account-circle text-5xl text-white mr-4" />
                 <View>
-                  <Text className="text-sm text-orange-800 font-bold block">有待审批的申请</Text>
-                  <Text className="text-xs text-orange-600">
-                    请假申请 {pendingLeaveCount} 条，离职申请 {pendingResignationCount} 条
+                  <Text className="text-white text-2xl font-bold block mb-1">
+                    {driver?.name || driver?.phone || '未知司机'}
                   </Text>
+                  <Text className="text-blue-100 text-sm block">司机详细记录</Text>
+                </View>
+              </View>
+              <View className="grid grid-cols-3 gap-3 mt-4">
+                <View className="text-center">
+                  <Text className="text-3xl font-bold text-white block">{totalLeaveDays}</Text>
+                  <Text className="text-xs text-blue-100">请假天数</Text>
+                </View>
+                <View className="text-center">
+                  <Text className="text-3xl font-bold text-white block">{leaveApplications.length}</Text>
+                  <Text className="text-xs text-blue-100">请假次数</Text>
+                </View>
+                <View className="text-center">
+                  <Text className="text-3xl font-bold text-white block">{resignationApplications.length}</Text>
+                  <Text className="text-xs text-blue-100">离职申请</Text>
                 </View>
               </View>
             </View>
-          )}
 
-          {/* 标签切换 */}
-          <View
-            className={`flex mb-4 bg-white rounded-lg p-1 shadow ${resignationApplications.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {/* 待审批提示 */}
+            {(pendingLeaveCount > 0 || pendingResignationCount > 0) && (
+              <View className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <View className="flex items-center">
+                  <View className="i-mdi-alert-circle text-2xl text-orange-600 mr-3" />
+                  <View>
+                    <Text className="text-sm text-orange-800 font-bold block">有待审批的申请</Text>
+                    <Text className="text-xs text-orange-600">
+                      请假申请 {pendingLeaveCount} 条，离职申请 {pendingResignationCount} 条
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* 标签切换 */}
             <View
-              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'leave' ? 'bg-blue-900' : ''}`}
-              onClick={() => setActiveTab('leave')}>
-              <Text className={`text-sm font-bold ${activeTab === 'leave' ? 'text-white' : 'text-gray-600'}`}>
-                请假申请 ({leaveApplications.length})
-              </Text>
-            </View>
-            <View
-              className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'attendance' ? 'bg-green-600' : ''}`}
-              onClick={() => setActiveTab('attendance')}>
-              <Text className={`text-sm font-bold ${activeTab === 'attendance' ? 'text-white' : 'text-gray-600'}`}>
-                打卡记录 ({attendanceRecords.length})
-              </Text>
-            </View>
-            {resignationApplications.length > 0 && (
+              className={`flex mb-4 bg-white rounded-lg p-1 shadow ${resignationApplications.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <View
-                className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
-                onClick={() => setActiveTab('resignation')}>
-                <Text className={`text-sm font-bold ${activeTab === 'resignation' ? 'text-white' : 'text-gray-600'}`}>
-                  离职申请 ({resignationApplications.length})
+                className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'leave' ? 'bg-blue-900' : ''}`}
+                onClick={() => setActiveTab('leave')}>
+                <Text className={`text-sm font-bold ${activeTab === 'leave' ? 'text-white' : 'text-gray-600'}`}>
+                  请假申请 ({leaveApplications.length})
                 </Text>
+              </View>
+              <View
+                className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'attendance' ? 'bg-green-600' : ''}`}
+                onClick={() => setActiveTab('attendance')}>
+                <Text className={`text-sm font-bold ${activeTab === 'attendance' ? 'text-white' : 'text-gray-600'}`}>
+                  打卡记录 ({attendanceRecords.length})
+                </Text>
+              </View>
+              {resignationApplications.length > 0 && (
+                <View
+                  className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'resignation' ? 'bg-orange-600' : ''}`}
+                  onClick={() => setActiveTab('resignation')}>
+                  <Text className={`text-sm font-bold ${activeTab === 'resignation' ? 'text-white' : 'text-gray-600'}`}>
+                    离职申请 ({resignationApplications.length})
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* 请假申请列表 */}
+            {activeTab === 'leave' && (
+              <View>
+                {leaveApplications.length === 0 ? (
+                  <View className="bg-white rounded-lg p-8 text-center shadow">
+                    <View className="i-mdi-calendar-blank text-6xl text-gray-300 mb-4 mx-auto" />
+                    <Text className="text-gray-500 block">暂无请假申请记录</Text>
+                  </View>
+                ) : (
+                  leaveApplications.map((app) => (
+                    <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                      {/* 标题栏 */}
+                      <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+                        <View className="flex items-center">
+                          <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
+                          <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(app.leave_type)}</Text>
+                        </View>
+                        <View
+                          className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>
+                          <Text className={`text-xs font-bold ${getStatusColor(app.status)}`}>
+                            {getStatusText(app.status)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 请假详情 */}
+                      <View className="space-y-2 mb-3">
+                        <View className="flex items-start">
+                          <View className="i-mdi-warehouse text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">所属仓库</Text>
+                            <Text className="text-sm text-gray-800">{getWarehouseName(app.warehouse_id)}</Text>
+                          </View>
+                        </View>
+
+                        <View className="flex items-start">
+                          <View className="i-mdi-calendar-range text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">请假时间</Text>
+                            <Text className="text-sm text-gray-800 font-medium">
+                              {formatDate(app.start_date)} 至 {formatDate(app.end_date)}
+                            </Text>
+                            <Text className="text-xs text-blue-600 mt-1">
+                              共 {calculateLeaveDays(app.start_date, app.end_date)} 天
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View className="flex items-start">
+                          <View className="i-mdi-text-box text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">请假事由</Text>
+                            <Text className="text-sm text-gray-800">{app.reason}</Text>
+                          </View>
+                        </View>
+
+                        <View className="flex items-start">
+                          <View className="i-mdi-clock-outline text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">申请时间</Text>
+                            <Text className="text-sm text-gray-800">{formatDateTime(app.created_at)}</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* 审批历史区 */}
+                      {(app.reviewed_by || app.review_notes || app.reviewed_at) && (
+                        <View className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <View className="flex items-center mb-2">
+                            <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
+                            <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
+                          </View>
+                          <View className="space-y-2">
+                            {app.reviewed_by && (
+                              <View className="flex items-center">
+                                <Text className="text-xs text-gray-500 w-20">审批人：</Text>
+                                <Text className="text-xs text-gray-800 font-medium">
+                                  {getUserName(app.reviewed_by)}
+                                </Text>
+                              </View>
+                            )}
+                            {app.reviewed_at && (
+                              <View className="flex items-center">
+                                <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
+                                <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
+                              </View>
+                            )}
+                            {app.review_notes && (
+                              <View>
+                                <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
+                                <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
+                                  {app.review_notes}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 操作按钮 */}
+                      {app.status === 'pending' && (
+                        <View className="flex gap-2">
+                          <Button
+                            className="text-xs break-keep"
+                            size="default"
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#10B981',
+                              color: 'white',
+                              borderRadius: '8px',
+                              border: 'none',
+                              padding: '8px'
+                            }}
+                            onClick={() => handleApproveLeave(app.id)}>
+                            <Text className="text-xs">通过</Text>
+                          </Button>
+                          <Button
+                            className="text-xs break-keep"
+                            size="default"
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#EF4444',
+                              color: 'white',
+                              borderRadius: '8px',
+                              border: 'none',
+                              padding: '8px'
+                            }}
+                            onClick={() => handleRejectLeave(app.id)}>
+                            <Text className="text-xs">驳回</Text>
+                          </Button>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+
+            {/* 打卡记录列表 */}
+            {activeTab === 'attendance' && (
+              <View>
+                {/* 月份筛选 */}
+                <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                  <Text className="text-sm text-gray-700 font-bold block mb-2">选择月份</Text>
+                  <Picker
+                    mode="selector"
+                    range={generateMonthOptions()}
+                    value={Math.max(0, generateMonthOptions().indexOf(filterMonth))}
+                    onChange={(e) => {
+                      const index = Number(e.detail.value)
+                      setFilterMonth(generateMonthOptions()[index] || initCurrentMonth())
+                    }}>
+                    <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
+                      <Text className="text-sm text-gray-800">{filterMonth || '请选择月份'}</Text>
+                      <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                    </View>
+                  </Picker>
+                </View>
+
+                {/* 打卡统计 */}
+                <View className="bg-white rounded-lg p-4 mb-4 shadow">
+                  <Text className="text-sm text-gray-700 font-bold block mb-3">打卡统计</Text>
+                  <View className="grid grid-cols-4 gap-3">
+                    <View className="text-center">
+                      <Text className="text-2xl font-bold text-blue-600 block">
+                        {calculateAttendanceStats().totalRecords}
+                      </Text>
+                      <Text className="text-xs text-gray-500">总次数</Text>
+                    </View>
+                    <View className="text-center">
+                      <Text className="text-2xl font-bold text-green-600 block">
+                        {calculateAttendanceStats().normalCount}
+                      </Text>
+                      <Text className="text-xs text-gray-500">正常</Text>
+                    </View>
+                    <View className="text-center">
+                      <Text className="text-2xl font-bold text-orange-600 block">
+                        {calculateAttendanceStats().lateCount}
+                      </Text>
+                      <Text className="text-xs text-gray-500">迟到</Text>
+                    </View>
+                    <View className="text-center">
+                      <Text className="text-2xl font-bold text-yellow-600 block">
+                        {calculateAttendanceStats().earlyCount}
+                      </Text>
+                      <Text className="text-xs text-gray-500">早退</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 打卡记录列表 */}
+                {getVisibleAttendanceRecords().length === 0 ? (
+                  <View className="bg-white rounded-lg p-8 text-center shadow">
+                    <View className="i-mdi-clock-outline text-6xl text-gray-300 mb-4 mx-auto" />
+                    <Text className="text-gray-500 block">暂无打卡记录</Text>
+                  </View>
+                ) : (
+                  getVisibleAttendanceRecords().map((record) => {
+                    const statusInfo = getAttendanceStatusInfo(record)
+                    return (
+                      <View key={record.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                        {/* 日期和状态 */}
+                        <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+                          <View className="flex items-center">
+                            <View className="i-mdi-calendar text-2xl text-blue-900 mr-2" />
+                            <Text className="text-base font-bold text-gray-800">{record.work_date}</Text>
+                          </View>
+                          <View className={`px-3 py-1 rounded-full ${statusInfo.bg}`}>
+                            <Text className={`text-xs font-bold ${statusInfo.color}`}>{statusInfo.text}</Text>
+                          </View>
+                        </View>
+
+                        {/* 打卡时间信息 */}
+                        <View className="space-y-2">
+                          <View className="flex items-center justify-between">
+                            <View className="flex items-center">
+                              <View className="i-mdi-clock-in text-lg text-green-600 mr-2" />
+                              <Text className="text-sm text-gray-600">上班打卡</Text>
+                            </View>
+                            <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_in_time)}</Text>
+                          </View>
+                          <View className="flex items-center justify-between">
+                            <View className="flex items-center">
+                              <View className="i-mdi-clock-out text-lg text-orange-600 mr-2" />
+                              <Text className="text-sm text-gray-600">下班打卡</Text>
+                            </View>
+                            <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_out_time)}</Text>
+                          </View>
+                          {record.warehouse_id && (
+                            <View className="flex items-center justify-between">
+                              <View className="flex items-center">
+                                <View className="i-mdi-warehouse text-lg text-blue-600 mr-2" />
+                                <Text className="text-sm text-gray-600">仓库</Text>
+                              </View>
+                              <Text className="text-sm font-bold text-gray-800">
+                                {getWarehouseName(record.warehouse_id)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )
+                  })
+                )}
+              </View>
+            )}
+
+            {/* 离职申请列表 */}
+            {activeTab === 'resignation' && (
+              <View>
+                {resignationApplications.length === 0 ? (
+                  <View className="bg-white rounded-lg p-8 text-center shadow">
+                    <View className="i-mdi-account-remove text-6xl text-gray-300 mb-4 mx-auto" />
+                    <Text className="text-gray-500 block">暂无离职申请记录</Text>
+                  </View>
+                ) : (
+                  resignationApplications.map((app) => (
+                    <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
+                      {/* 标题栏 */}
+                      <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+                        <View className="flex items-center">
+                          <View className="i-mdi-account-remove text-2xl text-orange-600 mr-2" />
+                          <Text className="text-base font-bold text-gray-800">离职申请</Text>
+                        </View>
+                        <View
+                          className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>
+                          <Text className={`text-xs font-bold ${getStatusColor(app.status)}`}>
+                            {getStatusText(app.status)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* 离职详情 */}
+                      <View className="space-y-2 mb-3">
+                        <View className="flex items-start">
+                          <View className="i-mdi-warehouse text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">所属仓库</Text>
+                            <Text className="text-sm text-gray-800">{getWarehouseName(app.warehouse_id)}</Text>
+                          </View>
+                        </View>
+
+                        <View className="flex items-start">
+                          <View className="i-mdi-calendar-check text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">预计离职日期</Text>
+                            <Text className="text-sm text-gray-800 font-medium">
+                              {formatDate(app.resignation_date)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View className="flex items-start">
+                          <View className="i-mdi-text-box text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">离职原因</Text>
+                            <Text className="text-sm text-gray-800">{app.reason}</Text>
+                          </View>
+                        </View>
+
+                        <View className="flex items-start">
+                          <View className="i-mdi-clock-outline text-lg text-gray-600 mr-2 mt-0.5" />
+                          <View className="flex-1">
+                            <Text className="text-xs text-gray-500 block mb-1">申请时间</Text>
+                            <Text className="text-sm text-gray-800">{formatDateTime(app.created_at)}</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* 审批历史区 */}
+                      {(app.reviewed_by || app.review_notes || app.reviewed_at) && (
+                        <View className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <View className="flex items-center mb-2">
+                            <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
+                            <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
+                          </View>
+                          <View className="space-y-2">
+                            {app.reviewed_by && (
+                              <View className="flex items-center">
+                                <Text className="text-xs text-gray-500 w-20">审批人：</Text>
+                                <Text className="text-xs text-gray-800 font-medium">
+                                  {getUserName(app.reviewed_by)}
+                                </Text>
+                              </View>
+                            )}
+                            {app.reviewed_at && (
+                              <View className="flex items-center">
+                                <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
+                                <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
+                              </View>
+                            )}
+                            {app.review_notes && (
+                              <View>
+                                <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
+                                <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
+                                  {app.review_notes}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 操作按钮 */}
+                      {app.status === 'pending' && (
+                        <View className="flex gap-2">
+                          <Button
+                            className="text-xs break-keep"
+                            size="default"
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#10B981',
+                              color: 'white',
+                              borderRadius: '8px',
+                              border: 'none',
+                              padding: '8px'
+                            }}
+                            onClick={() => handleApproveResignation(app.id)}>
+                            <Text className="text-xs">通过</Text>
+                          </Button>
+                          <Button
+                            className="text-xs break-keep"
+                            size="default"
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#EF4444',
+                              color: 'white',
+                              borderRadius: '8px',
+                              border: 'none',
+                              padding: '8px'
+                            }}
+                            onClick={() => handleRejectResignation(app.id)}>
+                            <Text className="text-xs">驳回</Text>
+                          </Button>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
               </View>
             )}
           </View>
-
-          {/* 请假申请列表 */}
-          {activeTab === 'leave' && (
-            <View>
-              {leaveApplications.length === 0 ? (
-                <View className="bg-white rounded-lg p-8 text-center shadow">
-                  <View className="i-mdi-calendar-blank text-6xl text-gray-300 mb-4 mx-auto" />
-                  <Text className="text-gray-500 block">暂无请假申请记录</Text>
-                </View>
-              ) : (
-                leaveApplications.map((app) => (
-                  <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
-                    {/* 标题栏 */}
-                    <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
-                      <View className="flex items-center">
-                        <View className="i-mdi-calendar-clock text-2xl text-blue-900 mr-2" />
-                        <Text className="text-base font-bold text-gray-800">{getLeaveTypeText(app.leave_type)}</Text>
-                      </View>
-                      <View
-                        className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <Text className={`text-xs font-bold ${getStatusColor(app.status)}`}>
-                          {getStatusText(app.status)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 请假详情 */}
-                    <View className="space-y-2 mb-3">
-                      <View className="flex items-start">
-                        <View className="i-mdi-warehouse text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">所属仓库</Text>
-                          <Text className="text-sm text-gray-800">{getWarehouseName(app.warehouse_id)}</Text>
-                        </View>
-                      </View>
-
-                      <View className="flex items-start">
-                        <View className="i-mdi-calendar-range text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">请假时间</Text>
-                          <Text className="text-sm text-gray-800 font-medium">
-                            {formatDate(app.start_date)} 至 {formatDate(app.end_date)}
-                          </Text>
-                          <Text className="text-xs text-blue-600 mt-1">
-                            共 {calculateLeaveDays(app.start_date, app.end_date)} 天
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View className="flex items-start">
-                        <View className="i-mdi-text-box text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">请假事由</Text>
-                          <Text className="text-sm text-gray-800">{app.reason}</Text>
-                        </View>
-                      </View>
-
-                      <View className="flex items-start">
-                        <View className="i-mdi-clock-outline text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">申请时间</Text>
-                          <Text className="text-sm text-gray-800">{formatDateTime(app.created_at)}</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* 审批历史区 */}
-                    {(app.reviewed_by || app.review_notes || app.reviewed_at) && (
-                      <View className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <View className="flex items-center mb-2">
-                          <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
-                          <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
-                        </View>
-                        <View className="space-y-2">
-                          {app.reviewed_by && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewed_by)}</Text>
-                            </View>
-                          )}
-                          {app.reviewed_at && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
-                              <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
-                            </View>
-                          )}
-                          {app.review_notes && (
-                            <View>
-                              <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
-                              <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
-                                {app.review_notes}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 操作按钮 */}
-                    {app.status === 'pending' && (
-                      <View className="flex gap-2">
-                        <Button
-                          className="text-xs break-keep"
-                          size="default"
-                          style={{
-                            flex: 1,
-                            backgroundColor: '#10B981',
-                            color: 'white',
-                            borderRadius: '8px',
-                            border: 'none',
-                            padding: '8px'
-                          }}
-                          onClick={() => handleApproveLeave(app.id)}>
-                          <Text className="text-xs">通过</Text>
-                        </Button>
-                        <Button
-                          className="text-xs break-keep"
-                          size="default"
-                          style={{
-                            flex: 1,
-                            backgroundColor: '#EF4444',
-                            color: 'white',
-                            borderRadius: '8px',
-                            border: 'none',
-                            padding: '8px'
-                          }}
-                          onClick={() => handleRejectLeave(app.id)}>
-                          <Text className="text-xs">驳回</Text>
-                        </Button>
-                      </View>
-                    )}
-                  </View>
-                ))
-              )}
-            </View>
-          )}
-
-          {/* 打卡记录列表 */}
-          {activeTab === 'attendance' && (
-            <View>
-              {/* 月份筛选 */}
-              <View className="bg-white rounded-lg p-4 mb-4 shadow">
-                <Text className="text-sm text-gray-700 font-bold block mb-2">选择月份</Text>
-                <Picker
-                  mode="selector"
-                  range={generateMonthOptions()}
-                  value={Math.max(0, generateMonthOptions().indexOf(filterMonth))}
-                  onChange={(e) => {
-                    const index = Number(e.detail.value)
-                    setFilterMonth(generateMonthOptions()[index] || initCurrentMonth())
-                  }}>
-                  <View className="border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between">
-                    <Text className="text-sm text-gray-800">{filterMonth || '请选择月份'}</Text>
-                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                  </View>
-                </Picker>
-              </View>
-
-              {/* 打卡统计 */}
-              <View className="bg-white rounded-lg p-4 mb-4 shadow">
-                <Text className="text-sm text-gray-700 font-bold block mb-3">打卡统计</Text>
-                <View className="grid grid-cols-4 gap-3">
-                  <View className="text-center">
-                    <Text className="text-2xl font-bold text-blue-600 block">
-                      {calculateAttendanceStats().totalRecords}
-                    </Text>
-                    <Text className="text-xs text-gray-500">总次数</Text>
-                  </View>
-                  <View className="text-center">
-                    <Text className="text-2xl font-bold text-green-600 block">
-                      {calculateAttendanceStats().normalCount}
-                    </Text>
-                    <Text className="text-xs text-gray-500">正常</Text>
-                  </View>
-                  <View className="text-center">
-                    <Text className="text-2xl font-bold text-orange-600 block">
-                      {calculateAttendanceStats().lateCount}
-                    </Text>
-                    <Text className="text-xs text-gray-500">迟到</Text>
-                  </View>
-                  <View className="text-center">
-                    <Text className="text-2xl font-bold text-yellow-600 block">
-                      {calculateAttendanceStats().earlyCount}
-                    </Text>
-                    <Text className="text-xs text-gray-500">早退</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* 打卡记录列表 */}
-              {getVisibleAttendanceRecords().length === 0 ? (
-                <View className="bg-white rounded-lg p-8 text-center shadow">
-                  <View className="i-mdi-clock-outline text-6xl text-gray-300 mb-4 mx-auto" />
-                  <Text className="text-gray-500 block">暂无打卡记录</Text>
-                </View>
-              ) : (
-                getVisibleAttendanceRecords().map((record) => {
-                  const statusInfo = getAttendanceStatusInfo(record)
-                  return (
-                    <View key={record.id} className="bg-white rounded-lg p-4 mb-3 shadow">
-                      {/* 日期和状态 */}
-                      <View className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
-                        <View className="flex items-center">
-                          <View className="i-mdi-calendar text-2xl text-blue-900 mr-2" />
-                          <Text className="text-base font-bold text-gray-800">{record.work_date}</Text>
-                        </View>
-                        <View className={`px-3 py-1 rounded-full ${statusInfo.bg}`}>
-                          <Text className={`text-xs font-bold ${statusInfo.color}`}>{statusInfo.text}</Text>
-                        </View>
-                      </View>
-
-                      {/* 打卡时间信息 */}
-                      <View className="space-y-2">
-                        <View className="flex items-center justify-between">
-                          <View className="flex items-center">
-                            <View className="i-mdi-clock-in text-lg text-green-600 mr-2" />
-                            <Text className="text-sm text-gray-600">上班打卡</Text>
-                          </View>
-                          <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_in_time)}</Text>
-                        </View>
-                        <View className="flex items-center justify-between">
-                          <View className="flex items-center">
-                            <View className="i-mdi-clock-out text-lg text-orange-600 mr-2" />
-                            <Text className="text-sm text-gray-600">下班打卡</Text>
-                          </View>
-                          <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_out_time)}</Text>
-                        </View>
-                        {record.warehouse_id && (
-                          <View className="flex items-center justify-between">
-                            <View className="flex items-center">
-                              <View className="i-mdi-warehouse text-lg text-blue-600 mr-2" />
-                              <Text className="text-sm text-gray-600">仓库</Text>
-                            </View>
-                            <Text className="text-sm font-bold text-gray-800">
-                              {getWarehouseName(record.warehouse_id)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  )
-                })
-              )}
-            </View>
-          )}
-
-          {/* 离职申请列表 */}
-          {activeTab === 'resignation' && (
-            <View>
-              {resignationApplications.length === 0 ? (
-                <View className="bg-white rounded-lg p-8 text-center shadow">
-                  <View className="i-mdi-account-remove text-6xl text-gray-300 mb-4 mx-auto" />
-                  <Text className="text-gray-500 block">暂无离职申请记录</Text>
-                </View>
-              ) : (
-                resignationApplications.map((app) => (
-                  <View key={app.id} className="bg-white rounded-lg p-4 mb-3 shadow">
-                    {/* 标题栏 */}
-                    <View className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
-                      <View className="flex items-center">
-                        <View className="i-mdi-account-remove text-2xl text-orange-600 mr-2" />
-                        <Text className="text-base font-bold text-gray-800">离职申请</Text>
-                      </View>
-                      <View
-                        className={`px-3 py-1 rounded-full ${app.status === 'pending' ? 'bg-orange-50' : app.status === 'approved' ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <Text className={`text-xs font-bold ${getStatusColor(app.status)}`}>
-                          {getStatusText(app.status)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 离职详情 */}
-                    <View className="space-y-2 mb-3">
-                      <View className="flex items-start">
-                        <View className="i-mdi-warehouse text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">所属仓库</Text>
-                          <Text className="text-sm text-gray-800">{getWarehouseName(app.warehouse_id)}</Text>
-                        </View>
-                      </View>
-
-                      <View className="flex items-start">
-                        <View className="i-mdi-calendar-check text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">预计离职日期</Text>
-                          <Text className="text-sm text-gray-800 font-medium">{formatDate(app.resignation_date)}</Text>
-                        </View>
-                      </View>
-
-                      <View className="flex items-start">
-                        <View className="i-mdi-text-box text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">离职原因</Text>
-                          <Text className="text-sm text-gray-800">{app.reason}</Text>
-                        </View>
-                      </View>
-
-                      <View className="flex items-start">
-                        <View className="i-mdi-clock-outline text-lg text-gray-600 mr-2 mt-0.5" />
-                        <View className="flex-1">
-                          <Text className="text-xs text-gray-500 block mb-1">申请时间</Text>
-                          <Text className="text-sm text-gray-800">{formatDateTime(app.created_at)}</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* 审批历史区 */}
-                    {(app.reviewed_by || app.review_notes || app.reviewed_at) && (
-                      <View className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <View className="flex items-center mb-2">
-                          <View className="i-mdi-clipboard-check text-lg text-gray-700 mr-2" />
-                          <Text className="text-sm text-gray-700 font-bold">审批记录</Text>
-                        </View>
-                        <View className="space-y-2">
-                          {app.reviewed_by && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批人：</Text>
-                              <Text className="text-xs text-gray-800 font-medium">{getUserName(app.reviewed_by)}</Text>
-                            </View>
-                          )}
-                          {app.reviewed_at && (
-                            <View className="flex items-center">
-                              <Text className="text-xs text-gray-500 w-20">审批时间：</Text>
-                              <Text className="text-xs text-gray-800">{formatDateTime(app.reviewed_at)}</Text>
-                            </View>
-                          )}
-                          {app.review_notes && (
-                            <View>
-                              <Text className="text-xs text-gray-500 block mb-1">审批意见：</Text>
-                              <Text className="text-xs text-gray-800 bg-white rounded px-2 py-1">
-                                {app.review_notes}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 操作按钮 */}
-                    {app.status === 'pending' && (
-                      <View className="flex gap-2">
-                        <Button
-                          className="text-xs break-keep"
-                          size="default"
-                          style={{
-                            flex: 1,
-                            backgroundColor: '#10B981',
-                            color: 'white',
-                            borderRadius: '8px',
-                            border: 'none',
-                            padding: '8px'
-                          }}
-                          onClick={() => handleApproveResignation(app.id)}>
-                          <Text className="text-xs">通过</Text>
-                        </Button>
-                        <Button
-                          className="text-xs break-keep"
-                          size="default"
-                          style={{
-                            flex: 1,
-                            backgroundColor: '#EF4444',
-                            color: 'white',
-                            borderRadius: '8px',
-                            border: 'none',
-                            padding: '8px'
-                          }}
-                          onClick={() => handleRejectResignation(app.id)}>
-                          <Text className="text-xs">驳回</Text>
-                        </Button>
-                      </View>
-                    )}
-                  </View>
-                ))
-              )}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

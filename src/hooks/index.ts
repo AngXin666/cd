@@ -1,6 +1,7 @@
 export {useDashboardData} from './useDashboardData'
 export {useDriverDashboard, useDriverWarehouses} from './useDriverDashboard'
 export {useDriverStats} from './useDriverStats'
+export {useEventSubscription, useMultiEventSubscription} from './useEventSubscription'
 export {useNotifications} from './useNotifications'
 export {usePollingNotifications} from './usePollingNotifications'
 export {useRealtimeNotifications} from './useRealtimeNotifications'

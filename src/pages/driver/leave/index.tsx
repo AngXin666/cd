@@ -4,6 +4,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
@@ -258,6 +259,8 @@ const DriverLeave: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #fef2f2, #fee2e2)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>

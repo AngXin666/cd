@@ -12,8 +12,7 @@
 
 import {supabase} from '@/client/supabase'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
-
-// 从aspi.legacy导入通知函数（避免循环依赖）
+import {publish} from '@/utils/eventBus'
 import {formatLeaveDate} from '@/utils/dateFormat'
 import type {
   ApplicationReviewInput,
@@ -83,6 +82,10 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       relatedId: data.id,
       approvalStatus: 'pending'
     })
+
+    // 发布事件通知其他组件刷新数据
+    publish('leave:created', {id: data.id, userId: input.user_id})
+    publish('notification:created')
 
     return data
   } catch (error) {
@@ -222,6 +225,11 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
       console.error('审批请假申请失败:', updateError)
       return false
     }
+
+    // 发布事件通知其他组件刷新数据
+    publish('leave:updated', {id: applicationId, status: review.status, userId: application.user_id})
+    publish('notification:created')
+
     return true
   } catch (error) {
     console.error('审批请假申请异常:', error)
@@ -280,6 +288,10 @@ export async function createResignationApplication(
       relatedId: data.id,
       approvalStatus: 'pending'
     })
+
+    // 发布事件通知其他组件刷新数据
+    publish('resignation:created', {id: data.id, userId: input.user_id})
+    publish('notification:created')
 
     return data
   } catch (error) {
@@ -426,6 +438,11 @@ export async function reviewResignationApplication(
       console.error('审批离职申请失败:', updateError)
       return false
     }
+
+    // 发布事件通知其他组件刷新数据
+    publish('resignation:updated', {id: applicationId, status: review.status, userId: application.user_id})
+    publish('notification:created')
+
     return true
   } catch (error) {
     console.error('审批离职申请异常:', error)

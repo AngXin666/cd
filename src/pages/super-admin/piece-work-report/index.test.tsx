@@ -64,8 +64,28 @@ vi.mock('miaoda-auth-taro', () => ({
 describe('老板端计件报表页面', () => {
   // 测试数据
   const mockWarehouses = [
-    {id: 'warehouse-1', name: '仓库A', daily_target: 100, max_leave_days: 2},
-    {id: 'warehouse-2', name: '仓库B', daily_target: 120, max_leave_days: 3}
+    {
+      id: 'warehouse-1',
+      name: '仓库A',
+      address: '测试地址A',
+      contact_person: '联系人A',
+      contact_phone: '13800000001',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      daily_target: 100,
+      max_leave_days: 2
+    },
+    {
+      id: 'warehouse-2',
+      name: '仓库B',
+      address: '测试地址B',
+      contact_person: '联系人B',
+      contact_phone: '13800000002',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      daily_target: 120,
+      max_leave_days: 3
+    }
   ]
 
   const mockDrivers = [
@@ -73,23 +93,45 @@ describe('老板端计件报表页面', () => {
       id: 'driver-1',
       name: '张三',
       phone: '13800138001',
-      role: 'DRIVER',
+      email: 'driver1@test.com',
+      avatar_url: null,
+      role: 'DRIVER' as const,
       driver_type: 'pure',
-      join_date: '2024-01-01'
+      join_date: '2024-01-01',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
     },
     {
       id: 'driver-2',
       name: '李四',
       phone: '13800138002',
-      role: 'DRIVER',
+      email: 'driver2@test.com',
+      avatar_url: null,
+      role: 'DRIVER' as const,
       driver_type: 'with_vehicle',
-      join_date: '2024-01-15'
+      join_date: '2024-01-15',
+      created_at: '2024-01-15T00:00:00Z',
+      updated_at: '2024-01-15T00:00:00Z'
     }
   ]
 
   const mockCategories = [
-    {id: 'category-1', name: '品类A', is_active: true},
-    {id: 'category-2', name: '品类B', is_active: true}
+    {
+      id: 'category-1',
+      name: '品类A',
+      description: '测试品类A',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      is_active: true
+    },
+    {
+      id: 'category-2',
+      name: '品类B',
+      description: '测试品类B',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      is_active: true
+    }
   ]
 
   const mockRecords = [
@@ -98,9 +140,15 @@ describe('老板端计件报表页面', () => {
       user_id: 'driver-1',
       warehouse_id: 'warehouse-1',
       category_id: 'category-1',
+      date: new Date().toISOString().split('T')[0],
       work_date: new Date().toISOString().split('T')[0],
+      category: '品类A',
       quantity: 50,
       unit_price: 10,
+      total_amount: 500,
+      notes: null,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
       need_upstairs: false,
       need_sorting: false
     },
@@ -109,9 +157,15 @@ describe('老板端计件报表页面', () => {
       user_id: 'driver-2',
       warehouse_id: 'warehouse-1',
       category_id: 'category-2',
+      date: new Date().toISOString().split('T')[0],
       work_date: new Date().toISOString().split('T')[0],
+      category: '品类B',
       quantity: 60,
       unit_price: 12,
+      total_amount: 720,
+      notes: null,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
       need_upstairs: true,
       upstairs_price: 2,
       need_sorting: false
@@ -166,10 +220,10 @@ describe('老板端计件报表页面', () => {
 
   describe('1. 基础功能测试', () => {
     it('1.1 页面应该正常加载', async () => {
-      const {container} = render(<SuperAdminPieceWorkReport />)
+      const result = render(<SuperAdminPieceWorkReport />)
 
       await waitFor(() => {
-        expect(container).toBeTruthy()
+        expect(result.container).toBeTruthy()
       })
     })
 
@@ -191,7 +245,7 @@ describe('老板端计件报表页面', () => {
     })
 
     it('1.4 应该显示计件数据', async () => {
-      const {container} = render(<SuperAdminPieceWorkReport />)
+      render(<SuperAdminPieceWorkReport />)
 
       await waitFor(() => {
         // 验证数据已加载
@@ -219,7 +273,7 @@ describe('老板端计件报表页面', () => {
 
   describe('2. 交互功能测试', () => {
     it('2.1 应该能够切换仓库', async () => {
-      const {container} = render(<SuperAdminPieceWorkReport />)
+      render(<SuperAdminPieceWorkReport />)
 
       await waitFor(() => {
         expect(vi.mocked(PieceworkAPI.getPieceWorkRecordsByWarehouse)).toHaveBeenCalledWith(
@@ -320,9 +374,13 @@ describe('老板端计件报表页面', () => {
           id: 'driver-3',
           name: '王五',
           phone: '13800138003',
-          role: 'DRIVER',
+          email: 'driver3@test.com',
+          avatar_url: null,
+          role: 'DRIVER' as const,
           driver_type: 'pure',
-          join_date: '2024-02-01'
+          join_date: '2024-02-01',
+          created_at: '2024-02-01T00:00:00Z',
+          updated_at: '2024-02-01T00:00:00Z'
         }
       ]
 
@@ -517,7 +575,7 @@ describe('老板端计件报表页面', () => {
 
       await waitFor(() => {
         const {users} = vi.mocked(useUserListCache).mock.results[0].value
-        const drivers = users.filter((u) => u.role === 'DRIVER')
+        const drivers = users.filter((u: {role: string}) => u.role === 'DRIVER')
         expect(drivers.length).toBe(2)
       })
     })

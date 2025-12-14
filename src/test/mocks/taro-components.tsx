@@ -1,4 +1,16 @@
+/**
+ * Taro 组件 Mock 文件
+ * 用于测试环境中模拟 Taro 组件的行为
+ * @module test/mocks/taro-components
+ */
+
+/**
+ * View 组件 Mock
+ * 模拟 Taro View 组件，渲染为 div 元素
+ */
 export const View = ({children, className, onClick, ...props}: any) => (
+  // biome-ignore lint/a11y/useKeyWithClickEvents: 测试 mock 组件，不需要键盘事件
+  // biome-ignore lint/a11y/noStaticElementInteractions: 测试 mock 组件，不需要 role 属性
   <div className={className} onClick={onClick} {...props}>
     {children}
   </div>

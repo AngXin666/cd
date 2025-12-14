@@ -17,6 +17,7 @@ import {useUserContext} from '@/contexts/UserContext'
 import {getCurrentUserProfile} from '@/db/api/users'
 import {getUserNotifications, markNotificationAsRead, type Notification} from '@/db/notificationApi'
 import type {Profile} from '@/db/types'
+import {subscribe} from '@/utils/eventBus'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('RealNotificationBar')
@@ -74,25 +75,42 @@ const RealNotificationBar: React.FC = () => {
     loadNotifications()
   })
 
-  // 定时轮询通知更新（主要方案）
+  // 初始加载通知
+  useEffect(() => {
+    if (!user) return
+    loadNotifications()
+  }, [user, loadNotifications])
+
+  // 订阅事件总线的通知事件（事件驱动刷新，替代定时轮询）
+  // 当有新通知创建或通知被标记为已读时，刷新通知列表
   useEffect(() => {
     if (!user) return
 
-    // 立即加载一次
-    loadNotifications()
-
-    // 每10秒轮询一次
-    const pollInterval = setInterval(() => {
+    // 订阅通知相关事件
+    const unsubscribeCreated = subscribe('notification:created', () => {
+      console.log('📢 [RealNotificationBar] 收到 notification:created 事件，刷新通知')
       loadNotifications()
-    }, 10000) // 10秒
+    })
+    const unsubscribeRead = subscribe('notification:read', () => {
+      console.log('📢 [RealNotificationBar] 收到 notification:read 事件，刷新通知')
+      loadNotifications()
+    })
+    // 订阅通用数据刷新事件
+    const unsubscribeRefresh = subscribe('data:refresh', () => {
+      console.log('📢 [RealNotificationBar] 收到 data:refresh 事件，刷新通知')
+      loadNotifications()
+    })
 
-    // 清理定时器
+    // 清理订阅
     return () => {
-      clearInterval(pollInterval)
+      unsubscribeCreated()
+      unsubscribeRead()
+      unsubscribeRefresh()
     }
   }, [user, loadNotifications])
 
-  // 实时订阅通知更新（备用方案）
+  // 实时订阅通知更新（主要方案）
+  // 通过 Supabase Realtime 订阅通知表变化，实现即时更新
   useEffect(() => {
     if (!user) return
 

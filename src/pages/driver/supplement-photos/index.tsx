@@ -9,6 +9,7 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Vehicle} from '@/db/types'
@@ -201,6 +202,8 @@ const SupplementPhotos: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center h-screen">
+        {/* 顶部安全区域 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <View className="i-mdi-loading animate-spin text-4xl text-red-600 mb-4"></View>
@@ -219,6 +222,10 @@ const SupplementPhotos: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #FEE2E2, #FECACA)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4 pb-32">
           {/* 提示信息 */}

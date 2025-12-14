@@ -5,6 +5,7 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import PasswordVerifyModal from '@/components/common/PasswordVerifyModal'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -335,6 +336,8 @@ const WarehouseManagement: React.FC = () => {
   return (
     <ErrorBoundary>
       <View style={{background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', minHeight: '100vh'}}>
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <ScrollView scrollY style={{height: 'calc(100vh - 44px)', background: 'transparent'}} className="box-border">

@@ -11,6 +11,7 @@ import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Vehicle} from '@/db/types'
@@ -121,6 +122,8 @@ const VehicleDetail: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
+        {/* 顶部安全区域 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <View className="text-center">
@@ -144,6 +147,10 @@ const VehicleDetail: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4">
           {/* 车辆头部卡片 */}

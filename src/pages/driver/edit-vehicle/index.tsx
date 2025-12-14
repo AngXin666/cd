@@ -11,6 +11,7 @@ import Taro, {chooseImage, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
 import * as VehiclesAPI from '@/db/api/vehicles'
@@ -240,6 +241,8 @@ const SupplementVehicle: React.FC = () => {
   if (loading) {
     return (
       <View className="flex items-center justify-center h-screen bg-gradient-to-b from-blue-50 to-blue-100">
+        {/* 顶部安全区域 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-4"></View>
@@ -274,6 +277,10 @@ const SupplementVehicle: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
+      {/* 顶部安全区域 */}
+      <SafeAreaTop />
+      {/* 顶部导航栏 */}
+      <TopNavBar />
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className="p-4 pb-32">
           {/* 页面标题 */}

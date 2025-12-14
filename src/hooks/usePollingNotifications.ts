@@ -1,25 +1,49 @@
+/**
+ * 事件驱动通知 Hook
+ * 通过事件总线订阅数据变化，替代定时轮询
+ * 
+ * 工作原理：
+ * - 订阅事件总线的相关事件（请假、离职、考勤等）
+ * - 当事件触发时，执行相应的回调函数
+ * - 不再使用定时轮询，减少不必要的 API 请求
+ *
+ * @module hooks/usePollingNotifications
+ */
+
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef} from 'react'
-import {getAllAttendanceRecords} from '@/db/api/attendance'
-import {getAllLeaveApplications, getAllResignationApplications} from '@/db/api/leave'
+import {subscribe} from '@/utils/eventBus'
 import type {Notification} from './useNotifications'
 
-// 前端角色类型（用于 UI 逻辑）
+/** 前端角色类型（用于 UI 逻辑） */
 type FrontendUserRole = 'driver' | 'manager' | 'super_admin'
 
+/**
+ * 事件驱动通知配置选项
+ */
 interface PollingNotificationOptions {
+  /** 用户 ID */
   userId: string
+  /** 用户角色 */
   userRole: FrontendUserRole
+  /** 请假申请变化回调 */
   onLeaveApplicationChange?: () => void
+  /** 离职申请变化回调 */
   onResignationApplicationChange?: () => void
+  /** 考勤变化回调 */
   onAttendanceChange?: () => void
+  /** 新通知回调 */
   onNewNotification?: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
-  pollingInterval?: number // 轮询间隔，默认 10 秒
+  /** 轮询间隔（毫秒），已废弃，保留参数兼容性 */
+  pollingInterval?: number
 }
 
 /**
- * 轮询通知 Hook
- * 作为 Realtime 的降级方案，通过定时轮询检查数据变化
+ * 事件驱动通知 Hook
+ * 订阅事件总线的数据变化事件，替代定时轮询
+ *
+ * @param options - 配置选项
+ * @returns 手动刷新方法
  */
 export function usePollingNotifications(options: PollingNotificationOptions) {
   const {
@@ -28,15 +52,31 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
     onLeaveApplicationChange,
     onResignationApplicationChange,
     onAttendanceChange,
-    onNewNotification,
-    pollingInterval = 10000 // 默认 10 秒
+    onNewNotification
+    // pollingInterval 参数已废弃，不再使用
   } = options
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const lastCheckTime = useRef<number>(Date.now())
-  const lastNotificationTime = useRef<{[key: string]: number}>({})
+  // 使用 ref 存储回调函数，避免依赖变化导致 effect 重新执行
+  const callbacksRef = useRef({
+    onLeaveApplicationChange,
+    onResignationApplicationChange,
+    onAttendanceChange,
+    onNewNotification
+  })
+
+  // 更新 ref 中的回调函数
+  useEffect(() => {
+    callbacksRef.current = {
+      onLeaveApplicationChange,
+      onResignationApplicationChange,
+      onAttendanceChange,
+      onNewNotification
+    }
+  }, [onLeaveApplicationChange, onResignationApplicationChange, onAttendanceChange, onNewNotification])
 
   // 防抖通知：避免短时间内重复通知
+  const lastNotificationTime = useRef<{[key: string]: number}>({})
+  
   const shouldShowNotification = useCallback((key: string, minInterval = 3000) => {
     const now = Date.now()
     const lastTime = lastNotificationTime.current[key] || 0
@@ -49,7 +89,9 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
     return true
   }, [])
 
-  // 显示通知
+  /**
+   * 显示通知
+   */
   const showNotification = useCallback(
     (title: string, content: string, key: string, type: Notification['type'], data?: Record<string, unknown>) => {
       if (shouldShowNotification(key)) {
@@ -64,179 +106,132 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
         Taro.vibrateShort({type: 'light'})
 
         // 添加到通知栏
-        if (onNewNotification) {
-          onNewNotification({
+        const callback = callbacksRef.current.onNewNotification
+        if (callback) {
+          callback({
             type,
             title,
             content,
             data
           })
-        } else {
         }
-      } else {
       }
     },
-    [shouldShowNotification, onNewNotification]
+    [shouldShowNotification]
   )
 
-  // 检查新的请假申请（车队长和老板）
-  const checkLeaveApplications = useCallback(async () => {
-    try {
-      const applications = await getAllLeaveApplications()
-      const newApplications = applications.filter(
-        (app) => new Date(app.created_at).getTime() > lastCheckTime.current && app.status === 'pending'
-      )
+  /**
+   * 手动刷新数据
+   * 可以在需要时手动调用
+   */
+  const refresh = useCallback(() => {
+    console.log('📢 [usePollingNotifications] 手动刷新数据')
+    callbacksRef.current.onLeaveApplicationChange?.()
+    callbacksRef.current.onResignationApplicationChange?.()
+    callbacksRef.current.onAttendanceChange?.()
+  }, [])
 
-      if (newApplications.length > 0) {
-        showNotification(
-          '收到新的请假申请',
-          `有 ${newApplications.length} 条新的请假申请`,
-          'leave_insert',
-          'leave_application',
-          {applicationId: newApplications[0].id}
-        )
-        onLeaveApplicationChange?.()
-      }
-    } catch (error) {
-      console.error('❌ [轮询] 检查请假申请失败:', error)
-    }
-  }, [showNotification, onLeaveApplicationChange])
-
-  // 检查请假申请状态变化（司机）
-  const checkLeaveApplicationStatus = useCallback(async () => {
-    try {
-      const applications = await getAllLeaveApplications()
-      const myApplications = applications.filter((app) => app.user_id === userId)
-      const recentlyUpdated = myApplications.filter(
-        (app) =>
-          new Date(app.reviewed_at || app.created_at).getTime() > lastCheckTime.current &&
-          (app.status === 'approved' || app.status === 'rejected')
-      )
-
-      if (recentlyUpdated.length > 0) {
-        const app = recentlyUpdated[0]
-        if (app.status === 'approved') {
-          showNotification('您的请假申请已通过', '您的请假申请已通过审批', 'leave_approved', 'approval', {
-            applicationId: app.id
-          })
-        } else if (app.status === 'rejected') {
-          showNotification('您的请假申请已被驳回', '您的请假申请已被驳回', 'leave_rejected', 'approval', {
-            applicationId: app.id
-          })
-        }
-        onLeaveApplicationChange?.()
-      }
-    } catch (error) {
-      console.error('❌ [轮询] 检查请假申请状态失败:', error)
-    }
-  }, [userId, showNotification, onLeaveApplicationChange])
-
-  // 检查新的离职申请（车队长和老板）
-  const checkResignationApplications = useCallback(async () => {
-    try {
-      const applications = await getAllResignationApplications()
-      const newApplications = applications.filter(
-        (app) => new Date(app.created_at).getTime() > lastCheckTime.current && app.status === 'pending'
-      )
-
-      if (newApplications.length > 0) {
-        showNotification(
-          '收到新的离职申请',
-          `有 ${newApplications.length} 条新的离职申请`,
-          'resignation_insert',
-          'resignation_application',
-          {applicationId: newApplications[0].id}
-        )
-        onResignationApplicationChange?.()
-      }
-    } catch (error) {
-      console.error('❌ [轮询] 检查离职申请失败:', error)
-    }
-  }, [showNotification, onResignationApplicationChange])
-
-  // 检查离职申请状态变化（司机）
-  const checkResignationApplicationStatus = useCallback(async () => {
-    try {
-      const applications = await getAllResignationApplications()
-      const myApplications = applications.filter((app) => app.user_id === userId)
-      const recentlyUpdated = myApplications.filter(
-        (app) =>
-          new Date(app.reviewed_at || app.created_at).getTime() > lastCheckTime.current &&
-          (app.status === 'approved' || app.status === 'rejected')
-      )
-
-      if (recentlyUpdated.length > 0) {
-        const app = recentlyUpdated[0]
-        if (app.status === 'approved') {
-          showNotification('您的离职申请已通过', '您的离职申请已通过审批', 'resignation_approved', 'approval', {
-            applicationId: app.id
-          })
-        } else if (app.status === 'rejected') {
-          showNotification('您的离职申请已被驳回', '您的离职申请已被驳回', 'resignation_rejected', 'approval', {
-            applicationId: app.id
-          })
-        }
-        onResignationApplicationChange?.()
-      }
-    } catch (error) {
-      console.error('❌ [轮询] 检查离职申请状态失败:', error)
-    }
-  }, [userId, showNotification, onResignationApplicationChange])
-
-  // 检查新的打卡记录（车队长和老板）
-  const checkAttendanceRecords = useCallback(async () => {
-    try {
-      const records = await getAllAttendanceRecords()
-      const newRecords = records.filter((record) => new Date(record.created_at).getTime() > lastCheckTime.current)
-
-      if (newRecords.length > 0) {
-        onAttendanceChange?.()
-      }
-    } catch (error) {
-      console.error('❌ [轮询] 检查打卡记录失败:', error)
-    }
-  }, [onAttendanceChange])
-
-  // 执行轮询检查
-  const poll = useCallback(async () => {
-    if (userRole === 'manager' || userRole === 'super_admin') {
-      await Promise.all([checkLeaveApplications(), checkResignationApplications(), checkAttendanceRecords()])
-    } else if (userRole === 'driver') {
-      await Promise.all([checkLeaveApplicationStatus(), checkResignationApplicationStatus()])
-    }
-
-    // 更新最后检查时间
-    lastCheckTime.current = Date.now()
-  }, [
-    userRole,
-    checkLeaveApplications,
-    checkResignationApplications,
-    checkAttendanceRecords,
-    checkLeaveApplicationStatus,
-    checkResignationApplicationStatus
-  ])
-
-  // 设置轮询
+  // 订阅事件总线的数据变化事件
   useEffect(() => {
     if (!userId) return
 
-    // 立即执行一次
-    poll()
+    console.log('📢 [usePollingNotifications] 订阅事件总线，角色:', userRole)
 
-    // 设置定时轮询
-    intervalRef.current = setInterval(poll, pollingInterval)
+    const unsubscribes: (() => void)[] = []
 
-    // 清理函数
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
+    // 管理员和老板：订阅新申请事件
+    if (userRole === 'manager' || userRole === 'super_admin') {
+      // 请假申请创建
+      unsubscribes.push(
+        subscribe('leave:created', (data) => {
+          console.log('📢 [usePollingNotifications] 收到 leave:created 事件', data)
+          showNotification('收到新的请假申请', '有新的请假申请待审批', 'leave_insert', 'leave_application')
+          callbacksRef.current.onLeaveApplicationChange?.()
+        })
+      )
+
+      // 离职申请创建
+      unsubscribes.push(
+        subscribe('resignation:created', (data) => {
+          console.log('📢 [usePollingNotifications] 收到 resignation:created 事件', data)
+          showNotification('收到新的离职申请', '有新的离职申请待审批', 'resignation_insert', 'resignation_application')
+          callbacksRef.current.onResignationApplicationChange?.()
+        })
+      )
+
+      // 打卡记录创建
+      unsubscribes.push(
+        subscribe('attendance:created', () => {
+          console.log('📢 [usePollingNotifications] 收到 attendance:created 事件')
+          callbacksRef.current.onAttendanceChange?.()
+        })
+      )
+
+      // 计件记录创建/更新
+      unsubscribes.push(
+        subscribe('piece_work:created', () => {
+          console.log('📢 [usePollingNotifications] 收到 piece_work:created 事件')
+          callbacksRef.current.onAttendanceChange?.() // 刷新仪表板数据
+        })
+      )
+      unsubscribes.push(
+        subscribe('piece_work:updated', () => {
+          console.log('📢 [usePollingNotifications] 收到 piece_work:updated 事件')
+          callbacksRef.current.onAttendanceChange?.()
+        })
+      )
     }
-  }, [userId, pollingInterval, poll])
+
+    // 司机：订阅申请状态变化事件
+    if (userRole === 'driver') {
+      // 请假申请审批
+      unsubscribes.push(
+        subscribe('leave:updated', (data: unknown) => {
+          console.log('📢 [usePollingNotifications] 收到 leave:updated 事件', data)
+          const eventData = data as {status?: string} | undefined
+          if (eventData?.status === 'approved') {
+            showNotification('您的请假申请已通过', '您的请假申请已通过审批', 'leave_approved', 'approval')
+          } else if (eventData?.status === 'rejected') {
+            showNotification('您的请假申请已被驳回', '您的请假申请已被驳回', 'leave_rejected', 'approval')
+          }
+          callbacksRef.current.onLeaveApplicationChange?.()
+        })
+      )
+
+      // 离职申请审批
+      unsubscribes.push(
+        subscribe('resignation:updated', (data: unknown) => {
+          console.log('📢 [usePollingNotifications] 收到 resignation:updated 事件', data)
+          const eventData = data as {status?: string} | undefined
+          if (eventData?.status === 'approved') {
+            showNotification('您的离职申请已通过', '您的离职申请已通过审批', 'resignation_approved', 'approval')
+          } else if (eventData?.status === 'rejected') {
+            showNotification('您的离职申请已被驳回', '您的离职申请已被驳回', 'resignation_rejected', 'approval')
+          }
+          callbacksRef.current.onResignationApplicationChange?.()
+        })
+      )
+    }
+
+    // 通用数据刷新事件
+    unsubscribes.push(
+      subscribe('data:refresh', () => {
+        console.log('📢 [usePollingNotifications] 收到 data:refresh 事件')
+        refresh()
+      })
+    )
+
+    // 清理订阅
+    return () => {
+      console.log('📢 [usePollingNotifications] 取消订阅事件总线')
+      unsubscribes.forEach((unsubscribe) => unsubscribe())
+    }
+  }, [userId, userRole, showNotification, refresh])
 
   return {
-    // 可以添加一些控制方法，比如暂停/恢复轮询
-    poll // 手动触发一次轮询
+    /** 手动触发数据刷新 */
+    poll: refresh,
+    /** 手动触发数据刷新（别名） */
+    refresh
   }
 }

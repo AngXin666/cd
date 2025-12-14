@@ -3,6 +3,7 @@ import Taro, {useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRule, Profile, WarehouseWithRule} from '@/db/types'
@@ -87,6 +88,8 @@ const WarehouseDetail: React.FC = () => {
   if (!warehouse) {
     return (
       <View className="min-h-screen bg-gray-50 flex items-center justify-center">
+        {/* 安全区域占位 */}
+        <SafeAreaTop />
         {/* 顶部导航栏 */}
         <TopNavBar />
         <Text className="text-gray-400 text-base">加载中...</Text>
@@ -96,6 +99,8 @@ const WarehouseDetail: React.FC = () => {
 
   return (
     <View className="min-h-screen bg-gray-50">
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       <ScrollView scrollY className="h-screen box-border">
         <View className="p-4 pb-20">
           {/* 基本信息卡片 */}

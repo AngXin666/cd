@@ -3,6 +3,7 @@ import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
@@ -276,183 +277,186 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
   }
 
   return (
-    <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
-      {/* 顶部导航栏 */}
-      <TopNavBar />
-      <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
-        <View className="p-4">
-          <View className="bg-white rounded-lg p-4 shadow">
-            <Text className="text-lg font-bold text-gray-800 block mb-4">
-              {mode === 'add' ? '添加计件记录' : '编辑计件记录'}
-            </Text>
-
-            {/* 司机选择 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                司机 <Text className="text-red-500">*</Text>
+    <>
+      <SafeAreaTop />
+      <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+        {/* 顶部导航栏 */}
+        <TopNavBar />
+        <ScrollView scrollY className="box-border" style={{height: '100vh', background: 'transparent'}}>
+          <View className="p-4">
+            <View className="bg-white rounded-lg p-4 shadow">
+              <Text className="text-lg font-bold text-gray-800 block mb-4">
+                {mode === 'add' ? '添加计件记录' : '编辑计件记录'}
               </Text>
-              <Picker
-                mode="selector"
-                range={drivers.map((d) => d.name || d.phone || '未知')}
-                value={selectedDriverIndex}
-                onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
-                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <Text className="text-sm text-gray-800">
-                    {drivers[selectedDriverIndex]?.name || drivers[selectedDriverIndex]?.phone || '请选择司机'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
 
-            {/* 仓库选择 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                仓库 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker
-                mode="selector"
-                range={warehouses.map((w) => w.name)}
-                value={selectedWarehouseIndex}
-                onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
-                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <Text className="text-sm text-gray-800">
-                    {warehouses[selectedWarehouseIndex]?.name || '请选择仓库'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 品类选择 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                品类 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker
-                mode="selector"
-                range={categories.map((c) => c.category_name)}
-                value={selectedCategoryIndex}
-                onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
-                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <Text className="text-sm text-gray-800">
-                    {categories[selectedCategoryIndex]?.category_name || '请选择品类'}
-                  </Text>
-                  <View className="i-mdi-chevron-down text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 工作日期 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                工作日期 <Text className="text-red-500">*</Text>
-              </Text>
-              <Picker mode="date" value={workDate} onChange={(e) => setWorkDate(e.detail.value)}>
-                <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <Text className="text-sm text-gray-800">{workDate || '请选择日期'}</Text>
-                  <View className="i-mdi-calendar text-xl text-gray-400" />
-                </View>
-              </Picker>
-            </View>
-
-            {/* 数量 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                数量 <Text className="text-red-500">*</Text>
-              </Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-sm"
-                type="number"
-                placeholder="请输入数量"
-                value={quantity}
-                onInput={(e) => setQuantity(e.detail.value)}
-              />
-            </View>
-
-            {/* 单价 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">
-                单价（元） <Text className="text-red-500">*</Text>
-              </Text>
-              <Input
-                className="bg-gray-50 rounded-lg p-3 text-sm"
-                type="digit"
-                placeholder="请输入单价"
-                value={unitPrice}
-                onInput={(e) => setUnitPrice(e.detail.value)}
-              />
-            </View>
-
-            {/* 是否需要上楼 */}
-            <View className="mb-4">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-700">需要上楼</Text>
-                <Switch checked={needUpstairs} onChange={(e) => setNeedUpstairs(e.detail.value)} color="#1E3A8A" />
+              {/* 司机选择 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  司机 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker
+                  mode="selector"
+                  range={drivers.map((d) => d.name || d.phone || '未知')}
+                  value={selectedDriverIndex}
+                  onChange={(e) => setSelectedDriverIndex(Number(e.detail.value))}>
+                  <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                    <Text className="text-sm text-gray-800">
+                      {drivers[selectedDriverIndex]?.name || drivers[selectedDriverIndex]?.phone || '请选择司机'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                  </View>
+                </Picker>
               </View>
-              {needUpstairs && (
+
+              {/* 仓库选择 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  仓库 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker
+                  mode="selector"
+                  range={warehouses.map((w) => w.name)}
+                  value={selectedWarehouseIndex}
+                  onChange={(e) => setSelectedWarehouseIndex(Number(e.detail.value))}>
+                  <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                    <Text className="text-sm text-gray-800">
+                      {warehouses[selectedWarehouseIndex]?.name || '请选择仓库'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 品类选择 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  品类 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker
+                  mode="selector"
+                  range={categories.map((c) => c.category_name)}
+                  value={selectedCategoryIndex}
+                  onChange={(e) => setSelectedCategoryIndex(Number(e.detail.value))}>
+                  <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                    <Text className="text-sm text-gray-800">
+                      {categories[selectedCategoryIndex]?.category_name || '请选择品类'}
+                    </Text>
+                    <View className="i-mdi-chevron-down text-xl text-gray-400" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 工作日期 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  工作日期 <Text className="text-red-500">*</Text>
+                </Text>
+                <Picker mode="date" value={workDate} onChange={(e) => setWorkDate(e.detail.value)}>
+                  <View className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                    <Text className="text-sm text-gray-800">{workDate || '请选择日期'}</Text>
+                    <View className="i-mdi-calendar text-xl text-gray-400" />
+                  </View>
+                </Picker>
+              </View>
+
+              {/* 数量 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  数量 <Text className="text-red-500">*</Text>
+                </Text>
+                <Input
+                  className="bg-gray-50 rounded-lg p-3 text-sm"
+                  type="number"
+                  placeholder="请输入数量"
+                  value={quantity}
+                  onInput={(e) => setQuantity(e.detail.value)}
+                />
+              </View>
+
+              {/* 单价 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">
+                  单价（元） <Text className="text-red-500">*</Text>
+                </Text>
                 <Input
                   className="bg-gray-50 rounded-lg p-3 text-sm"
                   type="digit"
-                  placeholder="请输入上楼单价"
-                  value={upstairsPrice}
-                  onInput={(e) => setUpstairsPrice(e.detail.value)}
+                  placeholder="请输入单价"
+                  value={unitPrice}
+                  onInput={(e) => setUnitPrice(e.detail.value)}
                 />
-              )}
-            </View>
-
-            {/* 是否需要分拣 */}
-            <View className="mb-4">
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-gray-700">需要分拣</Text>
-                <Switch checked={needSorting} onChange={(e) => setNeedSorting(e.detail.value)} color="#1E3A8A" />
               </View>
-              {needSorting && (
-                <View>
-                  <Input
-                    className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
-                    type="number"
-                    placeholder="请输入分拣数量"
-                    value={sortingQuantity}
-                    onInput={(e) => setSortingQuantity(e.detail.value)}
-                  />
+
+              {/* 是否需要上楼 */}
+              <View className="mb-4">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-sm text-gray-700">需要上楼</Text>
+                  <Switch checked={needUpstairs} onChange={(e) => setNeedUpstairs(e.detail.value)} color="#1E3A8A" />
+                </View>
+                {needUpstairs && (
                   <Input
                     className="bg-gray-50 rounded-lg p-3 text-sm"
                     type="digit"
-                    placeholder="请输入分拣单价"
-                    value={sortingUnitPrice}
-                    onInput={(e) => setSortingUnitPrice(e.detail.value)}
+                    placeholder="请输入上楼单价"
+                    value={upstairsPrice}
+                    onInput={(e) => setUpstairsPrice(e.detail.value)}
                   />
-                </View>
-              )}
-            </View>
-
-            {/* 备注 */}
-            <View className="mb-4">
-              <Text className="text-sm text-gray-700 block mb-2">备注</Text>
-              <Textarea
-                className="bg-gray-50 rounded-lg p-3 text-sm"
-                placeholder="请输入备注信息"
-                value={notes}
-                onInput={(e) => setNotes(e.detail.value)}
-                maxlength={200}
-                style={{minHeight: '80px'}}
-              />
-            </View>
-
-            {/* 提交按钮 */}
-            <View className="flex gap-3">
-              <View onClick={() => navigateBack()} className="flex-1 bg-gray-200 text-center py-3 rounded-lg">
-                <Text className="text-sm text-gray-700">取消</Text>
+                )}
               </View>
-              <View onClick={handleSubmit} className="flex-1 bg-blue-900 text-center py-3 rounded-lg">
-                <Text className="text-sm text-white">{mode === 'add' ? '添加' : '保存'}</Text>
+
+              {/* 是否需要分拣 */}
+              <View className="mb-4">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-sm text-gray-700">需要分拣</Text>
+                  <Switch checked={needSorting} onChange={(e) => setNeedSorting(e.detail.value)} color="#1E3A8A" />
+                </View>
+                {needSorting && (
+                  <View>
+                    <Input
+                      className="bg-gray-50 rounded-lg p-3 text-sm mb-2"
+                      type="number"
+                      placeholder="请输入分拣数量"
+                      value={sortingQuantity}
+                      onInput={(e) => setSortingQuantity(e.detail.value)}
+                    />
+                    <Input
+                      className="bg-gray-50 rounded-lg p-3 text-sm"
+                      type="digit"
+                      placeholder="请输入分拣单价"
+                      value={sortingUnitPrice}
+                      onInput={(e) => setSortingUnitPrice(e.detail.value)}
+                    />
+                  </View>
+                )}
+              </View>
+
+              {/* 备注 */}
+              <View className="mb-4">
+                <Text className="text-sm text-gray-700 block mb-2">备注</Text>
+                <Textarea
+                  className="bg-gray-50 rounded-lg p-3 text-sm"
+                  placeholder="请输入备注信息"
+                  value={notes}
+                  onInput={(e) => setNotes(e.detail.value)}
+                  maxlength={200}
+                  style={{minHeight: '80px'}}
+                />
+              </View>
+
+              {/* 提交按钮 */}
+              <View className="flex gap-3">
+                <View onClick={() => navigateBack()} className="flex-1 bg-gray-200 text-center py-3 rounded-lg">
+                  <Text className="text-sm text-gray-700">取消</Text>
+                </View>
+                <View onClick={handleSubmit} className="flex-1 bg-blue-900 text-center py-3 rounded-lg">
+                  <Text className="text-sm text-white">{mode === 'add' ? '添加' : '保存'}</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </>
   )
 }
 

@@ -3,6 +3,7 @@ import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as NotificationsAPI from '@/db/api/notifications'
 import * as UsersAPI from '@/db/api/users'
@@ -949,6 +950,8 @@ const StaffManagement: React.FC = () => {
 
   return (
     <View style={{background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)', minHeight: '100vh'}}>
+      {/* 安全区域占位 */}
+      <SafeAreaTop />
       {/* 顶部导航栏 */}
       <View className="bg-white shadow-sm">
         <View className="flex items-center justify-between px-4 py-3">
