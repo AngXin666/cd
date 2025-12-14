@@ -46,7 +46,20 @@ export default defineConfig<'vite'>(async (merge) => {
     },
     defineConstants: {},
     copy: {
-      patterns: [],
+      patterns: [
+        {
+          from: 'src/assets/images/login-bg-1.jpg',
+          to: 'dist/assets/images/login-bg-1.jpg'
+        },
+        {
+          from: 'src/assets/images/login-bg-2.jpg',
+          to: 'dist/assets/images/login-bg-2.jpg'
+        },
+        {
+          from: 'src/assets/images/login-bg-3.jpg',
+          to: 'dist/assets/images/login-bg-3.jpg'
+        }
+      ],
       options: {}
     },
     framework: 'react',
