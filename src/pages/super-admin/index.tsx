@@ -1,3 +1,15 @@
+/**
+ * 老板端 - 首页
+ * 功能：显示仪表板统计数据、仓库列表、司机统计
+ *
+ * 使用全局缓存系统优化性能：
+ * - 使用 useWarehousesCache Hook 缓存仓库列表
+ * - 使用 useSuperAdminDashboard Hook 缓存仪表板数据
+ * - 使用 useDriverStats Hook 缓存司机统计数据
+ * - 实时监听数据库变更自动更新
+ * - 支持离线模式显示缓存数据
+ */
+
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -7,9 +19,8 @@ import NotificationBell from '@/components/notification/NotificationBell'
 import RealNotificationBar from '@/components/RealNotificationBar'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
-import * as WarehousesAPI from '@/db/api/warehouses'
 
-import type {Profile, Warehouse} from '@/db/types'
+import type {Profile} from '@/db/types'
 import {
   useDriverStats,
   useNotifications,
@@ -17,6 +28,7 @@ import {
   useSuperAdminDashboard,
   useWarehousesSorted
 } from '@/hooks'
+import {useWarehousesCache} from '@/hooks/useWarehousesCache'
 import {smartLogout} from '@/utils/auth'
 
 // 检测当前运行环境
@@ -43,17 +55,25 @@ const setStorageSync = (key: string, data: any): void => {
 const SuperAdminHome: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [rawWarehouses, setRawWarehouses] = useState<Warehouse[]>([])
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 使用全局缓存 Hook 加载仓库列表
+  const {
+    data: cachedWarehouses,
+    loading: warehousesLoading,
+    error: warehousesError,
+    fromCache: warehousesFromCache,
+    refresh: refreshWarehouses
+  } = useWarehousesCache()
 
   // 通知管理
   const {notifications, addNotification, markAsRead, getRecentNotifications} = useNotifications()
 
   // 使用仓库排序 Hook（按数据量排序）
   const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
-    warehouses: rawWarehouses,
+    warehouses: cachedWarehouses || [],
     sortByVolume: true,
     hideEmpty: false // 老板显示所有仓库，包括没有数据的仓库
   })
@@ -96,15 +116,7 @@ const SuperAdminHome: React.FC = () => {
     // Driver stats updated
   }, [])
 
-  // 加载仓库列表
-  const loadWarehouses = useCallback(async () => {
-    try {
-      const warehousesData = await WarehousesAPI.getAllWarehouses()
-      setRawWarehouses(warehousesData)
-    } catch (error) {
-      console.error('[SuperAdminHome] 加载仓库列表失败:', error)
-    }
-  }, [])
+  // 仓库列表已通过 useWarehousesCache Hook 加载，不需要单独的 loadWarehouses 函数
 
   // 加载个人信息
   const loadData = useCallback(async () => {
@@ -141,16 +153,16 @@ const SuperAdminHome: React.FC = () => {
   // 初始加载（批量并行查询优化）
   useEffect(() => {
     if (user) {
-      // 批量并行加载所有初始数据
-      Promise.all([loadData(), loadWarehouses()])
+      // 加载个人信息（仓库列表已通过 useWarehousesCache Hook 自动加载）
+      loadData()
     }
-  }, [user, loadData, loadWarehouses])
+  }, [user, loadData])
 
   // 页面显示时刷新数据（批量并行查询优化）
   useDidShow(() => {
     if (user) {
       // 批量并行刷新所有数据
-      Promise.all([loadData(), loadWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
+      Promise.all([loadData(), refreshWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
 
       // 添加欢迎通知（仅在首次加载时）
       try {
@@ -208,7 +220,7 @@ const SuperAdminHome: React.FC = () => {
   // 下拉刷新
   usePullDownRefresh(async () => {
     if (user) {
-      await Promise.all([loadData(), loadWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
+      await Promise.all([loadData(), refreshWarehouses(), refreshSorting(), refreshDashboard(), refreshDriverStats()])
     }
     Taro.stopPullDownRefresh()
   })
@@ -308,6 +320,17 @@ const SuperAdminHome: React.FC = () => {
       <TopNavBar />
       <ScrollView scrollY className="box-border" style={{height: 'calc(100vh - 44px)', background: 'transparent'}}>
         <View className="p-4">
+          {/* 离线数据提示 */}
+          {warehousesFromCache && warehousesError && (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 flex items-center">
+              <View className="i-mdi-wifi-off text-yellow-600 text-xl mr-2" />
+              <View className="flex-1">
+                <Text className="text-yellow-800 text-sm font-medium block">离线模式</Text>
+                <Text className="text-yellow-600 text-xs block">部分数据可能不是最新的，请检查网络连接</Text>
+              </View>
+            </View>
+          )}
+
           {/* 欢迎卡片 */}
           <View className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 mb-4 shadow-lg relative">
             {/* 通知铃铛 - 右下角 */}
