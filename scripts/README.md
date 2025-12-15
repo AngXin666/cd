@@ -1,130 +1,93 @@
 # 项目脚本工具
 
-## API导入迁移脚本
+## 脚本概览
 
-### 功能说明
+本目录包含项目的核心脚本工具，按功能分类如下：
 
-`migrate-api-imports.js` - 自动将旧的API导入方式迁移到新的按需导入方式
+### 🚀 部署相关
 
-**优化效果**：
-- 减少90%的运行时内存占用
-- 提升95%的首次导入速度
-- 支持完整的Tree-shaking
-- 减少5-10%的打包体积
+| 脚本 | 用途 | 使用方法 |
+|------|------|----------|
+| `quick-deploy-h5.js` | H5 热更新部署 | `node scripts/quick-deploy-h5.js [版本号] [更新说明]` |
+| `deploy.bat` | 构建并部署 H5 | `scripts\deploy.bat [更新说明]` |
+| `rollback-version.js` | 版本回滚 | `node scripts/rollback-version.js <版本号>` |
+| `copy-login-assets.js` | 构建时复制登录资源 | 自动在 `build:h5` 时执行 |
 
-### 使用方法
+### 🛠️ 开发工具
 
-#### 1. 预览变更（推荐先执行）
+| 脚本 | 用途 | 使用方法 |
+|------|------|----------|
+| `dev-local.ps1` | 本地开发服务器 | `npm run dev:local` |
+| `dev-rebuild.ps1` | 重新构建开发环境 | `npm run rebuild` |
+| `checkAuth.sh` | Lint 检查认证 | 自动在 `npm run lint` 时执行 |
+| `checkNavigation.sh` | Lint 检查导航 | 自动在 `npm run lint` 时执行 |
+
+### 🔧 编码配置
+
+| 脚本 | 用途 | 使用方法 |
+|------|------|----------|
+| `setup-encoding.ps1` | 一键配置 UTF-8 编码 | `powershell scripts/setup-encoding.ps1` |
+| `setup-git-encoding.ps1` | 配置 Git 编码 | `powershell scripts/setup-git-encoding.ps1` |
+| `setup-powershell-profile.ps1` | 配置 PowerShell Profile | `powershell scripts/setup-powershell-profile.ps1` |
+| `encoding-utils.js` | Node.js 编码工具模块 | 在其他脚本中引用 |
+
+### 📦 数据库配置
+
+| 脚本 | 用途 | 使用方法 |
+|------|------|----------|
+| `setup-database.js` | 初始化数据库 | `node scripts/setup-database.js` |
+
+### 📁 模板
+
+| 文件 | 用途 |
+|------|------|
+| `templates/powershell-template.ps1` | PowerShell 脚本模板 |
+
+---
+
+## 常用命令
+
+### 部署 H5 热更新
 
 ```bash
-node scripts/migrate-api-imports.js --dry-run
+# 方式 1：使用 bat 脚本（推荐，避免编码问题）
+scripts\deploy.bat "更新说明"
+
+# 方式 2：手动执行
+pnpm taro build --type h5
+node scripts/quick-deploy-h5.js "更新说明"
 ```
 
-这会显示所有需要修改的地方，但不会实际修改文件。
-
-#### 2. 执行迁移
-
-确认预览结果无误后，执行实际迁移：
+### 版本回滚
 
 ```bash
-node scripts/migrate-api-imports.js
+node scripts/rollback-version.js 1.3.4
 ```
 
-#### 3. 迁移单个文件
-
-如果只想迁移特定文件：
+### 本地开发
 
 ```bash
-node scripts/migrate-api-imports.js --file=src/pages/index/index.tsx
+npm run dev:local
 ```
 
-#### 4. 验证结果
+### 配置编码（首次使用）
 
-迁移完成后，务必验证：
-
-```bash
-# 类型检查
-npm run type-check
-
-# 构建测试
-npm run build:weapp
-npm run build:android
-
-# 运行测试（如果有）
-npm run test
+```powershell
+powershell scripts/setup-encoding.ps1
 ```
 
-### 迁移示例
+---
 
-#### 迁移前
+## 注意事项
 
-```typescript
-import { 
-  getCurrentUserProfile,      // users 模块
-  getAttendanceRecords,        // attendance 模块
-  createNotification           // notifications 模块
-} from '@/db/api'
-```
+1. **部署脚本**：推荐使用 `deploy.bat` 而不是直接调用 `quick-deploy-h5.js`，避免终端编码问题
+2. **编码配置**：首次使用项目时，建议运行 `setup-encoding.ps1` 配置 UTF-8 编码
+3. **Lint 脚本**：`checkAuth.sh` 和 `checkNavigation.sh` 会在 `npm run lint` 时自动执行
 
-#### 迁移后
+---
 
-```typescript
-import { getCurrentUserProfile } from '@/db/api/users'
-import { getAttendanceRecords } from '@/db/api/attendance'
-import { createNotification } from '@/db/api/notifications'
-```
+## 相关文档
 
-### 支持的模块
-
-脚本会自动识别以下模块的函数：
-
-- `attendance` - 考勤管理
-- `dashboard` - 仪表盘
-- `leave` - 请假管理
-- `notifications` - 通知管理
-- `peer-accounts` - 平级账号
-- `peer-admin` - 调度管理
-- `permission-context` - 权限上下文
-- `permission-strategy` - 权限策略
-- `piecework` - 计件管理
-- `stats` - 统计数据
-- `users` - 用户管理
-- `utils` - 工具函数
-- `vehicles` - 车辆管理
-- `warehouses` - 仓库管理
-
-### 注意事项
-
-1. **备份代码**：虽然脚本经过测试，但建议先提交当前代码或创建备份
-2. **先预览**：使用 `--dry-run` 先查看变更
-3. **验证结果**：迁移后务必运行类型检查和构建测试
-4. **类型导入**：类型导入不受影响，仍可从 `@/db/api` 导入
-
-### 常见问题
-
-#### Q: 脚本会修改哪些文件？
-
-A: 所有 `src/` 目录下的 `.ts` 和 `.tsx` 文件，但不包括 `node_modules`。
-
-#### Q: 如果函数名不在映射表中怎么办？
-
-A: 脚本会显示"未知导入"警告，需要手动处理这些导入。
-
-#### Q: 类型导入会被修改吗？
-
-A: 不会。类型导入（`import type`）不会被修改，因为它们不影响运行时内存。
-
-#### Q: 可以撤销迁移吗？
-
-A: 如果使用了Git，可以通过 `git checkout .` 撤销所有更改。建议迁移前先提交代码。
-
-### 详细文档
-
-更多信息请查看：
-- [API导入优化指南](../docs/平台优化/API导入优化指南.md)
-- [API内存优化说明](../docs/平台优化/API内存优化说明.md)
-- [平台优化报告](../PLATFORM_OPTIMIZATION_REPORT.md)
-
-## 其他脚本
-
-（待添加）
+- [部署规则](../.kiro/steering/deployment-rules.md)
+- [编码配置快速开始](../docs/开发指南/编码配置快速开始.md)
+- [数据库配置](./SETUP-DATABASE.md)
