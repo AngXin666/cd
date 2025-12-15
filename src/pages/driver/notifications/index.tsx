@@ -39,6 +39,7 @@ import {
   subscribeToNotifications
 } from '@/db/notificationApi'
 import {createLogger} from '@/utils/logger'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 
 const logger = createLogger('NotificationsPage')
 
@@ -82,6 +83,7 @@ const NotificationsPage: React.FC = () => {
     if (!user) return
 
     setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const data = await getUserNotifications(user.id, {
         ...user,
@@ -102,6 +104,7 @@ const NotificationsPage: React.FC = () => {
       Taro.showToast({title: '加载失败', icon: 'none'})
     } finally {
       setLoading(false)
+      hideLoading()
     }
   }, [user, userContext.role])
 
@@ -621,12 +624,8 @@ const NotificationsPage: React.FC = () => {
         {/* 右侧主内容区：通知列表 */}
         <View className="flex-1 bg-background">
           <ScrollView scrollY className="h-screen box-border">
-            {loading ? (
-              <View className="flex items-center justify-center py-20">
-                <View className="i-mdi-loading animate-spin text-4xl text-primary mb-2"></View>
-                <Text className="text-muted-foreground">加载中...</Text>
-              </View>
-            ) : filteredNotifications.length === 0 ? (
+            {/* 加载状态由 showLoading/hideLoading 处理 */}
+            {loading ? null : filteredNotifications.length === 0 ? (
               <View className="flex flex-col items-center justify-center py-20">
                 <View className="i-mdi-bell-off text-6xl text-muted-foreground mb-4"></View>
                 <Text className="text-muted-foreground text-base">

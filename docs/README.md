@@ -28,9 +28,7 @@
 
 #### 部署指南
 - [H5热更新指南](./开发指南/部署指南/h5-hot-update-guide.md) - H5 热更新完整流程
-- [H5更新快速开始](./开发指南/部署指南/H5-UPDATE-QUICKSTART.md) - 快速部署指南
 - [应用更新系统配置](./开发指南/部署指南/app-update-system-setup.md) - 更新系统配置
-- [简化部署指南](./开发指南/部署指南/DEPLOY-SIMPLE.md) - 简化部署流程
 
 #### 开发指南
 - [编码配置快速开始](./开发指南/开发指南/编码配置快速开始.md) - Windows 编码配置
@@ -59,10 +57,9 @@
 - [权限上下文使用指南](./功能文档/权限系统/权限上下文使用指南.md) - 权限上下文 API
 - [权限上下文系统实现报告](./功能文档/权限系统/权限上下文系统实现报告.md) - 实现细节
 - [调度权限完善总结](./功能文档/权限系统/调度权限完善总结.md) - 调度权限说明
-- [PERMISSION_SYSTEM.md](./功能文档/权限系统/PERMISSION_SYSTEM.md) - 权限系统概览
-- [PERMISSION_IMPLEMENTATION_SUMMARY.md](./功能文档/权限系统/PERMISSION_IMPLEMENTATION_SUMMARY.md) - 实现总结
 
 #### 模块详情
+- [功能模块详细说明](./功能文档/功能模块详细说明.md) - 模块概览
 - [仓库管理](./功能文档/模块详情/仓库管理/) - 仓库管理模块
 - [车辆管理](./功能文档/模块详情/车辆管理/) - 车辆管理模块
 - [打卡功能](./功能文档/模块详情/打卡功能/) - 考勤打卡模块
@@ -83,8 +80,6 @@
 - [API导入优化指南](./技术文档/平台优化/API导入优化指南.md) - API 按需导入
 - [API模块化检查报告](./技术文档/平台优化/API模块化检查报告.md) - 模块化检查
 - [API内存优化说明](./技术文档/平台优化/API内存优化说明.md) - 内存优化
-- [API优化快速开始](./技术文档/平台优化/API优化快速开始.md) - 快速优化
-- [API优化总结](./技术文档/平台优化/API优化总结.md) - 优化总结
 
 #### 架构设计
 - [系统深度分析报告](./技术文档/架构设计/系统深度分析报告.md) - 系统架构分析
@@ -99,14 +94,12 @@
 - [平台优化报告](./项目报告/优化报告/平台优化报告.md) - 平台优化成果
 - [综合优化方案](./项目报告/优化报告/综合优化方案.md) - 综合优化
 - [API优化报告](./项目报告/优化报告/API优化报告.md) - API 优化成果
-- [README](./项目报告/优化报告/README.md) - 优化报告索引
 
 #### 重构报告
 - [项目臃肿分析](./项目报告/重构报告/项目臃肿分析.md) - 项目问题分析
 - [用户管理页面重构完成](./项目报告/重构报告/用户管理页面重构完成.md) - 重构成果
 - [用户管理重构总结](./项目报告/重构报告/用户管理重构总结.md) - 重构总结
 - [重构实施指南](./项目报告/重构报告/重构实施指南.md) - 重构指南
-- [README](./项目报告/重构报告/README.md) - 重构报告索引
 
 ---
 
@@ -134,7 +127,6 @@
 - [project-context.md](../.kiro/steering/project-context.md) - 项目上下文
 - [project-workflow.md](../.kiro/steering/project-workflow.md) - 6A工作流
 - [deployment-rules.md](../.kiro/steering/deployment-rules.md) - 部署规则
-- [README.md](../.kiro/steering/README.md) - 使用说明
 
 ### 强制规则
 
@@ -151,11 +143,13 @@
 - [SETUP-DATABASE.md](../scripts/SETUP-DATABASE.md) - 数据库配置
 
 ### 核心脚本
-- `quick-deploy-h5.js` - H5 热更新部署
-- `deploy.bat` - 构建并部署
-- `rollback-version.js` - 版本回滚
-- `setup-encoding.ps1` - 编码配置
-- `encoding-utils.js` - 编码工具模块
+| 脚本 | 用途 |
+|------|------|
+| `quick-deploy-h5.js` | H5 热更新部署 |
+| `deploy.bat` | 构建并部署 |
+| `rollback-version.js` | 版本回滚 |
+| `setup-encoding.ps1` | 编码配置 |
+| `encoding-utils.js` | 编码工具模块 |
 
 ---
 
@@ -166,8 +160,6 @@
 - [WIKI.md](../WIKI.md) - 完整技术文档
 - [DOCS-HISTORY.md](../DOCS-HISTORY.md) - 文档整理历史
 - [CHANGELOG.md](../CHANGELOG.md) - 变更日志
-- [SECURITY_FIXES.md](../SECURITY_FIXES.md) - 安全修复记录
-- [SECURITY_STATUS.md](../SECURITY_STATUS.md) - 安全状态
 
 ### 归档文档
 - [archive/README.md](../archive/README.md) - 归档说明
@@ -197,15 +189,6 @@
 | **前端开发** | WIKI.md → 开发指南 → 功能文档 |
 | **运维人员** | 部署指南 → 脚本工具 → 热更新系统 |
 | **架构师** | 技术文档 → 架构设计 → 项目报告 |
-
----
-
-## 📞 需要帮助？
-
-1. 查看 [WIKI.md](../WIKI.md) 了解完整技术文档
-2. 查看 [编码规范](../.kiro/steering/SUMMARY.md) 了解开发规范
-3. 查看 [脚本工具](../scripts/README.md) 了解部署和开发工具
-4. 查看 [DOCS-HISTORY.md](../DOCS-HISTORY.md) 了解文档整理历史
 
 ---
 

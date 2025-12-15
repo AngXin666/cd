@@ -5,7 +5,7 @@
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useRouter} from '@tarojs/taro'
-import {showToast} from '@/utils/taroCompat'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -110,7 +110,6 @@ const UserDetail: React.FC = () => {
   const router = useRouter()
   const userId = router.params.id || ''
 
-  const [loading, setLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<Profile | null>(null)
   const [_vehicles, setVehicles] = useState<Vehicle[]>([])
   const [_warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -139,7 +138,7 @@ const UserDetail: React.FC = () => {
       return
     }
 
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const data = await UsersAPI.getUserById(userId)
       if (data) {
@@ -173,7 +172,7 @@ const UserDetail: React.FC = () => {
         icon: 'error'
       })
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }, [userId])
 
@@ -289,15 +288,6 @@ const UserDetail: React.FC = () => {
       years--
     }
     return years
-  }
-
-  if (loading) {
-    return (
-      <View className="flex items-center justify-center min-h-screen bg-gray-50">
-        <View className="i-mdi-loading animate-spin text-5xl text-blue-500" />
-        <Text className="text-gray-600 mt-4 text-base">加载中...</Text>
-      </View>
-    )
   }
 
   if (!userInfo) {

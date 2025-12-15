@@ -1,7 +1,8 @@
 /**
  * 快速部署H5热更新
- * 运行: node scripts/quick-deploy-h5.js [版本号] [更新说明]
- * 示例: node scripts/quick-deploy-h5.js 1.0.5 "优化顶部安全区域"
+ * 自动从数据库读取最新版本并递增
+ * 运行: node scripts/quick-deploy-h5.js [更新说明]
+ * 示例: node scripts/quick-deploy-h5.js "优化顶部安全区域"
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -15,13 +16,46 @@ const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-// 从 package.json 读取版本号
-const packageJson = require('../package.json');
-const defaultVersion = packageJson.version;
+// 获取命令行参数（更新说明）
+const releaseNotes = process.argv[2] || '功能优化和问题修复';
 
-// 获取命令行参数（优先使用命令行参数，否则使用 package.json 版本）
-const version = process.argv[2] || defaultVersion;
-const releaseNotes = process.argv[3] || '功能优化和问题修复';
+/**
+ * 从数据库获取最新版本号并递增
+ * @returns {Promise<string>} 新版本号
+ */
+async function getNextVersion() {
+  // 查询数据库中最新的版本
+  const { data, error } = await supabase
+    .from('h5_versions')
+    .select('version')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    // 如果没有版本记录，从 1.0.0 开始
+    console.log('   ⚠️ 数据库中没有版本记录，使用初始版本 1.0.0');
+    return '1.0.0';
+  }
+
+  // 解析版本号并递增 patch 版本
+  const currentVersion = data.version;
+  const parts = currentVersion.split('.').map(Number);
+  
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    console.log(`   ⚠️ 版本号格式异常: ${currentVersion}，使用 1.0.0`);
+    return '1.0.0';
+  }
+
+  // 递增 patch 版本（最后一位）
+  parts[2] += 1;
+  const newVersion = parts.join('.');
+  
+  console.log(`   当前数据库版本: ${currentVersion}`);
+  console.log(`   新版本号: ${newVersion}`);
+  
+  return newVersion;
+}
 
 async function uploadFile(filePath, storagePath) {
   const fileContent = fs.readFileSync(filePath);
@@ -109,6 +143,12 @@ async function deploy() {
   console.log('========================================');
   console.log('H5 热更新部署');
   console.log('========================================');
+  
+  // 0. 从数据库获取新版本号
+  console.log('0. 获取版本号...');
+  const version = await getNextVersion();
+  console.log('');
+  
   console.log(`版本: ${version}`);
   console.log(`说明: ${releaseNotes}`);
   console.log('');
@@ -199,10 +239,21 @@ async function deploy() {
     console.log('   ✅ 数据库更新成功');
   }
 
+  // 6. 更新本地 package.json 版本号
+  console.log('');
+  console.log('5. 更新本地 package.json 版本号...');
+  const packageJsonPath = path.join(__dirname, '..', 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+  const oldVersion = packageJson.version;
+  packageJson.version = version;
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n', 'utf-8');
+  console.log(`   ✅ 版本号已更新: ${oldVersion} → ${version}`);
+
   console.log('');
   console.log('========================================');
   console.log('部署完成！');
   console.log('========================================');
+  console.log(`版本: ${version}`);
   console.log(`H5 URL: ${h5Url}`);
   console.log('');
   console.log('APP 会自动检测到新版本并提示更新');

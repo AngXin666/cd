@@ -19,6 +19,7 @@ import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 
 import type {DriverLicense, Profile} from '@/db/types'
 import {
@@ -359,16 +360,17 @@ const DriverHome: React.FC = () => {
   }
 
   // 初始加载状态：当用户信息还未加载时显示加载界面
+  // 使用 showLoading/hideLoading 处理加载状态
+  useEffect(() => {
+    if (!user) {
+      showLoading({title: '加载用户信息中...'})
+    } else {
+      hideLoading()
+    }
+  }, [user])
+
   if (!user) {
-    return (
-      <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
-        <View className="text-center px-8">
-          <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
-          <Text className="text-gray-600 block mb-2">加载用户信息中...</Text>
-          <Text className="text-gray-400 text-xs block">请稍候...</Text>
-        </View>
-      </View>
-    )
+    return null
   }
 
   // 加载超时提示

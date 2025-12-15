@@ -20,7 +20,6 @@ const logger = createLogger('VehicleRentalEdit')
 
 const VehicleRentalEdit: React.FC = () => {
   useAuth({guard: true})
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
 
@@ -51,10 +50,11 @@ const VehicleRentalEdit: React.FC = () => {
   const loadVehicle = useCallback(async (id: string) => {
     if (!id) return
 
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const data = await VehiclesAPI.getVehicleById(id)
       if (!data) {
+        hideLoading()
         showToast({
           title: '车辆不存在',
           icon: 'none'
@@ -84,7 +84,7 @@ const VehicleRentalEdit: React.FC = () => {
         icon: 'none'
       })
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }, [])
 
@@ -194,22 +194,6 @@ const VehicleRentalEdit: React.FC = () => {
 
   const handleEndDateChange = (e: {detail: {value: string}}) => {
     setLeaseEndDate(e.detail.value)
-  }
-
-  if (loading) {
-    return (
-      <>
-        <SafeAreaTop />
-        <View style={{background: 'linear-gradient(to bottom, #EFF6FF, #DBEAFE)', minHeight: '100vh'}}>
-          {/* 顶部导航栏 */}
-          <TopNavBar />
-          <View className="flex flex-col items-center justify-center py-20">
-            <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
-            <Text className="text-gray-600 font-medium">加载中...</Text>
-          </View>
-        </View>
-      </>
-    )
   }
 
   if (!vehicle) {

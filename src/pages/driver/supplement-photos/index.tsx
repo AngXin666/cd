@@ -15,6 +15,7 @@ import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Vehicle} from '@/db/types'
 import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {createLogger} from '@/utils/logger'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 
 const logger = createLogger('SupplementPhotos')
 
@@ -44,6 +45,7 @@ const SupplementPhotos: React.FC = () => {
   // 加载车辆信息和需要补录的图片
   const loadVehicle = useCallback(async (vehicleId: string) => {
     setLoading(true)
+    showLoading({title: '加载中...'})
 
     try {
       const data = await VehiclesAPI.getVehicleById(vehicleId)
@@ -64,6 +66,7 @@ const SupplementPhotos: React.FC = () => {
       }, 1500)
     } finally {
       setLoading(false)
+      hideLoading()
     }
   }, [])
 
@@ -199,17 +202,9 @@ const SupplementPhotos: React.FC = () => {
     })
   }
 
+  // 加载状态由 showLoading/hideLoading 处理，不需要单独的加载 UI
   if (loading) {
-    return (
-      <View className="flex items-center justify-center h-screen">
-        {/* 顶部安全区域 */}
-        <SafeAreaTop />
-        {/* 顶部导航栏 */}
-        <TopNavBar />
-        <View className="i-mdi-loading animate-spin text-4xl text-red-600 mb-4"></View>
-        <Text className="text-gray-600">加载中...</Text>
-      </View>
-    )
+    return null
   }
 
   if (!vehicle) {

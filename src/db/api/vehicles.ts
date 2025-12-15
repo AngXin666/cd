@@ -7,12 +7,17 @@
  * - 车辆审核管理
  * - 车辆归还流程
  * - 车辆统计
+ *
+ * v1.3.18 更新：车辆提交审核时发送通知
+ * 使用 buildSubmissionMessage 组装消息格式
  */
 
 import {supabase} from '@/client/supabase'
+import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import {CACHE_KEYS, clearCache, clearCacheByPrefix} from '@/utils/cache'
 import {publish} from '@/utils/eventBus'
 import {createLogger} from '@/utils/logger'
+import {type DriverType, type WarehouseInfo} from '@/utils/notificationMessageBuilder'
 import type {
   DriverLicense,
   DriverLicenseInput,
@@ -860,11 +865,27 @@ export async function getDriverDetailInfo(driverId: string) {
  * 提交车辆审核
  * @param vehicleId - 车辆ID
  * @returns 是否提交成功
+ *
+ * v1.3.18 更新：添加通知发送逻辑
+ * 使用 buildSubmissionMessage 组装消息格式：{仓库名} {司机类型} {姓名} 提交了{申请类型}申请
  */
 export async function submitVehicleForReview(vehicleId: string): Promise<boolean> {
   try {
     logger.db('提交车辆审核', 'vehicles', {vehicleId})
 
+    // 1. 获取车辆信息（包括司机ID和车牌号）
+    const {data: vehicle, error: vehicleError} = await supabase
+      .from('vehicles')
+      .select('id, user_id, plate_number')
+      .eq('id', vehicleId)
+      .maybeSingle()
+
+    if (vehicleError || !vehicle) {
+      logger.error('获取车辆信息失败', vehicleError)
+      return false
+    }
+
+    // 2. 更新车辆审核状态
     const {error} = await supabase
       .from('vehicles')
       .update({
@@ -887,6 +908,46 @@ export async function submitVehicleForReview(vehicleId: string): Promise<boolean
       vehicle_id: vehicleId,
       status: 'pending_review'
     })
+
+    // 3. 发送通知给管理员
+    if (vehicle.user_id) {
+      // 获取司机信息（包括姓名、司机类型）
+      const {data: driver} = await supabase
+        .from('users')
+        .select('name, driver_type')
+        .eq('id', vehicle.user_id)
+        .maybeSingle()
+      const driverName = driver?.name || '司机'
+      // 获取司机类型
+      const driverType: DriverType = driver?.driver_type === 'with_vehicle' ? 'with_vehicle' : 'pure'
+
+      // 获取司机的仓库列表
+      const {data: warehouseAssignments} = await supabase
+        .from('warehouse_assignments')
+        .select('warehouse_id, warehouses(id, name)')
+        .eq('user_id', vehicle.user_id)
+      const warehouses: WarehouseInfo[] = (warehouseAssignments || [])
+        .map((wa: any) => wa.warehouses)
+        .filter((w: any) => w && w.name)
+        .map((w: any) => ({id: w.id, name: w.name}))
+
+      // 获取仓库显示名称
+      const warehouseLabel = warehouses.length === 0 ? '未分配仓库' : warehouses.length === 1 ? warehouses[0].name : '多仓库'
+      // 获取司机类型显示名称
+      const driverTypeLabel = driverType === 'with_vehicle' ? '带车司机' : '纯司机'
+
+      // 消息格式：{仓库名} {司机类型}{姓名} 提交了车牌号：{车牌号} 的车辆审核申请
+      // 示例：北京仓 带车司机张三 提交了车牌号：京A12345 的车辆审核申请
+      await sendDriverSubmissionNotification({
+        driverId: vehicle.user_id,
+        driverName: driverName,
+        type: 'vehicle_review_pending',
+        title: '新的车辆审核',
+        content: `${warehouseLabel} ${driverTypeLabel}${driverName} 提交了车牌号：${vehicle.plate_number || '未知'} 的车辆审核申请`,
+        relatedId: vehicleId,
+        approvalStatus: 'pending'
+      })
+    }
 
     return true
   } catch (error) {

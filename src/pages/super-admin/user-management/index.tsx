@@ -31,6 +31,12 @@ import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
 import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {sendDebouncedNotification} from '@/utils/notificationDebounce'
+import {
+  buildDriverTypeChangeMessage,
+  buildWarehouseAssignmentMessage,
+  getOperatorLabel,
+  type UserRole as MessageUserRole
+} from '@/utils/notificationMessageBuilder'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 // 司机详细信息类型
@@ -211,7 +217,7 @@ const UserManagement: React.FC = () => {
       }
 
       // 从数据库加载
-      setLoading(true)
+      showLoading({title: '加载中...'})
       try {
         const data = await UsersAPI.getAllUsers()
 
@@ -280,7 +286,7 @@ const UserManagement: React.FC = () => {
         console.error('❌ 加载用户列表失败:', error)
         showToast({title: '加载失败', icon: 'error'})
       } finally {
-        setLoading(false)
+        hideLoading()
       }
     },
     [user, currentUserProfile]
@@ -594,38 +600,31 @@ const UserManagement: React.FC = () => {
             relatedId?: string
           }> = []
 
+          // 获取当前操作者信息
+          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
+
+          // 获取操作者姓名和角色
+          const operatorName = currentUserProfile?.real_name || currentUserProfile?.name || ''
+          // 确定操作者角色类型（使用 MessageUserRole 类型）
+          const operatorRole: MessageUserRole = currentUserProfile?.role === 'BOSS' ? 'BOSS' : currentUserProfile?.role === 'PEER_ADMIN' ? 'PEER_ADMIN' : 'BOSS'
+
           // 1. 通知司机
+          // 使用 buildDriverTypeChangeMessage 组装消息
+          // 格式：您被{操作者}变更为{新司机类型}
+          // 示例：您被老板变更为带车司机 / 您被调度李四变更为纯司机
+          const driverMessage = buildDriverTypeChangeMessage(operatorName, operatorRole, newType)
           notifications.push({
             userId: targetUser.id,
             type: 'driver_type_changed',
             title: '司机类型变更通知',
-            message: `您的司机类型已从【${currentTypeText}】变更为【${newTypeText}】`,
+            message: driverMessage,
             relatedId: targetUser.id
           })
 
           // 2. 老板或超级管理员操作 → 通知该司机所属仓库的车队长
-          const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
-
           if (currentUserProfile && isAdminRole(currentUserProfile.role)) {
-            // 获取操作人的显示名称（优先使用真实姓名）
-            const operatorRealName = currentUserProfile.real_name
-            const operatorUserName = currentUserProfile.name
-
-            // 智能构建操作人显示文本
-            let operatorText = currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'
-            if (operatorRealName) {
-              // 如果有真实姓名，显示：老板【张三】
-              operatorText = `${currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'}【${operatorRealName}】`
-            } else if (
-              operatorUserName &&
-              operatorUserName !== '老板' &&
-              operatorUserName !== '车队长' &&
-              operatorUserName !== '超级管理员'
-            ) {
-              // 如果有用户名且不是角色名称，显示：老板【admin】
-              operatorText = `老板【${operatorUserName}】`
-            }
-            // 否则只显示：老板
+            // 使用 getOperatorLabel 构建操作者显示文本（用于通知管理员）
+            const operatorDisplayName = getOperatorLabel(operatorRole, operatorName)
 
             // 获取司机所属的仓库
             const driverWarehouseIds = await WarehousesAPI.getDriverWarehouseIds(targetUser.id)
@@ -640,12 +639,13 @@ const UserManagement: React.FC = () => {
             }
 
             // 通知相关管理员
+            // 消息格式：{操作者}修改了司机{姓名}的类型，从【{旧类型}】变更为【{新类型}】
             for (const managerId of managersSet) {
               notifications.push({
                 userId: managerId,
                 type: 'driver_type_changed',
                 title: '司机类型变更操作通知',
-                message: `${operatorText}修改了司机类型：${targetUser.real_name || targetUser.name}，从【${currentTypeText}】变更为【${newTypeText}】`,
+                message: `${operatorDisplayName}修改了司机${targetUser.real_name || targetUser.name}的类型，从【${currentTypeText}】变更为【${newTypeText}】`,
                 relatedId: targetUser.id
               })
             }
@@ -794,7 +794,22 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
         const addedWarehouseIds = selectedWarehouseIds.filter((id) => !previousWarehouseIds.includes(id))
         const removedWarehouseIds = previousWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
 
-        // 1. 通知司机
+        // 获取当前操作者信息（用于构建通知消息）
+        const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
+
+        // 获取操作者姓名和角色
+        const operatorName = currentUserProfile?.real_name || currentUserProfile?.name || ''
+        // 确定操作者角色类型（使用 MessageUserRole 类型）
+        const operatorRole: MessageUserRole = currentUserProfile?.role === 'BOSS' ? 'BOSS' : currentUserProfile?.role === 'PEER_ADMIN' ? 'PEER_ADMIN' : 'BOSS'
+
+        // 使用 getOperatorLabel 构建操作者显示文本（用于通知管理员）
+        // 规则：老板不显示姓名，车队长和调度显示姓名
+        // 示例：老板、调度李四
+        const operatorDisplayName = getOperatorLabel(operatorRole, operatorName)
+
+        // 1. 通知司机（包含操作者信息）
+        // 使用 buildWarehouseAssignmentMessage 组装消息
+        // 格式：您被{操作者}{分配到/取消分配}{仓库名}仓库
         if (addedWarehouseIds.length > 0 || removedWarehouseIds.length > 0) {
           const addedWarehouseNames = warehouses
             .filter((w) => addedWarehouseIds.includes(w.id))
@@ -805,13 +820,22 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
             .map((w) => w.name)
             .join('、')
 
+          // 使用 buildWarehouseAssignmentMessage 构建消息
+          // 示例：您被老板分配到北京仓仓库 / 您被调度李四取消分配北京仓仓库
           let message = ''
           if (addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0) {
-            message = `您的仓库分配已更新：\n新增：${addedWarehouseNames}\n移除：${removedWarehouseNames}`
+            // 同时有分配和取消分配的情况，组合两条消息
+            const assignMsg = buildWarehouseAssignmentMessage(operatorName, operatorRole, addedWarehouseNames, true)
+            const unassignMsg = buildWarehouseAssignmentMessage(operatorName, operatorRole, removedWarehouseNames, false)
+            // 提取取消分配部分（去掉"您被"前缀）
+            const unassignPart = unassignMsg.replace('您被', '')
+            message = `${assignMsg}，${unassignPart}`
           } else if (addedWarehouseIds.length > 0) {
-            message = `您已被分配到新仓库：${addedWarehouseNames}`
+            // 只有分配
+            message = buildWarehouseAssignmentMessage(operatorName, operatorRole, addedWarehouseNames, true)
           } else {
-            message = `您已从以下仓库移除：${removedWarehouseNames}`
+            // 只有取消分配
+            message = buildWarehouseAssignmentMessage(operatorName, operatorRole, removedWarehouseNames, false)
           }
 
           notifications.push({
@@ -824,29 +848,8 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
         }
 
         // 2. 如果是老板操作 → 通知相关仓库的车队长
-        const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
         if (currentUserProfile && isAdminRole(currentUserProfile.role)) {
-          // 获取操作人的显示名称（优先使用真实姓名）
-          const operatorRealName = currentUserProfile.real_name
-          const operatorUserName = currentUserProfile.name
-
-          // 智能构建操作人显示文本
-          let operatorText = currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'
-          if (operatorRealName) {
-            // 如果有真实姓名，显示：老板【张三】
-            operatorText = `${currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'}【${operatorRealName}】`
-          } else if (
-            operatorUserName &&
-            operatorUserName !== '老板' &&
-            operatorUserName !== '车队长' &&
-            operatorUserName !== '超级管理员'
-          ) {
-            // 如果有用户名且不是角色名称，显示：老板【admin】
-            operatorText = `${currentUserProfile.role === 'BOSS' ? '老板' : '超级管理员'}【${operatorUserName}】`
-          }
-          // 否则只显示：老板
-
           // 获取所有受影响的仓库（新增的和移除的）
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
 
@@ -861,17 +864,30 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
           }
 
           // 通知相关管理员
+          // 消息格式：{操作者}将司机{姓名}分配到{仓库名} / {操作者}取消了司机{姓名}的{仓库名}分配
           for (const managerId of managersSet) {
-            const warehouseNames = warehouses
-              .filter((w) => affectedWarehouseIds.includes(w.id))
-              .map((w) => w.name)
-              .join('、')
+            // 根据分配和取消分配分别构建消息
+            let managerMessage = ''
+            if (addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0) {
+              // 同时有分配和取消分配
+              const addedNames = warehouses.filter((w) => addedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+              const removedNames = warehouses.filter((w) => removedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+              managerMessage = `${operatorDisplayName}将司机${userName}分配到${addedNames}，取消了${removedNames}分配`
+            } else if (addedWarehouseIds.length > 0) {
+              // 只有分配
+              const addedNames = warehouses.filter((w) => addedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+              managerMessage = `${operatorDisplayName}将司机${userName}分配到${addedNames}`
+            } else {
+              // 只有取消分配
+              const removedNames = warehouses.filter((w) => removedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+              managerMessage = `${operatorDisplayName}取消了司机${userName}的${removedNames}分配`
+            }
 
             notifications.push({
               userId: managerId,
-              type: 'warehouse_assigned',
+              type: addedWarehouseIds.length > 0 ? 'warehouse_assigned' : 'warehouse_unassigned',
               title: '仓库分配操作通知',
-              message: `${operatorText}修改了司机 ${userName} 的仓库分配，涉及仓库：${warehouseNames}`,
+              message: managerMessage,
               relatedId: userId
             })
           }
@@ -1360,12 +1376,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
           )}
 
           {/* 用户列表 */}
-          {loading ? (
-            <View className="flex items-center justify-center py-12">
-              <View className="i-mdi-loading animate-spin text-4xl text-blue-500" />
-              <Text className="text-gray-500 mt-2 block">加载中...</Text>
-            </View>
-          ) : filteredUsers.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <View className="bg-white rounded-lg p-8 text-center shadow-sm">
               <View className="i-mdi-account-off text-6xl text-gray-300 mx-auto mb-3" />
               <Text className="text-gray-500 block mb-4">暂无{activeTab === 'DRIVER' ? '司机' : '管理员'}数据</Text>

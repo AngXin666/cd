@@ -1,3 +1,11 @@
+/**
+ * 司机离职申请页面
+ * 支持选择仓库、期望离职日期和填写离职原因
+ *
+ * v1.3.18 更新：移除重复的通知发送代码
+ * 通知发送已在 LeaveAPI.createResignationApplication 中统一处理
+ * 使用 buildSubmissionMessage 组装消息格式
+ */
 import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {navigateBack, showToast, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -8,8 +16,6 @@ import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as LeaveAPI from '@/db/api/leave'
 import type {LeaveApplication} from '@/db/types'
-import * as NotificationsAPI from '@/db/api/notifications'
-import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import {getLocalDateString} from '@/utils/date'
 
@@ -311,18 +317,12 @@ const ApplyResignation: React.FC = () => {
     setSubmitting(false)
 
     if (success && applicationId) {
-      // 获取司机显示名称（包含司机类型和姓名）
-      const driverDisplayName = await VehiclesAPI.getDriverDisplayName(user.id)
-
-      // 为所有管理员创建通知
-      const _notificationCount = await NotificationsAPI.createNotificationForAllManagers({
-        type: 'resignation_application_submitted',
-        title: '新的离职申请',
-        message: `${driverDisplayName} 提交了离职申请，期望离职日期：${expectedDate}，离职原因：${reason.trim()}`,
-        related_id: applicationId
-      })
-
+      // 显示成功提示
+      // 注意：通知发送已在 LeaveAPI.createResignationApplication 中统一处理
+      // 使用 buildSubmissionMessage 组装消息格式：{仓库名} {司机类型} {姓名} 提交了{申请类型}申请
       showToast({title: '提交成功', icon: 'success'})
+
+      // 返回上一页
       setTimeout(() => {
         navigateBack()
       }, 1500)

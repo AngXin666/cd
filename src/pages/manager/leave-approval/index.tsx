@@ -26,6 +26,7 @@ import {useRealtimeNotifications} from '@/hooks'
 import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
 import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
+import {getOperatorLabel} from '@/utils/notificationMessageBuilder'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -617,18 +618,13 @@ const ManagerLeaveApproval: React.FC = () => {
           // 获取当前审批人信息
           const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
-          // 构建审批人显示文本（用于通知其他人）
-          let reviewerText = '车队长'
-          if (currentUserProfile) {
-            const reviewerRealName = currentUserProfile.real_name
-            const reviewerUserName = currentUserProfile.name
+          // 获取审批人姓名（优先使用 real_name，其次使用 name）
+          const approverName = currentUserProfile?.real_name || currentUserProfile?.name || ''
 
-            if (reviewerRealName) {
-              reviewerText = `车队长【${reviewerRealName}】`
-            } else if (reviewerUserName && reviewerUserName !== '车队长') {
-              reviewerText = `车队长【${reviewerUserName}】`
-            }
-          }
+          // 使用 getOperatorLabel 构建审批人显示文本
+          // 规则：老板不显示姓名，车队长和调度显示姓名
+          // 示例：车队长王五
+          const reviewerText = getOperatorLabel('MANAGER', approverName)
 
           // 获取请假类型文本
           const leaveTypeText =
@@ -639,14 +635,9 @@ const ManagerLeaveApproval: React.FC = () => {
               other: '其他'
             }[application.leave_type] || '请假'
 
-          // 格式化日期
-          const formatDate = (dateStr: string) => {
-            const date = new Date(dateStr)
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-          }
-
-          const startDate = formatDate(application.start_date)
-          const endDate = formatDate(application.end_date)
+          // 格式化日期（用于通知消息）
+          // 使用友好的日期格式：明天、后天、明后2天、或 12.16-12.18（3天）
+          const dateRangeDisplay = formatLeaveDateRangeDisplay(application.start_date, application.end_date)
 
           // 构建通知消息
           const statusText = approved ? '通过' : '拒绝'
@@ -671,18 +662,21 @@ const ManagerLeaveApproval: React.FC = () => {
             for (const notification of existingNotifications) {
               // 判断接收者是否为审批人本人
               const isReviewer = notification.recipient_id === user.id
+              // 消息格式：{审批人}{通过/拒绝}了 司机的{请假类型}申请（日期范围）
+              // 日期格式：明天、后天、明后2天、或 12.16-12.18（3天）
+              // 注意："通过了"或"拒绝了"后面必须添加一个空格
               const message = isReviewer
-                ? `您${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
-                : `${reviewerText}${statusText}了司机的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
+                ? `您${statusText}了 司机的${leaveTypeText}申请（${dateRangeDisplay}）`
+                : `${reviewerText}${statusText}了 司机的${leaveTypeText}申请（${dateRangeDisplay}）`
 
+              // 注意：notifications 表中没有 updated_at 字段，不要更新该字段
               const {error: updateError} = await supabase
                 .from('notifications')
                 .update({
                   approval_status: approvalStatus,
                   is_read: false, // 重置为未读
                   title: '请假审批通知',
-                  content: message,
-                  updated_at: new Date().toISOString()
+                  content: message
                 })
                 .eq('id', notification.id)
 
@@ -695,23 +689,22 @@ const ManagerLeaveApproval: React.FC = () => {
               }
             }
 
-            // 显示更新结果摘要
-
+            // 如果有更新失败，提示用户
             if (failCount > 0) {
               console.error('❌ 更新失败的通知:', errors)
-              // 如果有更新失败，提示用户
               showToast({
                 title: `通知更新部分失败（${failCount}/${existingNotifications.length}）`,
                 icon: 'none',
                 duration: 3000
               })
-            } else {
             }
-          } else {
           }
 
           // 🔔 创建新通知给司机（审批结果通知）
-          const driverMessage = `${reviewerText}${statusText}了您的${leaveTypeText}申请（${startDate} 至 ${endDate}）`
+          // 消息格式：{审批人}{通过/拒绝}了 您的{请假类型}申请（日期范围）
+          // 日期格式：明天、后天、明后2天、或 12.16-12.18（3天）
+          // 注意："通过了"或"拒绝了"后面必须添加一个空格
+          const driverMessage = `${reviewerText}${statusText}了 您的${leaveTypeText}申请（${dateRangeDisplay}）`
           await createNotification(
             application.user_id, // 发送给申请人（司机）
             notificationType,
@@ -719,6 +712,57 @@ const ManagerLeaveApproval: React.FC = () => {
             driverMessage,
             applicationId // 关联请假申请ID
           )
+
+          // 🔔 通知老板和调度（车队长审批 → 通知老板和调度）
+          if (application.warehouse_id) {
+            try {
+              // 获取申请人信息（包括司机类型）
+              const applicantProfile = profiles.find((p) => p.id === application.user_id)
+              const applicantName = applicantProfile?.name || '司机'
+              // 获取司机类型显示名称
+              const driverTypeLabel = applicantProfile?.vehicle_plate ? '带车司机' : '纯司机'
+
+              // 获取仓库信息
+              const warehouse = warehouses.find((w) => w.id === application.warehouse_id)
+              const warehouseName = warehouse?.name || '仓库'
+
+              // 构建通知消息（使用 getOperatorLabel 格式）
+              // 格式：{审批人}{通过/拒绝}了 {仓库名} {司机类型}{姓名}的{请假类型}申请（{日期范围}）
+              // 日期格式：明天、后天、明后2天、或 12.16-12.18（3天）
+              // 注意："通过了"或"拒绝了"后面必须添加一个空格，审批请假必须带有日期
+              const notificationMessage = `${reviewerText}${statusText}了 ${warehouseName} ${driverTypeLabel}${applicantName}的${leaveTypeText}申请（${dateRangeDisplay}）`
+
+              // 1. 通知所有老板
+              const superAdmins = await UsersAPI.getAllSuperAdmins()
+              for (const admin of superAdmins) {
+                if (admin.id !== user.id) {
+                  await createNotification(
+                    admin.id,
+                    notificationType,
+                    `请假申请已${statusText}`,
+                    notificationMessage
+                  )
+                }
+              }
+
+              // 2. 通知该仓库的调度（排除车队长自己）
+              const dispatchers = await WarehousesAPI.getWarehouseDispatchersAndManagers(application.warehouse_id)
+              for (const dispatcherId of dispatchers) {
+                // 不要通知申请人、审批人自己、以及已通知的老板
+                const isAlreadyNotified = superAdmins.some((a) => a.id === dispatcherId)
+                if (dispatcherId !== application.user_id && dispatcherId !== user.id && !isAlreadyNotified) {
+                  await createNotification(
+                    dispatcherId,
+                    notificationType,
+                    `请假申请已${statusText}`,
+                    notificationMessage
+                  )
+                }
+              }
+            } catch (managerNotificationError) {
+              console.error('❌ 发送老板和调度通知失败:', managerNotificationError)
+            }
+          }
         } catch (notificationError) {
           console.error('❌ 发送审批结果通知失败:', notificationError)
           // 通知发送失败不影响审批流程
@@ -770,20 +814,15 @@ const ManagerLeaveApproval: React.FC = () => {
           // 获取当前审批人信息
           const currentUserProfile = await UsersAPI.getCurrentUserWithRealName()
 
-          // 构建审批人显示文本（用于通知其他人）
-          let reviewerText = '车队长'
-          if (currentUserProfile) {
-            const reviewerRealName = currentUserProfile.real_name
-            const reviewerUserName = currentUserProfile.name
+          // 获取审批人姓名（优先使用 real_name，其次使用 name）
+          const approverName = currentUserProfile?.real_name || currentUserProfile?.name || ''
 
-            if (reviewerRealName) {
-              reviewerText = `车队长【${reviewerRealName}】`
-            } else if (reviewerUserName && reviewerUserName !== '车队长') {
-              reviewerText = `车队长【${reviewerUserName}】`
-            }
-          }
+          // 使用 getOperatorLabel 构建审批人显示文本
+          // 规则：老板不显示姓名，车队长和调度显示姓名
+          // 示例：车队长王五
+          const reviewerText = getOperatorLabel('MANAGER', approverName)
 
-          // 格式化日期
+          // 格式化离职日期
           const formatDate = (dateStr: string) => {
             const date = new Date(dateStr)
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -806,18 +845,20 @@ const ManagerLeaveApproval: React.FC = () => {
           if (existingNotifications && existingNotifications.length > 0) {
             for (const notification of existingNotifications) {
               const isReviewer = notification.recipient_id === user.id
+              // 消息格式：{审批人}{通过/拒绝}了 司机的离职申请（离职日期：{日期}）
+              // 注意："通过了"或"拒绝了"后面必须添加一个空格
               const message = isReviewer
-                ? `您${statusText}了司机的离职申请（离职日期：${resignationDate}）`
-                : `${reviewerText}${statusText}了司机的离职申请（离职日期：${resignationDate}）`
+                ? `您${statusText}了 司机的离职申请（离职日期：${resignationDate}）`
+                : `${reviewerText}${statusText}了 司机的离职申请（离职日期：${resignationDate}）`
 
+              // 注意：notifications 表中没有 updated_at 字段，不要更新该字段
               const {error: updateError} = await supabase
                 .from('notifications')
                 .update({
                   approval_status: approvalStatus,
                   is_read: false,
                   title: '离职审批通知',
-                  content: message,
-                  updated_at: new Date().toISOString()
+                  content: message
                 })
                 .eq('id', notification.id)
 
@@ -828,7 +869,10 @@ const ManagerLeaveApproval: React.FC = () => {
           }
 
           // 🔔 创建新通知给司机（审批结果通知）
-          const driverMessage = `${reviewerText}${statusText}了您的离职申请（离职日期：${resignationDate}）`
+          // 消息格式：{审批人}{通过/拒绝}了 您的离职申请（离职日期：{日期}）
+          // 示例：车队长王五通过了 您的离职申请（离职日期：2024-12-20）
+          // 注意："通过了"或"拒绝了"后面必须添加一个空格
+          const driverMessage = `${reviewerText}${statusText}了 您的离职申请（离职日期：${resignationDate}）`
           await createNotification(
             application.user_id,
             notificationType,
@@ -836,6 +880,56 @@ const ManagerLeaveApproval: React.FC = () => {
             driverMessage,
             applicationId
           )
+
+          // 🔔 通知老板和调度（车队长审批 → 通知老板和调度）
+          if (application.warehouse_id) {
+            try {
+              // 获取申请人信息（包括司机类型）
+              const applicantProfile = profiles.find((p) => p.id === application.user_id)
+              const applicantName = applicantProfile?.name || '司机'
+              // 获取司机类型显示名称
+              const driverTypeLabel = applicantProfile?.vehicle_plate ? '带车司机' : '纯司机'
+
+              // 获取仓库信息
+              const warehouse = warehouses.find((w) => w.id === application.warehouse_id)
+              const warehouseName = warehouse?.name || '仓库'
+
+              // 构建通知消息（使用 getOperatorLabel 格式）
+              // 格式：{审批人}{通过/拒绝}了 {仓库名} {司机类型}{姓名}的离职申请（离职日期：{日期}）
+              // 示例：车队长王五通过了 北京仓 纯司机张三的离职申请（离职日期：2024-12-20）
+              // 注意："通过了"或"拒绝了"后面必须添加一个空格，审批离职必须带有日期
+              const notificationMessage = `${reviewerText}${statusText}了 ${warehouseName} ${driverTypeLabel}${applicantName}的离职申请（离职日期：${resignationDate}）`
+
+              // 1. 通知所有老板
+              const superAdmins = await UsersAPI.getAllSuperAdmins()
+              for (const admin of superAdmins) {
+                if (admin.id !== user.id) {
+                  await createNotification(
+                    admin.id,
+                    notificationType,
+                    `离职申请已${statusText}`,
+                    notificationMessage
+                  )
+                }
+              }
+
+              // 2. 通知该仓库的调度（排除车队长自己）
+              const dispatchers = await WarehousesAPI.getWarehouseDispatchersAndManagers(application.warehouse_id)
+              for (const dispatcherId of dispatchers) {
+                const isAlreadyNotified = superAdmins.some((a) => a.id === dispatcherId)
+                if (dispatcherId !== application.user_id && dispatcherId !== user.id && !isAlreadyNotified) {
+                  await createNotification(
+                    dispatcherId,
+                    notificationType,
+                    `离职申请已${statusText}`,
+                    notificationMessage
+                  )
+                }
+              }
+            } catch (managerNotificationError) {
+              console.error('❌ 发送老板和调度通知失败:', managerNotificationError)
+            }
+          }
         } catch (notificationError) {
           console.error('❌ 发送审批结果通知失败:', notificationError)
         }

@@ -206,7 +206,13 @@ export function formatLeaveDateDisplay(dateStr: string): string {
 }
 
 /**
- * 格式化日期范围显示（用于请假申请确认）
+ * 格式化日期范围显示（用于请假申请确认和审批通知）
+ * 规则：
+ * - 明天请假1天：显示"明天"
+ * - 后天请假1天：显示"后天"
+ * - 明后天请假2天：显示"明后2天"
+ * - 其他情况：显示"12.16-12.18（3天）"
+ *
  * @param startDate 开始日期字符串（YYYY-MM-DD格式）
  * @param endDate 结束日期字符串（YYYY-MM-DD格式）
  * @returns 格式化后的日期范围显示
@@ -214,12 +220,42 @@ export function formatLeaveDateDisplay(dateStr: string): string {
 export function formatLeaveDateRangeDisplay(startDate: string, endDate: string): string {
   if (!startDate || !endDate) return ''
 
-  const startDisplay = formatLeaveDateDisplay(startDate)
-  const endDisplay = formatLeaveDateDisplay(endDate)
+  // 计算请假天数
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const diffTime = Math.abs(end.getTime() - start.getTime())
+  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
 
-  if (startDisplay === endDisplay) {
-    return startDisplay
+  // 获取明天和后天的日期
+  const tomorrow = getTomorrowDateString()
+  const dayAfterTomorrow = getDayAfterTomorrowDateString()
+
+  // 明天请假1天
+  if (startDate === tomorrow && endDate === tomorrow) {
+    return '明天'
   }
 
-  return `${startDisplay}至${endDisplay}`
+  // 后天请假1天
+  if (startDate === dayAfterTomorrow && endDate === dayAfterTomorrow) {
+    return '后天'
+  }
+
+  // 明后天请假2天（从明天到后天）
+  if (startDate === tomorrow && endDate === dayAfterTomorrow) {
+    return '明后2天'
+  }
+
+  // 其他情况：显示"12.16-12.18（3天）"
+  const startMonth = start.getMonth() + 1
+  const startDay = start.getDate()
+  const endMonth = end.getMonth() + 1
+  const endDay = end.getDate()
+
+  // 如果是同一个月，简化显示
+  if (startMonth === endMonth) {
+    return `${startMonth}.${startDay}-${endDay}（${days}天）`
+  }
+
+  // 跨月显示
+  return `${startMonth}.${startDay}-${endMonth}.${endDay}（${days}天）`
 }

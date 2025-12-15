@@ -1,6 +1,6 @@
 {
   "name": "miaoda-taro-react-starter",
-  "version": "1.3.1",
+  "version": "1.3.17",
   "description": "开箱即用的基于Taro + React + Zustand + TailwindCSS + TypeScript的模板",
   "author": "miaoda-team",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "dev:weapp": "taro build --type weapp --watch",
     "dev:android": "npm run build:h5 && npx cap sync android && npx cap run android",
     "build": "npm run build:weapp",
-    "build:h5": "set NODE_OPTIONS=--max-old-space-size=4096 && taro build --type h5 && node scripts/copy-login-assets.js",
+    "build:h5": "set NODE_OPTIONS=--max-old-space-size=4096 && taro build --type h5",
     "build:weapp": "taro build --type weapp",
     "build:android": "npm run build:h5 && npx cap sync android && cd android && .\\gradlew assembleDebug",
     "build:android:release": "npm run build:h5 && npx cap sync android && cd android && .\\gradlew assembleRelease",

@@ -207,16 +207,28 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
             }
 
             for (const managerId of managersSet) {
-              const warehouseNames = warehouses
-                .filter((w) => affectedWarehouseIds.includes(w.id))
-                .map((w) => w.name)
-                .join('、')
+              // 根据分配和取消分配分别构建消息
+              let managerMessage = ''
+              if (addedWarehouseIds.length > 0 && removedWarehouseIds.length > 0) {
+                // 同时有分配和取消分配
+                const addedNames = warehouses.filter((w) => addedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+                const removedNames = warehouses.filter((w) => removedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+                managerMessage = `老板将司机${userName}分配到${addedNames}，取消了${removedNames}分配`
+              } else if (addedWarehouseIds.length > 0) {
+                // 只有分配
+                const addedNames = warehouses.filter((w) => addedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+                managerMessage = `老板将司机${userName}分配到${addedNames}`
+              } else {
+                // 只有取消分配
+                const removedNames = warehouses.filter((w) => removedWarehouseIds.includes(w.id)).map((w) => w.name).join('、')
+                managerMessage = `老板取消了司机${userName}的${removedNames}分配`
+              }
 
               notifications.push({
                 userId: managerId,
-                type: 'warehouse_assigned',
+                type: addedWarehouseIds.length > 0 ? 'warehouse_assigned' : 'warehouse_unassigned',
                 title: '仓库分配操作通知',
-                message: `老板修改了 ${userName} 的仓库分配，涉及仓库：${warehouseNames}`,
+                message: managerMessage,
                 relatedId: userId
               })
             }

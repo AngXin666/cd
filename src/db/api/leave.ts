@@ -8,11 +8,15 @@
  * - 申请审批
  * - 申请查询
  * - 申请验证
+ *
+ * v1.3.18 更新：使用 buildSubmissionMessage 组装通知消息
+ * 消息格式：{仓库名} {司机类型} {姓名} 提交了{申请类型}申请
  */
 
 import {supabase} from '@/client/supabase'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
-import {formatLeaveDate} from '@/utils/dateFormat'
+import {type DriverType, type WarehouseInfo} from '@/utils/notificationMessageBuilder'
+import {formatLeaveDateForNotification} from '@/utils/dateFormat'
 import {publish} from '@/utils/eventBus'
 import type {
   ApplicationReviewInput,
@@ -66,19 +70,46 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       return null
     }
 
-    // 获取申请人信息并发送通知
-    const {data: applicant} = await supabase.from('users').select('name').eq('id', input.user_id).maybeSingle()
+    // 获取申请人信息（包括姓名、司机类型）
+    const {data: applicant} = await supabase
+      .from('users')
+      .select('name, driver_type')
+      .eq('id', input.user_id)
+      .maybeSingle()
     const applicantName = applicant?.name || '司机'
+    // 获取司机类型：has_vehicle 为 true 表示带车司机，否则为纯司机
+    const driverType: DriverType = applicant?.driver_type === 'with_vehicle' ? 'with_vehicle' : 'pure'
+
+    // 获取司机的仓库列表
+    const {data: warehouseAssignments} = await supabase
+      .from('warehouse_assignments')
+      .select('warehouse_id, warehouses(id, name)')
+      .eq('user_id', input.user_id)
+    const warehouses: WarehouseInfo[] = (warehouseAssignments || [])
+      .map((wa: any) => wa.warehouses)
+      .filter((w: any) => w && w.name)
+      .map((w: any) => ({id: w.id, name: w.name}))
+
+    // 获取仓库显示名称
+    const warehouseLabel = warehouses.length === 0 ? '未分配仓库' : warehouses.length === 1 ? warehouses[0].name : '多仓库'
+    // 获取司机类型显示名称
+    const driverTypeLabel = driverType === 'with_vehicle' ? '带车司机' : '纯司机'
+
+    // 获取请假详情用于补充信息
     const leaveTypeMap: Record<string, string> = {personal: '事假', sick: '病假', annual: '年假', other: '其他'}
     const leaveTypeLabel = leaveTypeMap[input.leave_type] || '请假'
-    const dateRangeText = formatLeaveDate(input.start_date, input.end_date, data.days || 0)
+    // 使用新的日期格式化函数：明天/后天/明后2天/12.16-12.18（3天）
+    const dateRangeText = formatLeaveDateForNotification(input.start_date, input.end_date, data.days || 1)
 
+    // 消息格式：{仓库名} {司机类型}{姓名} 提交{日期范围}{请假类型}的申请\n事由：{原因}
+    // 示例1：北京仓 纯司机张三 提交明天事假的申请\n事由：家中有事
+    // 示例2：北京仓 纯司机张三 提交12.16-12.18（3天）事假的申请\n事由：家中有事
     await sendDriverSubmissionNotification({
       driverId: input.user_id,
       driverName: applicantName,
       type: 'leave_application_submitted',
       title: '新的请假申请',
-      content: `${applicantName}提交了${leaveTypeLabel}申请（${dateRangeText}），请及时审批`,
+      content: `${warehouseLabel} ${driverTypeLabel}${applicantName} 提交${dateRangeText}${leaveTypeLabel}的申请\n事由：${input.reason || '无'}`,
       relatedId: data.id,
       approvalStatus: 'pending'
     })
@@ -271,20 +302,45 @@ export async function createResignationApplication(
       return null
     }
 
-    // 获取申请人信息并发送通知
-    const {data: applicant} = await supabase.from('users').select('name').eq('id', input.user_id).maybeSingle()
+    // 获取申请人信息（包括姓名、司机类型）
+    const {data: applicant} = await supabase
+      .from('users')
+      .select('name, driver_type')
+      .eq('id', input.user_id)
+      .maybeSingle()
     const applicantName = applicant?.name || '司机'
+    // 获取司机类型：has_vehicle 为 true 表示带车司机，否则为纯司机
+    const driverType: DriverType = applicant?.driver_type === 'with_vehicle' ? 'with_vehicle' : 'pure'
+
+    // 获取司机的仓库列表
+    const {data: warehouseAssignments} = await supabase
+      .from('warehouse_assignments')
+      .select('warehouse_id, warehouses(id, name)')
+      .eq('user_id', input.user_id)
+    const warehouses: WarehouseInfo[] = (warehouseAssignments || [])
+      .map((wa: any) => wa.warehouses)
+      .filter((w: any) => w && w.name)
+      .map((w: any) => ({id: w.id, name: w.name}))
+
+    // 获取仓库显示名称
+    const warehouseLabel = warehouses.length === 0 ? '未分配仓库' : warehouses.length === 1 ? warehouses[0].name : '多仓库'
+    // 获取司机类型显示名称
+    const driverTypeLabel = driverType === 'with_vehicle' ? '带车司机' : '纯司机'
+
+    // 格式化离职日期
     const formatDate = (dateStr: string) => {
       const date = new Date(dateStr)
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     }
 
+    // 消息格式：{仓库名} {司机类型}{姓名} 提交日期：{日期} 离职申请\n事由：{原因}
+    // 示例：北京仓 纯司机张三 提交日期：2024-12-20 离职申请\n事由：个人原因
     await sendDriverSubmissionNotification({
       driverId: input.user_id,
       driverName: applicantName,
       type: 'resignation_application_submitted',
       title: '新的离职申请',
-      content: `${applicantName}提交了离职申请（离职日期：${formatDate(input.resignation_date)}），请及时审批`,
+      content: `${warehouseLabel} ${driverTypeLabel}${applicantName} 提交日期：${formatDate(input.resignation_date)} 离职申请\n事由：${input.reason || '无'}`,
       relatedId: data.id,
       approvalStatus: 'pending'
     })
@@ -575,7 +631,6 @@ export async function getEarliestAvailableLeaveDate(userId: string, baseDate?: s
   // 检查当前日期是否与已有请假冲突，如果冲突则延后
   let maxIterations = 365 // 最多检查一年，防止无限循环
   while (maxIterations > 0) {
-    const currentDateStr = getLocalDateString(currentDate)
     let hasConflict = false
     
     for (const leave of leaves) {
@@ -630,7 +685,6 @@ export async function getEarliestAvailableResignationDate(userId: string, notice
   let maxIterations = 365 // 最多检查一年，防止无限循环
   
   while (maxIterations > 0) {
-    const currentDateStr = getLocalDateString(currentDate)
     let hasConflict = false
     
     for (const leave of leaves) {

@@ -16,6 +16,7 @@
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -35,7 +36,6 @@ const logger = createLogger('VehicleList')
 const VehicleList: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [loading, setLoading] = useState(false)
   const [targetDriverId, setTargetDriverId] = useState<string>('')
   const [targetDriver, setTargetDriver] = useState<Profile | null>(null)
   const [isManagerView, setIsManagerView] = useState(false)
@@ -84,7 +84,7 @@ const VehicleList: React.FC = () => {
         return
       }
 
-      setLoading(true)
+      showLoading({title: '加载中...'})
       try {
         // 生成缓存键
         const cacheKey = `driver_vehicles_${driverId}`
@@ -115,7 +115,7 @@ const VehicleList: React.FC = () => {
           icon: 'none'
         })
       } finally {
-        setLoading(false)
+        hideLoading()
       }
     },
     [user, targetDriverId, isManagerView]
@@ -369,12 +369,7 @@ const VehicleList: React.FC = () => {
           )}
 
           {/* 车辆列表 */}
-          {loading ? (
-            <View className="flex flex-col items-center justify-center py-20">
-              <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
-              <Text className="text-gray-600 font-medium">加载中...</Text>
-            </View>
-          ) : vehicles.length === 0 ? (
+          {vehicles.length === 0 ? (
             <View className="bg-white rounded-2xl p-8 shadow-md">
               <View className="flex flex-col items-center justify-center py-12">
                 <View className="bg-blue-50 rounded-full p-6 mb-4">

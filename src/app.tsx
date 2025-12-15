@@ -14,6 +14,7 @@ import type React from 'react'
 import type {PropsWithChildren} from 'react'
 import {useEffect} from 'react'
 import {supabase} from '@/client/supabase'
+import {GlobalNotificationProvider} from '@/components'
 import {UserContextProvider} from '@/contexts/UserContext'
 import {initMigrations} from '@/db/migrations/runMigrations'
 import {UnifiedUpdateService} from '@/services/unifiedUpdateService'
@@ -138,7 +139,10 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
 
   return (
     <AuthProvider client={supabase} loginPath="/pages/login/index">
-      <UserContextProvider>{children}</UserContextProvider>
+      {/* 全局通知提供者：用户登录后自动订阅通知并显示 Toast */}
+      <GlobalNotificationProvider>
+        <UserContextProvider>{children}</UserContextProvider>
+      </GlobalNotificationProvider>
     </AuthProvider>
   )
 }

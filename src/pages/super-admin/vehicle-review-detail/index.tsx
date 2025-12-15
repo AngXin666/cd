@@ -66,7 +66,6 @@ const calculateDrivingYears = (firstIssueDate: string | null): number | null => 
 const VehicleReviewDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicle, setVehicle] = useState<VehicleWithDriverDetails | null>(null)
-  const [loading, setLoading] = useState(false)
   const [reviewNotes, setReviewNotes] = useState('')
   const [lockedPhotos, setLockedPhotos] = useState<LockedPhotosMap>({})
   const [requiredPhotos, setRequiredPhotos] = useState<string[]>([])
@@ -75,7 +74,7 @@ const VehicleReviewDetail: React.FC = () => {
 
   // 加载车辆信息
   const loadVehicle = useCallback(async (vehicleId: string) => {
-    setLoading(true)
+    showLoading({title: '加载中...'})
 
     try {
       const data = await VehiclesAPI.getVehicleWithDriverDetails(vehicleId)
@@ -94,7 +93,7 @@ const VehicleReviewDetail: React.FC = () => {
         Taro.navigateBack()
       }, 1500)
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }, [])
 
@@ -358,20 +357,6 @@ const VehicleReviewDetail: React.FC = () => {
       current: url,
       urls: urls
     })
-  }
-
-  if (loading) {
-    return (
-      <>
-        <SafeAreaTop />
-        <View className="flex items-center justify-center h-screen">
-          {/* 顶部导航栏 */}
-          <TopNavBar />
-          <View className="i-mdi-loading animate-spin text-4xl text-orange-600 mb-4"></View>
-          <Text className="text-gray-600">加载中...</Text>
-        </View>
-      </>
-    )
   }
 
   if (!vehicle) {

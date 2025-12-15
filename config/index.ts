@@ -45,23 +45,6 @@ export default defineConfig<'vite'>(async (merge) => {
       '@supabase/supabase-js': process.env.TARO_ENV === 'h5' ? '@supabase/supabase-js' : 'supabase-wechat-js'
     },
     defineConstants: {},
-    copy: {
-      patterns: [
-        {
-          from: 'src/assets/images/login-bg-1.jpg',
-          to: 'dist/assets/images/login-bg-1.jpg'
-        },
-        {
-          from: 'src/assets/images/login-bg-2.jpg',
-          to: 'dist/assets/images/login-bg-2.jpg'
-        },
-        {
-          from: 'src/assets/images/login-bg-3.jpg',
-          to: 'dist/assets/images/login-bg-3.jpg'
-        }
-      ],
-      options: {}
-    },
     framework: 'react',
     compiler: {
       type: 'vite',
@@ -164,6 +147,7 @@ export default defineConfig<'vite'>(async (merge) => {
             }
           }
         },
+
         ...(process.env.TARO_ENV !== 'h5' && process.env.TARO_ENV !== 'harmony' && process.env.TARO_ENV !== 'rn'
           ? [
               uvtw({

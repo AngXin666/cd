@@ -8,6 +8,7 @@
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
@@ -23,7 +24,6 @@ type TabType = 'pickup' | 'return' | 'registration' | 'damage'
 const VehicleDetail: React.FC = () => {
   useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
-  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>('pickup')
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
@@ -36,7 +36,7 @@ const VehicleDetail: React.FC = () => {
 
   // 加载车辆详情
   const loadVehicleDetail = async (vehicleId: string) => {
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const vehicleData = await VehiclesAPI.getVehicleById(vehicleId)
       setVehicle(vehicleData)
@@ -47,7 +47,7 @@ const VehicleDetail: React.FC = () => {
         icon: 'none'
       })
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }
 
@@ -117,21 +117,6 @@ const VehicleDetail: React.FC = () => {
       default:
         return 'bg-gray-500'
     }
-  }
-
-  if (loading) {
-    return (
-      <View className="flex items-center justify-center" style={{minHeight: '100vh', background: '#F8FAFC'}}>
-        {/* 顶部安全区域 */}
-        <SafeAreaTop />
-        {/* 顶部导航栏 */}
-        <TopNavBar />
-        <View className="text-center">
-          <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
-          <Text className="text-gray-600 font-medium">加载中...</Text>
-        </View>
-      </View>
-    )
   }
 
   if (!vehicle) {

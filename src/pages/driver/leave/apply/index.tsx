@@ -1,3 +1,11 @@
+/**
+ * 司机请假申请页面
+ * 支持快捷请假和补请假两种模式
+ *
+ * v1.3.18 更新：移除重复的通知发送代码
+ * 通知发送已在 LeaveAPI.createLeaveApplication 中统一处理
+ * 使用 buildSubmissionMessage 组装消息格式
+ */
 import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {navigateBack, showToast, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -9,17 +17,14 @@ import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
 import type {LeaveApplication} from '@/db/types'
-import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {LeaveType} from '@/db/types'
-import {sendDriverSubmissionNotification} from '@/services/notificationService'
 import {
   formatLeaveDateRangeDisplay,
   getDayAfterTomorrowDateString,
   getLocalDateString,
   getTomorrowDateString
 } from '@/utils/date'
-import {formatLeaveDate} from '@/utils/dateFormat'
 
 // 环境检测
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -498,42 +503,12 @@ const ApplyLeave: React.FC = () => {
     setSubmitting(false)
 
     if (success && applicationId) {
-      // 🚀 性能优化：立即显示成功提示，不等待通知发送完成
+      // 显示成功提示
+      // 注意：通知发送已在 LeaveAPI.createLeaveApplication 中统一处理
+      // 使用 buildSubmissionMessage 组装消息格式：{仓库名} {司机类型} {姓名} 提交了{申请类型}申请
       showToast({title: '提交成功', icon: 'success'})
 
-      // 异步发送通知（不阻塞用户操作）
-      Promise.all([
-        VehiclesAPI.getDriverDisplayName(user.id),
-        Promise.resolve(leaveTypes.find((t) => t.value === leaveType)?.label || '请假'),
-        Promise.resolve(formatLeaveDate(startDate, endDate, leaveDays))
-      ])
-        .then(([driverDisplayName, leaveTypeLabel, dateRangeText]) => {
-          // 验证 user.id 是否有效
-          if (!user?.id || user.id === 'anon' || user.id.length < 10) {
-            console.error('❌ 无效的用户ID，无法发送通知', {userId: user?.id})
-            return
-          }
-
-          // 后台发送通知
-          return sendDriverSubmissionNotification({
-            driverId: user.id,
-            driverName: driverDisplayName,
-            type: 'leave_application_submitted', // 修复：使用正确的类型，与老板端查询一致
-            title: '新的请假申请',
-            content: `司机【${driverDisplayName}】提交了${leaveTypeLabel}申请\n请假时间：${dateRangeText}\n事由：${reason.trim()}`,
-            relatedId: applicationId
-          })
-        })
-        .then((notificationSent) => {
-          if (notificationSent) {
-          } else {
-          }
-        })
-        .catch((error) => {
-          console.error('❌ 发送通知时出错:', error)
-        })
-
-      // 立即返回上一页，不等待通知发送
+      // 返回上一页
       setTimeout(() => {
         navigateBack()
       }, 1500)

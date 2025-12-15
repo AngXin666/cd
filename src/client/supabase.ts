@@ -154,6 +154,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: {
     params: {
       eventsPerSecond: 10
+    },
+    // 增加超时时间，避免在移动网络下过早超时
+    timeout: 30000,
+    // 心跳间隔（毫秒）
+    heartbeatIntervalMs: 15000,
+    // 重连延迟（毫秒）
+    reconnectAfterMs: (tries: number) => {
+      // 指数退避：1s, 2s, 4s, 8s, 最大 30s
+      return Math.min(1000 * Math.pow(2, tries), 30000)
     }
   }
 })
+
+// 监听 Realtime 连接状态（调试用）
+if (process.env.NODE_ENV === 'development' || process.env.TARO_ENV === 'h5') {
+  console.log('🔌 [Supabase] Realtime 配置已增强，超时时间: 30s')
+}

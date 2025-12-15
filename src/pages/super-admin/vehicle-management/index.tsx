@@ -9,7 +9,7 @@
 
 import {Image, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
-import {showToast} from '@/utils/taroCompat'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -32,14 +32,13 @@ const VehicleManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicles, setVehicles] = useState<VehicleWithDriver[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<VehicleWithDriver[]>([])
-  const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
   // 存储每辆车的历史记录数量
   const [vehicleHistoryCount, setVehicleHistoryCount] = useState<Map<string, number>>(new Map())
 
   // 加载车辆列表
   const loadVehicles = useCallback(async () => {
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const data = await VehiclesAPI.getAllVehiclesWithDrivers()
       setVehicles(data)
@@ -67,7 +66,7 @@ const VehicleManagement: React.FC = () => {
         icon: 'none'
       })
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }, [])
 
@@ -371,12 +370,7 @@ const VehicleManagement: React.FC = () => {
               </View>
 
               {/* 车辆列表 */}
-              {loading ? (
-                <View className="flex flex-col items-center justify-center py-20">
-                  <View className="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></View>
-                  <Text className="text-gray-600 font-medium">加载中...</Text>
-                </View>
-              ) : filteredVehicles.length === 0 ? (
+              {filteredVehicles.length === 0 ? (
                 <View className="bg-white rounded-2xl p-8 shadow-md">
                   <View className="flex flex-col items-center justify-center py-12">
                     <View className="bg-blue-50 rounded-full p-6 mb-4">

@@ -27,7 +27,6 @@ const DriverProfileView: React.FC = () => {
 
   const [profile, setProfile] = useState<Profile | null>(null)
   const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
-  const [loading, setLoading] = useState(false)
 
   // 加载司机资料和证件信息
   const loadProfile = useCallback(async () => {
@@ -40,7 +39,7 @@ const DriverProfileView: React.FC = () => {
     }
 
     logger.pageView('司机个人信息页面', {driverId, managerId: user?.id})
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       // 加载司机资料
       const profileData = await UsersAPI.getProfileById(driverId)
@@ -56,7 +55,7 @@ const DriverProfileView: React.FC = () => {
         icon: 'none'
       })
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }, [driverId, user?.id])
 
@@ -111,19 +110,6 @@ const DriverProfileView: React.FC = () => {
       years--
     }
     return years
-  }
-
-  if (loading) {
-    return (
-      <View className="flex items-center justify-center min-h-screen bg-gray-50">
-        {/* 安全区域占位 */}
-        <SafeAreaTop />
-        {/* 顶部导航栏 */}
-        <TopNavBar />
-        <View className="i-mdi-loading animate-spin text-5xl text-blue-500" />
-        <Text className="text-gray-600 mt-4 text-base">加载中...</Text>
-      </View>
-    )
   }
 
   if (!profile) {

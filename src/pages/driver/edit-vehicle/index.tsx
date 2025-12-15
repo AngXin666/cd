@@ -48,7 +48,7 @@ const SupplementVehicle: React.FC = () => {
 
   // 加载车辆数据
   const loadVehicleData = useCallback(async (vehicleId: string) => {
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const vehicleData = await VehiclesAPI.getVehicleById(vehicleId)
       if (!vehicleData) {
@@ -238,17 +238,9 @@ const SupplementVehicle: React.FC = () => {
     })
   }
 
+  // 加载状态由 showLoading/hideLoading 处理，不需要单独的加载 UI
   if (loading) {
-    return (
-      <View className="flex items-center justify-center h-screen bg-gradient-to-b from-blue-50 to-blue-100">
-        {/* 顶部安全区域 */}
-        <SafeAreaTop />
-        {/* 顶部导航栏 */}
-        <TopNavBar />
-        <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-4"></View>
-        <Text className="text-gray-600">加载中...</Text>
-      </View>
-    )
+    return null
   }
 
   if (!vehicle) {

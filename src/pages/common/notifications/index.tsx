@@ -39,6 +39,7 @@ import {
   subscribeToNotifications
 } from '@/db/notificationApi'
 import {createLogger} from '@/utils/logger'
+// 注意：不再使用 showLoading/hideLoading，避免与通知 Toast 冲突
 
 const logger = createLogger('NotificationsPage')
 
@@ -78,6 +79,7 @@ const NotificationsPage: React.FC = () => {
   const [detailApplicationType, setDetailApplicationType] = useState<'leave' | 'resignation'>('leave')
 
   // 加载通知列表
+  // 注意：不使用 showLoading/hideLoading，避免与通知 Toast 冲突
   const loadNotifications = useCallback(async () => {
     if (!user) return
 
@@ -131,7 +133,8 @@ const NotificationsPage: React.FC = () => {
           setNotifications((prev) => {
             return prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
           })
-        }
+        },
+        'page' // 使用 'page' 后缀，与 Toast 订阅区分
       )
 
       return () => {
@@ -631,12 +634,8 @@ const NotificationsPage: React.FC = () => {
         {/* 右侧主内容区：通知列表 */}
         <View className="flex-1 bg-background">
           <ScrollView scrollY className="h-screen box-border">
-            {loading ? (
-              <View className="flex items-center justify-center py-20">
-                <View className="i-mdi-loading animate-spin text-4xl text-primary mb-2"></View>
-                <Text className="text-muted-foreground">加载中...</Text>
-              </View>
-            ) : filteredNotifications.length === 0 ? (
+            {/* 加载状态由 showLoading/hideLoading 处理 */}
+            {loading ? null : filteredNotifications.length === 0 ? (
               <View className="flex flex-col items-center justify-center py-20">
                 <View className="i-mdi-bell-off text-6xl text-muted-foreground mb-4"></View>
                 <Text className="text-muted-foreground text-base">

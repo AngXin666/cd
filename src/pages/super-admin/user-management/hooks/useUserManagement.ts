@@ -40,6 +40,7 @@ import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {Profile} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
+import {buildDriverTypeChangeMessage, type UserRole as MessageUserRole} from '@/utils/notificationMessageBuilder'
 
 /** 司机详细信息类型 */
 type DriverDetailInfo = Awaited<ReturnType<typeof VehiclesAPI.getDriverDetailInfo>>
@@ -275,16 +276,31 @@ export const useUserManagement = (): UseUserManagementReturn => {
       hideLoading()
 
       if (success) {
-        showToast({title: `已切换为${newType === 'with_vehicle' ? '带车司机' : '纯司机'}`, icon: 'success'})
+        const newTypeText = newType === 'with_vehicle' ? '带车司机' : '纯司机'
+        showToast({title: `已切换为${newTypeText}`, icon: 'success'})
 
-        // 发送通知
+        // 发送通知（包含操作者信息和具体类型）
+        // 使用 buildDriverTypeChangeMessage 组装消息
         try {
+          // 获取当前操作者信息
+          const operatorProfile = await UsersAPI.getCurrentUserWithRealName()
+
+          // 获取操作者姓名和角色
+          const operatorName = operatorProfile?.real_name || operatorProfile?.name || ''
+          // 确定操作者角色类型（使用 MessageUserRole 类型）
+          const operatorRole: MessageUserRole = operatorProfile?.role === 'BOSS' ? 'BOSS' : operatorProfile?.role === 'PEER_ADMIN' ? 'PEER_ADMIN' : 'BOSS'
+
+          // 使用 buildDriverTypeChangeMessage 构建消息
+          // 格式：您被{操作者}变更为{新司机类型}
+          // 示例：您被老板变更为带车司机 / 您被调度李四变更为纯司机
+          const message = buildDriverTypeChangeMessage(operatorName, operatorRole, newType)
+
           const notifications = [
             {
               userId: targetUser.id,
               type: 'driver_type_changed' as const,
               title: '司机类型变更通知',
-              message: `您的司机类型已变更`,
+              message: message,
               relatedId: targetUser.id
             }
           ]

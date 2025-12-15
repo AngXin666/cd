@@ -1,3 +1,9 @@
+/**
+ * 登录页面组件
+ * 提供密码登录和验证码登录两种方式
+ * 支持记住账号密码功能
+ * @module pages/login
+ */
 import {Button, Checkbox, Input, Text, View} from '@tarojs/components'
 import Taro, {getStorageSync, reLaunch, setStorageSync, showToast, switchTab} from '@tarojs/taro'
 import type React from 'react'
@@ -5,11 +11,16 @@ import {useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 
+// 使用 ?url 后缀强制 Vite 将图片作为独立文件输出，不内联为 base64
+import loginBg1 from '@/assets/images/login-bg-1.jpg?url'
+import loginBg2 from '@/assets/images/login-bg-2.jpg?url'
+import loginBg3 from '@/assets/images/login-bg-3.jpg?url'
+
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
 
-// 背景图片列表 - 使用静态资源路径
-const BG_IMAGES = ['/assets/images/login-bg-1.jpg', '/assets/images/login-bg-2.jpg', '/assets/images/login-bg-3.jpg']
+// 背景图片列表 - 使用 ?url 导入，Vite 输出为独立文件
+const BG_IMAGES = [loginBg1, loginBg2, loginBg3]
 
 // 存储工具函数，兼容H5和小程序
 const removeStorageCompat = (key: string) => {

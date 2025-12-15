@@ -59,7 +59,7 @@ const StaffManagement: React.FC = () => {
 
   // 加载所有管理员
   const loadManagers = useCallback(async () => {
-    setLoading(true)
+    showLoading({title: '加载中...'})
     try {
       const data = await UsersAPI.getAllManagers()
       setManagers(data)
@@ -85,7 +85,7 @@ const StaffManagement: React.FC = () => {
       console.error('加载管理员列表失败:', error)
       showToast({title: '加载管理员失败', icon: 'error'})
     } finally {
-      setLoading(false)
+      hideLoading()
     }
   }, [])
 
@@ -144,7 +144,7 @@ const StaffManagement: React.FC = () => {
   // 加载指定仓库的司机
   const loadDriversByWarehouse = useCallback(
     async (warehouseId: string) => {
-      setLoading(true)
+      showLoading({title: '加载中...'})
       try {
         const data = await WarehousesAPI.getDriversByWarehouse(warehouseId)
         setDrivers(data)
@@ -153,7 +153,7 @@ const StaffManagement: React.FC = () => {
         console.error('加载司机列表失败:', error)
         showToast({title: '加载司机失败', icon: 'error'})
       } finally {
-        setLoading(false)
+        hideLoading()
       }
     },
     [searchKeyword, driverTypeFilter, filterDrivers]
@@ -842,12 +842,7 @@ const StaffManagement: React.FC = () => {
         </View>
 
         {/* 管理员列表 */}
-        {loading ? (
-          <View className="flex items-center justify-center py-12">
-            <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-2" />
-            <Text className="text-gray-500 text-sm">加载中...</Text>
-          </View>
-        ) : filteredManagers.length === 0 ? (
+        {filteredManagers.length === 0 ? (
           <View className="bg-white rounded-xl p-8 text-center shadow-sm">
             <View className="i-mdi-account-off text-6xl text-gray-300 mb-4" />
             <Text className="text-gray-500 block mb-2">暂无管理员</Text>
@@ -926,12 +921,7 @@ const StaffManagement: React.FC = () => {
         </View>
 
         {/* 司机列表 */}
-        {loading ? (
-          <View className="flex items-center justify-center py-12">
-            <View className="i-mdi-loading animate-spin text-4xl text-blue-600 mb-2" />
-            <Text className="text-gray-500 text-sm">加载中...</Text>
-          </View>
-        ) : filteredDrivers.length === 0 ? (
+        {filteredDrivers.length === 0 ? (
           <View className="bg-white rounded-xl p-8 text-center shadow-sm">
             <View className="i-mdi-account-off text-6xl text-gray-300 mb-4" />
             <Text className="text-gray-500 block mb-2">暂无司机</Text>

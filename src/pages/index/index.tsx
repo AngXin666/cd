@@ -6,6 +6,7 @@ import {useEffect, useRef, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import {useUserContext} from '@/contexts/UserContext'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 
 const IndexPage: React.FC = () => {
   const {user} = useAuth({guard: true}) // 启用 guard，自动处理未登录跳转
@@ -14,6 +15,16 @@ const IndexPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const hasRedirected = useRef(false) // 防止重复跳转
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 显示加载状态
+  useEffect(() => {
+    if (!error && !hasRedirected.current) {
+      showLoading({title: loadingStatus})
+    }
+    return () => {
+      hideLoading()
+    }
+  }, [loadingStatus, error])
 
   // 设置超时处理（8秒）
   useEffect(() => {
@@ -65,29 +76,27 @@ const IndexPage: React.FC = () => {
     }
   }, [role])
 
-  return (
-    <View style={{minHeight: '100vh', background: '#F8FAFC'}}>
-      <SafeAreaTop backgroundColor="#F8FAFC" />
-      <TopNavBar />
-      <View className="flex items-center justify-center" style={{minHeight: 'calc(100vh - 44px)'}}>
-        <View className="text-center px-8">
-          <View className="i-mdi-loading animate-spin text-6xl text-blue-900 mb-4" />
-          <Text className="text-gray-800 text-lg block mb-2">{loadingStatus}</Text>
-          {error && (
+  // 加载状态由 showLoading/hideLoading 处理
+  // 只在出错时显示错误信息
+  if (error) {
+    return (
+      <View style={{minHeight: '100vh', background: '#F8FAFC'}}>
+        <SafeAreaTop backgroundColor="#F8FAFC" />
+        <TopNavBar />
+        <View className="flex items-center justify-center" style={{minHeight: 'calc(100vh - 44px)'}}>
+          <View className="text-center px-8">
             <View className="mt-4 p-4 bg-red-50 rounded-lg">
               <View className="i-mdi-alert-circle text-2xl text-red-600 mb-2" />
               <Text className="text-red-600 text-sm block">{error}</Text>
             </View>
-          )}
-          {!error && (
-            <Text className="text-gray-500 text-xs block mt-2">
-              {user ? `用户ID: ${user.id.substring(0, 8)}...` : '等待认证...'}
-            </Text>
-          )}
+          </View>
         </View>
       </View>
-    </View>
-  )
+    )
+  }
+
+  // 正常加载时返回空视图，加载状态由 showLoading 显示
+  return null
 }
 
 export default IndexPage

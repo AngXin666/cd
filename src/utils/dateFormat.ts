@@ -164,3 +164,71 @@ export function formatDistanceToNow(dateString: string): string {
   const years = Math.floor(diffDays / 365)
   return `${years}年前`
 }
+
+/**
+ * 格式化请假日期范围用于通知消息
+ * 特殊处理：
+ * - 明天请假1天：显示"明天"
+ * - 后天请假1天：显示"后天"
+ * - 明后天请假2天：显示"明后2天"
+ * - 其他情况：显示"12.16-12.18（3天）"
+ *
+ * @param startDate 开始日期 (YYYY-MM-DD)
+ * @param endDate 结束日期 (YYYY-MM-DD)
+ * @param days 请假天数
+ * @returns 格式化后的文本
+ *
+ * @example
+ * formatLeaveDateForNotification('2024-12-17', '2024-12-17', 1) // 明天（假设今天是12.16）
+ * formatLeaveDateForNotification('2024-12-18', '2024-12-18', 1) // 后天（假设今天是12.16）
+ * formatLeaveDateForNotification('2024-12-17', '2024-12-18', 2) // 明后2天（假设今天是12.16）
+ * formatLeaveDateForNotification('2024-12-20', '2024-12-22', 3) // 12.20-12.22（3天）
+ */
+export function formatLeaveDateForNotification(startDate: string, endDate: string, days: number): string {
+  if (!startDate || !endDate) return ''
+
+  // 解析日期
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+  const start = new Date(startYear, startMonth - 1, startDay)
+  const end = new Date(endYear, endMonth - 1, endDay)
+
+  // 获取今天的日期（重置时间为0点）
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  start.setHours(0, 0, 0, 0)
+  end.setHours(0, 0, 0, 0)
+
+  // 计算开始日期距今天的天数
+  const startDiffDays = Math.round((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  // 计算结束日期距今天的天数
+  const endDiffDays = Math.round((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+  // 明天请假1天
+  if (startDiffDays === 1 && endDiffDays === 1) {
+    return '明天'
+  }
+
+  // 后天请假1天
+  if (startDiffDays === 2 && endDiffDays === 2) {
+    return '后天'
+  }
+
+  // 明后天请假2天（从明天到后天）
+  if (startDiffDays === 1 && endDiffDays === 2) {
+    return '明后2天'
+  }
+
+  // 其他情况：显示"12.16-12.18（3天）"格式
+  const formatMonthDay = (date: Date) => {
+    return `${date.getMonth() + 1}.${date.getDate()}`
+  }
+
+  // 如果是同一天
+  if (startDate === endDate) {
+    return `${formatMonthDay(start)}（${days}天）`
+  }
+
+  // 日期范围
+  return `${formatMonthDay(start)}-${formatMonthDay(end)}（${days}天）`
+}

@@ -435,17 +435,38 @@ export async function deleteReadNotifications(userId: string): Promise<boolean> 
 
 /**
  * 订阅通知更新（实时）
+ * 使用 Supabase Realtime 监听 notifications 表的变化
+ *
+ * 注意：需要在 Supabase Dashboard 中为 notifications 表启用 Realtime：
+ * 1. 进入 Supabase Dashboard -> Database -> Replication
+ * 2. 找到 notifications 表，启用 Realtime
+ *
  * @param userId 用户ID
- * @param callback 回调函数
+ * @param onInsert 新通知插入时的回调函数
+ * @param onUpdate 通知更新时的回调函数（可选）
+ * @param channelSuffix 可选的 channel 后缀，用于区分不同的订阅（如 'toast', 'page'）
  * @returns 取消订阅函数
  */
 export function subscribeToNotifications(
   userId: string,
   onInsert: (notification: Notification) => void,
-  onUpdate?: (notification: Notification) => void
+  onUpdate?: (notification: Notification) => void,
+  channelSuffix?: string
 ) {
+  // 生成唯一的 channel 名称，避免多个订阅冲突
+  const channelName = channelSuffix
+    ? `notifications:${userId}:${channelSuffix}`
+    : `notifications:${userId}:${Date.now()}`
+
+  logger.info('📡 创建通知订阅', {userId, channelName})
+  console.log('📡 [NotificationAPI] 创建通知订阅', {userId, channelName})
+
+  // 重试计数器
+  let retryCount = 0
+  const maxRetries = 3
+
   const channel = supabase
-    .channel(`notifications:${userId}`)
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -455,6 +476,8 @@ export function subscribeToNotifications(
         filter: `recipient_id=eq.${userId}`
       },
       (payload) => {
+        logger.info('📬 收到新通知 INSERT', {type: (payload.new as Notification).type})
+        console.log('📬 [NotificationAPI] 收到新通知 INSERT', payload.new)
         onInsert(payload.new as Notification)
       }
     )
@@ -467,15 +490,51 @@ export function subscribeToNotifications(
         filter: `recipient_id=eq.${userId}`
       },
       (payload) => {
+        logger.info('📝 收到通知 UPDATE', {type: (payload.new as Notification).type})
+        console.log('📝 [NotificationAPI] 收到通知 UPDATE', payload.new)
         if (onUpdate) {
           onUpdate(payload.new as Notification)
         }
       }
     )
-    .subscribe()
+    .subscribe((status, err) => {
+      // 处理订阅状态变化
+      if (status === 'SUBSCRIBED') {
+        logger.info('✅ 通知订阅成功', {userId, channelName})
+        console.log('✅ [NotificationAPI] 通知订阅成功', {userId, channelName})
+        // 重置重试计数
+        retryCount = 0
+      } else if (status === 'CHANNEL_ERROR') {
+        logger.error('❌ 通知订阅错误', {userId, error: err})
+        console.error('❌ [NotificationAPI] 通知订阅错误', {userId, error: err})
+      } else if (status === 'TIMED_OUT') {
+        logger.warn('⏰ 通知订阅超时', {userId, retryCount})
+        console.warn('⏰ [NotificationAPI] 通知订阅超时', {userId, retryCount})
+
+        // 自动重试
+        if (retryCount < maxRetries) {
+          retryCount++
+          console.log(`🔄 [NotificationAPI] 尝试重新订阅 (${retryCount}/${maxRetries})`)
+          // 延迟后重新订阅
+          setTimeout(() => {
+            channel.subscribe()
+          }, 2000 * retryCount) // 指数退避：2s, 4s, 6s
+        } else {
+          console.error('❌ [NotificationAPI] 订阅失败，已达到最大重试次数')
+        }
+      } else if (status === 'CLOSED') {
+        logger.info('🔒 通知订阅已关闭', {userId})
+        console.log('🔒 [NotificationAPI] 通知订阅已关闭', {userId})
+      } else {
+        logger.debug('📡 通知订阅状态', {userId, status})
+        console.log('📡 [NotificationAPI] 通知订阅状态', {userId, status})
+      }
+    })
 
   // 返回取消订阅函数
   return () => {
+    logger.info('🔕 取消通知订阅', {userId})
+    console.log('🔕 [NotificationAPI] 取消通知订阅', {userId})
     channel.unsubscribe()
   }
 }
