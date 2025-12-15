@@ -1,3 +1,12 @@
+/**
+ * 司机仓库统计页面
+ * 显示司机在指定仓库的考勤和计件统计数据
+ * 支持 Supabase Realtime 实时订阅，收到仓库分配变更时自动刷新
+ *
+ * @module pages/driver/warehouse-stats
+ * @feature event-driven-data-refresh
+ */
+
 import {Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -9,7 +18,9 @@ import * as AttendanceAPI from '@/db/api/attendance'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRecord, PieceWorkCategory, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {getDaysAgoDateString, getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 const WarehouseStats: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -81,6 +92,33 @@ const WarehouseStats: React.FC = () => {
 
   useDidShow(() => {
     loadData()
+  })
+
+  // ==================== Realtime 订阅：仓库分配变更 ====================
+  // 使用 useRealtimeSubscription 订阅 warehouse_assignments 表
+  // 收到分配变更时自动刷新数据
+  // Requirements: 4.3, 4.4
+  useRealtimeSubscription({
+    table: 'warehouse_assignments',
+    event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
+    // 只监听当前用户的仓库分配
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user?.id && !!warehouseId,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[WarehouseStats] 收到仓库分配变更:', event.eventType)
+
+        // 显示仓库分配变更通知
+        sendDebouncedNotification(NotificationPresets.warehouseAssignmentChanged())
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[WarehouseStats] Realtime 订阅错误:', error)
+    }, [])
   })
 
   // 下拉刷新

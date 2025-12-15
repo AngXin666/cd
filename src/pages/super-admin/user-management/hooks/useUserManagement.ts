@@ -29,7 +29,8 @@
  * ```
  */
 
-import Taro, {showLoading, showToast} from '@tarojs/taro'
+import Taro from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
@@ -271,7 +272,7 @@ export const useUserManagement = (): UseUserManagementReturn => {
 
       showLoading({title: '切换中...'})
       const success = await UsersAPI.updateProfile(targetUser.id, {driver_type: newType})
-      Taro.hideLoading()
+      hideLoading()
 
       if (success) {
         showToast({title: `已切换为${newType === 'with_vehicle' ? '带车司机' : '纯司机'}`, icon: 'success'})
@@ -307,7 +308,7 @@ export const useUserManagement = (): UseUserManagementReturn => {
       if (!userDetails.has(userId)) {
         showLoading({title: '加载中...'})
         const detail = await VehiclesAPI.getDriverDetailInfo(userId)
-        Taro.hideLoading()
+        hideLoading()
         if (detail) {
           setUserDetails((prev) => new Map(prev).set(userId, detail))
         }

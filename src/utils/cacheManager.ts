@@ -312,8 +312,6 @@ export const CACHE_CONFIG = {
   DEFAULT_TTL: 30 * 60 * 1000,
   /** 最大缓存大小（10MB） */
   MAX_CACHE_SIZE: 10 * 1024 * 1024,
-  /** 轮询间隔（30 秒） */
-  POLLING_INTERVAL: 30 * 1000,
   /** Realtime 重连间隔（5 分钟） */
   REALTIME_RECONNECT_INTERVAL: 5 * 60 * 1000
 }

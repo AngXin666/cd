@@ -91,7 +91,7 @@ export async function createClockIn(input: AttendanceRecordInput): Promise<Atten
     const date = new Date(data.work_date)
     clearCache(`${CACHE_KEYS.ATTENDANCE_MONTHLY}_${data.user_id}_${date.getFullYear()}_${date.getMonth() + 1}`)
     clearCache(`${CACHE_KEYS.ATTENDANCE_ALL_RECORDS}_${date.getFullYear()}_${date.getMonth() + 1}`)
-    
+
     // 发布事件通知其他组件刷新数据
     publish('attendance:created', {id: data.id, userId: data.user_id})
   }
@@ -346,6 +346,8 @@ export async function getAllAttendanceRules(): Promise<AttendanceRule[]> {
 
 /**
  * 创建考勤规则
+ * @param input - 考勤规则输入数据
+ * @returns 创建的考勤规则对象，失败抛出错误
  */
 export async function createAttendanceRule(input: AttendanceRuleInput): Promise<AttendanceRule | null> {
   const {
@@ -377,11 +379,24 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
     console.error('创建考勤规则失败:', error)
     throw new Error('创建考勤规则失败，请稀后重试')
   }
+
+  // 发布考勤规则创建事件，通知相关页面刷新
+  if (data) {
+    publish('attendance_rule:created', {
+      id: data.id,
+      warehouse_id: data.warehouse_id,
+      is_active: data.is_active
+    })
+  }
+
   return data
 }
 
 /**
  * 更新考勤规则
+ * @param id - 考勤规则ID
+ * @param update - 更新数据
+ * @returns 是否更新成功
  */
 export async function updateAttendanceRule(id: string, update: AttendanceRuleUpdate): Promise<boolean> {
   const {error} = await supabase.from('attendance_rules').update(update).eq('id', id)
@@ -389,11 +404,20 @@ export async function updateAttendanceRule(id: string, update: AttendanceRuleUpd
     console.error('更新考勤规则失败:', error)
     return false
   }
+
+  // 发布考勤规则更新事件，通知相关页面刷新
+  publish('attendance_rule:updated', {
+    id,
+    ...update
+  })
+
   return true
 }
 
 /**
  * 删除考勤规则
+ * @param id - 考勤规则ID
+ * @returns 是否删除成功
  */
 export async function deleteAttendanceRule(id: string): Promise<boolean> {
   const {error} = await supabase.from('attendance_rules').delete().eq('id', id)
@@ -401,6 +425,10 @@ export async function deleteAttendanceRule(id: string): Promise<boolean> {
     console.error('删除考勤规则失败:', error)
     return false
   }
+
+  // 发布考勤规则删除事件，通知相关页面刷新
+  publish('attendance_rule:deleted', {id})
+
   return true
 }
 

@@ -7,6 +7,7 @@ import {supabase} from '@/client/supabase'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as LeaveAPI from '@/db/api/leave'
+import type {LeaveApplication} from '@/db/types'
 import * as NotificationsAPI from '@/db/api/notifications'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -24,6 +25,8 @@ const ApplyResignation: React.FC = () => {
   const [noticeDays, setNoticeDays] = useState(30)
   const [validationMessage, setValidationMessage] = useState<string>('')
   const [warehouses, setWarehouses] = useState<Array<{id: string; name: string}>>([])
+  const [approvedLeaves, setApprovedLeaves] = useState<LeaveApplication[]>([]) // 已批准/待审批的请假记录
+  const [dateAutoAdjusted, setDateAutoAdjusted] = useState(false) // 日期是否被自动调整
 
   useLoad(() => {
     const params = Taro.getCurrentInstance().router?.params
@@ -67,6 +70,10 @@ const ApplyResignation: React.FC = () => {
     // 保存仓库列表
     setWarehouses(activeWarehouses.map((w) => ({id: w.id, name: w.name})))
 
+    // 获取已批准/待审批的请假记录
+    const leaves = await LeaveAPI.getApprovedAndPendingLeaves(user.id)
+    setApprovedLeaves(leaves)
+
     // 如果只有一个仓库，自动选择
     if (activeWarehouses.length === 1) {
       const warehouseId = activeWarehouses[0].id
@@ -77,11 +84,21 @@ const ApplyResignation: React.FC = () => {
       if (settings) {
         setNoticeDays(settings.resignation_notice_days)
 
-        // 计算最早可选日期
+        // 计算最早可选日期（考虑已批准的请假）
         const today = new Date()
-        const minDate = new Date(today)
-        minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
-        setMinDate(getLocalDateString(minDate))
+        const baseMinDate = new Date(today)
+        baseMinDate.setDate(baseMinDate.getDate() + settings.resignation_notice_days)
+        const baseMinDateStr = getLocalDateString(baseMinDate)
+        setMinDate(baseMinDateStr)
+
+        // 计算最早可用的离职日期（跳过已批准的请假）
+        const earliestDate = await LeaveAPI.getEarliestAvailableResignationDate(user.id, settings.resignation_notice_days)
+        setExpectedDate(earliestDate)
+
+        // 检查日期是否被自动调整
+        if (earliestDate !== baseMinDateStr) {
+          setDateAutoAdjusted(true)
+        }
       }
     } else {
       // 如果有多个仓库，尝试读取上次选择的仓库
@@ -98,11 +115,21 @@ const ApplyResignation: React.FC = () => {
             if (settings) {
               setNoticeDays(settings.resignation_notice_days)
 
-              // 计算最早可选日期
+              // 计算最早可选日期（考虑已批准的请假）
               const today = new Date()
-              const minDate = new Date(today)
-              minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
-              setMinDate(getLocalDateString(minDate))
+              const baseMinDate = new Date(today)
+              baseMinDate.setDate(baseMinDate.getDate() + settings.resignation_notice_days)
+              const baseMinDateStr = getLocalDateString(baseMinDate)
+              setMinDate(baseMinDateStr)
+
+              // 计算最早可用的离职日期（跳过已批准的请假）
+              const earliestDate = await LeaveAPI.getEarliestAvailableResignationDate(user.id, settings.resignation_notice_days)
+              setExpectedDate(earliestDate)
+
+              // 检查日期是否被自动调整
+              if (earliestDate !== baseMinDateStr) {
+                setDateAutoAdjusted(true)
+              }
             }
           }
         }
@@ -117,22 +144,38 @@ const ApplyResignation: React.FC = () => {
   // 当仓库变化时，更新仓库设置
   useEffect(() => {
     const updateWarehouseSettings = async () => {
-      if (!warehouseId) return
+      if (!warehouseId || !user) return
 
       const settings = await WarehousesAPI.getWarehouseSettings(warehouseId)
       if (settings) {
         setNoticeDays(settings.resignation_notice_days)
 
-        // 计算最早可选日期
+        // 计算最早可选日期（考虑已批准的请假）
         const today = new Date()
-        const minDate = new Date(today)
-        minDate.setDate(minDate.getDate() + settings.resignation_notice_days)
-        setMinDate(getLocalDateString(minDate))
+        const baseMinDate = new Date(today)
+        baseMinDate.setDate(baseMinDate.getDate() + settings.resignation_notice_days)
+        const baseMinDateStr = getLocalDateString(baseMinDate)
+        setMinDate(baseMinDateStr)
+
+        // 计算最早可用的离职日期（跳过已批准的请假）
+        const earliestDate = await LeaveAPI.getEarliestAvailableResignationDate(user.id, settings.resignation_notice_days)
+        
+        // 只有在日期为空或需要更新时才设置
+        if (!expectedDate || expectedDate < earliestDate) {
+          setExpectedDate(earliestDate)
+        }
+
+        // 检查日期是否被自动调整
+        if (earliestDate !== baseMinDateStr) {
+          setDateAutoAdjusted(true)
+        } else {
+          setDateAutoAdjusted(false)
+        }
       }
     }
 
     updateWarehouseSettings()
-  }, [warehouseId])
+  }, [warehouseId, user, expectedDate])
 
   // 验证离职日期
   useEffect(() => {
@@ -311,6 +354,21 @@ const ApplyResignation: React.FC = () => {
                 </View>
               </View>
             </View>
+
+            {/* 日期自动调整提示 - 当有已批准的请假导致日期延后时显示 */}
+            {dateAutoAdjusted && approvedLeaves.length > 0 && (
+              <View className="mb-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border border-orange-200">
+                <View className="flex items-start">
+                  <View className="i-mdi-calendar-alert text-2xl text-orange-600 mr-2 mt-0.5"></View>
+                  <View className="flex-1">
+                    <Text className="text-orange-900 font-bold text-sm block mb-1">日期已自动调整</Text>
+                    <Text className="text-orange-800 text-xs">
+                      由于您有已批准或待审批的请假，系统已自动将离职日期调整为 {expectedDate}（最早可用日期）
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* 表单内容 */}
             <View className="bg-white rounded-lg p-4 shadow-sm">

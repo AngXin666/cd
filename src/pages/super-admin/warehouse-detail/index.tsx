@@ -1,5 +1,6 @@
 import {ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -27,7 +28,7 @@ const WarehouseDetail: React.FC = () => {
   // 加载仓库详情
   const loadWarehouseDetail = useCallback(async () => {
     if (!warehouseId) {
-      Taro.showToast({
+      showToast({
         title: '仓库ID不存在',
         icon: 'none',
         duration: 2000
@@ -35,13 +36,13 @@ const WarehouseDetail: React.FC = () => {
       return
     }
 
-    Taro.showLoading({title: '加载中...'})
+    showLoading({title: '加载中...'})
 
     try {
       // 获取仓库信息
       const warehouseData = await WarehousesAPI.getWarehouseWithRule(warehouseId)
       if (!warehouseData) {
-        Taro.showToast({
+        showToast({
           title: '仓库不存在',
           icon: 'none',
           duration: 2000
@@ -65,13 +66,13 @@ const WarehouseDetail: React.FC = () => {
       setManager(managerData)
     } catch (error) {
       console.error('加载仓库详情失败:', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'none',
         duration: 2000
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [warehouseId])
 

@@ -1,5 +1,6 @@
 import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useRouter} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -32,7 +33,7 @@ const EditUser: React.FC = () => {
   // 加载用户信息
   const loadUserInfo = useCallback(async () => {
     if (!userId) {
-      Taro.showToast({title: '用户ID不存在', icon: 'error'})
+      showToast({title: '用户ID不存在', icon: 'error'})
       return
     }
 
@@ -72,11 +73,11 @@ const EditUser: React.FC = () => {
         setSelectedRoleIndex(roleIndex)
       } else {
         console.error('❌ 用户不存在')
-        Taro.showToast({title: '用户不存在', icon: 'error'})
+        showToast({title: '用户不存在', icon: 'error'})
       }
     } catch (error) {
       console.error('❌ 加载用户信息失败:', error)
-      Taro.showToast({title: '加载失败', icon: 'error'})
+      showToast({title: '加载失败', icon: 'error'})
     } finally {
       setLoading(false)
     }
@@ -85,33 +86,33 @@ const EditUser: React.FC = () => {
   // 保存用户信息
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
-      Taro.showToast({title: '请输入姓名', icon: 'none'})
+      showToast({title: '请输入姓名', icon: 'none'})
       return
     }
 
     if (!phone.trim()) {
-      Taro.showToast({title: '请输入手机号', icon: 'none'})
+      showToast({title: '请输入手机号', icon: 'none'})
       return
     }
 
     // 验证手机号格式
     const phoneRegex = /^1[3-9]\d{9}$/
     if (!phoneRegex.test(phone.trim())) {
-      Taro.showToast({title: '手机号格式不正确', icon: 'none'})
+      showToast({title: '手机号格式不正确', icon: 'none'})
       return
     }
 
     if (!loginAccount.trim()) {
-      Taro.showToast({title: '请输入登录账号', icon: 'none'})
+      showToast({title: '请输入登录账号', icon: 'none'})
       return
     }
 
     if (!joinDate) {
-      Taro.showToast({title: '请选择入职时间', icon: 'none'})
+      showToast({title: '请选择入职时间', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       const selectedRole = roleOptions[selectedRoleIndex].value
       const selectedLabel = roleOptions[selectedRoleIndex].label
@@ -149,7 +150,7 @@ const EditUser: React.FC = () => {
       const success = await UsersAPI.updateUserInfo(userId, updateData)
 
       if (success) {
-        Taro.showToast({title: '保存成功', icon: 'success', duration: 2000})
+        showToast({title: '保存成功', icon: 'success', duration: 2000})
 
         // 延迟返回，让用户看到成功提示
         setTimeout(() => {
@@ -157,14 +158,14 @@ const EditUser: React.FC = () => {
         }, 1500)
       } else {
         console.error('❌ 保存失败: updateUserInfo 返回 false')
-        Taro.showToast({title: '保存失败', icon: 'error'})
+        showToast({title: '保存失败', icon: 'error'})
       }
     } catch (error) {
       console.error('❌ 保存用户信息异常:', error)
       console.error('异常详情:', JSON.stringify(error, null, 2))
-      Taro.showToast({title: '保存失败', icon: 'error'})
+      showToast({title: '保存失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [
     userId,

@@ -960,7 +960,11 @@ export interface CategoryPrice {
 export interface CategoryPriceInput {
   category_id: string
   warehouse_id: string
-  price: number
+  // 使用数据库实际字段名
+  driver_only_price: number // 纯司机单价
+  driver_with_vehicle_price: number // 带车司机单价
+  // 兼容旧代码
+  price?: number
   driver_type?: string
   effective_date?: string
 }
@@ -1416,7 +1420,10 @@ export interface UpdateTenantInput {
 export interface DashboardStats {
   todayAttendance: number // 今日出勤人数
   todayPieceCount: number // 当日总件数
-  pendingLeaveCount: number // 请假待审批
+  pendingLeaveCount: number // 请假待审批数量
+  pendingResignationCount: number // 离职待审批数量
+  pendingVehicleCount: number // 车辆待审批数量
+  totalPendingCount: number // 总待审批数量（请假+离职+车辆）
   monthlyPieceCount: number // 本月完成件数
   driverList: Array<{
     id: string

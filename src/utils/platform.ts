@@ -18,17 +18,22 @@ export enum PlatformType {
  */
 export const getCurrentPlatform = (): PlatformType => {
   const env = Taro.getEnv()
+  console.log('[Platform] Taro 环境:', env)
 
   switch (env) {
     case Taro.ENV_TYPE.WEAPP:
+      console.log('[Platform] 检测到微信小程序环境')
       return PlatformType.WEAPP
     case Taro.ENV_TYPE.WEB:
       // 在Capacitor环境中运行的H5被视为安卓APP
       if (isCapacitorApp()) {
+        console.log('[Platform] 检测到 Android APP 环境 (Capacitor)')
         return PlatformType.ANDROID
       }
+      console.log('[Platform] 检测到 H5 网页环境')
       return PlatformType.H5
     default:
+      console.log('[Platform] 未知平台环境')
       return PlatformType.UNKNOWN
   }
 }
@@ -37,7 +42,16 @@ export const getCurrentPlatform = (): PlatformType => {
  * 检查是否在Capacitor环境中运行（安卓APP）
  */
 export const isCapacitorApp = (): boolean => {
-  return !!(window as any)?.Capacitor
+  const capacitorObj = (window as any)?.Capacitor
+  const hasCapacitor = !!capacitorObj
+  
+  console.log('[Platform] Capacitor 检测:', {
+    hasCapacitor,
+    capacitorPlatform: capacitorObj?.getPlatform?.() || 'unknown',
+    isNativePlatform: capacitorObj?.isNativePlatform?.() || false
+  })
+  
+  return hasCapacitor
 }
 
 /**

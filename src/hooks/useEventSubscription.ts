@@ -1,20 +1,20 @@
 /**
  * 事件订阅 Hook
  * 用于在 React 组件中订阅事件总线的事件
- * 
+ *
  * @module hooks/useEventSubscription
  */
 
 import {useEffect} from 'react'
-import {subscribe, type EventType} from '@/utils/eventBus'
+import {type EventType, subscribe} from '@/utils/eventBus'
 
 /**
  * 订阅事件的 Hook
  * 自动在组件卸载时取消订阅
- * 
+ *
  * @param event - 事件类型
  * @param callback - 回调函数
- * 
+ *
  * @example
  * ```tsx
  * // 订阅请假申请创建事件
@@ -27,7 +27,7 @@ export function useEventSubscription(event: EventType, callback: () => void): vo
   useEffect(() => {
     // 订阅事件，返回取消订阅函数
     const unsubscribe = subscribe(event, callback)
-    
+
     // 组件卸载时取消订阅
     return unsubscribe
   }, [event, callback])
@@ -35,10 +35,10 @@ export function useEventSubscription(event: EventType, callback: () => void): vo
 
 /**
  * 订阅多个事件的 Hook
- * 
+ *
  * @param events - 事件类型数组
  * @param callback - 回调函数
- * 
+ *
  * @example
  * ```tsx
  * // 订阅多个事件
@@ -52,7 +52,7 @@ export function useMultiEventSubscription(events: EventType[], callback: () => v
   useEffect(() => {
     // 订阅所有事件
     const unsubscribes = events.map((event) => subscribe(event, callback))
-    
+
     // 组件卸载时取消所有订阅
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe())

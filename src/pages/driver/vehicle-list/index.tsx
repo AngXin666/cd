@@ -2,11 +2,16 @@
  * 车辆列表页面 - 提车/还车管理版
  * 显示司机名下的所有车辆
  * 支持管理员查看指定司机的车辆
+ * 支持 Supabase Realtime 实时订阅，收到审核结果时自动刷新并显示通知
  * 功能：
  * - 提车录入：添加新车辆时自动记录提车时间
  * - 还车录入：对已提车的车辆进行还车操作
  * - 动态按钮：根据车辆状态显示不同的操作按钮
  * - 智能控制：有未还车车辆时隐藏"添加新车辆"按钮
+ * - 实时通知：收到车辆审核结果时显示 Toast 通知
+ *
+ * @module pages/driver/vehicle-list
+ * @feature event-driven-data-refresh
  */
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
@@ -19,8 +24,10 @@ import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Profile, Vehicle} from '@/db/types'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 // 创建页面日志记录器
 const logger = createLogger('VehicleList')
@@ -129,6 +136,43 @@ const VehicleList: React.FC = () => {
       loadVehicles()
     }
   }, [initialized, loadVehicles])
+
+  // ==================== Realtime 订阅：车辆审核状态变化 ====================
+  // 使用 useRealtimeSubscription 订阅 vehicles 表的 UPDATE 事件
+  // 收到审核结果时显示 Toast 通知并刷新数据
+  // Requirements: 4.3, 4.4, 4.5
+  useRealtimeSubscription<Vehicle>({
+    table: 'vehicles',
+    event: 'UPDATE',
+    // 只监听当前用户的车辆（非管理员视图时）
+    filter: !isManagerView && user?.id ? `driver_id=eq.${user.id}` : undefined,
+    enabled: initialized && !!user?.id && !isManagerView,
+    onDataChange: useCallback(
+      (event) => {
+        logger.info('收到车辆状态变更', {eventType: event.eventType, table: event.table})
+
+        // 检查是否是审核状态变更
+        const newData = event.new as Vehicle | null
+        if (newData) {
+          // 检查审核状态变更
+          if (newData.review_status === 'approved') {
+            // 车辆审核通过
+            sendDebouncedNotification(NotificationPresets.vehicleReviewResult('approved'))
+          } else if (newData.review_status === 'need_supplement') {
+            // 需要补录信息
+            sendDebouncedNotification(NotificationPresets.vehicleReviewResult('supplement_required'))
+          }
+        }
+
+        // 强制刷新数据（跳过缓存）
+        loadVehicles(true)
+      },
+      [loadVehicles]
+    ),
+    onError: useCallback((error) => {
+      logger.error('Realtime 订阅错误', error)
+    }, [])
+  })
 
   // 添加车辆
   const handleAddVehicle = () => {

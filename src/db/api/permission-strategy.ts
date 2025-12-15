@@ -4,6 +4,7 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {publish} from '@/utils/eventBus'
 
 /**
  * 权限级别类型
@@ -70,7 +71,17 @@ export async function createPeerAdmin(
       }
     }
 
-    return data as OperationResult
+    // 发布同行管理员创建事件，通知相关页面刷新
+    const result = data as OperationResult
+    if (result.success) {
+      publish('peer_admin:created', {
+        user_id: userId,
+        permission_level: permissionLevel,
+        boss_id: bossId
+      })
+    }
+
+    return result
   } catch (error) {
     console.error('创建PEER_ADMIN异常:', error)
     return {
@@ -109,7 +120,17 @@ export async function updatePeerAdminPermission(
       }
     }
 
-    return data as OperationResult
+    // 发布同行管理员权限更新事件，通知相关页面刷新
+    const result = data as OperationResult
+    if (result.success) {
+      publish('peer_admin:updated', {
+        user_id: userId,
+        permission_level: permissionLevel,
+        boss_id: bossId
+      })
+    }
+
+    return result
   } catch (error) {
     console.error('更新PEER_ADMIN权限异常:', error)
     return {
@@ -139,7 +160,16 @@ export async function removePeerAdmin(userId: string, bossId: string): Promise<O
       }
     }
 
-    return data as OperationResult
+    // 发布同行管理员删除事件，通知相关页面刷新
+    const result = data as OperationResult
+    if (result.success) {
+      publish('peer_admin:deleted', {
+        user_id: userId,
+        boss_id: bossId
+      })
+    }
+
+    return result
   } catch (error) {
     console.error('删除PEER_ADMIN异常:', error)
     return {
@@ -222,7 +252,17 @@ export async function createManager(
       }
     }
 
-    return data as OperationResult
+    // 发布车队长权限创建事件，通知相关页面刷新
+    const result = data as OperationResult
+    if (result.success) {
+      publish('permission:manager_created', {
+        user_id: userId,
+        permission_level: permissionLevel,
+        boss_id: bossId
+      })
+    }
+
+    return result
   } catch (error) {
     console.error('创建MANAGER异常:', error)
     return {
@@ -261,7 +301,17 @@ export async function updateManagerPermission(
       }
     }
 
-    return data as OperationResult
+    // 发布车队长权限更新事件，通知相关页面刷新
+    const result = data as OperationResult
+    if (result.success) {
+      publish('permission:manager_updated', {
+        user_id: userId,
+        permission_level: permissionLevel,
+        boss_id: bossId
+      })
+    }
+
+    return result
   } catch (error) {
     console.error('更新MANAGER权限异常:', error)
     return {
@@ -291,7 +341,16 @@ export async function removeManager(userId: string, bossId: string): Promise<Ope
       }
     }
 
-    return data as OperationResult
+    // 发布车队长权限删除事件，通知相关页面刷新
+    const result = data as OperationResult
+    if (result.success) {
+      publish('permission:manager_deleted', {
+        user_id: userId,
+        boss_id: bossId
+      })
+    }
+
+    return result
   } catch (error) {
     console.error('删除MANAGER异常:', error)
     return {
@@ -490,6 +549,13 @@ export async function createScheduler(
       }
     }
 
+    // 发布调度员权限创建事件，通知相关页面刷新
+    publish('permission:scheduler_created', {
+      user_id: userId,
+      permission_level: permissionLevel,
+      boss_id: bossId
+    })
+
     return {
       success: true,
       message: '创建SCHEDULER成功',
@@ -582,6 +648,13 @@ export async function updateSchedulerPermission(
       }
     }
 
+    // 发布调度员权限更新事件，通知相关页面刷新
+    publish('permission:scheduler_updated', {
+      user_id: userId,
+      permission_level: permissionLevel,
+      boss_id: bossId
+    })
+
     return {
       success: true,
       message: '更新SCHEDULER权限成功',
@@ -616,6 +689,12 @@ export async function removeScheduler(userId: string, bossId: string): Promise<O
         message: error.message || '移除SCHEDULER权限失败'
       }
     }
+
+    // 发布调度员权限删除事件，通知相关页面刷新
+    publish('permission:scheduler_deleted', {
+      user_id: userId,
+      boss_id: bossId
+    })
 
     return {
       success: true,

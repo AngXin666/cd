@@ -20,10 +20,14 @@ import {UnifiedUpdateService} from '@/services/unifiedUpdateService'
 import {capacitorApp, capacitorSplashScreen, capacitorStatusBar} from '@/utils/capacitor'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
 import {platformExecute} from '@/utils/platform'
+import {initTaroCompat} from '@/utils/taroCompat'
 import './app.scss'
 
 // 设置全局错误处理
 setupGlobalErrorHandler()
+
+// 初始化 Taro H5 兼容层（全局覆盖 showLoading/hideLoading 等方法）
+initTaroCompat()
 
 /**
  * 平台特定初始化
@@ -92,10 +96,9 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
         // 初始化更新服务
         await updateService.initialize()
 
-        // 延迟 500ms 后进行静默更新检查（避免干扰应用启动和登录流程）
+        // 延迟 500ms 后进行静默更新检查
         setTimeout(async () => {
           try {
-            // 静默检查更新（不显示"已是最新版本"提示）
             await updateService.checkAndApplyUpdate(true)
           } catch (error) {
             console.error('静默检查更新失败:', error)

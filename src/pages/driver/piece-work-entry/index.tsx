@@ -256,11 +256,26 @@ const PieceWorkEntry: React.FC = () => {
       const selectedWarehouse = warehouses[selectedWarehouseIndex]
       const selectedCategory = categories[selectedCategoryIndex]
 
+      // 添加调试日志
+      console.log('[PieceWorkEntry] 更新价格检查:', {
+        hasWarehouse: !!selectedWarehouse,
+        warehouseId: selectedWarehouse?.id,
+        warehouseName: selectedWarehouse?.name,
+        hasCategory: !!selectedCategory,
+        categoryId: selectedCategory?.id,
+        categoryName: selectedCategory?.category_name,
+        hasDriverProfile: !!driverProfile,
+        driverProfileId: driverProfile?.id
+      })
+
       if (!selectedWarehouse || !selectedCategory || !driverProfile) {
+        console.warn('[PieceWorkEntry] 缺少必要数据，跳过价格查询')
         return
       }
 
+      console.log('[PieceWorkEntry] 开始查询价格配置...')
       const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+      console.log('[PieceWorkEntry] 价格配置结果:', priceConfig)
 
       setPieceWorkItems((prev) =>
         prev.map((item) => {

@@ -1,5 +1,6 @@
 import {Button, Checkbox, CheckboxGroup, Input, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -263,7 +264,7 @@ const DriverWarehouseAssignment: React.FC = () => {
     const previousWarehouseIds = await WarehousesAPI.getDriverWarehouseIds(selectedDriver.id)
     const result = await WarehousesAPI.setDriverWarehouses(selectedDriver.id, selectedWarehouseIds)
 
-    Taro.hideLoading()
+    hideLoading()
     setLoading(false)
 
     if (result.success) {
@@ -343,7 +344,7 @@ const DriverWarehouseAssignment: React.FC = () => {
 
     const newDriver = await UsersAPI.createDriver(newDriverPhone.trim(), newDriverName.trim())
 
-    Taro.hideLoading()
+    hideLoading()
     setAddingDriver(false)
 
     if (newDriver) {

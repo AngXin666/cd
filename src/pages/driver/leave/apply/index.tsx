@@ -8,6 +8,7 @@ import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
 import * as LeaveAPI from '@/db/api/leave'
+import type {LeaveApplication} from '@/db/types'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {LeaveType} from '@/db/types'
@@ -63,6 +64,8 @@ const ApplyLeave: React.FC = () => {
   const [monthlyLimit, setMonthlyLimit] = useState(0)
   const [warehouses, setWarehouses] = useState<Array<{id: string; name: string}>>([])
   const [availableQuickDays, setAvailableQuickDays] = useState(7) // 实际可选的快捷天数上限
+  const [approvedLeaves, setApprovedLeaves] = useState<LeaveApplication[]>([]) // 已批准/待审批的请假记录
+  const [earliestAvailableDate, setEarliestAvailableDate] = useState<string>('') // 最早可用的请假日期
 
   const leaveTypes = [
     {label: '事假', value: 'personal'},
@@ -196,10 +199,17 @@ const ApplyLeave: React.FC = () => {
     setMonthlyApprovedDays(approvedDays)
     setMonthlyPendingDays(pendingDays)
 
-    // 初始化快捷请假的日期
-    const tomorrow = getTomorrowDate()
-    setStartDate(tomorrow)
-    setEndDate(tomorrow)
+    // 获取已批准/待审批的请假记录
+    const leaves = await LeaveAPI.getApprovedAndPendingLeaves(user.id)
+    setApprovedLeaves(leaves)
+
+    // 计算最早可用的请假日期（跳过已批准的请假）
+    const earliestDate = await LeaveAPI.getEarliestAvailableLeaveDate(user.id, getTomorrowDate())
+    setEarliestAvailableDate(earliestDate)
+
+    // 初始化快捷请假的日期（使用最早可用日期）
+    setStartDate(earliestDate)
+    setEndDate(earliestDate)
     setLeaveDays(1)
   }, [user, isEditMode, getTomorrowDate])
 
@@ -281,11 +291,11 @@ const ApplyLeave: React.FC = () => {
     setValidationMessage('')
 
     if (newMode === 'quick') {
-      // 切换到快捷请假，重置为明天
-      const tomorrow = getTomorrowDate()
-      setStartDate(tomorrow)
+      // 切换到快捷请假，使用最早可用日期（跳过已批准的请假）
+      const availableDate = earliestAvailableDate || getTomorrowDate()
+      setStartDate(availableDate)
       setQuickDays(1)
-      const end = calculateEndDate(tomorrow, 1)
+      const end = calculateEndDate(availableDate, 1)
       setEndDate(end)
       setLeaveDays(1)
     } else {
@@ -630,6 +640,21 @@ const ApplyLeave: React.FC = () => {
                       </View>
                     </View>
                   )}
+                </View>
+              </View>
+            )}
+
+            {/* 已批准/待审批请假提示 - 当开始日期被自动延后时显示 */}
+            {mode === 'quick' && approvedLeaves.length > 0 && earliestAvailableDate !== getTomorrowDate() && (
+              <View className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 mb-4 border border-orange-200">
+                <View className="flex items-start">
+                  <View className="i-mdi-calendar-alert text-2xl text-orange-600 mr-2 mt-0.5"></View>
+                  <View className="flex-1">
+                    <Text className="text-orange-900 font-bold text-sm block mb-1">日期已自动调整</Text>
+                    <Text className="text-orange-800 text-xs">
+                      由于您有已批准或待审批的请假，系统已自动将开始日期调整为 {earliestAvailableDate}（最早可用日期）
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}

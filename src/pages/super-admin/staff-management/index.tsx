@@ -1,5 +1,6 @@
 import {Button, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -52,7 +53,7 @@ const StaffManagement: React.FC = () => {
       setWarehouses(enabledWarehouses)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
-      Taro.showToast({title: '加载仓库失败', icon: 'error'})
+      showToast({title: '加载仓库失败', icon: 'error'})
     }
   }, [])
 
@@ -82,7 +83,7 @@ const StaffManagement: React.FC = () => {
       setManagerPermissions(permissionMap)
     } catch (error) {
       console.error('加载管理员列表失败:', error)
-      Taro.showToast({title: '加载管理员失败', icon: 'error'})
+      showToast({title: '加载管理员失败', icon: 'error'})
     } finally {
       setLoading(false)
     }
@@ -150,7 +151,7 @@ const StaffManagement: React.FC = () => {
         filterDrivers(data, searchKeyword, driverTypeFilter)
       } catch (error) {
         console.error('加载司机列表失败:', error)
-        Taro.showToast({title: '加载司机失败', icon: 'error'})
+        showToast({title: '加载司机失败', icon: 'error'})
       } finally {
         setLoading(false)
       }
@@ -194,19 +195,19 @@ const StaffManagement: React.FC = () => {
     })
 
     if (result.confirm) {
-      Taro.showLoading({title: '重置中...'})
+      showLoading({title: '重置中...'})
       try {
         const success = await UsersAPI.resetUserPassword(userId)
         if (success) {
-          Taro.showToast({title: '密码已重置', icon: 'success'})
+          showToast({title: '密码已重置', icon: 'success'})
         } else {
-          Taro.showToast({title: '重置失败', icon: 'error'})
+          showToast({title: '重置失败', icon: 'error'})
         }
       } catch (error) {
         console.error('重置密码失败:', error)
-        Taro.showToast({title: '重置失败', icon: 'error'})
+        showToast({title: '重置失败', icon: 'error'})
       } finally {
-        Taro.hideLoading()
+        hideLoading()
       }
     }
   }, [])
@@ -227,21 +228,21 @@ const StaffManagement: React.FC = () => {
       })
 
       if (result.confirm) {
-        Taro.showLoading({title: '变更中...'})
+        showLoading({title: '变更中...'})
         try {
           const success = await UsersAPI.updateUserRole(userId, newRole)
           if (success) {
-            Taro.showToast({title: '角色变更成功', icon: 'success'})
+            showToast({title: '角色变更成功', icon: 'success'})
             // 刷新管理员列表
             loadManagers()
           } else {
-            Taro.showToast({title: '角色变更失败', icon: 'error'})
+            showToast({title: '角色变更失败', icon: 'error'})
           }
         } catch (error) {
           console.error('变更角色失败:', error)
-          Taro.showToast({title: '角色变更失败', icon: 'error'})
+          showToast({title: '角色变更失败', icon: 'error'})
         } finally {
-          Taro.hideLoading()
+          hideLoading()
         }
       }
     },
@@ -272,7 +273,7 @@ const StaffManagement: React.FC = () => {
   const handleSavePermissions = useCallback(async () => {
     if (!settingPermissionsManager) return
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       const success = await UsersAPI.upsertManagerPermission({
         manager_id: settingPermissionsManager.id,
@@ -280,17 +281,17 @@ const StaffManagement: React.FC = () => {
       })
 
       if (success) {
-        Taro.showToast({title: '权限设置成功', icon: 'success'})
+        showToast({title: '权限设置成功', icon: 'success'})
         setSettingPermissionsManager(null)
         loadManagers()
       } else {
-        Taro.showToast({title: '权限设置失败', icon: 'error'})
+        showToast({title: '权限设置失败', icon: 'error'})
       }
     } catch (error) {
       console.error('设置权限失败:', error)
-      Taro.showToast({title: '权限设置失败', icon: 'error'})
+      showToast({title: '权限设置失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [settingPermissionsManager, selectedPermissions, loadManagers])
 
@@ -335,13 +336,13 @@ const StaffManagement: React.FC = () => {
     async (driver: Profile) => {
       if (!user) return
 
-      Taro.showLoading({title: '发送中...', mask: true})
+      showLoading({title: '发送中...', mask: true})
 
       try {
         // 获取当前用户信息
         const currentUser = await UsersAPI.getCurrentUserWithRealName()
         if (!currentUser) {
-          Taro.showToast({
+          showToast({
             title: '获取用户信息失败',
             icon: 'none'
           })
@@ -357,24 +358,24 @@ const StaffManagement: React.FC = () => {
         )
 
         if (success) {
-          Taro.showToast({
+          showToast({
             title: '通知已发送',
             icon: 'success'
           })
         } else {
-          Taro.showToast({
+          showToast({
             title: '发送失败，请重试',
             icon: 'none'
           })
         }
       } catch (error) {
         console.error('发送实名通知异常:', error)
-        Taro.showToast({
+        showToast({
           title: '发送失败',
           icon: 'none'
         })
       } finally {
-        Taro.hideLoading()
+        hideLoading()
       }
     },
     [user]
@@ -385,11 +386,11 @@ const StaffManagement: React.FC = () => {
     if (!editingManager) return
 
     if (!editForm.name.trim()) {
-      Taro.showToast({title: '请输入姓名', icon: 'none'})
+      showToast({title: '请输入姓名', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       const success = await UsersAPI.updateProfile(editingManager.id, {
         name: editForm.name.trim(),
@@ -398,17 +399,17 @@ const StaffManagement: React.FC = () => {
       })
 
       if (success) {
-        Taro.showToast({title: '保存成功', icon: 'success'})
+        showToast({title: '保存成功', icon: 'success'})
         handleCancelEdit()
         loadManagers()
       } else {
-        Taro.showToast({title: '保存失败', icon: 'error'})
+        showToast({title: '保存失败', icon: 'error'})
       }
     } catch (error) {
       console.error('保存管理员信息失败:', error)
-      Taro.showToast({title: '保存失败', icon: 'error'})
+      showToast({title: '保存失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [editingManager, editForm, handleCancelEdit, loadManagers])
 
@@ -416,7 +417,7 @@ const StaffManagement: React.FC = () => {
   const handleAssignWarehouseToManager = useCallback(
     (managerId: string, managerName: string) => {
       if (warehouses.length === 0) {
-        Taro.showToast({title: '暂无可分配的仓库', icon: 'none'})
+        showToast({title: '暂无可分配的仓库', icon: 'none'})
         return
       }
 
@@ -444,12 +445,12 @@ const StaffManagement: React.FC = () => {
     const toRemove = currentWarehouseIds.filter((id) => !selectedWarehouseIds.includes(id))
 
     if (toAdd.length === 0 && toRemove.length === 0) {
-      Taro.showToast({title: '未做任何修改', icon: 'none'})
+      showToast({title: '未做任何修改', icon: 'none'})
       setAssigningWarehouseManager(null)
       return
     }
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       let hasError = false
 
@@ -472,17 +473,17 @@ const StaffManagement: React.FC = () => {
       }
 
       if (hasError) {
-        Taro.showToast({title: '部分操作失败', icon: 'error'})
+        showToast({title: '部分操作失败', icon: 'error'})
       } else {
-        Taro.showToast({title: '保存成功', icon: 'success'})
+        showToast({title: '保存成功', icon: 'success'})
         setAssigningWarehouseManager(null)
         loadManagers()
       }
     } catch (error) {
       console.error('保存仓库分配失败:', error)
-      Taro.showToast({title: '保存失败', icon: 'error'})
+      showToast({title: '保存失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [assigningWarehouseManager, selectedWarehouseIds, managerWarehouses, loadManagers])
 

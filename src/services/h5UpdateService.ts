@@ -39,6 +39,7 @@ export function getLocalH5Version(): string {
 }
 
 export async function getLatestH5Version(): Promise<H5VersionInfo | null> {
+  console.log('[H5Update] 开始查询 h5_versions 表...')
   try {
     const {data, error} = await supabase
       .from('h5_versions')
@@ -48,20 +49,36 @@ export async function getLatestH5Version(): Promise<H5VersionInfo | null> {
       .limit(1)
 
     if (error) {
-      console.error('获取H5版本信息失败:', error)
+      console.error('[H5Update] 查询 h5_versions 失败:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
       return null
     }
 
+    // 记录查询结果
+    console.log('[H5Update] 查询结果:', {
+      hasData: !!data,
+      recordCount: data?.length || 0
+    })
+
     // 取第一条（最新的）
     if (data && data.length > 0) {
-      console.log('获取到最新版本:', data[0])
-      return data[0] as H5VersionInfo
+      const versionInfo = data[0] as H5VersionInfo
+      console.log('[H5Update] 获取到最新版本:', {
+        version: versionInfo.version,
+        h5_url: versionInfo.h5_url,
+        is_force_update: versionInfo.is_force_update
+      })
+      return versionInfo
     }
 
-    console.log('没有找到活跃的H5版本')
+    console.warn('[H5Update] ⚠️ 没有找到活跃的 H5 版本！请检查数据库中 h5_versions 表是否有 is_active=true 的记录')
     return null
   } catch (error) {
-    console.error('查询H5版本异常:', error)
+    console.error('[H5Update] 查询 h5_versions 异常:', error)
     return null
   }
 }
@@ -78,52 +95,56 @@ export function compareVersions(v1: string, v2: string): number {
   return 0
 }
 
+/**
+ * 检查是否有 H5 更新
+ * @returns 更新检查结果，包含是否需要更新和版本信息
+ */
 export async function checkForH5Update(): Promise<{
   needsUpdate: boolean
   versionInfo?: H5VersionInfo
 }> {
+  console.log('[H5Update] 开始检查更新...')
   try {
     const currentVersion = getCurrentH5Version()
-    console.log('当前版本:', currentVersion)
+    console.log('[H5Update] 当前本地版本:', currentVersion)
 
     const latestVersion = await getLatestH5Version()
-    console.log('服务器最新版本:', latestVersion)
 
     if (!latestVersion) {
-      console.log('未获取到服务器版本信息')
+      console.warn('[H5Update] 未获取到服务器版本信息')
       return {needsUpdate: false}
     }
 
+    console.log('[H5Update] 服务器最新版本:', latestVersion.version)
+
     const comparison = compareVersions(latestVersion.version, currentVersion)
-    console.log('版本比较结果:', comparison, `(${latestVersion.version} vs ${currentVersion})`)
+    console.log('[H5Update] 版本比较结果:', comparison, comparison > 0 ? '需要更新' : '无需更新')
 
     if (comparison > 0) {
-      console.log('需要更新')
       return {needsUpdate: true, versionInfo: latestVersion}
     }
-    console.log('不需要更新')
+    
     return {needsUpdate: false}
   } catch (error) {
-    console.error('检查H5更新失败:', error)
+    console.error('[H5Update] 检查更新失败:', error)
     return {needsUpdate: false}
   }
 }
 
 /**
  * 应用H5更新 - 使用LiveUpdate下载并应用更新包
- * @param h5Url zip包URL
- * @param version 版本号
- * @param onProgress 进度回调
+ * @param h5Url - zip包URL
+ * @param version - 版本号
+ * @param onProgress - 进度回调
+ * @returns 是否更新成功
  */
 export async function applyH5Update(h5Url: string, version: string, onProgress?: ProgressCallback): Promise<boolean> {
-  console.log('=== applyH5Update 开始 ===')
-  console.log('h5Url:', h5Url)
-  console.log('version:', version)
+  console.log('[H5Update] 开始下载更新:', {h5Url, version})
 
   try {
     // 确保URL指向zip包
     const zipUrl = h5Url.endsWith('.zip') ? h5Url : `${h5Url}bundle.zip`
-    console.log('H5更新: 开始下载', zipUrl)
+    console.log('[H5Update] 最终下载URL:', zipUrl)
 
     // 检查LiveUpdate是否可用
     if (!LiveUpdate || typeof LiveUpdate.downloadBundle !== 'function') {
@@ -133,7 +154,7 @@ export async function applyH5Update(h5Url: string, version: string, onProgress?:
     // 开始下载
     onProgress?.({percent: 0, status: 'downloading', message: '开始下载...'})
 
-    // 模拟进度（LiveUpdate不提供实时进度，我们模拟一个）
+    // 模拟进度（LiveUpdate不提供实时进度）
     let simulatedProgress = 0
     const progressInterval = setInterval(() => {
       if (simulatedProgress < 90) {
@@ -155,7 +176,7 @@ export async function applyH5Update(h5Url: string, version: string, onProgress?:
       })
 
       clearInterval(progressInterval)
-      console.log('H5更新: 下载完成')
+      console.log('[H5Update] 下载完成')
 
       // 安装阶段
       onProgress?.({percent: 95, status: 'installing', message: '正在安装...'})
@@ -166,7 +187,6 @@ export async function applyH5Update(h5Url: string, version: string, onProgress?:
       })
 
       // 验证bundle是否设置成功
-      console.log('H5更新: 验证bundle设置...')
       const bundles = await LiveUpdate.getBundles()
       const bundleExists = bundles.bundleIds?.includes(version)
 
@@ -174,14 +194,14 @@ export async function applyH5Update(h5Url: string, version: string, onProgress?:
         throw new Error('Bundle设置失败：未找到已下载的bundle')
       }
 
-      console.log('H5更新: Bundle验证成功')
+      console.log('[H5Update] Bundle验证成功')
 
       // 保存版本信息
       localStorage.setItem(STORAGE_KEY_H5_VERSION, version)
 
       // 完成
       onProgress?.({percent: 100, status: 'complete', message: '更新完成'})
-      console.log('H5更新: 安装完成')
+      console.log('[H5Update] 安装完成')
 
       return true
     } catch (downloadError) {
@@ -190,7 +210,7 @@ export async function applyH5Update(h5Url: string, version: string, onProgress?:
     }
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error('H5更新失败:', error)
+    console.error('[H5Update] 更新失败:', error)
     onProgress?.({percent: 0, status: 'error', message: errorMsg})
     return false
   }

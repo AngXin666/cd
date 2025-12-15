@@ -1,3 +1,12 @@
+/**
+ * 管理员请假审批页面
+ * 提供请假申请审批、离职申请审批、司机统计等功能
+ * 支持 Supabase Realtime 实时订阅，收到新申请时自动刷新并显示通知
+ *
+ * @module pages/manager/leave-approval
+ * @feature event-driven-data-refresh
+ */
+
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -14,7 +23,9 @@ import {createNotification} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -141,10 +152,10 @@ const ManagerLeaveApproval: React.FC = () => {
     if (urlWarehouseId && managerWarehouses.length > 0 && warehouses.length > 0) {
       // 计算可见仓库列表
       const managedWarehouseIds = managerWarehouses.map((w) => w.id)
-      const managedWarehouses = warehouses.filter((w) => managedWarehouseIds.includes(w.id))
+      const managedWarehousesList = warehouses.filter((w) => managedWarehouseIds.includes(w.id))
 
-      // 过滤出有数据的仓库
-      const warehousesWithData = managedWarehouses
+      // 按数据量排序仓库（有数据的排在前面，但不过滤掉无数据的仓库）
+      const warehousesWithData = managedWarehousesList
         .map((warehouse) => {
           const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
           const resignationCount = resignationApplications.filter((app) => app.warehouse_id === warehouse.id).length
@@ -152,12 +163,11 @@ const ManagerLeaveApproval: React.FC = () => {
           const totalCount = leaveCount + resignationCount + attendanceCount
           return {warehouse, totalCount}
         })
-        .filter((item) => item.totalCount > 0)
         .sort((a, b) => b.totalCount - a.totalCount)
         .map((item) => item.warehouse)
 
-      // 如果没有数据，显示所有管理的仓库
-      const visibleWarehouses = warehousesWithData.length > 0 ? warehousesWithData : managedWarehouses
+      // 使用排序后的完整仓库列表（不过滤无数据的仓库）
+      const visibleWarehouses = warehousesWithData
 
       // 查找目标仓库的索引
       const targetIndex = visibleWarehouses.findIndex((w) => w.id === urlWarehouseId)
@@ -173,13 +183,62 @@ const ManagerLeaveApproval: React.FC = () => {
     loadData()
   })
 
-  // 启用实时通知
+  // 启用实时通知（保留原有的通知机制）
   useRealtimeNotifications({
     userId: user?.id || '',
     userRole: 'MANAGER',
     onLeaveApplicationChange: loadData,
     onResignationApplicationChange: loadData,
     onAttendanceChange: loadData
+  })
+
+  // ==================== Realtime 订阅：请假申请表 ====================
+  // 使用 useRealtimeSubscription 订阅 leave_applications 表
+  // 收到新请假申请时显示 Toast 通知并刷新数据
+  // Requirements: 3.1, 3.3
+  useRealtimeSubscription({
+    table: 'leave_applications',
+    event: 'INSERT',
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[ManagerLeaveApproval] 收到新请假申请:', event)
+
+        // 使用防抖通知，避免短时间内多个申请触发多次通知
+        sendDebouncedNotification(NotificationPresets.newLeaveApplication())
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[ManagerLeaveApproval] Realtime 订阅错误:', error)
+    }, [])
+  })
+
+  // ==================== Realtime 订阅：离职申请表 ====================
+  // 使用 useRealtimeSubscription 订阅 resignation_applications 表
+  // 收到新离职申请时显示 Toast 通知并刷新数据
+  useRealtimeSubscription({
+    table: 'resignation_applications',
+    event: 'INSERT',
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[ManagerLeaveApproval] 收到新离职申请:', event)
+
+        // 使用防抖通知
+        sendDebouncedNotification(NotificationPresets.newResignationApplication())
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[ManagerLeaveApproval] Realtime 订阅错误:', error)
+    }, [])
   })
 
   // 下拉刷新

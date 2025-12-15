@@ -1,5 +1,6 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh, useRouter} from '@tarojs/taro'
+import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -74,7 +75,7 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
       setAttendanceStats(attendanceData)
     } catch (error) {
       console.error('加载数据失败:', error)
-      Taro.showToast({
+      showToast({
         title: '加载数据失败',
         icon: 'error',
         duration: 2000
@@ -127,7 +128,7 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
     if (result.confirm) {
       try {
         await PieceworkAPI.deletePieceWorkRecord(record.id)
-        Taro.showToast({
+        showToast({
           title: '删除成功',
           icon: 'success',
           duration: 2000
@@ -135,7 +136,7 @@ const SuperAdminPieceWorkReportDetail: React.FC = () => {
         loadData()
       } catch (error) {
         console.error('删除失败:', error)
-        Taro.showToast({
+        showToast({
           title: '删除失败',
           icon: 'error',
           duration: 2000

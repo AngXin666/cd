@@ -1,3 +1,12 @@
+/**
+ * 超级管理员请假审批页面
+ * 提供请假申请审批、离职申请审批、司机统计等功能
+ * 支持 Supabase Realtime 实时订阅，收到新申请时自动刷新并显示通知
+ *
+ * @module pages/super-admin/leave-approval
+ * @feature event-driven-data-refresh
+ */
+
 import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -13,7 +22,9 @@ import {createNotification} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 // 司机统计数据类型
@@ -47,6 +58,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<'pending' | 'stats'>('stats')
   const [urlWarehouseId, setUrlWarehouseId] = useState<string | null>(null)
+  // 数据加载完成标志，用于确保仓库定位在所有数据加载完成后执行
+  const [dataLoaded, setDataLoaded] = useState<boolean>(false)
 
   // 从URL参数读取初始标签和仓库ID
   useEffect(() => {
@@ -99,6 +112,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
 
       // 老板可以看到所有记录，不需要过滤
       setAttendanceRecords(records)
+
+      // 标记数据加载完成，触发仓库定位逻辑
+      setDataLoaded(true)
     } finally {
       hideLoading()
     }
@@ -108,46 +124,122 @@ const SuperAdminLeaveApproval: React.FC = () => {
     loadData()
   }, [loadData])
 
-  // 根据URL参数切换到对应的仓库
-  useEffect(() => {
-    if (urlWarehouseId && warehouses.length > 0) {
-      // 计算可见仓库列表
-      const warehousesWithData = warehouses
-        .map((warehouse) => {
-          const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
-          const resignationCount = resignationApplications.filter((app) => app.warehouse_id === warehouse.id).length
-          const attendanceCount = attendanceRecords.filter((record) => record.warehouse_id === warehouse.id).length
-          const totalCount = leaveCount + resignationCount + attendanceCount
-          return {warehouse, totalCount}
-        })
-        .filter((item) => item.totalCount > 0)
-        .sort((a, b) => b.totalCount - a.totalCount)
-        .map((item) => item.warehouse)
+  // 获取可见的仓库列表（老板可以看到所有仓库，包括没有数据的）
+  // 注意：这个函数需要在 useEffect 之前定义，以便在仓库定位逻辑中使用
+  const getVisibleWarehousesList = useCallback(() => {
+    // 显示所有仓库，并按数据量排序（有数据的排在前面）
+    const warehousesWithData = warehouses
+      .map((warehouse) => {
+        // 统计该仓库的数据量
+        const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
+        const resignationCount = resignationApplications.filter((app) => app.warehouse_id === warehouse.id).length
+        const attendanceCount = attendanceRecords.filter((record) => record.warehouse_id === warehouse.id).length
+        const totalDataCount = leaveCount + resignationCount + attendanceCount
 
-      // 如果没有数据，显示所有仓库
-      const visibleWarehouses = warehousesWithData.length > 0 ? warehousesWithData : warehouses
+        return {
+          warehouse,
+          totalDataCount
+        }
+      })
+      .sort((a, b) => b.totalDataCount - a.totalDataCount) // 按数据量降序排序，有数据的排在前面
+      .map((item) => item.warehouse)
+
+    return warehousesWithData
+  }, [warehouses, leaveApplications, resignationApplications, attendanceRecords])
+
+  // 根据URL参数切换到对应的仓库
+  // 注意：必须等待所有数据加载完成后再执行定位
+  // 关键：使用 dataLoaded 标志确保 loadData 完全执行完毕
+  // 因为 getVisibleWarehousesList 的排序依赖 leaveApplications, resignationApplications, attendanceRecords
+  useEffect(() => {
+    // 确保：1. 有URL参数 2. 仓库数据已加载 3. 所有数据都已加载完成
+    if (urlWarehouseId && warehouses.length > 0 && dataLoaded) {
+      // 使用与页面显示相同的排序逻辑获取仓库列表
+      const visibleWarehouses = getVisibleWarehousesList()
+
+      console.log('[SuperAdminLeaveApproval] 开始定位仓库, urlWarehouseId:', urlWarehouseId, '仓库列表长度:', visibleWarehouses.length)
 
       // 查找目标仓库的索引
       const targetIndex = visibleWarehouses.findIndex((w) => w.id === urlWarehouseId)
       if (targetIndex !== -1) {
         setCurrentWarehouseIndex(targetIndex)
+        console.log('[SuperAdminLeaveApproval] 成功定位到仓库, 索引:', targetIndex, '仓库名:', visibleWarehouses[targetIndex]?.name)
+      } else {
+        // 如果在排序后的列表中找不到，尝试在原始仓库列表中查找
+        const originalIndex = warehouses.findIndex((w) => w.id === urlWarehouseId)
+        if (originalIndex !== -1) {
+          // 仓库存在但可能因为排序问题找不到，使用原始索引
+          console.log('[SuperAdminLeaveApproval] 在排序列表中未找到，使用原始索引:', originalIndex)
+          setCurrentWarehouseIndex(originalIndex)
+        } else {
+          console.log('[SuperAdminLeaveApproval] 未找到目标仓库:', urlWarehouseId)
+        }
       }
       // 清除URL参数，避免重复切换
       setUrlWarehouseId(null)
     }
-  }, [urlWarehouseId, warehouses, leaveApplications, resignationApplications, attendanceRecords])
+  }, [urlWarehouseId, warehouses, dataLoaded, getVisibleWarehousesList])
 
   useDidShow(() => {
     loadData()
   })
 
-  // 启用实时通知
+  // 启用实时通知（保留原有的通知机制）
   useRealtimeNotifications({
     userId: user?.id || '',
     userRole: 'BOSS',
     onLeaveApplicationChange: loadData,
     onResignationApplicationChange: loadData,
     onAttendanceChange: loadData
+  })
+
+  // ==================== Realtime 订阅：请假申请表 ====================
+  // 使用 useRealtimeSubscription 订阅 leave_applications 表
+  // 收到新请假申请时显示 Toast 通知并刷新数据
+  // Requirements: 3.1, 3.3
+  useRealtimeSubscription({
+    table: 'leave_applications',
+    event: 'INSERT',
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[SuperAdminLeaveApproval] 收到新请假申请:', event)
+
+        // 使用防抖通知，避免短时间内多个申请触发多次通知
+        sendDebouncedNotification(NotificationPresets.newLeaveApplication())
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[SuperAdminLeaveApproval] Realtime 订阅错误:', error)
+    }, [])
+  })
+
+  // ==================== Realtime 订阅：离职申请表 ====================
+  // 使用 useRealtimeSubscription 订阅 resignation_applications 表
+  // 收到新离职申请时显示 Toast 通知并刷新数据
+  useRealtimeSubscription({
+    table: 'resignation_applications',
+    event: 'INSERT',
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[SuperAdminLeaveApproval] 收到新离职申请:', event)
+
+        // 使用防抖通知
+        sendDebouncedNotification(NotificationPresets.newResignationApplication())
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[SuperAdminLeaveApproval] Realtime 订阅错误:', error)
+    }, [])
   })
 
   // 下拉刷新
@@ -196,27 +288,9 @@ const SuperAdminLeaveApproval: React.FC = () => {
     return dateStr.split('T')[0]
   }
 
-  // 获取可见的仓库列表（老板可以看到所有仓库，包括没有数据的）
-  const getVisibleWarehouses = useCallback(() => {
-    // 显示所有仓库，并按数据量排序（有数据的排在前面）
-    const warehousesWithData = warehouses
-      .map((warehouse) => {
-        // 统计该仓库的数据量
-        const leaveCount = leaveApplications.filter((app) => app.warehouse_id === warehouse.id).length
-        const resignationCount = resignationApplications.filter((app) => app.warehouse_id === warehouse.id).length
-        const attendanceCount = attendanceRecords.filter((record) => record.warehouse_id === warehouse.id).length
-        const totalDataCount = leaveCount + resignationCount + attendanceCount
-
-        return {
-          warehouse,
-          totalDataCount
-        }
-      })
-      .sort((a, b) => b.totalDataCount - a.totalDataCount) // 按数据量降序排序，有数据的排在前面
-      .map((item) => item.warehouse)
-
-    return warehousesWithData
-  }, [warehouses, leaveApplications, resignationApplications, attendanceRecords])
+  // 获取可见的仓库列表（复用前面定义的函数）
+  // 注意：这里直接使用 getVisibleWarehousesList，保持排序逻辑一致
+  const getVisibleWarehouses = getVisibleWarehousesList
 
   // 获取当前仓库
   const getCurrentWarehouse = useCallback(() => {
@@ -822,7 +896,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
         duration: 2000
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 

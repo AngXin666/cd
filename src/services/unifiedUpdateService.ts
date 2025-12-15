@@ -135,12 +135,18 @@ export class UnifiedUpdateService {
    * @returns Promise<void> 更新检查完成的 Promise
    */
   async checkAndApplyUpdate(silent: boolean = true): Promise<void> {
+    console.log('[UpdateService] ========== 开始更新检查流程 ==========')
+    console.log('[UpdateService] 参数:', {silent, platform: this.currentPlatform})
+    
     try {
       // 检查是否为开发模式
       if (this.isDevelopmentMode()) {
+        console.log('[UpdateService] ⚠️ 开发模式，跳过更新检查')
         this.logger.info('开发模式下跳过更新检查')
         return
       }
+      
+      console.log('[UpdateService] ✅ 生产模式，继续更新检查')
 
       // 如果服务未初始化，先尝试初始化
       if (!this.initialized) {
@@ -250,10 +256,20 @@ export class UnifiedUpdateService {
    */
   private isDevelopmentMode(): boolean {
     // 检查 NODE_ENV 环境变量
-    const isDev = process.env.NODE_ENV === 'development'
+    const nodeEnv = process.env.NODE_ENV
+    const isDev = nodeEnv === 'development'
+
+    // 详细记录环境检测结果
+    console.log('[UpdateService] 环境检测:', {
+      NODE_ENV: nodeEnv,
+      isDevelopment: isDev,
+      willSkipUpdate: isDev
+    })
 
     if (isDev) {
-      this.logger.debug('当前为开发模式')
+      this.logger.debug('当前为开发模式，将跳过更新检查')
+    } else {
+      this.logger.debug('当前为生产模式，将执行更新检查')
     }
 
     return isDev

@@ -1,7 +1,18 @@
+/**
+ * TailwindCSS 配置文件
+ * 内存优化：使用自定义精简图标集，只包含项目实际使用的 179 个图标
+ * 从完整 MDI 库 (2.79MB) 精简到 46KB，节省 98.4% 内存
+ * @module tailwind.config
+ */
+
 /* eslint-disable */
 const colors = require('tailwindcss/colors')
-const {iconsPlugin, getIconCollections} = require('@egoist/tailwindcss-icons')
+const {iconsPlugin} = require('@egoist/tailwindcss-icons')
 
+// 加载自定义精简图标集（只包含项目使用的图标）
+const customMdiIcons = require('./src/assets/custom-mdi-icons.json')
+
+// 删除已弃用的颜色以避免警告
 delete colors.lightBlue
 delete colors.warmGray
 delete colors.trueGray
@@ -10,7 +21,14 @@ delete colors.blueGray
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./public/index.html', './src/**/*.{html,js,ts,jsx,tsx}'],
+  // 优化：排除不需要扫描的文件
+  content: [
+    './public/index.html',
+    './src/**/*.{html,js,ts,jsx,tsx}',
+    '!./src/**/*.test.{ts,tsx}',
+    '!./src/**/*.spec.{ts,tsx}',
+    '!./src/test/**/*'
+  ],
   theme: {
     extend: {
       colors: {
@@ -57,8 +75,12 @@ module.exports = {
     }
   },
   plugins: [
+    // 图标插件 - 使用自定义精简图标集
+    // 只包含项目实际使用的 179 个图标，从 2.79MB 精简到 46KB
     iconsPlugin({
-      collections: getIconCollections(['mdi', 'lucide'])
+      collections: {
+        mdi: customMdiIcons
+      }
     }),
     function ({ addUtilities }) {
       addUtilities(

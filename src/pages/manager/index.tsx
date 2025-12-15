@@ -203,8 +203,8 @@ const ManagerHome: React.FC = () => {
     }
   })
 
-  // 启用轮询通知（代替 Realtime）
-  // 注意：轮询间隔设置为 60 秒，避免频繁请求
+  // 启用事件驱动通知（代替 Realtime）
+  // 通过事件总线订阅数据变化，不再使用定时轮询
   usePollingNotifications({
     userId: user?.id || '',
     userRole: 'manager',
@@ -218,8 +218,7 @@ const ManagerHome: React.FC = () => {
       refreshDashboard()
       refreshDriverStats()
     },
-    onNewNotification: addNotification,
-    pollingInterval: 60000 // 60 秒轮询一次，避免频繁请求
+    onNewNotification: addNotification
   })
 
   // 下拉刷新（批量并行查询优化）
@@ -434,13 +433,13 @@ const ManagerHome: React.FC = () => {
                     <Text className="text-xs text-gray-400 block mt-1">件</Text>
                   </View>
 
-                  {/* 请假待审批 - 可点击跳转 */}
+                  {/* 待审批 - 可点击跳转（包含请假、离职、车辆审批） */}
                   <View
                     className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 active:scale-95 transition-all"
                     onClick={handleLeaveApproval}>
-                    <View className="i-mdi-calendar-clock text-2xl text-orange-600 mb-2" />
-                    <Text className="text-xs text-gray-600 block mb-1">请假待审批</Text>
-                    <Text className="text-2xl font-bold text-orange-600 block">{dashboardStats.pendingLeaveCount}</Text>
+                    <View className="i-mdi-clipboard-check text-2xl text-orange-600 mb-2" />
+                    <Text className="text-xs text-gray-600 block mb-1">待审批</Text>
+                    <Text className="text-2xl font-bold text-orange-600 block">{dashboardStats.totalPendingCount}</Text>
                     <Text className="text-xs text-gray-400 block mt-1">条</Text>
                   </View>
 

@@ -13,7 +13,7 @@ const pages = [
   'pages/manager/index',
   'pages/super-admin/index',
   // 通用通知页面
-  'pages/common/notifications/index',
+  'pages/common/notifications/index'
 ]
 
 // 分包配置
@@ -39,8 +39,8 @@ const subPackages = [
       'vehicle-detail/index',
       'edit-vehicle/index',
       'return-vehicle/index',
-      'supplement-photos/index',
-    ],
+      'supplement-photos/index'
+    ]
   },
   // 车队长端分包
   {
@@ -55,8 +55,8 @@ const subPackages = [
       'warehouse-categories/index',
       'driver-management/index',
       'driver-profile/index',
-      'staff-management/index',
-    ],
+      'staff-management/index'
+    ]
   },
   // 老板端分包
   {
@@ -83,8 +83,8 @@ const subPackages = [
       'user-detail/index',
       'staff-management/index',
       'permission-config/index',
-      'edit-user/index',
-    ],
+      'edit-user/index'
+    ]
   },
   // 个人资料分包
   {
@@ -97,8 +97,8 @@ const subPackages = [
       'change-password/index',
       'edit-name/index',
       'help/index',
-      'edit/index',
-    ],
+      'edit/index'
+    ]
   },
   // 共享页面分包
   {
@@ -109,9 +109,9 @@ const subPackages = [
       'notification-templates/index',
       'scheduled-notifications/index',
       'notification-records/index',
-      'auto-reminder-rules/index',
-    ],
-  },
+      'auto-reminder-rules/index'
+    ]
+  }
 ]
 
 export default defineAppConfig({
@@ -121,20 +121,20 @@ export default defineAppConfig({
   preloadRule: {
     'pages/driver/index': {
       network: 'all',
-      packages: ['packageDriver'],
+      packages: ['packageDriver']
     },
     'pages/manager/index': {
       network: 'all',
-      packages: ['packageManager'],
+      packages: ['packageManager']
     },
     'pages/super-admin/index': {
       network: 'all',
-      packages: ['packageAdmin'],
+      packages: ['packageAdmin']
     },
     'pages/profile/index': {
       network: 'all',
-      packages: ['packageProfile'],
-    },
+      packages: ['packageProfile']
+    }
   },
   tabBar: {
     color: '#64748b',
@@ -146,15 +146,15 @@ export default defineAppConfig({
         pagePath: 'pages/index/index',
         text: '工作台',
         iconPath: './assets/images/unselected/workspace.png',
-        selectedIconPath: './assets/images/selected/workspace.png',
+        selectedIconPath: './assets/images/selected/workspace.png'
       },
       {
         pagePath: 'pages/profile/index',
         text: '我的',
         iconPath: './assets/images/unselected/profile.png',
-        selectedIconPath: './assets/images/selected/profile.png',
-      },
-    ],
+        selectedIconPath: './assets/images/selected/profile.png'
+      }
+    ]
   },
   window: {
     backgroundTextStyle: 'light',
@@ -163,23 +163,23 @@ export default defineAppConfig({
     navigationBarTextStyle: 'white',
     enablePullDownRefresh: false,
     onReachBottomDistance: 50,
-    pageOrientation: 'portrait',
+    pageOrientation: 'portrait'
   },
   // 小程序权限配置
   requiredPrivateInfos: ['getLocation', 'chooseLocation', 'chooseAddress'],
   permission: {
     'scope.userLocation': {
-      desc: '您的位置信息将用于上下班打卡定位验证',
+      desc: '您的位置信息将用于上下班打卡定位验证'
     },
     'scope.camera': {
-      desc: '需要使用您的相机来拍摄车辆照片和证件照片',
+      desc: '需要使用您的相机来拍摄车辆照片和证件照片'
     },
     'scope.album': {
-      desc: '需要访问您的相册来选择和上传图片',
+      desc: '需要访问您的相册来选择和上传图片'
     },
     'scope.writePhotosAlbum': {
-      desc: '需要保存图片到您的相册',
-    },
+      desc: '需要保存图片到您的相册'
+    }
   },
   debug: false,
   entryPagePath: 'pages/login/index',
@@ -188,10 +188,10 @@ export default defineAppConfig({
     request: 60000,
     downloadFile: 60000,
     uploadFile: 60000,
-    connectSocket: 60000,
+    connectSocket: 60000
   },
   functionalPages: false,
   plugins: {},
   workers: '',
-  sitemapLocation: 'sitemap.json',
+  sitemapLocation: 'sitemap.json'
 })

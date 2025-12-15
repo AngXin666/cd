@@ -1,5 +1,20 @@
+/**
+ * 品类价格管理页面
+ * 为不同仓库的品类设置价格
+ *
+ * 功能特性：
+ * - 品类列表展示和管理
+ * - 品类价格配置（纯司机/带车司机）
+ * - Realtime 订阅实时更新
+ * - 本地事件订阅
+ *
+ * @module pages/super-admin/category-management
+ * @requirements 3.1, 3.3, 6.1, 6.2
+ */
+
 import {Button, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -8,7 +23,10 @@ import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {CategoryPrice, CategoryPriceInput, PieceWorkCategory, Warehouse} from '@/db/types'
+import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {confirmDelete} from '@/utils/confirm'
+import {sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 // 品类价格编辑状态
 interface CategoryPriceEdit {
@@ -68,22 +86,18 @@ const CategoryManagement: React.FC = () => {
       }
     >()
 
+    // 使用数据库实际字段名：driver_only_price 和 driver_with_vehicle_price
+    // 每个品类只有一条记录，包含两种价格
     data.forEach((price) => {
       const key = price.category_id
       if (!categoryMap.has(key)) {
         categoryMap.set(key, {
           categoryId: price.category_id,
           categoryName: price.category_name || '未知品类',
-          driverOnlyPrice: '0',
-          driverWithVehiclePrice: '0'
+          // 直接从数据库字段读取两种价格
+          driverOnlyPrice: (price.driver_only_price || 0).toString(),
+          driverWithVehiclePrice: (price.driver_with_vehicle_price || 0).toString()
         })
-      }
-
-      const item = categoryMap.get(key)!
-      if (price.driver_type === 'driver_only') {
-        item.driverOnlyPrice = (price.price || 0).toString()
-      } else if (price.driver_type === 'driver_with_vehicle') {
-        item.driverWithVehiclePrice = (price.price || 0).toString()
       }
     })
 
@@ -122,10 +136,94 @@ const CategoryManagement: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
+  // ==================== Realtime 订阅 ====================
+
+  /**
+   * 订阅 piece_work_categories 表的实时变更
+   * 当其他用户修改品类时，自动刷新数据
+   */
+  useRealtimeSubscription({
+    table: 'piece_work_categories',
+    event: '*',
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[品类管理] 收到品类 Realtime 事件:', event.eventType)
+
+        // 根据事件类型显示不同的通知
+        let message = ''
+        switch (event.eventType) {
+          case 'INSERT':
+            message = '有新品类被创建'
+            break
+          case 'UPDATE':
+            message = '品类信息已更新'
+            break
+          case 'DELETE':
+            message = '有品类被删除'
+            break
+        }
+
+        // 使用防抖通知
+        sendDebouncedNotification({
+          type: 'general',
+          message,
+          toastType: 'info'
+        })
+
+        // 刷新品类列表
+        loadCategories()
+        loadCategoryPrices()
+      },
+      [loadCategories, loadCategoryPrices]
+    ),
+    enabled: true
+  })
+
+  /**
+   * 订阅 category_prices 表的实时变更
+   * 当其他用户修改品类价格时，自动刷新数据
+   */
+  useRealtimeSubscription({
+    table: 'category_prices',
+    event: '*',
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[品类管理] 收到品类价格 Realtime 事件:', event.eventType)
+
+        // 使用防抖通知
+        sendDebouncedNotification({
+          type: 'general',
+          message: '品类价格已更新',
+          toastType: 'info'
+        })
+
+        // 刷新品类价格
+        loadCategoryPrices()
+      },
+      [loadCategoryPrices]
+    ),
+    enabled: true
+  })
+
+  // ==================== 本地事件订阅 ====================
+
+  /**
+   * 订阅本地品类相关事件
+   * 当本地操作（如创建、更新、删除品类）完成后，刷新数据
+   */
+  useMultiEventSubscription(
+    ['category:created', 'category:updated', 'category:deleted', 'category_price:updated', 'category_price:deleted'],
+    useCallback(() => {
+      console.log('[品类管理] 收到本地品类事件，刷新数据')
+      loadCategories()
+      loadCategoryPrices()
+    }, [loadCategories, loadCategoryPrices])
+  )
+
   // 添加新品类到当前仓库
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) {
-      Taro.showToast({
+      showToast({
         title: '请输入品类名称',
         icon: 'none'
       })
@@ -168,7 +266,7 @@ const CategoryManagement: React.FC = () => {
       // 如果是新添加的，直接从列表中移除
       const newEdits = priceEdits.filter((_, i) => i !== index)
       setPriceEdits(newEdits)
-      Taro.showToast({
+      showToast({
         title: '已移除',
         icon: 'success'
       })
@@ -176,14 +274,14 @@ const CategoryManagement: React.FC = () => {
       // 如果是已存在的品类，需要从数据库删除
       const success = await PieceworkAPI.deleteCategory(edit.categoryId)
       if (success) {
-        Taro.showToast({
+        showToast({
           title: '删除成功',
           icon: 'success'
         })
         loadCategories()
         loadCategoryPrices()
       } else {
-        Taro.showToast({
+        showToast({
           title: '删除失败',
           icon: 'error'
         })
@@ -203,7 +301,7 @@ const CategoryManagement: React.FC = () => {
     const edit = priceEdits[index]
 
     if (!editingCategoryName.trim()) {
-      Taro.showToast({
+      showToast({
         title: '品类名称不能为空',
         icon: 'none'
       })
@@ -222,7 +320,7 @@ const CategoryManagement: React.FC = () => {
       })
 
       if (success) {
-        Taro.showToast({
+        showToast({
           title: '修改成功',
           icon: 'success'
         })
@@ -231,7 +329,7 @@ const CategoryManagement: React.FC = () => {
         loadCategories()
         loadCategoryPrices()
       } else {
-        Taro.showToast({
+        showToast({
           title: '修改失败',
           icon: 'error'
         })
@@ -242,7 +340,7 @@ const CategoryManagement: React.FC = () => {
   // 保存所有品类和价格配置
   const handleSaveAll = async () => {
     if (!selectedWarehouse) {
-      Taro.showToast({
+      showToast({
         title: '请选择仓库',
         icon: 'none'
       })
@@ -250,7 +348,7 @@ const CategoryManagement: React.FC = () => {
     }
 
     if (priceEdits.length === 0) {
-      Taro.showToast({
+      showToast({
         title: '请至少添加一个品类',
         icon: 'none'
       })
@@ -260,7 +358,7 @@ const CategoryManagement: React.FC = () => {
     // 验证所有输入
     for (const edit of priceEdits) {
       if (!edit.categoryName.trim()) {
-        Taro.showToast({
+        showToast({
           title: '品类名称不能为空',
           icon: 'none'
         })
@@ -270,7 +368,7 @@ const CategoryManagement: React.FC = () => {
       const driverOnlyPrice = Number.parseFloat(edit.driverOnlyPrice)
 
       if (Number.isNaN(driverOnlyPrice) || driverOnlyPrice < 0) {
-        Taro.showToast({
+        showToast({
           title: `${edit.categoryName}的纯司机单价无效`,
           icon: 'none'
         })
@@ -278,7 +376,7 @@ const CategoryManagement: React.FC = () => {
       }
     }
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
 
     try {
       // 1. 先创建所有新品类，获取真实ID
@@ -306,37 +404,26 @@ const CategoryManagement: React.FC = () => {
         }
       }
 
-      // 2. 保存所有品类价格配置（纯司机和带车两种类型）
+      // 2. 保存所有品类价格配置（每个品类一条记录，包含两种价格）
+      // 数据库唯一约束是 (warehouse_id, category_id)，每个品类只能有一条记录
       const priceInputs: CategoryPriceInput[] = []
 
       updatedEdits.forEach((edit) => {
-        // 纯司机价格
+        // 每个品类一条记录，包含纯司机和带车两种价格
         priceInputs.push({
           category_id: edit.categoryId,
           warehouse_id: selectedWarehouse.id,
-          price: Number.parseFloat(edit.driverOnlyPrice),
-          driver_type: 'driver_only',
-          effective_date: new Date().toISOString().split('T')[0]
+          driver_only_price: Number.parseFloat(edit.driverOnlyPrice) || 0,
+          driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice) || 0
         })
-
-        // 带车价格
-        if (edit.driverWithVehiclePrice && Number.parseFloat(edit.driverWithVehiclePrice) > 0) {
-          priceInputs.push({
-            category_id: edit.categoryId,
-            warehouse_id: selectedWarehouse.id,
-            price: Number.parseFloat(edit.driverWithVehiclePrice),
-            driver_type: 'driver_with_vehicle',
-            effective_date: new Date().toISOString().split('T')[0]
-          })
-        }
       })
 
       const success = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
 
-      Taro.hideLoading()
+      hideLoading()
 
       if (success) {
-        Taro.showToast({
+        showToast({
           title: '保存成功',
           icon: 'success'
         })
@@ -346,9 +433,9 @@ const CategoryManagement: React.FC = () => {
         throw new Error('保存价格失败')
       }
     } catch (error) {
-      Taro.hideLoading()
+      hideLoading()
       console.error('保存失败:', error)
-      Taro.showToast({
+      showToast({
         title: error instanceof Error ? error.message : '保存失败',
         icon: 'error'
       })
@@ -360,13 +447,13 @@ const CategoryManagement: React.FC = () => {
     const confirmed = await confirmDelete('清理未使用品类', '确定要删除所有未被任何仓库使用的品类吗？此操作不可恢复。')
     if (!confirmed) return
 
-    Taro.showLoading({title: '清理中...'})
+    showLoading({title: '清理中...'})
     try {
       const result = await PieceworkAPI.deleteUnusedCategories()
 
       if (result.success) {
         if (result.deletedCount > 0) {
-          Taro.showToast({
+          showToast({
             title: `已删除 ${result.deletedCount} 个未使用品类`,
             icon: 'success',
             duration: 2000
@@ -374,25 +461,25 @@ const CategoryManagement: React.FC = () => {
           loadCategories()
           loadCategoryPrices()
         } else {
-          Taro.showToast({
+          showToast({
             title: '没有未使用的品类',
             icon: 'none'
           })
         }
       } else {
-        Taro.showToast({
+        showToast({
           title: result.error || '清理失败',
           icon: 'error'
         })
       }
     } catch (error) {
       console.error('清理未使用品类异常:', error)
-      Taro.showToast({
+      showToast({
         title: '清理失败',
         icon: 'error'
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 

@@ -1,5 +1,6 @@
 import {Button, Input, Picker, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -45,7 +46,7 @@ const StaffManagement: React.FC = () => {
       setWarehouses(enabledWarehouses)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
-      Taro.showToast({title: '加载仓库失败', icon: 'error'})
+      showToast({title: '加载仓库失败', icon: 'error'})
     }
   }, [user?.id])
 
@@ -102,7 +103,7 @@ const StaffManagement: React.FC = () => {
         filterDrivers(data, searchKeyword, driverTypeFilter)
       } catch (error) {
         console.error('加载司机列表失败:', error)
-        Taro.showToast({title: '加载司机失败', icon: 'error'})
+        showToast({title: '加载司机失败', icon: 'error'})
       } finally {
         setLoading(false)
       }
@@ -127,7 +128,7 @@ const StaffManagement: React.FC = () => {
       setDriverWarehouses(warehousesMap)
     } catch (error) {
       console.error('加载司机列表失败:', error)
-      Taro.showToast({title: '加载司机失败', icon: 'error'})
+      showToast({title: '加载司机失败', icon: 'error'})
     } finally {
       setLoading(false)
     }
@@ -177,19 +178,19 @@ const StaffManagement: React.FC = () => {
     })
 
     if (result.confirm) {
-      Taro.showLoading({title: '重置中...'})
+      showLoading({title: '重置中...'})
       try {
         const success = await UsersAPI.resetUserPassword(userId)
         if (success) {
-          Taro.showToast({title: '密码已重置', icon: 'success'})
+          showToast({title: '密码已重置', icon: 'success'})
         } else {
-          Taro.showToast({title: '重置失败', icon: 'error'})
+          showToast({title: '重置失败', icon: 'error'})
         }
       } catch (error) {
         console.error('重置密码失败:', error)
-        Taro.showToast({title: '重置失败', icon: 'error'})
+        showToast({title: '重置失败', icon: 'error'})
       } finally {
-        Taro.hideLoading()
+        hideLoading()
       }
     }
   }, [])
@@ -222,11 +223,11 @@ const StaffManagement: React.FC = () => {
     if (!editingDriver) return
 
     if (!editForm.name.trim()) {
-      Taro.showToast({title: '请输入姓名', icon: 'none'})
+      showToast({title: '请输入姓名', icon: 'none'})
       return
     }
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       const success = await UsersAPI.updateProfile(editingDriver.id, {
         name: editForm.name.trim(),
@@ -235,7 +236,7 @@ const StaffManagement: React.FC = () => {
       })
 
       if (success) {
-        Taro.showToast({title: '保存成功', icon: 'success'})
+        showToast({title: '保存成功', icon: 'success'})
         handleCancelEdit()
         // 刷新司机列表
         if (currentTab === 'DRIVER' && warehouses.length > 0) {
@@ -244,13 +245,13 @@ const StaffManagement: React.FC = () => {
           loadAllDrivers()
         }
       } else {
-        Taro.showToast({title: '保存失败', icon: 'error'})
+        showToast({title: '保存失败', icon: 'error'})
       }
     } catch (error) {
       console.error('保存失败:', error)
-      Taro.showToast({title: '保存失败', icon: 'error'})
+      showToast({title: '保存失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [
     editingDriver,
@@ -267,7 +268,7 @@ const StaffManagement: React.FC = () => {
   const handleAssignDriver = useCallback(
     (driverId: string, driverName: string) => {
       if (warehouses.length === 0) {
-        Taro.showToast({title: '暂无可分配的仓库', icon: 'none'})
+        showToast({title: '暂无可分配的仓库', icon: 'none'})
         return
       }
 
@@ -298,12 +299,12 @@ const StaffManagement: React.FC = () => {
       selectedWarehouseIds.some((id) => !currentWarehouseIds.includes(id))
 
     if (!hasChanges) {
-      Taro.showToast({title: '未做任何修改', icon: 'none'})
+      showToast({title: '未做任何修改', icon: 'none'})
       setAssigningWarehouseDriver(null)
       return
     }
 
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       const result = await WarehousesAPI.setDriverWarehouses(driverId, selectedWarehouseIds)
       if (result.success) {
@@ -328,13 +329,13 @@ const StaffManagement: React.FC = () => {
         setAssigningWarehouseDriver(null)
         loadAllDrivers()
       } else {
-        Taro.showToast({title: result.error || '保存失败', icon: 'error'})
+        showToast({title: result.error || '保存失败', icon: 'error'})
       }
     } catch (error) {
       console.error('保存仓库分配失败:', error)
-      Taro.showToast({title: '保存失败', icon: 'error'})
+      showToast({title: '保存失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [assigningWarehouseDriver, selectedWarehouseIds, driverWarehouses, warehouses, loadAllDrivers])
 

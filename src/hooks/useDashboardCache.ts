@@ -18,6 +18,12 @@ export interface DashboardData {
   todayPieceCount: number
   /** 请假待审批数量 */
   pendingLeaveCount: number
+  /** 离职待审批数量 */
+  pendingResignationCount: number
+  /** 车辆待审批数量 */
+  pendingVehicleCount: number
+  /** 总待审批数量（请假+离职+车辆） */
+  totalPendingCount: number
   /** 本月完成件数 */
   monthlyPieceCount: number
   /** 司机列表（可选） */

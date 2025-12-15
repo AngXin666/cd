@@ -5,6 +5,7 @@
 
 import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {useRouter} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -64,7 +65,7 @@ const PermissionConfig: React.FC = () => {
       }
     } catch (error) {
       console.error('加载数据失败:', error)
-      Taro.showToast({title: '加载失败', icon: 'error'})
+      showToast({title: '加载失败', icon: 'error'})
     } finally {
       setLoading(false)
     }
@@ -86,7 +87,7 @@ const PermissionConfig: React.FC = () => {
     if (!userId || !user?.id || !userRole) return
 
     setSaving(true)
-    Taro.showLoading({title: '保存中...'})
+    showLoading({title: '保存中...'})
     try {
       let result
 
@@ -118,7 +119,7 @@ const PermissionConfig: React.FC = () => {
       }
 
       if (result?.success) {
-        Taro.showToast({title: '保存成功', icon: 'success'})
+        showToast({title: '保存成功', icon: 'success'})
         setTimeout(() => {
           Taro.navigateBack()
         }, 1500)
@@ -127,14 +128,14 @@ const PermissionConfig: React.FC = () => {
       }
     } catch (error: any) {
       console.error('保存失败:', error)
-      Taro.showToast({
+      showToast({
         title: error.message || '保存失败',
         icon: 'error',
         duration: 2000
       })
     } finally {
       setSaving(false)
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [userId, user, userRole, permissionLevel, notes, currentPermission])
 
@@ -149,7 +150,7 @@ const PermissionConfig: React.FC = () => {
 
     if (!result.confirm) return
 
-    Taro.showLoading({title: '删除中...'})
+    showLoading({title: '删除中...'})
     try {
       let deleteResult
 
@@ -163,7 +164,7 @@ const PermissionConfig: React.FC = () => {
       }
 
       if (deleteResult?.success) {
-        Taro.showToast({title: '删除成功', icon: 'success'})
+        showToast({title: '删除成功', icon: 'success'})
         setTimeout(() => {
           Taro.navigateBack()
         }, 1500)
@@ -172,13 +173,13 @@ const PermissionConfig: React.FC = () => {
       }
     } catch (error: any) {
       console.error('删除失败:', error)
-      Taro.showToast({
+      showToast({
         title: error.message || '删除失败',
         icon: 'error',
         duration: 2000
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [userId, user, userRole, userName, currentPermission])
 

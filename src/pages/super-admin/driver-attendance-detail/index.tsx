@@ -1,5 +1,6 @@
 import {Button, ScrollView, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {useDidShow} from '@tarojs/taro'
+import {hideLoading, showLoading, showModal, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -88,7 +89,7 @@ const DriverAttendanceDetail: React.FC = () => {
       const driverLeaves = leaves.filter((l) => l.user_id === driverIdParam)
       setLeaveApplications(driverLeaves)
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [user])
 
@@ -143,7 +144,7 @@ const DriverAttendanceDetail: React.FC = () => {
           reviewed_at: new Date().toISOString()
         })
 
-        Taro.hideLoading()
+        hideLoading()
 
         if (success) {
           await showToast({
@@ -161,7 +162,7 @@ const DriverAttendanceDetail: React.FC = () => {
           })
         }
       } catch (error) {
-        Taro.hideLoading()
+        hideLoading()
         console.error('审批请假申请失败:', error)
         await showToast({
           title: '操作失败',

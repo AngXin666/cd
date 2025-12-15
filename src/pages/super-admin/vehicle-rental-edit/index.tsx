@@ -5,6 +5,7 @@
 
 import {Button, Input, Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -54,7 +55,7 @@ const VehicleRentalEdit: React.FC = () => {
     try {
       const data = await VehiclesAPI.getVehicleById(id)
       if (!data) {
-        Taro.showToast({
+        showToast({
           title: '车辆不存在',
           icon: 'none'
         })
@@ -78,7 +79,7 @@ const VehicleRentalEdit: React.FC = () => {
       setRentPaymentDay(data.rent_payment_day !== null ? String(data.rent_payment_day) : '')
     } catch (error) {
       logger.error('加载车辆信息失败', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'none'
       })
@@ -95,7 +96,7 @@ const VehicleRentalEdit: React.FC = () => {
       loadVehicle(id)
     } else {
       logger.error('未获取到车辆ID')
-      Taro.showToast({
+      showToast({
         title: '参数错误',
         icon: 'none'
       })
@@ -113,7 +114,7 @@ const VehicleRentalEdit: React.FC = () => {
     try {
       // 验证数据
       if (monthlyRent && Number.isNaN(Number(monthlyRent))) {
-        Taro.showToast({
+        showToast({
           title: '月租金格式不正确',
           icon: 'none'
         })
@@ -121,7 +122,7 @@ const VehicleRentalEdit: React.FC = () => {
       }
 
       if (rentPaymentDay && (Number(rentPaymentDay) < 1 || Number(rentPaymentDay) > 31)) {
-        Taro.showToast({
+        showToast({
           title: '租金缴纳日必须在1-31之间',
           icon: 'none'
         })
@@ -133,7 +134,7 @@ const VehicleRentalEdit: React.FC = () => {
         const startDate = new Date(leaseStartDate)
         const endDate = new Date(leaseEndDate)
         if (startDate > endDate) {
-          Taro.showToast({
+          showToast({
             title: '租赁结束日期不能早于开始日期',
             icon: 'none'
           })
@@ -154,7 +155,7 @@ const VehicleRentalEdit: React.FC = () => {
         rent_payment_day: rentPaymentDay ? Number(rentPaymentDay) : null
       })
 
-      Taro.showToast({
+      showToast({
         title: '保存成功',
         icon: 'success'
       })
@@ -165,7 +166,7 @@ const VehicleRentalEdit: React.FC = () => {
       }, 1500)
     } catch (error) {
       logger.error('保存租赁信息失败', error)
-      Taro.showToast({
+      showToast({
         title: '保存失败',
         icon: 'none'
       })

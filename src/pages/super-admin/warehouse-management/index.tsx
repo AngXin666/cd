@@ -1,3 +1,17 @@
+/**
+ * 仓库管理页面
+ * 提供仓库的增删改查功能，支持考勤规则配置
+ *
+ * 功能特性：
+ * - 仓库列表展示和管理
+ * - 考勤规则配置
+ * - Realtime 订阅实时更新
+ * - 本地事件订阅
+ *
+ * @module pages/super-admin/warehouse-management
+ * @requirements 3.1, 3.3, 6.1, 6.2
+ */
+
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -10,7 +24,10 @@ import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRule, WarehouseWithRule} from '@/db/types'
+import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {confirmDelete} from '@/utils/confirm'
+import {sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 const WarehouseManagement: React.FC = () => {
@@ -59,6 +76,61 @@ const WarehouseManagement: React.FC = () => {
     await Promise.all([loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
+
+  // ==================== Realtime 订阅 ====================
+
+  /**
+   * 订阅 warehouses 表的实时变更
+   * 当其他用户（如同行管理员）修改仓库时，自动刷新数据
+   */
+  useRealtimeSubscription({
+    table: 'warehouses',
+    event: '*',
+    onDataChange: (event) => {
+      console.log('[仓库管理] 收到 Realtime 事件:', event.eventType)
+
+      // 根据事件类型显示不同的通知
+      let message = ''
+      switch (event.eventType) {
+        case 'INSERT':
+          message = '有新仓库被创建'
+          break
+        case 'UPDATE':
+          message = '仓库信息已更新'
+          break
+        case 'DELETE':
+          message = '有仓库被删除'
+          break
+      }
+
+      // 使用防抖通知，避免短时间内多次提示
+      sendDebouncedNotification({
+        type: 'general',
+        message,
+        toastType: 'info'
+      })
+
+      // 刷新仓库列表
+      loadWarehouses()
+    },
+    enabled: true
+  })
+
+  // ==================== 本地事件订阅 ====================
+
+  /**
+   * 订阅本地仓库相关事件
+   * 当本地操作（如创建、更新、删除仓库）完成后，刷新数据
+   * 注意：本地操作已经在操作完成后调用了 loadWarehouses，
+   * 这里的订阅主要用于处理其他组件触发的事件
+   */
+  useMultiEventSubscription(
+    ['warehouse:created', 'warehouse:updated', 'warehouse:deleted'],
+    useCallback(() => {
+      console.log('[仓库管理] 收到本地仓库事件，刷新数据')
+      loadWarehouses()
+    }, [loadWarehouses])
+  )
 
   // 显示添加仓库对话框
   const handleShowAddWarehouse = () => {

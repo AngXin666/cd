@@ -1,3 +1,12 @@
+/**
+ * 司机主页
+ * 提供司机工作台功能，包括数据仪表盘、快捷功能、仓库管理等
+ * 支持 Supabase Realtime 实时订阅，收到仓库分配变更时自动刷新
+ *
+ * @module pages/driver/index
+ * @feature event-driven-data-refresh
+ */
+
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -19,9 +28,11 @@ import {
   usePollingNotifications,
   useWarehousesSorted
 } from '@/hooks'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import type {AttendanceCheckResult} from '@/utils/attendance-check'
 import {checkTodayAttendance} from '@/utils/attendance-check'
 import {smartLogout} from '@/utils/auth'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -233,8 +244,36 @@ const DriverHome: React.FC = () => {
       refreshStats()
       checkAttendance()
     },
-    onNewNotification: addNotification,
-    pollingInterval: 60000 // 60 秒轮询一次，避免频繁请求
+    onNewNotification: addNotification
+  })
+
+  // ==================== Realtime 订阅：仓库分配变更 ====================
+  // 使用 useRealtimeSubscription 订阅 warehouse_assignments 表
+  // 收到分配变更时自动刷新仓库列表
+  // Requirements: 4.3, 4.4
+  useRealtimeSubscription({
+    table: 'warehouse_assignments',
+    event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
+    // 只监听当前用户的仓库分配
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[DriverHome] 收到仓库分配变更:', event.eventType)
+
+        // 显示仓库分配变更通知
+        sendDebouncedNotification(NotificationPresets.warehouseAssignmentChanged())
+
+        // 刷新仓库列表和统计数据
+        refreshWarehouses()
+        refreshSorting()
+        refreshStats()
+      },
+      [refreshWarehouses, refreshSorting, refreshStats]
+    ),
+    onError: useCallback((error) => {
+      console.error('[DriverHome] Realtime 订阅错误:', error)
+    }, [])
   })
 
   // 下拉刷新

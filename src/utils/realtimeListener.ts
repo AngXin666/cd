@@ -1,7 +1,6 @@
 /**
  * 实时更新监听器
  * 监听 Supabase Realtime 事件，触发缓存更新
- * 支持自动降级到轮询模式
  *
  * @module utils/realtimeListener
  * @feature user-list-cache-optimization
@@ -39,28 +38,18 @@ export interface RealtimeListenerOptions {
   onChange: (event: RealtimeEvent) => void
   /** 错误回调函数 */
   onError?: (error: Error) => void
-  /** 是否启用轮询降级 */
-  enablePolling?: boolean
-  /** 轮询间隔（毫秒），默认 30 秒 */
-  pollingInterval?: number
 }
 
 /**
  * 实时更新监听器类
- * 监听 Supabase Realtime 事件，支持自动降级到轮询模式
+ * 监听 Supabase Realtime 事件
  */
 export class RealtimeListener {
   /** Realtime 订阅通道 */
   private subscription: RealtimeChannel | null = null
 
-  /** 轮询定时器 */
-  private pollingTimer: NodeJS.Timeout | null = null
-
   /** 是否正在监听 */
   private isActive = false
-
-  /** 是否使用轮询模式 */
-  private isPollingMode = false
 
   /** Realtime 重连定时器 */
   private reconnectTimer: NodeJS.Timeout | null = null
@@ -78,7 +67,6 @@ export class RealtimeListener {
 
   /**
    * 开始监听
-   * 优先尝试 Realtime，失败则降级到轮询
    */
   start(): void {
     if (this.isActive) {
@@ -89,17 +77,12 @@ export class RealtimeListener {
     this.isActive = true
     console.log('[RealtimeListener] 开始监听...')
 
-    // 尝试启动 Realtime 监听
+    // 启动 Realtime 监听
     try {
       this.startRealtime()
     } catch (error) {
       console.error('[RealtimeListener] Realtime 启动失败:', error)
       this.options.onError?.(error as Error)
-
-      // 降级到轮询模式
-      if (this.options.enablePolling) {
-        this.startPolling()
-      }
     }
   }
 
@@ -121,19 +104,11 @@ export class RealtimeListener {
       this.subscription = null
     }
 
-    // 停止轮询
-    if (this.pollingTimer) {
-      clearInterval(this.pollingTimer)
-      this.pollingTimer = null
-    }
-
     // 停止重连定时器
     if (this.reconnectTimer) {
       clearInterval(this.reconnectTimer)
       this.reconnectTimer = null
     }
-
-    this.isPollingMode = false
   }
 
   /**
@@ -188,30 +163,14 @@ export class RealtimeListener {
 
       if (status === 'SUBSCRIBED') {
         console.log('[RealtimeListener] Realtime 已连接')
-        this.isPollingMode = false
-
-        // 如果之前在轮询模式，停止轮询
-        if (this.pollingTimer) {
-          clearInterval(this.pollingTimer)
-          this.pollingTimer = null
-        }
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         // 处理 CLOSED 状态，避免无限重试
         if (status === 'CLOSED') {
           console.log('[RealtimeListener] 订阅已关闭，不再重试')
-          // CLOSED 状态下不触发重连，只降级到轮询
-          if (this.options.enablePolling && !this.isPollingMode) {
-            this.startPolling()
-          }
           return
         }
 
         console.error(`[RealtimeListener] Realtime 连接错误: ${status}`)
-
-        // 降级到轮询
-        if (this.options.enablePolling && !this.isPollingMode) {
-          this.startPolling()
-        }
 
         // 定期尝试重新连接 Realtime
         this.scheduleReconnect()
@@ -219,33 +178,6 @@ export class RealtimeListener {
     })
 
     this.subscription = channel
-  }
-
-  /**
-   * 启动轮询模式
-   * @private
-   */
-  private startPolling(): void {
-    if (this.pollingTimer) {
-      return
-    }
-
-    this.isPollingMode = true
-    const interval = this.options.pollingInterval || 30000
-
-    console.log(`[RealtimeListener] 启动轮询模式，间隔: ${interval}ms`)
-
-    this.pollingTimer = setInterval(() => {
-      console.log('[RealtimeListener] 轮询检查数据变更')
-
-      // 触发变更回调（简化版，实际应检查数据版本）
-      // 这里触发一个通用的 UPDATE 事件，让调用方重新加载数据
-      this.options.onChange({
-        type: 'UPDATE',
-        table: 'polling',
-        record: {polling: true}
-      })
-    }, interval)
   }
 
   /**
@@ -257,12 +189,13 @@ export class RealtimeListener {
       return
     }
 
-    const reconnectInterval = 5 * 60 * 1000 // 5 分钟
+    // 5 分钟后尝试重连
+    const reconnectInterval = 5 * 60 * 1000
 
     console.log(`[RealtimeListener] 将在 ${reconnectInterval}ms 后尝试重新连接 Realtime`)
 
     this.reconnectTimer = setInterval(() => {
-      if (this.isPollingMode && this.isActive) {
+      if (this.isActive) {
         console.log('[RealtimeListener] 尝试重新连接 Realtime')
 
         // 停止当前订阅

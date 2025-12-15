@@ -134,10 +134,10 @@ export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promi
     console.error('创建计件记录失败:', error)
     return false
   }
-  
+
   // 发布事件通知其他组件刷新数据
   publish('piece_work:created', {userId: record.user_id})
-  
+
   return true
 }
 
@@ -150,10 +150,10 @@ export async function updatePieceWorkRecord(id: string, record: Partial<PieceWor
     console.error('更新计件记录失败:', error)
     return false
   }
-  
+
   // 发布事件通知其他组件刷新数据
   publish('piece_work:updated', {id})
-  
+
   return true
 }
 
@@ -294,6 +294,8 @@ export async function getAllCategories(): Promise<PieceWorkCategory[]> {
 
 /**
  * 创建品类
+ * @param category - 品类输入数据
+ * @returns 创建的品类对象，失败返回 null
  */
 export async function createCategory(category: PieceWorkCategoryInput): Promise<PieceWorkCategory | null> {
   try {
@@ -309,7 +311,7 @@ export async function createCategory(category: PieceWorkCategoryInput): Promise<
     }
 
     if (data) {
-      return {
+      const result: PieceWorkCategory = {
         id: data.id,
         name: data.name,
         description: data.description,
@@ -317,6 +319,15 @@ export async function createCategory(category: PieceWorkCategoryInput): Promise<
         created_at: data.created_at,
         updated_at: data.updated_at
       }
+
+      // 发布品类创建事件，通知相关页面刷新
+      publish('category:created', {
+        id: result.id,
+        name: result.name,
+        description: result.description
+      })
+
+      return result
     }
     return null
   } catch (error) {
@@ -327,6 +338,9 @@ export async function createCategory(category: PieceWorkCategoryInput): Promise<
 
 /**
  * 更新品类
+ * @param id - 品类ID
+ * @param updates - 更新数据
+ * @returns 是否更新成功
  */
 export async function updateCategory(id: string, updates: Partial<PieceWorkCategoryInput>): Promise<boolean> {
   try {
@@ -341,6 +355,13 @@ export async function updateCategory(id: string, updates: Partial<PieceWorkCateg
       console.error('更新品类失败:', error)
       return false
     }
+
+    // 发布品类更新事件，通知相关页面刷新
+    publish('category:updated', {
+      id,
+      ...updates
+    })
+
     return true
   } catch (error) {
     console.error('更新品类异常:', error)
@@ -350,20 +371,30 @@ export async function updateCategory(id: string, updates: Partial<PieceWorkCateg
 
 /**
  * 删除品类
+ * @param id - 品类ID
+ * @returns 是否删除成功
  */
 export async function deleteCategory(id: string): Promise<boolean> {
   try {
+    // 1. 先删除关联的价格记录
     const {error: priceError} = await supabase.from('category_prices').delete().eq('category_id', id)
     if (priceError) {
       console.error('删除关联价格记录失败:', priceError)
       return false
     }
 
+    // 2. 删除品类
     const {error} = await supabase.from('piece_work_categories').delete().eq('id', id)
     if (error) {
       console.error('删除品类失败:', error)
       return false
     }
+
+    // 3. 发布品类删除事件，通知相关页面刷新
+    publish('category:deleted', {
+      id
+    })
+
     return true
   } catch (error) {
     console.error('删除品类异常:', error)
@@ -459,6 +490,9 @@ export async function getCategoryPrice(warehouseId: string, categoryId: string):
 
 /**
  * 创建或更新品类价格配置
+ * 策略：先查询是否存在，存在则更新，不存在则插入
+ * @param input - 品类价格输入数据
+ * @returns 是否保存成功
  */
 export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<boolean> {
   const {
@@ -469,26 +503,70 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
     return false
   }
 
-  const {error} = await supabase.from('category_prices').upsert(
-    {
+  console.log('[PieceworkAPI] 保存单个品类价格:', {
+    warehouse_id: input.warehouse_id,
+    category_id: input.category_id,
+    price: input.price
+  })
+
+  // 先查询是否存在
+  const {data: existing} = await supabase
+    .from('category_prices')
+    .select('id')
+    .eq('warehouse_id', input.warehouse_id)
+    .eq('category_id', input.category_id)
+    .maybeSingle()
+
+  let error: Error | null = null
+
+  if (existing) {
+    // 存在则更新
+    console.log('[PieceworkAPI] 更新已存在的品类价格, id:', existing.id)
+    const {error: updateError} = await supabase
+      .from('category_prices')
+      .update({
+        price: input.price,
+        driver_type: input.driver_type || 'driver_only',
+        effective_date: input.effective_date || new Date().toISOString().split('T')[0]
+      })
+      .eq('id', existing.id)
+    error = updateError as Error | null
+  } else {
+    // 不存在则插入
+    console.log('[PieceworkAPI] 插入新的品类价格')
+    const {error: insertError} = await supabase.from('category_prices').insert({
       warehouse_id: input.warehouse_id,
       category_id: input.category_id,
       price: input.price,
-      driver_type: input.driver_type,
-      effective_date: input.effective_date
-    },
-    {onConflict: 'category_id,warehouse_id,driver_type,effective_date'}
-  )
+      driver_type: input.driver_type || 'driver_only',
+      effective_date: input.effective_date || new Date().toISOString().split('T')[0]
+    })
+    error = insertError as Error | null
+  }
 
   if (error) {
     console.error('保存品类价格配置失败:', error)
     return false
   }
+
+  // 发布品类价格更新事件，通知相关页面刷新
+  publish('category_price:updated', {
+    warehouse_id: input.warehouse_id,
+    category_id: input.category_id,
+    price: input.price,
+    driver_type: input.driver_type
+  })
+
+  console.log('[PieceworkAPI] 保存品类价格成功')
   return true
 }
 
 /**
  * 批量创建或更新品类价格配置
+ * 使用数据库实际字段：driver_only_price 和 driver_with_vehicle_price
+ * 每个品类只有一条记录，包含两种价格
+ * @param inputs - 品类价格输入数据数组
+ * @returns 是否保存成功
  */
 export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): Promise<boolean> {
   const {
@@ -499,26 +577,122 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
     return false
   }
 
-  const {error} = await supabase.from('category_prices').upsert(
-    inputs.map((input) => ({
-      warehouse_id: input.warehouse_id,
-      category_id: input.category_id,
-      price: input.price,
-      driver_type: input.driver_type,
-      effective_date: input.effective_date
-    })),
-    {onConflict: 'category_id,warehouse_id,driver_type,effective_date'}
-  )
+  if (inputs.length === 0) {
+    console.log('[PieceworkAPI] 没有品类价格需要保存')
+    return true
+  }
 
-  if (error) {
-    console.error('批量保存品类价格配置失败:', error)
+  // 获取仓库ID（所有输入应该是同一个仓库）
+  const warehouseId = inputs[0].warehouse_id
+
+  console.log('[PieceworkAPI] 批量保存品类价格:', {
+    warehouseId,
+    count: inputs.length,
+    inputs: inputs.map((i) => ({
+      category_id: i.category_id,
+      driver_only_price: i.driver_only_price,
+      driver_with_vehicle_price: i.driver_with_vehicle_price
+    }))
+  })
+
+  // 1. 先查询该仓库已存在的所有品类价格
+  const {data: existingPrices, error: queryError} = await supabase
+    .from('category_prices')
+    .select('id, category_id')
+    .eq('warehouse_id', warehouseId)
+
+  if (queryError) {
+    console.error('查询已存在品类价格失败:', queryError)
     return false
   }
+
+  // 构建 category_id -> id 的映射
+  const existingMap = new Map<string, string>()
+  for (const price of existingPrices || []) {
+    existingMap.set(price.category_id, price.id)
+  }
+
+  console.log('[PieceworkAPI] 已存在的品类价格:', {
+    count: existingMap.size,
+    categoryIds: Array.from(existingMap.keys())
+  })
+
+  // 2. 分离需要更新和需要插入的记录
+  interface UpdateRecord {
+    id: string
+    driver_only_price: number
+    driver_with_vehicle_price: number
+  }
+  interface InsertRecord {
+    warehouse_id: string
+    category_id: string
+    driver_only_price: number
+    driver_with_vehicle_price: number
+  }
+
+  const toUpdate: UpdateRecord[] = []
+  const toInsert: InsertRecord[] = []
+
+  for (const input of inputs) {
+    const existingId = existingMap.get(input.category_id)
+
+    if (existingId) {
+      // 已存在，需要更新
+      toUpdate.push({
+        id: existingId,
+        driver_only_price: input.driver_only_price || 0,
+        driver_with_vehicle_price: input.driver_with_vehicle_price || 0
+      })
+    } else {
+      // 不存在，需要插入
+      toInsert.push({
+        warehouse_id: input.warehouse_id,
+        category_id: input.category_id,
+        driver_only_price: input.driver_only_price || 0,
+        driver_with_vehicle_price: input.driver_with_vehicle_price || 0
+      })
+    }
+  }
+
+  console.log('[PieceworkAPI] 操作计划:', {
+    toUpdateCount: toUpdate.length,
+    toInsertCount: toInsert.length
+  })
+
+  // 3. 执行更新操作（逐条更新）
+  for (const item of toUpdate) {
+    const {error: updateError} = await supabase
+      .from('category_prices')
+      .update({
+        driver_only_price: item.driver_only_price,
+        driver_with_vehicle_price: item.driver_with_vehicle_price
+      })
+      .eq('id', item.id)
+
+    if (updateError) {
+      console.error('更新品类价格失败:', updateError, item)
+      return false
+    }
+  }
+
+  // 4. 执行插入操作（批量插入）
+  if (toInsert.length > 0) {
+    const {error: insertError} = await supabase.from('category_prices').insert(toInsert)
+
+    if (insertError) {
+      console.error('插入品类价格失败:', insertError)
+      return false
+    }
+  }
+
+  console.log('[PieceworkAPI] 批量保存品类价格成功')
   return true
 }
 
 /**
  * 删除品类价格配置
+ * @param id - 品类价格配置ID
+ * @returns 是否删除成功
  */
 export async function deleteCategoryPrice(id: string): Promise<boolean> {
   const {error} = await supabase.from('category_prices').delete().eq('id', id)
@@ -526,35 +700,56 @@ export async function deleteCategoryPrice(id: string): Promise<boolean> {
     console.error('删除品类价格配置失败:', error)
     return false
   }
+
+  // 发布品类价格删除事件，通知相关页面刷新
+  publish('category_price:deleted', {
+    id
+  })
+
   return true
 }
 
 /**
  * 获取司机的品类价格
+ * 使用数据库实际字段：driver_only_price 和 driver_with_vehicle_price
+ * 注意：sorting_unit_price 字段在当前数据库中不存在，暂时返回 0
+ * @param warehouseId - 仓库ID
+ * @param categoryId - 品类ID
+ * @returns 价格配置对象，包含纯司机单价和带车单价
  */
 export async function getCategoryPriceForDriver(
   warehouseId: string,
   categoryId: string
 ): Promise<{unitPrice: number; upstairsPrice: number; sortingUnitPrice: number} | null> {
+  console.log('[PieceworkAPI] 查询品类价格:', {warehouseId, categoryId})
+
+  // 查询数据库实际存在的字段（不包含 sorting_unit_price，该字段在数据库中不存在）
   const {data, error} = await supabase
     .from('category_prices')
-    .select('price, driver_type')
+    .select('driver_only_price, driver_with_vehicle_price')
     .eq('warehouse_id', warehouseId)
     .eq('category_id', categoryId)
+    .maybeSingle()
 
   if (error) {
-    console.error('获取品类价格失败:', error)
+    console.error('[PieceworkAPI] 获取品类价格失败:', error)
     return null
   }
 
-  if (!data || data.length === 0) return null
+  console.log('[PieceworkAPI] 查询结果:', JSON.stringify(data, null, 2))
 
-  const driverOnlyPrice = data.find((item) => item.driver_type === 'driver_only')
-  const defaultPrice = driverOnlyPrice || data[0]
-
-  return {
-    unitPrice: defaultPrice.price || 0,
-    upstairsPrice: 0,
-    sortingUnitPrice: 0
+  if (!data) {
+    console.warn('[PieceworkAPI] 未找到品类价格配置')
+    return null
   }
+
+  // 使用数据库实际字段名，sorting_unit_price 暂时返回 0
+  const result = {
+    unitPrice: Number(data.driver_only_price) || 0, // 纯司机单价
+    upstairsPrice: Number(data.driver_with_vehicle_price) || 0, // 带车单价
+    sortingUnitPrice: 0 // 数据库中暂无此字段，返回默认值 0
+  }
+
+  console.log('[PieceworkAPI] 返回价格配置:', result)
+  return result
 }

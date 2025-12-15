@@ -1,3 +1,12 @@
+/**
+ * 司机请假页面
+ * 提供请假申请、离职申请、草稿管理等功能
+ * 支持 Supabase Realtime 实时订阅，收到审批结果时自动刷新并显示通知
+ *
+ * @module pages/driver/leave
+ * @feature event-driven-data-refresh
+ */
+
 import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, showModal, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -12,6 +21,8 @@ import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {LeaveApplication, Profile, ResignationApplication} from '@/db/types'
 import {useRealtimeNotifications} from '@/hooks'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 const DriverLeave: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -124,12 +135,76 @@ const DriverLeave: React.FC = () => {
     loadStats()
   })
 
-  // 启用实时通知
+  // 启用实时通知（保留原有的通知机制）
   useRealtimeNotifications({
     userId: user?.id || '',
     userRole: 'DRIVER',
     onLeaveApplicationChange: loadData,
     onResignationApplicationChange: loadData
+  })
+
+  // ==================== Realtime 订阅：请假申请审批状态变化 ====================
+  // 使用 useRealtimeSubscription 订阅 leave_applications 表的 UPDATE 事件
+  // 收到审批结果时显示 Toast 通知并刷新数据
+  // Requirements: 4.3, 4.4, 4.5
+  useRealtimeSubscription<LeaveApplication>({
+    table: 'leave_applications',
+    event: 'UPDATE',
+    // 只监听当前用户的请假申请
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[DriverLeave] 收到请假申请状态变更:', event)
+
+        // 检查是否是审批状态变更（从 pending 变为 approved 或 rejected）
+        const newData = event.new as LeaveApplication | null
+        if (newData && (newData.status === 'approved' || newData.status === 'rejected')) {
+          // 使用防抖通知，显示审批结果
+          const approved = newData.status === 'approved'
+          sendDebouncedNotification(NotificationPresets.leaveApprovalResult(approved))
+        }
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[DriverLeave] Realtime 订阅错误:', error)
+    }, [])
+  })
+
+  // ==================== Realtime 订阅：离职申请审批状态变化 ====================
+  // 使用 useRealtimeSubscription 订阅 resignation_applications 表的 UPDATE 事件
+  // 收到审批结果时显示 Toast 通知并刷新数据
+  // Requirements: 4.3, 4.4, 4.5
+  useRealtimeSubscription<ResignationApplication>({
+    table: 'resignation_applications',
+    event: 'UPDATE',
+    // 只监听当前用户的离职申请
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[DriverLeave] 收到离职申请状态变更:', event)
+
+        // 检查是否是审批状态变更（从 pending 变为 approved 或 rejected）
+        const newData = event.new as ResignationApplication | null
+        if (newData && (newData.status === 'approved' || newData.status === 'rejected')) {
+          // 使用防抖通知，显示审批结果
+          const approved = newData.status === 'approved'
+          sendDebouncedNotification(NotificationPresets.resignationApprovalResult(approved))
+        }
+
+        // 刷新数据
+        loadData()
+      },
+      [loadData]
+    ),
+    onError: useCallback((error) => {
+      console.error('[DriverLeave] Realtime 订阅错误:', error)
+    }, [])
   })
 
   // 下拉刷新

@@ -8,6 +8,7 @@
  * - 角色统计
  */
 
+import {publish} from '@/utils/eventBus'
 import {supabase} from '../supabase'
 
 /**
@@ -273,6 +274,10 @@ export async function getCurrentUserInfo(): Promise<CurrentUserInfo | null> {
 
 /**
  * 添加角色给用户（仅管理员）
+ * @param userId - 用户ID
+ * @param role - 角色名称
+ * @param adminId - 管理员ID
+ * @returns 是否添加成功
  */
 export async function addRoleToUser(userId: string, role: string, adminId: string): Promise<boolean> {
   try {
@@ -287,6 +292,15 @@ export async function addRoleToUser(userId: string, role: string, adminId: strin
       return false
     }
 
+    // 发布用户角色添加事件，通知相关页面刷新
+    if (data === true) {
+      publish('user:role_added', {
+        user_id: userId,
+        role,
+        admin_id: adminId
+      })
+    }
+
     return data === true
   } catch (error) {
     console.error('[addRoleToUser] 未预期的错误:', error)
@@ -296,6 +310,10 @@ export async function addRoleToUser(userId: string, role: string, adminId: strin
 
 /**
  * 移除用户的角色（仅管理员）
+ * @param userId - 用户ID
+ * @param role - 角色名称
+ * @param adminId - 管理员ID
+ * @returns 是否移除成功
  */
 export async function removeRoleFromUser(userId: string, role: string, adminId: string): Promise<boolean> {
   try {
@@ -308,6 +326,15 @@ export async function removeRoleFromUser(userId: string, role: string, adminId: 
     if (error) {
       console.error('[removeRoleFromUser] 移除角色失败:', error)
       return false
+    }
+
+    // 发布用户角色移除事件，通知相关页面刷新
+    if (data === true) {
+      publish('user:role_removed', {
+        user_id: userId,
+        role,
+        admin_id: adminId
+      })
     }
 
     return data === true

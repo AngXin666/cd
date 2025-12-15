@@ -743,6 +743,7 @@ export async function createOrUpdateApprovalNotification(
     if (existingNotifications && existingNotifications.length > 0) {
       const existingNotification = existingNotifications[0]
 
+      // 注意：notifications 表中没有 updated_at 字段，不要更新该字段
       const {error: updateError} = await supabase
         .from('notifications')
         .update({
@@ -750,8 +751,7 @@ export async function createOrUpdateApprovalNotification(
           title,
           content: message,
           approval_status: approvalStatus,
-          is_read: false, // 重置为未读，提醒用户查看审批结果
-          updated_at: new Date().toISOString()
+          is_read: false // 重置为未读，提醒用户查看审批结果
         })
         .eq('id', existingNotification.id)
 
@@ -860,16 +860,15 @@ export async function updateApprovalNotificationStatus(
     }
 
     // 更新所有相关通知的状态
+    // 注意：notifications 表中没有 updated_at 字段，不要更新该字段
     const updateData: {
       approval_status: 'pending' | 'approved' | 'rejected'
       is_read: boolean
-      updated_at: string
       title?: string
       content?: string
     } = {
       approval_status: approvalStatus,
-      is_read: false, // 重置为未读，提醒用户查看审批结果
-      updated_at: new Date().toISOString()
+      is_read: false // 重置为未读，提醒用户查看审批结果
     }
 
     if (newTitle) {
@@ -913,9 +912,9 @@ export async function updateNotificationsByBatchId(
     }
 
     // 构建更新数据
-    const updateData: {approval_status: 'pending' | 'approved' | 'rejected'; updated_at: string; content?: string} = {
-      approval_status: approvalStatus,
-      updated_at: new Date().toISOString()
+    // 注意：notifications 表中没有 updated_at 字段，不要更新该字段
+    const updateData: {approval_status: 'pending' | 'approved' | 'rejected'; content?: string} = {
+      approval_status: approvalStatus
     }
 
     if (content) {
@@ -958,9 +957,9 @@ export async function updateNotificationsByRelatedId(
     }
 
     // 构建更新数据
-    const updateData: {approval_status: 'pending' | 'approved' | 'rejected'; updated_at: string; content?: string} = {
-      approval_status: approvalStatus,
-      updated_at: new Date().toISOString()
+    // 注意：notifications 表中没有 updated_at 字段，不要更新该字段
+    const updateData: {approval_status: 'pending' | 'approved' | 'rejected'; content?: string} = {
+      approval_status: approvalStatus
     }
 
     if (content) {

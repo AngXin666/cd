@@ -7,7 +7,7 @@ import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as WarehousesAPI from '@/db/api/warehouses'
-import type {CategoryPrice, PieceWorkCategory, Warehouse} from '@/db/types'
+import type {CategoryPrice, CategoryPriceInput, PieceWorkCategory, Warehouse} from '@/db/types'
 import {confirmDelete} from '@/utils/confirm'
 
 // 品类价格编辑状态
@@ -56,14 +56,15 @@ const WarehouseCategories: React.FC = () => {
     setCategoryPrices(data)
 
     // 初始化编辑状态 - 显示当前仓库已配置的品类
+    // 使用 category_id 作为品类标识，使用数据库实际字段名
     const edits: CategoryPriceEdit[] = data.map((price) => ({
-      categoryId: price.id,
-      categoryName: price.category_name,
-      unitPrice: price.unit_price?.toString() || '0',
-      upstairsPrice: price.upstairs_price?.toString() || '0',
-      sortingUnitPrice: price.sorting_unit_price?.toString() || '0',
-      driverOnlyPrice: price.driver_only_price?.toString() || '0',
-      driverWithVehiclePrice: price.driver_with_vehicle_price?.toString() || '0',
+      categoryId: price.category_id, // 使用 category_id 而不是 id
+      categoryName: price.category_name || '未知品类',
+      unitPrice: (price.driver_only_price || 0).toString(),
+      upstairsPrice: (price.driver_with_vehicle_price || 0).toString(),
+      sortingUnitPrice: (price.sorting_unit_price || 0).toString(),
+      driverOnlyPrice: (price.driver_only_price || 0).toString(),
+      driverWithVehiclePrice: (price.driver_with_vehicle_price || 0).toString(),
       isNew: false
     }))
     setPriceEdits(edits)
@@ -208,7 +209,10 @@ const WarehouseCategories: React.FC = () => {
     }
   }
 
-  // 保存所有品类和价格配置
+  /**
+   * 保存所有品类和价格配置
+   * 逻辑与 super-admin/category-management 保持一致
+   */
   const handleSaveAll = async () => {
     if (!selectedWarehouse) {
       Taro.showToast({
@@ -236,35 +240,7 @@ const WarehouseCategories: React.FC = () => {
         return
       }
 
-      const unitPrice = Number.parseFloat(edit.unitPrice)
-      const upstairsPrice = Number.parseFloat(edit.upstairsPrice)
-      const sortingUnitPrice = Number.parseFloat(edit.sortingUnitPrice)
       const driverOnlyPrice = Number.parseFloat(edit.driverOnlyPrice)
-      const driverWithVehiclePrice = Number.parseFloat(edit.driverWithVehiclePrice)
-
-      if (Number.isNaN(unitPrice) || unitPrice < 0) {
-        Taro.showToast({
-          title: `${edit.categoryName}的单价无效`,
-          icon: 'none'
-        })
-        return
-      }
-
-      if (Number.isNaN(upstairsPrice) || upstairsPrice < 0) {
-        Taro.showToast({
-          title: `${edit.categoryName}的上楼价格无效`,
-          icon: 'none'
-        })
-        return
-      }
-
-      if (Number.isNaN(sortingUnitPrice) || sortingUnitPrice < 0) {
-        Taro.showToast({
-          title: `${edit.categoryName}的分拣单价无效`,
-          icon: 'none'
-        })
-        return
-      }
 
       if (Number.isNaN(driverOnlyPrice) || driverOnlyPrice < 0) {
         Taro.showToast({
@@ -273,76 +249,70 @@ const WarehouseCategories: React.FC = () => {
         })
         return
       }
-
-      if (Number.isNaN(driverWithVehiclePrice) || driverWithVehiclePrice < 0) {
-        Taro.showToast({
-          title: `${edit.categoryName}的带车司机单价无效`,
-          icon: 'none'
-        })
-        return
-      }
     }
 
-    // 收集所有品类价格配置
-    const priceInputs = []
+    Taro.showLoading({title: '保存中...'})
 
-    // 遍历所有价格编辑项
-    for (const edit of priceEdits) {
-      // 为当前编辑项创建对应的价格输入对象数组
-      const currentPriceInputs = [
-        {
-          category_id: edit.categoryId,
-          warehouse_id: selectedWarehouse.id,
-          price: Number.parseFloat(edit.unitPrice),
-          driver_type: 'default',
-          effective_date: new Date().toISOString().split('T')[0]
-        },
-        {
-          category_id: edit.categoryId,
-          warehouse_id: selectedWarehouse.id,
-          price: Number.parseFloat(edit.upstairsPrice),
-          driver_type: 'upstairs',
-          effective_date: new Date().toISOString().split('T')[0]
-        },
-        {
-          category_id: edit.categoryId,
-          warehouse_id: selectedWarehouse.id,
-          price: Number.parseFloat(edit.sortingUnitPrice),
-          driver_type: 'sorting',
-          effective_date: new Date().toISOString().split('T')[0]
-        },
-        {
-          category_id: edit.categoryId,
-          warehouse_id: selectedWarehouse.id,
-          price: Number.parseFloat(edit.driverOnlyPrice),
-          driver_type: 'driver_only',
-          effective_date: new Date().toISOString().split('T')[0]
-        },
-        {
-          category_id: edit.categoryId,
-          warehouse_id: selectedWarehouse.id,
-          price: Number.parseFloat(edit.driverWithVehiclePrice),
-          driver_type: 'driver_with_vehicle',
-          effective_date: new Date().toISOString().split('T')[0]
+    try {
+      // 1. 先创建所有新品类，获取真实ID
+      const updatedEdits = [...priceEdits]
+      for (let i = 0; i < updatedEdits.length; i++) {
+        const edit = updatedEdits[i]
+        if (edit.isNew) {
+          // 创建品类
+          const newCategory = await PieceworkAPI.createCategory({
+            name: edit.categoryName.trim(),
+            unit: '件',
+            description: ''
+          })
+
+          if (newCategory) {
+            // 更新为真实ID
+            updatedEdits[i] = {
+              ...edit,
+              categoryId: newCategory.id,
+              isNew: false
+            }
+          } else {
+            throw new Error(`创建品类"${edit.categoryName}"失败`)
+          }
         }
-      ]
+      }
 
-      // 将当前编辑项的价格输入对象添加到总数组中
-      priceInputs.push(...currentPriceInputs)
-    }
+      // 2. 保存所有品类价格配置（每个品类一条记录，包含两种价格）
+      // 数据库唯一约束是 (warehouse_id, category_id)，每个品类只能有一条记录
+      const priceInputs: CategoryPriceInput[] = []
 
-    const success = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
+      // 遍历所有价格编辑项，每个品类一条记录
+      for (const edit of updatedEdits) {
+        priceInputs.push({
+          category_id: edit.categoryId,
+          warehouse_id: selectedWarehouse.id,
+          // 使用数据库实际字段名
+          driver_only_price: Number.parseFloat(edit.driverOnlyPrice) || 0,
+          driver_with_vehicle_price: Number.parseFloat(edit.driverWithVehiclePrice) || 0
+        })
+      }
 
-    if (success) {
+      const success = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
+
+      Taro.hideLoading()
+
+      if (success) {
+        Taro.showToast({
+          title: '保存成功',
+          icon: 'success'
+        })
+        loadCategories()
+        loadCategoryPrices()
+      } else {
+        throw new Error('保存价格失败')
+      }
+    } catch (error) {
+      Taro.hideLoading()
+      console.error('保存失败:', error)
       Taro.showToast({
-        title: '保存成功',
-        icon: 'success'
-      })
-      loadCategories()
-      loadCategoryPrices()
-    } else {
-      Taro.showToast({
-        title: '保存失败',
+        title: error instanceof Error ? error.message : '保存失败',
         icon: 'error'
       })
     }

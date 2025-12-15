@@ -23,7 +23,8 @@
  * ```
  */
 
-import Taro, {showLoading, showToast} from '@tarojs/taro'
+import Taro from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useCallback, useEffect, useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -93,7 +94,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
       logger.error('加载用户仓库失败', error)
       showToast({title: '加载失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [])
 
@@ -148,7 +149,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
           }
         }
 
-        Taro.hideLoading()
+        hideLoading()
         showToast({title: '保存成功', icon: 'success'})
 
         // 发送通知
@@ -230,7 +231,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
 
         return true
       } catch (error) {
-        Taro.hideLoading()
+        hideLoading()
         logger.error('保存仓库分配失败', error)
         showToast({title: '保存失败', icon: 'error'})
         return false

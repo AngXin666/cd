@@ -11,6 +11,7 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {publish} from '@/utils/eventBus'
 import {createLogger} from '@/utils/logger'
 import {
   convertUsersToProfiles,
@@ -545,6 +546,9 @@ export async function upsertManagerPermission(_input: ManagerPermissionInput): P
 
 /**
  * 更新车队长的权限启用状态
+ * @param managerId - 车队长用户ID
+ * @param enabled - 是否启用权限
+ * @returns 是否更新成功
  */
 export async function updateManagerPermissionsEnabled(managerId: string, enabled: boolean): Promise<boolean> {
   try {
@@ -554,6 +558,13 @@ export async function updateManagerPermissionsEnabled(managerId: string, enabled
       console.error('[updateManagerPermissionsEnabled] 更新失败:', error)
       return false
     }
+
+    // 发布用户权限更新事件，通知相关页面刷新
+    publish('user:permission_updated', {
+      user_id: managerId,
+      permission_type: 'manager_permissions_enabled',
+      enabled
+    })
 
     return true
   } catch (error) {
@@ -594,6 +605,9 @@ export async function getManagerPermissionsEnabled(managerId: string): Promise<b
 
 /**
  * 更新用户档案
+ * @param id - 用户ID
+ * @param updates - 更新数据
+ * @returns 是否更新成功
  */
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<boolean> {
   try {
@@ -608,6 +622,7 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
 
     const {role, ...userUpdates} = updates
 
+    // 1. 更新用户基本信息
     if (Object.keys(userUpdates).length > 0) {
       const {error: userError} = await supabase
         .from('users')
@@ -623,6 +638,7 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
       }
     }
 
+    // 2. 更新用户角色（如果有）
     if (role) {
       const {error: roleError} = await supabase.from('users').update({role}).eq('id', id)
 
@@ -631,6 +647,12 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
         return false
       }
     }
+
+    // 3. 发布用户更新事件，通知相关页面刷新
+    publish('user:updated', {
+      id,
+      ...updates
+    })
 
     return true
   } catch (error) {
@@ -682,9 +704,13 @@ export async function updateUserProfile(
 
 /**
  * 修改用户角色
+ * @param userId - 用户ID
+ * @param role - 新角色
+ * @returns 是否修改成功
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
   try {
+    // 1. 更新用户角色
     const {error: roleError} = await supabase.from('users').update({role}).eq('id', userId)
 
     if (roleError) {
@@ -692,11 +718,14 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
       return false
     }
 
+    // 2. 根据角色更新 driver_type 字段
     const updateData: {driver_type?: 'pure' | null} = {}
 
     if (role === 'DRIVER') {
+      // 司机角色默认设置为纯司机
       updateData.driver_type = 'pure'
     } else {
+      // 非司机角色清空 driver_type
       updateData.driver_type = null
     }
 
@@ -708,6 +737,12 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
         return false
       }
     }
+
+    // 3. 发布用户角色更新事件，通知相关页面刷新
+    publish('user:role_updated', {
+      user_id: userId,
+      new_role: role
+    })
 
     return true
   } catch (error) {
@@ -857,6 +892,12 @@ export async function createDriver(
 
 /**
  * 创建新用户（支持司机和管理员）
+ * @param phone - 手机号
+ * @param name - 用户名称
+ * @param role - 用户角色（DRIVER 或 MANAGER）
+ * @param driverType - 司机类型（仅当 role 为 DRIVER 时有效）
+ * @returns 创建的用户档案，失败返回 null
+ * @throws {Error} 用户未登录、手机号已注册或创建失败时抛出错误
  */
 export async function createUser(
   phone: string,
@@ -877,6 +918,7 @@ export async function createUser(
     const loginEmail = `${phone}@fleet.com`
     let userId: string | null = null
 
+    // 1. 创建认证账号
     try {
       const {data: rpcData, error: authError} = await supabase.rpc('create_user_auth_account_first', {
         user_email: loginEmail,
@@ -908,6 +950,7 @@ export async function createUser(
       throw new Error('创建用户失败：未能获取用户ID')
     }
 
+    // 2. 准备用户数据
     const insertData: {
       id: string
       phone: string
@@ -929,6 +972,7 @@ export async function createUser(
       insertData.join_date = new Date().toISOString().split('T')[0]
     }
 
+    // 3. 插入用户数据
     const {data: userData, error: userError} = await supabase.from('users').insert(insertData).select().maybeSingle()
 
     if (userError) {
@@ -941,9 +985,19 @@ export async function createUser(
       return null
     }
 
+    // 4. 转换为 Profile 格式
     const profile: Profile = convertUserToProfile({
       ...userData,
       role: role as UserRole
+    })
+
+    // 5. 发布用户创建事件，通知相关页面刷新
+    publish('user:created', {
+      id: profile.id,
+      name: profile.name,
+      phone: profile.phone,
+      role: profile.role,
+      driver_type: driverType
     })
 
     return profile
@@ -1468,6 +1522,7 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
       }
     }
 
+    // 验证删除是否成功
     const {data: verifyUser} = await supabase.from('users').select('id').eq('id', id).maybeSingle()
 
     if (verifyUser) {
@@ -1478,6 +1533,14 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
         deletedData: stats
       }
     }
+
+    // 发布用户删除事件，通知相关页面刷新
+    publish('user:deleted', {
+      id,
+      name: user.name,
+      phone: user.phone,
+      role: 'BOSS'
+    })
 
     return {
       success: true,

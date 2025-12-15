@@ -1,5 +1,6 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, Textarea, View} from '@tarojs/components'
 import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
+import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -70,7 +71,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
       setWorkTime(`${hours}:${minutes}`)
     } catch (error) {
       console.error('加载数据失败:', error)
-      Taro.showToast({
+      showToast({
         title: '加载数据失败',
         icon: 'error',
         duration: 2000
@@ -97,7 +98,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
   const handleSave = async () => {
     // 验证必填字段
     if (drivers.length === 0) {
-      Taro.showToast({
+      showToast({
         title: '没有可选的司机',
         icon: 'none',
         duration: 2000
@@ -106,7 +107,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (warehouses.length === 0) {
-      Taro.showToast({
+      showToast({
         title: '没有可选的仓库',
         icon: 'none',
         duration: 2000
@@ -115,7 +116,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (categories.length === 0) {
-      Taro.showToast({
+      showToast({
         title: '没有可选的品类',
         icon: 'none',
         duration: 2000
@@ -124,7 +125,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (!workDate) {
-      Taro.showToast({
+      showToast({
         title: '请选择工作日期',
         icon: 'none',
         duration: 2000
@@ -133,7 +134,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (!workTime) {
-      Taro.showToast({
+      showToast({
         title: '请选择工作时间',
         icon: 'none',
         duration: 2000
@@ -142,7 +143,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (!quantity || Number(quantity) <= 0) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的数量',
         icon: 'none',
         duration: 2000
@@ -151,7 +152,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (!unitPrice || Number(unitPrice) <= 0) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的单价',
         icon: 'none',
         duration: 2000
@@ -160,7 +161,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (needUpstairs && (!upstairsPrice || Number(upstairsPrice) <= 0)) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的上楼费',
         icon: 'none',
         duration: 2000
@@ -169,7 +170,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (needSorting && (!sortingQuantity || Number(sortingQuantity) <= 0)) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的分拣数量',
         icon: 'none',
         duration: 2000
@@ -178,7 +179,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
     }
 
     if (needSorting && (!sortingUnitPrice || Number(sortingUnitPrice) <= 0)) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的分拣单价',
         icon: 'none',
         duration: 2000
@@ -206,7 +207,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
       }
 
       await PieceworkAPI.createPieceWorkRecord(recordData)
-      Taro.showToast({
+      showToast({
         title: '添加成功',
         icon: 'success',
         duration: 2000
@@ -218,7 +219,7 @@ const SuperAdminPieceWorkForm: React.FC = () => {
       }, 500)
     } catch (error) {
       console.error('保存记录失败:', error)
-      Taro.showToast({
+      showToast({
         title: '保存失败',
         icon: 'error',
         duration: 2000

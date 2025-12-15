@@ -11,6 +11,7 @@
 
 import {supabase} from '@/client/supabase'
 import {CACHE_KEYS, getCache, setCache} from '@/utils/cache'
+import {publish} from '@/utils/eventBus'
 import {createLogger} from '@/utils/logger'
 import {convertUserToProfile} from '../helpers'
 import type {
@@ -108,6 +109,9 @@ export async function getWarehouseWithRule(id: string): Promise<WarehouseWithRul
 
 /**
  * 创建仓库
+ * @param input - 仓库输入数据
+ * @returns 创建的仓库对象，失败返回 null
+ * @throws {Error} 用户未登录、名称为空、地址为空或创建失败时抛出错误
  */
 export async function createWarehouse(input: WarehouseInput): Promise<Warehouse | null> {
   // 1. 获取当前用户
@@ -149,11 +153,24 @@ export async function createWarehouse(input: WarehouseInput): Promise<Warehouse 
     throw new Error('创建仓库失败，请稍后重试')
   }
 
+  // 3. 发布仓库创建事件，通知相关页面刷新
+  if (data) {
+    publish('warehouse:created', {
+      id: data.id,
+      name: data.name,
+      address: data.address,
+      is_active: data.is_active
+    })
+  }
+
   return data
 }
 
 /**
  * 更新仓库
+ * @param id - 仓库ID
+ * @param update - 更新数据
+ * @returns 是否更新成功
  */
 export async function updateWarehouse(id: string, update: WarehouseUpdate): Promise<boolean> {
   const {error} = await supabase.from('warehouses').update(update).eq('id', id)
@@ -163,11 +180,20 @@ export async function updateWarehouse(id: string, update: WarehouseUpdate): Prom
     return false
   }
 
+  // 发布仓库更新事件，通知相关页面刷新
+  publish('warehouse:updated', {
+    id,
+    ...update
+  })
+
   return true
 }
 
 /**
  * 删除仓库
+ * @param id - 仓库ID
+ * @returns 是否删除成功
+ * @throws {Error} 当是最后一个仓库或删除失败时抛出错误
  */
 export async function deleteWarehouse(id: string): Promise<boolean> {
   const {error} = await supabase.from('warehouses').delete().eq('id', id)
@@ -180,6 +206,11 @@ export async function deleteWarehouse(id: string): Promise<boolean> {
     }
     throw new Error('删除仓库失败，请稍后重试')
   }
+
+  // 发布仓库删除事件，通知相关页面刷新
+  publish('warehouse:deleted', {
+    id
+  })
 
   return true
 }
@@ -383,11 +414,22 @@ export async function assignWarehouseToDriver(
     return {success: false, error: '分配仓库失败'}
   }
 
+  // 5. 发布仓库分配创建事件，通知相关页面刷新
+  publish('warehouse_assignment:created', {
+    user_id: input.user_id,
+    warehouse_id: input.warehouse_id,
+    driver_name: driver.name,
+    warehouse_name: warehouse.name
+  })
+
   return {success: true}
 }
 
 /**
  * 取消司机的仓库分配
+ * @param driverId - 司机ID
+ * @param warehouseId - 仓库ID
+ * @returns 是否成功
  */
 export async function removeWarehouseFromDriver(driverId: string, warehouseId: string): Promise<boolean> {
   const {error} = await supabase
@@ -400,6 +442,12 @@ export async function removeWarehouseFromDriver(driverId: string, warehouseId: s
     console.error('取消仓库分配失败:', error)
     return false
   }
+
+  // 发布仓库分配删除事件，通知相关页面刷新
+  publish('warehouse_assignment:deleted', {
+    user_id: driverId,
+    warehouse_id: warehouseId
+  })
 
   return true
 }
@@ -648,6 +696,13 @@ export async function setDriverWarehouses(
       console.error('插入新仓库分配失败:', insertError)
       return {success: false, error: '插入新仓库分配失败'}
     }
+
+    // 发布仓库分配更新事件，通知相关页面刷新
+    publish('warehouse_assignment:updated', {
+      user_id: driverId,
+      warehouse_ids: warehouseIds,
+      action: 'batch_update'
+    })
 
     return {success: true}
   } catch (error) {

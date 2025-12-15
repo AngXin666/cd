@@ -36,10 +36,11 @@ export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApp
   try {
     const today = getLocalDateString()
 
+    // 注意：使用 user_id 而不是 id，id 是请假申请的主键，user_id 才是申请人
     const {data, error} = await supabase
       .from('leave_applications')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .eq('status', 'approved')
       .lte('start_date', today)
       .gte('end_date', today)
@@ -83,11 +84,13 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
     driverIds = userRoles?.map((ur) => ur.id) || []
   }
 
-  // 3. 并行执行所有统计查询
+  // 3. 并行执行所有统计查询（包含请假、离职、车辆审批）
   const [
     todayAttendanceResult,
     todayPieceResult,
     pendingLeaveResult,
+    pendingResignationResult,
+    pendingVehicleResult,
     monthlyPieceResult,
     driversResult,
     allTodayAttendanceResult,
@@ -96,6 +99,10 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
     supabase.from('attendance').select('user_id').eq('warehouse_id', warehouseId).eq('work_date', today),
     supabase.from('piece_work_records').select('quantity').eq('warehouse_id', warehouseId).eq('work_date', today),
     supabase.from('leave_applications').select('id').eq('warehouse_id', warehouseId).eq('status', 'pending'),
+    // 离职申请待审批
+    supabase.from('resignation_applications').select('id').eq('warehouse_id', warehouseId).eq('status', 'pending'),
+    // 车辆待审批（review_status 为 pending 的车辆）
+    supabase.from('vehicles').select('id').eq('review_status', 'pending'),
     supabase
       .from('piece_work_records')
       .select('quantity')
@@ -116,6 +123,9 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
   const todayAttendance = todayAttendanceResult.data?.length || 0
   const todayPieceCount = todayPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
   const pendingLeaveCount = pendingLeaveResult.data?.length || 0
+  const pendingResignationCount = pendingResignationResult.data?.length || 0
+  const pendingVehicleCount = pendingVehicleResult.data?.length || 0
+  const totalPendingCount = pendingLeaveCount + pendingResignationCount + pendingVehicleCount
   const monthlyPieceCount = monthlyPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
 
   // 5. 构建司机列表
@@ -144,6 +154,9 @@ export async function getWarehouseDashboardStats(warehouseId: string): Promise<D
     todayAttendance,
     todayPieceCount,
     pendingLeaveCount,
+    pendingResignationCount,
+    pendingVehicleCount,
+    totalPendingCount,
     monthlyPieceCount,
     driverList
   }
@@ -157,11 +170,14 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
   const today = getLocalDateString()
   const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
+  // 并行查询所有统计数据（包含请假、离职、车辆审批）
   const [
     allDriversResult,
     todayAttendanceResult,
     todayPieceResult,
     pendingLeaveResult,
+    pendingResignationResult,
+    pendingVehicleResult,
     monthlyPieceResult,
     allTodayAttendanceResult,
     allTodayPieceResult
@@ -173,6 +189,10 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     supabase.from('attendance').select('user_id').eq('work_date', today),
     supabase.from('piece_work_records').select('quantity').eq('work_date', today),
     supabase.from('leave_applications').select('id').eq('status', 'pending'),
+    // 离职申请待审批
+    supabase.from('resignation_applications').select('id').eq('status', 'pending'),
+    // 车辆待审批
+    supabase.from('vehicles').select('id').eq('review_status', 'pending'),
     supabase.from('piece_work_records').select('quantity').gte('work_date', firstDayOfMonth),
     supabase.from('attendance').select('user_id').eq('work_date', today),
     supabase.from('piece_work_records').select('user_id, quantity').eq('work_date', today)
@@ -181,6 +201,9 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
   const todayAttendance = todayAttendanceResult.data?.length || 0
   const todayPieceCount = todayPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
   const pendingLeaveCount = pendingLeaveResult.data?.length || 0
+  const pendingResignationCount = pendingResignationResult.data?.length || 0
+  const pendingVehicleCount = pendingVehicleResult.data?.length || 0
+  const totalPendingCount = pendingLeaveCount + pendingResignationCount + pendingVehicleCount
   const monthlyPieceCount = monthlyPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
 
   const driverList: DashboardStats['driverList'] = []
@@ -208,6 +231,9 @@ export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> 
     todayAttendance,
     todayPieceCount,
     pendingLeaveCount,
+    pendingResignationCount,
+    pendingVehicleCount,
+    totalPendingCount,
     monthlyPieceCount,
     driverList
   }
@@ -245,8 +271,9 @@ export async function getWarehouseDataVolume(
       .eq('warehouse_id', warehouseId)
       .eq('work_date', today)
 
+    // 注意：使用 user_id 而不是 id，id 是记录的主键，user_id 才是用户ID
     if (userId) {
-      todayPieceQuery = todayPieceQuery.eq('id', userId)
+      todayPieceQuery = todayPieceQuery.eq('user_id', userId)
     }
     const {count: todayPieceCount} = await todayPieceQuery
 
@@ -257,7 +284,7 @@ export async function getWarehouseDataVolume(
       .gte('work_date', firstDayOfMonth)
 
     if (userId) {
-      monthPieceQuery = monthPieceQuery.eq('id', userId)
+      monthPieceQuery = monthPieceQuery.eq('user_id', userId)
     }
     const {count: monthPieceCount} = await monthPieceQuery
 
@@ -268,7 +295,7 @@ export async function getWarehouseDataVolume(
       .eq('work_date', today)
 
     if (userId) {
-      todayAttendanceQuery = todayAttendanceQuery.eq('id', userId)
+      todayAttendanceQuery = todayAttendanceQuery.eq('user_id', userId)
     }
     const {count: todayAttendanceCount} = await todayAttendanceQuery
 
@@ -279,7 +306,7 @@ export async function getWarehouseDataVolume(
       .gte('work_date', firstDayOfMonth)
 
     if (userId) {
-      monthAttendanceQuery = monthAttendanceQuery.eq('id', userId)
+      monthAttendanceQuery = monthAttendanceQuery.eq('user_id', userId)
     }
     const {count: monthAttendanceCount} = await monthAttendanceQuery
 
@@ -331,10 +358,11 @@ export async function getMonthlyLeaveCount(userId: string, year: number, month: 
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = getLocalDateString(new Date(year, month, 0)) // 月份最后一天
 
+  // 注意：使用 user_id 而不是 id，id 是请假申请的主键，user_id 才是申请人
   const {data, error} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
-    .eq('id', userId)
+    .eq('user_id', userId)
     .eq('status', 'approved') // 只统计已通过的申请
     .gte('start_date', startDate)
     .lte('start_date', endDate)
@@ -372,10 +400,11 @@ export async function getMonthlyPendingLeaveCount(userId: string, year: number, 
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = getLocalDateString(new Date(year, month, 0))
 
+  // 注意：使用 user_id 而不是 id，id 是请假申请的主键，user_id 才是申请人
   const {data, error} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
-    .eq('id', userId)
+    .eq('user_id', userId)
     .eq('status', 'pending') // 只统计待审批的申请
     .gte('start_date', startDate)
     .lte('start_date', endDate)
@@ -418,10 +447,11 @@ export async function getDriverAttendanceStats(
   leaveDays: number
 }> {
   // 获取考勤记录
+  // 注意：使用 user_id 而不是 id，id 是考勤记录的主键，user_id 才是用户ID
   const {data: attendanceData, error: attendanceError} = await supabase
     .from('attendance')
     .select('*')
-    .eq('id', userId)
+    .eq('user_id', userId)
     .gte('work_date', startDate)
     .lte('work_date', endDate)
 
@@ -435,10 +465,11 @@ export async function getDriverAttendanceStats(
   const lateDays = attendanceData?.filter((record) => record.status === 'late').length || 0
 
   // 获取已批准的请假记录（修正查询条件，确保覆盖所有相关请假）
+  // 注意：使用 user_id 而不是 id，id 是请假申请的主键，user_id 才是申请人
   const {data: leaveData, error: leaveError} = await supabase
     .from('leave_applications')
     .select('start_date, end_date')
-    .eq('id', userId)
+    .eq('user_id', userId)
     .eq('status', 'approved')
     .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
 

@@ -21,7 +21,7 @@
  * ```
  */
 
-import Taro from '@tarojs/taro'
+import {hideLoading, showLoading} from './taroCompat'
 
 /**
  * 显示全局loading
@@ -29,17 +29,14 @@ import Taro from '@tarojs/taro'
  * @param mask 是否显示遮罩层
  */
 export function showGlobalLoading(title: string = '加载中...', mask: boolean = true): void {
-  Taro.showLoading({
-    title,
-    mask
-  })
+  showLoading({title, mask})
 }
 
 /**
  * 隐藏全局loading
  */
 export function hideGlobalLoading(): void {
-  Taro.hideLoading()
+  hideLoading()
 }
 
 /**

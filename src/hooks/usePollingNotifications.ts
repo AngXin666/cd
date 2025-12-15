@@ -1,7 +1,7 @@
 /**
  * 事件驱动通知 Hook
  * 通过事件总线订阅数据变化，替代定时轮询
- * 
+ *
  * 工作原理：
  * - 订阅事件总线的相关事件（请假、离职、考勤等）
  * - 当事件触发时，执行相应的回调函数
@@ -34,8 +34,6 @@ interface PollingNotificationOptions {
   onAttendanceChange?: () => void
   /** 新通知回调 */
   onNewNotification?: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
-  /** 轮询间隔（毫秒），已废弃，保留参数兼容性 */
-  pollingInterval?: number
 }
 
 /**
@@ -46,15 +44,8 @@ interface PollingNotificationOptions {
  * @returns 手动刷新方法
  */
 export function usePollingNotifications(options: PollingNotificationOptions) {
-  const {
-    userId,
-    userRole,
-    onLeaveApplicationChange,
-    onResignationApplicationChange,
-    onAttendanceChange,
-    onNewNotification
-    // pollingInterval 参数已废弃，不再使用
-  } = options
+  const {userId, userRole, onLeaveApplicationChange, onResignationApplicationChange, onAttendanceChange, onNewNotification} =
+    options
 
   // 使用 ref 存储回调函数，避免依赖变化导致 effect 重新执行
   const callbacksRef = useRef({
@@ -76,7 +67,7 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
 
   // 防抖通知：避免短时间内重复通知
   const lastNotificationTime = useRef<{[key: string]: number}>({})
-  
+
   const shouldShowNotification = useCallback((key: string, minInterval = 3000) => {
     const now = Date.now()
     const lastTime = lastNotificationTime.current[key] || 0

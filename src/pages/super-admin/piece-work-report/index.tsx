@@ -1,5 +1,6 @@
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -1044,10 +1045,10 @@ const SuperAdminPieceWorkReport: React.FC = () => {
                   {/* 刷新按钮 */}
                   <View
                     onClick={async () => {
-                      Taro.showLoading({title: '刷新中...'})
+                      showLoading({title: '刷新中...'})
                       await Promise.all([loadData(), loadRecords()])
-                      Taro.hideLoading()
-                      Taro.showToast({
+                      hideLoading()
+                      showToast({
                         title: '刷新成功',
                         icon: 'success',
                         duration: 1500

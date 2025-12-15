@@ -20,6 +20,7 @@ import {
   initLiveUpdate,
   type UpdateProgress
 } from '@/services/h5UpdateService'
+import {hideLoading, showLoading} from '@/utils/taroCompat'
 import {enhancedErrorHandler} from '@/utils/errorHandler'
 import {createLogger} from '@/utils/logger'
 import type {IUpdateStrategy} from './IUpdateStrategy'
@@ -79,10 +80,7 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
 
       // 显示检查更新的加载提示（仅非静默模式）
       if (!silent) {
-        Taro.showLoading({
-          title: '正在检查更新...',
-          mask: true // 显示遮罩层，防止用户操作
-        })
+        showLoading({title: '正在检查更新...', mask: true})
       }
 
       // 从 Supabase 检查是否有新版本
@@ -90,7 +88,7 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
 
       // 隐藏加载提示
       if (!silent) {
-        Taro.hideLoading()
+        hideLoading()
       }
 
       if (result.needsUpdate && result.versionInfo) {
@@ -120,7 +118,7 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
 
       // 隐藏可能存在的加载提示
       if (!silent) {
-        Taro.hideLoading()
+        hideLoading()
       }
 
       // 使用统一错误处理器
@@ -139,6 +137,7 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
   /**
    * 显示更新对话框
    * 根据版本信息显示更新提示，包括版本号和更新说明
+   * 使用原生 confirm 对话框，因为 Taro.showModal 在 Capacitor 环境中可能不工作
    *
    * @param versionInfo - H5 版本信息对象
    * @private
@@ -146,27 +145,25 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
   private async showUpdateDialog(versionInfo: H5VersionInfo): Promise<void> {
     try {
       // 构建更新对话框的内容
-      // 包含版本号和更新说明（如果有）
       const content = this.buildUpdateContent(versionInfo)
+      
+      this.logger.info('准备显示更新对话框', {version: versionInfo.version})
 
-      // 使用原生 confirm 对话框
-      // 注意：在 Taro 中，我们使用 Taro.showModal 来实现跨平台的对话框
-      const result = await Taro.showModal({
-        title: '发现新版本',
-        content: content,
-        showCancel: !versionInfo.is_force_update, // 强制更新时不显示取消按钮
-        confirmText: '立即更新',
-        cancelText: '稍后',
-        confirmColor: '#667eea' // 使用品牌色
-      })
+      // 使用原生 confirm 对话框（在 Capacitor WebView 中更可靠）
+      const userConfirmed = window.confirm(`发现新版本\n\n${content}\n\n点击"确定"立即更新`)
 
-      if (result.confirm) {
-        // 用户点击"立即更新"按钮
+      if (userConfirmed) {
+        // 用户点击"确定"按钮
         this.logger.info('用户确认更新')
         await this.downloadAndInstallUpdate(versionInfo)
-      } else if (result.cancel) {
-        // 用户点击"稍后"按钮（仅在非强制更新时可用）
+      } else {
+        // 用户点击"取消"按钮
         this.logger.info('用户选择稍后更新')
+        
+        // 如果是强制更新，再次提示
+        if (versionInfo.is_force_update) {
+          alert('此为重要更新，请尽快更新以获得最佳体验。')
+        }
       }
     } catch (error) {
       this.logger.error('显示更新对话框失败', error)
@@ -225,38 +222,41 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
         url: versionInfo.h5_url
       })
 
-      // 显示下载进度对话框
-      Taro.showLoading({
-        title: '准备下载...',
-        mask: true // 显示遮罩层，防止用户操作
+      // 调用 applyH5Update 下载并安装更新（内部会显示详细的调试弹窗）
+      const success = await applyH5Update(versionInfo.h5_url, versionInfo.version, (progress) => {
+        // 记录进度日志
+        this.logger.debug('更新进度', progress)
       })
 
-      // 调用 applyH5Update 下载并安装更新
-      // 传入进度回调函数以更新 UI
-      const success = await applyH5Update(versionInfo.h5_url, versionInfo.version, this.handleUpdateProgress.bind(this))
-
-      // 隐藏加载提示
-      Taro.hideLoading()
-
       if (success) {
-        // 更新成功
+        // 更新成功，显示版本信息和更新内容
         this.logger.info('更新下载和安装成功')
-        await this.showRestartPrompt()
+        
+        // 构建完成提示信息，包含版本号和更新内容
+        let completeMsg = `✅ 更新安装完成！\n\n版本: ${versionInfo.version}`
+        
+        // 添加更新内容（如果有）
+        if (versionInfo.release_notes) {
+          completeMsg += `\n\n更新内容:\n${versionInfo.release_notes}`
+        }
+        
+        completeMsg += '\n\n请完全退出应用后重新打开，以应用新版本。\n\n提示：需要从后台彻底关闭APP，不是按返回键。'
+        
+        alert(completeMsg)
       } else {
-        // 更新失败
+        // 更新失败（applyH5Update 内部已经显示了错误信息）
         this.logger.error('更新下载或安装失败')
-        await this.showUpdateFailedDialog(versionInfo)
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
       this.logger.error('下载更新失败', error)
 
-      // 隐藏可能存在的加载提示
-      Taro.hideLoading()
+      // 显示错误详情
+      alert(`❌ 更新下载出错！\n\n错误信息: ${errorMsg}\n\n请检查网络连接后重试。`)
 
-      // 显示错误提示
+      // 记录错误
       enhancedErrorHandler.handleWithContext(error, {
-        showToast: true,
-        customMessage: '更新下载失败，请检查网络后重试',
+        showToast: false,
         context: {
           component: 'AndroidUpdateStrategy',
           action: 'downloadAndInstallUpdate',
@@ -266,9 +266,6 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
           }
         }
       })
-
-      // 显示重试对话框
-      await this.showUpdateFailedDialog(versionInfo)
     }
   }
 
@@ -290,16 +287,16 @@ export class AndroidUpdateStrategy implements IUpdateStrategy {
     // 根据状态更新 UI
     switch (progress.status) {
       case 'downloading':
-        // 下载中：显示下载进度
-        Taro.showLoading({
+        // 下载中：显示下载进度（使用兼容层）
+        showLoading({
           title: `下载中 ${Math.round(progress.percent)}%`,
           mask: true
         })
         break
 
       case 'installing':
-        // 安装中：显示安装提示
-        Taro.showLoading({
+        // 安装中：显示安装提示（使用兼容层）
+        showLoading({
           title: '正在安装...',
           mask: true
         })

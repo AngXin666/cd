@@ -1,10 +1,15 @@
 /**
  * 老板 - 车辆管理页面
  * 显示所有已录入的车辆信息，包括车牌号和使用人
+ * 支持 Supabase Realtime 实时订阅，收到新审核请求时自动刷新并显示通知
+ *
+ * @module pages/super-admin/vehicle-management
+ * @feature event-driven-data-refresh
  */
 
 import {Image, Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -15,7 +20,10 @@ import TopNavBar from '@/components/TopNavBar'
 import VirtualList from '@/components/VirtualList'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {VehicleWithDriver} from '@/db/types'
+import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {createLogger} from '@/utils/logger'
+import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 // 创建页面日志记录器
 const logger = createLogger('SuperAdminVehicleManagement')
@@ -54,7 +62,7 @@ const VehicleManagement: React.FC = () => {
       setVehicleHistoryCount(historyCountMap)
     } catch (error) {
       logger.error('❌ 加载车辆列表失败', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'none'
       })
@@ -74,6 +82,56 @@ const VehicleManagement: React.FC = () => {
       Taro.stopPullDownRefresh()
     })
   })
+
+  // ==================== Realtime 订阅：车辆表 ====================
+  // 使用 useRealtimeSubscription 订阅 vehicles 表
+  // 收到新审核请求（review_status 变为 pending_review）时显示 Toast 通知并刷新数据
+  // Requirements: 3.1, 3.3
+  useRealtimeSubscription({
+    table: 'vehicles',
+    event: '*', // 监听所有事件（INSERT, UPDATE, DELETE）
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[VehicleManagement] 收到车辆数据变更:', event)
+
+        // 检查是否是新的审核请求（INSERT 或 UPDATE 到 pending_review 状态）
+        const newData = event.new as Record<string, unknown> | null
+        if (newData && newData.review_status === 'pending_review') {
+          // 使用防抖通知，避免短时间内多个请求触发多次通知
+          sendDebouncedNotification(NotificationPresets.newVehicleReview())
+        }
+
+        // 刷新数据
+        loadVehicles()
+      },
+      [loadVehicles]
+    ),
+    onError: useCallback((error) => {
+      console.error('[VehicleManagement] Realtime 订阅错误:', error)
+    }, [])
+  })
+
+  // ==================== 本地事件订阅 ====================
+  /**
+   * 订阅本地车辆相关事件
+   * 当本地操作（如创建、更新、删除、归还车辆）完成后，刷新数据
+   */
+  useMultiEventSubscription(
+    [
+      'vehicle:created',
+      'vehicle:updated',
+      'vehicle:deleted',
+      'vehicle:returned',
+      'vehicle:review_submitted',
+      'vehicle:approved',
+      'vehicle:supplement_required'
+    ],
+    useCallback(() => {
+      console.log('[VehicleManagement] 收到本地车辆事件，刷新数据')
+      loadVehicles()
+    }, [loadVehicles])
+  )
 
   // 搜索过滤
   const handleSearch = useCallback(

@@ -1,5 +1,6 @@
 import {Button, Checkbox, CheckboxGroup, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -245,7 +246,7 @@ const DriverManagement: React.FC = () => {
 
     logger.userAction('发送实名通知', {driverId: driver.id, driverName: driver.name})
 
-    Taro.showLoading({title: '发送中...', mask: true})
+    showLoading({title: '发送中...', mask: true})
 
     try {
       // 获取当前用户信息和角色
@@ -319,7 +320,7 @@ const DriverManagement: React.FC = () => {
         icon: 'none'
       })
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -385,7 +386,7 @@ const DriverManagement: React.FC = () => {
           })
         }
 
-        Taro.hideLoading()
+        hideLoading()
         setAddingDriver(false)
 
         // 显示详细的创建成功信息
@@ -422,12 +423,12 @@ const DriverManagement: React.FC = () => {
           }
         })
       } else {
-        Taro.hideLoading()
+        hideLoading()
         setAddingDriver(false)
         showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
       }
     } catch (error) {
-      Taro.hideLoading()
+      hideLoading()
       setAddingDriver(false)
       logger.error('添加司机失败', error)
       showToast({title: '添加失败，请重试', icon: 'error'})
@@ -458,7 +459,7 @@ const DriverManagement: React.FC = () => {
 
       const success = await UsersAPI.updateProfile(driver.id, {driver_type: newType})
 
-      Taro.hideLoading()
+      hideLoading()
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
@@ -542,13 +543,16 @@ const DriverManagement: React.FC = () => {
         setWarehouseAssignExpanded(null)
         setSelectedWarehouseIds([])
       } else {
-        // 展开仓库分配面板
+        // 展开仓库分配面板（不显示 loading，直接展开）
         setWarehouseAssignExpanded(driver.id)
-        // 加载该司机已分配的仓库
-        showLoading({title: '加载中...'})
-        const assignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(driver.id)
-        Taro.hideLoading()
-        setSelectedWarehouseIds(assignments.map((a) => a.warehouse_id))
+        // 后台加载该司机已分配的仓库
+        try {
+          const assignments = await WarehousesAPI.getWarehouseAssignmentsByDriver(driver.id)
+          setSelectedWarehouseIds(assignments.map((a) => a.warehouse_id))
+        } catch (error) {
+          logger.error('加载仓库分配失败', error)
+          showToast({title: '加载失败', icon: 'error'})
+        }
       }
     },
     [warehouseAssignExpanded]
@@ -602,7 +606,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该司机的所有仓库分�
         })
       }
 
-      Taro.hideLoading()
+      hideLoading()
       showToast({title: '保存成功', icon: 'success'})
       setWarehouseAssignExpanded(null)
       setSelectedWarehouseIds([])

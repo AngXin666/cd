@@ -11,6 +11,7 @@
 
 import {supabase} from '@/client/supabase'
 import {CACHE_KEYS, clearCache, clearCacheByPrefix} from '@/utils/cache'
+import {publish} from '@/utils/eventBus'
 import {createLogger} from '@/utils/logger'
 import type {
   DriverLicense,
@@ -301,6 +302,8 @@ export async function getVehiclesByDriverId(driverId: string): Promise<Vehicle[]
 
 /**
  * 添加车辆
+ * @param vehicle - 车辆输入数据
+ * @returns 创建的车辆对象，失败返回 null
  */
 export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | null> {
   logger.db('插入', 'vehicles', {plate: vehicle.plate_number})
@@ -338,8 +341,19 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
       return null
     }
 
+    // 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    // 发布车辆创建事件，通知相关页面刷新
+    if (data) {
+      publish('vehicle:created', {
+        id: data.id,
+        plate_number: data.plate_number,
+        user_id: data.user_id,
+        status: data.status
+      })
+    }
 
     return data
   } catch (error) {
@@ -350,6 +364,9 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
 
 /**
  * 更新车辆信息
+ * @param vehicleId - 车辆ID
+ * @param updates - 更新数据
+ * @returns 更新后的车辆对象，失败返回 null
  */
 export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): Promise<Vehicle | null> {
   logger.db('更新', 'vehicles', {vehicleId, updates})
@@ -366,8 +383,17 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
       return null
     }
 
+    // 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    // 发布车辆更新事件，通知相关页面刷新
+    if (data) {
+      publish('vehicle:updated', {
+        id: vehicleId,
+        ...updates
+      })
+    }
 
     return data
   } catch (error) {
@@ -378,6 +404,8 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
 
 /**
  * 删除车辆（包含图片文件）
+ * @param vehicleId - 车辆ID
+ * @returns 是否删除成功
  */
 export async function deleteVehicle(vehicleId: string): Promise<boolean> {
   logger.db('删除', 'vehicles', {vehicleId})
@@ -388,6 +416,7 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       return false
     }
 
+    // 收集所有需要删除的图片
     const allPhotos: string[] = []
     if (vehicle.document) {
       const doc = vehicle.document
@@ -408,6 +437,7 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       if (doc.driving_license_sub_back_photo) allPhotos.push(doc.driving_license_sub_back_photo)
     }
 
+    // 删除存储桶中的图片
     const bucketName = `${process.env.TARO_APP_APP_ID}_images`
     if (allPhotos.length > 0) {
       const photoPaths = allPhotos.filter((photo) => {
@@ -419,6 +449,11 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       }
     }
 
+    // 保存车辆信息用于事件发布
+    const plateNumber = vehicle.plate_number
+    const userId = vehicle.user_id
+
+    // 删除车辆记录
     const {error} = await supabase.from('vehicles').delete().eq('id', vehicleId)
 
     if (error) {
@@ -426,8 +461,16 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       return false
     }
 
+    // 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    // 发布车辆删除事件，通知相关页面刷新
+    publish('vehicle:deleted', {
+      id: vehicleId,
+      plate_number: plateNumber,
+      user_id: userId
+    })
 
     return true
   } catch (error) {
@@ -438,10 +481,14 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
 
 /**
  * 还车录入
+ * @param vehicleId - 车辆ID
+ * @param returnPhotos - 还车照片URL数组
+ * @returns 更新后的车辆对象（包含文档），失败返回 null
  */
 export async function returnVehicle(vehicleId: string, returnPhotos: string[]): Promise<VehicleWithDocuments | null> {
   logger.db('更新', 'vehicles', {vehicleId, action: '还车录入'})
   try {
+    // 1. 更新车辆状态为 inactive
     const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
@@ -456,6 +503,7 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
       return null
     }
 
+    // 2. 更新车辆文档的还车信息
     const {error: docError} = await supabase
       .from('vehicle_documents')
       .update({
@@ -466,14 +514,30 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
 
     if (docError) {
       logger.error('更新还车信息失败', docError)
+      // 回滚车辆状态
       await supabase.from('vehicles').update({status: 'active'}).eq('id', vehicleId)
       return null
     }
 
+    // 3. 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
 
-    return await getVehicleById(vehicleId)
+    // 4. 获取更新后的车辆信息
+    const updatedVehicle = await getVehicleById(vehicleId)
+
+    // 5. 发布车辆归还事件，通知相关页面刷新
+    if (updatedVehicle) {
+      publish('vehicle:returned', {
+        id: vehicleId,
+        plate_number: updatedVehicle.plate_number,
+        user_id: updatedVehicle.user_id,
+        status: 'inactive',
+        return_time: new Date().toISOString()
+      })
+    }
+
+    return updatedVehicle
   } catch (error) {
     logger.error('还车录入异常', error)
     return null
@@ -593,6 +657,8 @@ export async function getDriverLicense(driverId: string): Promise<DriverLicense 
 
 /**
  * 添加或更新驾驶员证件信息
+ * @param license - 驾驶员证件输入数据
+ * @returns 保存后的驾驶员证件对象，失败返回 null
  */
 export async function upsertDriverLicense(license: DriverLicenseInput): Promise<DriverLicense | null> {
   logger.db('插入/更新', 'driver_licenses', {driverId: license.driver_id})
@@ -608,6 +674,14 @@ export async function upsertDriverLicense(license: DriverLicenseInput): Promise<
       return null
     }
 
+    // 发布驾照信息更新事件，通知相关页面刷新
+    if (data) {
+      publish('driver_license:updated', {
+        driver_id: data.driver_id,
+        id_card_name: data.id_card_name
+      })
+    }
+
     return data
   } catch (error) {
     logger.error('保存驾驶员证件信息异常', error)
@@ -617,6 +691,9 @@ export async function upsertDriverLicense(license: DriverLicenseInput): Promise<
 
 /**
  * 更新驾驶员证件信息
+ * @param driverId - 司机ID
+ * @param updates - 更新数据
+ * @returns 更新后的驾驶员证件对象，失败返回 null
  */
 export async function updateDriverLicense(
   driverId: string,
@@ -636,6 +713,15 @@ export async function updateDriverLicense(
       return null
     }
 
+    // 发布驾照信息更新事件，通知相关页面刷新
+    if (data) {
+      publish('driver_license:updated', {
+        driver_id: driverId,
+        id_card_name: data.id_card_name,
+        ...updates
+      })
+    }
+
     return data
   } catch (error) {
     logger.error('更新驾驶员证件信息异常', error)
@@ -645,9 +731,12 @@ export async function updateDriverLicense(
 
 /**
  * 删除驾驶员证件信息
+ * @param driverId - 司机ID
+ * @returns 是否删除成功
  */
 export async function deleteDriverLicense(driverId: string): Promise<boolean> {
   try {
+    // 先获取驾照信息，用于后续删除图片和发布事件
     const license = await getDriverLicense(driverId)
 
     const {error} = await supabase.from('driver_licenses').delete().eq('driver_id', driverId)
@@ -657,6 +746,7 @@ export async function deleteDriverLicense(driverId: string): Promise<boolean> {
       return false
     }
 
+    // 删除关联的图片文件
     if (license) {
       const imagePaths: string[] = []
       if (license.id_card_photo_front) imagePaths.push(license.id_card_photo_front)
@@ -674,6 +764,11 @@ export async function deleteDriverLicense(driverId: string): Promise<boolean> {
         }
       }
     }
+
+    // 发布驾照信息删除事件，通知相关页面刷新
+    publish('driver_license:deleted', {
+      driver_id: driverId
+    })
 
     return true
   } catch (error) {
@@ -763,6 +858,8 @@ export async function getDriverDetailInfo(driverId: string) {
 
 /**
  * 提交车辆审核
+ * @param vehicleId - 车辆ID
+ * @returns 是否提交成功
  */
 export async function submitVehicleForReview(vehicleId: string): Promise<boolean> {
   try {
@@ -781,8 +878,15 @@ export async function submitVehicleForReview(vehicleId: string): Promise<boolean
       return false
     }
 
+    // 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    // 发布车辆审核提交事件，通知管理员页面刷新
+    publish('vehicle:review_submitted', {
+      vehicle_id: vehicleId,
+      status: 'pending_review'
+    })
 
     return true
   } catch (error) {
@@ -963,11 +1067,16 @@ export async function markPhotoForDeletion(
 
 /**
  * 通过审核
+ * @param vehicleId - 车辆ID
+ * @param reviewerId - 审核人ID
+ * @param notes - 审核备注
+ * @returns 是否审核成功
  */
 export async function approveVehicle(vehicleId: string, reviewerId: string, notes: string): Promise<boolean> {
   try {
     logger.db('通过车辆审核', 'vehicles', {vehicleId, reviewerId, notes})
 
+    // 1. 更新车辆审核状态
     const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
@@ -983,6 +1092,7 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
       return false
     }
 
+    // 2. 更新车辆文档审核信息
     const {error: docError} = await supabase
       .from('vehicle_documents')
       .update({
@@ -994,12 +1104,22 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
 
     if (docError) {
       logger.error('更新车辆文档审核信息失败', docError)
+      // 回滚车辆状态
       await supabase.from('vehicles').update({review_status: 'pending'}).eq('id', vehicleId)
       return false
     }
 
+    // 3. 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    // 4. 发布车辆审核通过事件，通知司机页面刷新
+    publish('vehicle:approved', {
+      vehicle_id: vehicleId,
+      reviewer_id: reviewerId,
+      status: 'approved',
+      notes
+    })
 
     return true
   } catch (error) {
@@ -1062,11 +1182,16 @@ export async function lockVehiclePhotos(
 
 /**
  * 要求补录
+ * @param vehicleId - 车辆ID
+ * @param reviewerId - 审核人ID
+ * @param notes - 审核备注（说明需要补录的内容）
+ * @returns 是否操作成功
  */
 export async function requireSupplement(vehicleId: string, reviewerId: string, notes: string): Promise<boolean> {
   try {
     logger.db('要求补录车辆信息', 'vehicles', {vehicleId, reviewerId, notes})
 
+    // 1. 更新车辆审核状态为需要补录
     const {error: vehicleError} = await supabase
       .from('vehicles')
       .update({
@@ -1082,6 +1207,7 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
       return false
     }
 
+    // 2. 更新车辆文档审核备注
     const {error: docError} = await supabase
       .from('vehicle_documents')
       .update({
@@ -1092,12 +1218,22 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
 
     if (docError) {
       logger.error('更新车辆文档审核备注失败', docError)
+      // 回滚车辆状态
       await supabase.from('vehicles').update({review_status: 'pending'}).eq('id', vehicleId)
       return false
     }
 
+    // 3. 清除缓存
     clearCacheByPrefix('driver_vehicles_')
     clearCache(CACHE_KEYS.ALL_VEHICLES)
+
+    // 4. 发布车辆需要补录事件，通知司机页面刷新
+    publish('vehicle:supplement_required', {
+      vehicle_id: vehicleId,
+      reviewer_id: reviewerId,
+      status: 'need_supplement',
+      notes
+    })
 
     return true
   } catch (error) {
@@ -1108,6 +1244,11 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
 
 /**
  * 补录图片
+ * @param vehicleId - 车辆ID
+ * @param photoField - 图片字段名
+ * @param photoIndex - 图片索引
+ * @param photoUrl - 新图片URL
+ * @returns 是否补录成功
  */
 export async function supplementPhoto(
   vehicleId: string,

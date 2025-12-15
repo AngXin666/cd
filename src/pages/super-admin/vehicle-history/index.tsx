@@ -5,6 +5,7 @@
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, useRouter} from '@tarojs/taro'
+import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -28,7 +29,7 @@ const VehicleHistory: React.FC = () => {
 
   const loadVehicleInfo = useCallback(async () => {
     if (!plateNumber) {
-      Taro.showToast({title: '缺少车牌号参数', icon: 'none'})
+      showToast({title: '缺少车牌号参数', icon: 'none'})
       return
     }
 
@@ -39,11 +40,11 @@ const VehicleHistory: React.FC = () => {
       if (data) {
         setVehicle(data)
       } else {
-        Taro.showToast({title: '未找到车辆信息', icon: 'none'})
+        showToast({title: '未找到车辆信息', icon: 'none'})
       }
     } catch (error) {
       logger.error('加载车辆信息失败', {error})
-      Taro.showToast({title: '加载失败', icon: 'error'})
+      showToast({title: '加载失败', icon: 'error'})
     } finally {
       setLoading(false)
     }

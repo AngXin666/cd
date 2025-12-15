@@ -1,5 +1,6 @@
 import {ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useMemo, useState} from 'react'
@@ -191,7 +192,7 @@ const ManagerPieceWorkReport: React.FC = () => {
       )
     } catch (error) {
       console.error('加载数据失败:', error)
-      Taro.showToast({
+      showToast({
         title: '加载数据失败',
         icon: 'error',
         duration: 2000
@@ -240,7 +241,7 @@ const ManagerPieceWorkReport: React.FC = () => {
       setRecords(data)
     } catch (error) {
       console.error('加载记录失败:', error)
-      Taro.showToast({
+      showToast({
         title: '加载记录失败',
         icon: 'error',
         duration: 2000
@@ -1011,10 +1012,10 @@ const ManagerPieceWorkReport: React.FC = () => {
                 {/* 刷新按钮 */}
                 <View
                   onClick={async () => {
-                    Taro.showLoading({title: '刷新中...'})
+                    showLoading({title: '刷新中...'})
                     await Promise.all([loadData(), loadRecords()])
-                    Taro.hideLoading()
-                    Taro.showToast({
+                    hideLoading()
+                    showToast({
                       title: '刷新成功',
                       icon: 'success',
                       duration: 1500

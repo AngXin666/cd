@@ -23,14 +23,10 @@ export interface UseDataCacheOptions<T> {
   cacheEnabled?: boolean
   /** 缓存有效期（毫秒），默认 30 分钟 */
   cacheTTL?: number
-  /** 是否启用实时更新，默认 true */
+  /** 是否启用实时更新，默认 false */
   realtimeEnabled?: boolean
   /** 监听的表名数组（用于实时更新） */
   realtimeTables?: string[]
-  /** 是否启用轮询降级，默认 true */
-  enablePolling?: boolean
-  /** 轮询间隔（毫秒），默认 30 秒 */
-  pollingInterval?: number
   /** 依赖项数组（当依赖变化时重新加载） */
   dependencies?: any[]
 }
@@ -88,8 +84,6 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
     // 默认禁用实时更新，避免无限循环问题
     realtimeEnabled = false,
     realtimeTables = [],
-    enablePolling = false,
-    pollingInterval = CACHE_CONFIG.POLLING_INTERVAL,
     dependencies = []
   } = options
 
@@ -183,7 +177,7 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
   }, [load, ...dependencies])
 
   // 将 realtimeTables 转换为稳定的字符串，避免数组引用变化导致 effect 重复执行
-  const realtimeTablesKey = realtimeTables.join(',')
+  const _realtimeTablesKey = realtimeTables.join(',')
 
   // 使用 ref 存储 load 和 clearCache 函数，避免在 effect 中引用导致循环
   const loadRef = useRef(load)
@@ -234,9 +228,7 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
       },
       onError: (err) => {
         console.error(`[useDataCache] Realtime 错误: ${cacheKey}`, err)
-      },
-      enablePolling: false, // 禁用轮询，避免频繁刷新
-      pollingInterval
+      }
     })
 
     listener.start()
@@ -249,7 +241,7 @@ export function useDataCache<T>(options: UseDataCacheOptions<T>): UseDataCacheRe
     }
     // 使用 realtimeTablesKey 代替 realtimeTables 数组，避免引用变化
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realtimeEnabled, realtimeTablesKey, pollingInterval, cacheKey])
+  }, [realtimeEnabled, cacheKey, realtimeTables])
 
   return {
     data,

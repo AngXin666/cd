@@ -12,8 +12,8 @@
 
 import {supabase} from '@/client/supabase'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
-import {publish} from '@/utils/eventBus'
 import {formatLeaveDate} from '@/utils/dateFormat'
+import {publish} from '@/utils/eventBus'
 import type {
   ApplicationReviewInput,
   LeaveApplication,
@@ -390,17 +390,22 @@ export async function getResignationApplicationsByWarehouse(warehouseId: string)
 
 /**
  * 获取所有离职申请（老板）
+ * @returns 离职申请列表
  */
 export async function getAllResignationApplications(): Promise<ResignationApplication[]> {
+  console.log('[LeaveAPI] 开始获取所有离职申请...')
+  
   const {data, error} = await supabase
     .from('resignation_applications')
     .select('*')
     .order('created_at', {ascending: false})
 
   if (error) {
-    console.error('获取所有离职申请失败:', error)
+    console.error('[LeaveAPI] 获取所有离职申请失败:', error)
     return []
   }
+  
+  console.log('[LeaveAPI] 获取离职申请成功，数量:', data?.length || 0)
   return Array.isArray(data) ? data : []
 }
 
@@ -525,3 +530,131 @@ export async function validateResignationDate(
 }
 
 // 注意：getMonthlyLeaveCount 和 getMonthlyPendingLeaveCount 已迁移到 dashboard.ts
+
+/**
+ * 获取用户已批准或待审批的请假记录（用于计算可用请假日期）
+ * @param userId - 用户ID
+ * @returns 已批准和待审批的请假记录列表
+ */
+export async function getApprovedAndPendingLeaves(userId: string): Promise<LeaveApplication[]> {
+  const {data, error} = await supabase
+    .from('leave_applications')
+    .select('*')
+    .eq('user_id', userId)
+    .in('status', ['approved', 'pending'])
+    .order('start_date', {ascending: true})
+
+  if (error) {
+    console.error('获取已批准/待审批请假记录失败:', error)
+    return []
+  }
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * 计算最早可用的请假开始日期
+ * 跳过已批准或待审批的请假日期范围
+ * @param userId - 用户ID
+ * @param baseDate - 基准日期（默认为明天）
+ * @returns 最早可用的请假开始日期
+ */
+export async function getEarliestAvailableLeaveDate(userId: string, baseDate?: string): Promise<string> {
+  // 获取已批准和待审批的请假记录
+  const leaves = await getApprovedAndPendingLeaves(userId)
+  
+  // 基准日期默认为明天
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  let currentDate = baseDate ? new Date(baseDate) : tomorrow
+  
+  // 如果没有已批准/待审批的请假，直接返回基准日期
+  if (leaves.length === 0) {
+    return getLocalDateString(currentDate)
+  }
+  
+  // 检查当前日期是否与已有请假冲突，如果冲突则延后
+  let maxIterations = 365 // 最多检查一年，防止无限循环
+  while (maxIterations > 0) {
+    const currentDateStr = getLocalDateString(currentDate)
+    let hasConflict = false
+    
+    for (const leave of leaves) {
+      const startDate = new Date(leave.start_date)
+      const endDate = new Date(leave.end_date)
+      
+      // 检查当前日期是否在请假范围内
+      if (currentDate >= startDate && currentDate <= endDate) {
+        // 有冲突，将日期延后到请假结束日期的下一天
+        currentDate = new Date(endDate)
+        currentDate.setDate(currentDate.getDate() + 1)
+        hasConflict = true
+        break
+      }
+    }
+    
+    // 如果没有冲突，返回当前日期
+    if (!hasConflict) {
+      return getLocalDateString(currentDate)
+    }
+    
+    maxIterations--
+  }
+  
+  // 如果超过最大迭代次数，返回基准日期
+  return getLocalDateString(baseDate ? new Date(baseDate) : tomorrow)
+}
+
+/**
+ * 计算最早可用的离职日期
+ * 考虑提前通知天数和已批准的请假
+ * @param userId - 用户ID
+ * @param noticeDays - 提前通知天数
+ * @returns 最早可用的离职日期
+ */
+export async function getEarliestAvailableResignationDate(userId: string, noticeDays: number): Promise<string> {
+  // 计算基于提前通知天数的最早日期
+  const today = new Date()
+  const minDate = new Date(today)
+  minDate.setDate(minDate.getDate() + noticeDays)
+  
+  // 获取已批准和待审批的请假记录
+  const leaves = await getApprovedAndPendingLeaves(userId)
+  
+  // 如果没有已批准/待审批的请假，直接返回最早日期
+  if (leaves.length === 0) {
+    return getLocalDateString(minDate)
+  }
+  
+  // 检查最早日期是否与已有请假冲突，如果冲突则延后
+  let currentDate = minDate
+  let maxIterations = 365 // 最多检查一年，防止无限循环
+  
+  while (maxIterations > 0) {
+    const currentDateStr = getLocalDateString(currentDate)
+    let hasConflict = false
+    
+    for (const leave of leaves) {
+      const startDate = new Date(leave.start_date)
+      const endDate = new Date(leave.end_date)
+      
+      // 检查当前日期是否在请假范围内
+      if (currentDate >= startDate && currentDate <= endDate) {
+        // 有冲突，将日期延后到请假结束日期的下一天
+        currentDate = new Date(endDate)
+        currentDate.setDate(currentDate.getDate() + 1)
+        hasConflict = true
+        break
+      }
+    }
+    
+    // 如果没有冲突，返回当前日期
+    if (!hasConflict) {
+      return getLocalDateString(currentDate)
+    }
+    
+    maxIterations--
+  }
+  
+  // 如果超过最大迭代次数，返回基于通知天数的最早日期
+  return getLocalDateString(minDate)
+}

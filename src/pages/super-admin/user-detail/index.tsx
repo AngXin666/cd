@@ -5,6 +5,7 @@
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useRouter} from '@tarojs/taro'
+import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -128,7 +129,7 @@ const UserDetail: React.FC = () => {
   // 加载用户信息
   const loadUserInfo = useCallback(async () => {
     if (!userId) {
-      Taro.showToast({
+      showToast({
         title: '用户ID不存在',
         icon: 'error'
       })
@@ -157,7 +158,7 @@ const UserDetail: React.FC = () => {
           setDriverLicense(licenseData)
         }
       } else {
-        Taro.showToast({
+        showToast({
           title: '用户不存在',
           icon: 'error'
         })
@@ -167,7 +168,7 @@ const UserDetail: React.FC = () => {
       }
     } catch (error) {
       logger.error('加载用户信息失败', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'error'
       })
@@ -232,7 +233,7 @@ const UserDetail: React.FC = () => {
   // 预览图片
   const handlePreviewImage = (url: string) => {
     if (!url) {
-      Taro.showToast({
+      showToast({
         title: '图片不存在',
         icon: 'none'
       })
@@ -245,14 +246,14 @@ const UserDetail: React.FC = () => {
         current: url
       }).catch((error) => {
         logger.error('预览图片失败', {error, url})
-        Taro.showToast({
+        showToast({
           title: '预览图片失败',
           icon: 'none'
         })
       })
     } catch (error) {
       logger.error('预览图片异常', {error, url})
-      Taro.showToast({
+      showToast({
         title: '预览图片失败',
         icon: 'none'
       })

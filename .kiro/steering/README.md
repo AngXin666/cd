@@ -64,6 +64,15 @@
 
 **适用场景**：始终生效（inclusion: always）
 
+### `deployment-rules.md` 🚀 **重要**
+**部署与测试规则** - 定义测试和部署的默认行为：
+- 默认进行本地测试
+- 只有明确要求时才执行热更新
+- 只有明确要求时才构建 APK
+- 本地测试流程和命令
+
+**适用场景**：所有测试、调试、部署相关活动
+
 ## 如何使用
 
 ### 全局规则（始终生效）
@@ -96,10 +105,11 @@ inclusion: manual
 ## 规则优先级
 
 1. **强制规则** (`mandatory-rules.md`) - 🚨 必须 100% 遵守（最高优先级）
-2. **项目上下文** (`project-context.md`) - 提供基础信息
-3. **工作流选择** (`workflow-guide.md`) - 选择合适的工作流
-4. **编码规范** (`coding-standards.md`) - 定义代码标准
-5. **工作流规则** (`project-workflow.md`) - 6A 工作流详细指南（仅在使用 6A 工作流时参考）
+2. **部署规则** (`deployment-rules.md`) - 🚀 默认本地测试，明确要求才部署
+3. **项目上下文** (`project-context.md`) - 提供基础信息
+4. **工作流选择** (`workflow-guide.md`) - 选择合适的工作流
+5. **编码规范** (`coding-standards.md`) - 定义代码标准
+6. **工作流规则** (`project-workflow.md`) - 6A 工作流详细指南（仅在使用 6A 工作流时参考）
 
 ## ⚠️ 强制要求（必须遵守）
 

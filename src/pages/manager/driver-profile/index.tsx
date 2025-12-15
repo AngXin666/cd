@@ -5,6 +5,7 @@
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, useRouter} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
@@ -31,7 +32,7 @@ const DriverProfileView: React.FC = () => {
   // 加载司机资料和证件信息
   const loadProfile = useCallback(async () => {
     if (!driverId) {
-      Taro.showToast({
+      showToast({
         title: '缺少司机ID',
         icon: 'none'
       })
@@ -50,7 +51,7 @@ const DriverProfileView: React.FC = () => {
       setDriverLicense(licenseData)
     } catch (error) {
       logger.error('加载司机资料失败', error)
-      Taro.showToast({
+      showToast({
         title: '加载失败',
         icon: 'none'
       })
@@ -416,7 +417,7 @@ const DriverProfileView: React.FC = () => {
                 if (!confirm) return
 
                 try {
-                  Taro.showLoading({title: '处理中...'})
+                  showLoading({title: '处理中...'})
                   logger.userAction('重置密码', {driverId, operatorId: user?.id})
 
                   const {error} = await supabase.rpc('reset_user_password', {
@@ -424,25 +425,25 @@ const DriverProfileView: React.FC = () => {
                     new_password: '123456'
                   })
 
-                  Taro.hideLoading()
+                  hideLoading()
 
                   if (error) {
                     logger.error('重置密码失败', {error, driverId})
-                    Taro.showToast({
+                    showToast({
                       title: '重置密码失败',
                       icon: 'none'
                     })
                     return
                   }
 
-                  Taro.showToast({
+                  showToast({
                     title: '密码已重置为 123456',
                     icon: 'success'
                   })
                 } catch (err) {
-                  Taro.hideLoading()
+                  hideLoading()
                   logger.error('重置密码异常', {error: err, driverId})
-                  Taro.showToast({
+                  showToast({
                     title: '操作失败',
                     icon: 'none'
                   })
@@ -464,24 +465,24 @@ const DriverProfileView: React.FC = () => {
                 if (!confirm) return
 
                 try {
-                  Taro.showLoading({title: '处理中...'})
+                  showLoading({title: '处理中...'})
                   logger.userAction('提升为管理员', {driverId, operatorId: user?.id})
 
                   // 单用户架构：更新 user_roles 表
                   const {error} = await supabase.from('users').update({role: 'MANAGER'}).eq('id', driverId)
 
-                  Taro.hideLoading()
+                  hideLoading()
 
                   if (error) {
                     logger.error('提升为管理员失败', {error, driverId})
-                    Taro.showToast({
+                    showToast({
                       title: '操作失败',
                       icon: 'none'
                     })
                     return
                   }
 
-                  Taro.showToast({
+                  showToast({
                     title: '已提升为管理员',
                     icon: 'success',
                     duration: 2000
@@ -492,9 +493,9 @@ const DriverProfileView: React.FC = () => {
                     Taro.navigateBack()
                   }, 2000)
                 } catch (err) {
-                  Taro.hideLoading()
+                  hideLoading()
                   logger.error('提升为管理员异常', {error: err, driverId})
-                  Taro.showToast({
+                  showToast({
                     title: '操作失败',
                     icon: 'none'
                   })

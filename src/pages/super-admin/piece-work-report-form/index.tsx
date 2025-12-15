@@ -1,5 +1,6 @@
 import {Input, Picker, ScrollView, Switch, Text, Textarea, View} from '@tarojs/components'
 import Taro, {getCurrentInstance, navigateBack} from '@tarojs/taro'
+import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -80,7 +81,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
         }
       } catch (error) {
         console.error('加载记录详情失败:', error)
-        Taro.showToast({
+        showToast({
           title: '加载记录详情失败',
           icon: 'error',
           duration: 2000
@@ -121,7 +122,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
       }
     } catch (error) {
       console.error('加载数据失败:', error)
-      Taro.showToast({
+      showToast({
         title: '加载数据失败',
         icon: 'error',
         duration: 2000
@@ -144,7 +145,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
   const handleSubmit = async () => {
     // 验证必填字段
     if (selectedDriverIndex < 0 || !drivers[selectedDriverIndex]) {
-      Taro.showToast({
+      showToast({
         title: '请选择司机',
         icon: 'none',
         duration: 2000
@@ -153,7 +154,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     }
 
     if (selectedWarehouseIndex < 0 || !warehouses[selectedWarehouseIndex]) {
-      Taro.showToast({
+      showToast({
         title: '请选择仓库',
         icon: 'none',
         duration: 2000
@@ -162,7 +163,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     }
 
     if (selectedCategoryIndex < 0 || !categories[selectedCategoryIndex]) {
-      Taro.showToast({
+      showToast({
         title: '请选择品类',
         icon: 'none',
         duration: 2000
@@ -171,7 +172,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     }
 
     if (!workDate) {
-      Taro.showToast({
+      showToast({
         title: '请选择工作日期',
         icon: 'none',
         duration: 2000
@@ -180,7 +181,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     }
 
     if (!quantity || Number(quantity) <= 0) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的数量',
         icon: 'none',
         duration: 2000
@@ -189,7 +190,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     }
 
     if (!unitPrice || Number(unitPrice) <= 0) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的单价',
         icon: 'none',
         duration: 2000
@@ -198,7 +199,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
     }
 
     if (needUpstairs && (!upstairsPrice || Number(upstairsPrice) <= 0)) {
-      Taro.showToast({
+      showToast({
         title: '请输入有效的上楼单价',
         icon: 'none',
         duration: 2000
@@ -208,7 +209,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
 
     if (needSorting) {
       if (!sortingQuantity || Number(sortingQuantity) <= 0) {
-        Taro.showToast({
+        showToast({
           title: '请输入有效的分拣数量',
           icon: 'none',
           duration: 2000
@@ -216,7 +217,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
         return
       }
       if (!sortingUnitPrice || Number(sortingUnitPrice) <= 0) {
-        Taro.showToast({
+        showToast({
           title: '请输入有效的分拣单价',
           icon: 'none',
           duration: 2000
@@ -249,14 +250,14 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
 
       if (mode === 'add') {
         await PieceworkAPI.createPieceWorkRecord(recordData)
-        Taro.showToast({
+        showToast({
           title: '添加成功',
           icon: 'success',
           duration: 2000
         })
       } else {
         await PieceworkAPI.updatePieceWorkRecord(recordId, recordData)
-        Taro.showToast({
+        showToast({
           title: '更新成功',
           icon: 'success',
           duration: 2000
@@ -268,7 +269,7 @@ const SuperAdminPieceWorkReportForm: React.FC = () => {
       }, 2000)
     } catch (error) {
       console.error('提交失败:', error)
-      Taro.showToast({
+      showToast({
         title: mode === 'add' ? '添加失败' : '更新失败',
         icon: 'error',
         duration: 2000

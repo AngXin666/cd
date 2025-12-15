@@ -97,6 +97,17 @@ inclusion: always
 - 使用 Capacitor 打包
 - 输出 APK 文件
 
+### APK 构建流程（强制）
+当需要构建 APK 时，必须按以下步骤执行：
+1. 构建 H5：`npm run build:h5`
+2. 同步到 Android：`npx cap sync android`
+3. 构建 APK：在 `android` 目录下执行 `.\gradlew assembleDebug`
+4. **构建完成后必须自动打开 APK 所在文件夹**：
+   ```powershell
+   explorer.exe "C:\Users\Administrator\Desktop\cdgj\android\app\build\outputs\apk\debug"
+   ```
+- APK 输出位置：`android\app\build\outputs\apk\debug\app-debug.apk`
+
 ## 开发工作流
 
 ### 启动开发服务器

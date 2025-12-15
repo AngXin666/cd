@@ -10,6 +10,7 @@
  */
 
 import {supabase} from '@/client/supabase'
+import {publish} from '@/utils/eventBus'
 import {logger} from '@/utils/logger'
 import type {
   AutoReminderRule,
@@ -58,22 +59,20 @@ export async function createNotification(notification: {
       }
     }
 
+    // 构建通知数据，使用 notifications 表的正确字段名
     const notificationPayload = {
-      user_id: notification.user_id,
+      recipient_id: notification.user_id, // 使用 recipient_id 而不是 user_id
       sender_id: senderId,
       sender_name: senderName,
-      // sender_role: senderRole, // 临时移除
       type: notification.type,
       title: notification.title,
-      message: notification.message,
+      content: notification.message, // 使用 content 而不是 message
       related_id: notification.related_id || null,
       is_read: false
     }
 
-    // 使用 create_notifications_batch 函数来创建通知，传递完整的发送者信息
-    const {error} = await supabase.rpc('create_notifications_batch', {
-      notifications: [notificationPayload]
-    })
+    // 直接插入 notifications 表，避免依赖可能不存在的 RPC 函数
+    const {error} = await supabase.from('notifications').insert(notificationPayload)
 
     if (error) {
       logger.error('创建通知失败', error)
@@ -151,31 +150,27 @@ export async function createNotificationForAllManagers(notification: {
       return 0
     }
 
-    // 为每个管理员创建通知
-    const notifications = managers.map((manager) => ({
-      user_id: manager.id,
+    // 为每个管理员创建通知，使用 notifications 表的正确字段名
+    const notificationsData = managers.map((manager) => ({
+      recipient_id: manager.id, // 使用 recipient_id 而不是 user_id
       sender_id: senderId,
       sender_name: senderName,
-      // sender_role: senderRole, // 临时移除
       type: notification.type,
       title: notification.title,
-      message: notification.message,
+      content: notification.message, // 使用 content 而不是 message
       related_id: notification.related_id || null,
       is_read: false
     }))
 
-    // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
-    const {data, error} = await supabase.rpc('create_notifications_batch', {
-      notifications: notifications
-    })
+    // 直接批量插入 notifications 表
+    const {error} = await supabase.from('notifications').insert(notificationsData)
 
     if (error) {
       logger.error('批量创建通知失败', {error, errorMessage: error.message, errorDetails: error.details})
       return 0
     }
 
-    const count = data || 0
-    return count
+    return notificationsData.length
   } catch (error) {
     logger.error('批量创建通知异常', error)
     return 0
@@ -226,31 +221,27 @@ export async function createNotificationForAllSuperAdmins(notification: {
       return 0
     }
 
-    // 为每个老板创建通知
-    const notifications = superAdmins.map((admin) => ({
-      user_id: admin.id,
+    // 为每个老板创建通知，使用 notifications 表的正确字段名
+    const notificationsData = superAdmins.map((admin) => ({
+      recipient_id: admin.id, // 使用 recipient_id 而不是 user_id
       sender_id: senderId,
       sender_name: senderName,
-      // sender_role: senderRole, // 临时移除
       type: notification.type,
       title: notification.title,
-      message: notification.message,
+      content: notification.message, // 使用 content 而不是 message
       related_id: notification.related_id || null,
       is_read: false
     }))
 
-    // 使用 SECURITY DEFINER 函数批量创建通知，绕过 RLS 限制
-    const {data, error} = await supabase.rpc('create_notifications_batch', {
-      notifications: notifications
-    })
+    // 直接批量插入 notifications 表
+    const {error} = await supabase.from('notifications').insert(notificationsData)
 
     if (error) {
       logger.error('批量创建通知失败', error)
       return 0
     }
 
-    const count = data || 0
-    return count
+    return notificationsData.length
   } catch (error) {
     logger.error('批量创建通知异常', error)
     return 0
@@ -494,7 +485,7 @@ export async function getNotificationSendRecords(): Promise<NotificationSendReco
 
 /**
  * 标记通知为已读
- * @param notificationId 通知ID
+ * @param notificationId - 通知ID
  * @returns 是否成功
  */
 export async function markNotificationAsRead(notificationId: string): Promise<boolean> {
@@ -505,6 +496,11 @@ export async function markNotificationAsRead(notificationId: string): Promise<bo
       console.error('标记通知为已读失败:', error)
       return false
     }
+
+    // 发布通知已读事件，通知相关页面刷新未读数量
+    publish('notification:read', {
+      id: notificationId
+    })
 
     return true
   } catch (error) {
@@ -540,7 +536,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<boolea
 
 /**
  * 删除通知
- * @param notificationId 通知ID
+ * @param notificationId - 通知ID
  * @returns 是否成功
  */
 export async function deleteNotification(notificationId: string): Promise<boolean> {
@@ -551,6 +547,11 @@ export async function deleteNotification(notificationId: string): Promise<boolea
       console.error('删除通知失败:', error)
       return false
     }
+
+    // 发布通知删除事件，通知相关页面刷新通知列表
+    publish('notification:deleted', {
+      id: notificationId
+    })
 
     return true
   } catch (error) {

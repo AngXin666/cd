@@ -1,5 +1,6 @@
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
-import Taro, {showLoading, showModal, showToast, useDidShow} from '@tarojs/taro'
+import Taro, {useDidShow} from '@tarojs/taro'
+import {hideLoading, showLoading, showModal, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -79,7 +80,7 @@ const WarehouseEdit: React.FC = () => {
       console.error('[仓库管理-编辑仓库] 加载仓库信息失败:', error)
       showToast({title: '加载失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }, [])
 
@@ -97,11 +98,14 @@ const WarehouseEdit: React.FC = () => {
       const sortingPriceMap = new Map<string, string>()
       const selectedSet = new Set<string>()
 
+      // 使用 category_id 作为 key，使用数据库实际字段名
       for (const price of prices) {
-        driverPriceMap.set(price.category_name, String(price.unit_price))
-        vehiclePriceMap.set(price.category_name, String(price.upstairs_price))
-        sortingPriceMap.set(price.category_name, String(price.sorting_unit_price))
-        selectedSet.add(price.category_name)
+        const categoryId = price.category_id
+        // driver_only_price 是纯司机价格，driver_with_vehicle_price 是带车价格
+        driverPriceMap.set(categoryId, String(price.driver_only_price || 0))
+        vehiclePriceMap.set(categoryId, String(price.driver_with_vehicle_price || 0))
+        sortingPriceMap.set(categoryId, String(price.sorting_unit_price || 0))
+        selectedSet.add(categoryId)
       }
 
       setCategoryDriverPrices(driverPriceMap)
@@ -319,11 +323,14 @@ const WarehouseEdit: React.FC = () => {
       const sortingPriceMap = new Map<string, string>()
       const selectedSet = new Set<string>()
 
+      // 使用 category_id 作为 key，使用数据库实际字段名
       for (const price of prices) {
-        driverPriceMap.set(price.category_name, String(price.unit_price))
-        vehiclePriceMap.set(price.category_name, String(price.upstairs_price))
-        sortingPriceMap.set(price.category_name, String(price.sorting_unit_price))
-        selectedSet.add(price.category_name)
+        const categoryId = price.category_id
+        // driver_only_price 是纯司机价格，driver_with_vehicle_price 是带车价格
+        driverPriceMap.set(categoryId, String(price.driver_only_price || 0))
+        vehiclePriceMap.set(categoryId, String(price.driver_with_vehicle_price || 0))
+        sortingPriceMap.set(categoryId, String(price.sorting_unit_price || 0))
+        selectedSet.add(categoryId)
       }
 
       setCategoryDriverPrices(driverPriceMap)
@@ -347,7 +354,7 @@ const WarehouseEdit: React.FC = () => {
       console.error('复制配置失败:', error)
       showToast({title: '复制失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -380,20 +387,20 @@ const WarehouseEdit: React.FC = () => {
       if (!newCategory) {
         console.error('[仓库管理-品类操作] 创建品类失败，返回null')
         showToast({title: '创建品类失败', icon: 'error'})
-        Taro.hideLoading()
+        hideLoading()
         return
       }
 
-      // 再创建价格记录
+      // 再创建价格记录（每个品类一条记录，包含两种价格）
       const priceInput: CategoryPriceInput = {
         category_id: newCategory.id,
         warehouse_id: warehouseId,
-        price: Number(newCategoryDriverPrice || 0),
-        driver_type: 'driver_only',
-        effective_date: new Date().toISOString().split('T')[0]
+        driver_only_price: Number(newCategoryDriverPrice || 0),
+        driver_with_vehicle_price: Number(newCategoryVehiclePrice || 0)
       }
 
-      const success = await PieceworkAPI.upsertCategoryPrice(priceInput)
+      // 使用批量保存函数，确保正确处理唯一约束
+      const success = await PieceworkAPI.batchUpsertCategoryPrices([priceInput])
 
       if (success) {
         // 刷新品类列表
@@ -429,7 +436,7 @@ const WarehouseEdit: React.FC = () => {
       console.error('[仓库管理-品类操作] 创建品类异常:', error)
       showToast({title: '创建失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -472,19 +479,21 @@ const WarehouseEdit: React.FC = () => {
       if (prices.length === 0) {
         console.warn('[仓库管理-导入品类] 源仓库没有品类配置')
         showToast({title: '该仓库暂无品类配置', icon: 'none'})
-        Taro.hideLoading()
+        hideLoading()
         return
       }
 
-      // 合并到当前配置
+      // 合并到当前配置（使用 category_id 作为 key，使用数据库实际字段名）
       const newDriverPrices = new Map(categoryDriverPrices)
       const newVehiclePrices = new Map(categoryVehiclePrices)
       const newSelected = new Set(selectedCategories)
 
       for (const price of prices) {
-        newDriverPrices.set(price.category_name, String(price.unit_price))
-        newVehiclePrices.set(price.category_name, String(price.upstairs_price))
-        newSelected.add(price.category_name)
+        const categoryId = price.category_id
+        // driver_only_price 是纯司机价格，driver_with_vehicle_price 是带车价格
+        newDriverPrices.set(categoryId, String(price.driver_only_price || 0))
+        newVehiclePrices.set(categoryId, String(price.driver_with_vehicle_price || 0))
+        newSelected.add(categoryId)
       }
 
       setCategoryDriverPrices(newDriverPrices)
@@ -501,7 +510,7 @@ const WarehouseEdit: React.FC = () => {
       console.error('[仓库管理-导入品类] 导入品类失败:', error)
       showToast({title: `导入失败: ${error}`, icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 
@@ -572,26 +581,26 @@ const WarehouseEdit: React.FC = () => {
         console.error('[仓库管理-保存操作] 更新仓库基本信息失败')
         throw new Error('更新仓库信息失败')
       }
-      // 2. 更新品类价格
-      const priceInputs: CategoryPriceInput[] = Array.from(selectedCategories)
-        .map((categoryId) => {
-          const category = allCategories.find((c) => c.id === categoryId)
-          if (!category) return null
-          return {
-            category_id: categoryId,
-            warehouse_id: warehouseId,
-            price: Number(categoryDriverPrices.get(categoryId) || 0),
-            driver_type: 'driver_only',
-            effective_date: new Date().toISOString().split('T')[0]
-          } as CategoryPriceInput
+      // 2. 更新品类价格（每个品类一条记录，包含两种价格）
+      const priceInputs: CategoryPriceInput[] = []
+      for (const categoryId of selectedCategories) {
+        const category = allCategories.find((c) => c.id === categoryId)
+        if (!category) continue
+
+        // 每个品类一条记录，包含纯司机和带车两种价格
+        priceInputs.push({
+          category_id: categoryId,
+          warehouse_id: warehouseId,
+          driver_only_price: Number(categoryDriverPrices.get(categoryId) || 0),
+          driver_with_vehicle_price: Number(categoryVehiclePrices.get(categoryId) || 0)
         })
-        .filter((p) => p !== null) as CategoryPriceInput[]
+      }
 
       if (priceInputs.length > 0) {
         const priceSuccess = await PieceworkAPI.batchUpsertCategoryPrices(priceInputs)
         if (!priceSuccess) {
           console.error('[仓库管理-保存操作] 更新品类价格失败')
-          throw new Error('更新品类价格失败')
+          throw new Error('保存价格失败')
         }
       } else {
       }
@@ -660,7 +669,7 @@ const WarehouseEdit: React.FC = () => {
       console.error('[仓库管理-保存操作] 保存失败:', error)
       showToast({title: '保存失败', icon: 'error'})
     } finally {
-      Taro.hideLoading()
+      hideLoading()
     }
   }
 

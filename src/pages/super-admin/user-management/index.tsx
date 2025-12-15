@@ -2,10 +2,20 @@
  * 老板端 - 用户管理页面
  * 功能：管理所有用户（司机、车队长、老板）
  * 参考车队长端的司机管理实现
+ *
+ * 功能特性：
+ * - 用户列表展示和管理
+ * - 仓库分配管理
+ * - Realtime 订阅实时更新
+ * - 本地事件订阅
+ *
+ * @module pages/super-admin/user-management
+ * @requirements 3.1, 3.3, 6.1, 6.2
  */
 
 import {Checkbox, CheckboxGroup, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
-import Taro, {navigateTo, showLoading, showToast, useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
+import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
@@ -17,7 +27,10 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
+import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
+import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
+import {sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 // 司机详细信息类型
@@ -304,7 +317,7 @@ const UserManagement: React.FC = () => {
         if (!userDetails.has(userId)) {
           showLoading({title: '加载中...'})
           const detail = await VehiclesAPI.getDriverDetailInfo(userId)
-          Taro.hideLoading()
+          hideLoading()
           if (detail) {
             setUserDetails((prev) => new Map(prev).set(userId, detail))
           }
@@ -316,14 +329,14 @@ const UserManagement: React.FC = () => {
 
   // 查看用户个人信息
   const handleViewUserProfile = useCallback((userId: string) => {
-    navigateTo({
+    Taro.navigateTo({
       url: `/pages/manager/driver-profile/index?driverId=${userId}`
     })
   }, [])
 
   // 查看用户车辆管理
   const handleViewUserVehicles = useCallback((userId: string) => {
-    navigateTo({
+    Taro.navigateTo({
       url: `/pages/driver/vehicle-list/index?driverId=${userId}`
     })
   }, [])
@@ -474,7 +487,7 @@ const UserManagement: React.FC = () => {
           }
         }
 
-        Taro.hideLoading()
+        hideLoading()
         setAddingUser(false)
 
         // 显示详细的创建成功信息
@@ -518,12 +531,12 @@ const UserManagement: React.FC = () => {
           }
         })
       } else {
-        Taro.hideLoading()
+        hideLoading()
         setAddingUser(false)
         showToast({title: '添加失败，手机号可能已存在', icon: 'error'})
       }
     } catch (error: any) {
-      Taro.hideLoading()
+      hideLoading()
       setAddingUser(false)
       console.error('添加用户失败', error)
 
@@ -566,7 +579,7 @@ const UserManagement: React.FC = () => {
 
       const success = await UsersAPI.updateProfile(targetUser.id, {driver_type: newType})
 
-      Taro.hideLoading()
+      hideLoading()
 
       if (success) {
         showToast({title: `已切换为${newTypeText}`, icon: 'success'})
@@ -681,7 +694,7 @@ const UserManagement: React.FC = () => {
           assignments = await WarehousesAPI.getWarehouseAssignmentsByManager(targetUser.id)
         }
 
-        Taro.hideLoading()
+        hideLoading()
         setSelectedWarehouseIds(assignments.map((a) => a.warehouse_id))
       }
     },
@@ -754,7 +767,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
         }
       }
 
-      Taro.hideLoading()
+      hideLoading()
       showToast({title: '保存成功', icon: 'success'})
       setWarehouseAssignExpanded(null)
       setSelectedWarehouseIds([])
@@ -892,7 +905,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
   // 配置权限
   const handleConfigPermission = useCallback((targetUser: UserWithRealName) => {
-    navigateTo({
+    Taro.navigateTo({
       url: `/pages/super-admin/permission-config/index?userId=${targetUser.id}&userName=${encodeURIComponent(targetUser.real_name || targetUser.name || targetUser.phone || '')}`
     })
   }, [])
@@ -910,6 +923,76 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
     await Promise.all([loadUsers(true), loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
+
+  // ==================== Realtime 订阅 ====================
+
+  /**
+   * 订阅 users 表的实时变更
+   * 当其他用户（如同行管理员）修改用户信息时，自动刷新数据
+   */
+  useRealtimeSubscription({
+    table: 'users',
+    event: '*',
+    enabled: !!user?.id,
+    onDataChange: useCallback(
+      (event) => {
+        console.log('[用户管理] 收到 Realtime 事件:', event.eventType)
+
+        // 根据事件类型显示不同的通知
+        let message = ''
+        switch (event.eventType) {
+          case 'INSERT':
+            message = '有新用户被创建'
+            break
+          case 'UPDATE':
+            message = '用户信息已更新'
+            break
+          case 'DELETE':
+            message = '有用户被删除'
+            break
+        }
+
+        // 使用防抖通知，避免短时间内多次提示
+        sendDebouncedNotification({
+          type: 'general',
+          message,
+          toastType: 'info'
+        })
+
+        // 刷新用户列表
+        loadUsers(true)
+      },
+      [loadUsers]
+    ),
+    onError: useCallback((error) => {
+      console.error('[用户管理] Realtime 订阅错误:', error)
+    }, [])
+  })
+
+  // ==================== 本地事件订阅 ====================
+
+  /**
+   * 订阅本地用户相关事件
+   * 当本地操作（如创建、更新、删除用户）完成后，刷新数据
+   */
+  useMultiEventSubscription(
+    [
+      'user:created',
+      'user:updated',
+      'user:deleted',
+      'user:role_updated',
+      'user:permission_updated',
+      'user:role_added',
+      'user:role_removed',
+      'warehouse_assignment:created',
+      'warehouse_assignment:updated',
+      'warehouse_assignment:deleted'
+    ],
+    useCallback(() => {
+      console.log('[用户管理] 收到本地用户事件，刷新数据')
+      loadUsers(true)
+    }, [loadUsers])
+  )
 
   // 处理仓库切换 - filteredUsers 会自动更新
   const handleWarehouseChange = useCallback((e: any) => {
