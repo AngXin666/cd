@@ -250,6 +250,9 @@ export class UnifiedUpdateService {
   /**
    * 检查是否为开发模式
    * 开发模式下跳过自动更新检查，避免干扰开发
+   * 
+   * 注意：在 Capacitor APP 中，始终执行更新检查，不管 NODE_ENV 是什么
+   * 因为 APK 构建后 NODE_ENV 可能不正确
    *
    * @returns true: 开发模式，false: 生产模式
    * @private
@@ -259,12 +262,26 @@ export class UnifiedUpdateService {
     const nodeEnv = process.env.NODE_ENV
     const isDev = nodeEnv === 'development'
 
+    // 检查是否在 Capacitor 环境中（Android APP）
+    const isCapacitor = !!(window as any)?.Capacitor
+    const capacitorPlatform = (window as any)?.Capacitor?.getPlatform?.() || 'unknown'
+
     // 详细记录环境检测结果
     console.log('[UpdateService] 环境检测:', {
       NODE_ENV: nodeEnv,
       isDevelopment: isDev,
-      willSkipUpdate: isDev
+      isCapacitor,
+      capacitorPlatform,
+      currentPlatform: this.currentPlatform
     })
+
+    // 关键修改：如果是 Capacitor APP（Android），始终执行更新检查
+    // 因为 APK 构建后 NODE_ENV 可能不正确
+    if (isCapacitor || this.currentPlatform === PlatformType.ANDROID) {
+      console.log('[UpdateService] ✅ Capacitor/Android 环境，强制执行更新检查')
+      this.logger.info('Capacitor/Android 环境，强制执行更新检查')
+      return false // 返回 false 表示不是开发模式，会执行更新检查
+    }
 
     if (isDev) {
       this.logger.debug('当前为开发模式，将跳过更新检查')

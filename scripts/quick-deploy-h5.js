@@ -15,9 +15,13 @@ const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-// 获取命令行参数
-const version = process.argv[2] || '1.0.5';
-const releaseNotes = process.argv[3] || '优化顶部安全区域';
+// 从 package.json 读取版本号
+const packageJson = require('../package.json');
+const defaultVersion = packageJson.version;
+
+// 获取命令行参数（优先使用命令行参数，否则使用 package.json 版本）
+const version = process.argv[2] || defaultVersion;
+const releaseNotes = process.argv[3] || '功能优化和问题修复';
 
 async function uploadFile(filePath, storagePath) {
   const fileContent = fs.readFileSync(filePath);
