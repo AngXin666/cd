@@ -265,7 +265,8 @@ const PieceWorkEntry: React.FC = () => {
         categoryId: selectedCategory?.id,
         categoryName: selectedCategory?.category_name,
         hasDriverProfile: !!driverProfile,
-        driverProfileId: driverProfile?.id
+        driverProfileId: driverProfile?.id,
+        driverType: driverProfile?.driver_type
       })
 
       if (!selectedWarehouse || !selectedCategory || !driverProfile) {
@@ -273,17 +274,21 @@ const PieceWorkEntry: React.FC = () => {
         return
       }
 
-      console.log('[PieceWorkEntry] 开始查询价格配置...')
-      const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+      console.log('[PieceWorkEntry] 开始查询价格配置，司机类型:', driverProfile.driver_type)
+      // 传递司机类型，根据类型获取对应的单价
+      const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(
+        selectedWarehouse.id,
+        selectedCategory.id,
+        driverProfile.driver_type
+      )
       console.log('[PieceWorkEntry] 价格配置结果:', priceConfig)
 
       setPieceWorkItems((prev) =>
         prev.map((item) => {
           if (priceConfig) {
-            // 所有司机都使用相同的基础单价
-            // unit_price: 基础单价
-            // upstairs_price: 上楼费（额外费用）
-            // sorting_unit_price: 分拣单价（额外费用）
+            // 根据司机类型使用对应的单价
+            // 带车司机使用 driver_with_vehicle_price
+            // 纯司机使用 driver_only_price
             return {
               ...item,
               unitPrice: priceConfig.unitPrice.toString(),
@@ -318,12 +323,16 @@ const PieceWorkEntry: React.FC = () => {
     let unitPriceLocked = false
 
     if (selectedWarehouse && selectedCategory && driverProfile) {
-      const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(selectedWarehouse.id, selectedCategory.id)
+      // 传递司机类型，根据类型获取对应的单价
+      const priceConfig = await PieceworkAPI.getCategoryPriceForDriver(
+        selectedWarehouse.id,
+        selectedCategory.id,
+        driverProfile.driver_type
+      )
       if (priceConfig) {
-        // 所有司机都使用相同的基础单价
-        // unit_price: 基础单价
-        // upstairs_price: 上楼费（额外费用）
-        // sorting_unit_price: 分拣单价（额外费用）
+        // 根据司机类型使用对应的单价
+        // 带车司机使用 driver_with_vehicle_price
+        // 纯司机使用 driver_only_price
         unitPrice = priceConfig.unitPrice.toString()
         unitPriceLocked = true
       }

@@ -263,16 +263,6 @@ describe('notificationDebounce', () => {
       expect(config.toastType).toBe('info')
     })
 
-    it('应该提供正确的请假审批结果通知配置', () => {
-      const approvedConfig = NotificationPresets.leaveApprovalResult(true)
-      expect(approvedConfig.message).toBe('您的请假申请已通过')
-      expect(approvedConfig.toastType).toBe('success')
-
-      const rejectedConfig = NotificationPresets.leaveApprovalResult(false)
-      expect(rejectedConfig.message).toBe('您的请假申请被拒绝')
-      expect(rejectedConfig.toastType).toBe('warning')
-    })
-
     it('应该提供正确的车辆审核结果通知配置', () => {
       const approvedConfig = NotificationPresets.vehicleReviewResult('approved')
       expect(approvedConfig.message).toBe('您的车辆审核已通过')

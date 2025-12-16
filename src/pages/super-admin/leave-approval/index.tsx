@@ -7,7 +7,7 @@
  * @feature event-driven-data-refresh
  */
 
-import {Button, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
+import {Button, ScrollView, Swiper, SwiperItem, Text, Textarea, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -61,6 +61,14 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [urlWarehouseId, setUrlWarehouseId] = useState<string | null>(null)
   // 数据加载完成标志，用于确保仓库定位在所有数据加载完成后执行
   const [dataLoaded, setDataLoaded] = useState<boolean>(false)
+
+  // 拒绝备注相关状态
+  // rejectingLeaveId: 当前正在拒绝的请假申请ID（展开备注输入框）
+  // rejectingResignationId: 当前正在拒绝的离职申请ID（展开备注输入框）
+  // rejectNotes: 拒绝备注内容
+  const [rejectingLeaveId, setRejectingLeaveId] = useState<string | null>(null)
+  const [rejectingResignationId, setRejectingResignationId] = useState<string | null>(null)
+  const [rejectNotes, setRejectNotes] = useState<string>('')
 
   // 从URL参数读取初始标签和仓库ID
   useEffect(() => {
@@ -566,7 +574,10 @@ const SuperAdminLeaveApproval: React.FC = () => {
   ])
 
   // 审批请假申请
-  const handleReviewLeave = async (applicationId: string, approved: boolean) => {
+  // @param applicationId - 申请ID
+  // @param approved - 是否批准
+  // @param notes - 拒绝备注（可选，仅拒绝时使用）
+  const handleReviewLeave = async (applicationId: string, approved: boolean, notes?: string) => {
     if (!user) return
 
     // 验证 applicationId 是否为有效的 UUID
@@ -589,10 +600,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
         throw new Error('未找到请假申请')
       }
 
-      // 2. 审批请假申请
+      // 2. 审批请假申请（拒绝时传递备注）
       const success = await LeaveAPI.reviewLeaveApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
+        review_notes: !approved && notes ? notes : undefined,
         reviewed_at: new Date().toISOString()
       })
 
@@ -695,18 +707,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
             }
           }
 
-          // 🔔 创建新通知给司机（审批结果通知）
-          // 消息格式：{审批人}{通过/拒绝}了 您的{请假类型}申请（日期范围）
-          // 日期格式：明天、后天、明后2天、或 12.16-12.18（3天）
-          // 注意："通过了"或"拒绝了"后面必须添加一个空格
-          const driverMessage = `${reviewerText}${statusText}了 您的${leaveTypeText}申请（${dateRangeDisplay}）`
-          await createNotification(
-            application.user_id, // 发送给申请人（司机）
-            notificationType,
-            `${leaveTypeText}申请已${statusText}`,
-            driverMessage,
-            applicationId // 关联请假申请ID
-          )
+          // 注意：不再创建新通知给司机，因为原有通知已经更新了状态和内容
+          // 司机会通过更新后的原有通知看到审批结果
 
           // 4. 通知其他管理员（根据审批人角色发送不同通知）
           // - 老板审批 → 通知车队长和调度
@@ -814,7 +816,10 @@ const SuperAdminLeaveApproval: React.FC = () => {
   }
 
   // 审批离职申请
-  const handleReviewResignation = async (applicationId: string, approved: boolean) => {
+  // @param applicationId - 申请ID
+  // @param approved - 是否批准
+  // @param notes - 拒绝备注（可选，仅拒绝时使用）
+  const handleReviewResignation = async (applicationId: string, approved: boolean, notes?: string) => {
     if (!user) return
 
     // 验证 applicationId 是否为有效的 UUID
@@ -837,10 +842,11 @@ const SuperAdminLeaveApproval: React.FC = () => {
         throw new Error('未找到离职申请')
       }
 
-      // 2. 审批离职申请
+      // 2. 审批离职申请（拒绝时传递备注）
       const success = await LeaveAPI.reviewResignationApplication(applicationId, {
         status: approved ? 'approved' : 'rejected',
         reviewed_by: user.id,
+        review_notes: !approved && notes ? notes : undefined,
         reviewed_at: new Date().toISOString()
       })
 
@@ -903,18 +909,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
             }
           }
 
-          // 🔔 创建新通知给司机
-          // 消息格式：{审批人}{通过/拒绝}了 您的离职申请（离职日期：{日期}）
-          // 示例：老板通过了 您的离职申请（离职日期：2024-12-20）
-          // 注意："通过了"或"拒绝了"后面必须添加一个空格
-          const driverMessage = `${reviewerText}${statusText}了 您的离职申请（离职日期：${resignationDate}）`
-          await createNotification(
-            application.user_id,
-            notificationType,
-            `离职申请已${statusText}`,
-            driverMessage,
-            applicationId
-          )
+          // 注意：不再创建新通知给司机，因为原有通知已经更新了状态和内容
+          // 司机会通过更新后的原有通知看到审批结果
 
           // 🔔 通知其他管理员（根据审批人角色发送不同通知）
           // - 老板审批 → 通知车队长和调度
@@ -1200,10 +1196,58 @@ const SuperAdminLeaveApproval: React.FC = () => {
                           <Button
                             size="default"
                             className="flex-1 bg-red-600 text-white text-sm font-bold break-keep"
-                            onClick={() => handleReviewLeave(app.id, false)}>
+                            onClick={() => {
+                              // 点击拒绝按钮，展开备注输入框
+                              if (rejectingLeaveId === app.id) {
+                                // 如果已展开，则收起
+                                setRejectingLeaveId(null)
+                                setRejectNotes('')
+                              } else {
+                                // 展开备注输入框
+                                setRejectingLeaveId(app.id)
+                                setRejectingResignationId(null)
+                                setRejectNotes('')
+                              }
+                            }}>
                             拒绝
                           </Button>
                         </View>
+
+                        {/* 拒绝备注输入框（点击拒绝按钮后展开） */}
+                        {rejectingLeaveId === app.id && (
+                          <View className="mt-3 bg-red-50 rounded-lg p-3">
+                            <Text className="text-sm text-red-700 mb-2 block">拒绝备注（可选）：</Text>
+                            <Textarea
+                              className="w-full bg-white border border-red-200 rounded-lg p-2 text-sm"
+                              placeholder="请输入拒绝原因..."
+                              value={rejectNotes}
+                              onInput={(e) => setRejectNotes(e.detail.value)}
+                              maxlength={200}
+                              autoHeight
+                            />
+                            <View className="flex gap-2 mt-3">
+                              <Button
+                                size="mini"
+                                className="flex-1 bg-gray-200 text-gray-700 text-sm"
+                                onClick={() => {
+                                  setRejectingLeaveId(null)
+                                  setRejectNotes('')
+                                }}>
+                                取消
+                              </Button>
+                              <Button
+                                size="mini"
+                                className="flex-1 bg-red-600 text-white text-sm"
+                                onClick={() => {
+                                  handleReviewLeave(app.id, false, rejectNotes)
+                                  setRejectingLeaveId(null)
+                                  setRejectNotes('')
+                                }}>
+                                确认拒绝
+                              </Button>
+                            </View>
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>
@@ -1256,10 +1300,58 @@ const SuperAdminLeaveApproval: React.FC = () => {
                           <Button
                             size="default"
                             className="flex-1 bg-red-600 text-white text-sm font-bold break-keep"
-                            onClick={() => handleReviewResignation(app.id, false)}>
+                            onClick={() => {
+                              // 点击拒绝按钮，展开备注输入框
+                              if (rejectingResignationId === app.id) {
+                                // 如果已展开，则收起
+                                setRejectingResignationId(null)
+                                setRejectNotes('')
+                              } else {
+                                // 展开备注输入框
+                                setRejectingResignationId(app.id)
+                                setRejectingLeaveId(null)
+                                setRejectNotes('')
+                              }
+                            }}>
                             拒绝
                           </Button>
                         </View>
+
+                        {/* 拒绝备注输入框（点击拒绝按钮后展开） */}
+                        {rejectingResignationId === app.id && (
+                          <View className="mt-3 bg-red-50 rounded-lg p-3">
+                            <Text className="text-sm text-red-700 mb-2 block">拒绝备注（可选）：</Text>
+                            <Textarea
+                              className="w-full bg-white border border-red-200 rounded-lg p-2 text-sm"
+                              placeholder="请输入拒绝原因..."
+                              value={rejectNotes}
+                              onInput={(e) => setRejectNotes(e.detail.value)}
+                              maxlength={200}
+                              autoHeight
+                            />
+                            <View className="flex gap-2 mt-3">
+                              <Button
+                                size="mini"
+                                className="flex-1 bg-gray-200 text-gray-700 text-sm"
+                                onClick={() => {
+                                  setRejectingResignationId(null)
+                                  setRejectNotes('')
+                                }}>
+                                取消
+                              </Button>
+                              <Button
+                                size="mini"
+                                className="flex-1 bg-red-600 text-white text-sm"
+                                onClick={() => {
+                                  handleReviewResignation(app.id, false, rejectNotes)
+                                  setRejectingResignationId(null)
+                                  setRejectNotes('')
+                                }}>
+                                确认拒绝
+                              </Button>
+                            </View>
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>

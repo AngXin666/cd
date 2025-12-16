@@ -158,12 +158,8 @@ const DriverLeave: React.FC = () => {
         console.log('[DriverLeave] 收到请假申请状态变更:', event)
 
         // 检查是否是审批状态变更（从 pending 变为 approved 或 rejected）
-        const newData = event.new as LeaveApplication | null
-        if (newData && (newData.status === 'approved' || newData.status === 'rejected')) {
-          // 使用防抖通知，显示审批结果
-          const approved = newData.status === 'approved'
-          sendDebouncedNotification(NotificationPresets.leaveApprovalResult(approved))
-        }
+        // 注意：不再在这里显示 Toast，因为 useNotificationToast 已经处理了通知显示
+        // 避免双弹窗问题
 
         // 刷新数据
         loadData()
@@ -190,12 +186,8 @@ const DriverLeave: React.FC = () => {
         console.log('[DriverLeave] 收到离职申请状态变更:', event)
 
         // 检查是否是审批状态变更（从 pending 变为 approved 或 rejected）
-        const newData = event.new as ResignationApplication | null
-        if (newData && (newData.status === 'approved' || newData.status === 'rejected')) {
-          // 使用防抖通知，显示审批结果
-          const approved = newData.status === 'approved'
-          sendDebouncedNotification(NotificationPresets.resignationApprovalResult(approved))
-        }
+        // 注意：不再在这里显示 Toast，因为 useNotificationToast 已经处理了通知显示
+        // 避免双弹窗问题
 
         // 刷新数据
         loadData()

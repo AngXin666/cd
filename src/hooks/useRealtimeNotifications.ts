@@ -184,6 +184,8 @@ export function useRealtimeNotifications(options: NotificationOptions) {
     }
 
     // 司机：监听自己的申请状态变化
+    // 注意：不再在这里显示 Toast，因为 useNotificationToast 已经会处理通知显示
+    // 这里只负责触发数据刷新回调
     if (userRole === 'DRIVER') {
       channel.on(
         'postgres_changes',
@@ -193,17 +195,8 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           table: 'leave_applications',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          const record = payload.new as Record<string, unknown>
-          if (record.status === 'approved') {
-            showNotification('您的请假申请已通过', `您的请假申请已通过审批`, 'leave_approved', 'approval', {
-              applicationId: record.id
-            })
-          } else if (record.status === 'rejected') {
-            showNotification('您的请假申请已被驳回', `您的请假申请已被驳回`, 'leave_rejected', 'approval', {
-              applicationId: record.id
-            })
-          }
+        (_payload) => {
+          // 只触发数据刷新，不显示 Toast（避免与 useNotificationToast 重复）
           onLeaveApplicationChange?.()
         }
       )
@@ -216,17 +209,8 @@ export function useRealtimeNotifications(options: NotificationOptions) {
           table: 'resignation_applications',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          const record = payload.new as Record<string, unknown>
-          if (record.status === 'approved') {
-            showNotification('您的离职申请已通过', `您的离职申请已通过审批`, 'resignation_approved', 'approval', {
-              applicationId: record.id
-            })
-          } else if (record.status === 'rejected') {
-            showNotification('您的离职申请已被驳回', `您的离职申请已被驳回`, 'resignation_rejected', 'approval', {
-              applicationId: record.id
-            })
-          }
+        (_payload) => {
+          // 只触发数据刷新，不显示 Toast（避免与 useNotificationToast 重复）
           onResignationApplicationChange?.()
         }
       )

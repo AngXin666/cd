@@ -30,19 +30,23 @@ const DEBOUNCE_MS = 2000
 /** 已处理的通知 ID 集合，用于去重（5分钟内不重复显示同一通知） */
 const processedNotificationIds = new Set<string>()
 
+/** 已处理的 related_id 集合，用于防止同一申请的多个通知重复显示 */
+const processedRelatedIds = new Set<string>()
+
 /** 清理已处理通知 ID 的定时器 */
 let cleanupTimer: ReturnType<typeof setInterval> | null = null
 
 /**
  * 初始化清理定时器
- * 每 5 分钟清理一次已处理的通知 ID
+ * 每 5 分钟清理一次已处理的通知 ID 和 related_id
  */
 function initCleanupTimer(): void {
   if (cleanupTimer) return
   cleanupTimer = setInterval(
     () => {
       processedNotificationIds.clear()
-      console.log('🧹 [NotificationToast] 清理已处理通知 ID 缓存')
+      processedRelatedIds.clear()
+      console.log('🧹 [NotificationToast] 清理已处理通知 ID 和 related_id 缓存')
     },
     5 * 60 * 1000
   ) // 5 分钟
@@ -50,19 +54,36 @@ function initCleanupTimer(): void {
 
 /**
  * 检查通知是否已处理过
+ * 同时检查通知 ID 和 related_id，防止同一申请的多个通知重复显示
  * @param notificationId - 通知 ID
+ * @param relatedId - 关联的申请 ID（可选）
  * @returns 是否已处理
  */
-function isNotificationProcessed(notificationId: string): boolean {
-  return processedNotificationIds.has(notificationId)
+function isNotificationProcessed(notificationId: string, relatedId?: string | null): boolean {
+  // 检查通知 ID 是否已处理
+  if (processedNotificationIds.has(notificationId)) {
+    return true
+  }
+  // 检查 related_id 是否已处理（防止同一申请的多个通知重复显示）
+  // 只对审批结果类型的通知进行 related_id 去重
+  if (relatedId && processedRelatedIds.has(relatedId)) {
+    console.log('⏭️ [NotificationToast] 跳过已处理的 related_id:', relatedId)
+    return true
+  }
+  return false
 }
 
 /**
  * 标记通知为已处理
  * @param notificationId - 通知 ID
+ * @param relatedId - 关联的申请 ID（可选）
  */
-function markNotificationAsProcessed(notificationId: string): void {
+function markNotificationAsProcessed(notificationId: string, relatedId?: string | null): void {
   processedNotificationIds.add(notificationId)
+  // 对于有 related_id 的通知，也标记 related_id 为已处理
+  if (relatedId) {
+    processedRelatedIds.add(relatedId)
+  }
 }
 
 /**
@@ -204,8 +225,8 @@ class ToastQueueManager {
     // 获取合并后的消息
     const message = getMergedToastMessage(this.pendingNotifications)
 
-    // 标记所有通知为已处理
-    this.pendingNotifications.forEach((n) => markNotificationAsProcessed(n.id))
+    // 标记所有通知为已处理（同时标记 ID 和 related_id）
+    this.pendingNotifications.forEach((n) => markNotificationAsProcessed(n.id, n.related_id))
 
     // 显示 Toast（不使用 icon，避免与 loading 冲突）
     Taro.showToast({
@@ -217,6 +238,7 @@ class ToastQueueManager {
     logger.info('显示通知 Toast', {
       count: this.pendingNotifications.length,
       types: this.pendingNotifications.map((n) => n.type),
+      relatedIds: this.pendingNotifications.map((n) => n.related_id),
       message
     })
     console.log('🔔 [NotificationToast] 显示 Toast:', message)
@@ -227,19 +249,26 @@ class ToastQueueManager {
 
   /**
    * 添加通知到队列并启动防抖
+   * 使用通知 ID 和 related_id 双重去重，防止同一申请的多个通知重复显示
    * @param notification - 通知对象
    * @returns 是否成功添加（如果已处理过则返回 false）
    */
   queue(notification: Notification): boolean {
-    // 检查是否已处理过该通知
-    if (isNotificationProcessed(notification.id)) {
-      console.log('⏭️ [NotificationToast] 跳过已处理的通知:', notification.id)
+    // 检查是否已处理过该通知（同时检查 ID 和 related_id）
+    if (isNotificationProcessed(notification.id, notification.related_id)) {
+      console.log('⏭️ [NotificationToast] 跳过已处理的通知:', notification.id, 'related_id:', notification.related_id)
       return false
     }
 
-    // 检查队列中是否已存在该通知
+    // 检查队列中是否已存在该通知（基于 ID）
     if (this.pendingNotifications.some((n) => n.id === notification.id)) {
       console.log('⏭️ [NotificationToast] 跳过队列中已存在的通知:', notification.id)
+      return false
+    }
+
+    // 检查队列中是否已存在相同 related_id 的通知（防止同一申请的多个通知重复显示）
+    if (notification.related_id && this.pendingNotifications.some((n) => n.related_id === notification.related_id)) {
+      console.log('⏭️ [NotificationToast] 跳过队列中已存在相同 related_id 的通知:', notification.related_id)
       return false
     }
 
@@ -248,9 +277,10 @@ class ToastQueueManager {
 
     logger.info('通知加入队列', {
       type: notification.type,
+      relatedId: notification.related_id,
       queueLength: this.pendingNotifications.length
     })
-    console.log('📬 [NotificationToast] 通知加入队列:', notification.type, notification.id)
+    console.log('📬 [NotificationToast] 通知加入队列:', notification.type, notification.id, 'related_id:', notification.related_id)
 
     // 清除之前的定时器
     if (this.debounceTimer) {

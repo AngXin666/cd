@@ -99,3 +99,25 @@
 1. WHEN 用户登录后 THEN 系统 SHALL 自动订阅通知并在任意页面显示 Toast
 2. WHEN 用户退出登录 THEN 系统 SHALL 取消通知订阅
 3. WHEN 用户切换页面 THEN 系统 SHALL 保持通知订阅不中断
+
+### Requirement 9
+
+**User Story:** 作为司机，我希望收到审批结果时只弹出一个 Toast，避免重复弹窗干扰。
+
+#### Acceptance Criteria
+
+1. WHEN 司机收到审批结果通知 THEN 系统 SHALL 只弹出一个 Toast 弹窗
+2. WHEN 审批结果为拒绝 THEN 系统 SHALL 不弹出包含"已驳回"字样的额外弹窗
+3. WHEN 审批结果通知到达 THEN 系统 SHALL 使用统一的 Toast 消息格式显示
+
+### Requirement 10
+
+**User Story:** 作为用户，我希望在通知中心查看审批结果时能看到完整的申请信息，包括申请事由和拒绝事由。
+
+#### Acceptance Criteria
+
+1. WHEN 用户在通知中心查看请假审批结果 THEN 系统 SHALL 显示请假事由
+2. WHEN 用户在通知中心查看离职审批结果 THEN 系统 SHALL 显示离职原因
+3. WHEN 审批结果为拒绝且有拒绝事由 THEN 系统 SHALL 显示拒绝事由
+4. WHEN 审批结果为拒绝但无拒绝事由 THEN 系统 SHALL 不显示拒绝事由字段
+5. WHEN 用户点击通知查看详情 THEN 系统 SHALL 在详情弹窗中显示完整的申请信息和审批信息

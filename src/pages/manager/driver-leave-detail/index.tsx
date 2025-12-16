@@ -1,4 +1,11 @@
-import {Button, Picker, ScrollView, Text, View} from '@tarojs/components'
+/**
+ * 司机请假详情页面（车队长）
+ * 提供司机请假申请、离职申请、打卡记录的查看和审批功能
+ *
+ * @module pages/manager/driver-leave-detail
+ */
+
+import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
@@ -22,6 +29,14 @@ const DriverLeaveDetail: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [activeTab, setActiveTab] = useState<'leave' | 'attendance' | 'resignation'>('leave')
   const [filterMonth, setFilterMonth] = useState<string>('')
+
+  // 拒绝备注相关状态
+  // rejectingLeaveId: 当前正在拒绝的请假申请ID（展开备注输入框）
+  // rejectingResignationId: 当前正在拒绝的离职申请ID（展开备注输入框）
+  // rejectNotes: 拒绝备注内容
+  const [rejectingLeaveId, setRejectingLeaveId] = useState<string | null>(null)
+  const [rejectingResignationId, setRejectingResignationId] = useState<string | null>(null)
+  const [rejectNotes, setRejectNotes] = useState<string>('')
 
   useEffect(() => {
     // 从路由参数获取司机ID
@@ -256,21 +271,19 @@ const DriverLeaveDetail: React.FC = () => {
     }
   }
 
-  // 驳回请假申请
-  const handleRejectLeave = async (applicationId: string) => {
+  /**
+   * 驳回请假申请
+   * @param applicationId - 申请ID
+   * @param notes - 拒绝备注（可选）
+   */
+  const handleRejectLeave = async (applicationId: string, notes?: string) => {
     if (!user) return
-
-    const result = await Taro.showModal({
-      title: '确认驳回',
-      content: '确定要驳回这个请假申请吗？'
-    })
-
-    if (!result.confirm) return
 
     const success = await LeaveAPI.reviewLeaveApplication(applicationId, {
       status: 'rejected',
       reviewed_by: user.id,
-      review_notes: '已驳回',
+      // 使用用户输入的拒绝事由，如果没有则留空（不使用硬编码的"已驳回"）
+      review_notes: notes || undefined,
       reviewed_at: new Date().toISOString()
     })
 
@@ -308,21 +321,19 @@ const DriverLeaveDetail: React.FC = () => {
     }
   }
 
-  // 驳回离职申请
-  const handleRejectResignation = async (applicationId: string) => {
+  /**
+   * 驳回离职申请
+   * @param applicationId - 申请ID
+   * @param notes - 拒绝备注（可选）
+   */
+  const handleRejectResignation = async (applicationId: string, notes?: string) => {
     if (!user) return
-
-    const result = await Taro.showModal({
-      title: '确认驳回',
-      content: '确定要驳回这个离职申请吗？'
-    })
-
-    if (!result.confirm) return
 
     const success = await LeaveAPI.reviewResignationApplication(applicationId, {
       status: 'rejected',
       reviewed_by: user.id,
-      review_notes: '已驳回',
+      // 使用用户输入的拒绝事由，如果没有则留空（不使用硬编码的"已驳回"）
+      review_notes: notes || undefined,
       reviewed_at: new Date().toISOString()
     })
 
@@ -557,9 +568,57 @@ const DriverLeaveDetail: React.FC = () => {
                             border: 'none',
                             padding: '8px'
                           }}
-                          onClick={() => handleRejectLeave(app.id)}>
-                          <Text className="text-xs">驳回</Text>
+                          onClick={() => {
+                            // 点击拒绝按钮，展开备注输入框
+                            if (rejectingLeaveId === app.id) {
+                              // 如果已展开，则收起
+                              setRejectingLeaveId(null)
+                              setRejectNotes('')
+                            } else {
+                              // 展开备注输入框
+                              setRejectingLeaveId(app.id)
+                              setRejectingResignationId(null)
+                              setRejectNotes('')
+                            }
+                          }}>
+                          <Text className="text-xs">拒绝</Text>
                         </Button>
+                      </View>
+                    )}
+
+                    {/* 拒绝备注输入框（点击拒绝按钮后展开） */}
+                    {rejectingLeaveId === app.id && (
+                      <View className="mt-3 bg-red-50 rounded-lg p-3">
+                        <Text className="text-sm text-red-700 mb-2 block">拒绝备注（可选）：</Text>
+                        <Textarea
+                          className="w-full bg-white border border-red-200 rounded-lg p-2 text-sm"
+                          placeholder="请输入拒绝原因..."
+                          value={rejectNotes}
+                          onInput={(e) => setRejectNotes(e.detail.value)}
+                          maxlength={200}
+                          autoHeight
+                        />
+                        <View className="flex gap-2 mt-2">
+                          <Button
+                            size="mini"
+                            className="flex-1 bg-gray-200 text-gray-700 text-sm"
+                            onClick={() => {
+                              setRejectingLeaveId(null)
+                              setRejectNotes('')
+                            }}>
+                            取消
+                          </Button>
+                          <Button
+                            size="mini"
+                            className="flex-1 bg-red-600 text-white text-sm"
+                            onClick={() => {
+                              handleRejectLeave(app.id, rejectNotes)
+                              setRejectingLeaveId(null)
+                              setRejectNotes('')
+                            }}>
+                            确认拒绝
+                          </Button>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -797,9 +856,57 @@ const DriverLeaveDetail: React.FC = () => {
                             border: 'none',
                             padding: '8px'
                           }}
-                          onClick={() => handleRejectResignation(app.id)}>
+                          onClick={() => {
+                            // 点击驳回按钮，展开备注输入框
+                            if (rejectingResignationId === app.id) {
+                              // 如果已展开，则收起
+                              setRejectingResignationId(null)
+                              setRejectNotes('')
+                            } else {
+                              // 展开备注输入框
+                              setRejectingResignationId(app.id)
+                              setRejectingLeaveId(null)
+                              setRejectNotes('')
+                            }
+                          }}>
                           <Text className="text-xs">驳回</Text>
                         </Button>
+                      </View>
+                    )}
+
+                    {/* 拒绝备注输入框（点击驳回按钮后展开） */}
+                    {rejectingResignationId === app.id && (
+                      <View className="mt-3 bg-red-50 rounded-lg p-3">
+                        <Text className="text-sm text-red-700 mb-2 block">拒绝备注（可选）：</Text>
+                        <Textarea
+                          className="w-full bg-white border border-red-200 rounded-lg p-2 text-sm"
+                          placeholder="请输入拒绝原因..."
+                          value={rejectNotes}
+                          onInput={(e) => setRejectNotes(e.detail.value)}
+                          maxlength={200}
+                          autoHeight
+                        />
+                        <View className="flex gap-2 mt-2">
+                          <Button
+                            size="mini"
+                            className="flex-1 bg-gray-200 text-gray-700 text-sm"
+                            onClick={() => {
+                              setRejectingResignationId(null)
+                              setRejectNotes('')
+                            }}>
+                            取消
+                          </Button>
+                          <Button
+                            size="mini"
+                            className="flex-1 bg-red-600 text-white text-sm"
+                            onClick={() => {
+                              handleRejectResignation(app.id, rejectNotes)
+                              setRejectingResignationId(null)
+                              setRejectNotes('')
+                            }}>
+                            确认拒绝
+                          </Button>
+                        </View>
                       </View>
                     )}
                   </View>

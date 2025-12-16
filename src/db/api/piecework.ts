@@ -712,16 +712,18 @@ export async function deleteCategoryPrice(id: string): Promise<boolean> {
 /**
  * 获取司机的品类价格
  * 使用数据库实际字段：driver_only_price 和 driver_with_vehicle_price
- * 注意：sorting_unit_price 字段在当前数据库中不存在，暂时返回 0
+ * 根据司机类型返回对应的单价
  * @param warehouseId - 仓库ID
  * @param categoryId - 品类ID
- * @returns 价格配置对象，包含纯司机单价和带车单价
+ * @param driverType - 司机类型：'with_vehicle'（带车司机）或其他（纯司机）
+ * @returns 价格配置对象，包含根据司机类型选择的单价
  */
 export async function getCategoryPriceForDriver(
   warehouseId: string,
-  categoryId: string
-): Promise<{unitPrice: number; upstairsPrice: number; sortingUnitPrice: number} | null> {
-  console.log('[PieceworkAPI] 查询品类价格:', {warehouseId, categoryId})
+  categoryId: string,
+  driverType?: string | null
+): Promise<{unitPrice: number; driverOnlyPrice: number; driverWithVehiclePrice: number; sortingUnitPrice: number} | null> {
+  console.log('[PieceworkAPI] 查询品类价格:', {warehouseId, categoryId, driverType})
 
   // 查询数据库实际存在的字段（不包含 sorting_unit_price，该字段在数据库中不存在）
   const {data, error} = await supabase
@@ -743,13 +745,20 @@ export async function getCategoryPriceForDriver(
     return null
   }
 
-  // 使用数据库实际字段名，sorting_unit_price 暂时返回 0
+  const driverOnlyPrice = Number(data.driver_only_price) || 0
+  const driverWithVehiclePrice = Number(data.driver_with_vehicle_price) || 0
+
+  // 根据司机类型选择对应的单价
+  // 带车司机使用 driver_with_vehicle_price，纯司机使用 driver_only_price
+  const unitPrice = driverType === 'with_vehicle' ? driverWithVehiclePrice : driverOnlyPrice
+
   const result = {
-    unitPrice: Number(data.driver_only_price) || 0, // 纯司机单价
-    upstairsPrice: Number(data.driver_with_vehicle_price) || 0, // 带车单价
+    unitPrice, // 根据司机类型选择的单价
+    driverOnlyPrice, // 纯司机单价（供参考）
+    driverWithVehiclePrice, // 带车司机单价（供参考）
     sortingUnitPrice: 0 // 数据库中暂无此字段，返回默认值 0
   }
 
-  console.log('[PieceworkAPI] 返回价格配置:', result)
+  console.log('[PieceworkAPI] 返回价格配置:', result, '司机类型:', driverType)
   return result
 }

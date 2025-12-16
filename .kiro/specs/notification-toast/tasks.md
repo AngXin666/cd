@@ -371,3 +371,46 @@
 
 车队长变更类型：
 `您被车队长王五变更为纯司机`
+
+## 修复双弹窗和通知详情显示问题（v1.3.19）
+
+- [x] 16. 修复司机端审批拒绝时的双弹窗问题 ✅ 已完成
+  - [x] 16.1 排查双弹窗来源 ✅
+    - 检查 `src/pages/super-admin/driver-leave-detail/index.tsx` 中的 `handleRejectLeave` 和 `handleRejectResignation` 函数
+    - 检查 `src/pages/manager/driver-leave-detail/index.tsx` 中的相同函数
+    - 发现问题：驳回时使用 `Taro.showModal` 确认弹窗 + 硬编码 `review_notes: '已驳回'`
+    - _Requirements: 9.1-9.3_
+  - [x] 16.2 统一拒绝通知消息格式 ✅
+    - 移除 `Taro.showModal` 确认弹窗，改为展开备注输入框
+    - 移除 `review_notes: '已驳回'` 硬编码
+    - 使用用户输入的拒绝事由或留空（`notes || undefined`）
+    - 添加拒绝备注输入框 UI（可选填写）
+    - 确保只通过 `useNotificationToast` 显示一个 Toast
+    - _Requirements: 9.1-9.3_
+  
+  **修改的文件**：
+  - `src/pages/super-admin/driver-leave-detail/index.tsx`
+  - `src/pages/manager/driver-leave-detail/index.tsx`
+  
+  **主要修改**：
+  1. 添加 `Textarea` 组件导入
+  2. 添加拒绝备注相关状态（`rejectingLeaveId`, `rejectingResignationId`, `rejectNotes`）
+  3. 修改 `handleRejectLeave` 和 `handleRejectResignation` 函数，接受 `notes` 参数
+  4. 修改 UI：点击"驳回"按钮展开备注输入框，添加"取消"和"确认拒绝"按钮
+
+- [ ] 17. 通知中心显示申请事由和拒绝事由
+  - [ ] 17.1 修改通知内容格式
+    - 修改 `src/pages/manager/leave-approval/index.tsx` 中的审批通知创建逻辑
+    - 修改 `src/pages/super-admin/leave-approval/index.tsx` 中的审批通知创建逻辑
+    - 在通知 content 中包含申请事由
+    - 拒绝时在 content 中包含拒绝事由（如果有）
+    - _Requirements: 10.1-10.4_
+  - [ ] 17.2 更新通知详情弹窗
+    - 修改 `src/components/application/ApplicationDetailDialog.tsx`
+    - 确保显示申请事由（请假事由/离职原因）
+    - 确保显示拒绝事由（如果有）
+    - _Requirements: 10.5_
+
+- [ ] 18. Checkpoint - 确保修复生效
+  - 测试司机端收到拒绝通知时只弹出一个 Toast
+  - 测试通知中心显示完整的申请事由和拒绝事由

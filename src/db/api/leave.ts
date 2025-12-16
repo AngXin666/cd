@@ -76,9 +76,12 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
       .select('name, driver_type')
       .eq('id', input.user_id)
       .maybeSingle()
-    const applicantName = applicant?.name || '司机'
-    // 获取司机类型：has_vehicle 为 true 表示带车司机，否则为纯司机
+    // 获取司机类型：with_vehicle 表示带车司机，否则为纯司机
     const driverType: DriverType = applicant?.driver_type === 'with_vehicle' ? 'with_vehicle' : 'pure'
+    // 清理姓名中可能存在的司机类型前缀，避免消息中出现"纯司机司机"这样的重复
+    let applicantName = applicant?.name || ''
+    // 移除可能的司机类型前缀（纯司机、带车司机、司机）
+    applicantName = applicantName.replace(/^(纯司机|带车司机|司机)\s*/, '') || '司机'
 
     // 获取司机的仓库列表
     const {data: warehouseAssignments} = await supabase
@@ -308,9 +311,12 @@ export async function createResignationApplication(
       .select('name, driver_type')
       .eq('id', input.user_id)
       .maybeSingle()
-    const applicantName = applicant?.name || '司机'
-    // 获取司机类型：has_vehicle 为 true 表示带车司机，否则为纯司机
+    // 获取司机类型：with_vehicle 表示带车司机，否则为纯司机
     const driverType: DriverType = applicant?.driver_type === 'with_vehicle' ? 'with_vehicle' : 'pure'
+    // 清理姓名中可能存在的司机类型前缀，避免消息中出现"纯司机司机"这样的重复
+    let applicantName = applicant?.name || ''
+    // 移除可能的司机类型前缀（纯司机、带车司机、司机）
+    applicantName = applicantName.replace(/^(纯司机|带车司机|司机)\s*/, '') || '司机'
 
     // 获取司机的仓库列表
     const {data: warehouseAssignments} = await supabase

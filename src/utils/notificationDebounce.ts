@@ -257,16 +257,6 @@ export const NotificationPresets = {
   }),
 
   /**
-   * 请假审批结果通知（司机收到）
-   * @param approved - 是否通过
-   */
-  leaveApprovalResult: (approved: boolean): NotificationConfig => ({
-    type: 'leave_application',
-    message: approved ? '您的请假申请已通过' : '您的请假申请被拒绝',
-    toastType: approved ? 'success' : 'warning'
-  }),
-
-  /**
    * 新离职申请通知（管理员收到）
    */
   newResignationApplication: (): NotificationConfig => ({
@@ -274,16 +264,6 @@ export const NotificationPresets = {
     message: '收到新的离职申请',
     batchMessage: '收到 {count} 条新的离职申请',
     toastType: 'info'
-  }),
-
-  /**
-   * 离职审批结果通知（司机收到）
-   * @param approved - 是否通过
-   */
-  resignationApprovalResult: (approved: boolean): NotificationConfig => ({
-    type: 'resignation_application',
-    message: approved ? '您的离职申请已通过' : '您的离职申请被拒绝',
-    toastType: approved ? 'success' : 'warning'
   }),
 
   /**

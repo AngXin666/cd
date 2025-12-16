@@ -917,9 +917,12 @@ export async function submitVehicleForReview(vehicleId: string): Promise<boolean
         .select('name, driver_type')
         .eq('id', vehicle.user_id)
         .maybeSingle()
-      const driverName = driver?.name || '司机'
       // 获取司机类型
       const driverType: DriverType = driver?.driver_type === 'with_vehicle' ? 'with_vehicle' : 'pure'
+      // 清理姓名中可能存在的司机类型前缀，避免消息中出现"纯司机司机"这样的重复
+      let driverName = driver?.name || ''
+      // 移除可能的司机类型前缀（纯司机、带车司机、司机）
+      driverName = driverName.replace(/^(纯司机|带车司机|司机)\s*/, '') || '司机'
 
       // 获取司机的仓库列表
       const {data: warehouseAssignments} = await supabase
