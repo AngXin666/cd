@@ -38,6 +38,7 @@ export type EventType =
   | 'vehicle:review_submitted' // 车辆提交审核
   | 'vehicle:approved' // 车辆审核通过
   | 'vehicle:supplement_required' // 车辆需要补录
+  | 'vehicle:photo_supplemented' // 照片补录成功
 
   // ==================== 用户权限事件（第一阶段） ====================
   | 'user:role_updated' // 用户角色更新

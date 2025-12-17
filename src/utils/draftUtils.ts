@@ -6,6 +6,7 @@
 import Taro from '@tarojs/taro'
 import {enhancedErrorHandler} from './errorHandler'
 import {createLogger} from './logger'
+import {setStorage} from './taroCompat'
 
 const _logger = createLogger('DraftUtils')
 
@@ -208,7 +209,8 @@ export async function saveDraft(type: 'add' | 'return', userId: string, draft: V
       saved_at: new Date().toISOString()
     }
 
-    await Taro.setStorage({
+    // 使用兼容层保存草稿，解决 H5 环境下的兼容性问题
+    await setStorage({
       key,
       data: draftWithTimestamp
     })

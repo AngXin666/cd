@@ -2,7 +2,7 @@
  * 还车录入页面
  * 功能：
  * - 显示车辆基本信息
- * - 按顺序拍摄7张车辆照片（与提车相同）
+ * - 按顺序拍摄车辆照片（测试模式1张，正常模式7张）
  * - 上传多张车损特写照片
  * - 自动记录还车时间
  * - 更新车辆状态为"已还车"
@@ -16,6 +16,7 @@ import {useCallback, useEffect, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {TEST_MODE_ENABLED} from '@/config/test-mode'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Vehicle} from '@/db/types'
 import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
@@ -24,7 +25,8 @@ import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 const logger = createLogger('ReturnVehicle')
-const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
+// 使用已存在的 h5-app 存储桶
+const BUCKET_NAME = 'h5-app'
 
 // 车辆照片标签（与提车相同的7张照片）
 const VEHICLE_PHOTO_LABELS = [
@@ -213,6 +215,20 @@ const ReturnVehicle: React.FC = () => {
 
   // 检查是否所有必填照片都已拍摄
   const checkRequiredPhotos = (): boolean => {
+    // 测试模式：只需要1张照片（左前）
+    if (TEST_MODE_ENABLED) {
+      if (!vehiclePhotos.left_front) {
+        showToast({
+          title: '请拍摄左前照片',
+          icon: 'none',
+          duration: 2000
+        })
+        return false
+      }
+      return true
+    }
+
+    // 正常模式：需要所有7张照片
     const missingPhotos: string[] = []
     VEHICLE_PHOTO_LABELS.forEach(({key, label}) => {
       if (!vehiclePhotos[key]) {
@@ -231,6 +247,29 @@ const ReturnVehicle: React.FC = () => {
     return true
   }
 
+  /**
+   * 显示车损责任提醒弹窗
+   * 提醒司机在还车前必须联系车队长或调度核实车损
+   * @returns Promise<boolean> 用户是否确认
+   */
+  const showDamageWarningModal = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      Taro.showModal({
+        title: '⚠️ 重要提醒',
+        content: '还车前请务必联系车队长或调度核实车损情况！\n\n如未联系核实，一切车损由司机本人负责。\n\n请确认您已联系车队长或调度核实车损。',
+        confirmText: '已联系确认',
+        cancelText: '返回检查',
+        confirmColor: '#f97316',
+        success: (res) => {
+          resolve(res.confirm)
+        },
+        fail: () => {
+          resolve(false)
+        }
+      })
+    })
+  }
+
   // 提交还车
   const handleSubmit = async () => {
     if (!vehicle) {
@@ -243,6 +282,13 @@ const ReturnVehicle: React.FC = () => {
 
     // 检查必填照片
     if (!checkRequiredPhotos()) {
+      return
+    }
+
+    // 显示车损责任提醒弹窗
+    const confirmed = await showDamageWarningModal()
+    if (!confirmed) {
+      // 用户选择返回检查，不继续提交
       return
     }
 

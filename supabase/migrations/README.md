@@ -65,9 +65,42 @@
 - 使用手机号+密码进行认证
 - 或使用手机号+验证码进行认证
 
+## 废弃的迁移文件
+
+以下迁移文件与废弃的策略模板权限系统相关，不再使用：
+
+### 策略模板系统相关（已废弃）
+- `00547_refactor_peer_admin_to_strategy.sql` - 平级管理员策略模板重构
+- `00548_cleanup_peer_admin_old_implementation.sql` - 清理旧的平级管理员实现
+- `00551_refactor_manager_to_strategy.sql` - 车队长策略模板重构
+- `00551_refactor_manager_to_strategy_template.sql` - 车队长策略模板重构
+- `00552_separate_boss_permissions.sql` - 分离老板权限
+- `00559_refactor_manager_to_strategy_template_part2.sql` - 车队长策略模板重构第2部分
+- `00560_refactor_manager_to_strategy_template_part3.sql` - 车队长策略模板重构第3部分
+- `00561_refactor_manager_to_strategy_template_part4a.sql` - 车队长策略模板重构第4a部分
+- `00562_refactor_manager_to_strategy_template_part4b.sql` - 车队长策略模板重构第4b部分
+- `00563_refactor_manager_to_strategy_template_part4c.sql` - 车队长策略模板重构第4c部分
+- `00564_refactor_manager_add_warehouse_access_function.sql` - 添加仓库访问函数
+- `00566_separate_boss_permissions_part1.sql` - 分离老板权限第1部分
+- `00567_separate_boss_permissions_part2.sql` - 分离老板权限第2部分
+- `00568_separate_boss_permissions_part3.sql` - 分离老板权限第3部分
+- `00569_separate_boss_permissions_part4.sql` - 分离老板权限第4部分
+- `00570_separate_boss_permissions_part5a.sql` - 分离老板权限第5a部分
+- `00571_separate_boss_permissions_part5b.sql` - 分离老板权限第5b部分
+- `00576_create_scheduler_permission_strategies.sql` - 创建调度权限策略
+- `00577_create_scheduler_permission_strategies_fixed.sql` - 修复调度权限策略
+- `00578_create_scheduler_permission_strategies_correct.sql` - 正确的调度权限策略
+
+**说明**：
+- 这些迁移文件创建了复杂的策略模板权限系统，包括数据库函数如 `create_manager`、`get_manager_permission` 等
+- 该系统已被简化的应用层权限控制系统取代
+- 现在权限通过 `users` 表的 `permission_type` 字段直接管理
+- 这些文件保留在目录中以避免影响已部署的数据库，但不应再使用
+
 ## 注意事项
 
 1. **密码安全**：生产环境中应使用更强的密码策略
 2. **测试账号**：这些测试账号仅用于开发和测试，生产环境应删除
 3. **迁移顺序**：必须按照文件编号顺序执行迁移
 4. **RLS 策略**：确保理解行级安全策略的工作原理，避免数据泄露
+5. **废弃的迁移文件**：不要删除废弃的迁移文件，它们对已部署的数据库仍然有效

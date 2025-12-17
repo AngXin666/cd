@@ -66,9 +66,14 @@ export interface UseUserFilterReturn {
   setCurrentWarehouseIndex: (index: number) => void
 }
 
-// 辅助函数：判断是否是管理员角色（boss）
+/**
+ * 辅助函数：判断是否是管理员角色
+ * 管理员角色包括：BOSS（老板）和 PEER_ADMIN（调度）
+ * @param role - 用户角色
+ * @returns 是否是管理员角色
+ */
 const isAdminRole = (role: string | undefined) => {
-  return role === 'BOSS'
+  return role === 'BOSS' || role === 'PEER_ADMIN'
 }
 
 export const useUserFilter = ({
@@ -90,19 +95,21 @@ export const useUserFilter = ({
     // 角色过滤
     if (roleFilter !== 'all') {
       if (roleFilter === 'MANAGER') {
-        // 判断当前登录用户是主账号还是平级账号
-        const isMainAccount = currentUserProfile?.main_account_id === null
-        const isPeerAccount = currentUserProfile?.main_account_id !== null
+        // 判断当前登录用户是主账号（BOSS）还是平级账号（PEER_ADMIN）
+        const isMainAccount = currentUserProfile?.role === 'BOSS'
+        const isPeerAccount = currentUserProfile?.role === 'PEER_ADMIN'
 
         if (isMainAccount) {
-          // 主账号登录：显示车队长 + 平级账号（不显示自己）
+          // 主账号（老板）登录：显示车队长 + 调度（不显示自己）
           filtered = filtered.filter((u) => {
+            // 显示车队长
             if (u.role === 'MANAGER') return true
-            if (isAdminRole(u.role) && u.main_account_id !== null && u.id !== currentUserId) return true
+            // 显示调度（PEER_ADMIN）（但不显示自己）
+            if (u.role === 'PEER_ADMIN' && u.id !== currentUserId) return true
             return false
           })
         } else if (isPeerAccount) {
-          // 平级账号登录：只显示车队长
+          // 平级账号（调度）登录：只显示车队长
           filtered = filtered.filter((u) => u.role === 'MANAGER')
         } else {
           // 其他情况：只显示车队长
@@ -113,10 +120,14 @@ export const useUserFilter = ({
       }
     }
 
-    // 仓库过滤
+    // 仓库过滤（对司机和车队长生效，老板和调度不受仓库过滤限制）
     if (warehouses.length > 0 && warehouses[currentWarehouseIndex]) {
       const currentWarehouseId = warehouses[currentWarehouseIndex].id
       filtered = filtered.filter((u) => {
+        // 老板和调度不受仓库过滤限制，始终显示
+        if (isAdminRole(u.role)) {
+          return true
+        }
         const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
         return userWarehouseIds.includes(currentWarehouseId) || userWarehouseIds.length === 0
       })

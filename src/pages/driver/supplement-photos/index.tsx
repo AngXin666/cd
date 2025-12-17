@@ -19,7 +19,8 @@ import {hideLoading, showLoading} from '@/utils/taroCompat'
 
 const logger = createLogger('SupplementPhotos')
 
-const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
+// 使用已存在的 h5-app 存储桶
+const BUCKET_NAME = 'h5-app'
 
 // 图片字段配置
 interface PhotoFieldConfig {

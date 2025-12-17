@@ -55,9 +55,14 @@ export interface UserWithRealName extends Profile {
   login_account?: string
 }
 
-/** 辅助函数：判断是否是管理员角色（boss） */
+/**
+ * 辅助函数：判断是否是管理员角色
+ * 管理员角色包括：BOSS（老板）和 PEER_ADMIN（调度）
+ * @param role - 用户角色
+ * @returns 是否是管理员角色
+ */
 const isAdminRole = (role: string | undefined) => {
-  return role === 'BOSS'
+  return role === 'BOSS' || role === 'PEER_ADMIN'
 }
 
 /**
@@ -202,7 +207,8 @@ export const useUserManagement = (): UseUserManagementReturn => {
         let newUser: Profile | null = null
 
         if (data.role === 'BOSS') {
-          // 创建平级老板账号
+          // 创建平级账号（调度）
+          // 注意：平级账号的角色应该是 PEER_ADMIN（调度），而不是 BOSS
           const {data: authData, error: authError} = await supabase.auth.signUp({
             phone: data.phone,
             password: '123456',
@@ -213,27 +219,26 @@ export const useUserManagement = (): UseUserManagementReturn => {
             throw new Error(authError?.message || '创建用户失败')
           }
 
-          const [{data: userData, error: userError}] = await Promise.all([
-            supabase
-              .from('users')
-              .insert({
-                id: authData.user.id,
-                name: data.name,
-                phone: data.phone,
-                permission_type: 'full',
-                status: 'active',
-                main_account_id: user?.id
-              })
-              .select()
-              .maybeSingle(),
-            supabase.from('users').insert({user_id: authData.user.id, role: 'BOSS'})
-          ])
+          // 创建用户记录，设置角色为 PEER_ADMIN
+          // 权限完全基于用户角色推断，PEER_ADMIN 角色默认拥有 full_control 权限
+          const {data: userData, error: userError} = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              name: data.name,
+              phone: data.phone,
+              status: 'active',
+              main_account_id: user?.id, // 设置主账号ID，标记为平级账号
+              role: 'PEER_ADMIN' // 平级账号角色为调度
+            })
+            .select()
+            .maybeSingle()
 
           if (userError || !userData) {
             throw new Error(userError?.message || '创建用户档案失败')
           }
 
-          newUser = {...userData, role: 'BOSS'}
+          newUser = {...userData, role: 'PEER_ADMIN'}
         } else {
           newUser = await UsersAPI.createUser(data.phone, data.name, data.role, data.driverType)
         }

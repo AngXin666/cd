@@ -36,6 +36,7 @@ const logger = createLogger('VehicleList')
 const VehicleList: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(false) // 加载状态
   const [targetDriverId, setTargetDriverId] = useState<string>('')
   const [targetDriver, setTargetDriver] = useState<Profile | null>(null)
   const [isManagerView, setIsManagerView] = useState(false)
@@ -84,6 +85,7 @@ const VehicleList: React.FC = () => {
         return
       }
 
+      setLoading(true)
       showLoading({title: '加载中...'})
       try {
         // 生成缓存键
@@ -94,19 +96,29 @@ const VehicleList: React.FC = () => {
 
         if (cached) {
           data = cached
+          logger.info('🔍 [DEBUG] 使用缓存数据', {cacheKey, vehicleCount: data.length})
         } else {
-          // 调试：检查认证状态
-          const authStatus = await VehiclesAPI.debugAuthStatus()
-
-          // 如果认证用户ID与查询的司机ID不匹配，记录警告
-          if (authStatus.userId && authStatus.userId !== driverId && !isManagerView) {
-          }
-
+          // 获取司机车辆数据
+          logger.info('🔍 [DEBUG] 开始调用 getDriverVehicles', {driverId})
           data = await VehiclesAPI.getDriverVehicles(driverId)
+          logger.info('🔍 [DEBUG] getDriverVehicles 返回结果', {
+            vehicleCount: data.length,
+            vehicles: data.map(v => ({
+              id: v.id,
+              plate: v.plate_number,
+              hasLeftFrontPhoto: !!v.left_front_photo,
+              leftFrontPhotoValue: v.left_front_photo || '无'
+            }))
+          })
           // 保存到缓存（30秒有效期，缩短缓存时间以便更快看到审核结果）
           setVersionedCache(cacheKey, data, 30 * 1000)
         }
 
+        // 调试：打印最终设置到 state 的数据
+        logger.info('🔍 [DEBUG] 设置 vehicles state', {
+          vehicleCount: data.length,
+          firstVehiclePhoto: data[0]?.left_front_photo || '无'
+        })
         setVehicles(data)
       } catch (error) {
         logger.error('加载车辆列表失败', error)
@@ -115,6 +127,7 @@ const VehicleList: React.FC = () => {
           icon: 'none'
         })
       } finally {
+        setLoading(false)
         hideLoading()
       }
     },
@@ -193,6 +206,54 @@ const VehicleList: React.FC = () => {
     Taro.navigateTo({
       url: `/pages/driver/return-vehicle/index?id=${vehicleId}&plate=${plateNumber}`
     })
+  }
+
+  /**
+   * 删除车辆
+   * 用于测试时清理车辆数据
+   * @param vehicleId - 车辆ID
+   * @param plateNumber - 车牌号（用于确认提示）
+   */
+  const handleDeleteVehicle = async (vehicleId: string, plateNumber: string) => {
+    // 弹出确认对话框
+    const result = await Taro.showModal({
+      title: '确认删除',
+      content: `确定要删除车牌号为 "${plateNumber}" 的车辆吗？此操作不可恢复！`,
+      confirmText: '删除',
+      confirmColor: '#EF4444',
+      cancelText: '取消'
+    })
+
+    if (!result.confirm) {
+      return
+    }
+
+    showLoading({title: '删除中...'})
+    try {
+      const success = await VehiclesAPI.deleteVehicle(vehicleId)
+      hideLoading()
+
+      if (success) {
+        Taro.showToast({
+          title: '删除成功',
+          icon: 'success'
+        })
+        // 刷新车辆列表
+        loadVehicles(true)
+      } else {
+        Taro.showToast({
+          title: '删除失败',
+          icon: 'none'
+        })
+      }
+    } catch (error) {
+      hideLoading()
+      logger.error('删除车辆失败', error)
+      Taro.showToast({
+        title: '删除失败',
+        icon: 'none'
+      })
+    }
   }
 
   // 判断是否应该显示"添加新车辆"按钮
@@ -398,13 +459,37 @@ const VehicleList: React.FC = () => {
             </View>
           ) : (
             <View className="space-y-4">
-              {vehicles.map((vehicle) => (
+              {/* 调试信息：显示照片状态 */}
+              <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
+                <Text className="text-yellow-800 text-xs font-medium block mb-1">🔍 调试信息（照片状态）</Text>
+                {vehicles.map((v, i) => (
+                  <Text key={v.id} className="text-yellow-700 text-xs block">
+                    车辆{i + 1} [{v.plate_number}]: {v.left_front_photo ? `有照片 (${v.left_front_photo.substring(0, 50)}...)` : '❌ 无照片'}
+                  </Text>
+                ))}
+              </View>
+              {vehicles.map((vehicle, index) => {
+                // 调试日志：打印每个车辆的照片信息
+                if (index === 0) {
+                  logger.info('🔍 [DEBUG] 开始渲染车辆列表', {
+                    totalVehicles: vehicles.length
+                  })
+                }
+                logger.info(`🔍 [DEBUG] 渲染车辆 ${index + 1}`, {
+                  vehicleId: vehicle.id,
+                  plateNumber: vehicle.plate_number,
+                  hasLeftFrontPhoto: !!vehicle.left_front_photo,
+                  leftFrontPhotoValue: vehicle.left_front_photo ? vehicle.left_front_photo.substring(0, 100) : '无',
+                  leftFrontPhotoType: typeof vehicle.left_front_photo
+                })
+                
+                return (
                 <View
                   key={vehicle.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all"
                   onClick={() => handleViewDetail(vehicle.id)}>
-                  {/* 车辆照片 */}
-                  {vehicle.left_front_photo && (
+                  {/* 车辆照片 - 调试：显示照片状态 */}
+                  {vehicle.left_front_photo ? (
                     <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
                       <Image
                         src={vehicle.left_front_photo}
@@ -413,8 +498,32 @@ const VehicleList: React.FC = () => {
                         onError={() =>
                           logger.error('车辆照片加载失败', {vehicleId: vehicle.id, photo: vehicle.left_front_photo})
                         }
+                        onLoad={() =>
+                          logger.info('车辆照片加载成功', {vehicleId: vehicle.id})
+                        }
                       />
                       {/* 状态标签 - 使用综合状态 */}
+                      <View className="absolute top-3 right-3">
+                        <View
+                          className={`backdrop-blur rounded-full px-3 py-1 ${getVehicleStatusBadge(vehicle).color}/90`}>
+                          <View className="flex items-center">
+                            <View className={`${getVehicleStatusBadge(vehicle).icon} text-white text-sm mr-1`}></View>
+                            <Text className="text-white text-xs font-medium">
+                              {getVehicleStatusBadge(vehicle).text}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    /* 无照片时显示占位 */
+                    <View className="relative w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <View className="text-center">
+                        <View className="i-mdi-image-off text-4xl text-gray-400 mb-2"></View>
+                        <Text className="text-gray-500 text-xs">无照片</Text>
+                        <Text className="text-gray-400 text-xs mt-1">ID: {vehicle.id.slice(0, 8)}...</Text>
+                      </View>
+                      {/* 状态标签 */}
                       <View className="absolute top-3 right-3">
                         <View
                           className={`backdrop-blur rounded-full px-3 py-1 ${getVehicleStatusBadge(vehicle).color}/90`}>
@@ -504,6 +613,13 @@ const VehicleList: React.FC = () => {
                             </Text>
                           </View>
                         )}
+                        {/* 车损责任提醒 - 还车待审核时显示（审核通过后隐藏） */}
+                        {vehicle.return_time && vehicle.review_status !== 'approved' && (
+                          <View className="flex items-center bg-orange-50 rounded px-2 py-1 mt-1">
+                            <View className="i-mdi-alert-circle text-sm text-orange-600 mr-1"></View>
+                            <Text className="text-xs text-orange-700">如未联系核实车损，一切车损由司机负责</Text>
+                          </View>
+                        )}
                       </View>
                     )}
 
@@ -511,23 +627,39 @@ const VehicleList: React.FC = () => {
                     <View className="flex gap-2 pt-3 border-t border-gray-100">
                       {/* 根据审核状态显示不同的按钮 */}
                       {vehicle.review_status === 'need_supplement' && !isManagerView ? (
-                        // 需补录状态：显示补录按钮
-                        <Button
-                          className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
-                          size="default"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            Taro.navigateTo({url: `/pages/driver/supplement-photos/index?vehicleId=${vehicle.id}`})
-                          }}>
-                          <View className="flex items-center justify-center">
-                            <View className="i-mdi-image-plus text-base mr-1"></View>
-                            <Text className="font-medium">补录图片</Text>
-                          </View>
-                        </Button>
+                        // 需补录状态：显示补录按钮和删除按钮
+                        <>
+                          <Button
+                            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                            size="default"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              Taro.navigateTo({url: `/pages/driver/supplement-photos/index?vehicleId=${vehicle.id}`})
+                            }}>
+                            <View className="flex items-center justify-center">
+                              <View className="i-mdi-image-plus text-base mr-1"></View>
+                              <Text className="font-medium">补录图片</Text>
+                            </View>
+                          </Button>
+                          {/* 删除按钮 - 非管理员视图时显示 */}
+                          {!isManagerView && (
+                            <Button
+                              className="bg-gradient-to-r from-gray-500 to-gray-600 text-white py-2.5 px-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                              size="default"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteVehicle(vehicle.id, vehicle.plate_number)
+                              }}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-delete text-base"></View>
+                              </View>
+                            </Button>
+                          )}
+                        </>
                       ) : (
                         <>
                           <Button
-                            className={`${(vehicle.status === 'active' || vehicle.status === 'picked_up') && !vehicle.return_time && !isManagerView && vehicle.review_status === 'approved' ? 'flex-1' : 'w-full'} bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all`}
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
                             size="default"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -556,12 +688,26 @@ const VehicleList: React.FC = () => {
                                 </View>
                               </Button>
                             )}
+                          {/* 删除按钮 - 非管理员视图时显示 */}
+                          {!isManagerView && (
+                            <Button
+                              className="bg-gradient-to-r from-gray-500 to-gray-600 text-white py-2.5 px-3 rounded-lg break-keep text-sm shadow-md active:scale-95 transition-all"
+                              size="default"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteVehicle(vehicle.id, vehicle.plate_number)
+                              }}>
+                              <View className="flex items-center justify-center">
+                                <View className="i-mdi-delete text-base"></View>
+                              </View>
+                            </Button>
+                          )}
                         </>
                       )}
                     </View>
                   </View>
                 </View>
-              ))}
+              )})}
             </View>
           )}
 

@@ -16,7 +16,8 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardBack, recognizeIdCardFront} from '@/utils/ocrUtils'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
-const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
+// 使用已存在的 h5-app 存储桶
+const BUCKET_NAME = 'h5-app'
 
 /**
  * 计算年龄（根据出生日期）
@@ -252,43 +253,61 @@ const LicenseOCR: React.FC = () => {
     }
 
     setSubmitting(true)
-    showLoading({title: '保存中...'})
+    showLoading({title: '上传照片中...'})
 
     try {
-      // 上传照片到存储桶
+      // 上传照片到存储桶，并检查上传结果
+      console.log('[LicenseOCR] 开始上传身份证正面照片...')
       const idCardFrontPath = await uploadImageToStorage(
         photos.idCardFront,
         BUCKET_NAME,
         generateUniqueFileName('id_card_front', 'jpg')
       )
+      console.log('[LicenseOCR] 身份证正面上传结果:', idCardFrontPath)
 
+      // 检查上传是否成功
+      if (!idCardFrontPath) {
+        throw new Error('身份证正面照片上传失败')
+      }
+
+      console.log('[LicenseOCR] 开始上传身份证背面照片...')
       const idCardBackPath = await uploadImageToStorage(
         photos.idCardBack,
         BUCKET_NAME,
         generateUniqueFileName('id_card_back', 'jpg')
       )
+      console.log('[LicenseOCR] 身份证背面上传结果:', idCardBackPath)
 
+      if (!idCardBackPath) {
+        throw new Error('身份证背面照片上传失败')
+      }
+
+      console.log('[LicenseOCR] 开始上传驾驶证照片...')
       const driverLicensePath = await uploadImageToStorage(
         photos.driverLicense,
         BUCKET_NAME,
         generateUniqueFileName('driver_license', 'jpg')
       )
+      console.log('[LicenseOCR] 驾驶证上传结果:', driverLicensePath)
 
-      // 准备驾驶证数据
+      if (!driverLicensePath) {
+        throw new Error('驾驶证照片上传失败')
+      }
+
+      showLoading({title: '保存信息中...'})
+
+      // 准备驾驶证数据（已移除数据库中不存在的字段：license_type, issue_date, expiry_date）
       const driverLicenseInput: DriverLicenseInput = {
         driver_id: user.id,
         license_number: ocrData.driverLicense?.license_number || '',
-        license_type: 'C1', // 默认值
-        issue_date: ocrData.driverLicense?.first_issue_date || new Date().toISOString().split('T')[0],
-        expiry_date:
-          ocrData.driverLicense?.valid_until ||
-          new Date(Date.now() + 6 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        // 身份证相关字段
         id_card_name: ocrData.idCardFront?.name || '',
         id_card_number: ocrData.idCardFront?.id_number || '',
         id_card_address: ocrData.idCardFront?.address || '',
         id_card_birth_date: ocrData.idCardFront?.birth_date || null,
         id_card_photo_front: idCardFrontPath,
         id_card_photo_back: idCardBackPath,
+        // 驾驶证相关字段
         license_class: ocrData.driverLicense?.license_class || '',
         first_issue_date: ocrData.driverLicense?.first_issue_date || null,
         valid_from: ocrData.driverLicense?.valid_from || '',
@@ -297,8 +316,16 @@ const LicenseOCR: React.FC = () => {
         driving_license_photo: driverLicensePath
       }
 
+      console.log('[LicenseOCR] 准备保存到数据库:', {
+        driver_id: driverLicenseInput.driver_id,
+        id_card_photo_front: driverLicenseInput.id_card_photo_front,
+        id_card_photo_back: driverLicenseInput.id_card_photo_back,
+        driving_license_photo: driverLicenseInput.driving_license_photo
+      })
+
       // 保存到数据库
-      await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
+      const result = await VehiclesAPI.upsertDriverLicense(driverLicenseInput)
+      console.log('[LicenseOCR] 数据库保存结果:', result)
 
       hideLoading()
       showToast({

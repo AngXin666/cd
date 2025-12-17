@@ -22,13 +22,8 @@ export type {
   PeerAdminListItem,
   PeerAdminPermission
 } from './api/peer-admin'
-// Permission Strategy 模块类型
-export type {
-  OperationResult,
-  PermissionLevel,
-  UserPermissionDetail,
-  UserPermissionInfo
-} from './api/permission-strategy'
+// Permission Strategy 模块类型（已废弃 - 使用应用层权限控制）
+// 注意：permission-strategy.ts 文件已废弃，不再导出其类型
 // Stats 模块类型
 export type {
   CurrentUserInfo,
@@ -81,7 +76,7 @@ export const API_MODULES = {
   peerAccounts: './api/peer-accounts',
   peerAdmin: './api/peer-admin',
   permissionContext: './api/permission-context',
-  permissionStrategy: './api/permission-strategy',
+  // permissionStrategy 已废弃，使用应用层权限控制
   piecework: './api/piecework',
   stats: './api/stats',
   users: './api/users',
@@ -112,8 +107,7 @@ export async function importAPIModule(moduleName: keyof typeof API_MODULES) {
       return import('./api/peer-admin')
     case 'permissionContext':
       return import('./api/permission-context')
-    case 'permissionStrategy':
-      return import('./api/permission-strategy')
+    // permissionStrategy 已废弃，使用应用层权限控制
     case 'piecework':
       return import('./api/piecework')
     case 'stats':

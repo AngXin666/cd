@@ -21,6 +21,8 @@ const releaseNotes = process.argv[2] || '功能优化和问题修复';
 
 /**
  * 从数据库获取最新版本号并递增
+ * 版本号规则：每位最大为 9，超过则进位
+ * 例如：1.3.9 -> 1.4.0，1.9.9 -> 2.0.0
  * @returns {Promise<string>} 新版本号
  */
 async function getNextVersion() {
@@ -47,8 +49,22 @@ async function getNextVersion() {
     return '1.0.0';
   }
 
-  // 递增 patch 版本（最后一位）
+  // 递增版本号，每位最大为 9，超过则进位
+  // patch 版本（最后一位）+1
   parts[2] += 1;
+  
+  // 如果 patch >= 10，进位到 minor
+  if (parts[2] >= 10) {
+    parts[2] = 0;
+    parts[1] += 1;
+  }
+  
+  // 如果 minor >= 10，进位到 major
+  if (parts[1] >= 10) {
+    parts[1] = 0;
+    parts[0] += 1;
+  }
+  
   const newVersion = parts.join('.');
   
   console.log(`   当前数据库版本: ${currentVersion}`);

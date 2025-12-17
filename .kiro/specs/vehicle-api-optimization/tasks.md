@@ -1,0 +1,153 @@
+# Implementation Plan
+
+## 重要说明
+- 每个删除操作前必须进行全局引用检查
+- 车辆管理与个人信息功能有关联，需要检查 users.ts、driver-profile 等相关文件
+- 搜索范围：src/**/*.ts, src/**/*.tsx, scripts/**/*.js
+
+- [x] 1. 删除未使用的调试函数
+  - [x] 1.1 全局搜索 debugAuthStatus 函数引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 搜索 scripts/**/*.js 中的所有引用
+    - 检查 api.ts 导出是否包含该函数
+    - 记录所有引用位置
+    - _Requirements: 1.1, 1.2_
+  - [x] 1.2 确认无引用后删除 debugAuthStatus 函数
+    - 如果有引用，先更新调用点或放弃删除
+    - 从 vehicles.ts 中删除该函数
+    - _Requirements: 1.1_
+  - [x] 1.3 验证 TypeScript 编译通过
+    - 运行 `npx tsc --noEmit`
+    - 确保无编译错误
+    - _Requirements: 1.3_
+
+- [ ] 2. 删除未使用的类型接口（逐个检查）
+  - [x] 2.1 全局搜索 VehicleBase 类型引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 检查是否被其他类型继承或使用
+    - 检查个人信息相关页面是否使用
+    - 记录搜索结果
+    - _Requirements: 2.1_
+  - [x] 2.2 全局搜索 VehicleLeaseInfo 类型引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 检查租赁信息相关功能是否使用
+    - 记录搜索结果
+    - _Requirements: 2.2_
+  - [x] 2.3 全局搜索 VehicleRecord 类型引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 检查车辆记录相关功能是否使用
+    - 记录搜索结果
+    - _Requirements: 2.3_
+  - [x] 2.4 全局搜索 VehicleRecordInput 类型引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 记录搜索结果
+    - _Requirements: 2.4_
+  - [x] 2.5 全局搜索 VehicleBaseWithRecords 类型引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 记录搜索结果
+    - _Requirements: 2.5_
+  - [x] 2.6 全局搜索 VehicleRecordWithDetails 类型引用
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有引用
+    - 记录搜索结果
+    - _Requirements: 2.6_
+  - [x] 2.7 汇总搜索结果，仅删除确认无引用的类型
+    - 列出可删除的类型清单
+    - 列出有引用需保留的类型清单
+    - 从 types.ts 中删除确认无引用的接口
+    - _Requirements: 2.1-2.6_
+  - [x] 2.8 验证 TypeScript 编译通过
+    - 运行 `npx tsc --noEmit`
+    - 确保无编译错误
+    - _Requirements: 2.7_
+
+- [x] 3. 合并图片管理函数（需检查所有调用点）
+  - [x] 3.1 全局搜索 lockPhoto 函数所有调用点
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有调用
+    - 搜索 scripts/**/*.js 中的所有调用
+    - 检查审核相关页面的调用
+    - 记录所有调用位置和参数
+    - _Requirements: 3.1_
+  - [x] 3.2 全局搜索 unlockPhoto 函数所有调用点
+    - 搜索 src/**/*.ts, src/**/*.tsx 中的所有调用
+    - 搜索 scripts/**/*.js 中的所有调用
+    - 记录所有调用位置和参数
+    - _Requirements: 3.1_
+  - [x] 3.3 创建 togglePhotoLock 函数
+    - 合并 lockPhoto 和 unlockPhoto 的逻辑
+    - 添加 lock: boolean 参数控制锁定/解锁
+    - 保持返回值类型不变
+    - _Requirements: 3.1, 3.2_
+  - [x] 3.4 更新所有 lockPhoto 调用点
+    - 将 lockPhoto(id, field, index) 改为 togglePhotoLock(id, field, index, true)
+    - 逐个文件更新，每个文件更新后验证编译
+    - _Requirements: 3.3_
+  - [x] 3.5 更新所有 unlockPhoto 调用点
+    - 将 unlockPhoto(id, field, index) 改为 togglePhotoLock(id, field, index, false)
+    - 逐个文件更新，每个文件更新后验证编译
+    - _Requirements: 3.3_
+  - [x] 3.6 删除旧的 lockPhoto 和 unlockPhoto 函数
+    - 确认所有调用点已更新
+    - 从 vehicles.ts 中删除这两个函数
+    - 更新 api.ts 导出（如有）
+    - _Requirements: 3.1_
+  - [x] 3.7 验证 TypeScript 编译通过
+    - 运行 `npx tsc --noEmit`
+    - 确保无编译错误
+    - _Requirements: 3.2_
+
+- [x] 4. Checkpoint - 代码优化验证
+  - 运行 TypeScript 编译检查
+  - 确保所有修改不影响现有功能
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 5. 编写核心函数单元测试
+  - [x] 5.1 创建测试文件 vehicles.test.ts
+    - 设置测试环境和 mock
+    - _Requirements: 4.1-4.6_
+  - [x] 5.2 编写 getDriverVehicles 测试
+    - 测试正常返回数据
+    - 测试空结果处理
+    - **Property 2: CRUD 操作数据一致性**
+    - **Validates: Requirements 4.1**
+  - [x] 5.3 编写 insertVehicle 测试
+    - 测试正常创建车辆
+    - 测试重复车牌处理
+    - **Property 2: CRUD 操作数据一致性**
+    - **Validates: Requirements 4.2**
+  - [x] 5.4 编写 updateVehicle 测试
+    - 测试正常更新
+    - 测试不存在的车辆
+    - **Property 3: 更新操作幂等性**
+    - **Validates: Requirements 4.3**
+  - [x] 5.5 编写 deleteVehicle 测试
+    - 测试正常删除
+    - 测试不存在的车辆
+    - **Property 4: 删除操作完整性**
+    - **Validates: Requirements 4.4**
+  - [x] 5.6 编写审核流程测试
+    - 测试 submitVehicleForReview
+    - 测试 approveVehicle
+    - **Property 5: 审核状态转换正确性**
+    - **Validates: Requirements 4.5, 4.6**
+  - [x] 5.7 编写 togglePhotoLock 测试
+    - 测试锁定功能
+    - 测试解锁功能
+    - **Property 1: 图片锁定状态切换正确性**
+    - **Validates: Requirements 3.2**
+
+- [x] 6. 集成测试验证
+  - [x] 6.1 运行所有单元测试
+    - 执行 `npx vitest run`
+    - 确保所有测试通过
+    - _Requirements: 5.1_
+  - [x] 6.2 运行 TypeScript 编译检查
+    - 执行 `npx tsc --noEmit`
+    - 确保无编译错误
+    - _Requirements: 5.2_
+  - [x] 6.3 运行 H5 构建测试
+    - 执行 `pnpm taro build --type h5`
+    - 确保构建成功
+    - _Requirements: 5.3_
+
+- [x] 7. Final Checkpoint - 确保所有测试通过
+  - Ensure all tests pass, ask the user if questions arise.

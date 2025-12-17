@@ -4,6 +4,7 @@
  * - 使用标签页展示提车照片、还车照片、行驶证照片
  * - 显示提车时间和还车时间
  * - 展示车辆基本信息
+ * - 显示补录照片标记
  */
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
@@ -13,9 +14,10 @@ import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
+import {SupplementedBadge} from '@/components/SupplementedBadge'
 import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
-import type {Vehicle} from '@/db/types'
+import type {SupplementedPhotos, Vehicle} from '@/db/types'
 import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
 
@@ -26,6 +28,8 @@ const VehicleDetail: React.FC = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('pickup')
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+  // 补录照片元数据，用于显示补录标记
+  const [supplementedPhotos, setSupplementedPhotos] = useState<SupplementedPhotos>({})
 
   useLoad((options) => {
     const {id} = options
@@ -34,12 +38,19 @@ const VehicleDetail: React.FC = () => {
     }
   })
 
-  // 加载车辆详情
+  /**
+   * 加载车辆详情
+   * @param vehicleId - 车辆ID
+   */
   const loadVehicleDetail = async (vehicleId: string) => {
     showLoading({title: '加载中...'})
     try {
       const vehicleData = await VehiclesAPI.getVehicleById(vehicleId)
       setVehicle(vehicleData)
+
+      // 加载补录照片元数据
+      const supplementedData = await VehiclesAPI.getSupplementedPhotos(vehicleId)
+      setSupplementedPhotos(supplementedData)
     } catch (error) {
       console.error('加载车辆详情失败:', error)
       Taro.showToast({
@@ -51,9 +62,21 @@ const VehicleDetail: React.FC = () => {
     }
   }
 
+  /**
+   * 检查照片是否已补录
+   * @param field - 照片字段名
+   * @param index - 照片索引
+   * @returns 补录元数据，如果未补录则返回 null
+   */
+  const getSupplementedMeta = (field: string, index: number) => {
+    const photoKey = `${field}_${index}`
+    return supplementedPhotos[photoKey] || null
+  }
+
   // 获取照片的公开URL
   const getPhotoUrl = (path: string): string => {
-    const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
+    // 使用已存在的 h5-app 存储桶
+    const bucketName = 'h5-app'
     return getImagePublicUrl(path, bucketName)
   }
 
@@ -261,10 +284,13 @@ const VehicleDetail: React.FC = () => {
                   <View className="grid grid-cols-3 gap-3">
                     {vehicle.pickup_photos.map((photo, index) => {
                       const photoUrl = getPhotoUrl(photo)
+                      // 获取补录元数据
+                      const supplementedMeta = getSupplementedMeta('pickup_photos', index)
                       return (
                         <View
                           key={index}
-                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          className={`relative rounded-lg overflow-hidden bg-gray-100 ${supplementedMeta ? 'border-2 border-orange-500' : ''}`}
+                          style={supplementedMeta ? {boxShadow: '0 0 6px rgba(255, 107, 53, 0.3)'} : {}}
                           onClick={() => {
                             const urls = vehicle.pickup_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
                             if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
@@ -289,6 +315,13 @@ const VehicleDetail: React.FC = () => {
                             <View className="w-full h-24 flex items-center justify-center">
                               <View className="i-mdi-image-off text-2xl text-gray-400"></View>
                             </View>
+                          )}
+                          {/* 补录标记 */}
+                          {supplementedMeta && (
+                            <SupplementedBadge
+                              supplementedAt={supplementedMeta.supplemented_at}
+                              supplementCount={supplementedMeta.supplement_count}
+                            />
                           )}
                         </View>
                       )
@@ -317,15 +350,33 @@ const VehicleDetail: React.FC = () => {
                   </View>
                 </View>
 
+                {/* 车损责任提醒 - 还车待审核时显示（审核通过后隐藏） */}
+                {vehicle.return_time && vehicle.review_status !== 'approved' && (
+                  <View className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                    <View className="flex items-start">
+                      <View className="i-mdi-alert-circle text-xl text-orange-600 mr-2 mt-0.5"></View>
+                      <View className="flex-1">
+                        <Text className="text-orange-800 font-bold text-sm mb-1">车损责任提醒</Text>
+                        <Text className="text-orange-700 text-xs leading-relaxed">
+                          还车时请务必联系车队长或调度核实车损情况。如未联系核实，一切车损由司机本人负责。
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {/* 还车照片网格 */}
                 {vehicle.return_photos && vehicle.return_photos.length > 0 ? (
                   <View className="grid grid-cols-3 gap-3">
                     {vehicle.return_photos.map((photo, index) => {
                       const photoUrl = getPhotoUrl(photo)
+                      // 获取补录元数据
+                      const supplementedMeta = getSupplementedMeta('return_photos', index)
                       return (
                         <View
                           key={index}
-                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          className={`relative rounded-lg overflow-hidden bg-gray-100 ${supplementedMeta ? 'border-2 border-orange-500' : ''}`}
+                          style={supplementedMeta ? {boxShadow: '0 0 6px rgba(255, 107, 53, 0.3)'} : {}}
                           onClick={() => {
                             const urls = vehicle.return_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
                             if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
@@ -350,6 +401,13 @@ const VehicleDetail: React.FC = () => {
                             <View className="w-full h-24 flex items-center justify-center">
                               <View className="i-mdi-image-off text-2xl text-gray-400"></View>
                             </View>
+                          )}
+                          {/* 补录标记 */}
+                          {supplementedMeta && (
+                            <SupplementedBadge
+                              supplementedAt={supplementedMeta.supplemented_at}
+                              supplementCount={supplementedMeta.supplement_count}
+                            />
                           )}
                         </View>
                       )
@@ -380,10 +438,13 @@ const VehicleDetail: React.FC = () => {
                   <View className="grid grid-cols-2 gap-3">
                     {vehicle.registration_photos.map((photo, index) => {
                       const photoUrl = getPhotoUrl(photo)
+                      // 获取补录元数据
+                      const supplementedMeta = getSupplementedMeta('registration_photos', index)
                       return (
                         <View
                           key={index}
-                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          className={`relative rounded-lg overflow-hidden bg-gray-100 ${supplementedMeta ? 'border-2 border-orange-500' : ''}`}
+                          style={supplementedMeta ? {boxShadow: '0 0 6px rgba(255, 107, 53, 0.3)'} : {}}
                           onClick={() => {
                             const urls = vehicle.registration_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
                             if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
@@ -416,6 +477,13 @@ const VehicleDetail: React.FC = () => {
                               <View className="i-mdi-image-off text-3xl text-gray-400"></View>
                             </View>
                           )}
+                          {/* 补录标记 */}
+                          {supplementedMeta && (
+                            <SupplementedBadge
+                              supplementedAt={supplementedMeta.supplemented_at}
+                              supplementCount={supplementedMeta.supplement_count}
+                            />
+                          )}
                         </View>
                       )
                     })}
@@ -445,10 +513,13 @@ const VehicleDetail: React.FC = () => {
                   <View className="grid grid-cols-3 gap-2">
                     {vehicle.damage_photos.map((photo, index) => {
                       const photoUrl = getPhotoUrl(photo)
+                      // 获取补录元数据
+                      const supplementedMeta = getSupplementedMeta('damage_photos', index)
                       return (
                         <View
                           key={index}
-                          className="relative rounded-lg overflow-hidden bg-gray-100"
+                          className={`relative rounded-lg overflow-hidden bg-gray-100 ${supplementedMeta ? 'border-2 border-orange-500' : ''}`}
+                          style={supplementedMeta ? {boxShadow: '0 0 6px rgba(255, 107, 53, 0.3)'} : {}}
                           onClick={() => {
                             const urls = vehicle.damage_photos?.map((p) => getPhotoUrl(p)).filter(Boolean) || []
                             if (photoUrl && urls.length > 0 && !failedImages.has(photoUrl)) {
@@ -478,6 +549,13 @@ const VehicleDetail: React.FC = () => {
                             <View className="w-full h-24 flex items-center justify-center">
                               <View className="i-mdi-image-off text-2xl text-gray-400"></View>
                             </View>
+                          )}
+                          {/* 补录标记 */}
+                          {supplementedMeta && (
+                            <SupplementedBadge
+                              supplementedAt={supplementedMeta.supplemented_at}
+                              supplementCount={supplementedMeta.supplement_count}
+                            />
                           )}
                         </View>
                       )

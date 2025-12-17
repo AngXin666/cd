@@ -22,7 +22,8 @@ import {createLogger} from '@/utils/logger'
 const logger = createLogger('SuperAdminUserDetail')
 
 // Supabase Storage Bucket 名称
-const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
+// 使用已存在的 h5-app 存储桶
+const BUCKET_NAME = 'h5-app'
 
 // 获取图片公共URL的辅助函数
 const getImageUrl = (path: string | null | undefined): string => {

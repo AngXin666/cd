@@ -1,12 +1,14 @@
 /**
  * 拍照组件 - 优化版
  * 支持即时拍照和从相册选择
+ * 在 H5 环境下支持从电脑选择文件（用于测试）
  */
 
 import {Button, Image, Text, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import type React from 'react'
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
+import {TEST_MODE_ENABLED, isH5Environment} from '@/config/test-mode'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 interface PhotoCaptureProps {
@@ -20,6 +22,8 @@ interface PhotoCaptureProps {
 
 const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, value, onChange, disabled = false}) => {
   const [imagePath, setImagePath] = useState<string>(value || '')
+  // H5 环境下用于从电脑选择文件的 input 引用
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // 同步外部value变化
   useEffect(() => {
@@ -82,6 +86,50 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
   const handleChooseFromAlbum = () => {
     handleChooseImage('album')
   }
+
+  /**
+   * H5 环境下从电脑选择文件
+   * 使用原生 input[type=file] 实现
+   */
+  const handleChooseFromComputer = () => {
+    // 创建隐藏的 file input
+    if (!fileInputRef.current) {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.style.display = 'none'
+      input.onchange = (e) => {
+        const target = e.target as HTMLInputElement
+        const file = target.files?.[0]
+        if (file) {
+          // 创建本地 URL
+          const url = URL.createObjectURL(file)
+          setImagePath(url)
+          onChange?.(url)
+          showToast({
+            title: '图片已选择',
+            icon: 'success'
+          })
+        }
+        // 清空 input 值，允许重复选择同一文件
+        target.value = ''
+      }
+      document.body.appendChild(input)
+      fileInputRef.current = input
+    }
+    // 触发文件选择
+    fileInputRef.current.click()
+  }
+
+  // 组件卸载时清理 file input
+  useEffect(() => {
+    return () => {
+      if (fileInputRef.current) {
+        document.body.removeChild(fileInputRef.current)
+        fileInputRef.current = null
+      }
+    }
+  }, [])
 
   // 预览图片
   const handlePreviewImage = () => {
@@ -169,25 +217,39 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({title, description, tips, va
 
           {/* 操作按钮 */}
           {!disabled && (
-            <View className="flex gap-3">
-              <Button
-                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
-                size="default"
-                onClick={handleTakePhoto}>
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-camera text-xl mr-2"></View>
-                  <Text className="font-medium">拍照</Text>
-                </View>
-              </Button>
-              <Button
-                className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
-                size="default"
-                onClick={handleChooseFromAlbum}>
-                <View className="flex items-center justify-center">
-                  <View className="i-mdi-image-multiple text-xl mr-2"></View>
-                  <Text className="font-medium">相册</Text>
-                </View>
-              </Button>
+            <View>
+              <View className="flex gap-3">
+                <Button
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                  size="default"
+                  onClick={handleTakePhoto}>
+                  <View className="flex items-center justify-center">
+                    <View className="i-mdi-camera text-xl mr-2"></View>
+                    <Text className="font-medium">拍照</Text>
+                  </View>
+                </Button>
+                <Button
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                  size="default"
+                  onClick={handleChooseFromAlbum}>
+                  <View className="flex items-center justify-center">
+                    <View className="i-mdi-image-multiple text-xl mr-2"></View>
+                    <Text className="font-medium">相册</Text>
+                  </View>
+                </Button>
+              </View>
+              {/* H5 测试模式：从电脑选择文件按钮 */}
+              {TEST_MODE_ENABLED && isH5Environment() && (
+                <Button
+                  className="w-full mt-3 bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl break-keep text-base shadow-lg active:scale-95 transition-all"
+                  size="default"
+                  onClick={handleChooseFromComputer}>
+                  <View className="flex items-center justify-center">
+                    <View className="i-mdi-folder-open text-xl mr-2"></View>
+                    <Text className="font-medium">从电脑选择（测试）</Text>
+                  </View>
+                </Button>
+              )}
             </View>
           )}
         </View>

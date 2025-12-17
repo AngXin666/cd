@@ -2,6 +2,7 @@
  * 登录页面组件
  * 提供密码登录和验证码登录两种方式
  * 支持记住账号密码功能
+ * 支持单点登录：同一账号只能在一个设备登录
  * @module pages/login
  */
 import {Button, Checkbox, Input, Text, View} from '@tarojs/components'
@@ -10,6 +11,8 @@ import type React from 'react'
 import {useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {createSession, startRealtimeMonitor} from '@/utils/sessionManager'
+import {resetLogoutState} from '@/utils/auth'
 
 // 使用 ?url 后缀强制 Vite 将图片作为独立文件输出，不内联为 base64
 import loginBg1 from '@/assets/images/login-bg-1.jpg?url'
@@ -116,9 +119,31 @@ const Login: React.FC = () => {
     clearOldAuthTokens()
   }, [])
 
-  const handleLoginSuccess = async () => {
+  /**
+   * 登录成功后的处理函数
+   * 1. 清除登录来源页面标记
+   * 2. 重置退出登录状态
+   * 3. 创建单点登录会话
+   * 4. 启动实时会话监听（优先使用 WebSocket，失败时降级到轮询）
+   * 5. 跳转到首页
+   * @param userId - 登录成功的用户ID
+   * @requirements 2.1
+   */
+  const handleLoginSuccess = async (userId: string) => {
+    // 清除登录来源页面标记
     removeStorageCompat('loginSourcePage')
     removeStorageCompat('isTestLogin')
+    
+    // 重置退出登录状态，确保首页正常显示
+    resetLogoutState()
+    
+    // 创建单点登录会话（会使该用户在其他设备上的会话失效）
+    await createSession(userId)
+    
+    // 启动实时会话监听（优先使用 WebSocket，失败时自动降级到轮询）
+    startRealtimeMonitor(userId)
+    
+    // 跳转到首页
     try {
       switchTab({url: '/pages/index/index'})
     } catch (_e) {
@@ -170,6 +195,10 @@ const Login: React.FC = () => {
     }
   }
 
+  /**
+   * 处理验证码登录
+   * 验证手机号和验证码，登录成功后创建会话
+   */
   const handleOtpLogin = async () => {
     if (!account || !otp) {
       showToast({title: '请输入手机号和验证码', icon: 'none'})
@@ -182,7 +211,7 @@ const Login: React.FC = () => {
     setLoading(true)
     try {
       const {supabase} = await import('@/client/supabase')
-      const {error} = await supabase.auth.verifyOtp({
+      const {data, error} = await supabase.auth.verifyOtp({
         phone: account,
         token: otp,
         type: 'sms'
@@ -191,7 +220,21 @@ const Login: React.FC = () => {
         showToast({title: error.message || '登录失败，请检查验证码', icon: 'none'})
       } else {
         showToast({title: '登录成功', icon: 'success'})
-        await handleLoginSuccess()
+        // 获取用户ID并创建会话
+        const userId = data.user?.id
+        if (userId) {
+          await handleLoginSuccess(userId)
+        } else {
+          // 如果无法获取用户ID，仍然跳转但不创建会话
+          console.warn('[OTP登录] 无法获取用户ID，跳过会话创建')
+          removeStorageCompat('loginSourcePage')
+          removeStorageCompat('isTestLogin')
+          try {
+            switchTab({url: '/pages/index/index'})
+          } catch (_e) {
+            reLaunch({url: '/pages/index/index'})
+          }
+        }
       }
     } catch (_err) {
       showToast({title: '登录失败', icon: 'none'})
@@ -200,6 +243,10 @@ const Login: React.FC = () => {
     }
   }
 
+  /**
+   * 处理密码登录
+   * 验证账号和密码，登录成功后创建会话
+   */
   const handlePasswordLogin = async () => {
     if (!account || !password) {
       showToast({title: '请输入账号和密码', icon: 'none'})
@@ -207,6 +254,7 @@ const Login: React.FC = () => {
     }
     setLoading(true)
     try {
+      // 如果账号不包含@，则添加默认域名
       const loginEmail = account.includes('@') ? account : `${account}@test.local`
       const {supabase} = await import('@/client/supabase')
       const result = await supabase.auth.signInWithPassword({
@@ -222,6 +270,7 @@ const Login: React.FC = () => {
           showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
         }
       } else {
+        // 保存或清除记住的账号密码
         try {
           if (rememberMe) {
             setStorageSync('saved_account', account)
@@ -236,7 +285,21 @@ const Login: React.FC = () => {
           console.error('保存账号密码失败:', err)
         }
         showToast({title: '登录成功', icon: 'success'})
-        await handleLoginSuccess()
+        // 获取用户ID并创建会话
+        const userId = result.data.user?.id
+        if (userId) {
+          await handleLoginSuccess(userId)
+        } else {
+          // 如果无法获取用户ID，仍然跳转但不创建会话
+          console.warn('[密码登录] 无法获取用户ID，跳过会话创建')
+          removeStorageCompat('loginSourcePage')
+          removeStorageCompat('isTestLogin')
+          try {
+            switchTab({url: '/pages/index/index'})
+          } catch (_e) {
+            reLaunch({url: '/pages/index/index'})
+          }
+        }
       }
     } catch (err) {
       console.error('[登录异常]', err)

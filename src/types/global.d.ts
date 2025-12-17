@@ -34,6 +34,28 @@ declare module '*.scss'
 declare module '*.sass'
 declare module '*.styl'
 
+// Vite URL 导入语法支持
+declare module '*.png?url' {
+  const src: string
+  export default src
+}
+declare module '*.gif?url' {
+  const src: string
+  export default src
+}
+declare module '*.jpg?url' {
+  const src: string
+  export default src
+}
+declare module '*.jpeg?url' {
+  const src: string
+  export default src
+}
+declare module '*.svg?url' {
+  const src: string
+  export default src
+}
+
 declare namespace NodeJS {
   interface ProcessEnv {
     /** NODE 内置环境变量, 会影响到最终构建生成产物 */

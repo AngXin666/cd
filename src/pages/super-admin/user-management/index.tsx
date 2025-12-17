@@ -48,9 +48,14 @@ interface UserWithRealName extends Profile {
   login_account?: string
 }
 
-// 辅助函数：判断是否是管理员角色（boss）
+/**
+ * 辅助函数：判断是否是管理员角色
+ * 管理员角色包括：BOSS（老板）和 PEER_ADMIN（调度）
+ * @param role - 用户角色
+ * @returns 是否是管理员角色
+ */
 const isAdminRole = (role: string | undefined) => {
-  return role === 'BOSS'
+  return role === 'BOSS' || role === 'PEER_ADMIN'
 }
 
 const UserManagement: React.FC = () => {
@@ -105,21 +110,21 @@ const UserManagement: React.FC = () => {
     if (roleFilter !== 'all') {
       // 特殊处理：当角色为 manager 时，根据当前登录用户类型决定显示内容
       if (roleFilter === 'MANAGER') {
-        // 判断当前登录用户是主账号还是平级账号
-        const isMainAccount = currentUserProfile?.main_account_id === null
-        const isPeerAccount = currentUserProfile?.main_account_id !== null
+        // 判断当前登录用户是主账号（BOSS）还是平级账号（PEER_ADMIN）
+        const isMainAccount = currentUserProfile?.role === 'BOSS'
+        const isPeerAccount = currentUserProfile?.role === 'PEER_ADMIN'
 
         if (isMainAccount) {
-          // 主账号登录：显示车队长 + 平级账号（不显示自己）
+          // 主账号（老板）登录：显示车队长 + 调度（不显示自己）
           filtered = filtered.filter((u) => {
             // 显示车队长
             if (u.role === 'MANAGER') return true
-            // 显示平级账号（但不显示自己）
-            if (isAdminRole(u.role) && u.main_account_id !== null && u.id !== user?.id) return true
+            // 显示调度（PEER_ADMIN）（但不显示自己）
+            if (u.role === 'PEER_ADMIN' && u.id !== user?.id) return true
             return false
           })
         } else if (isPeerAccount) {
-          // 平级账号登录：只显示车队长
+          // 平级账号（调度）登录：只显示车队长
           filtered = filtered.filter((u) => u.role === 'MANAGER')
         } else {
           // 其他情况（理论上不应该出现）：只显示车队长
@@ -130,10 +135,14 @@ const UserManagement: React.FC = () => {
       }
     }
 
-    // 仓库过滤（对所有角色生效）
+    // 仓库过滤（对司机和车队长生效，老板和调度不受仓库过滤限制）
     if (warehouses.length > 0 && warehouses[currentWarehouseIndex]) {
       const currentWarehouseId = warehouses[currentWarehouseIndex].id
       filtered = filtered.filter((u) => {
+        // 老板和调度不受仓库过滤限制，始终显示
+        if (u.role === 'BOSS' || u.role === 'PEER_ADMIN') {
+          return true
+        }
         const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
         // 包含分配到该仓库的用户，以及未分配任何仓库的用户（新用户）
         return userWarehouseIds.includes(currentWarehouseId) || userWarehouseIds.length === 0
@@ -427,37 +436,29 @@ const UserManagement: React.FC = () => {
           throw new Error(authError?.message || '创建用户失败')
         }
 
-        // 2. 单用户架构：在 users 和 user_roles 表中创建记录
-        const [{data: userData, error: userError}, {error: roleError}] = await Promise.all([
-          supabase
-            .from('users')
-            .insert({
-              id: authData.user.id,
-              name: newUserName.trim(),
-              phone: newUserPhone.trim(),
-              permission_type: 'full',
-              status: 'active',
-              main_account_id: user?.id // 设置主账号ID，标记为平级账号
-            })
-            .select()
-            .maybeSingle(),
-          supabase.from('users').insert({
-            user_id: authData.user.id,
-            role: 'BOSS' // 老板角色在数据库中是 super_admin
+        // 2. 单用户架构：在 users 表中创建记录
+        // 注意：平级账号的角色应该是 PEER_ADMIN（调度），而不是 BOSS
+        // 权限完全基于用户角色推断，PEER_ADMIN 角色默认拥有 full_control 权限
+        const {data: userData, error: userError} = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            name: newUserName.trim(),
+            phone: newUserPhone.trim(),
+            status: 'active',
+            main_account_id: user?.id, // 设置主账号ID，标记为平级账号
+            role: 'PEER_ADMIN' // 平级账号角色为调度
           })
-        ])
+          .select()
+          .maybeSingle()
 
         if (userError || !userData) {
           throw new Error(userError?.message || '创建用户档案失败')
         }
 
-        if (roleError) {
-          throw new Error(roleError?.message || '创建用户角色失败')
-        }
-
         const profile = {
           ...userData,
-          role: 'BOSS'
+          role: 'PEER_ADMIN'
         }
 
         newUser = profile
@@ -847,9 +848,12 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
           })
         }
 
-        // 2. 如果是老板操作 → 通知相关仓库的车队长
+        // 2. 如果是老板操作且目标用户是司机 → 通知相关仓库的车队长
+        // 注意：如果目标用户是车队长或管理员，不发送通知给其他车队长
+        // Requirements: 1.1, 1.2, 1.3, 1.4
 
-        if (currentUserProfile && isAdminRole(currentUserProfile.role)) {
+        if (currentUserProfile && isAdminRole(currentUserProfile.role) && userRole === 'DRIVER') {
+          // 只有当目标用户是司机时，才通知相关仓库的车队长
           // 获取所有受影响的仓库（新增的和移除的）
           const affectedWarehouseIds = [...new Set([...addedWarehouseIds, ...removedWarehouseIds])]
 
@@ -919,11 +923,17 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
     })
   }, [])
 
-  // 配置权限
+  /**
+   * 配置权限 - 跳转到权限配置页面
+   * 传递用户ID、用户名和用户角色参数，确保权限配置页面能正确加载用户权限信息
+   * @param targetUser - 目标用户信息
+   * @requirements 2.1, 2.2
+   */
   const handleConfigPermission = useCallback((targetUser: UserWithRealName) => {
-    Taro.navigateTo({
-      url: `/pages/super-admin/permission-config/index?userId=${targetUser.id}&userName=${encodeURIComponent(targetUser.real_name || targetUser.name || targetUser.phone || '')}`
-    })
+    // 构建跳转 URL，包含 userId、userName 和 userRole 参数
+    // userRole 参数用于权限配置页面正确识别用户角色并加载对应权限
+    const url = `/pages/super-admin/permission-config/index?userId=${targetUser.id}&userName=${encodeURIComponent(targetUser.real_name || targetUser.name || targetUser.phone || '')}&userRole=${targetUser.role}`
+    Taro.navigateTo({url})
   }, [])
 
   // 页面显示时加载数据（批量并行查询优化）
@@ -1021,6 +1031,8 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
     switch (role) {
       case 'BOSS':
         return '超级管理员'
+      case 'PEER_ADMIN':
+        return '调度'
       case 'MANAGER':
         return '车队长'
       case 'DRIVER':
@@ -1035,6 +1047,8 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
     switch (role) {
       case 'BOSS':
         return 'bg-red-100 text-red-700'
+      case 'PEER_ADMIN':
+        return 'bg-purple-100 text-purple-700'
       case 'MANAGER':
         return 'bg-blue-100 text-blue-700'
       case 'DRIVER':
@@ -1641,8 +1655,8 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
                       </View>
                     )}
 
-                    {/* 仓库分配按钮（司机、管理员、老板） */}
-                    {(u.role === 'DRIVER' || u.role === 'MANAGER' || isAdminRole(u.role)) && (
+                    {/* 仓库分配按钮（司机、车队长，调度不需要仓库分配） */}
+                    {(u.role === 'DRIVER' || u.role === 'MANAGER') && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1669,22 +1683,24 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
                       </View>
                     )}
 
-                    {/* 配置权限按钮（仅管理员） */}
-                    {u.role === 'MANAGER' && (
+                    {/* 配置权限按钮（车队长和调度） */}
+                    {/* 调度只有权限按钮，需要铺满整行；车队长有仓库分配按钮，权限按钮占一半 */}
+                    {(u.role === 'MANAGER' || u.role === 'PEER_ADMIN') && (
                       <View
                         onClick={(e) => {
                           e.stopPropagation()
                           handleConfigPermission(u)
                         }}
-                        className="flex items-center justify-center bg-rose-50 border border-rose-200 rounded-lg py-2.5 active:bg-rose-100 transition-all">
+                        className={`flex items-center justify-center bg-rose-50 border border-rose-200 rounded-lg py-2.5 active:bg-rose-100 transition-all ${u.role === 'PEER_ADMIN' ? 'col-span-2' : ''}`}>
                         <View className="i-mdi-shield-account text-rose-600 text-lg mr-1.5" />
                         <Text className="text-rose-700 text-sm font-medium">权限</Text>
                       </View>
                     )}
+
                   </View>
 
-                  {/* 仓库分配面板（展开时显示 - 司机、管理员、老板） */}
-                  {(u.role === 'DRIVER' || u.role === 'MANAGER' || isAdminRole(u.role)) && isWarehouseExpanded && (
+                  {/* 仓库分配面板（展开时显示 - 司机、车队长，调度不需要仓库分配） */}
+                  {(u.role === 'DRIVER' || u.role === 'MANAGER') && isWarehouseExpanded && (
                     <View className="px-4 pb-4 bg-gray-50 border-t border-gray-200">
                       <View className="pt-4">
                         <Text className="text-sm font-medium text-gray-700 mb-3 block">选择仓库</Text>

@@ -346,6 +346,10 @@ export async function getAllAttendanceRules(): Promise<AttendanceRule[]> {
 
 /**
  * 创建考勤规则
+ * 
+ * 注意：数据库中使用 work_start_time 和 work_end_time 字段
+ * clock_in_time 和 clock_out_time 会自动映射到这些字段
+ * 
  * @param input - 考勤规则输入数据
  * @returns 创建的考勤规则对象，失败抛出错误
  */
@@ -359,14 +363,17 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
     throw new Error('用户未登录')
   }
 
+  // 将 clock_in_time/clock_out_time 映射到 work_start_time/work_end_time
+  // 数据库中只有 work_start_time 和 work_end_time 字段
+  const workStartTime = input.work_start_time || input.clock_in_time
+  const workEndTime = input.work_end_time || input.clock_out_time
+
   const {data, error} = await supabase
     .from('attendance_rules')
     .insert({
       warehouse_id: input.warehouse_id,
-      clock_in_time: input.clock_in_time,
-      clock_out_time: input.clock_out_time,
-      work_start_time: input.work_start_time,
-      work_end_time: input.work_end_time,
+      work_start_time: workStartTime,
+      work_end_time: workEndTime,
       late_threshold: input.late_threshold || 15,
       early_threshold: input.early_threshold || 15,
       require_clock_out: input.require_clock_out !== undefined ? input.require_clock_out : true,
@@ -377,7 +384,7 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
 
   if (error) {
     console.error('创建考勤规则失败:', error)
-    throw new Error('创建考勤规则失败，请稀后重试')
+    throw new Error('创建考勤规则失败，请稍后重试')
   }
 
   // 发布考勤规则创建事件，通知相关页面刷新
@@ -394,12 +401,34 @@ export async function createAttendanceRule(input: AttendanceRuleInput): Promise<
 
 /**
  * 更新考勤规则
+ * 
+ * 注意：数据库中使用 work_start_time 和 work_end_time 字段
+ * clock_in_time 和 clock_out_time 会自动映射到这些字段
+ * 
  * @param id - 考勤规则ID
  * @param update - 更新数据
  * @returns 是否更新成功
  */
 export async function updateAttendanceRule(id: string, update: AttendanceRuleUpdate): Promise<boolean> {
-  const {error} = await supabase.from('attendance_rules').update(update).eq('id', id)
+  // 将 clock_in_time/clock_out_time 映射到 work_start_time/work_end_time
+  // 数据库中只有 work_start_time 和 work_end_time 字段
+  const dbUpdate: Record<string, unknown> = {}
+
+  // 映射时间字段
+  if (update.clock_in_time || update.work_start_time) {
+    dbUpdate.work_start_time = update.work_start_time || update.clock_in_time
+  }
+  if (update.clock_out_time || update.work_end_time) {
+    dbUpdate.work_end_time = update.work_end_time || update.clock_out_time
+  }
+
+  // 复制其他字段
+  if (update.late_threshold !== undefined) dbUpdate.late_threshold = update.late_threshold
+  if (update.early_threshold !== undefined) dbUpdate.early_threshold = update.early_threshold
+  if (update.require_clock_out !== undefined) dbUpdate.require_clock_out = update.require_clock_out
+  if (update.is_active !== undefined) dbUpdate.is_active = update.is_active
+
+  const {error} = await supabase.from('attendance_rules').update(dbUpdate).eq('id', id)
   if (error) {
     console.error('更新考勤规则失败:', error)
     return false
@@ -408,7 +437,7 @@ export async function updateAttendanceRule(id: string, update: AttendanceRuleUpd
   // 发布考勤规则更新事件，通知相关页面刷新
   publish('attendance_rule:updated', {
     id,
-    ...update
+    ...dbUpdate
   })
 
   return true

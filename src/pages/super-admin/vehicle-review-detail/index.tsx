@@ -1,7 +1,7 @@
 /**
  * 车辆信息详细审核页面
  * 老板审核车辆图片
- * 功能：锁定图片、删除图片、通过审核、要求补录
+ * 功能：锁定图片、删除图片、通过审核、要求补录、显示补录标记
  */
 
 import {Button, Image, ScrollView, Text, Textarea, View} from '@tarojs/components'
@@ -11,10 +11,11 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import SafeAreaTop from '@/components/SafeAreaTop'
+import {SupplementedBadge} from '@/components/SupplementedBadge'
 import TopNavBar from '@/components/TopNavBar'
 import {getRegistrationPhotoConfigByIndex, getVehiclePhotoConfigByIndex} from '@/constants/photo-positions'
 import * as VehiclesAPI from '@/db/api/vehicles'
-import type {VehicleWithDriverDetails} from '@/db/types'
+import type {SupplementedPhotos, VehicleWithDriverDetails} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
@@ -69,6 +70,8 @@ const VehicleReviewDetail: React.FC = () => {
   const [reviewNotes, setReviewNotes] = useState('')
   const [lockedPhotos, setLockedPhotos] = useState<LockedPhotosMap>({})
   const [requiredPhotos, setRequiredPhotos] = useState<string[]>([])
+  // 补录照片元数据，用于显示补录标记
+  const [supplementedPhotos, setSupplementedPhotos] = useState<SupplementedPhotos>({})
   const [submitting, setSubmitting] = useState(false)
   const [fromHistory, setFromHistory] = useState(false) // 是否从历史记录页面跳转过来
 
@@ -86,6 +89,10 @@ const VehicleReviewDetail: React.FC = () => {
       setLockedPhotos(data.locked_photos || {})
       setRequiredPhotos(data.required_photos || [])
       setReviewNotes(data.review_notes || '')
+
+      // 加载补录照片元数据
+      const supplementedData = await VehiclesAPI.getSupplementedPhotos(vehicleId)
+      setSupplementedPhotos(supplementedData)
     } catch (error) {
       logger.error('加载车辆信息失败', error)
       showToast({title: '加载失败', icon: 'none'})
@@ -120,7 +127,8 @@ const VehicleReviewDetail: React.FC = () => {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path
     }
-    const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
+    // 使用已存在的 h5-app 存储桶
+    const bucketName = 'h5-app'
     try {
       const {data} = supabase.storage.from(bucketName).getPublicUrl(path)
       return data.publicUrl
@@ -142,36 +150,49 @@ const VehicleReviewDetail: React.FC = () => {
     return requiredPhotos.includes(photoKey)
   }
 
+  /**
+   * 检查图片是否已补录
+   * @param field - 照片字段名
+   * @param index - 照片索引
+   * @returns 补录元数据，如果未补录则返回 null
+   */
+  const getSupplementedMeta = (field: string, index: number) => {
+    const photoKey = `${field}_${index}`
+    return supplementedPhotos[photoKey] || null
+  }
+
   // 切换图片锁定状态
-  const togglePhotoLock = async (field: string, index: number) => {
+  const handleTogglePhotoLock = async (field: string, index: number) => {
     if (!vehicle) return
 
-    const locked = isPhotoLocked(field, index)
+    // 判断当前是否已锁定，决定执行锁定还是解锁操作
+    const currentlyLocked = isPhotoLocked(field, index)
+    // 新状态：如果当前已锁定则解锁（false），否则锁定（true）
+    const newLockState = !currentlyLocked
 
     try {
-      if (locked) {
-        // 解锁
-        const success = await VehiclesAPI.unlockPhoto(vehicle.id, field, index)
-        if (success) {
-          const newLockedPhotos = {...lockedPhotos}
-          const fieldLocks = newLockedPhotos[field] || []
-          newLockedPhotos[field] = fieldLocks.filter((i) => i !== index)
-          setLockedPhotos(newLockedPhotos)
-          showToast({title: '已解锁', icon: 'success'})
-        }
-      } else {
-        // 锁定
-        const success = await VehiclesAPI.lockPhoto(vehicle.id, field, index)
-        if (success) {
-          const newLockedPhotos = {...lockedPhotos}
-          const fieldLocks = newLockedPhotos[field] || []
+      // 调用合并后的 togglePhotoLock API
+      const success = await VehiclesAPI.togglePhotoLock(vehicle.id, field, index, newLockState)
+
+      if (success) {
+        // 更新本地状态
+        const newLockedPhotos = {...lockedPhotos}
+        const fieldLocks = newLockedPhotos[field] || []
+
+        if (newLockState) {
+          // 锁定操作：添加到锁定列表
           if (!fieldLocks.includes(index)) {
             fieldLocks.push(index)
           }
           newLockedPhotos[field] = fieldLocks
-          setLockedPhotos(newLockedPhotos)
           showToast({title: '已锁定', icon: 'success'})
+        } else {
+          // 解锁操作：从锁定列表移除
+          newLockedPhotos[field] = fieldLocks.filter((i) => i !== index)
+          showToast({title: '已解锁', icon: 'success'})
         }
+
+        setLockedPhotos(newLockedPhotos)
       }
     } catch (error) {
       logger.error('切换图片锁定状态失败', error)
@@ -311,15 +332,16 @@ const VehicleReviewDetail: React.FC = () => {
             }
 
             // 如果有需要锁定的照片，则锁定它们
+            // 注意：locked_photos 字段在 vehicle_documents 表中，不在 vehicles 表中
             if (totalLockedCount > 0) {
-              // 更新锁定的照片
+              // 更新锁定的照片到 vehicle_documents 表
               const {error: lockError} = await supabase
-                .from('vehicles')
+                .from('vehicle_documents')
                 .update({
                   locked_photos: lockedPhotosData,
                   updated_at: new Date().toISOString()
                 })
-                .eq('id', vehicle.id)
+                .eq('vehicle_id', vehicle.id)
 
               if (lockError) {
                 logger.error('锁定照片失败', lockError)
@@ -371,6 +393,16 @@ const VehicleReviewDetail: React.FC = () => {
     <View style={{background: 'linear-gradient(to bottom, #FEF3C7, #FDE68A)', minHeight: '100vh'}}>
       <ScrollView scrollY className="h-screen box-border" style={{background: 'transparent'}}>
         <View className={`p-4 ${fromHistory ? 'pb-4' : 'pb-32'}`}>
+          {/* 审核类型标识 - 区分提车审核和还车审核 */}
+          <View className={`rounded-xl p-4 mb-4 ${vehicle.status === 'returned' ? 'bg-orange-100 border-2 border-orange-400' : 'bg-green-100 border-2 border-green-400'}`}>
+            <View className="flex items-center justify-center">
+              <View className={`${vehicle.status === 'returned' ? 'i-mdi-car-arrow-left text-orange-600' : 'i-mdi-car text-green-600'} text-3xl mr-3`}></View>
+              <Text className={`text-xl font-bold ${vehicle.status === 'returned' ? 'text-orange-800' : 'text-green-800'}`}>
+                {vehicle.status === 'returned' ? '还车审核' : '提车审核'}
+              </Text>
+            </View>
+          </View>
+
           {/* 车辆基本信息 */}
           <View className="bg-white rounded-2xl p-4 mb-4 shadow-lg">
             <View className="flex items-center mb-3">
@@ -635,6 +667,9 @@ const VehicleReviewDetail: React.FC = () => {
                       positionConfig = getRegistrationPhotoConfigByIndex(index)
                     }
 
+                    // 获取补录元数据
+                    const supplementedMeta = getSupplementedMeta(config.field, index)
+
                     return (
                       <View key={index} className="relative">
                         {/* 照片位置标注 */}
@@ -648,9 +683,10 @@ const VehicleReviewDetail: React.FC = () => {
                           </View>
                         )}
 
-                        {/* 图片 */}
+                        {/* 图片容器 - 补录照片添加高亮边框 */}
                         <View
-                          className="relative w-full h-40 rounded-lg overflow-hidden bg-gray-100"
+                          className={`relative w-full h-40 rounded-lg overflow-hidden bg-gray-100 ${supplementedMeta ? 'border-2 border-orange-500 shadow-lg' : ''}`}
+                          style={supplementedMeta ? {boxShadow: '0 0 8px rgba(255, 107, 53, 0.4)'} : {}}
                           onClick={() => imageUrl && previewImage(imageUrl, photos.map(getImageUrl).filter(Boolean))}>
                           {imageUrl ? (
                             <Image
@@ -663,6 +699,15 @@ const VehicleReviewDetail: React.FC = () => {
                             <View className="w-full h-full flex items-center justify-center">
                               <View className="i-mdi-image-off text-4xl text-gray-400"></View>
                             </View>
+                          )}
+
+                          {/* 补录标记 - 显示在右上角 */}
+                          {supplementedMeta && (
+                            <SupplementedBadge
+                              supplementedAt={supplementedMeta.supplemented_at}
+                              supplementCount={supplementedMeta.supplement_count}
+                              showDetail
+                            />
                           )}
 
                           {/* 锁定标识 */}
@@ -687,7 +732,7 @@ const VehicleReviewDetail: React.FC = () => {
                           <Button
                             className={`flex-1 ${locked ? 'bg-gray-400' : 'bg-blue-500'} text-white py-1 rounded break-keep text-xs`}
                             size="mini"
-                            onClick={() => togglePhotoLock(config.field, index)}>
+                            onClick={() => handleTogglePhotoLock(config.field, index)}>
                             <View className="flex items-center justify-center">
                               <View className={`${locked ? 'i-mdi-lock-open' : 'i-mdi-lock'} text-sm mr-1`}></View>
                               <Text>{locked ? '解锁' : '锁定'}</Text>
@@ -728,6 +773,13 @@ const VehicleReviewDetail: React.FC = () => {
               <View className="flex-1 bg-gradient-to-r from-red-50 to-red-100 rounded-lg p-3">
                 <Text className="text-xs text-red-600 mb-1">需补录</Text>
                 <Text className="text-2xl font-bold text-red-700">{requiredPhotos.length}</Text>
+              </View>
+              {/* 已补录照片统计 */}
+              <View className="flex-1 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3">
+                <Text className="text-xs text-orange-600 mb-1">已补录</Text>
+                <Text className="text-2xl font-bold text-orange-700">
+                  {Object.keys(supplementedPhotos).length}
+                </Text>
               </View>
             </View>
           </View>

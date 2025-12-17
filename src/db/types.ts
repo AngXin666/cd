@@ -41,14 +41,84 @@ export interface UserUpdate {
   avatar_url?: string
 }
 
-// 用户与角色组合接口（推荐使用）
+/**
+ * 用户与角色组合接口（推荐使用）
+ * 
+ * 该接口对应数据库 users 表的完整结构，包含：
+ * - 基本信息：id, name, email, phone, avatar_url
+ * - 角色信息：role, driver_type
+ * - 权限信息：manager_permissions_enabled, main_account_id, peer_account_permission
+ * - 扩展信息：nickname, join_date, company_name, vehicle_plate, status, is_active
+ * - 地址信息：address_province, address_city, address_district, address_detail
+ * - 紧急联系人：emergency_contact_name, emergency_contact_phone, emergency_contact_relationship
+ * - 租赁信息：lease_start_date, lease_end_date, monthly_fee, notes
+ * - 会话信息：session_token, session_created_at
+ * - 时间戳：created_at, updated_at
+ */
 export interface UserWithRole {
+  // 基本信息
   id: string
   phone: string | null
   email: string | null
   name: string
-  role: UserRole | null
   avatar_url: string | null
+  // 角色信息
+  role: UserRole | null
+  /** 司机类型：pure（纯司机）或 with_vehicle（带车司机） */
+  driver_type?: 'pure' | 'with_vehicle' | null
+  // 权限信息
+  /** 车队长权限启用状态：true=完整权限(full_control)，false=仅查看权限(view_only) */
+  manager_permissions_enabled?: boolean
+  /** 主账号ID：null 表示是主账号，非 null 表示是平级账号（调度） */
+  main_account_id?: string | null
+  /** 平级账号权限：true=完整权限，false=仅查看权限 */
+  peer_account_permission?: boolean | null
+  // 扩展信息
+  /** 昵称 */
+  nickname?: string | null
+  /** 入职日期 */
+  join_date?: string | null
+  /** 公司名称 */
+  company_name?: string | null
+  /** 车牌号 */
+  vehicle_plate?: string | null
+  /** 登录账号 */
+  login_account?: string | null
+  /** 状态 */
+  status?: string | null
+  /** 是否激活 */
+  is_active?: boolean | null
+  // 地址信息
+  /** 省份 */
+  address_province?: string | null
+  /** 城市 */
+  address_city?: string | null
+  /** 区县 */
+  address_district?: string | null
+  /** 详细地址 */
+  address_detail?: string | null
+  // 紧急联系人
+  /** 紧急联系人姓名 */
+  emergency_contact_name?: string | null
+  /** 紧急联系人电话 */
+  emergency_contact_phone?: string | null
+  /** 紧急联系人关系 */
+  emergency_contact_relationship?: string | null
+  // 租赁信息（兼容旧代码）
+  /** 租赁开始日期 */
+  lease_start_date?: string | null
+  /** 租赁结束日期 */
+  lease_end_date?: string | null
+  /** 月租金 */
+  monthly_fee?: number | null
+  /** 备注 */
+  notes?: string | null
+  // 会话信息（单点登录）
+  /** 会话令牌 */
+  session_token?: string | null
+  /** 会话创建时间 */
+  session_created_at?: string | null
+  // 时间戳
   created_at: string
   updated_at: string
 }
@@ -87,15 +157,22 @@ export interface Profile {
   login_account?: string | null
   status?: string | null
   peer_account_permission?: boolean | null
+  // 会话令牌字段（审计补充，用于单点登录）
+  session_token?: string | null
 }
 
+/**
+ * 用户资料更新接口
+ * 用于更新用户基本信息
+ * 注意：不包含 permission_type 字段，权限级别基于 role 和 manager_permissions_enabled 推断
+ */
 export interface ProfileUpdate {
   name?: string
   phone?: string
   email?: string
   avatar_url?: string
   role?: UserRole
-  permission_type?: string
+  // 注意：已移除 permission_type 字段，权限级别基于 role 和 manager_permissions_enabled 推断
   vehicle_plate?: string
   warehouse_ids?: string[]
   status?: string
@@ -214,6 +291,33 @@ export interface WarehouseAssignmentInput {
 
 // ==================== 车辆相关类型 ====================
 
+// ==================== 补录照片元数据类型 ====================
+
+/**
+ * 补录照片元数据
+ * 存储在 vehicle_documents.supplemented_photos 字段中
+ * 用于记录每张补录照片的详细信息
+ */
+export interface SupplementedPhotoMeta {
+  /** 照片字段名，如 "pickup_photos" */
+  field: string
+  /** 照片在数组中的索引 */
+  index: number
+  /** 补录时间戳（ISO 8601 格式） */
+  supplemented_at: string
+  /** 原始照片URL（如果有） */
+  original_url?: string | null
+  /** 补录次数（累计） */
+  supplement_count: number
+}
+
+/**
+ * supplemented_photos 字段类型
+ * 键为 "{field}_{index}"，值为补录元数据
+ * 例如：{ "pickup_photos_0": { field: "pickup_photos", index: 0, ... } }
+ */
+export type SupplementedPhotos = Record<string, SupplementedPhotoMeta>
+
 // 车辆所有权类型
 export type OwnershipType = 'company' | 'personal'
 
@@ -319,6 +423,8 @@ export interface VehicleDocument {
   registration_photos: string[] | null
   return_photos: string[] | null
   return_time: string | null
+  /** 补录照片元数据，键为 "{field}_{index}"，值为补录详情 */
+  supplemented_photos: SupplementedPhotos | null
   created_at: string
   updated_at: string
 }
@@ -460,7 +566,14 @@ export interface VehicleDocumentInput {
 }
 
 // 更新车辆核心信息的输入接口
+/**
+ * 更新车辆核心信息的输入接口
+ * 
+ * 注意：扩展字段（照片数组、租赁信息等）会更新到 vehicle_documents 表
+ * 核心字段更新到 vehicles 表
+ */
 export interface VehicleUpdate {
+  // 核心字段（vehicles 表）
   plate_number?: string
   brand?: string
   model?: string
@@ -480,11 +593,17 @@ export interface VehicleUpdate {
   notes?: string
   reviewed_at?: string
   reviewed_by?: string
-  // 扩展字段（支持车辆页面更新使用）
+  // 扩展字段（vehicle_documents 表）
   review_notes?: string
   required_photos?: string[]
+  // 照片数组字段（审计补充：确保与 VehicleDocumentUpdate 一致）
   damage_photos?: string[]
+  pickup_photos?: string[]
+  return_photos?: string[]
+  registration_photos?: string[]
+  // 时间字段
   pickup_time?: string
+  return_time?: string
   // 租赁相关字段
   lessor_name?: string
   lessor_contact?: string
@@ -624,27 +743,6 @@ export interface VehicleLeaseInfo extends VehicleBase {
   lease_status?: string | null
 }
 
-// 车辆记录接口（vehicle_records 表）
-export interface VehicleRecord {
-  id: string
-  vehicle_id: string
-  driver_id: string
-  record_type: string
-  start_date: string
-  end_date?: string | null
-  rental_fee?: number | null
-  deposit?: number | null
-  status: string
-  pickup_photos?: string[] | null
-  return_photos?: string[] | null
-  registration_photos?: string[] | null
-  damage_photos?: string[] | null
-  locked_photos?: Record<string, unknown> | null
-  notes?: string | null
-  created_at: string
-  updated_at: string
-}
-
 // 车辆记录输入接口
 export interface VehicleRecordInput {
   vehicle_id: string
@@ -715,17 +813,6 @@ export interface VehicleRecordInput {
   pickup_time?: string
   return_time?: string
   recorded_at?: string
-}
-
-// 车辆基本信息带记录接口
-export interface VehicleBaseWithRecords extends VehicleBase {
-  records?: VehicleRecord[]
-}
-
-// 车辆记录带详细信息接口
-export interface VehicleRecordWithDetails extends VehicleRecord {
-  vehicle?: VehicleBase
-  driver?: Profile
 }
 
 // ==================== 考勤相关类型 ====================
@@ -1010,28 +1097,55 @@ export interface AttendanceRule {
   enabled?: boolean
 }
 
-// 创建考勤规则的输入接口
+/**
+ * 创建考勤规则的输入接口
+ * 
+ * 注意：数据库中使用 work_start_time 和 work_end_time 字段
+ * clock_in_time 和 clock_out_time 是兼容字段，会映射到 work_start_time 和 work_end_time
+ */
 export interface AttendanceRuleInput {
-  warehouse_id?: string | null // 可选，NULL表示全局规则
-  clock_in_time: string
-  clock_out_time: string
+  /** 仓库ID，可选，NULL表示全局规则 */
+  warehouse_id?: string | null
+  /** 上班打卡时间（兼容字段，映射到 work_start_time） */
+  clock_in_time?: string
+  /** 下班打卡时间（兼容字段，映射到 work_end_time） */
+  clock_out_time?: string
+  /** 迟到阈值（分钟） */
   late_threshold?: number
+  /** 早退阈值（分钟） */
   early_threshold?: number
+  /** 工作开始时间 */
   work_start_time?: string
+  /** 工作结束时间 */
   work_end_time?: string
+  /** 是否启用 */
   is_active?: boolean
+  /** 是否需要下班打卡 */
   require_clock_out?: boolean
 }
 
-// 更新考勤规则的输入接口
+/**
+ * 更新考勤规则的输入接口
+ * 
+ * 注意：数据库中使用 work_start_time 和 work_end_time 字段
+ * clock_in_time 和 clock_out_time 是兼容字段，会映射到 work_start_time 和 work_end_time
+ */
 export interface AttendanceRuleUpdate {
+  /** 上班打卡时间（兼容字段，映射到 work_start_time） */
   clock_in_time?: string
+  /** 下班打卡时间（兼容字段，映射到 work_end_time） */
   clock_out_time?: string
+  /** 迟到阈值（分钟） */
   late_threshold?: number
+  /** 早退阈值（分钟） */
   early_threshold?: number
+  /** 工作开始时间 */
   work_start_time?: string
+  /** 工作结束时间 */
   work_end_time?: string
+  /** 是否需要下班打卡 */
   require_clock_out?: boolean
+  /** 是否启用 */
   is_active?: boolean
 }
 
@@ -1088,59 +1202,132 @@ export interface VehicleWithDriverDetails extends Vehicle {
 // 司机类型
 export type DriverType = 'full_time' | 'part_time' | 'temporary' | 'pure' | 'with_vehicle'
 
-// 驾照信息接口（保留用于兼容性）
+/**
+ * 驾驶证信息接口
+ * 对应数据库 driver_licenses 表
+ * 
+ * 字段说明：
+ * - 身份证相关：id_card_name, id_card_number, id_card_address, id_card_birth_date, id_card_photo_front, id_card_photo_back
+ * - 驾驶证相关：license_number, license_class, first_issue_date, valid_from, valid_to, issue_authority, driving_license_photo
+ * - 状态字段：status (active/inactive/expired)
+ */
 export interface DriverLicense {
+  /** 主键 */
   id: string
+  /** 司机用户ID */
   driver_id: string
-  license_number: string
-  license_type: string
-  issue_date: string
-  expiry_date: string
+  /** 驾驶证号 */
+  license_number: string | null
+  /** 创建时间 */
   created_at: string
+  /** 更新时间 */
   updated_at: string
-  // 兼容旧代码的可选字段
-  id_card_photo_front?: string | null
-  id_card_photo_back?: string | null
-  driving_license_photo?: string | null
-  id_card_birth_date?: string | null
-  first_issue_date?: string | null
+  // 身份证相关字段
+  /** 身份证姓名 */
   id_card_name?: string | null
+  /** 身份证号码 */
   id_card_number?: string | null
+  /** 身份证地址 */
   id_card_address?: string | null
+  /** 出生日期 */
+  id_card_birth_date?: string | null
+  /** 身份证正面照片URL */
+  id_card_photo_front?: string | null
+  /** 身份证反面照片URL */
+  id_card_photo_back?: string | null
+  // 驾驶证相关字段
+  /** 准驾车型 */
   license_class?: string | null
+  /** 初次领证日期 */
+  first_issue_date?: string | null
+  /** 驾驶证有效期起 */
   valid_from?: string | null
+  /** 驾驶证有效期至 */
   valid_to?: string | null
+  /** 签发机关 */
   issue_authority?: string | null
+  /** 驾驶证照片URL */
+  driving_license_photo?: string | null
+  /** 状态：active（有效）、inactive（无效）、expired（已过期） */
+  status?: string | null
 }
 
-// 创建驾照信息的输入接口
+/**
+ * 创建/更新驾驶证信息的输入接口
+ * 用于 upsertDriverLicense 函数
+ * 
+ * 注意：只有 driver_id 是必填字段，其他字段都是可选的
+ */
 export interface DriverLicenseInput {
+  /** 司机用户ID（必填） */
   driver_id: string
-  license_number: string
-  license_type: string
-  issue_date: string
-  expiry_date: string
+  /** 驾驶证号 */
+  license_number?: string
+  // 身份证相关字段
+  /** 身份证姓名 */
   id_card_name?: string
+  /** 身份证号码 */
   id_card_number?: string
-  license_class?: string
-  valid_from?: string
-  valid_to?: string
-  id_card_photo_front?: string
-  id_card_photo_back?: string
-  driving_license_photo?: string
-  id_card_birth_date?: string
-  first_issue_date?: string
+  /** 身份证地址 */
   id_card_address?: string
+  /** 出生日期 */
+  id_card_birth_date?: string | null
+  /** 身份证正面照片URL */
+  id_card_photo_front?: string
+  /** 身份证反面照片URL */
+  id_card_photo_back?: string
+  // 驾驶证相关字段
+  /** 准驾车型 */
+  license_class?: string
+  /** 初次领证日期 */
+  first_issue_date?: string | null
+  /** 驾驶证有效期起 */
+  valid_from?: string
+  /** 驾驶证有效期至 */
+  valid_to?: string
+  /** 签发机关 */
   issue_authority?: string
+  /** 驾驶证照片URL */
+  driving_license_photo?: string
+  /** 状态：active（有效）、inactive（无效）、expired（已过期） */
   status?: string
 }
 
-// 更新驾照信息的输入接口
+/**
+ * 更新驾驶证信息的输入接口
+ * 用于 updateDriverLicense 函数
+ */
 export interface DriverLicenseUpdate {
+  /** 驾驶证号 */
   license_number?: string
-  license_type?: string
-  issue_date?: string
-  expiry_date?: string
+  // 身份证相关字段
+  /** 身份证姓名 */
+  id_card_name?: string
+  /** 身份证号码 */
+  id_card_number?: string
+  /** 身份证地址 */
+  id_card_address?: string
+  /** 出生日期 */
+  id_card_birth_date?: string | null
+  /** 身份证正面照片URL */
+  id_card_photo_front?: string
+  /** 身份证反面照片URL */
+  id_card_photo_back?: string
+  // 驾驶证相关字段
+  /** 准驾车型 */
+  license_class?: string
+  /** 初次领证日期 */
+  first_issue_date?: string | null
+  /** 驾驶证有效期起 */
+  valid_from?: string
+  /** 驾驶证有效期至 */
+  valid_to?: string
+  /** 签发机关 */
+  issue_authority?: string
+  /** 驾驶证照片URL */
+  driving_license_photo?: string
+  /** 状态：active（有效）、inactive（无效）、expired（已过期） */
+  status?: string
 }
 
 // ==================== 租赁管理（已废弃 - 多租户相关）====================
@@ -1232,25 +1419,38 @@ export interface ApplicationReviewInput {
   reviewed_at?: string
 }
 
-// ==================== 权限管理（已废弃 - 多租户相关）====================
+// ==================== 权限管理（应用层权限对象）====================
 
-// 管理员权限接口（保留用于兼容性）
+/**
+ * 管理员权限接口
+ * 用于表示应用层推断出的权限级别
+ * 注意：permission_type 是应用层的权限级别（如 'full_control' 或 'view_only'），
+ * 不是数据库字段，而是基于 users.role 和 users.manager_permissions_enabled 推断出来的
+ */
 export interface ManagerPermission {
   id: string
   manager_id: string
+  /** 应用层权限级别：'full_control' 或 'view_only'，基于用户角色推断 */
   permission_type: string
   created_at: string
   updated_at?: string
-  // 兼容旧代码的可选字段
+  /** 是否可以编辑用户信息 */
   can_edit_user_info?: boolean
+  /** 是否可以编辑计件工作 */
   can_edit_piece_work?: boolean
+  /** 是否可以管理考勤规则 */
   can_manage_attendance_rules?: boolean
+  /** 是否可以管理分类 */
   can_manage_categories?: boolean
 }
 
-// 创建管理员权限的输入接口
+/**
+ * 创建管理员权限的输入接口
+ * 注意：permission_type 是应用层的权限级别，不是数据库字段
+ */
 export interface ManagerPermissionInput {
   manager_id: string
+  /** 应用层权限级别：'full_control' 或 'view_only' */
   permission_type?: string
   can_edit_user_info?: boolean
   can_edit_piece_work?: boolean

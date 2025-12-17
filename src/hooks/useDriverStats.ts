@@ -71,15 +71,28 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       if (warehouseId) {
         // 如果指定了仓库，需要通过 warehouse_assignments 表过滤
         // 同时需要确保只统计角色为 DRIVER 的用户（排除车队长和平级账号）
-        const {data: assignedDrivers} = await supabase
+        // 修复：先获取仓库分配的用户ID，再过滤司机角色
+        const {data: assignedUsers, error: assignError} = await supabase
           .from('warehouse_assignments')
-          .select('user_id, users!inner(id)')
+          .select('user_id')
           .eq('warehouse_id', warehouseId)
 
-        // 获取这些用户的角色信息
-        if (assignedDrivers && assignedDrivers.length > 0) {
-          const userIds = assignedDrivers.map((a) => a.user_id)
-          const {data: driverRoles} = await supabase.from('users').select('id').eq('role', 'DRIVER').in('id', userIds)
+        if (assignError) {
+          console.error('[useDriverStats] 查询仓库分配失败:', assignError)
+        }
+
+        // 获取这些用户中角色为 DRIVER 的用户
+        if (assignedUsers && assignedUsers.length > 0) {
+          const userIds = assignedUsers.map((a) => a.user_id)
+          const {data: driverRoles, error: roleError} = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'DRIVER')
+            .in('id', userIds)
+
+          if (roleError) {
+            console.error('[useDriverStats] 查询司机角色失败:', roleError)
+          }
 
           driverIds = driverRoles?.map((d) => d.id) || []
         }
@@ -98,7 +111,10 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         }
       } else {
         // 获取所有司机ID（只统计角色为 DRIVER 的用户）
-        const {data: allDrivers} = await supabase.from('users').select('id').eq('role', 'DRIVER')
+        const {data: allDrivers, error: allError} = await supabase.from('users').select('id').eq('role', 'DRIVER')
+        if (allError) {
+          console.error('[useDriverStats] 查询所有司机失败:', allError)
+        }
         driverIds = allDrivers?.map((d) => d.id) || []
       }
 

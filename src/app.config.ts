@@ -83,7 +83,8 @@ const subPackages = [
       'user-detail/index',
       'staff-management/index',
       'permission-config/index',
-      'edit-user/index'
+      'edit-user/index',
+      'admin-profile/index'
     ]
   },
   // 个人资料分包

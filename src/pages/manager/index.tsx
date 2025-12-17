@@ -24,6 +24,7 @@ import {hideLoading, showLoading} from '@/utils/taroCompat'
 
 import type {Profile} from '@/db/types'
 import {
+  useBackButtonBlock,
   useDashboardData,
   useDriverStats,
   useNotifications,
@@ -31,7 +32,8 @@ import {
   useWarehousesData,
   useWarehousesSorted
 } from '@/hooks'
-import {smartLogout} from '@/utils/auth'
+import {smartLogout, isLogoutInProgress} from '@/utils/auth'
+import {startRealtimeMonitor} from '@/utils/sessionManager'
 
 // 检测当前运行环境
 const isH5 = process.env.TARO_ENV === 'h5'
@@ -60,6 +62,9 @@ const ManagerHome: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 首页返回键拦截：防止用户在首页按返回键退出应用
+  useBackButtonBlock()
 
   // 通知管理
   const {addNotification} = useNotifications()
@@ -151,6 +156,8 @@ const ManagerHome: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadProfile()
+      // 启动实时会话监听（优先使用 WebSocket，失败时降级到轮询）
+      startRealtimeMonitor(user.id)
     }
   }, [user, loadProfile])
 
@@ -298,8 +305,9 @@ const ManagerHome: React.FC = () => {
 
   // 初始加载状态：当用户信息还未加载时显示加载界面
   // 使用 showLoading/hideLoading 处理加载状态
+  // 注意：如果正在退出登录，不显示 loading，避免退出时闪现 "加载用户信息中..."
   useEffect(() => {
-    if (!user) {
+    if (!user && !isLogoutInProgress()) {
       showLoading({title: '加载用户信息中...'})
     } else {
       hideLoading()

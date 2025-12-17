@@ -1,5 +1,8 @@
 {
-  
+  /**
+   * TypeScript 编译检查配置
+   * 用于快速检查代码类型错误，排除测试文件
+   */
   "include": ["./src", "./types"],
   "exclude": ["./src/**/*.test.ts", "./src/**/*.spec.ts"],
   "compilerOptions": {
@@ -12,6 +15,7 @@
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@/*": ["./src/*"]

@@ -353,6 +353,50 @@ export function setStorageSync<T = unknown>(key: string, data: T): void {
 }
 
 /**
+ * setStorage 异步版本兼容
+ * H5环境使用localStorage
+ */
+export interface SetStorageOptions<T = unknown> {
+  key: string
+  data: T
+  success?: () => void
+  fail?: (error: any) => void
+  complete?: () => void
+}
+
+export function setStorage<T = unknown>(options: SetStorageOptions<T>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (isH5) {
+      try {
+        localStorage.setItem(options.key, JSON.stringify(options.data))
+        options.success?.()
+        options.complete?.()
+        resolve()
+      } catch (e) {
+        logger.error('setStorage失败', e)
+        options.fail?.(e)
+        options.complete?.()
+        reject(e)
+      }
+    } else {
+      Taro.setStorage({
+        key: options.key,
+        data: options.data,
+        success: () => {
+          options.success?.()
+          resolve()
+        },
+        fail: (err) => {
+          options.fail?.(err)
+          reject(err)
+        },
+        complete: options.complete
+      })
+    }
+  })
+}
+
+/**
  * removeStorageSync 兼容
  * H5环境使用localStorage
  */
@@ -362,6 +406,190 @@ export function removeStorageSync(key: string): void {
   } else {
     Taro.removeStorageSync(key)
   }
+}
+
+/**
+ * removeStorage 异步版本兼容
+ * H5环境使用localStorage.removeItem
+ * 
+ * @description 删除指定 key 的本地存储数据
+ * 支持 success/fail/complete 回调，同时返回 Promise
+ */
+export interface RemoveStorageOptions {
+  /** 要删除的存储键名 */
+  key: string
+  /** 删除成功的回调函数 */
+  success?: () => void
+  /** 删除失败的回调函数 */
+  fail?: (error: any) => void
+  /** 操作完成的回调函数（无论成功或失败都会调用） */
+  complete?: () => void
+}
+
+/**
+ * 异步删除本地存储数据
+ * 
+ * @param options - 删除存储选项
+ * @param options.key - 要删除的存储键名
+ * @param options.success - 删除成功的回调函数
+ * @param options.fail - 删除失败的回调函数
+ * @param options.complete - 操作完成的回调函数
+ * @returns Promise<void> - 删除操作的 Promise
+ * 
+ * @example
+ * // 使用 Promise
+ * await removeStorage({ key: 'userToken' })
+ * 
+ * // 使用回调
+ * removeStorage({
+ *   key: 'userToken',
+ *   success: () => console.log('删除成功'),
+ *   fail: (err) => console.error('删除失败', err),
+ *   complete: () => console.log('操作完成')
+ * })
+ */
+export function removeStorage(options: RemoveStorageOptions): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (isH5) {
+      // H5 环境：使用 localStorage.removeItem
+      try {
+        localStorage.removeItem(options.key)
+        // 调用成功回调
+        options.success?.()
+        // 调用完成回调
+        options.complete?.()
+        // Promise resolve
+        resolve()
+      } catch (e) {
+        // 记录错误日志
+        logger.error('removeStorage失败', e)
+        // 调用失败回调
+        options.fail?.(e)
+        // 调用完成回调
+        options.complete?.()
+        // Promise reject
+        reject(e)
+      }
+    } else {
+      // 非 H5 环境：调用 Taro.removeStorage
+      Taro.removeStorage({
+        key: options.key,
+        success: () => {
+          options.success?.()
+          resolve()
+        },
+        fail: (err) => {
+          options.fail?.(err)
+          reject(err)
+        },
+        complete: options.complete
+      })
+    }
+  })
+}
+
+/**
+ * chooseImage 兼容
+ * H5环境使用原生 input[type=file] 实现
+ */
+export interface ChooseImageOptions {
+  count?: number
+  sizeType?: ('original' | 'compressed')[]
+  sourceType?: ('album' | 'camera')[]
+  success?: (res: ChooseImageResult) => void
+  fail?: (error: any) => void
+  complete?: () => void
+}
+
+export interface ChooseImageResult {
+  tempFilePaths: string[]
+  tempFiles: Array<{path: string; size: number}>
+}
+
+export function chooseImage(options: ChooseImageOptions): Promise<ChooseImageResult> {
+  return new Promise((resolve, reject) => {
+    if (isH5) {
+      // H5 环境：使用原生 input[type=file] 实现
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.multiple = (options.count || 1) > 1
+      input.style.display = 'none'
+      
+      input.onchange = (e) => {
+        const target = e.target as HTMLInputElement
+        const files = target.files
+        if (files && files.length > 0) {
+          const tempFilePaths: string[] = []
+          const tempFiles: Array<{path: string; size: number}> = []
+          
+          // 限制文件数量
+          const maxCount = options.count || 1
+          const fileCount = Math.min(files.length, maxCount)
+          
+          for (let i = 0; i < fileCount; i++) {
+            const file = files[i]
+            const url = URL.createObjectURL(file)
+            tempFilePaths.push(url)
+            tempFiles.push({path: url, size: file.size})
+          }
+          
+          const result: ChooseImageResult = {tempFilePaths, tempFiles}
+          options.success?.(result)
+          options.complete?.()
+          resolve(result)
+        } else {
+          const error = new Error('未选择图片')
+          options.fail?.(error)
+          options.complete?.()
+          reject(error)
+        }
+        
+        // 清理 input 元素
+        document.body.removeChild(input)
+      }
+      
+      input.onerror = (e) => {
+        const error = new Error('选择图片失败')
+        options.fail?.(error)
+        options.complete?.()
+        document.body.removeChild(input)
+        reject(error)
+      }
+      
+      // 用户取消选择时的处理
+      input.oncancel = () => {
+        const error = new Error('用户取消选择')
+        options.fail?.(error)
+        options.complete?.()
+        document.body.removeChild(input)
+        reject(error)
+      }
+      
+      document.body.appendChild(input)
+      input.click()
+    } else {
+      // 非 H5 环境：使用 Taro 原生 API
+      Taro.chooseImage({
+        count: options.count || 1,
+        sizeType: options.sizeType || ['original', 'compressed'],
+        sourceType: options.sourceType || ['album', 'camera'],
+        success: (res) => {
+          const result: ChooseImageResult = {
+            tempFilePaths: res.tempFilePaths,
+            tempFiles: res.tempFiles.map(f => ({path: f.path, size: f.size || 0}))
+          }
+          options.success?.(result)
+          resolve(result)
+        },
+        fail: (err) => {
+          options.fail?.(err)
+          reject(err)
+        },
+        complete: options.complete
+      })
+    }
+  })
 }
 
 /**
@@ -578,6 +806,24 @@ export function initTaroCompat(): void {
     // @ts-ignore - 需要覆盖 Taro 的方法
     Taro.removeStorageSync = (key: string): void => {
       removeStorageSync(key)
+    }
+
+    // 全局覆盖 Taro.setStorage（异步版本）
+    // @ts-ignore - 需要覆盖 Taro 的方法
+    Taro.setStorage = <T = unknown>(options: SetStorageOptions<T>) => {
+      return setStorage(options)
+    }
+
+    // 全局覆盖 Taro.removeStorage（异步版本）
+    // @ts-ignore - 需要覆盖 Taro 的方法
+    Taro.removeStorage = (options: RemoveStorageOptions) => {
+      return removeStorage(options)
+    }
+
+    // 全局覆盖 Taro.chooseImage
+    // @ts-ignore - 需要覆盖 Taro 的方法
+    Taro.chooseImage = (options: ChooseImageOptions) => {
+      return chooseImage(options)
     }
 
     logger.info('Taro H5 兼容层初始化完成')

@@ -21,7 +21,8 @@ import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
 const logger = createLogger('SupplementVehicle')
-const BUCKET_NAME = `${process.env.TARO_APP_APP_ID}_vehicles`
+// 使用已存在的 h5-app 存储桶
+const BUCKET_NAME = 'h5-app'
 
 // 补录照片项接口
 interface SupplementPhotoItem {

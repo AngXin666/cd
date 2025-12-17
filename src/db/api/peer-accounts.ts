@@ -95,6 +95,7 @@ export async function createPeerAccount(
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     // 6. 更新 users 记录，设置平级账号相关字段（单用户架构）
+    // 注意：平级账号的角色应该是 PEER_ADMIN（调度），而不是 BOSS
     const {data: userData, error: userError} = await supabase
       .from('users')
       .update({
@@ -107,7 +108,8 @@ export async function createPeerAccount(
         lease_end_date: mainAccount.lease_end_date,
         notes: account.notes,
         status: 'active',
-        main_account_id: mainAccountId // 设置主账号ID
+        main_account_id: mainAccountId, // 设置主账号ID
+        role: 'PEER_ADMIN' // 平级账号角色为调度
       })
       .eq('id', authData.user.id)
       .select()
@@ -118,7 +120,7 @@ export async function createPeerAccount(
       return null
     }
 
-    // 7. user_roles 已废弃，role 字段已在上面的 update 中设置
+    // 7. user_roles 已废弃，role 字段已在上面的 update 中设置为 PEER_ADMIN
 
     // 转换为 Profile 格式
     if (!userData) {
@@ -128,7 +130,7 @@ export async function createPeerAccount(
 
     const profile: Profile = convertUserToProfile({
       ...userData,
-      role: 'BOSS' as UserRole
+      role: 'PEER_ADMIN' as UserRole // 平级账号角色为调度
     })
 
     return profile

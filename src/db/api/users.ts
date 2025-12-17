@@ -495,42 +495,98 @@ export async function getManagerWarehouseIds(managerId: string): Promise<string[
 
 /**
  * 获取管理员权限配置
+ * 基于用户角色（role）和 manager_permissions_enabled 字段推断权限级别
+ * 
+ * 权限推断规则：
+ * - BOSS → full_control（完整权限）
+ * - MANAGER/PEER_ADMIN → 基于 manager_permissions_enabled 字段
+ *   - true/null → full_control
+ *   - false → view_only
+ * - DRIVER → view_only（仅查看权限）
+ * 
+ * @param managerId - 管理员用户ID
+ * @returns 管理员权限配置对象，如果用户不存在或不是管理员则返回 null
  */
 export async function getManagerPermission(managerId: string): Promise<ManagerPermission | null> {
-  const {data: roleData, error} = await supabase.from('users').select('role').eq('id', managerId).maybeSingle()
+  // 从 users 表读取角色、权限启用状态和更新时间
+  const {data: userData, error} = await supabase
+    .from('users')
+    .select('role, manager_permissions_enabled, updated_at')
+    .eq('id', managerId)
+    .maybeSingle()
 
-  if (error || !roleData) {
+  if (error || !userData) {
     console.error('获取管理员信息失败:', error)
     return null
   }
 
-  if (roleData.role === 'BOSS' || roleData.role === 'BOSS') {
-    const now = new Date().toISOString()
+  const now = new Date().toISOString()
+  
+  // BOSS 角色始终拥有完整权限
+  if (userData.role === 'BOSS') {
     return {
       id: managerId,
       manager_id: managerId,
-      permission_type: 'full',
+      permission_type: 'full_control',
       can_edit_user_info: true,
       can_edit_piece_work: true,
       can_manage_attendance_rules: true,
       can_manage_categories: true,
-      created_at: now,
-      updated_at: now
+      created_at: userData.updated_at || now,
+      updated_at: userData.updated_at || now
     }
   }
 
-  if (roleData.role === 'MANAGER') {
-    const now = new Date().toISOString()
+  // MANAGER 角色根据 manager_permissions_enabled 字段确定权限
+  // 默认为 true（完整权限），除非明确设置为 false
+  if (userData.role === 'MANAGER') {
+    const hasFullPermission = userData.manager_permissions_enabled !== false
+    const permissionType = hasFullPermission ? 'full_control' : 'view_only'
+    
     return {
       id: managerId,
       manager_id: managerId,
-      permission_type: 'default',
-      can_edit_user_info: true,
-      can_edit_piece_work: true,
+      permission_type: permissionType,
+      can_edit_user_info: hasFullPermission,
+      can_edit_piece_work: hasFullPermission,
+      can_manage_attendance_rules: hasFullPermission,
+      can_manage_categories: hasFullPermission,
+      created_at: userData.updated_at || now,
+      updated_at: userData.updated_at || now
+    }
+  }
+
+  // PEER_ADMIN 角色根据 manager_permissions_enabled 字段确定权限
+  // 默认为 true（完整权限），除非明确设置为 false
+  if (userData.role === 'PEER_ADMIN') {
+    const hasFullPermission = userData.manager_permissions_enabled !== false
+    const permissionType = hasFullPermission ? 'full_control' : 'view_only'
+    
+    return {
+      id: managerId,
+      manager_id: managerId,
+      permission_type: permissionType,
+      can_edit_user_info: hasFullPermission,
+      can_edit_piece_work: hasFullPermission,
+      can_manage_attendance_rules: hasFullPermission,
+      can_manage_categories: hasFullPermission,
+      created_at: userData.updated_at || now,
+      updated_at: userData.updated_at || now
+    }
+  }
+
+  // DRIVER 角色返回仅查看权限
+  if (userData.role === 'DRIVER') {
+    return {
+      id: managerId,
+      manager_id: managerId,
+      permission_type: 'view_only',
+      can_edit_user_info: false,
+      can_edit_piece_work: false,
       can_manage_attendance_rules: false,
       can_manage_categories: false,
-      created_at: now,
-      updated_at: now
+      created_at: userData.updated_at || now,
+      updated_at: userData.updated_at || now
     }
   }
 
@@ -547,12 +603,18 @@ export async function upsertManagerPermission(_input: ManagerPermissionInput): P
 /**
  * 更新车队长的权限启用状态
  * @param managerId - 车队长用户ID
- * @param enabled - 是否启用权限
+ * @param enabled - 是否启用权限（true=完整权限，false=仅查看权限）
  * @returns 是否更新成功
  */
 export async function updateManagerPermissionsEnabled(managerId: string, enabled: boolean): Promise<boolean> {
   try {
-    const {error} = await supabase.from('users').update({manager_permissions_enabled: enabled}).eq('id', managerId)
+    const {error} = await supabase
+      .from('users')
+      .update({
+        manager_permissions_enabled: enabled,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', managerId)
 
     if (error) {
       console.error('[updateManagerPermissionsEnabled] 更新失败:', error)
@@ -575,6 +637,8 @@ export async function updateManagerPermissionsEnabled(managerId: string, enabled
 
 /**
  * 获取车队长的权限启用状态
+ * @param managerId - 车队长用户ID
+ * @returns 权限启用状态，null 表示用户不存在
  */
 export async function getManagerPermissionsEnabled(managerId: string): Promise<boolean | null> {
   try {
@@ -593,7 +657,8 @@ export async function getManagerPermissionsEnabled(managerId: string): Promise<b
       return null
     }
 
-    const enabled = data.manager_permissions_enabled ?? true
+    // 默认为 true（完整权限），除非明确设置为 false
+    const enabled = data.manager_permissions_enabled !== false
     return enabled
   } catch (error) {
     console.error('[getManagerPermissionsEnabled] 获取异常:', error)
@@ -620,9 +685,11 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
       return false
     }
 
-    const {role, ...userUpdates} = updates
+    // 解构时排除 role 和 permission_type（permission_type 已废弃，不存在于数据库中）
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {role, permission_type, ...userUpdates} = updates as ProfileUpdate & {permission_type?: string}
 
-    // 1. 更新用户基本信息
+    // 1. 更新用户基本信息（不包含 permission_type，该字段已废弃）
     if (Object.keys(userUpdates).length > 0) {
       const {error: userError} = await supabase
         .from('users')
@@ -663,14 +730,21 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
 
 /**
  * 更新用户个人信息
+ * 注意：permission_type 字段已废弃，不会被更新到数据库
+ * @param userId - 用户ID
+ * @param updates - 更新数据
+ * @returns 操作结果
  */
 export async function updateUserProfile(
   userId: string,
   updates: ProfileUpdate
 ): Promise<{success: boolean; error?: string}> {
   try {
-    const {role, ...userUpdates} = updates
+    // 解构时排除 role 和 permission_type（permission_type 已废弃，不存在于数据库中）
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {role, permission_type, ...userUpdates} = updates as ProfileUpdate & {permission_type?: string}
 
+    // 更新用户基本信息（不包含 permission_type，该字段已废弃）
     if (Object.keys(userUpdates).length > 0) {
       const {error: userError} = await supabase
         .from('users')
@@ -686,6 +760,7 @@ export async function updateUserProfile(
       }
     }
 
+    // 更新用户角色（如果有）
     if (role) {
       const {error: roleError} = await supabase.from('users').update({role}).eq('id', userId)
 
@@ -1091,7 +1166,8 @@ export async function uploadAvatar(
 
     const fileContent = file.originalFileObj || ({tempFilePath: file.path} as unknown as File)
 
-    const {error} = await supabase.storage.from('app-7cdqf07mbu9t_avatars').upload(fileName, fileContent, {
+    // 使用已存在的 h5-app 存储桶
+    const {error} = await supabase.storage.from('h5-app').upload(fileName, fileContent, {
       cacheControl: '3600',
       upsert: true
     })
@@ -1101,7 +1177,8 @@ export async function uploadAvatar(
       return {success: false, error: error.message}
     }
 
-    const {data: urlData} = supabase.storage.from('app-7cdqf07mbu9t_avatars').getPublicUrl(fileName)
+    // 使用已存在的 h5-app 存储桶
+    const {data: urlData} = supabase.storage.from('h5-app').getPublicUrl(fileName)
 
     return {success: true, url: urlData.publicUrl}
   } catch (error) {

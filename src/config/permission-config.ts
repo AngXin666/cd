@@ -53,6 +53,8 @@ export const permissionConfig: Record<string, TablePermissionRule[]> = {
   ],
 
   // notifications表权限配置
+  // 司机只能查看和操作自己的通知，不能看到其他人的通知
+  // 管理员可以创建通知（如审批结果通知司机）
   notifications: [
     {
       action: PermissionAction.SELECT,
@@ -66,8 +68,28 @@ export const permissionConfig: Record<string, TablePermissionRule[]> = {
     },
     {
       action: PermissionAction.INSERT,
+      roles: ['BOSS', 'PEER_ADMIN', 'MANAGER'], // 管理员也需要能创建通知（如审批结果）
+      allowAll: true
+    },
+    {
+      action: PermissionAction.UPDATE,
       roles: ['BOSS', 'PEER_ADMIN'],
       allowAll: true
+    },
+    {
+      action: PermissionAction.UPDATE,
+      roles: ['MANAGER', 'DRIVER'],
+      filter: (userId: string) => ({recipient_id: userId}) // 只能更新自己的通知（如标记已读）
+    },
+    {
+      action: PermissionAction.DELETE,
+      roles: ['BOSS', 'PEER_ADMIN'],
+      allowAll: true
+    },
+    {
+      action: PermissionAction.DELETE,
+      roles: ['MANAGER', 'DRIVER'],
+      filter: (userId: string) => ({recipient_id: userId}) // 只能删除自己的通知
     }
   ],
 

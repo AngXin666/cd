@@ -537,8 +537,29 @@ export async function uploadImageToStorage(
     const {data, error} = await supabase.storage.from(bucketName).upload(fileName, blob)
 
     if (error) {
-      logger.error('上传图片失败', error)
-      return null
+      logger.error('H5环境上传图片失败', {
+        message: error.message,
+        details: error,
+        bucketName,
+        fileName
+      })
+      
+      // H5 环境也抛出错误，与小程序环境保持一致
+      // 根据错误类型提供更具体的提示
+      if (error.message?.includes('JWT') || error.message?.includes('token') || error.message?.includes('auth')) {
+        throw new Error('登录已过期，请重新登录')
+      }
+      if (error.message?.includes('Bucket') || error.message?.includes('not found')) {
+        throw new Error('存储配置错误，请联系管理员')
+      }
+      if (error.message?.includes('size') || error.message?.includes('large') || error.message?.includes('limit')) {
+        throw new Error('图片过大，请重新拍摄')
+      }
+      if (error.message?.includes('permission') || error.message?.includes('policy')) {
+        throw new Error('没有上传权限，请联系管理员')
+      }
+      
+      throw new Error(`上传失败: ${error.message}`)
     }
 
     // 获取公开URL
@@ -549,7 +570,8 @@ export async function uploadImageToStorage(
       error,
       message: error instanceof Error ? error.message : String(error)
     })
-    return null
+    // 重新抛出错误，让调用方知道上传失败
+    throw error
   }
 }
 

@@ -1,6 +1,8 @@
 /**
  * 添加车辆页面 - 优化版
  * 三步骤流程：行驶证识别 -> 车辆照片 -> 驾驶员证件
+ * 
+ * 测试模式：启用 TEST_MODE_ENABLED 后，照片数量要求会减少
  */
 
 import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
@@ -12,6 +14,7 @@ import PhotoCapture from '@/components/PhotoCapture'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import StepIndicator from '@/components/StepIndicator'
 import TopNavBar from '@/components/TopNavBar'
+import {TEST_MODE_ENABLED, getTestModeStatus} from '@/config/test-mode'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {DriverLicenseInput, VehicleInput} from '@/db/types'
 import {deleteDraft, getDraft, saveDraft, type VehicleDraft} from '@/utils/draftUtils'
@@ -19,7 +22,8 @@ import {generateUniqueFileName, uploadImageToStorage} from '@/utils/imageUtils'
 import {recognizeDriverLicense, recognizeIdCardFront} from '@/utils/ocrUtils'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
-const BUCKET_NAME = 'app-7cdqf07mbu9t_vehicles'
+// 使用已存在的 h5-app 存储桶
+const BUCKET_NAME = 'h5-app'
 
 /**
  * 字段名到中文名称的映射
@@ -608,7 +612,7 @@ const AddVehicle: React.FC = () => {
 
   const validateStep = (step: number): boolean => {
     switch (step) {
-      case 0: // 行驶证识别 - 需要三张照片
+      case 0: // 行驶证识别 - 需要三张照片（主页、副页、副页背页）
         if (!photos.driving_license_main) {
           showToast({title: '请拍摄行驶证主页', icon: 'none'})
           return false
@@ -627,7 +631,16 @@ const AddVehicle: React.FC = () => {
           return false
         }
         return true
-      case 1: // 车辆照片 - 验证所有7个角度的照片
+      case 1: // 车辆照片
+        // 测试模式：只需要2张照片（左前+右前）
+        if (TEST_MODE_ENABLED) {
+          if (!photos.left_front || !photos.right_front) {
+            showToast({title: '请拍摄左前和右前照片', icon: 'none'})
+            return false
+          }
+          return true
+        }
+        // 正常模式：验证所有7个角度的照片
         if (
           !photos.left_front ||
           !photos.right_front ||
@@ -641,7 +654,7 @@ const AddVehicle: React.FC = () => {
           return false
         }
         return true
-      case 2: // 驾驶员证件
+      case 2: // 驾驶员证件 - 需要身份证正反面 + 驾驶证
         if (!driverPhotos.id_card_front || !driverPhotos.id_card_back || !driverPhotos.driver_license) {
           showToast({title: '请拍摄所有证件照片', icon: 'none'})
           return false
@@ -657,6 +670,15 @@ const AddVehicle: React.FC = () => {
    * @returns {missingFields: string[], isComplete: boolean}
    */
   const checkRecognitionResult = (): {missingFields: string[]; isComplete: boolean} => {
+    // 测试模式：只检查主页必填字段
+    if (TEST_MODE_ENABLED) {
+      const missingFields: string[] = []
+      if (!formData.plate_number) missingFields.push('车牌号码')
+      if (!formData.brand) missingFields.push('品牌')
+      if (!formData.model) missingFields.push('型号')
+      return {missingFields, isComplete: missingFields.length === 0}
+    }
+
     const missingFields: string[] = []
 
     // 检查主页必填字段
@@ -896,19 +918,26 @@ const AddVehicle: React.FC = () => {
     if (!formData.vehicle_type) errors.push('• 车辆类型')
     if (!formData.owner_name) errors.push('• 所有人')
 
-    // 验证行驶证照片
+    // 验证行驶证照片（3张：主页、副页、副页背页）
     if (!photos.driving_license_main) errors.push('• 行驶证主页照片')
     if (!photos.driving_license_sub) errors.push('• 行驶证副页照片')
     if (!photos.driving_license_sub_back) errors.push('• 行驶证副页背页照片')
 
     // 验证车辆照片
-    if (!photos.left_front) errors.push('• 左前45°照片')
-    if (!photos.right_front) errors.push('• 右前45°照片')
-    if (!photos.left_rear) errors.push('• 左后45°照片')
-    if (!photos.right_rear) errors.push('• 右后45°照片')
-    if (!photos.dashboard) errors.push('• 仪表盘照片')
-    if (!photos.rear_door) errors.push('• 后门照片')
-    if (!photos.cargo_box) errors.push('• 货箱照片')
+    if (TEST_MODE_ENABLED) {
+      // 测试模式：只需要2张车辆照片（左前+右前）
+      if (!photos.left_front) errors.push('• 左前45°照片')
+      if (!photos.right_front) errors.push('• 右前45°照片')
+    } else {
+      // 正常模式：需要7张车辆照片
+      if (!photos.left_front) errors.push('• 左前45°照片')
+      if (!photos.right_front) errors.push('• 右前45°照片')
+      if (!photos.left_rear) errors.push('• 左后45°照片')
+      if (!photos.right_rear) errors.push('• 右后45°照片')
+      if (!photos.dashboard) errors.push('• 仪表盘照片')
+      if (!photos.rear_door) errors.push('• 后门照片')
+      if (!photos.cargo_box) errors.push('• 货箱照片')
+    }
 
     return {
       isValid: errors.length === 0,
@@ -1091,21 +1120,21 @@ const AddVehicle: React.FC = () => {
         throw new Error('车辆信息保存失败')
       }
 
-      // 插入驾驶员证件信息
+      // 插入驾驶员证件信息（已移除数据库中不存在的字段：license_type, issue_date, expiry_date）
       if (Object.keys(uploadedDriverPhotos).length > 0) {
         const driverLicenseInput: DriverLicenseInput = {
           driver_id: user.id,
           license_number: driverLicenseData.license_number || '',
-          license_type: 'C1', // 默认驾照类型
-          issue_date: driverLicenseData.valid_from || new Date().toISOString().split('T')[0],
-          expiry_date: driverLicenseData.valid_to || new Date().toISOString().split('T')[0],
+          // 身份证相关字段
           id_card_number: driverLicenseData.id_card_number,
           id_card_name: driverLicenseData.id_card_name,
           id_card_address: driverLicenseData.id_card_address,
           id_card_birth_date: driverLicenseData.id_card_birth_date,
           id_card_photo_front: uploadedDriverPhotos.id_card_front,
           id_card_photo_back: uploadedDriverPhotos.id_card_back,
+          // 驾驶证相关字段
           license_class: driverLicenseData.license_class,
+          first_issue_date: driverLicenseData.first_issue_date,
           valid_from: driverLicenseData.valid_from,
           valid_to: driverLicenseData.valid_to,
           issue_authority: driverLicenseData.issue_authority,
@@ -1140,31 +1169,77 @@ const AddVehicle: React.FC = () => {
       let errorTitle = '提交失败'
 
       if (error instanceof Error) {
-        const msg = error.message.toLowerCase()
+        const msg = error.message
+
+        // 检查是否是重复车牌号错误
+        if (msg.startsWith('DUPLICATE_PLATE:')) {
+          const duplicatePlate = msg.replace('DUPLICATE_PLATE:', '')
+          // 显示确认对话框，询问用户是否删除已存在的车辆
+          const res = await Taro.showModal({
+            title: '车牌号已存在',
+            content: `车牌号 "${duplicatePlate}" 已存在于数据库中。\n\n是否删除已有记录后重新添加？`,
+            confirmText: '删除并重试',
+            cancelText: '取消',
+            confirmColor: '#ef4444'
+          })
+
+          if (res.confirm) {
+            // 用户选择删除已有记录
+            showLoading({title: '删除中...'})
+            try {
+              const deleteSuccess = await VehiclesAPI.deleteVehicleByPlateNumber(duplicatePlate)
+              hideLoading()
+
+              if (deleteSuccess) {
+                showToast({
+                  title: '已删除，请重新提交',
+                  icon: 'success',
+                  duration: 2000
+                })
+              } else {
+                showToast({
+                  title: '删除失败，请重试',
+                  icon: 'none'
+                })
+              }
+            } catch (deleteError) {
+              hideLoading()
+              console.error('删除车辆失败:', deleteError)
+              showToast({
+                title: '删除失败，请重试',
+                icon: 'none'
+              })
+            }
+          }
+          setSubmitting(false)
+          return
+        }
+
+        const msgLower = msg.toLowerCase()
 
         // 照片上传失败
-        if (msg.includes('上传失败')) {
+        if (msgLower.includes('上传失败')) {
           errorTitle = '照片上传失败'
-          errorMessage = error.message
+          errorMessage = msg
         }
         // 数据验证失败
-        else if (msg.includes('violates') || msg.includes('constraint')) {
+        else if (msgLower.includes('violates') || msgLower.includes('constraint')) {
           errorTitle = '数据验证失败'
           errorMessage = '输入的信息不符合要求，请检查后重试'
         }
         // 权限不足
-        else if (msg.includes('permission') || msg.includes('policy')) {
+        else if (msgLower.includes('permission') || msgLower.includes('policy')) {
           errorTitle = '权限不足'
           errorMessage = '您没有权限执行此操作，请联系管理员'
         }
         // 网络错误
-        else if (msg.includes('network') || msg.includes('timeout')) {
+        else if (msgLower.includes('network') || msgLower.includes('timeout')) {
           errorTitle = '网络错误'
           errorMessage = '网络连接失败，请检查网络后重试'
         }
         // 其他错误
         else {
-          errorMessage = error.message
+          errorMessage = msg
         }
       }
 
@@ -1421,6 +1496,15 @@ const AddVehicle: React.FC = () => {
           {/* 步骤2: 车辆照片 - 7个角度 */}
           {currentStep === 1 && (
             <View>
+              {/* 测试模式提示 */}
+              {TEST_MODE_ENABLED && (
+                <View className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-4">
+                  <View className="flex items-center">
+                    <View className="i-mdi-alert text-yellow-600 text-xl mr-2"></View>
+                    <Text className="text-yellow-800 font-medium">测试模式：只需拍摄2张车辆照片</Text>
+                  </View>
+                </View>
+              )}
               <PhotoCapture
                 title="左前照片"
                 description="拍摄车辆左前方45度角"
@@ -1435,41 +1519,46 @@ const AddVehicle: React.FC = () => {
                 value={photos.right_front}
                 onChange={(path) => setPhotos((prev) => ({...prev, right_front: path}))}
               />
-              <PhotoCapture
-                title="左后照片"
-                description="拍摄车辆左后方45度角"
-                tips={['包含车尾和左侧', '确保车牌清晰可见']}
-                value={photos.left_rear}
-                onChange={(path) => setPhotos((prev) => ({...prev, left_rear: path}))}
-              />
-              <PhotoCapture
-                title="右后照片"
-                description="拍摄车辆右后方45度角"
-                tips={['包含车尾和右侧', '确保车牌清晰可见']}
-                value={photos.right_rear}
-                onChange={(path) => setPhotos((prev) => ({...prev, right_rear: path}))}
-              />
-              <PhotoCapture
-                title="仪表盘照片"
-                description="拍摄车辆仪表盘"
-                tips={['确保里程数清晰', '包含所有仪表信息']}
-                value={photos.dashboard}
-                onChange={(path) => setPhotos((prev) => ({...prev, dashboard: path}))}
-              />
-              <PhotoCapture
-                title="后门照片"
-                description="拍摄车辆后门"
-                tips={['确保后门完整', '照片清晰']}
-                value={photos.rear_door}
-                onChange={(path) => setPhotos((prev) => ({...prev, rear_door: path}))}
-              />
-              <PhotoCapture
-                title="货箱照片"
-                description="拍摄车辆货箱"
-                tips={['确保货箱完整', '照片清晰']}
-                value={photos.cargo_box}
-                onChange={(path) => setPhotos((prev) => ({...prev, cargo_box: path}))}
-              />
+              {/* 以下照片在测试模式下隐藏 */}
+              {!TEST_MODE_ENABLED && (
+                <>
+                  <PhotoCapture
+                    title="左后照片"
+                    description="拍摄车辆左后方45度角"
+                    tips={['包含车尾和左侧', '确保车牌清晰可见']}
+                    value={photos.left_rear}
+                    onChange={(path) => setPhotos((prev) => ({...prev, left_rear: path}))}
+                  />
+                  <PhotoCapture
+                    title="右后照片"
+                    description="拍摄车辆右后方45度角"
+                    tips={['包含车尾和右侧', '确保车牌清晰可见']}
+                    value={photos.right_rear}
+                    onChange={(path) => setPhotos((prev) => ({...prev, right_rear: path}))}
+                  />
+                  <PhotoCapture
+                    title="仪表盘照片"
+                    description="拍摄车辆仪表盘"
+                    tips={['确保里程数清晰', '包含所有仪表信息']}
+                    value={photos.dashboard}
+                    onChange={(path) => setPhotos((prev) => ({...prev, dashboard: path}))}
+                  />
+                  <PhotoCapture
+                    title="后门照片"
+                    description="拍摄车辆后门"
+                    tips={['确保后门完整', '照片清晰']}
+                    value={photos.rear_door}
+                    onChange={(path) => setPhotos((prev) => ({...prev, rear_door: path}))}
+                  />
+                  <PhotoCapture
+                    title="货箱照片"
+                    description="拍摄车辆货箱"
+                    tips={['确保货箱完整', '照片清晰']}
+                    value={photos.cargo_box}
+                    onChange={(path) => setPhotos((prev) => ({...prev, cargo_box: path}))}
+                  />
+                </>
+              )}
 
               {/* 车损特写照片（多张，可选） */}
               <View className="bg-white rounded-2xl p-6 mt-6 shadow-md">

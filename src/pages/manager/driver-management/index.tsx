@@ -180,12 +180,40 @@ const DriverManagement: React.FC = () => {
   )
 
   // 加载车队长权限状态
+  // 基于用户角色和 manager_permissions_enabled 字段推断权限级别
+  // BOSS 始终有完整权限，MANAGER/PEER_ADMIN 根据 manager_permissions_enabled 字段判断
   const loadManagerPermissions = useCallback(async () => {
     if (!user?.id) return
     try {
       const currentUser = await UsersAPI.getCurrentUserWithRealName()
+      // 调试日志：输出当前用户的权限字段值
+      console.log('[DriverManagement] 当前用户权限信息:', {
+        userId: currentUser?.id,
+        role: currentUser?.role,
+        manager_permissions_enabled: currentUser?.manager_permissions_enabled,
+        rawValue: JSON.stringify(currentUser?.manager_permissions_enabled)
+      })
       if (currentUser) {
-        const enabled = currentUser.manager_permissions_enabled ?? true // 默认为true
+        // 基于角色和 manager_permissions_enabled 字段推断权限级别
+        // BOSS 始终有完整权限，不受 manager_permissions_enabled 限制
+        // MANAGER/PEER_ADMIN 根据 manager_permissions_enabled 字段判断
+        // DRIVER 始终没有管理权限
+        let enabled = false
+        if (currentUser.role === 'BOSS') {
+          // BOSS 始终有完整权限
+          enabled = true
+        } else if (currentUser.role === 'MANAGER' || currentUser.role === 'PEER_ADMIN') {
+          // MANAGER/PEER_ADMIN 根据 manager_permissions_enabled 字段判断
+          // 默认为 true（完整权限），除非明确设置为 false
+          enabled = currentUser.manager_permissions_enabled !== false
+        }
+        // DRIVER 角色 enabled 保持 false
+        
+        console.log('[DriverManagement] 权限计算结果:', {
+          role: currentUser.role,
+          manager_permissions_enabled: currentUser.manager_permissions_enabled,
+          enabled: enabled
+        })
         setManagerPermissionsEnabled(enabled)
       }
     } catch (error) {

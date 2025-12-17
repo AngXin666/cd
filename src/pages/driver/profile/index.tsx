@@ -131,7 +131,8 @@ const DriverProfile: React.FC = () => {
     }
 
     // 否则从storage生成公共URL
-    const bucketName = `${process.env.TARO_APP_APP_ID}_vehicles`
+    // 使用已存在的 h5-app 存储桶
+    const bucketName = 'h5-app'
 
     try {
       const {data} = supabase.storage.from(bucketName).getPublicUrl(path)

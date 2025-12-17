@@ -8,3 +8,7 @@
 // 全局通知提供者组件
 export {default as GlobalNotificationProvider} from './GlobalNotificationProvider'
 export type {GlobalNotificationProviderProps} from './GlobalNotificationProvider'
+
+// 补录标记徽章组件
+export {SupplementedBadge, default as SupplementedBadgeDefault} from './SupplementedBadge'
+export type {SupplementedBadgeProps} from './SupplementedBadge'
