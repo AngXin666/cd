@@ -11,7 +11,6 @@
 | `quick-deploy-h5.js` | H5 热更新部署 | `node scripts/quick-deploy-h5.js [版本号] [更新说明]` |
 | `deploy.bat` | 构建并部署 H5 | `scripts\deploy.bat [更新说明]` |
 | `rollback-version.js` | 版本回滚 | `node scripts/rollback-version.js <版本号>` |
-| `copy-login-assets.js` | 构建时复制登录资源 | 自动在 `build:h5` 时执行 |
 
 ### 🛠️ 开发工具
 
