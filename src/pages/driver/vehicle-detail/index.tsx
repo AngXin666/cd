@@ -5,51 +5,48 @@
  * - 显示提车时间和还车时间
  * - 展示车辆基本信息
  * - 显示补录照片标记
+ * - 实时接收审核状态变更通知
  */
 
 import {Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
+import {formatDateTime} from '@/utils/dateFormat'
 import {hideLoading, showLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useState} from 'react'
+import {useCallback, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import {SupplementedBadge} from '@/components/SupplementedBadge'
 import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {SupplementedPhotos, Vehicle} from '@/db/types'
+import {useVehicleRealtime} from '@/hooks/useVehicleRealtime'
 import {getImagePublicUrl} from '@/utils/imageUtils'
 import {logger} from '@/utils/logger'
 
 type TabType = 'pickup' | 'return' | 'registration' | 'damage'
 
 const VehicleDetail: React.FC = () => {
-  useAuth({guard: true})
+  const {user} = useAuth({guard: true})
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('pickup')
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   // 补录照片元数据，用于显示补录标记
   const [supplementedPhotos, setSupplementedPhotos] = useState<SupplementedPhotos>({})
 
-  useLoad((options) => {
-    const {id} = options
-    if (id) {
-      loadVehicleDetail(id)
-    }
-  })
-
   /**
    * 加载车辆详情
-   * @param vehicleId - 车辆ID
+   * @param id - 车辆ID
    */
-  const loadVehicleDetail = async (vehicleId: string) => {
+  const loadVehicleDetail = useCallback(async (id: string) => {
     showLoading({title: '加载中...'})
     try {
-      const vehicleData = await VehiclesAPI.getVehicleById(vehicleId)
+      const vehicleData = await VehiclesAPI.getVehicleById(id)
       setVehicle(vehicleData)
 
       // 加载补录照片元数据
-      const supplementedData = await VehiclesAPI.getSupplementedPhotos(vehicleId)
+      const supplementedData = await VehiclesAPI.getSupplementedPhotos(id)
       setSupplementedPhotos(supplementedData)
     } catch (error) {
       console.error('加载车辆详情失败:', error)
@@ -60,7 +57,57 @@ const VehicleDetail: React.FC = () => {
     } finally {
       hideLoading()
     }
-  }
+  }, [])
+
+  // 实时订阅车辆审核状态变更
+  useVehicleRealtime({
+    userId: user?.id,
+    userRole: 'DRIVER',
+    enabled: !!user?.id && !!vehicleId,
+    onReviewStatusChanged: (payload) => {
+      // 只处理当前车辆的审核状态变更
+      if (payload.vehicleId !== vehicleId) return
+
+      // 根据审核状态显示不同的通知
+      if (payload.newStatus === 'approved') {
+        Taro.showToast({
+          title: '车辆审核已通过',
+          icon: 'success',
+          duration: 2000
+        })
+        // 震动反馈
+        Taro.vibrateShort({type: 'light'})
+      } else if (payload.newStatus === 'rejected') {
+        Taro.showToast({
+          title: '车辆审核未通过',
+          icon: 'none',
+          duration: 2000
+        })
+        Taro.vibrateShort({type: 'medium'})
+      } else if (payload.newStatus === 'needs_supplement') {
+        Taro.showToast({
+          title: '需要补充资料',
+          icon: 'none',
+          duration: 2000
+        })
+        Taro.vibrateShort({type: 'medium'})
+      }
+    },
+    onDataChange: () => {
+      // 自动刷新车辆详情数据
+      if (vehicleId) {
+        loadVehicleDetail(vehicleId)
+      }
+    }
+  })
+
+  useLoad((options) => {
+    const {id} = options
+    if (id) {
+      setVehicleId(id)
+      loadVehicleDetail(id)
+    }
+  })
 
   /**
    * 检查照片是否已补录
@@ -88,16 +135,10 @@ const VehicleDetail: React.FC = () => {
     })
   }
 
-  // 格式化时间
-  const formatTime = (time: string | null): string => {
+  // 格式化时间（使用统一的日期时间格式化函数）
+  const formatTimeDisplay = (time: string | null): string => {
     if (!time) return '未记录'
-    return new Date(time).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    return formatDateTime(time)
   }
 
   // 处理图片加载失败
@@ -274,7 +315,7 @@ const VehicleDetail: React.FC = () => {
                     <View className="i-mdi-clock-check-outline text-2xl text-green-600 mr-2"></View>
                     <View className="flex-1">
                       <Text className="text-sm text-gray-600 mb-1">提车录入时间</Text>
-                      <Text className="text-base text-gray-800 font-bold">{formatTime(vehicle.pickup_time)}</Text>
+                      <Text className="text-base text-gray-800 font-bold">{formatTimeDisplay(vehicle.pickup_time)}</Text>
                     </View>
                   </View>
                 </View>
@@ -345,7 +386,7 @@ const VehicleDetail: React.FC = () => {
                     <View className="i-mdi-clock-check text-2xl text-gray-600 mr-2"></View>
                     <View className="flex-1">
                       <Text className="text-sm text-gray-600 mb-1">还车录入时间</Text>
-                      <Text className="text-base text-gray-800 font-bold">{formatTime(vehicle.return_time)}</Text>
+                      <Text className="text-base text-gray-800 font-bold">{formatTimeDisplay(vehicle.return_time)}</Text>
                     </View>
                   </View>
                 </View>

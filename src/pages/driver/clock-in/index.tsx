@@ -1,3 +1,8 @@
+/**
+ * 司机打卡页面
+ * 提供上班/下班打卡功能，支持仓库选择和考勤状态显示
+ * @module pages/driver/clock-in
+ */
 import {Button, Radio, RadioGroup, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {showModal, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -6,25 +11,26 @@ import {useCallback, useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
-import * as WarehousesAPI from '@/db/api/warehouses'
-import type {AttendanceRecord, AttendanceRule, AttendanceStatus, Warehouse} from '@/db/types'
+import type {AttendanceRecord, AttendanceRule, AttendanceStatus} from '@/db/types'
+import {useDriverWarehouses} from '@/hooks'
 import {canClockIn} from '@/utils/attendance-check'
+import {getLocalDateString} from '@/utils/date'
+import {formatDateChineseFull, formatTimeWithSeconds} from '@/utils/dateFormat'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
-// 获取本地日期字符串（YYYY-MM-DD格式）
-function getLocalDateString(date: Date = new Date()): string {
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
+/**
+ * 司机打卡组件
+ * 提供智能打卡功能，自动判断上班/下班打卡
+ */
 const ClockIn: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  // 使用缓存 Hook 加载仓库列表，避免重复 API 调用
+  const {warehouses: allWarehouses, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '', true)
+  // 只显示启用的仓库
+  const warehouses = allWarehouses.filter((w) => w.is_active)
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('')
   const [currentRule, setCurrentRule] = useState<AttendanceRule | null>(null)
   const [isOnLeave, setIsOnLeave] = useState(false) // 是否在请假中
@@ -38,15 +44,10 @@ const ClockIn: React.FC = () => {
     return () => clearInterval(timer)
   }, [])
 
-  // 加载仓库列表（只加载司机被分配的仓库）
-  const loadWarehouses = useCallback(async () => {
-    if (!user?.id) return
-    const data = await WarehousesAPI.getDriverWarehouses(user.id)
-    // 只显示启用的仓库
-    setWarehouses(data.filter((w) => w.is_active))
-  }, [user?.id])
-
-  // 加载今天打卡记录
+  /**
+   * 加载今天打卡记录
+   * 同时检测是否在请假中
+   */
   const loadTodayRecord = useCallback(async () => {
     if (!user?.id) return
     const record = await AttendanceAPI.getTodayAttendance(user.id)
@@ -71,10 +72,10 @@ const ClockIn: React.FC = () => {
     setCurrentRule(rule)
   }, [selectedWarehouseId])
 
+  // 初始化加载今天打卡记录
   useEffect(() => {
-    loadWarehouses()
     loadTodayRecord()
-  }, [loadWarehouses, loadTodayRecord])
+  }, [loadTodayRecord])
 
   // 当选中的仓库变化时，加载对应的规则
   useEffect(() => {
@@ -83,13 +84,13 @@ const ClockIn: React.FC = () => {
 
   // 页面显示时刷新数据
   useDidShow(() => {
-    loadWarehouses()
+    refreshWarehouses() // 刷新仓库缓存
     loadTodayRecord()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadWarehouses(), loadTodayRecord()])
+    await Promise.all([refreshWarehouses(), loadTodayRecord()])
     Taro.stopPullDownRefresh()
   })
 
@@ -234,7 +235,7 @@ const ClockIn: React.FC = () => {
         const statusText = status === 'late' ? '迟到' : '正常'
         await showModal({
           title: '✓ 上班打卡成功',
-          content: `打卡时间：${formatTime(now)}\n状态：${statusText}\n仓库：${selectedWarehouse.name}`,
+          content: `打卡时间：${formatTimeWithSeconds(now)}\n状态：${statusText}\n仓库：${selectedWarehouse.name}`,
           showCancel: false
         })
 
@@ -343,7 +344,7 @@ const ClockIn: React.FC = () => {
         const statusText = status === 'early' ? '早退' : '正常'
         await showModal({
           title: '✓ 下班打卡成功',
-          content: `打卡时间：${formatTime(now)}\n状态：${statusText}\n工作时长：${workHours.toFixed(2)}小时`,
+          content: `打卡时间：${formatTimeWithSeconds(now)}\n状态：${statusText}\n工作时长：${workHours.toFixed(2)}小时`,
           showCancel: false
         })
 
@@ -366,23 +367,7 @@ const ClockIn: React.FC = () => {
     }
   }
 
-  // 格式化时间
-  const formatTime = (date: Date): string => {
-    const hours = date.getHours().toString().padStart(2, '0')
-    const minutes = date.getMinutes().toString().padStart(2, '0')
-    const seconds = date.getSeconds().toString().padStart(2, '0')
-    return `${hours}:${minutes}:${seconds}`
-  }
 
-  // 格式化日期
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear()
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const day = date.getDate().toString().padStart(2, '0')
-    const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-    const weekDay = weekDays[date.getDay()]
-    return `${year}年${month}月${day}日 星期${weekDay}`
-  }
 
   // 格式化打卡时间显示
   const formatClockTime = (timeStr: string): string => {
@@ -465,8 +450,8 @@ const ClockIn: React.FC = () => {
           {/* 顶部时间卡片 */}
           <View className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 mb-4 shadow-lg">
             <View className="text-center">
-              <Text className="text-white/80 text-sm block mb-2">{formatDate(currentTime)}</Text>
-              <Text className="text-white text-5xl font-bold block tracking-wider">{formatTime(currentTime)}</Text>
+              <Text className="text-white/80 text-sm block mb-2">{formatDateChineseFull(currentTime)}</Text>
+              <Text className="text-white text-5xl font-bold block tracking-wider">{formatTimeWithSeconds(currentTime)}</Text>
             </View>
           </View>
 

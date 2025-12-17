@@ -47,19 +47,25 @@ export interface GlobalNotificationProviderProps {
  */
 const GlobalNotificationProvider: React.FC<PropsWithChildren<GlobalNotificationProviderProps>> = ({children}) => {
   // 获取当前登录用户
+  // 注意：此处不使用 guard: true，因为这是全局组件，需要在未登录时也能渲染子组件
+  // 安全检查：通过 user 状态判断是否执行敏感操作
   const {user} = useAuth()
 
-  // 调试日志：监控用户状态变化
+  // 调试日志：监控用户状态变化（仅在开发环境）
   useEffect(() => {
-    console.log('🔔 [GlobalNotificationProvider] 用户状态变化:', {
-      userId: user?.id || '(未登录)',
-      hasUser: !!user
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔔 [GlobalNotificationProvider] 用户状态变化:', {
+        userId: user?.id || '(未登录)',
+        hasUser: !!user
+      })
+    }
   }, [user])
 
   // 订阅通知 Toast
-  // 当 user 存在时启用订阅，用户退出登录后自动取消订阅
-  useNotificationToast(user?.id, !!user)
+  // 安全检查：仅当用户已登录且有有效 ID 时才启用订阅
+  // 用户退出登录后自动取消订阅，防止未授权访问
+  const isAuthenticated = !!user?.id
+  useNotificationToast(user?.id, isAuthenticated)
 
   // 该组件不渲染任何 UI，直接返回子组件
   return <>{children}</>

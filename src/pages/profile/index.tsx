@@ -5,6 +5,7 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {useBackButtonBlock} from '@/hooks'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 
@@ -16,6 +17,9 @@ const ProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [driverLicense, setDriverLicense] = useState<DriverLicense | null>(null)
+
+  // 个人资料页返回键拦截：防止用户在 TabBar 页面按返回键退出应用
+  useBackButtonBlock()
 
   const loadProfile = useCallback(async () => {
     const data = await UsersAPI.getCurrentUserProfile()

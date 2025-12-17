@@ -23,6 +23,9 @@ import {createLogger} from '@/utils/logger'
 const logger = createLogger('RealNotificationBar')
 
 const RealNotificationBar: React.FC = () => {
+  // 获取当前登录用户
+  // 注意：此处不使用 guard: true，因为组件需要在未登录时返回 null 而非跳转
+  // 安全检查：通过 user 状态判断是否执行敏感操作
   const {user} = useAuth()
   const userContext = useUserContext()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -34,24 +37,29 @@ const RealNotificationBar: React.FC = () => {
   const pauseTimerRef = useRef<NodeJS.Timeout | null>(null)
   const switchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // 安全检查：用户是否已认证（有有效的用户 ID）
+  const isAuthenticated = !!user?.id
+
   // 加载用户资料
+  // 安全检查：仅在用户已认证时加载
   const loadUserProfile = useCallback(async () => {
-    if (!user) return
+    if (!isAuthenticated) return
     try {
       const profile = await getCurrentUserProfile()
       setUserProfile(profile)
     } catch (error) {
       logger.error('加载用户资料失败', error)
     }
-  }, [user])
+  }, [isAuthenticated])
 
   useEffect(() => {
     loadUserProfile()
   }, [loadUserProfile])
 
   // 加载通知
+  // 安全检查：仅在用户已认证时加载通知数据
   const loadNotifications = useCallback(async () => {
-    if (!user) return
+    if (!isAuthenticated || !user?.id) return
 
     try {
       const data = await getUserNotifications(
@@ -68,7 +76,7 @@ const RealNotificationBar: React.FC = () => {
     } catch (error) {
       logger.error('加载通知失败', error)
     }
-  }, [user, userContext.role])
+  }, [isAuthenticated, user, userContext.role])
 
   // 页面显示时重新加载（从通知中心返回时）
   useDidShow(() => {
@@ -76,15 +84,17 @@ const RealNotificationBar: React.FC = () => {
   })
 
   // 初始加载通知
+  // 安全检查：仅在用户已认证时加载
   useEffect(() => {
-    if (!user) return
+    if (!isAuthenticated) return
     loadNotifications()
-  }, [user, loadNotifications])
+  }, [isAuthenticated, loadNotifications])
 
   // 订阅事件总线的通知事件（事件驱动刷新，替代定时轮询）
   // 当有新通知创建或通知被标记为已读时，刷新通知列表
+  // 安全检查：仅在用户已认证时订阅事件
   useEffect(() => {
-    if (!user) return
+    if (!isAuthenticated) return
 
     // 订阅通知相关事件
     const unsubscribeCreated = subscribe('notification:created', () => {
@@ -107,12 +117,13 @@ const RealNotificationBar: React.FC = () => {
       unsubscribeRead()
       unsubscribeRefresh()
     }
-  }, [user, loadNotifications])
+  }, [isAuthenticated, loadNotifications])
 
   // 实时订阅通知更新（主要方案）
   // 通过 Supabase Realtime 订阅通知表变化，实现即时更新
+  // 安全检查：仅在用户已认证时订阅实时更新
   useEffect(() => {
-    if (!user) return
+    if (!isAuthenticated || !user?.id) return
 
     // 订阅通知表的变化
     const channel = supabase
@@ -143,7 +154,7 @@ const RealNotificationBar: React.FC = () => {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, loadNotifications])
+  }, [isAuthenticated, user?.id, loadNotifications])
 
   // 自动滚动和切换通知
   useEffect(() => {
@@ -232,6 +243,11 @@ const RealNotificationBar: React.FC = () => {
       }
     }
   }, [notifications.length])
+
+  // 安全检查：未认证用户不显示通知栏
+  if (!isAuthenticated) {
+    return null
+  }
 
   // 如果没有未读通知，不显示通知栏
   if (notifications.length === 0) {

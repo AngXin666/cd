@@ -27,27 +27,8 @@ import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {formatLeaveDateRangeDisplay} from '@/utils/date'
 import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {getOperatorLabel} from '@/utils/notificationMessageBuilder'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
-
-// 兼容H5和小程序的loading函数
-const showLoading = (options: {title: string}) => {
-  if (isH5) {
-    // H5环境不显示loading，或者可以使用自定义的loading组件
-    // 可以在这里集成自定义loading组件
-  } else {
-    Taro.showLoading(options)
-  }
-}
-
-const hideLoading = () => {
-  if (isH5) {
-    // H5环境不需要隐藏
-  } else {
-    Taro.hideLoading()
-  }
-}
+import {isH5, showLoading, hideLoading} from '@/utils/platform'
+import {extractDateFromISO} from '@/utils/dateFormat'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -291,10 +272,8 @@ const ManagerLeaveApproval: React.FC = () => {
     [leaveApplications]
   )
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    return dateStr.split('T')[0]
-  }
+  // 格式化日期 - 使用统一的日期格式化函数
+  // extractDateFromISO 来自 @/utils/dateFormat，从 ISO 日期字符串中提取日期部分
 
   // 获取可见的仓库列表（只显示管理员管辖的且有数据的仓库）
   const getVisibleWarehouses = useCallback(() => {
@@ -828,13 +807,8 @@ const ManagerLeaveApproval: React.FC = () => {
           // 示例：车队长王五
           const reviewerText = getOperatorLabel('MANAGER', approverName)
 
-          // 格式化离职日期
-          const formatDate = (dateStr: string) => {
-            const date = new Date(dateStr)
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-          }
-
-          const resignationDate = formatDate(application.resignation_date)
+          // 格式化离职日期 - 使用统一的日期格式化函数
+          const resignationDate = extractDateFromISO(application.resignation_date)
 
           // 构建通知消息
           const statusText = approved ? '通过' : '拒绝'
@@ -1109,7 +1083,7 @@ const ManagerLeaveApproval: React.FC = () => {
                           <View className="flex items-center">
                             <View className="i-mdi-calendar text-lg text-gray-500 mr-2" />
                             <Text className="text-xs text-gray-500">
-                              具体日期：{formatDate(app.start_date)} 至 {formatDate(app.end_date)}
+                              具体日期：{extractDateFromISO(app.start_date)} 至 {extractDateFromISO(app.end_date)}
                             </Text>
                           </View>
                           {app.reason && (
@@ -1214,7 +1188,7 @@ const ManagerLeaveApproval: React.FC = () => {
                         <View className="space-y-2 mb-3">
                           <View className="flex items-center">
                             <View className="i-mdi-calendar text-lg text-gray-500 mr-2" />
-                            <Text className="text-sm text-gray-700">离职日期：{formatDate(app.resignation_date)}</Text>
+                            <Text className="text-sm text-gray-700">离职日期：{extractDateFromISO(app.resignation_date)}</Text>
                           </View>
                           {app.reason && (
                             <View className="flex items-start">

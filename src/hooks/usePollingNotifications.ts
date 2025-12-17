@@ -179,10 +179,10 @@ export function usePollingNotifications(options: PollingNotificationOptions) {
       }
     })
 
-    // 清理订阅
+    // 清理订阅 - 使用 removeChannel 完全移除 channel，释放所有资源
     return () => {
       console.log('📢 [Realtime] 取消仪表盘订阅:', channelName)
-      channel.unsubscribe()
+      supabase.removeChannel(channel)
     }
   }, [userId, userRole])
 

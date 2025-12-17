@@ -11,6 +11,7 @@ import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRecord, LeaveApplication, Profile, Warehouse} from '@/db/types'
+import {formatTime, extractDateFromISO} from '@/utils/dateFormat'
 
 const DriverAttendanceDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -22,18 +23,11 @@ const DriverAttendanceDetail: React.FC = () => {
   const [driverName, setDriverName] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    return dateStr.split('T')[0]
-  }
+  // 格式化日期 - 使用统一的日期格式化函数
+  // extractDateFromISO 来自 @/utils/dateFormat，从 ISO 日期字符串中提取日期部分
 
-  // 格式化时间
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const hours = date.getHours().toString().padStart(2, '0')
-    const minutes = date.getMinutes().toString().padStart(2, '0')
-    return `${hours}:${minutes}`
-  }
+  // 格式化时间（使用统一的日期格式化函数）
+  // formatTime 来自 @/utils/dateFormat，返回 HH:mm 格式
 
   // 获取仓库名称
   const getWarehouseName = (warehouseId: string) => {
@@ -274,7 +268,7 @@ const DriverAttendanceDetail: React.FC = () => {
                                 <View className="i-mdi-calendar text-2xl text-blue-600" />
                               </View>
                               <Text className="text-xl font-bold text-gray-800">
-                                {formatDate(record.clock_in_time)}
+                                {extractDateFromISO(record.clock_in_time)}
                               </Text>
                             </View>
                             <View
@@ -345,6 +339,7 @@ const DriverAttendanceDetail: React.FC = () => {
               </View>
             )}
 
+
             {/* 请假记录内容 */}
             {activeTab === 'leave' && (
               <View>
@@ -383,7 +378,7 @@ const DriverAttendanceDetail: React.FC = () => {
                                 <View className="flex-1">
                                   <Text className="text-sm text-gray-500 block mb-1">开始日期</Text>
                                   <Text className="text-lg font-bold text-gray-800">
-                                    {formatDate(leave.start_date)}
+                                    {extractDateFromISO(leave.start_date)}
                                   </Text>
                                 </View>
                               </View>
@@ -394,7 +389,7 @@ const DriverAttendanceDetail: React.FC = () => {
                                 </View>
                                 <View className="flex-1">
                                   <Text className="text-sm text-gray-500 block mb-1">结束日期</Text>
-                                  <Text className="text-lg font-bold text-gray-800">{formatDate(leave.end_date)}</Text>
+                                  <Text className="text-lg font-bold text-gray-800">{extractDateFromISO(leave.end_date)}</Text>
                                 </View>
                               </View>
 
@@ -430,7 +425,7 @@ const DriverAttendanceDetail: React.FC = () => {
                                   <View className="flex-1">
                                     <Text className="text-sm text-gray-500 block mb-1">审批时间</Text>
                                     <Text className="text-base text-gray-700">
-                                      {formatDate(leave.reviewed_at)} {formatTime(leave.reviewed_at)}
+                                      {extractDateFromISO(leave.reviewed_at)} {formatTime(leave.reviewed_at)}
                                     </Text>
                                   </View>
                                 </View>

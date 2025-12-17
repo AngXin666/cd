@@ -36,6 +36,9 @@ import type {
 // 导入需要调用的users模块函数
 import {getDriverDisplayName, getDriverName, getProfileById} from './users'
 
+// 导入 VehiclesRepository（用于缓存管理）
+import {vehiclesRepository} from '../repositories'
+
 // 重新导出司机名称查询函数
 export {getDriverDisplayName, getDriverName}
 
@@ -136,92 +139,16 @@ export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
 /**
  * 获取所有车辆信息（包含司机信息）
  * 用于老板查看所有车辆
+ *
+ * 使用 VehiclesRepository 进行缓存管理：
+ * - 缓存 TTL: 5 分钟
+ * - 在车辆创建/更新/删除时自动清除缓存
+ *
+ * @returns 车辆列表（包含司机信息）
  */
 export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> {
-  logger.db('查询', 'vehicles', {action: 'getAllWithDrivers'})
-  try {
-    const {data: vehiclesData, error: vehiclesError} = await supabase
-      .from('vehicles')
-      .select('*')
-      .order('plate_number', {ascending: true})
-      .order('created_at', {ascending: false})
-
-    if (vehiclesError) {
-      logger.error('❌ 获取所有车辆失败', {
-        error: vehiclesError.message,
-        code: vehiclesError.code,
-        details: vehiclesError.details,
-        hint: vehiclesError.hint
-      })
-      return []
-    }
-
-    if (!vehiclesData || vehiclesData.length === 0) {
-      return []
-    }
-
-    const latestVehiclesMap = new Map<string, Vehicle>()
-    vehiclesData.forEach((vehicle: Vehicle) => {
-      if (!latestVehiclesMap.has(vehicle.plate_number)) {
-        latestVehiclesMap.set(vehicle.plate_number, vehicle)
-      }
-    })
-    const latestVehicles = Array.from(latestVehiclesMap.values())
-
-    const userIds = latestVehicles.map((v) => v.user_id).filter(Boolean)
-    const {data: profilesData, error: profilesError} = await supabase
-      .from('users')
-      .select('id, name, phone, email')
-      .in('id', userIds)
-
-    if (profilesError) {
-      logger.error('获取司机信息失败', {error: profilesError.message})
-    }
-
-    const {data: licensesData, error: licensesError} = await supabase
-      .from('driver_licenses')
-      .select('driver_id, id_card_name')
-      .in('driver_id', userIds)
-
-    if (licensesError) {
-      logger.error('获取司机实名信息失败', {error: licensesError.message})
-    }
-
-    type ProfileData = Pick<Profile, 'id' | 'name' | 'phone' | 'email'>
-    type LicenseData = Pick<DriverLicense, 'driver_id' | 'id_card_name'>
-
-    const profilesMap = new Map<string, ProfileData>()
-    if (profilesData) {
-      profilesData.forEach((profile: ProfileData) => {
-        profilesMap.set(profile.id, profile)
-      })
-    }
-
-    const licensesMap = new Map<string, LicenseData>()
-    if (licensesData) {
-      licensesData.forEach((license: LicenseData) => {
-        licensesMap.set(license.driver_id, license)
-      })
-    }
-
-    const vehicles: VehicleWithDriver[] = latestVehicles.map((item) => {
-      const profile = profilesMap.get(item.user_id)
-      const license = licensesMap.get(item.user_id)
-      const displayName = license?.id_card_name || profile?.name || null
-      return {
-        ...item,
-        driver_id: profile?.id || null,
-        driver_name: displayName,
-        driver_phone: profile?.phone || null,
-        driver_email: profile?.email || null
-      }
-    })
-
-    return vehicles
-  } catch (error) {
-    logger.error('获取所有车辆异常', {error})
-    return []
-  }
+  // 委托给 VehiclesRepository 处理（带缓存）
+  return vehiclesRepository.getAllWithDrivers()
 }
 
 /**

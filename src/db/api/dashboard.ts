@@ -2,30 +2,27 @@
  * 仪表盘统计 API
  *
  * 功能包括：
- * - 仓库统计数据
- * - 全局统计数据
+ * - 仓库统计数据（带缓存，TTL 2 分钟）
+ * - 全局统计数据（带缓存，TTL 2 分钟）
  * - 驾驶员统计
  * - 考勤统计
  * - 请假统计
+ *
+ * 注意：getWarehouseDashboardStats 和 getAllWarehousesDashboardStats
+ * 已迁移到 DashboardRepository，内部调用 Repository 方法实现缓存
+ *
+ * @module db/api/dashboard
  */
 
 import {supabase} from '@/client/supabase'
 import type {DashboardStats, LeaveApplication, WarehouseDataVolume} from '../types'
+// 从统一工具模块导入日期函数，避免重复定义
+import {getLocalDateString} from '@/utils/date'
+// 导入 DashboardRepository 实现缓存功能
+import {dashboardRepository} from '../repositories/DashboardRepository'
 
 // 重新导出类型供外部使用
 export type {DashboardStats, WarehouseDataVolume}
-
-/**
- * 获取本地日期字符串（YYYY-MM-DD格式）
- * @param date 日期对象，默认为当前日期
- * @returns 本地日期字符串
- */
-function getLocalDateString(date: Date = new Date()): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 /**
  * 获取用户今日已批准的请假申请
@@ -61,182 +58,43 @@ export async function getApprovedLeaveForToday(userId: string): Promise<LeaveApp
 }
 
 /**
- * 获取仓库仪表盘统计数据
+ * 获取仓库仪表盘统计数据（带缓存，TTL 2 分钟）
+ *
+ * 内部调用 DashboardRepository 实现缓存功能，
+ * 保持原有函数签名不变，确保向后兼容。
+ *
  * @param warehouseId 仓库ID
  * @returns 仪表盘统计数据
  */
 export async function getWarehouseDashboardStats(warehouseId: string): Promise<DashboardStats> {
-  const today = getLocalDateString()
-  const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
-
-  // 1. 获取该仓库的所有用户ID
-  const {data: warehouseAssignments} = await supabase
-    .from('warehouse_assignments')
-    .select('user_id')
-    .eq('warehouse_id', warehouseId)
-
-  const allUserIds = warehouseAssignments?.map((wa) => wa.user_id) || []
-
-  // 2. 过滤出司机ID（排除车队长和老板）
-  let driverIds: string[] = []
-  if (allUserIds.length > 0) {
-    const {data: userRoles} = await supabase.from('users').select('id, role').in('id', allUserIds).eq('role', 'DRIVER')
-    driverIds = userRoles?.map((ur) => ur.id) || []
-  }
-
-  // 3. 并行执行所有统计查询（包含请假、离职、车辆审批）
-  const [
-    todayAttendanceResult,
-    todayPieceResult,
-    pendingLeaveResult,
-    pendingResignationResult,
-    pendingVehicleResult,
-    monthlyPieceResult,
-    driversResult,
-    allTodayAttendanceResult,
-    allTodayPieceResult
-  ] = await Promise.all([
-    supabase.from('attendance').select('user_id').eq('warehouse_id', warehouseId).eq('work_date', today),
-    supabase.from('piece_work_records').select('quantity').eq('warehouse_id', warehouseId).eq('work_date', today),
-    supabase.from('leave_applications').select('id').eq('warehouse_id', warehouseId).eq('status', 'pending'),
-    // 离职申请待审批
-    supabase.from('resignation_applications').select('id').eq('warehouse_id', warehouseId).eq('status', 'pending'),
-    // 车辆待审批（review_status 为 pending 的车辆）
-    supabase.from('vehicles').select('id').eq('review_status', 'pending'),
-    supabase
-      .from('piece_work_records')
-      .select('quantity')
-      .eq('warehouse_id', warehouseId)
-      .gte('work_date', firstDayOfMonth),
-    driverIds.length > 0
-      ? supabase.from('users').select('id, name, phone').in('id', driverIds)
-      : Promise.resolve({data: null}),
-    driverIds.length > 0
-      ? supabase.from('attendance').select('user_id').in('user_id', driverIds).eq('work_date', today)
-      : Promise.resolve({data: null}),
-    driverIds.length > 0
-      ? supabase.from('piece_work_records').select('user_id, quantity').in('user_id', driverIds).eq('work_date', today)
-      : Promise.resolve({data: null})
-  ])
-
-  // 4. 处理统计数据
-  const todayAttendance = todayAttendanceResult.data?.length || 0
-  const todayPieceCount = todayPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
-  const pendingLeaveCount = pendingLeaveResult.data?.length || 0
-  const pendingResignationCount = pendingResignationResult.data?.length || 0
-  const pendingVehicleCount = pendingVehicleResult.data?.length || 0
-  const totalPendingCount = pendingLeaveCount + pendingResignationCount + pendingVehicleCount
-  const monthlyPieceCount = monthlyPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
-
-  // 5. 构建司机列表
-  const driverList: DashboardStats['driverList'] = []
-
-  if (driversResult.data && driversResult.data.length > 0) {
-    const attendanceMap = new Set(allTodayAttendanceResult.data?.map((record) => record.user_id) || [])
-    const pieceCountMap = new Map<string, number>()
-    allTodayPieceResult.data?.forEach((record) => {
-      const currentCount = pieceCountMap.get(record.user_id) || 0
-      pieceCountMap.set(record.user_id, currentCount + (record.quantity || 0))
-    })
-
-    for (const driver of driversResult.data) {
-      driverList.push({
-        id: driver.id,
-        name: driver.name || driver.phone || '未命名',
-        phone: driver.phone || '',
-        todayAttendance: attendanceMap.has(driver.id),
-        todayPieceCount: pieceCountMap.get(driver.id) || 0
-      })
-    }
-  }
-
-  return {
-    todayAttendance,
-    todayPieceCount,
-    pendingLeaveCount,
-    pendingResignationCount,
-    pendingVehicleCount,
-    totalPendingCount,
-    monthlyPieceCount,
-    driverList
-  }
+  // 委托给 DashboardRepository 处理（带缓存）
+  return dashboardRepository.getWarehouseStats(warehouseId)
 }
 
 /**
- * 获取所有仓库的汇总统计数据（老板使用）
+ * 获取所有仓库的汇总统计数据（老板使用，带缓存，TTL 2 分钟）
+ *
+ * 内部调用 DashboardRepository 实现缓存功能，
+ * 保持原有函数签名不变，确保向后兼容。
+ *
  * @returns 汇总统计数据
  */
 export async function getAllWarehousesDashboardStats(): Promise<DashboardStats> {
-  const today = getLocalDateString()
-  const firstDayOfMonth = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  // 委托给 DashboardRepository 处理（带缓存）
+  return dashboardRepository.getAllWarehousesStats()
+}
 
-  // 并行查询所有统计数据（包含请假、离职、车辆审批）
-  const [
-    allDriversResult,
-    todayAttendanceResult,
-    todayPieceResult,
-    pendingLeaveResult,
-    pendingResignationResult,
-    pendingVehicleResult,
-    monthlyPieceResult,
-    allTodayAttendanceResult,
-    allTodayPieceResult
-  ] = await Promise.all([
-    (async () => {
-      const {data, error} = await supabase.from('users').select('id, name, phone').eq('role', 'DRIVER')
-      return {data, error}
-    })(),
-    supabase.from('attendance').select('user_id').eq('work_date', today),
-    supabase.from('piece_work_records').select('quantity').eq('work_date', today),
-    supabase.from('leave_applications').select('id').eq('status', 'pending'),
-    // 离职申请待审批
-    supabase.from('resignation_applications').select('id').eq('status', 'pending'),
-    // 车辆待审批
-    supabase.from('vehicles').select('id').eq('review_status', 'pending'),
-    supabase.from('piece_work_records').select('quantity').gte('work_date', firstDayOfMonth),
-    supabase.from('attendance').select('user_id').eq('work_date', today),
-    supabase.from('piece_work_records').select('user_id, quantity').eq('work_date', today)
-  ])
-
-  const todayAttendance = todayAttendanceResult.data?.length || 0
-  const todayPieceCount = todayPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
-  const pendingLeaveCount = pendingLeaveResult.data?.length || 0
-  const pendingResignationCount = pendingResignationResult.data?.length || 0
-  const pendingVehicleCount = pendingVehicleResult.data?.length || 0
-  const totalPendingCount = pendingLeaveCount + pendingResignationCount + pendingVehicleCount
-  const monthlyPieceCount = monthlyPieceResult.data?.reduce((sum, record) => sum + (record.quantity || 0), 0) || 0
-
-  const driverList: DashboardStats['driverList'] = []
-
-  if (allDriversResult.data && allDriversResult.data.length > 0) {
-    const attendanceMap = new Set(allTodayAttendanceResult.data?.map((record) => record.user_id) || [])
-    const pieceCountMap = new Map<string, number>()
-    allTodayPieceResult.data?.forEach((record) => {
-      const currentCount = pieceCountMap.get(record.user_id) || 0
-      pieceCountMap.set(record.user_id, currentCount + (record.quantity || 0))
-    })
-
-    for (const driver of allDriversResult.data) {
-      driverList.push({
-        id: driver.id,
-        name: driver.name || driver.phone || '未命名',
-        phone: driver.phone || '',
-        todayAttendance: attendanceMap.has(driver.id),
-        todayPieceCount: pieceCountMap.get(driver.id) || 0
-      })
-    }
-  }
-
-  return {
-    todayAttendance,
-    todayPieceCount,
-    pendingLeaveCount,
-    pendingResignationCount,
-    pendingVehicleCount,
-    totalPendingCount,
-    monthlyPieceCount,
-    driverList
-  }
+/**
+ * 清除仪表盘缓存
+ *
+ * 在以下场景调用此函数确保数据实时性：
+ * - 考勤打卡后
+ * - 计件记录提交后
+ * - 请假/离职申请状态变更后
+ * - 车辆审核状态变更后
+ */
+export function invalidateDashboardCache(): void {
+  dashboardRepository.invalidateCache()
 }
 
 /**

@@ -33,12 +33,6 @@ export type {
   UserRole as StatsUserRole,
   WarehouseStats
 } from './api/stats'
-// Users 模块类型
-export type {
-  DatabaseColumn,
-  DatabaseConstraint,
-  DatabaseTable
-} from './api/users'
 // Notifications 模块类型
 export type {
   Notification,

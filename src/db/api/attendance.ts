@@ -10,6 +10,7 @@
 
 import {supabase} from '@/client/supabase'
 import {CACHE_KEYS, clearCache, getCache, setCache} from '@/utils/cache'
+import {getLocalDateString} from '@/utils/date'
 import {publish} from '@/utils/eventBus'
 import type {
   AttendanceRecord,
@@ -19,16 +20,6 @@ import type {
   AttendanceRuleInput,
   AttendanceRuleUpdate
 } from '../types'
-
-/**
- * 获取本地日期字符串（YYYY-MM-DD格式）
- */
-function getLocalDateString(date: Date = new Date()): string {
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 /**
  * 创建上班打卡记录

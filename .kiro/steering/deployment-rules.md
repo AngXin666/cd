@@ -148,3 +148,56 @@ npx serve dist -l 8080 -s
 - 可以使用浏览器开发者工具调试
 - 不影响线上用户
 - 节省部署时间和资源
+
+## 🚨 Playwright E2E 测试规则（强制）
+
+> **硬性规则**：所有 Playwright E2E 测试必须使用 H5 headed 模式运行！
+
+### 强制要求
+
+当运行 Playwright 测试时，**必须使用 headed 模式**：
+
+```bash
+# ✅ 正确：使用 headed 模式
+npx playwright test --headed
+
+# ❌ 错误：使用 headless 模式（默认）
+npx playwright test
+```
+
+### 测试前置条件
+
+1. **确保本地服务器已启动**：
+   ```bash
+   npx serve dist -l 8080 -s
+   ```
+
+2. **确保 H5 已构建**：
+   ```bash
+   pnpm taro build --type h5
+   ```
+
+### Playwright 配置要求
+
+在 `playwright.config.ts` 中配置：
+```typescript
+export default defineConfig({
+  use: {
+    // 强制使用 headed 模式
+    headless: false,
+    // 基础 URL 指向本地 H5 服务
+    baseURL: 'http://localhost:8080',
+  },
+});
+```
+
+### 为什么必须使用 headed 模式
+
+- **可视化调试**：可以直观看到测试执行过程
+- **问题定位**：更容易发现 UI 渲染问题
+- **Taro H5 兼容性**：某些 Taro 组件在 headless 模式下行为可能不一致
+- **真实用户体验**：headed 模式更接近真实用户使用场景
+
+### 违规后果
+- 使用 headless 模式运行的测试结果不可信
+- 必须使用 headed 模式重新运行测试

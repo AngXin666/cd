@@ -25,9 +25,7 @@ import {
   getLocalDateString,
   getTomorrowDateString
 } from '@/utils/date'
-
-// 环境检测
-const isH5 = process.env.TARO_ENV === 'h5'
+import {isH5} from '@/utils/platform'
 
 // 存储兼容工具函数
 const getStorageSync = (key: string): any => {

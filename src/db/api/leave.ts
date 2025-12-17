@@ -11,13 +11,19 @@
  *
  * v1.3.18 更新：使用 buildSubmissionMessage 组装通知消息
  * 消息格式：{仓库名} {司机类型} {姓名} 提交了{申请类型}申请
+ *
+ * v1.3.x 更新：使用 LeaveRepository 进行缓存管理
+ * - getAllLeaveApplications 和 getAllResignationApplications 使用 2 分钟缓存
+ * - 创建/审批申请时自动清除缓存
  */
 
 import {supabase} from '@/client/supabase'
+import {leaveRepository} from '@/db/repositories'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
-import {type DriverType, type WarehouseInfo} from '@/utils/notificationMessageBuilder'
+import {getLocalDateString} from '@/utils/date'
 import {formatLeaveDateForNotification} from '@/utils/dateFormat'
 import {publish} from '@/utils/eventBus'
+import {type DriverType, type WarehouseInfo} from '@/utils/notificationMessageBuilder'
 import type {
   ApplicationReviewInput,
   LeaveApplication,
@@ -25,16 +31,6 @@ import type {
   ResignationApplication,
   ResignationApplicationInput
 } from '../types'
-
-/**
- * 获取本地日期字符串
- */
-function getLocalDateString(date: Date = new Date()): string {
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 // ==================== 请假申请相关 API ====================
 
@@ -120,6 +116,9 @@ export async function createLeaveApplication(input: LeaveApplicationInput): Prom
     // 发布事件通知其他组件刷新数据
     publish('leave:created', {id: data.id, userId: input.user_id})
     publish('notification:created')
+
+    // 清除请假申请缓存
+    leaveRepository.invalidateLeaveCache()
 
     return data
   } catch (error) {
@@ -218,14 +217,13 @@ export async function getLeaveApplicationsByWarehouse(warehouseId: string): Prom
 
 /**
  * 获取所有请假申请（老板）
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
+ * @returns 请假申请列表
  */
 export async function getAllLeaveApplications(): Promise<LeaveApplication[]> {
-  const {data, error} = await supabase.from('leave_applications').select('*').order('created_at', {ascending: false})
-  if (error) {
-    console.error('获取所有请假申请失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getAllLeaveApplications()
 }
 
 /**
@@ -263,6 +261,9 @@ export async function reviewLeaveApplication(applicationId: string, review: Appl
     // 发布事件通知其他组件刷新数据
     publish('leave:updated', {id: applicationId, status: review.status, userId: application.user_id})
     publish('notification:created')
+
+    // 清除请假申请缓存
+    leaveRepository.invalidateLeaveCache()
 
     return true
   } catch (error) {
@@ -354,6 +355,9 @@ export async function createResignationApplication(
     // 发布事件通知其他组件刷新数据
     publish('resignation:created', {id: data.id, userId: input.user_id})
     publish('notification:created')
+
+    // 清除离职申请缓存
+    leaveRepository.invalidateResignationCache()
 
     return data
   } catch (error) {
@@ -452,23 +456,13 @@ export async function getResignationApplicationsByWarehouse(warehouseId: string)
 
 /**
  * 获取所有离职申请（老板）
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
  * @returns 离职申请列表
  */
 export async function getAllResignationApplications(): Promise<ResignationApplication[]> {
-  console.log('[LeaveAPI] 开始获取所有离职申请...')
-  
-  const {data, error} = await supabase
-    .from('resignation_applications')
-    .select('*')
-    .order('created_at', {ascending: false})
-
-  if (error) {
-    console.error('[LeaveAPI] 获取所有离职申请失败:', error)
-    return []
-  }
-  
-  console.log('[LeaveAPI] 获取离职申请成功，数量:', data?.length || 0)
-  return Array.isArray(data) ? data : []
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getAllResignationApplications()
 }
 
 /**
@@ -509,6 +503,9 @@ export async function reviewResignationApplication(
     // 发布事件通知其他组件刷新数据
     publish('resignation:updated', {id: applicationId, status: review.status, userId: application.user_id})
     publish('notification:created')
+
+    // 清除离职申请缓存
+    leaveRepository.invalidateResignationCache()
 
     return true
   } catch (error) {

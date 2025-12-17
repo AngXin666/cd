@@ -21,6 +21,7 @@ import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import {hideLoading, showLoading} from '@/utils/taroCompat'
+import {isH5} from '@/utils/platform'
 
 import type {Profile} from '@/db/types'
 import {
@@ -34,9 +35,6 @@ import {
 } from '@/hooks'
 import {smartLogout, isLogoutInProgress} from '@/utils/auth'
 import {startRealtimeMonitor} from '@/utils/sessionManager'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
 
 // 存储工具函数，兼容H5和小程序
 const getStorageSync = (key: string): any => {
@@ -117,8 +115,7 @@ const ManagerHome: React.FC = () => {
     cacheEnabled: true
   })
 
-  // 监听 driverStats 变化
-  useEffect(() => {}, [])
+  // 注意：已删除空的 useEffect 监听，无实际作用
 
   // 加载用户资料
   const loadProfile = useCallback(async () => {
@@ -136,8 +133,9 @@ const ManagerHome: React.FC = () => {
   }, [])
 
   // 设置加载超时（8秒）
+  // 性能优化：只依赖 user?.id，避免 user 对象引用变化导致重复执行
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     timeoutRef.current = setTimeout(() => {
       if (!profile) {
@@ -151,15 +149,17 @@ const ManagerHome: React.FC = () => {
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [user, profile])
+  }, [user?.id, profile])
 
+  // 初始加载
+  // 性能优化：只依赖 user?.id 而不是整个 user 对象
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       loadProfile()
       // 启动实时会话监听（优先使用 WebSocket，失败时降级到轮询）
       startRealtimeMonitor(user.id)
     }
-  }, [user, loadProfile])
+  }, [user?.id, loadProfile])
 
   // 页面显示时刷新数据（批量并行查询优化）
   useDidShow(() => {
@@ -306,13 +306,14 @@ const ManagerHome: React.FC = () => {
   // 初始加载状态：当用户信息还未加载时显示加载界面
   // 使用 showLoading/hideLoading 处理加载状态
   // 注意：如果正在退出登录，不显示 loading，避免退出时闪现 "加载用户信息中..."
+  // 性能优化：只依赖 user?.id 而不是整个 user 对象
   useEffect(() => {
-    if (!user && !isLogoutInProgress()) {
+    if (!user?.id && !isLogoutInProgress()) {
       showLoading({title: '加载用户信息中...'})
     } else {
       hideLoading()
     }
-  }, [user])
+  }, [user?.id])
 
   if (!user) {
     return null

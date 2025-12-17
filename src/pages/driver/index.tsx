@@ -20,6 +20,7 @@ import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import {hideLoading, showLoading} from '@/utils/taroCompat'
+import {isH5} from '@/utils/platform'
 
 import type {DriverLicense, Profile} from '@/db/types'
 import {
@@ -36,9 +37,6 @@ import {checkTodayAttendance} from '@/utils/attendance-check'
 import {smartLogout, isLogoutInProgress} from '@/utils/auth'
 import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {startRealtimeMonitor} from '@/utils/sessionManager'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
 
 // 存储工具函数，兼容H5和小程序
 const getStorageSync = (key: string): any => {
@@ -98,8 +96,9 @@ const DriverHome: React.FC = () => {
   }, [user?.id])
 
   // 检测打卡状态
+  // 性能优化：只依赖 user?.id 而不是整个 user 对象，避免不必要的重新执行
   const checkAttendance = useCallback(async () => {
-    if (!user) return
+    if (!user?.id) return
 
     try {
       const result = await checkTodayAttendance(user.id)
@@ -121,7 +120,7 @@ const DriverHome: React.FC = () => {
     } catch (error) {
       console.error('[DriverHome] 检测打卡状态失败:', error)
     }
-  }, [user])
+  }, [user?.id])
 
   // 使用仓库列表管理 Hook（原始列表）
   const {
@@ -159,8 +158,9 @@ const DriverHome: React.FC = () => {
   const loading = warehousesLoading || statsLoading
 
   // 设置加载超时（8秒）
+  // 性能优化：只依赖 user?.id，避免 profile 变化时重置超时定时器
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     timeoutRef.current = setTimeout(() => {
       if (!profile) {
@@ -174,7 +174,7 @@ const DriverHome: React.FC = () => {
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [user, profile])
+  }, [user?.id, profile])
 
   // 处理仓库切换
   const handleWarehouseChange = useCallback((e: any) => {
@@ -183,18 +183,16 @@ const DriverHome: React.FC = () => {
     // 切换仓库时，useDriverDashboard Hook 会自动加载新仓库的数据（优先使用缓存）
   }, [])
 
-  // 监控仓库加载状态
-  useEffect(() => {}, [])
-
   // 初始加载（批量并行查询优化）
+  // 性能优化：只依赖 user?.id 而不是整个 user 对象，避免不必要的重新执行
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       // 批量并行加载所有初始数据
       Promise.all([loadProfile(), checkAttendance()])
       // 启动实时会话监听（优先使用 WebSocket，失败时降级到轮询）
       startRealtimeMonitor(user.id)
     }
-  }, [user, loadProfile, checkAttendance])
+  }, [user?.id, loadProfile, checkAttendance])
 
   // 页面显示时刷新数据（批量并行查询优化）
   useDidShow(() => {
@@ -293,7 +291,8 @@ const DriverHome: React.FC = () => {
   })
 
   // 快捷功能点击处理
-  const handleQuickAction = (action: string) => {
+  // 性能优化：使用 useCallback 缓存函数，避免每次渲染创建新函数
+  const handleQuickAction = useCallback((action: string) => {
     switch (action) {
       case 'piece-work':
         navigateTo({url: '/pages/driver/piece-work-entry/index'})
@@ -310,22 +309,25 @@ const DriverHome: React.FC = () => {
       default:
         break
     }
-  }
+  }, [])
 
   // 处理统计卡片点击
-  const handleStatsClick = (type: 'today' | 'month') => {
+  // 性能优化：使用 useCallback 缓存函数
+  const handleStatsClick = useCallback((type: 'today' | 'month') => {
     // 跳转到数据统计页面，并传递时间范围参数
     navigateTo({url: `/pages/driver/piece-work/index?range=${type}`})
-  }
+  }, [])
 
   // 处理考勤卡片点击
-  const handleAttendanceClick = () => {
+  // 性能优化：使用 useCallback 缓存函数
+  const handleAttendanceClick = useCallback(() => {
     // 跳转到请假申请页面
     navigateTo({url: '/pages/driver/leave/index'})
-  }
+  }, [])
 
   // 退出登录处理
-  const handleLogout = () => {
+  // 性能优化：使用 useCallback 缓存函数
+  const handleLogout = useCallback(() => {
     showModal({
       title: '退出登录',
       content: '确定要退出登录吗？',
@@ -335,7 +337,7 @@ const DriverHome: React.FC = () => {
         }
       }
     })
-  }
+  }, [])
 
   // 获取显示名称（优先显示驾驶证上的真实姓名）
   const getDisplayName = () => {
@@ -369,13 +371,14 @@ const DriverHome: React.FC = () => {
   // 初始加载状态：当用户信息还未加载时显示加载界面
   // 使用 showLoading/hideLoading 处理加载状态
   // 注意：如果正在退出登录，不显示 loading，避免退出时闪现 "加载用户信息中..."
+  // 性能优化：只依赖 user?.id 而不是整个 user 对象
   useEffect(() => {
-    if (!user && !isLogoutInProgress()) {
+    if (!user?.id && !isLogoutInProgress()) {
       showLoading({title: '加载用户信息中...'})
     } else {
       hideLoading()
     }
-  }, [user])
+  }, [user?.id])
 
   if (!user) {
     return null

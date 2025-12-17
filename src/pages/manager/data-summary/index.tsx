@@ -10,6 +10,7 @@ import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString, getYesterdayDateString} from '@/utils/date'
+import {formatDateShort} from '@/utils/dateFormat'
 import {matchWithPinyin} from '@/utils/pinyin'
 
 const DataSummary: React.FC = () => {
@@ -216,11 +217,8 @@ const DataSummary: React.FC = () => {
     stat.amount += Number(record.total_amount)
   }
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return `${date.getMonth() + 1}/${date.getDate()}`
-  }
+  // 格式化日期 - 使用统一的日期格式化函数
+  // formatDateShort 来自 @/utils/dateFormat，返回 M/D 格式
 
   // 获取仓库名称
   const getWarehouseName = (warehouseId: string) => {
@@ -478,7 +476,7 @@ const DataSummary: React.FC = () => {
                         <View className="i-mdi-account-circle text-blue-600 text-lg mr-2" />
                         <Text className="text-sm text-gray-800 font-medium">{getDriverName(record.user_id)}</Text>
                       </View>
-                      <Text className="text-xs text-gray-500">{formatDate(record.work_date)}</Text>
+                      <Text className="text-xs text-gray-500">{formatDateShort(record.work_date)}</Text>
                     </View>
 
                     <View className="flex items-center mb-2">

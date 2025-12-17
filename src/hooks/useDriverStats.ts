@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {supabase} from '@/client/supabase'
 
 /**
@@ -315,10 +315,14 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
     }
   }, [enableRealtime, fetchDriverStats, cacheEnabled])
 
-  return {
-    data,
-    loading,
-    error,
-    refresh
-  }
+  // 性能优化：使用 useMemo 缓存返回值，避免每次渲染创建新对象
+  return useMemo(
+    () => ({
+      data,
+      loading,
+      error,
+      refresh
+    }),
+    [data, loading, error, refresh]
+  )
 }

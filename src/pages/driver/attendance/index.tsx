@@ -1,3 +1,10 @@
+/**
+ * 司机考勤记录页面
+ * 显示司机的月度考勤记录和统计数据
+ *
+ * @module pages/driver/attendance
+ */
+
 import {Picker, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -7,6 +14,7 @@ import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as AttendanceAPI from '@/db/api/attendance'
 import type {AttendanceRecord} from '@/db/types'
+import {formatDateWithWeekday, formatTime} from '@/utils/dateFormat'
 
 const Attendance: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -61,23 +69,7 @@ const Attendance: React.FC = () => {
     setSelectedMonth(monthRange[index])
   }
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-    const weekDay = weekDays[date.getDay()]
-    return `${month}/${day} 周${weekDay}`
-  }
 
-  // 格式化时间
-  const formatTime = (timeStr: string) => {
-    const date = new Date(timeStr)
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${hours}:${minutes}`
-  }
 
   // 获取状态显示
   const getStatusDisplay = (status: string) => {
@@ -171,7 +163,7 @@ const Attendance: React.FC = () => {
                     <View key={record.id} className="border border-gray-200 rounded-lg p-3">
                       {/* 日期和状态 */}
                       <View className="flex justify-between items-center mb-2">
-                        <Text className="text-base font-bold text-gray-800">{formatDate(record.work_date)}</Text>
+                        <Text className="text-base font-bold text-gray-800">{formatDateWithWeekday(record.work_date)}</Text>
                         <View className={`${statusInfo.bg} px-2 py-1 rounded`}>
                           <Text className={`text-xs font-medium ${statusInfo.color}`}>{statusInfo.text}</Text>
                         </View>

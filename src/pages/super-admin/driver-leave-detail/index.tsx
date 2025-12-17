@@ -17,6 +17,7 @@ import * as LeaveAPI from '@/db/api/leave'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRecord, LeaveApplication, Profile, ResignationApplication, Warehouse} from '@/db/types'
+import {formatTime, extractDateFromISO, formatDateTime} from '@/utils/dateFormat'
 
 const DriverLeaveDetail: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -105,21 +106,9 @@ const DriverLeaveDetail: React.FC = () => {
     return warehouse?.name || '未知仓库'
   }
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    return dateStr.split('T')[0]
-  }
-
-  // 格式化日期时间
-  const formatDateTime = (dateTimeStr: string) => {
-    const date = new Date(dateTimeStr)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${year}-${month}-${day} ${hours}:${minutes}`
-  }
+  // 格式化日期 - 使用统一的日期格式化函数
+  // extractDateFromISO 来自 @/utils/dateFormat，从 ISO 日期字符串中提取日期部分
+  // formatDateTime 来自 @/utils/dateFormat，返回 YYYY-MM-DD HH:mm 格式
 
   // 计算请假天数
   const calculateLeaveDays = (startDate: string, endDate: string) => {
@@ -182,13 +171,12 @@ const DriverLeaveDetail: React.FC = () => {
     return `${year}-${month}`
   }, [])
 
-  // 格式化时间显示
-  const formatTime = (timeStr: string) => {
+  // 格式化时间显示（使用统一的日期格式化函数）
+  // 注意：formatTime 来自 @/utils/dateFormat，返回 HH:mm 格式
+  // 如果时间为空，返回 '--'
+  const formatTimeDisplay = (timeStr: string) => {
     if (!timeStr) return '--'
-    const date = new Date(timeStr)
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${hours}:${minutes}`
+    return formatTime(timeStr)
   }
 
   // 获取打卡状态信息
@@ -483,7 +471,7 @@ const DriverLeaveDetail: React.FC = () => {
                           <View className="flex-1">
                             <Text className="text-xs text-gray-500 block mb-1">请假时间</Text>
                             <Text className="text-sm text-gray-800 font-medium">
-                              {formatDate(app.start_date)} 至 {formatDate(app.end_date)}
+                              {extractDateFromISO(app.start_date)} 至 {extractDateFromISO(app.end_date)}
                             </Text>
                             <Text className="text-xs text-blue-600 mt-1">
                               共 {calculateLeaveDays(app.start_date, app.end_date)} 天
@@ -710,14 +698,14 @@ const DriverLeaveDetail: React.FC = () => {
                               <View className="i-mdi-clock-in text-lg text-green-600 mr-2" />
                               <Text className="text-sm text-gray-600">上班打卡</Text>
                             </View>
-                            <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_in_time)}</Text>
+                            <Text className="text-sm font-bold text-gray-800">{formatTimeDisplay(record.clock_in_time)}</Text>
                           </View>
                           <View className="flex items-center justify-between">
                             <View className="flex items-center">
                               <View className="i-mdi-clock-out text-lg text-orange-600 mr-2" />
                               <Text className="text-sm text-gray-600">下班打卡</Text>
                             </View>
-                            <Text className="text-sm font-bold text-gray-800">{formatTime(record.clock_out_time)}</Text>
+                            <Text className="text-sm font-bold text-gray-800">{formatTimeDisplay(record.clock_out_time)}</Text>
                           </View>
                           {record.warehouse_id && (
                             <View className="flex items-center justify-between">
@@ -778,7 +766,7 @@ const DriverLeaveDetail: React.FC = () => {
                           <View className="flex-1">
                             <Text className="text-xs text-gray-500 block mb-1">预计离职日期</Text>
                             <Text className="text-sm text-gray-800 font-medium">
-                              {formatDate(app.resignation_date)}
+                              {extractDateFromISO(app.resignation_date)}
                             </Text>
                           </View>
                         </View>

@@ -5,6 +5,7 @@ import type React from 'react'
 import {useEffect, useRef, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {useBackButtonBlock} from '@/hooks'
 import {useUserContext} from '@/contexts/UserContext'
 import {hideLoading, showLoading} from '@/utils/taroCompat'
 
@@ -15,6 +16,9 @@ const IndexPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const hasRedirected = useRef(false) // 防止重复跳转
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 首页返回键拦截：防止用户在首页按返回键退出应用
+  useBackButtonBlock(true, false) // 不显示提示，直接阻止返回
 
   // 显示加载状态
   useEffect(() => {

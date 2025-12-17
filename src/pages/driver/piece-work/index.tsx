@@ -1,3 +1,8 @@
+/**
+ * 司机计件记录页面
+ * 显示和管理司机的计件工作记录
+ * @module pages/driver/piece-work
+ */
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {getCurrentInstance, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
@@ -6,15 +11,21 @@ import {useCallback, useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as PieceworkAPI from '@/db/api/piecework'
-import * as WarehousesAPI from '@/db/api/warehouses'
-import type {PieceWorkCategory, PieceWorkRecord, Warehouse} from '@/db/types'
+import type {PieceWorkCategory, PieceWorkRecord} from '@/db/types'
+import {useDriverWarehouses} from '@/hooks'
 import {confirmDelete} from '@/utils/confirm'
 import {getFirstDayOfMonthString, getLocalDateString, getMondayDateString} from '@/utils/date'
+import {formatDateChineseYMD, formatDateChineseYMDNoZero, formatDateShort, formatDateTimeChineseYMD, formatTime} from '@/utils/dateFormat'
 
+/**
+ * 司机计件记录组件
+ * 提供计件记录的查看、编辑、删除功能
+ */
 const DriverPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  // 使用缓存 Hook 加载仓库列表，避免重复 API 调用
+  const {warehouses, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '', true)
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [startDate, setStartDate] = useState('')
@@ -69,18 +80,15 @@ const DriverPieceWork: React.FC = () => {
     }
   }, [rangeParam])
 
-  // 加载数据
-  const loadData = useCallback(async () => {
-    if (!user?.id) return
-
-    // 加载司机的仓库
-    const driverWarehouses = await WarehousesAPI.getDriverWarehouses(user.id)
-    setWarehouses(driverWarehouses)
-
+  /**
+   * 加载品类数据
+   * 仓库数据已通过 useDriverWarehouses Hook 自动加载和缓存
+   */
+  const loadCategories = useCallback(async () => {
     // 加载品类
     const categoriesData = await PieceworkAPI.getActiveCategories()
     setCategories(categoriesData)
-  }, [user?.id])
+  }, [])
 
   // 加载计件记录
   const loadRecords = useCallback(async () => {
@@ -106,22 +114,26 @@ const DriverPieceWork: React.FC = () => {
     setRecords(data)
   }, [user?.id, startDate, endDate, selectedWarehouseIndex, warehouses, sortOrder])
 
+  // 初始化加载品类
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadCategories()
+  }, [loadCategories])
 
+  // 加载计件记录
   useEffect(() => {
     loadRecords()
   }, [loadRecords])
 
+  // 页面显示时刷新数据
   useDidShow(() => {
-    loadData()
-    loadRecords() // 添加：页面显示时重新加载记录
+    refreshWarehouses() // 刷新仓库缓存
+    loadCategories()
+    loadRecords()
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadData(), loadRecords()])
+    await Promise.all([refreshWarehouses(), loadCategories(), loadRecords()])
     Taro.stopPullDownRefresh()
   })
 
@@ -129,41 +141,7 @@ const DriverPieceWork: React.FC = () => {
   const totalQuantity = records.reduce((sum, r) => sum + r.quantity, 0)
   const totalAmount = records.reduce((sum, r) => sum + Number(r.total_amount), 0)
 
-  // 格式化日期（完整显示年月日）
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}年${month}月${day}日`
-  }
 
-  // 格式化日期时间（完整显示年月日时分）
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${year}年${month}月${day}日 ${hours}:${minutes}`
-  }
-
-  // 格式化时间（只显示时分）
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${hours}:${minutes}`
-  }
-
-  // 格式化日期（简短版本）
-  const formatDateShort = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    return `${month}/${day}`
-  }
 
   // 获取仓库名称
   const getWarehouseName = (warehouseId: string) => {
@@ -202,28 +180,18 @@ const DriverPieceWork: React.FC = () => {
     return `${year}-${month}-${day}`
   }
 
-  // 辅助函数：格式化日期显示（年月日）
-  const formatDateDisplay = (dateStr: string): string => {
-    if (!dateStr) return ''
-    const date = new Date(dateStr)
-    const year = date.getFullYear()
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    return `${year}年${month}月${day}日`
-  }
-
   // 计算前一天的日期（用于显示）
   const _getPreviousDayDisplay = (): string => {
     const baseDate = startDate || getLocalDateString()
     const dateStr = getPreviousDay(baseDate)
-    return formatDateDisplay(dateStr)
+    return formatDateChineseYMD(dateStr)
   }
 
   // 计算后一天的日期（用于显示）
   const getNextDayDisplay = (): string => {
     const baseDate = endDate || getLocalDateString()
     const dateStr = getNextDay(baseDate)
-    return formatDateDisplay(dateStr)
+    return formatDateChineseYMD(dateStr)
   }
 
   // 快捷筛选：今天
@@ -411,7 +379,7 @@ const DriverPieceWork: React.FC = () => {
   const handleDelete = async (record: PieceWorkRecord) => {
     const confirmed = await confirmDelete(
       '确认删除',
-      `确定要删除 ${formatDate(record.work_date)} 的计件记录吗？\n\n` +
+      `确定要删除 ${formatDateChineseYMD(record.work_date)} 的计件记录吗？\n\n` +
         `仓库：${getWarehouseName(record.warehouse_id)}\n` +
         `品类：${getCategoryName(record.category_id)}\n` +
         `件数：${record.quantity}\n` +
@@ -451,7 +419,7 @@ const DriverPieceWork: React.FC = () => {
             {/* 编辑标题 */}
             <View className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-6 mb-4 shadow-lg">
               <Text className="text-white text-2xl font-bold block mb-2">编辑计件记录</Text>
-              <Text className="text-blue-100 text-sm block">{formatDate(editingRecord.work_date)}</Text>
+              <Text className="text-blue-100 text-sm block">{formatDateChineseYMD(editingRecord.work_date)}</Text>
             </View>
 
             {/* 记录信息 */}
@@ -471,7 +439,7 @@ const DriverPieceWork: React.FC = () => {
                 </View>
                 <View className="flex items-center">
                   <Text className="text-sm text-gray-600 w-20">日期：</Text>
-                  <Text className="text-sm text-gray-800">{formatDate(editingRecord.work_date)}</Text>
+                  <Text className="text-sm text-gray-800">{formatDateChineseYMD(editingRecord.work_date)}</Text>
                 </View>
               </View>
             </View>
@@ -791,7 +759,7 @@ const DriverPieceWork: React.FC = () => {
                       <View className="flex items-center justify-between mb-2">
                         <View className="flex items-center">
                           <View className="i-mdi-calendar text-white text-xl mr-2" />
-                          <Text className="text-white text-base font-bold">{formatDate(record.work_date)}</Text>
+                          <Text className="text-white text-base font-bold">{formatDateChineseYMD(record.work_date)}</Text>
                         </View>
                         <Text className="text-blue-100 text-xs">{formatDateShort(record.work_date)}</Text>
                       </View>
@@ -800,7 +768,7 @@ const DriverPieceWork: React.FC = () => {
                           <View className="i-mdi-clock-outline text-white text-sm mr-1" />
                           <Text className="text-blue-100 text-xs">创建时间：{formatTime(record.created_at)}</Text>
                         </View>
-                        <Text className="text-blue-100 text-xs">{formatDateTime(record.created_at)}</Text>
+                        <Text className="text-blue-100 text-xs">{formatDateTimeChineseYMD(record.created_at)}</Text>
                       </View>
                     </View>
 

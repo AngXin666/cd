@@ -27,6 +27,7 @@ import {formatLeaveDateRangeDisplay} from '@/utils/date'
 import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {getOperatorLabel, type UserRole} from '@/utils/notificationMessageBuilder'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
+import {extractDateFromISO} from '@/utils/dateFormat'
 
 // 司机统计数据类型
 interface DriverStats {
@@ -292,10 +293,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
     [leaveApplications]
   )
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    return dateStr.split('T')[0]
-  }
+  // 格式化日期 - 使用统一的日期格式化函数
+  // extractDateFromISO 来自 @/utils/dateFormat，从 ISO 日期字符串中提取日期部分
 
   // 获取可见的仓库列表（复用前面定义的函数）
   // 注意：这里直接使用 getVisibleWarehousesList，保持排序逻辑一致
@@ -869,13 +868,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
           // 示例：老板、调度李四
           const reviewerText = getOperatorLabel(approverRole, approverName)
 
-          // 格式化离职日期
-          const formatDate = (dateStr: string) => {
-            const date = new Date(dateStr)
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-          }
-
-          const resignationDate = formatDate(application.resignation_date)
+          // 格式化离职日期 - 使用统一的日期格式化函数
+          const resignationDate = extractDateFromISO(application.resignation_date)
           const statusText = approved ? '通过' : '拒绝'
           const notificationType = approved ? 'resignation_approved' : 'resignation_rejected'
           const approvalStatus = approved ? 'approved' : 'rejected'
@@ -1174,7 +1168,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
                           <View className="flex items-center">
                             <View className="i-mdi-calendar text-lg text-gray-500 mr-2" />
                             <Text className="text-xs text-gray-500">
-                              具体日期：{formatDate(app.start_date)} 至 {formatDate(app.end_date)}
+                              具体日期：{extractDateFromISO(app.start_date)} 至 {extractDateFromISO(app.end_date)}
                             </Text>
                           </View>
                           {app.reason && (
@@ -1279,7 +1273,7 @@ const SuperAdminLeaveApproval: React.FC = () => {
                         <View className="space-y-2 mb-3">
                           <View className="flex items-center">
                             <View className="i-mdi-calendar text-lg text-gray-500 mr-2" />
-                            <Text className="text-sm text-gray-700">离职日期：{formatDate(app.resignation_date)}</Text>
+                            <Text className="text-sm text-gray-700">离职日期：{extractDateFromISO(app.resignation_date)}</Text>
                           </View>
                           {app.reason && (
                             <View className="flex items-start">

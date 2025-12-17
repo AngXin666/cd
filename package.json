@@ -1,6 +1,6 @@
 {
   "name": "miaoda-taro-react-starter",
-  "version": "1.4.5",
+  "version": "1.4.7",
   "description": "开箱即用的基于Taro + React + Zustand + TailwindCSS + TypeScript的模板",
   "author": "miaoda-team",
   "license": "MIT",
@@ -32,7 +32,13 @@
     "clean:android": "cd android && .\\gradlew clean",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "debug:login": "node scripts/quick-login-debug.js",
+    "debug:login:0": "node scripts/quick-login-debug.js 0",
+    "debug:login:1": "node scripts/quick-login-debug.js 1",
+    "debug:login:2": "node scripts/quick-login-debug.js 2",
+    "debug:login:3": "node scripts/quick-login-debug.js 3",
+    "debug:login:4": "node scripts/quick-login-debug.js 4"
   },
   "browserslist": [
     "last 5 years",
@@ -93,6 +99,7 @@
     "fast-check": "^4.4.0",
     "happy-dom": "^20.0.11",
     "jsdom": "^27.3.0",
+    "playwright": "^1.57.0",
     "postcss": "^8.5.6",
     "react-refresh": "^0.14.0",
     "supabase": "^2.65.3",

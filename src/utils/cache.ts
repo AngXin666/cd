@@ -326,6 +326,10 @@ export const CACHE_KEYS = {
   // 用户相关
   USER_PROFILE: 'user_profile',
   ALL_USERS: 'all_users',
+  /** 所有司机列表缓存键 */
+  ALL_DRIVERS: 'all_drivers',
+  /** 所有管理员列表缓存键 */
+  ALL_MANAGERS: 'all_managers',
 
   // 仓库相关
   WAREHOUSE_LIST: 'warehouse_list',
@@ -353,7 +357,19 @@ export const CACHE_KEYS = {
   SUPER_ADMIN_USER_WAREHOUSES: 'super_admin_user_warehouses',
 
   // 仪表盘
-  DASHBOARD_DATA: 'dashboard_data'
+  DASHBOARD_DATA: 'dashboard_data',
+
+  // 统计数据相关
+  /** 系统统计数据缓存键 */
+  SYSTEM_STATS: 'system_stats',
+  /** 用户个人统计数据缓存键 */
+  USER_PERSONAL_STATS: 'user_personal_stats',
+
+  // 请假/离职申请相关
+  /** 所有请假申请列表缓存键 */
+  ALL_LEAVE_APPLICATIONS: 'all_leave_applications',
+  /** 所有离职申请列表缓存键 */
+  ALL_RESIGNATION_APPLICATIONS: 'all_resignation_applications'
 }
 
 /**

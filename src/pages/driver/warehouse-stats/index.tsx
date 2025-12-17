@@ -20,6 +20,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import type {AttendanceRecord, PieceWorkCategory, PieceWorkRecord, PieceWorkStats, Warehouse} from '@/db/types'
 import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {getDaysAgoDateString, getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
+import {formatDateChinese, formatTime} from '@/utils/dateFormat'
 import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
 const WarehouseStats: React.FC = () => {
@@ -127,17 +128,7 @@ const WarehouseStats: React.FC = () => {
     Taro.stopPullDownRefresh()
   })
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return `${date.getMonth() + 1}月${date.getDate()}日`
-  }
 
-  // 格式化时间
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  }
 
   // 格式化工时
   const formatWorkHours = (hours: number | null) => {
@@ -259,7 +250,7 @@ const WarehouseStats: React.FC = () => {
                   return (
                     <View key={record.id} className="bg-gray-50 rounded-lg p-3">
                       <View className="flex items-center justify-between mb-2">
-                        <Text className="text-gray-800 text-sm font-medium">{formatDate(record.work_date)}</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{formatDateChinese(record.work_date)}</Text>
                         <View className={`px-2 py-1 rounded ${statusStyle.bgColor}`}>
                           <Text className={`text-xs ${statusStyle.color}`}>{statusStyle.text}</Text>
                         </View>
@@ -365,7 +356,7 @@ const WarehouseStats: React.FC = () => {
                             </View>
                           )}
                         </View>
-                        <Text className="text-xs text-gray-500">{formatDate(record.work_date)}</Text>
+                        <Text className="text-xs text-gray-500">{formatDateChinese(record.work_date)}</Text>
                       </View>
                       <View className="flex items-center justify-between">
                         <View className="flex items-center">

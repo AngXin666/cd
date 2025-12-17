@@ -6,6 +6,7 @@ import {useCallback, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as NotificationsAPI from '@/db/api/notifications'
+import {formatDateTime} from '@/utils/dateFormat'
 import type {NotificationSendRecordWithSender} from '@/db/types'
 
 /**
@@ -27,13 +28,11 @@ const NotificationRecords: React.FC = () => {
     loadRecords()
   })
 
-  // 格式化时间
-  const formatDateTime = (dateTime: string) => {
-    const date = new Date(dateTime)
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  }
-
-  // 获取类型标签
+  /**
+   * 获取通知类型的显示标签和样式
+   * @param type - 通知类型：manual（手动）、scheduled（定时）、auto（自动）
+   * @returns 包含 label 和 color 的对象
+   */
   const getTypeBadge = (type: string) => {
     const typeMap = {
       manual: {label: '手动发送', color: 'bg-blue-100 text-blue-700'},

@@ -29,7 +29,6 @@
  * ```
  */
 
-import Taro from '@tarojs/taro'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'

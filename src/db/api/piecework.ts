@@ -4,13 +4,16 @@
  *
  * 功能包括：
  * - 计件记录管理
- * - 计件品类管理
+ * - 计件品类管理（使用 CategoriesRepository，带缓存）
  * - 品类价格配置
  * - 计件统计
+ *
+ * @module db/api/piecework
  */
 
 import {supabase} from '@/client/supabase'
 import {publish} from '@/utils/eventBus'
+import {categoriesRepository} from '../repositories'
 import type {
   CategoryPrice,
   CategoryPriceInput,
@@ -225,181 +228,67 @@ export async function calculatePieceWorkStats(
 }
 
 // ==================== 计件品类管理 API ====================
+// 注意：品类管理 API 已迁移到 CategoriesRepository，带缓存（TTL 10 分钟）
+// 以下函数保持原有签名不变，内部调用 Repository 方法
 
 /**
  * 获取所有启用的品类
+ * 使用 CategoriesRepository，带缓存（TTL 10 分钟）
+ *
+ * @returns 启用的品类数组
  */
 export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
-  try {
-    const {data, error} = await supabase
-      .from('piece_work_categories')
-      .select('id, name, description, created_at, updated_at')
-      .order('name', {ascending: true})
-
-    if (error) {
-      console.error('获取启用品类失败:', error)
-      return []
-    }
-
-    if (Array.isArray(data)) {
-      return data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category_name: item.name,
-        description: item.description,
-        is_active: true,
-        created_at: item.created_at,
-        updated_at: item.updated_at
-      }))
-    }
-    return []
-  } catch (error) {
-    console.error('获取启用品类异常:', error)
-    return []
-  }
+  // 调用 Repository 方法（带缓存）
+  return categoriesRepository.getActiveCategories()
 }
 
 /**
  * 获取所有品类
+ * 使用 CategoriesRepository，带缓存（TTL 10 分钟）
+ *
+ * @returns 所有品类数组
  */
 export async function getAllCategories(): Promise<PieceWorkCategory[]> {
-  try {
-    const {data, error} = await supabase
-      .from('piece_work_categories')
-      .select('id, name, description, created_at, updated_at')
-      .order('name', {ascending: true})
-
-    if (error) {
-      console.error('获取所有品类失败:', error)
-      return []
-    }
-
-    if (Array.isArray(data)) {
-      return data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category_name: item.name,
-        description: item.description,
-        is_active: true,
-        created_at: item.created_at,
-        updated_at: item.updated_at
-      }))
-    }
-    return []
-  } catch (error) {
-    console.error('获取所有品类异常:', error)
-    return []
-  }
+  // 调用 Repository 方法（带缓存）
+  return categoriesRepository.getAllCategories()
 }
 
 /**
  * 创建品类
+ * 使用 CategoriesRepository，创建成功后自动清除缓存
+ *
  * @param category - 品类输入数据
  * @returns 创建的品类对象，失败返回 null
  */
 export async function createCategory(category: PieceWorkCategoryInput): Promise<PieceWorkCategory | null> {
-  try {
-    const {data, error} = await supabase
-      .from('piece_work_categories')
-      .insert({name: category.name, description: category.description})
-      .select()
-      .maybeSingle()
-
-    if (error) {
-      console.error('创建品类失败:', error)
-      return null
-    }
-
-    if (data) {
-      const result: PieceWorkCategory = {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        is_active: true,
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      }
-
-      // 发布品类创建事件，通知相关页面刷新
-      publish('category:created', {
-        id: result.id,
-        name: result.name,
-        description: result.description
-      })
-
-      return result
-    }
-    return null
-  } catch (error) {
-    console.error('创建品类异常:', error)
-    return null
-  }
+  // 调用 Repository 方法（自动清除缓存并发布事件）
+  return categoriesRepository.createCategory(category)
 }
 
 /**
  * 更新品类
+ * 使用 CategoriesRepository，更新成功后自动清除缓存
+ *
  * @param id - 品类ID
  * @param updates - 更新数据
  * @returns 是否更新成功
  */
 export async function updateCategory(id: string, updates: Partial<PieceWorkCategoryInput>): Promise<boolean> {
-  try {
-    const mappedUpdates: Partial<{name: string; description: string; updated_at: string}> = {
-      updated_at: new Date().toISOString()
-    }
-    if (updates.name !== undefined) mappedUpdates.name = updates.name
-    if (updates.description !== undefined) mappedUpdates.description = updates.description
-
-    const {error} = await supabase.from('piece_work_categories').update(mappedUpdates).eq('id', id)
-    if (error) {
-      console.error('更新品类失败:', error)
-      return false
-    }
-
-    // 发布品类更新事件，通知相关页面刷新
-    publish('category:updated', {
-      id,
-      ...updates
-    })
-
-    return true
-  } catch (error) {
-    console.error('更新品类异常:', error)
-    return false
-  }
+  // 调用 Repository 方法（自动清除缓存并发布事件）
+  return categoriesRepository.updateCategory(id, updates)
 }
 
 /**
  * 删除品类
+ * 使用 CategoriesRepository，删除成功后自动清除缓存
+ * 注意：会先删除关联的价格记录
+ *
  * @param id - 品类ID
  * @returns 是否删除成功
  */
 export async function deleteCategory(id: string): Promise<boolean> {
-  try {
-    // 1. 先删除关联的价格记录
-    const {error: priceError} = await supabase.from('category_prices').delete().eq('category_id', id)
-    if (priceError) {
-      console.error('删除关联价格记录失败:', priceError)
-      return false
-    }
-
-    // 2. 删除品类
-    const {error} = await supabase.from('piece_work_categories').delete().eq('id', id)
-    if (error) {
-      console.error('删除品类失败:', error)
-      return false
-    }
-
-    // 3. 发布品类删除事件，通知相关页面刷新
-    publish('category:deleted', {
-      id
-    })
-
-    return true
-  } catch (error) {
-    console.error('删除品类异常:', error)
-    return false
-  }
+  // 调用 Repository 方法（自动清除缓存并发布事件）
+  return categoriesRepository.deleteCategory(id)
 }
 
 /**

@@ -15,6 +15,7 @@ import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {DriverLicense, Profile} from '@/db/types'
+import {formatDateLocale} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 
@@ -151,15 +152,7 @@ const DriverProfile: React.FC = () => {
     })
   }
 
-  // 格式化日期
-  const formatDate = (dateStr: string | null): string => {
-    if (!dateStr) return '未填写'
-    try {
-      return new Date(dateStr).toLocaleDateString('zh-CN')
-    } catch {
-      return dateStr
-    }
-  }
+
 
   // 格式化角色
   const formatRole = (role: string): string => {
@@ -263,7 +256,7 @@ const DriverProfile: React.FC = () => {
                           <Text className="text-gray-600 text-sm">出生日期</Text>
                         </View>
                         <Text className="text-gray-800 text-sm font-medium">
-                          {formatDate(driverLicense.id_card_birth_date)}
+                          {formatDateLocale(driverLicense.id_card_birth_date)}
                         </Text>
                       </View>
                     </View>
@@ -319,7 +312,7 @@ const DriverProfile: React.FC = () => {
                           <Text className="text-gray-600 text-sm">初次领证日期</Text>
                         </View>
                         <Text className="text-gray-800 text-sm font-medium">
-                          {formatDate(driverLicense.valid_from)}
+                          {formatDateLocale(driverLicense.valid_from)}
                         </Text>
                       </View>
                     </View>
@@ -333,7 +326,7 @@ const DriverProfile: React.FC = () => {
                           <View className="i-mdi-calendar-clock text-gray-600 text-lg mr-2" />
                           <Text className="text-gray-600 text-sm">有效期至</Text>
                         </View>
-                        <Text className="text-gray-800 text-sm font-medium">{formatDate(driverLicense.valid_to)}</Text>
+                        <Text className="text-gray-800 text-sm font-medium">{formatDateLocale(driverLicense.valid_to)}</Text>
                       </View>
                     </View>
                   )}
@@ -375,7 +368,7 @@ const DriverProfile: React.FC = () => {
                         <Text className="text-gray-600 text-sm">注册时间</Text>
                       </View>
                       <Text className="text-gray-800 text-sm font-medium">
-                        {profile ? formatDate(profile.created_at) : '未知'}
+                        {profile ? formatDateLocale(profile.created_at) : '未知'}
                       </Text>
                     </View>
                     <Text className="text-xs text-gray-400 mt-1 ml-7">账户创建时间</Text>

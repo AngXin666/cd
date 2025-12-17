@@ -1,5 +1,5 @@
 import type {RealtimeChannel} from '@supabase/supabase-js'
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import type {DashboardStats} from '@/db/api/dashboard'
 import {getAllWarehousesDashboardStats, getWarehouseDashboardStats} from '@/db/api/dashboard'
@@ -243,11 +243,15 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
     loadData(warehouseId)
   }, [warehouseId, loadData])
 
-  return {
-    data,
-    loading,
-    error,
-    refresh,
-    clearCache: () => clearCache(warehouseId)
-  }
+  // 使用 useMemo 缓存返回值，避免不必要的重新渲染
+  return useMemo(
+    () => ({
+      data,
+      loading,
+      error,
+      refresh,
+      clearCache: () => clearCache(warehouseId)
+    }),
+    [data, loading, error, refresh, clearCache, warehouseId]
+  )
 }

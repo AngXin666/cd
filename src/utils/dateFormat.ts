@@ -232,3 +232,206 @@ export function formatLeaveDateForNotification(startDate: string, endDate: strin
   // 日期范围
   return `${formatMonthDay(start)}-${formatMonthDay(end)}（${days}天）`
 }
+
+
+// ==================== 时间格式化函数 ====================
+
+/**
+ * 格式化时间为 HH:mm 格式
+ * @param timeStr - 时间字符串或 Date 对象
+ * @returns 格式化后的时间字符串，如 "09:30"
+ */
+export function formatTime(timeStr: string | Date): string {
+  if (!timeStr) return ''
+  const date = typeof timeStr === 'string' ? new Date(timeStr) : timeStr
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+/**
+ * 格式化时间为 HH:mm:ss 格式
+ * @param timeStr - 时间字符串或 Date 对象
+ * @returns 格式化后的时间字符串，如 "09:30:45"
+ */
+export function formatTimeWithSeconds(timeStr: string | Date): string {
+  if (!timeStr) return ''
+  const date = typeof timeStr === 'string' ? new Date(timeStr) : timeStr
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${hours}:${minutes}:${seconds}`
+}
+
+// ==================== 日期格式化函数 ====================
+
+/**
+ * 格式化日期为 YYYY-MM-DD 格式
+ * @param dateStr - 日期字符串或 Date 对象
+ * @returns 格式化后的日期字符串，如 "2024-12-17"
+ */
+export function formatDateISO(dateStr: string | Date): string {
+  if (!dateStr) return ''
+  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * 格式化日期为 MM/DD 周X 格式
+ * @param dateStr - 日期字符串
+ * @returns 格式化后的日期字符串，如 "12/17 周二"
+ */
+export function formatDateWithWeekday(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+  const weekDay = weekDays[date.getDay()]
+  return `${month}/${day} 周${weekDay}`
+}
+
+/**
+ * 格式化日期为 M月D日 格式
+ * @param dateStr - 日期字符串
+ * @returns 格式化后的日期字符串，如 "12月17日"
+ */
+export function formatDateChinese(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+/**
+ * 格式化日期为 YYYY年MM月DD日 星期X 格式
+ * @param date - Date 对象或日期字符串
+ * @returns 格式化后的日期字符串，如 "2024年12月17日 星期二"
+ */
+export function formatDateChineseFull(date: Date | string): string {
+  if (!date) return ''
+  const d = typeof date === 'string' ? new Date(date) : date
+  const year = d.getFullYear()
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const day = d.getDate().toString().padStart(2, '0')
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+  const weekDay = weekDays[d.getDay()]
+  return `${year}年${month}月${day}日 星期${weekDay}`
+}
+
+/**
+ * 格式化日期为 YYYY年MM月DD日 格式（中文年月日，带前导零）
+ * @param dateStr - 日期字符串
+ * @returns 格式化后的日期字符串，如 "2024年12月17日"
+ */
+export function formatDateChineseYMD(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}年${month}月${day}日`
+}
+
+/**
+ * 格式化日期时间为 YYYY年MM月DD日 HH:mm 格式（中文年月日）
+ * @param dateStr - 日期时间字符串
+ * @returns 格式化后的日期时间字符串，如 "2024年12月17日 09:30"
+ */
+export function formatDateTimeChineseYMD(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}年${month}月${day}日 ${hours}:${minutes}`
+}
+
+/**
+ * 格式化日期为 YYYY年M月D日 格式（中文年月日，不带前导零）
+ * @param dateStr - 日期字符串
+ * @returns 格式化后的日期字符串，如 "2024年1月7日"
+ */
+export function formatDateChineseYMDNoZero(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${year}年${month}月${day}日`
+}
+
+/**
+ * 格式化日期为本地化格式，支持 null 值
+ * @param dateStr - 日期字符串，可以为 null
+ * @param fallback - 当日期为空时的默认值，默认为 '未填写'
+ * @returns 格式化后的日期字符串，如 "2024/12/17"
+ */
+export function formatDateLocale(dateStr: string | null, fallback = '未填写'): string {
+  if (!dateStr) return fallback
+  try {
+    return new Date(dateStr).toLocaleDateString('zh-CN')
+  } catch {
+    return dateStr
+  }
+}
+
+/**
+ * 格式化日期为 M/D 格式（简短版本）
+ * @param dateStr - 日期字符串
+ * @returns 格式化后的日期字符串，如 "12/17"
+ */
+export function formatDateShort(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+// ==================== 日期时间格式化函数 ====================
+
+/**
+ * 格式化日期时间为 YYYY-MM-DD HH:mm 格式
+ * @param dateStr - 日期时间字符串
+ * @returns 格式化后的日期时间字符串，如 "2024-12-17 09:30"
+ */
+export function formatDateTime(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+/**
+ * 格式化日期时间为 YYYY-MM-DD HH:mm:ss 格式
+ * @param dateStr - 日期时间字符串
+ * @returns 格式化后的日期时间字符串，如 "2024-12-17 09:30:45"
+ */
+export function formatDateTimeWithSeconds(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+/**
+ * 从 ISO 日期字符串中提取日期部分（去除时间和时区）
+ * @param dateStr - ISO 日期字符串，如 "2024-12-17T09:30:00.000Z"
+ * @returns 日期部分，如 "2024-12-17"
+ */
+export function extractDateFromISO(dateStr: string): string {
+  if (!dateStr) return ''
+  return dateStr.split('T')[0]
+}

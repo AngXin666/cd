@@ -6,6 +6,7 @@ import {useCallback, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as NotificationsAPI from '@/db/api/notifications'
+import {formatDateTime} from '@/utils/dateFormat'
 import type {ScheduledNotification} from '@/db/types'
 
 /**
@@ -45,13 +46,11 @@ const ScheduledNotifications: React.FC = () => {
     }
   }
 
-  // 格式化时间
-  const formatDateTime = (dateTime: string) => {
-    const date = new Date(dateTime)
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  }
-
-  // 获取状态标签
+  /**
+   * 获取通知状态的显示标签和样式
+   * @param status - 通知状态：pending（待发送）、sent（已发送）、cancelled（已取消）、failed（发送失败）
+   * @returns 包含 label 和 color 的对象
+   */
   const getStatusBadge = (status: string) => {
     const statusMap = {
       pending: {label: '待发送', color: 'bg-blue-100 text-blue-700'},

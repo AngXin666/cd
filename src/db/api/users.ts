@@ -20,7 +20,8 @@ import {
   getUsersWithRole,
   getUserWithRole
 } from '../helpers'
-import type {DriverType, ManagerPermission, ManagerPermissionInput, Profile, ProfileUpdate, UserRole} from '../types'
+import { usersRepository } from '../repositories'
+import type {DriverType, ManagerPermission, Profile, ProfileUpdate, UserRole} from '../types'
 
 // 创建数据库操作日志记录器
 const logger = createLogger('UsersAPI')
@@ -324,27 +325,16 @@ export async function getDriverProfiles(): Promise<Profile[]> {
 }
 
 /**
- * 获取所有司机列表
+ * 获取所有司机列表（带缓存）
+ *
+ * 使用 UsersRepository 实现，内置 5 分钟缓存。
+ * 根据当前用户的角色和权限，返回可见的司机列表。
+ *
+ * @returns 司机档案列表
  */
 export async function getAllDrivers(): Promise<Profile[]> {
-  try {
-    const {
-      data: {user}
-    } = await supabase.auth.getUser()
-
-    const userWithRole = await getUserWithRole(user.id)
-    const drivers = await getUsersByRole('DRIVER', userWithRole)
-
-    if (!drivers || drivers.length === 0) {
-      return []
-    }
-
-    const profiles = convertUsersToProfiles(drivers)
-    return profiles
-  } catch (error) {
-    console.error('❌ 获取司机列表失败:', error)
-    return []
-  }
+  // 使用 UsersRepository 获取司机列表（带缓存）
+  return usersRepository.getAllDrivers()
 }
 
 /**
@@ -430,27 +420,16 @@ export async function getManagerProfiles(): Promise<Profile[]> {
 }
 
 /**
- * 获取所有管理员用户
+ * 获取所有管理员用户（带缓存）
+ *
+ * 使用 UsersRepository 实现，内置 5 分钟缓存。
+ * 根据当前用户的角色和权限，返回可见的管理员列表。
+ *
+ * @returns 管理员档案列表
  */
 export async function getAllManagers(): Promise<Profile[]> {
-  try {
-    const {
-      data: {user}
-    } = await supabase.auth.getUser()
-
-    const userWithRole = await getUserWithRole(user.id)
-    const managers = await getUsersByRole('MANAGER', userWithRole)
-
-    if (!managers || managers.length === 0) {
-      return []
-    }
-
-    const profiles = convertUsersToProfiles(managers)
-    return profiles
-  } catch (error) {
-    console.error('❌ 获取管理员列表异常:', error)
-    return []
-  }
+  // 使用 UsersRepository 获取管理员列表（带缓存）
+  return usersRepository.getAllManagers()
 }
 
 /**
@@ -594,13 +573,6 @@ export async function getManagerPermission(managerId: string): Promise<ManagerPe
 }
 
 /**
- * 创建或更新管理员权限配置（已废弃）
- */
-export async function upsertManagerPermission(_input: ManagerPermissionInput): Promise<boolean> {
-  return true
-}
-
-/**
  * 更新车队长的权限启用状态
  * @param managerId - 车队长用户ID
  * @param enabled - 是否启用权限（true=完整权限，false=仅查看权限）
@@ -715,7 +687,10 @@ export async function updateProfile(id: string, updates: ProfileUpdate): Promise
       }
     }
 
-    // 3. 发布用户更新事件，通知相关页面刷新
+    // 3. 清除用户缓存，确保下次查询获取最新数据
+    usersRepository.invalidateCache()
+
+    // 4. 发布用户更新事件，通知相关页面刷新
     publish('user:updated', {
       id,
       ...updates
@@ -813,7 +788,10 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
       }
     }
 
-    // 3. 发布用户角色更新事件，通知相关页面刷新
+    // 3. 清除用户缓存，确保下次查询获取最新数据
+    usersRepository.invalidateCache()
+
+    // 4. 发布用户角色更新事件，通知相关页面刷新
     publish('user:role_updated', {
       user_id: userId,
       new_role: role
@@ -1066,7 +1044,10 @@ export async function createUser(
       role: role as UserRole
     })
 
-    // 5. 发布用户创建事件，通知相关页面刷新
+    // 5. 清除用户缓存，确保下次查询获取最新数据
+    usersRepository.invalidateCache()
+
+    // 6. 发布用户创建事件，通知相关页面刷新
     publish('user:created', {
       id: profile.id,
       name: profile.name,
@@ -1391,90 +1372,6 @@ export async function getSuperAdminStats(): Promise<{
   }
 }
 
-// ==================== 数据库调试 ====================
-
-// 数据库表信息类型
-export interface DatabaseTable {
-  table_name: string
-  table_schema: string
-  table_type: string
-}
-
-export interface DatabaseColumn {
-  table_name: string
-  column_name: string
-  data_type: string
-  is_nullable: string
-  column_default: string | null
-  character_maximum_length: number | null
-  numeric_precision: number | null
-  numeric_scale: number | null
-}
-
-export interface DatabaseConstraint {
-  constraint_name: string
-  table_name: string
-  constraint_type: string
-  column_name: string
-}
-
-/**
- * 获取所有表信息
- */
-export async function getDatabaseTables(): Promise<DatabaseTable[]> {
-  try {
-    const {data, error} = await supabase.rpc('get_database_tables')
-
-    if (error) {
-      console.error('获取数据库表信息失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data : []
-  } catch (error) {
-    console.error('获取数据库表信息异常:', error)
-    return []
-  }
-}
-
-/**
- * 获取指定表的列信息
- */
-export async function getTableColumns(tableName: string): Promise<DatabaseColumn[]> {
-  try {
-    const {data, error} = await supabase.rpc('get_table_columns', {table_name_param: tableName})
-
-    if (error) {
-      console.error('获取表列信息失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data : []
-  } catch (error) {
-    console.error('获取表列信息异常:', error)
-    return []
-  }
-}
-
-/**
- * 获取指定表的约束信息
- */
-export async function getTableConstraints(tableName: string): Promise<DatabaseConstraint[]> {
-  try {
-    const {data, error} = await supabase.rpc('get_table_constraints', {table_name_param: tableName})
-
-    if (error) {
-      console.error('获取表约束信息失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data : []
-  } catch (error) {
-    console.error('获取表约束信息异常:', error)
-    return []
-  }
-}
-
 // ==================== 账号删除 ====================
 
 // 删除租户结果类型
@@ -1610,6 +1507,9 @@ export async function deleteTenantWithLog(id: string): Promise<DeleteTenantResul
         deletedData: stats
       }
     }
+
+    // 清除用户缓存，确保下次查询获取最新数据
+    usersRepository.invalidateCache()
 
     // 发布用户删除事件，通知相关页面刷新
     publish('user:deleted', {

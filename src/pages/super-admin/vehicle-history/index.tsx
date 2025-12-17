@@ -14,6 +14,7 @@ import TopNavBar from '@/components/TopNavBar'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {VehicleWithDriver} from '@/db/types'
 import {calculateAge, calculateDrivingYears} from '@/utils/date'
+import {formatDateTime} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('VehicleHistory')
@@ -54,16 +55,12 @@ const VehicleHistory: React.FC = () => {
     loadVehicleInfo()
   })
 
-  const formatDateTime = (dateStr: string | null) => {
+  // 格式化日期时间 - 使用统一的日期格式化函数
+  // formatDateTime 来自 @/utils/dateFormat，返回 YYYY-MM-DD HH:mm 格式
+  // 包装函数处理 null 值
+  const formatDateTimeOrDefault = (dateStr: string | null) => {
     if (!dateStr) return '-'
-    const date = new Date(dateStr)
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    return formatDateTime(dateStr)
   }
 
   const handlePreviewImage = (current: string, urls: string[]) => {
@@ -260,7 +257,7 @@ const VehicleHistory: React.FC = () => {
 
                       <View>
                         <Text className="text-muted-foreground text-sm mb-1">提车时间</Text>
-                        <Text className="text-foreground">{formatDateTime(vehicle.pickup_time)}</Text>
+                        <Text className="text-foreground">{formatDateTimeOrDefault(vehicle.pickup_time)}</Text>
                       </View>
                     </View>
 
@@ -312,7 +309,7 @@ const VehicleHistory: React.FC = () => {
 
                           <View>
                             <Text className="text-muted-foreground text-sm mb-1">还车时间</Text>
-                            <Text className="text-foreground">{formatDateTime(vehicle.return_time)}</Text>
+                            <Text className="text-foreground">{formatDateTimeOrDefault(vehicle.return_time)}</Text>
                           </View>
                         </View>
 

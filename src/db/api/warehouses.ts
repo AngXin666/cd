@@ -1159,17 +1159,6 @@ export async function getWarehouseCategoriesWithDetails(warehouseId: string): Pr
   }
 }
 
-/**
- * 设置仓库的品类（更新 category_prices 表）
- * 注意：在新的数据库设计中，品类直接关联到仓库，不需要单独的关联表
- */
-export async function setWarehouseCategories(_warehouseId: string, _categoryIds: string[]): Promise<boolean> {
-  // 在新的设计中，品类已经直接关联到仓库
-  // 这个函数保留是为了兼容性，但实际上不需要做任何操作
-  // 品类的启用/禁用应该通过更新 category_prices 表的 is_active 字段来实现
-  return true
-}
-
 // ==================== 其他仓库函数 ====================
 
 /**

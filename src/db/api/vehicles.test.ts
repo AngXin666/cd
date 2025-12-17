@@ -46,6 +46,7 @@ vi.mock('@/utils/eventBus', () => ({
 vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
     db: vi.fn(),
+    debug: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
     info: vi.fn()

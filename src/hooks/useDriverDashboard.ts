@@ -1,5 +1,5 @@
 import type {RealtimeChannel} from '@supabase/supabase-js'
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getDriverAttendanceStats} from '@/db/api/dashboard'
 import {getPieceWorkRecordsByUser} from '@/db/api/piecework'
@@ -285,13 +285,17 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
     }
   }, [enableRealtime, userId, warehouseId, refreshStable])
 
-  return {
-    data,
-    loading,
-    error,
-    refresh,
-    clearCache
-  }
+  // 使用 useMemo 缓存返回值，避免不必要的重新渲染
+  return useMemo(
+    () => ({
+      data,
+      loading,
+      error,
+      refresh,
+      clearCache
+    }),
+    [data, loading, error, refresh, clearCache]
+  )
 }
 
 /**

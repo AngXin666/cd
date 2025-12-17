@@ -2,14 +2,20 @@
  * 统计数据 API
  *
  * 功能包括：
- * - 系统总体统计
- * - 用户个人统计
+ * - 系统总体统计（带缓存，TTL 5 分钟）
+ * - 用户个人统计（带缓存，TTL 2 分钟）
  * - 仓库统计
  * - 角色统计
+ *
+ * 注意：getSystemStats 和 getUserPersonalStats 已迁移到 StatsRepository，
+ * 本文件中的函数作为向后兼容的包装器，内部调用 Repository 方法。
+ *
+ * @module db/api/stats
  */
 
 import {publish} from '@/utils/eventBus'
 import {supabase} from '../supabase'
+import { statsRepository } from '../repositories'
 
 /**
  * 系统总体统计数据
@@ -111,52 +117,30 @@ export interface CurrentUserInfo {
 
 /**
  * 获取系统总体统计（仅管理员）
+ *
+ * 该函数已迁移到 StatsRepository，带有 5 分钟缓存。
+ * 此函数作为向后兼容的包装器，内部调用 Repository 方法。
+ *
+ * @param userId - 请求用户ID（用于权限验证）
+ * @returns 系统统计数据，如果查询失败或无权限则返回 null
  */
 export async function getSystemStats(userId: string): Promise<SystemStats | null> {
-  try {
-    const {data, error} = await supabase.rpc('get_system_stats', {
-      p_user_id: userId
-    })
-
-    if (error) {
-      console.error('[getSystemStats] 获取系统统计失败:', error)
-      return null
-    }
-
-    if (!data || data.length === 0) {
-      return null
-    }
-
-    return data[0]
-  } catch (error) {
-    console.error('[getSystemStats] 未预期的错误:', error)
-    return null
-  }
+  // 使用 StatsRepository 获取数据（带缓存）
+  return statsRepository.getSystemStats(userId)
 }
 
 /**
  * 获取用户个人统计
+ *
+ * 该函数已迁移到 StatsRepository，带有 2 分钟缓存。
+ * 此函数作为向后兼容的包装器，内部调用 Repository 方法。
+ *
+ * @param userId - 用户ID
+ * @returns 用户个人统计数据，如果查询失败则返回 null
  */
 export async function getUserPersonalStats(userId: string): Promise<UserPersonalStats | null> {
-  try {
-    const {data, error} = await supabase.rpc('get_user_personal_stats', {
-      p_user_id: userId
-    })
-
-    if (error) {
-      console.error('[getUserPersonalStats] 获取用户个人统计失败:', error)
-      return null
-    }
-
-    if (!data || data.length === 0) {
-      return null
-    }
-
-    return data[0]
-  } catch (error) {
-    console.error('[getUserPersonalStats] 未预期的错误:', error)
-    return null
-  }
+  // 使用 StatsRepository 获取数据（带缓存）
+  return statsRepository.getUserPersonalStats(userId)
 }
 
 /**

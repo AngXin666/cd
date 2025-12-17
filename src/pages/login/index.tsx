@@ -11,6 +11,7 @@ import type React from 'react'
 import {useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {useBackButtonBlock} from '@/hooks'
 import {createSession, startRealtimeMonitor} from '@/utils/sessionManager'
 import {resetLogoutState} from '@/utils/auth'
 
@@ -18,9 +19,7 @@ import {resetLogoutState} from '@/utils/auth'
 import loginBg1 from '@/assets/images/login-bg-1.jpg?url'
 import loginBg2 from '@/assets/images/login-bg-2.jpg?url'
 import loginBg3 from '@/assets/images/login-bg-3.jpg?url'
-
-// 检测当前运行环境
-const isH5 = process.env.TARO_ENV === 'h5'
+import {isH5} from '@/utils/platform'
 
 // 背景图片列表 - 使用 ?url 导入，Vite 输出为独立文件
 const BG_IMAGES = [loginBg1, loginBg2, loginBg3]
@@ -89,6 +88,9 @@ const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [bgIndex, setBgIndexState] = useState(0)
+
+  // 登录页返回键拦截：防止用户在登录页按返回键退出应用
+  useBackButtonBlock(true, false) // 不显示提示，直接阻止返回
 
   useEffect(() => {
     try {
@@ -217,27 +219,29 @@ const Login: React.FC = () => {
         type: 'sms'
       })
       if (error) {
-        showToast({title: error.message || '登录失败，请检查验证码', icon: 'none'})
+        // 统一错误提示，不泄露后端实现细节
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[OTP登录失败]', error)
+        }
+        showToast({title: '验证码错误或已过期', icon: 'none'})
       } else {
-        showToast({title: '登录成功', icon: 'success'})
         // 获取用户ID并创建会话
         const userId = data.user?.id
-        if (userId) {
-          await handleLoginSuccess(userId)
-        } else {
-          // 如果无法获取用户ID，仍然跳转但不创建会话
-          console.warn('[OTP登录] 无法获取用户ID，跳过会话创建')
-          removeStorageCompat('loginSourcePage')
-          removeStorageCompat('isTestLogin')
-          try {
-            switchTab({url: '/pages/index/index'})
-          } catch (_e) {
-            reLaunch({url: '/pages/index/index'})
-          }
+        if (!userId) {
+          // 无法获取用户ID视为登录异常
+          console.error('[OTP登录] 登录成功但无法获取用户ID')
+          showToast({title: '登录异常，请重试', icon: 'none'})
+          return
         }
+        showToast({title: '登录成功', icon: 'success'})
+        await handleLoginSuccess(userId)
       }
     } catch (_err) {
-      showToast({title: '登录失败', icon: 'none'})
+      // 统一错误提示
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[OTP登录异常]', _err)
+      }
+      showToast({title: '登录失败，请稍后重试', icon: 'none'})
     } finally {
       setLoading(false)
     }
@@ -263,13 +267,21 @@ const Login: React.FC = () => {
       })
       const error = result.error
       if (error) {
-        console.error('[登录失败]', error)
-        if (error.message.includes('Invalid login credentials')) {
-          showToast({title: '账号或密码错误', icon: 'none', duration: 2000})
-        } else {
-          showToast({title: error.message || '登录失败', icon: 'none', duration: 2000})
+        // 仅在开发环境记录详细错误，生产环境不泄露后端信息
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[密码登录失败]', error)
         }
+        // 统一错误提示，不区分账号不存在还是密码错误
+        showToast({title: '账号或密码错误', icon: 'none', duration: 2000})
       } else {
+        // 获取用户ID并创建会话
+        const userId = result.data.user?.id
+        if (!userId) {
+          // 无法获取用户ID视为登录异常
+          console.error('[密码登录] 登录成功但无法获取用户ID')
+          showToast({title: '登录异常，请重试', icon: 'none'})
+          return
+        }
         // 保存或清除记住的账号密码
         try {
           if (rememberMe) {
@@ -285,24 +297,13 @@ const Login: React.FC = () => {
           console.error('保存账号密码失败:', err)
         }
         showToast({title: '登录成功', icon: 'success'})
-        // 获取用户ID并创建会话
-        const userId = result.data.user?.id
-        if (userId) {
-          await handleLoginSuccess(userId)
-        } else {
-          // 如果无法获取用户ID，仍然跳转但不创建会话
-          console.warn('[密码登录] 无法获取用户ID，跳过会话创建')
-          removeStorageCompat('loginSourcePage')
-          removeStorageCompat('isTestLogin')
-          try {
-            switchTab({url: '/pages/index/index'})
-          } catch (_e) {
-            reLaunch({url: '/pages/index/index'})
-          }
-        }
+        await handleLoginSuccess(userId)
       }
     } catch (err) {
-      console.error('[登录异常]', err)
+      // 统一错误提示
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[密码登录异常]', err)
+      }
       showToast({title: '登录失败，请稍后重试', icon: 'none'})
     } finally {
       setLoading(false)

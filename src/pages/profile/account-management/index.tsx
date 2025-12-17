@@ -14,6 +14,7 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {extractDateFromISO} from '@/utils/dateFormat'
 import * as PeerAccountsAPI from '@/db/api/peer-accounts'
 import * as UsersAPI from '@/db/api/users'
 import {supabase} from '@/db/supabase'
@@ -213,10 +214,14 @@ const AccountManagement: React.FC = () => {
     })
   }
 
-  // 格式化日期
+  /**
+   * 格式化日期，处理 null 值
+   * @param dateStr - 日期字符串，可以为 null
+   * @returns 格式化后的日期字符串，如 "2024-12-17"，或 "未设置"
+   */
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '未设置'
-    return dateStr.split('T')[0]
+    return extractDateFromISO(dateStr)
   }
 
   // 隐藏手机号中间4位
