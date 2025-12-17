@@ -7,6 +7,24 @@
 
 ## [未发布]
 
+### 项目清理 (2024-12-17)
+
+#### 归档已完成的 Spec
+- 归档 20 个已完成的功能规范到 `.kiro/specs/_archived/`
+- 包括：admin-management-fixes、apk-hot-update-fix、event-driven-data-refresh、login-page-optimization、notification-toast、permission-type-field-fix、piece-work-report-migration、realtime-session-kickout、safe-area-top-integration、super-admin-h5-compatibility、supplemented-photo-marking、top-navigation-bar、unified-hot-update、unified-loading-indicator、user-list-cache-optimization、vehicle-api-optimization、vehicle-database-fields-fix、vehicle-profile-field-audit、vehicles-review-status-fix、windows-encoding-fix
+
+#### 删除临时脚本
+- 删除 23 个临时脚本文件
+- 包括：check-*.js、fix-*.js、migrate-*.js、execute-*.js、delete-*.js、test-*.js 等
+- 保留 14 个核心脚本：quick-deploy-h5.js、setup-database.js、rollback-version.js、encoding-utils.js 等
+
+#### 清理测试文件
+- 删除未使用的手动测试脚本 `src/services/permission-test.ts`
+
+#### 更新文档
+- 更新 `scripts/README.md` 移除不存在的脚本引用
+- 更新 `CHANGELOG.md` 记录清理操作
+
 ### 新增
 - 统一热更新系统
   - 实现平台自适应更新策略
