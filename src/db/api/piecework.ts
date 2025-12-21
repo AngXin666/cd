@@ -598,10 +598,68 @@ export async function deleteCategoryPrice(id: string): Promise<boolean> {
   return true
 }
 
+// ==================== 品类价格缓存 ====================
+// 缓存有效期：5分钟
+const CATEGORY_PRICE_CACHE_KEY_PREFIX = 'category_price_'
+const CATEGORY_PRICE_CACHE_EXPIRY_MS = 5 * 60 * 1000
+
+interface CategoryPriceCache {
+  data: {unitPrice: number; driverOnlyPrice: number; driverWithVehiclePrice: number; sortingUnitPrice: number} | null
+  timestamp: number
+}
+
+/**
+ * 获取品类价格缓存键
+ */
+function getCategoryPriceCacheKey(warehouseId: string, categoryId: string, driverType?: string | null): string {
+  return `${CATEGORY_PRICE_CACHE_KEY_PREFIX}${warehouseId}_${categoryId}_${driverType || 'default'}`
+}
+
+/**
+ * 读取品类价格缓存
+ */
+function readCategoryPriceCache(warehouseId: string, categoryId: string, driverType?: string | null): CategoryPriceCache['data'] | undefined {
+  try {
+    const cacheKey = getCategoryPriceCacheKey(warehouseId, categoryId, driverType)
+    const cachedStr = localStorage.getItem(cacheKey)
+    if (cachedStr) {
+      const cached: CategoryPriceCache = JSON.parse(cachedStr)
+      if (Date.now() - cached.timestamp < CATEGORY_PRICE_CACHE_EXPIRY_MS) {
+        return cached.data
+      }
+    }
+  } catch (e) {
+    // 忽略缓存读取错误
+  }
+  return undefined
+}
+
+/**
+ * 写入品类价格缓存
+ */
+function writeCategoryPriceCache(
+  warehouseId: string,
+  categoryId: string,
+  driverType: string | null | undefined,
+  data: CategoryPriceCache['data']
+): void {
+  try {
+    const cacheKey = getCategoryPriceCacheKey(warehouseId, categoryId, driverType)
+    const cacheData: CategoryPriceCache = {
+      data,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData))
+  } catch (e) {
+    // 忽略缓存写入错误
+  }
+}
+
 /**
  * 获取司机的品类价格
  * 使用数据库实际字段：driver_only_price 和 driver_with_vehicle_price
  * 根据司机类型返回对应的单价
+ * 性能优化：添加缓存机制，避免重复请求
  * @param warehouseId - 仓库ID
  * @param categoryId - 品类ID
  * @param driverType - 司机类型：'with_vehicle'（带车司机）或其他（纯司机）
@@ -613,6 +671,13 @@ export async function getCategoryPriceForDriver(
   driverType?: string | null
 ): Promise<{unitPrice: number; driverOnlyPrice: number; driverWithVehiclePrice: number; sortingUnitPrice: number} | null> {
   console.log('[PieceworkAPI] 查询品类价格:', {warehouseId, categoryId, driverType})
+
+  // 先尝试使用缓存
+  const cachedData = readCategoryPriceCache(warehouseId, categoryId, driverType)
+  if (cachedData !== undefined) {
+    console.log('[PieceworkAPI] 使用缓存的价格配置:', cachedData)
+    return cachedData
+  }
 
   // 查询数据库实际存在的字段（不包含 sorting_unit_price，该字段在数据库中不存在）
   const {data, error} = await supabase
@@ -631,6 +696,8 @@ export async function getCategoryPriceForDriver(
 
   if (!data) {
     console.warn('[PieceworkAPI] 未找到品类价格配置')
+    // 缓存空结果，避免重复查询
+    writeCategoryPriceCache(warehouseId, categoryId, driverType, null)
     return null
   }
 
@@ -649,5 +716,9 @@ export async function getCategoryPriceForDriver(
   }
 
   console.log('[PieceworkAPI] 返回价格配置:', result, '司机类型:', driverType)
+  
+  // 写入缓存
+  writeCategoryPriceCache(warehouseId, categoryId, driverType, result)
+  
   return result
 }

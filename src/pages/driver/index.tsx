@@ -56,6 +56,46 @@ const setStorageSync = (key: string, data: any): void => {
   }
 }
 
+// ==================== 缓存配置 ====================
+// 用户资料缓存有效期：2分钟
+const PROFILE_CACHE_KEY = 'driver_profile_cache'
+const PROFILE_CACHE_EXPIRY_MS = 2 * 60 * 1000
+
+/**
+ * 读取用户资料缓存
+ * @param userId - 用户ID
+ * @returns 缓存的用户资料，如果缓存过期或不存在则返回 null
+ */
+const readProfileCache = (userId: string): {profile: Profile | null; driverLicense: DriverLicense | null} | null => {
+  try {
+    const cached = getStorageSync(`${PROFILE_CACHE_KEY}_${userId}`)
+    if (cached?.timestamp && Date.now() - cached.timestamp < PROFILE_CACHE_EXPIRY_MS) {
+      return {profile: cached.profile, driverLicense: cached.driverLicense}
+    }
+  } catch (e) {
+    console.error('[DriverHome] 读取资料缓存失败:', e)
+  }
+  return null
+}
+
+/**
+ * 写入用户资料缓存
+ * @param userId - 用户ID
+ * @param profile - 用户资料
+ * @param driverLicense - 驾驶证信息
+ */
+const writeProfileCache = (userId: string, profile: Profile | null, driverLicense: DriverLicense | null): void => {
+  try {
+    setStorageSync(`${PROFILE_CACHE_KEY}_${userId}`, {
+      profile,
+      driverLicense,
+      timestamp: Date.now()
+    })
+  } catch (e) {
+    console.error('[DriverHome] 写入资料缓存失败:', e)
+  }
+}
+
 const DriverHome: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -75,16 +115,31 @@ const DriverHome: React.FC = () => {
   const [attendanceCheck, setAttendanceCheck] = useState<AttendanceCheckResult | null>(null)
   const hasCheckedToday = useRef(false) // 标记今天是否已检测过
 
-  // 加载用户资料（批量并行查询优化）
-  const loadProfile = useCallback(async () => {
+  // 加载用户资料（批量并行查询优化 + 缓存）
+  // 性能优化：添加缓存机制，避免重复请求
+  const loadProfile = useCallback(async (forceRefresh = false) => {
+    if (!user?.id) return
+
+    // 先尝试使用缓存（除非强制刷新）
+    if (!forceRefresh) {
+      const cached = readProfileCache(user.id)
+      if (cached) {
+        setProfile(cached.profile)
+        setDriverLicense(cached.driverLicense)
+        return
+      }
+    }
+
     try {
       // 批量并行加载用户资料和驾驶证信息
       const [profileData, licenseData] = await Promise.all([
         UsersAPI.getCurrentUserProfile(),
-        user?.id ? VehiclesAPI.getDriverLicense(user.id) : Promise.resolve(null)
+        VehiclesAPI.getDriverLicense(user.id)
       ])
       setProfile(profileData)
       setDriverLicense(licenseData)
+      // 写入缓存
+      writeProfileCache(user.id, profileData, licenseData)
     } catch (error) {
       console.error('[DriverHome] 加载用户资料失败:', error)
       Taro.showToast({
@@ -194,11 +249,19 @@ const DriverHome: React.FC = () => {
     }
   }, [user?.id, loadProfile, checkAttendance])
 
-  // 页面显示时刷新数据（批量并行查询优化）
+  // 页面显示时刷新数据（使用缓存优先策略）
+  // 性能优化：不强制刷新，让各个 hook 的缓存机制生效
   useDidShow(() => {
     if (user) {
-      // 批量并行刷新所有数据
-      Promise.all([loadProfile(), refreshStats(), refreshSorting(), checkAttendance()])
+      // 使用缓存优先策略加载数据，避免重复请求
+      // loadProfile 会先检查缓存，缓存有效则不发起请求
+      loadProfile()
+      // refreshStats 和 refreshSorting 会清除缓存后重新加载
+      // 但由于 useDriverDashboard 和 useDriverWarehouses 有缓存机制
+      // 如果缓存有效，实际不会发起网络请求
+      // 注意：这里不调用 refreshStats() 和 refreshSorting()
+      // 因为初始加载时已经加载过数据，useDidShow 只需要检查打卡状态
+      checkAttendance()
 
       // 添加欢迎通知（仅在首次加载时）
       try {

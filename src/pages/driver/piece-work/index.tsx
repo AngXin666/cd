@@ -125,10 +125,15 @@ const DriverPieceWork: React.FC = () => {
   }, [loadRecords])
 
   // 页面显示时刷新数据
+  // 性能优化：只刷新仓库缓存，品类和记录使用现有缓存
+  // 因为 useEffect 已经在依赖变化时自动加载数据
   useDidShow(() => {
-    refreshWarehouses() // 刷新仓库缓存
-    loadCategories()
-    loadRecords()
+    // 仓库数据可能在其他页面被修改，需要刷新
+    refreshWarehouses()
+    // 品类数据变化较少，使用缓存即可，不需要每次刷新
+    // loadCategories()
+    // 记录数据在 useEffect 中根据依赖自动加载
+    // loadRecords()
   })
 
   // 下拉刷新

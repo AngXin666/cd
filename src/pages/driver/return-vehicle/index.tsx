@@ -12,7 +12,7 @@ import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import PhotoCapture from '@/components/PhotoCapture'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
@@ -59,6 +59,19 @@ const ReturnVehicle: React.FC = () => {
 
   // 车损特写照片（多张）
   const [damagePhotos, setDamagePhotos] = useState<{path: string; size: number}[]>([])
+
+  // 使用 ref 存储最新状态，避免 useCallback 依赖导致的无限循环
+  const vehiclePhotosRef = useRef(vehiclePhotos)
+  const damagePhotosRef = useRef(damagePhotos)
+
+  // 同步 ref 与 state
+  useEffect(() => {
+    vehiclePhotosRef.current = vehiclePhotos
+  }, [vehiclePhotos])
+
+  useEffect(() => {
+    damagePhotosRef.current = damagePhotos
+  }, [damagePhotos])
 
   // 恢复草稿
   useEffect(() => {
@@ -112,35 +125,44 @@ const ReturnVehicle: React.FC = () => {
     loadDraft()
   }, [user?.id, vehicleId])
 
-  // 自动保存草稿
+  // 自动保存草稿（使用 ref 避免依赖循环）
   const saveCurrentDraft = useCallback(async () => {
     if (!user?.id || !vehicleId) return
 
+    // 使用 ref 获取最新状态，避免依赖 vehiclePhotos 和 damagePhotos
+    const currentVehiclePhotos = vehiclePhotosRef.current
+    const currentDamagePhotos = damagePhotosRef.current
+
     const draft: VehicleDraft = {
       vehicle_photos: [
-        vehiclePhotos.left_front,
-        vehiclePhotos.right_front,
-        vehiclePhotos.left_rear,
-        vehiclePhotos.right_rear,
-        vehiclePhotos.dashboard,
-        vehiclePhotos.rear_door,
-        vehiclePhotos.cargo_box
+        currentVehiclePhotos.left_front,
+        currentVehiclePhotos.right_front,
+        currentVehiclePhotos.left_rear,
+        currentVehiclePhotos.right_rear,
+        currentVehiclePhotos.dashboard,
+        currentVehiclePhotos.rear_door,
+        currentVehiclePhotos.cargo_box
       ],
-      damage_photos: damagePhotos.map((p) => p.path)
+      damage_photos: currentDamagePhotos.map((p) => p.path)
     }
 
     await saveDraft('return', `${user.id}_${vehicleId}`, draft)
-  }, [user?.id, vehicleId, vehiclePhotos, damagePhotos])
+  }, [user?.id, vehicleId]) // 只依赖 user?.id 和 vehicleId，不依赖状态
 
-  // 监听数据变化，自动保存草稿
+  // 监听数据变化，自动保存草稿（防抖）
+  // 直接依赖状态变化，而不是 saveCurrentDraft 函数，避免循环
   useEffect(() => {
+    // 只有当有数据时才保存
+    const hasData = vehiclePhotos.left_front || damagePhotos.length > 0
+    if (!hasData) return
+
     // 防抖保存
     const timer = setTimeout(() => {
       saveCurrentDraft()
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [saveCurrentDraft])
+  }, [vehiclePhotos, damagePhotos, saveCurrentDraft])
 
   useLoad((options) => {
     const {id} = options

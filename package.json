@@ -1,6 +1,6 @@
 {
   "name": "miaoda-taro-react-starter",
-  "version": "1.4.7"
+  "version": "1.5.9",
   "description": "开箱即用的基于Taro + React + Zustand + TailwindCSS + TypeScript的模板",
   "author": "miaoda-team",
   "license": "MIT",
@@ -33,6 +33,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "npx playwright test --headed --project=\"Mobile Chrome\"",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:report": "npx playwright show-report",
+    "test:driver-nav": "pnpm exec playwright test driver-navigation --headed --project=\"Mobile Chrome\"",
     "debug:login": "node scripts/quick-login-debug.js",
     "debug:login:0": "node scripts/quick-login-debug.js 0",
     "debug:login:1": "node scripts/quick-login-debug.js 1",
@@ -100,6 +104,7 @@
     "happy-dom": "^20.0.11",
     "jsdom": "^27.3.0",
     "playwright": "^1.57.0",
+    "@playwright/test": "^1.57.0",
     "postcss": "^8.5.6",
     "react-refresh": "^0.14.0",
     "supabase": "^2.65.3",

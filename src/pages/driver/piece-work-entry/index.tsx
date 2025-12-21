@@ -183,9 +183,12 @@ const PieceWorkEntry: React.FC = () => {
     loadData()
   }, [loadData])
 
-  useDidShow(() => {
-    loadData()
-  })
+  // 页面显示时不重复加载数据
+  // 性能优化：useDidShow 只在需要刷新数据时调用（如从其他页面返回后数据可能变化）
+  // 由于 loadData 已经在 useEffect 中调用，这里不需要重复调用
+  // useDidShow(() => {
+  //   loadData()
+  // })
 
   // 处理仓库选择变化
   const handleWarehouseChange = async (e: any) => {
