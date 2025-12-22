@@ -91,26 +91,26 @@ const SuperAdminHome: React.FC = () => {
 
   // 使用老板仪表板数据管理Hook（带缓存和实时更新）
   // 注意：禁用实时更新，避免与轮询通知冲突导致频繁请求
+  // 缓存由 Repository 层统一管理
   const {
     data: dashboardStats,
     loading: dashboardLoading,
     refresh: refreshDashboard
   } = useSuperAdminDashboard({
     warehouseId: currentWarehouseId,
-    enableRealtime: false, // 禁用实时更新，使用轮询代替
-    cacheEnabled: true
+    enableRealtime: false // 禁用实时更新，使用轮询代替
   })
 
   // 使用司机统计数据管理Hook（带缓存和实时更新）
   // 注意：禁用实时更新，避免与轮询通知冲突导致频繁请求
+  // 缓存由 Repository 层统一管理，无需在 Hook 层配置
   const {
     data: driverStats,
     loading: driverStatsLoading,
     refresh: refreshDriverStats
   } = useDriverStats({
     warehouseId: currentWarehouseId,
-    enableRealtime: false, // 禁用实时更新，使用轮询代替
-    cacheEnabled: true
+    enableRealtime: false // 禁用实时更新，使用轮询代替
   })
 
   // 注意：已删除空的 useEffect 监听（dashboardStats、driverStats），无实际作用

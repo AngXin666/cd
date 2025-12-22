@@ -238,6 +238,59 @@ export abstract class BaseRepository<T extends BaseEntity> {
     this.logger.info('所有相关缓存已清除', { prefix: this.cachePrefix })
   }
 
+  // ==================== 公开缓存失效方法（供外部调用） ====================
+
+  /**
+   * 公开的缓存失效方法
+   * 清除该 Repository 的所有缓存
+   *
+   * 使用场景：
+   * - Realtime 事件触发缓存失效
+   * - 事件驱动的跨 Repository 缓存失效
+   * - 登出时清除所有缓存
+   *
+   * @example
+   * ```typescript
+   * // 在 Realtime 事件处理器中
+   * notificationsRepository.clearAllCache()
+   * ```
+   */
+  public clearAllCache(): void {
+    this.invalidateCache()
+  }
+
+  /**
+   * 清除特定 key 的缓存
+   *
+   * @param keySuffix - 缓存键后缀（不包含前缀）
+   *
+   * @example
+   * ```typescript
+   * // 清除特定 ID 的缓存
+   * vehiclesRepository.clearCacheByKey('id_vehicle-123')
+   * ```
+   */
+  public clearCacheByKey(keySuffix: string): void {
+    const fullKey = this.getCacheKey(keySuffix)
+    this.clearCacheKey(fullKey)
+  }
+
+  /**
+   * 清除特定用户相关的缓存
+   *
+   * @param userId - 用户 ID
+   *
+   * @example
+   * ```typescript
+   * // 清除用户相关的通知缓存
+   * notificationsRepository.clearCacheByUser('user-123')
+   * ```
+   */
+  public clearCacheByUser(userId: string): void {
+    clearCacheByPrefix(`${this.cachePrefix}_user_${userId}`)
+    this.logger.debug('用户相关缓存已清除', { userId, prefix: this.cachePrefix })
+  }
+
   /**
    * 更新缓存命中率
    */

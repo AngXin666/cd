@@ -1,6 +1,6 @@
 {
   "name": "miaoda-taro-react-starter",
-  "version": "1.5.9",
+  "version": "1.6.0",
   "description": "开箱即用的基于Taro + React + Zustand + TailwindCSS + TypeScript的模板",
   "author": "miaoda-team",
   "license": "MIT",

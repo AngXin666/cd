@@ -1,19 +1,25 @@
-// 完全替换文件内容
 /**
  * 计件管理 API
  *
  * 功能包括：
  * - 计件记录管理
  * - 计件品类管理（使用 CategoriesRepository，带缓存）
- * - 品类价格配置
+ * - 品类价格配置（使用 CategoryPricesRepository，带缓存）
  * - 计件统计
+ *
+ * 注意：此文件是 Repository 层的包装器
+ * 所有数据访问都通过 Repository 层进行，确保缓存一致性
  *
  * @module db/api/piecework
  */
 
-import {supabase} from '@/client/supabase'
-import {publish} from '@/utils/eventBus'
-import {categoriesRepository} from '../repositories'
+import { supabase } from '@/client/supabase'
+import { publish } from '@/utils/eventBus'
+import {
+  categoriesRepository,
+  pieceWorkRepository,
+  categoryPricesRepository
+} from '../repositories'
 import type {
   CategoryPrice,
   CategoryPriceInput,
@@ -28,56 +34,44 @@ import type {
 
 /**
  * 获取用户的计件记录
+ *
+ * @param userId - 用户 ID
+ * @param startDate - 开始日期（可选）
+ * @param endDate - 结束日期（可选）
+ * @returns 计件记录列表
  */
 export async function getPieceWorkRecordsByUser(
   userId: string,
   startDate?: string,
   endDate?: string
 ): Promise<PieceWorkRecord[]> {
-  let query = supabase
-    .from('piece_work_records')
-    .select('*')
-    .eq('user_id', userId)
-    .order('work_date', {ascending: false})
-
-  if (startDate) query = query.gte('work_date', startDate)
-  if (endDate) query = query.lte('work_date', endDate)
-
-  const {data, error} = await query
-  if (error) {
-    console.error('获取计件记录失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  return pieceWorkRepository.getByUser(userId, startDate, endDate)
 }
 
 /**
  * 获取仓库的计件记录
+ *
+ * @param warehouseId - 仓库 ID
+ * @param startDate - 开始日期（可选）
+ * @param endDate - 结束日期（可选）
+ * @returns 计件记录列表
  */
 export async function getPieceWorkRecordsByWarehouse(
   warehouseId: string,
   startDate?: string,
   endDate?: string
 ): Promise<PieceWorkRecord[]> {
-  let query = supabase
-    .from('piece_work_records')
-    .select('*')
-    .eq('warehouse_id', warehouseId)
-    .order('work_date', {ascending: false})
-
-  if (startDate) query = query.gte('work_date', startDate)
-  if (endDate) query = query.lte('work_date', endDate)
-
-  const {data, error} = await query
-  if (error) {
-    console.error('获取仓库计件记录失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  return pieceWorkRepository.getByWarehouse(warehouseId, startDate, endDate)
 }
 
 /**
  * 获取用户在指定仓库的计件记录
+ *
+ * @param userId - 用户 ID
+ * @param warehouseId - 仓库 ID
+ * @param startDate - 开始日期（可选）
+ * @param endDate - 结束日期（可选）
+ * @returns 计件记录列表
  */
 export async function getPieceWorkRecordsByUserAndWarehouse(
   userId: string,
@@ -85,95 +79,89 @@ export async function getPieceWorkRecordsByUserAndWarehouse(
   startDate?: string,
   endDate?: string
 ): Promise<PieceWorkRecord[]> {
-  let query = supabase
-    .from('piece_work_records')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('warehouse_id', warehouseId)
-    .order('work_date', {ascending: false})
-
-  if (startDate) query = query.gte('work_date', startDate)
-  if (endDate) query = query.lte('work_date', endDate)
-
-  const {data, error} = await query
-  if (error) {
-    console.error('获取用户仓库计件记录失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  return pieceWorkRepository.getByUserAndWarehouse(userId, warehouseId, startDate, endDate)
 }
 
 /**
  * 获取所有计件记录
+ *
+ * @returns 所有计件记录列表
  */
 export async function getAllPieceWorkRecords(): Promise<PieceWorkRecord[]> {
-  const {data, error} = await supabase.from('piece_work_records').select('*').order('work_date', {ascending: false})
-  if (error) {
-    console.error('获取所有计件记录失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  return pieceWorkRepository.getAllRecords()
 }
 
 /**
  * 创建计件记录
+ *
+ * @param record - 计件记录输入数据
+ * @returns 是否创建成功
  */
 export async function createPieceWorkRecord(record: PieceWorkRecordInput): Promise<boolean> {
+  // 验证用户登录状态
   const {
-    data: {user}
+    data: { user }
   } = await supabase.auth.getUser()
+
   if (!user) {
     console.error('创建计件记录失败: 用户未登录')
     return false
   }
 
+  // 验证必填字段
   if (!record.user_id || !record.quantity || record.quantity <= 0) {
     console.error('创建计件记录失败: 参数无效')
     return false
   }
 
-  const {error} = await supabase.from('piece_work_records').insert({...record})
-  if (error) {
-    console.error('创建计件记录失败:', error)
-    return false
+  const result = await pieceWorkRepository.createRecord(record)
+
+  if (result) {
+    // 发布事件通知其他组件刷新数据
+    publish('piece_work:created', { userId: record.user_id })
+    return true
   }
 
-  // 发布事件通知其他组件刷新数据
-  publish('piece_work:created', {userId: record.user_id})
-
-  return true
+  return false
 }
 
 /**
  * 更新计件记录
+ *
+ * @param id - 计件记录 ID
+ * @param record - 更新数据
+ * @returns 是否更新成功
  */
 export async function updatePieceWorkRecord(id: string, record: Partial<PieceWorkRecordInput>): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_records').update(record).eq('id', id)
-  if (error) {
-    console.error('更新计件记录失败:', error)
-    return false
+  const result = await pieceWorkRepository.updateRecord(id, record)
+
+  if (result) {
+    // 发布事件通知其他组件刷新数据
+    publish('piece_work:updated', { id })
+    return true
   }
 
-  // 发布事件通知其他组件刷新数据
-  publish('piece_work:updated', {id})
-
-  return true
+  return false
 }
 
 /**
  * 删除计件记录
+ *
+ * @param id - 计件记录 ID
+ * @returns 是否删除成功
  */
 export async function deletePieceWorkRecord(id: string): Promise<boolean> {
-  const {error} = await supabase.from('piece_work_records').delete().eq('id', id)
-  if (error) {
-    console.error('删除计件记录失败:', error)
-    return false
-  }
-  return true
+  return pieceWorkRepository.deleteRecord(id)
 }
 
 /**
  * 计算计件统计
+ *
+ * @param userId - 用户 ID
+ * @param warehouseId - 仓库 ID
+ * @param startDate - 开始日期（可选）
+ * @param endDate - 结束日期（可选）
+ * @returns 计件统计数据
  */
 export async function calculatePieceWorkStats(
   userId: string,
@@ -181,8 +169,10 @@ export async function calculatePieceWorkStats(
   startDate?: string,
   endDate?: string
 ): Promise<PieceWorkStats> {
-  const records = await getPieceWorkRecordsByUserAndWarehouse(userId, warehouseId, startDate, endDate)
+  // 获取用户在仓库的计件记录
+  const records = await pieceWorkRepository.getByUserAndWarehouse(userId, warehouseId, startDate, endDate)
 
+  // 初始化统计数据
   const stats: PieceWorkStats = {
     total_orders: records.length,
     total_quantity: 0,
@@ -190,16 +180,14 @@ export async function calculatePieceWorkStats(
     by_category: []
   }
 
-  const {data: categoryPrices} = await supabase.from('category_prices').select('category_id')
-  if (!categoryPrices || categoryPrices.length === 0) return stats
+  // 获取品类信息用于统计
+  const categories = await categoriesRepository.getAllCategories()
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]))
 
-  const categoryIds = categoryPrices.map((cp) => cp.category_id)
-  const {data: categories} = await supabase.from('piece_work_categories').select('id, name').in('id', categoryIds)
-  const categoryMap = new Map(categories?.map((c) => [c.id, c.name]) || [])
-
+  // 按品类统计
   const categoryStatsMap = new Map<
     string,
-    {category_id: string; category_name: string; quantity: number; amount: number}
+    { category_id: string; category_name: string; quantity: number; amount: number }
   >()
 
   for (const record of records) {
@@ -229,7 +217,6 @@ export async function calculatePieceWorkStats(
 
 // ==================== 计件品类管理 API ====================
 // 注意：品类管理 API 已迁移到 CategoriesRepository，带缓存（TTL 10 分钟）
-// 以下函数保持原有签名不变，内部调用 Repository 方法
 
 /**
  * 获取所有启用的品类
@@ -238,7 +225,6 @@ export async function calculatePieceWorkStats(
  * @returns 启用的品类数组
  */
 export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
-  // 调用 Repository 方法（带缓存）
   return categoriesRepository.getActiveCategories()
 }
 
@@ -249,7 +235,6 @@ export async function getActiveCategories(): Promise<PieceWorkCategory[]> {
  * @returns 所有品类数组
  */
 export async function getAllCategories(): Promise<PieceWorkCategory[]> {
-  // 调用 Repository 方法（带缓存）
   return categoriesRepository.getAllCategories()
 }
 
@@ -261,7 +246,6 @@ export async function getAllCategories(): Promise<PieceWorkCategory[]> {
  * @returns 创建的品类对象，失败返回 null
  */
 export async function createCategory(category: PieceWorkCategoryInput): Promise<PieceWorkCategory | null> {
-  // 调用 Repository 方法（自动清除缓存并发布事件）
   return categoriesRepository.createCategory(category)
 }
 
@@ -269,12 +253,11 @@ export async function createCategory(category: PieceWorkCategoryInput): Promise<
  * 更新品类
  * 使用 CategoriesRepository，更新成功后自动清除缓存
  *
- * @param id - 品类ID
+ * @param id - 品类 ID
  * @param updates - 更新数据
  * @returns 是否更新成功
  */
 export async function updateCategory(id: string, updates: Partial<PieceWorkCategoryInput>): Promise<boolean> {
-  // 调用 Repository 方法（自动清除缓存并发布事件）
   return categoriesRepository.updateCategory(id, updates)
 }
 
@@ -283,110 +266,106 @@ export async function updateCategory(id: string, updates: Partial<PieceWorkCateg
  * 使用 CategoriesRepository，删除成功后自动清除缓存
  * 注意：会先删除关联的价格记录
  *
- * @param id - 品类ID
+ * @param id - 品类 ID
  * @returns 是否删除成功
  */
 export async function deleteCategory(id: string): Promise<boolean> {
-  // 调用 Repository 方法（自动清除缓存并发布事件）
   return categoriesRepository.deleteCategory(id)
 }
 
 /**
  * 删除未被使用的品类
+ *
+ * @returns 删除结果
  */
-export async function deleteUnusedCategories(): Promise<{success: boolean; deletedCount: number; error?: string}> {
+export async function deleteUnusedCategories(): Promise<{ success: boolean; deletedCount: number; error?: string }> {
   try {
-    const {data: usedCategoryIds, error: usedError} = await supabase
+    // 获取所有被使用的品类 ID
+    const { data: usedCategoryIds, error: usedError } = await supabase
       .from('category_prices')
       .select('category_id')
-      .order('category_id', {ascending: true})
+      .order('category_id', { ascending: true })
 
     if (usedError) {
-      return {success: false, deletedCount: 0, error: usedError.message}
+      return { success: false, deletedCount: 0, error: usedError.message }
     }
 
-    const {data: allCategories, error: allError} = await supabase.from('piece_work_categories').select('id')
-    if (allError) {
-      return {success: false, deletedCount: 0, error: allError.message}
+    // 获取所有品类
+    const allCategories = await categoriesRepository.getAllCategories()
+
+    if (allCategories.length === 0) {
+      return { success: true, deletedCount: 0 }
     }
 
-    if (!allCategories || allCategories.length === 0) {
-      return {success: true, deletedCount: 0}
-    }
-
+    // 找出未被使用的品类
     const usedIds = new Set(usedCategoryIds?.map((item) => item.category_id) || [])
     const unusedCategoryIds = allCategories.filter((cat) => !usedIds.has(cat.id)).map((cat) => cat.id)
 
     if (unusedCategoryIds.length === 0) {
-      return {success: true, deletedCount: 0}
+      return { success: true, deletedCount: 0 }
     }
 
-    const {error: deleteError} = await supabase.from('piece_work_categories').delete().in('id', unusedCategoryIds)
+    // 删除未使用的品类
+    const { error: deleteError } = await supabase.from('piece_work_categories').delete().in('id', unusedCategoryIds)
+
     if (deleteError) {
-      return {success: false, deletedCount: 0, error: deleteError.message}
+      return { success: false, deletedCount: 0, error: deleteError.message }
     }
 
-    return {success: true, deletedCount: unusedCategoryIds.length}
+    return { success: true, deletedCount: unusedCategoryIds.length }
   } catch (error) {
-    return {success: false, deletedCount: 0, error: String(error)}
+    return { success: false, deletedCount: 0, error: String(error) }
   }
 }
 
 // ==================== 品类价格配置 API ====================
+// 注意：品类价格 API 已迁移到 CategoryPricesRepository，带缓存（TTL 5 分钟）
 
 /**
  * 获取仓库的所有品类价格配置
+ *
+ * @param warehouseId - 仓库 ID
+ * @returns 品类价格列表
  */
 export async function getCategoryPricesByWarehouse(warehouseId: string): Promise<CategoryPrice[]> {
-  const {data, error} = await supabase
-    .from('category_prices')
-    .select(`
-      *,
-      piece_work_categories!inner(name)
-    `)
-    .eq('warehouse_id', warehouseId)
-    .order('created_at', {ascending: true})
+  // 获取价格数据
+  const prices = await categoryPricesRepository.getByWarehouse(warehouseId)
 
-  if (error) {
-    console.error('获取品类价格配置失败:', error)
-    return []
-  }
+  // 获取品类名称
+  const categories = await categoriesRepository.getAllCategories()
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]))
 
-  // 将 piece_work_categories.name 映射到 category_name
-  return (data || []).map((item: CategoryPrice & {piece_work_categories?: {name: string}}) => ({
-    ...item,
-    category_name: item.piece_work_categories?.name || item.category_name
+  // 将品类名称映射到价格数据
+  return prices.map((price) => ({
+    ...price,
+    category_name: categoryMap.get(price.category_id) || price.category_name
   }))
 }
 
 /**
  * 获取指定品类价格配置
+ *
+ * @param warehouseId - 仓库 ID
+ * @param categoryId - 品类 ID
+ * @returns 品类价格，不存在返回 null
  */
 export async function getCategoryPrice(warehouseId: string, categoryId: string): Promise<CategoryPrice | null> {
-  const {data, error} = await supabase
-    .from('category_prices')
-    .select('*')
-    .eq('warehouse_id', warehouseId)
-    .eq('category_id', categoryId)
-    .maybeSingle()
-
-  if (error) {
-    console.error('获取品类价格配置失败:', error)
-    return null
-  }
-  return data
+  return categoryPricesRepository.getPrice(warehouseId, categoryId)
 }
 
 /**
  * 创建或更新品类价格配置
  * 策略：先查询是否存在，存在则更新，不存在则插入
+ *
  * @param input - 品类价格输入数据
  * @returns 是否保存成功
  */
 export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<boolean> {
+  // 验证用户登录状态
   const {
-    data: {user}
+    data: { user }
   } = await supabase.auth.getUser()
+
   if (!user) {
     console.error('保存品类价格配置失败: 用户未登录')
     return false
@@ -398,69 +377,37 @@ export async function upsertCategoryPrice(input: CategoryPriceInput): Promise<bo
     price: input.price
   })
 
-  // 先查询是否存在
-  const {data: existing} = await supabase
-    .from('category_prices')
-    .select('id')
-    .eq('warehouse_id', input.warehouse_id)
-    .eq('category_id', input.category_id)
-    .maybeSingle()
+  const result = await categoryPricesRepository.upsertPrice(input)
 
-  let error: Error | null = null
-
-  if (existing) {
-    // 存在则更新
-    console.log('[PieceworkAPI] 更新已存在的品类价格, id:', existing.id)
-    const {error: updateError} = await supabase
-      .from('category_prices')
-      .update({
-        price: input.price,
-        driver_type: input.driver_type || 'driver_only',
-        effective_date: input.effective_date || new Date().toISOString().split('T')[0]
-      })
-      .eq('id', existing.id)
-    error = updateError as Error | null
-  } else {
-    // 不存在则插入
-    console.log('[PieceworkAPI] 插入新的品类价格')
-    const {error: insertError} = await supabase.from('category_prices').insert({
+  if (result) {
+    // 发布品类价格更新事件
+    publish('category_price:updated', {
       warehouse_id: input.warehouse_id,
       category_id: input.category_id,
       price: input.price,
-      driver_type: input.driver_type || 'driver_only',
-      effective_date: input.effective_date || new Date().toISOString().split('T')[0]
+      driver_type: input.driver_type
     })
-    error = insertError as Error | null
+
+    console.log('[PieceworkAPI] 保存品类价格成功')
+    return true
   }
 
-  if (error) {
-    console.error('保存品类价格配置失败:', error)
-    return false
-  }
-
-  // 发布品类价格更新事件，通知相关页面刷新
-  publish('category_price:updated', {
-    warehouse_id: input.warehouse_id,
-    category_id: input.category_id,
-    price: input.price,
-    driver_type: input.driver_type
-  })
-
-  console.log('[PieceworkAPI] 保存品类价格成功')
-  return true
+  return false
 }
 
 /**
  * 批量创建或更新品类价格配置
  * 使用数据库实际字段：driver_only_price 和 driver_with_vehicle_price
- * 每个品类只有一条记录，包含两种价格
+ *
  * @param inputs - 品类价格输入数据数组
  * @returns 是否保存成功
  */
 export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): Promise<boolean> {
+  // 验证用户登录状态
   const {
-    data: {user}
+    data: { user }
   } = await supabase.auth.getUser()
+
   if (!user) {
     console.error('批量保存品类价格配置失败: 用户未登录')
     return false
@@ -471,238 +418,64 @@ export async function batchUpsertCategoryPrices(inputs: CategoryPriceInput[]): P
     return true
   }
 
-  // 获取仓库ID（所有输入应该是同一个仓库）
-  const warehouseId = inputs[0].warehouse_id
-
   console.log('[PieceworkAPI] 批量保存品类价格:', {
-    warehouseId,
-    count: inputs.length,
-    inputs: inputs.map((i) => ({
-      category_id: i.category_id,
-      driver_only_price: i.driver_only_price,
-      driver_with_vehicle_price: i.driver_with_vehicle_price
-    }))
+    warehouseId: inputs[0].warehouse_id,
+    count: inputs.length
   })
 
-  // 1. 先查询该仓库已存在的所有品类价格
-  const {data: existingPrices, error: queryError} = await supabase
-    .from('category_prices')
-    .select('id, category_id')
-    .eq('warehouse_id', warehouseId)
+  const results = await categoryPricesRepository.batchUpsertPrices(inputs)
 
-  if (queryError) {
-    console.error('查询已存在品类价格失败:', queryError)
-    return false
+  if (results.length > 0) {
+    console.log('[PieceworkAPI] 批量保存品类价格成功')
+    return true
   }
 
-  // 构建 category_id -> id 的映射
-  const existingMap = new Map<string, string>()
-  for (const price of existingPrices || []) {
-    existingMap.set(price.category_id, price.id)
-  }
-
-  console.log('[PieceworkAPI] 已存在的品类价格:', {
-    count: existingMap.size,
-    categoryIds: Array.from(existingMap.keys())
-  })
-
-  // 2. 分离需要更新和需要插入的记录
-  interface UpdateRecord {
-    id: string
-    driver_only_price: number
-    driver_with_vehicle_price: number
-  }
-  interface InsertRecord {
-    warehouse_id: string
-    category_id: string
-    driver_only_price: number
-    driver_with_vehicle_price: number
-  }
-
-  const toUpdate: UpdateRecord[] = []
-  const toInsert: InsertRecord[] = []
-
-  for (const input of inputs) {
-    const existingId = existingMap.get(input.category_id)
-
-    if (existingId) {
-      // 已存在，需要更新
-      toUpdate.push({
-        id: existingId,
-        driver_only_price: input.driver_only_price || 0,
-        driver_with_vehicle_price: input.driver_with_vehicle_price || 0
-      })
-    } else {
-      // 不存在，需要插入
-      toInsert.push({
-        warehouse_id: input.warehouse_id,
-        category_id: input.category_id,
-        driver_only_price: input.driver_only_price || 0,
-        driver_with_vehicle_price: input.driver_with_vehicle_price || 0
-      })
-    }
-  }
-
-  console.log('[PieceworkAPI] 操作计划:', {
-    toUpdateCount: toUpdate.length,
-    toInsertCount: toInsert.length
-  })
-
-  // 3. 执行更新操作（逐条更新）
-  for (const item of toUpdate) {
-    const {error: updateError} = await supabase
-      .from('category_prices')
-      .update({
-        driver_only_price: item.driver_only_price,
-        driver_with_vehicle_price: item.driver_with_vehicle_price
-      })
-      .eq('id', item.id)
-
-    if (updateError) {
-      console.error('更新品类价格失败:', updateError, item)
-      return false
-    }
-  }
-
-  // 4. 执行插入操作（批量插入）
-  if (toInsert.length > 0) {
-    const {error: insertError} = await supabase.from('category_prices').insert(toInsert)
-
-    if (insertError) {
-      console.error('插入品类价格失败:', insertError)
-      return false
-    }
-  }
-
-  console.log('[PieceworkAPI] 批量保存品类价格成功')
-  return true
+  return false
 }
 
 /**
  * 删除品类价格配置
- * @param id - 品类价格配置ID
+ *
+ * @param id - 品类价格配置 ID
  * @returns 是否删除成功
  */
 export async function deleteCategoryPrice(id: string): Promise<boolean> {
-  const {error} = await supabase.from('category_prices').delete().eq('id', id)
-  if (error) {
-    console.error('删除品类价格配置失败:', error)
-    return false
+  const success = await categoryPricesRepository.deletePrice(id)
+
+  if (success) {
+    // 发布品类价格删除事件
+    publish('category_price:deleted', { id })
   }
 
-  // 发布品类价格删除事件，通知相关页面刷新
-  publish('category_price:deleted', {
-    id
-  })
-
-  return true
-}
-
-// ==================== 品类价格缓存 ====================
-// 缓存有效期：5分钟
-const CATEGORY_PRICE_CACHE_KEY_PREFIX = 'category_price_'
-const CATEGORY_PRICE_CACHE_EXPIRY_MS = 5 * 60 * 1000
-
-interface CategoryPriceCache {
-  data: {unitPrice: number; driverOnlyPrice: number; driverWithVehiclePrice: number; sortingUnitPrice: number} | null
-  timestamp: number
-}
-
-/**
- * 获取品类价格缓存键
- */
-function getCategoryPriceCacheKey(warehouseId: string, categoryId: string, driverType?: string | null): string {
-  return `${CATEGORY_PRICE_CACHE_KEY_PREFIX}${warehouseId}_${categoryId}_${driverType || 'default'}`
-}
-
-/**
- * 读取品类价格缓存
- */
-function readCategoryPriceCache(warehouseId: string, categoryId: string, driverType?: string | null): CategoryPriceCache['data'] | undefined {
-  try {
-    const cacheKey = getCategoryPriceCacheKey(warehouseId, categoryId, driverType)
-    const cachedStr = localStorage.getItem(cacheKey)
-    if (cachedStr) {
-      const cached: CategoryPriceCache = JSON.parse(cachedStr)
-      if (Date.now() - cached.timestamp < CATEGORY_PRICE_CACHE_EXPIRY_MS) {
-        return cached.data
-      }
-    }
-  } catch (e) {
-    // 忽略缓存读取错误
-  }
-  return undefined
-}
-
-/**
- * 写入品类价格缓存
- */
-function writeCategoryPriceCache(
-  warehouseId: string,
-  categoryId: string,
-  driverType: string | null | undefined,
-  data: CategoryPriceCache['data']
-): void {
-  try {
-    const cacheKey = getCategoryPriceCacheKey(warehouseId, categoryId, driverType)
-    const cacheData: CategoryPriceCache = {
-      data,
-      timestamp: Date.now()
-    }
-    localStorage.setItem(cacheKey, JSON.stringify(cacheData))
-  } catch (e) {
-    // 忽略缓存写入错误
-  }
+  return success
 }
 
 /**
  * 获取司机的品类价格
- * 使用数据库实际字段：driver_only_price 和 driver_with_vehicle_price
  * 根据司机类型返回对应的单价
- * 性能优化：添加缓存机制，避免重复请求
- * @param warehouseId - 仓库ID
- * @param categoryId - 品类ID
+ *
+ * @param warehouseId - 仓库 ID
+ * @param categoryId - 品类 ID
  * @param driverType - 司机类型：'with_vehicle'（带车司机）或其他（纯司机）
- * @returns 价格配置对象，包含根据司机类型选择的单价
+ * @returns 价格配置对象
  */
 export async function getCategoryPriceForDriver(
   warehouseId: string,
   categoryId: string,
   driverType?: string | null
-): Promise<{unitPrice: number; driverOnlyPrice: number; driverWithVehiclePrice: number; sortingUnitPrice: number} | null> {
-  console.log('[PieceworkAPI] 查询品类价格:', {warehouseId, categoryId, driverType})
+): Promise<{ unitPrice: number; driverOnlyPrice: number; driverWithVehiclePrice: number; sortingUnitPrice: number } | null> {
+  console.log('[PieceworkAPI] 查询品类价格:', { warehouseId, categoryId, driverType })
 
-  // 先尝试使用缓存
-  const cachedData = readCategoryPriceCache(warehouseId, categoryId, driverType)
-  if (cachedData !== undefined) {
-    console.log('[PieceworkAPI] 使用缓存的价格配置:', cachedData)
-    return cachedData
-  }
+  // 使用 Repository 获取价格
+  const price = await categoryPricesRepository.getPrice(warehouseId, categoryId)
 
-  // 查询数据库实际存在的字段（不包含 sorting_unit_price，该字段在数据库中不存在）
-  const {data, error} = await supabase
-    .from('category_prices')
-    .select('driver_only_price, driver_with_vehicle_price')
-    .eq('warehouse_id', warehouseId)
-    .eq('category_id', categoryId)
-    .maybeSingle()
-
-  if (error) {
-    console.error('[PieceworkAPI] 获取品类价格失败:', error)
-    return null
-  }
-
-  console.log('[PieceworkAPI] 查询结果:', JSON.stringify(data, null, 2))
-
-  if (!data) {
+  if (!price) {
     console.warn('[PieceworkAPI] 未找到品类价格配置')
-    // 缓存空结果，避免重复查询
-    writeCategoryPriceCache(warehouseId, categoryId, driverType, null)
     return null
   }
 
-  const driverOnlyPrice = Number(data.driver_only_price) || 0
-  const driverWithVehiclePrice = Number(data.driver_with_vehicle_price) || 0
+  const driverOnlyPrice = Number(price.driver_only_price) || 0
+  const driverWithVehiclePrice = Number(price.driver_with_vehicle_price) || 0
 
   // 根据司机类型选择对应的单价
   // 带车司机使用 driver_with_vehicle_price，纯司机使用 driver_only_price
@@ -716,9 +489,5 @@ export async function getCategoryPriceForDriver(
   }
 
   console.log('[PieceworkAPI] 返回价格配置:', result, '司机类型:', driverType)
-  
-  // 写入缓存
-  writeCategoryPriceCache(warehouseId, categoryId, driverType, result)
-  
   return result
 }

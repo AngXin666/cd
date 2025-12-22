@@ -1,40 +1,75 @@
 /**
  * 车辆租赁管理数据库操作
+ * 
+ * 迁移说明：
+ * - 查询函数已迁移到 VehiclesRepository，本文件函数作为兼容层
+ * - 写操作保留直接 Supabase 调用，但会清除缓存
+ * - 新代码应直接使用 vehiclesRepository 的方法
+ * 
+ * 迁移状态：
+ * - getAllVehicleLeaseInfo: 使用 vehiclesRepository.getAllWithDrivers()
+ * - getVehicleBaseById: 使用 vehiclesRepository.getById()
+ * - 写操作（createVehicle、updateVehicle、deleteVehicle）：
+ *   保留直接 Supabase 调用，但会清除缓存
  */
 
 import {supabase} from '@/client/supabase'
+import {vehiclesRepository} from './repositories/VehiclesRepository'
 import type {VehicleBase, VehicleLeaseInfo} from './types'
 
 /**
  * 获取所有车辆租赁信息（包含计算字段）
+ * 使用 VehiclesRepository 进行缓存管理
+ * 
+ * @returns 车辆租赁信息列表
  */
 export async function getAllVehicleLeaseInfo(): Promise<VehicleLeaseInfo[]> {
-  const {data, error} = await supabase.from('vehicle_lease_info').select('*').order('created_at', {ascending: false})
-
-  if (error) {
+  try {
+    // 使用 Repository 方法（带缓存）
+    const vehicles = await vehiclesRepository.getAllWithDrivers()
+    
+    // 转换为 VehicleLeaseInfo 格式，添加计算字段
+    return vehicles.map(vehicle => ({
+      ...vehicle,
+      next_payment_date: calculateNextPaymentDate(
+        vehicle.lease_start_date || null,
+        vehicle.rent_payment_day || null
+      ),
+      days_until_payment: null, // 可以在前端计算
+      lease_status: vehicle.lease_end_date 
+        ? (new Date(vehicle.lease_end_date) > new Date() ? 'active' : 'expired')
+        : null
+    })) as VehicleLeaseInfo[]
+  } catch (error) {
     console.error('获取车辆租赁信息失败:', error)
     return []
   }
-
-  return Array.isArray(data) ? data : []
 }
 
 /**
  * 根据ID获取车辆基本信息
+ * 使用 VehiclesRepository 进行缓存管理
+ * 
+ * @param id - 车辆ID
+ * @returns 车辆信息，如果不存在则返回 null
  */
 export async function getVehicleBaseById(id: string): Promise<VehicleBase | null> {
-  const {data, error} = await supabase.from('vehicles_base').select('*').eq('id', id).maybeSingle()
-
-  if (error) {
+  try {
+    // 使用 Repository 方法（带缓存）
+    const vehicle = await vehiclesRepository.getById(id)
+    return vehicle as VehicleBase | null
+  } catch (error) {
     console.error('获取车辆信息失败:', error)
     return null
   }
-
-  return data
 }
 
 /**
  * 创建车辆
+ * 写操作后自动清除缓存
+ * 
+ * @param vehicle - 车辆信息
+ * @returns 创建的车辆信息，如果失败则返回 null
  */
 export async function createVehicle(vehicle: Partial<VehicleBase>): Promise<VehicleBase | null> {
   const {data, error} = await supabase
@@ -68,11 +103,19 @@ export async function createVehicle(vehicle: Partial<VehicleBase>): Promise<Vehi
     throw error
   }
 
+  // 清除车辆缓存
+  vehiclesRepository.invalidateCache()
+
   return data
 }
 
 /**
  * 更新车辆信息
+ * 写操作后自动清除缓存
+ * 
+ * @param id - 车辆ID
+ * @param updates - 要更新的字段
+ * @returns 更新后的车辆信息，如果失败则返回 null
  */
 export async function updateVehicle(id: string, updates: Partial<VehicleBase>): Promise<VehicleBase | null> {
   const {data, error} = await supabase
@@ -108,11 +151,18 @@ export async function updateVehicle(id: string, updates: Partial<VehicleBase>): 
     throw error
   }
 
+  // 清除车辆缓存
+  vehiclesRepository.invalidateCache()
+
   return data
 }
 
 /**
  * 删除车辆
+ * 写操作后自动清除缓存
+ * 
+ * @param id - 车辆ID
+ * @returns 是否删除成功
  */
 export async function deleteVehicle(id: string): Promise<boolean> {
   const {error} = await supabase.from('vehicles_base').delete().eq('id', id)
@@ -121,6 +171,9 @@ export async function deleteVehicle(id: string): Promise<boolean> {
     console.error('删除车辆失败:', error)
     return false
   }
+
+  // 清除车辆缓存
+  vehiclesRepository.invalidateCache()
 
   return true
 }

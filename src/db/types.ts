@@ -1,7 +1,7 @@
-import type {NotificationType} from '@/db/notificationApi'
+import type {NotificationType, NotificationCategory} from '@/db/notificationApi'
 
-// 重新导出 NotificationType 以便其他模块使用
-export type {NotificationType}
+// 重新导出 NotificationType 和 NotificationCategory 以便其他模块使用
+export type {NotificationType, NotificationCategory}
 
 // ==================== 用户相关类型 ====================
 
@@ -961,7 +961,10 @@ export interface Notification {
   content: string
   type: NotificationType
   sender_id: string | null
+  sender_name: string // 发送者姓名
   recipient_id: string
+  category: NotificationCategory // 通知分类
+  action_url: string | null // 操作链接
   is_read: boolean
   created_at: string
   related_id?: string | null // 关联的业务记录ID（如请假申请ID）

@@ -20,6 +20,7 @@ export type EventType =
 
   // ==================== 考勤相关事件 ====================
   | 'attendance:created' // 打卡记录创建
+  | 'attendance:updated' // 打卡记录更新
 
   // ==================== 计件相关事件 ====================
   | 'piece_work:created' // 计件记录创建

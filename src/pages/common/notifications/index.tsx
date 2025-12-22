@@ -19,12 +19,12 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useMemo, useState} from 'react'
-import {supabase} from '@/client/supabase'
 import ApplicationDetailDialog from '@/components/application/ApplicationDetailDialog'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import {useUserContext} from '@/contexts/UserContext'
 import * as UsersAPI from '@/db/api/users'
+import {leaveRepository, resignationApplicationsRepository} from '@/db/repositories'
 import {
   deleteNotification,
   deleteReadNotifications,
@@ -312,15 +312,15 @@ const NotificationsPage: React.FC = () => {
 
           // 根据通知类型确定要查询的表
           const isLeaveNotification = notification.type === 'leave_application_submitted'
-          const tableName = isLeaveNotification ? 'leave_applications' : 'resignation_applications'
 
           try {
-            // 获取申请的仓库ID和状态
-            const {data: application} = await supabase
-              .from(tableName)
-              .select('warehouse_id, status')
-              .eq('id', notification.related_id)
-              .maybeSingle()
+            // 使用 Repository 获取申请的仓库ID和状态
+            let application: { warehouse_id?: string; status?: string } | null = null
+            if (isLeaveNotification) {
+              application = await leaveRepository.getLeaveApplicationById(notification.related_id)
+            } else {
+              application = await resignationApplicationsRepository.getApplicationById(notification.related_id)
+            }
 
             if (application?.warehouse_id) {
               // 根据申请状态确定要跳转的标签

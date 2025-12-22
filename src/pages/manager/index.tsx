@@ -68,13 +68,13 @@ const ManagerHome: React.FC = () => {
   const {addNotification} = useNotifications()
 
   // 使用仓库数据管理 Hook（原始列表，启用实时更新）
+  // 缓存由 Repository 层统一管理
   const {
     warehouses: rawWarehouses,
     loading: warehousesLoading,
     refresh: refreshWarehouses
   } = useWarehousesData({
     managerId: user?.id || '',
-    cacheEnabled: true,
     enableRealtime: true // 启用实时更新
   })
 
@@ -93,26 +93,26 @@ const ManagerHome: React.FC = () => {
 
   // 使用仪表板数据管理 Hook
   // 注意：禁用实时更新，避免与轮询通知冲突导致频繁请求
+  // 缓存由 Repository 层统一管理
   const {
     data: dashboardStats,
     loading: dashboardLoading,
     refresh: refreshDashboard
   } = useDashboardData({
     warehouseId: currentWarehouseId,
-    enableRealtime: false, // 禁用实时更新，使用轮询代替
-    cacheEnabled: true // 启用缓存
+    enableRealtime: false // 禁用实时更新，使用轮询代替
   })
 
   // 使用司机统计数据管理Hook（带缓存）
   // 注意：禁用实时更新，避免与轮询通知冲突导致频繁请求
+  // 缓存由 Repository 层统一管理，无需在 Hook 层配置
   const {
     data: driverStats,
     loading: driverStatsLoading,
     refresh: refreshDriverStats
   } = useDriverStats({
     warehouseId: currentWarehouseId,
-    enableRealtime: false, // 禁用实时更新，使用轮询代替
-    cacheEnabled: true
+    enableRealtime: false // 禁用实时更新，使用轮询代替
   })
 
   // 注意：已删除空的 useEffect 监听，无实际作用

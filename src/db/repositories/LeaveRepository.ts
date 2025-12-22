@@ -177,6 +177,58 @@ export class LeaveRepository extends BaseRepository<LeaveApplicationEntity> {
   }
 
   /**
+   * 根据 ID 获取单个请假申请
+   * 带缓存支持，TTL 2 分钟
+   *
+   * @param id - 请假申请 ID
+   * @param options - 查询选项
+   * @returns 请假申请对象，如果不存在则返回 null
+   *
+   * @example
+   * ```typescript
+   * // 获取单个请假申请（使用缓存）
+   * const application = await leaveRepository.getLeaveApplicationById('xxx-xxx')
+   *
+   * // 获取单个请假申请（不使用缓存）
+   * const application = await leaveRepository.getLeaveApplicationById('xxx-xxx', { useCache: false })
+   * ```
+   */
+  async getLeaveApplicationById(id: string, options: QueryOptions = {}): Promise<LeaveApplication | null> {
+    const { useCache = true, cacheTTL = LEAVE_CACHE_TTL } = options
+    const cacheKey = this.getCacheKey(`id_${id}`)
+
+    // 尝试从缓存获取
+    if (useCache) {
+      const cached = this.getFromCache<LeaveApplication>(cacheKey)
+      if (cached) {
+        this.logger.debug('请假申请缓存命中（按ID）', { id })
+        return cached
+      }
+    }
+
+    // 从数据库查询
+    this.logger.debug('从数据库查询请假申请（按ID）', { id })
+    const { data, error } = await this.supabase
+      .from('leave_applications')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (error) {
+      this.logger.error('获取请假申请失败（按ID）', { id, error: error.message })
+      return null
+    }
+
+    // 缓存结果（即使是 null 也缓存，避免重复查询不存在的记录）
+    if (useCache && data) {
+      this.setToCache(cacheKey, data, cacheTTL)
+      this.logger.debug('请假申请已缓存（按ID）', { id, ttl: cacheTTL })
+    }
+
+    return data as LeaveApplication | null
+  }
+
+  /**
    * 根据仓库 ID 获取请假申请
    *
    * @param warehouseId - 仓库 ID

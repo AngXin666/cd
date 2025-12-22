@@ -136,6 +136,11 @@ export async function saveDraftLeaveApplication(input: LeaveApplicationInput): P
 
 /**
  * 更新请假申请草稿
+ * 更新成功后自动清除相关缓存
+ *
+ * @param draftId - 草稿 ID
+ * @param input - 更新数据
+ * @returns 是否更新成功
  */
 export async function updateDraftLeaveApplication(
   draftId: string,
@@ -152,6 +157,10 @@ export async function updateDraftLeaveApplication(
     console.error('更新请假申请草稿失败:', error)
     return false
   }
+
+  // 清除请假申请缓存
+  leaveRepository.invalidateLeaveCache()
+
   return true
 }
 
@@ -164,6 +173,10 @@ export async function submitDraftLeaveApplication(_draftId: string): Promise<boo
 
 /**
  * 删除请假申请草稿
+ * 删除成功后自动清除相关缓存
+ *
+ * @param draftId - 草稿 ID
+ * @returns 是否删除成功
  */
 export async function deleteDraftLeaveApplication(draftId: string): Promise<boolean> {
   const {error} = await supabase.from('leave_applications').delete().eq('id', draftId)
@@ -171,6 +184,10 @@ export async function deleteDraftLeaveApplication(draftId: string): Promise<bool
     console.error('删除请假申请草稿失败:', error)
     return false
   }
+
+  // 清除请假申请缓存
+  leaveRepository.invalidateLeaveCache()
+
   return true
 }
 
@@ -183,36 +200,26 @@ export async function getDraftLeaveApplications(_userId: string): Promise<LeaveA
 
 /**
  * 获取用户的所有请假申请
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
+ * @param userId - 用户 ID
+ * @returns 用户的请假申请列表
  */
 export async function getLeaveApplicationsByUser(userId: string): Promise<LeaveApplication[]> {
-  const {data, error} = await supabase
-    .from('leave_applications')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', {ascending: false})
-
-  if (error) {
-    console.error('获取请假申请失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getLeaveApplicationsByUser(userId)
 }
 
 /**
  * 获取仓库的所有请假申请
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
+ * @param warehouseId - 仓库 ID
+ * @returns 仓库的请假申请列表
  */
 export async function getLeaveApplicationsByWarehouse(warehouseId: string): Promise<LeaveApplication[]> {
-  const {data, error} = await supabase
-    .from('leave_applications')
-    .select('*')
-    .eq('warehouse_id', warehouseId)
-    .order('created_at', {ascending: false})
-
-  if (error) {
-    console.error('获取仓库请假申请失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getLeaveApplicationsByWarehouse(warehouseId)
 }
 
 /**
@@ -224,6 +231,18 @@ export async function getLeaveApplicationsByWarehouse(warehouseId: string): Prom
 export async function getAllLeaveApplications(): Promise<LeaveApplication[]> {
   // 委托给 LeaveRepository 处理（带缓存）
   return leaveRepository.getAllLeaveApplications()
+}
+
+/**
+ * 根据 ID 获取单个请假申请
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
+ * @param id - 请假申请 ID
+ * @returns 请假申请对象，如果不存在则返回 null
+ */
+export async function getLeaveApplicationById(id: string): Promise<LeaveApplication | null> {
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getLeaveApplicationById(id)
 }
 
 /**
@@ -377,6 +396,11 @@ export async function saveDraftResignationApplication(
 
 /**
  * 更新离职申请草稿
+ * 更新成功后自动清除相关缓存
+ *
+ * @param draftId - 草稿 ID
+ * @param input - 更新数据
+ * @returns 是否更新成功
  */
 export async function updateDraftResignationApplication(
   draftId: string,
@@ -391,6 +415,10 @@ export async function updateDraftResignationApplication(
     console.error('更新离职申请草稿失败:', error)
     return false
   }
+
+  // 清除离职申请缓存
+  leaveRepository.invalidateResignationCache()
+
   return true
 }
 
@@ -403,6 +431,10 @@ export async function submitDraftResignationApplication(_draftId: string): Promi
 
 /**
  * 删除离职申请草稿
+ * 删除成功后自动清除相关缓存
+ *
+ * @param draftId - 草稿 ID
+ * @returns 是否删除成功
  */
 export async function deleteDraftResignationApplication(draftId: string): Promise<boolean> {
   const {error} = await supabase.from('resignation_applications').delete().eq('id', draftId)
@@ -410,6 +442,10 @@ export async function deleteDraftResignationApplication(draftId: string): Promis
     console.error('删除离职申请草稿失败:', error)
     return false
   }
+
+  // 清除离职申请缓存
+  leaveRepository.invalidateResignationCache()
+
   return true
 }
 
@@ -422,36 +458,26 @@ export async function getDraftResignationApplications(_userId: string): Promise<
 
 /**
  * 获取用户的所有离职申请
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
+ * @param userId - 用户 ID
+ * @returns 用户的离职申请列表
  */
 export async function getResignationApplicationsByUser(userId: string): Promise<ResignationApplication[]> {
-  const {data, error} = await supabase
-    .from('resignation_applications')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', {ascending: false})
-
-  if (error) {
-    console.error('获取离职申请失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getResignationApplicationsByUser(userId)
 }
 
 /**
  * 获取仓库的所有离职申请
+ * 使用 LeaveRepository 进行缓存管理，TTL 2 分钟
+ *
+ * @param warehouseId - 仓库 ID
+ * @returns 仓库的离职申请列表
  */
 export async function getResignationApplicationsByWarehouse(warehouseId: string): Promise<ResignationApplication[]> {
-  const {data, error} = await supabase
-    .from('resignation_applications')
-    .select('*')
-    .eq('warehouse_id', warehouseId)
-    .order('created_at', {ascending: false})
-
-  if (error) {
-    console.error('获取仓库离职申请失败:', error)
-    return []
-  }
-  return Array.isArray(data) ? data : []
+  // 委托给 LeaveRepository 处理（带缓存）
+  return leaveRepository.getResignationApplicationsByWarehouse(warehouseId)
 }
 
 /**

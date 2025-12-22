@@ -1,33 +1,56 @@
+/**
+ * 老板仪表板数据管理 Hook
+ *
+ * 提供老板（超级管理员）仪表板统计数据的加载和实时更新功能。
+ * 支持查看所有仓库汇总或单个仓库数据。
+ * 缓存由 DashboardRepository 统一管理，Hook 层不再维护独立缓存。
+ *
+ * @module hooks/useSuperAdminDashboard
+ */
+
 import type {RealtimeChannel} from '@supabase/supabase-js'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import type {DashboardStats} from '@/db/api/dashboard'
-import {getAllWarehousesDashboardStats, getWarehouseDashboardStats} from '@/db/api/dashboard'
-import {TypeSafeStorage} from '@/utils/storage'
+import {getAllWarehousesDashboardStats, getWarehouseDashboardStats, invalidateDashboardCache} from '@/db/api/dashboard'
 
-// 缓存配置
-const CACHE_KEY_ALL = 'super_admin_dashboard_all'
-const CACHE_KEY_PREFIX = 'super_admin_dashboard_'
-const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5分钟缓存有效期
-
-interface CachedData {
-  data: DashboardStats
-  timestamp: number
-  warehouseId?: string
-}
-
+/**
+ * useSuperAdminDashboard Hook 配置选项
+ */
 interface UseSuperAdminDashboardOptions {
-  warehouseId?: string // 如果提供，则加载指定仓库；否则加载所有仓库汇总
+  /** 仓库 ID（可选，如果提供则加载指定仓库；否则加载所有仓库汇总） */
+  warehouseId?: string
+  /** 是否启用实时更新，默认 true */
   enableRealtime?: boolean
-  cacheEnabled?: boolean
 }
 
 /**
  * 老板仪表板数据管理 Hook
- * 支持查看所有仓库汇总或单个仓库数据
+ *
+ * 功能：
+ * 1. 加载所有仓库汇总或单个仓库的统计数据
+ * 2. 实时订阅数据变化
+ * 3. 缓存由 DashboardRepository 统一管理
+ *
+ * @param options - Hook 配置选项
+ * @returns 仪表板数据和操作方法
+ *
+ * @example
+ * ```typescript
+ * // 加载所有仓库汇总
+ * const { data, loading, error, refresh } = useSuperAdminDashboard({
+ *   enableRealtime: true
+ * })
+ *
+ * // 加载指定仓库
+ * const { data, loading, error, refresh } = useSuperAdminDashboard({
+ *   warehouseId: 'warehouse-123',
+ *   enableRealtime: true
+ * })
+ * ```
  */
 export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
-  const {warehouseId, enableRealtime = true, cacheEnabled = true} = options
+  const {warehouseId, enableRealtime = true} = options
 
   const [data, setData] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -36,62 +59,12 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const loadingRef = useRef(false)
 
-  // 获取缓存键
-  const getCacheKey = useCallback((wid?: string) => {
-    return wid ? `${CACHE_KEY_PREFIX}${wid}` : CACHE_KEY_ALL
-  }, [])
-
-  // 从缓存读取数据
-  const loadFromCache = useCallback(
-    (wid?: string): DashboardStats | null => {
-      if (!cacheEnabled) return null
-
-      const cacheKey = getCacheKey(wid)
-      const cached = TypeSafeStorage.get<CachedData>(cacheKey)
-
-      if (cached) {
-        const now = Date.now()
-        // 检查缓存是否过期
-        if (now - cached.timestamp < CACHE_EXPIRY_MS) {
-          return cached.data
-        }
-        // 缓存过期，删除
-        TypeSafeStorage.remove(cacheKey)
-      }
-
-      return null
-    },
-    [cacheEnabled, getCacheKey]
-  )
-
-  // 保存数据到缓存
-  const saveToCache = useCallback(
-    (dashboardData: DashboardStats, wid?: string) => {
-      if (!cacheEnabled) return
-
-      const cacheKey = getCacheKey(wid)
-      const cacheData: CachedData = {
-        data: dashboardData,
-        timestamp: Date.now(),
-        warehouseId: wid
-      }
-      TypeSafeStorage.set(cacheKey, cacheData)
-    },
-    [cacheEnabled, getCacheKey]
-  )
-
-  // 清除缓存
-  const clearCache = useCallback(
-    (wid?: string) => {
-      const cacheKey = getCacheKey(wid)
-      TypeSafeStorage.remove(cacheKey)
-    },
-    [getCacheKey]
-  )
-
-  // 加载仪表板数据
+  /**
+   * 加载仪表板数据
+   * 数据通过 API 层获取，缓存由 DashboardRepository 管理
+   */
   const loadData = useCallback(
-    async (wid?: string, forceRefresh = false) => {
+    async (wid?: string) => {
       if (loadingRef.current) {
         return
       }
@@ -101,20 +74,9 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
       setError(null)
 
       try {
-        if (!forceRefresh) {
-          const cachedData = loadFromCache(wid)
-          if (cachedData) {
-            setData(cachedData)
-            setLoading(false)
-            loadingRef.current = false
-            return
-          }
-        }
-
+        // 从 API 层加载数据（缓存由 DashboardRepository 管理）
         const stats = wid ? await getWarehouseDashboardStats(wid) : await getAllWarehousesDashboardStats()
         setData(stats)
-
-        saveToCache(stats, wid)
       } catch (err) {
         console.error('[useSuperAdminDashboard] 加载仪表板数据失败:', err)
         setError('加载数据失败')
@@ -123,7 +85,7 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
         loadingRef.current = false
       }
     },
-    [loadFromCache, saveToCache]
+    []
   )
 
   // 使用 ref 保存最新的 loadData 函数，避免依赖循环
@@ -132,13 +94,26 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
     loadDataRef.current = loadData
   }, [loadData])
 
-  // 创建稳定的刷新函数，不依赖 loadData
-  const refreshStable = useCallback(() => {
-    clearCache(warehouseId)
-    loadDataRef.current(warehouseId, true)
-  }, [warehouseId, clearCache])
+  /**
+   * 清除 Repository 缓存
+   */
+  const clearRepositoryCache = useCallback(() => {
+    invalidateDashboardCache()
+  }, [])
 
-  // 刷新数据（强制从服务器加载）- 导出给外部使用
+  /**
+   * 创建稳定的刷新函数
+   * 清除 Repository 缓存后重新加载数据
+   */
+  const refreshStable = useCallback(() => {
+    clearRepositoryCache()
+    loadDataRef.current(warehouseId)
+  }, [warehouseId, clearRepositoryCache])
+
+  /**
+   * 刷新数据（清除缓存后重新加载）
+   * 导出给外部使用
+   */
   const refresh = useCallback(() => {
     refreshStable()
   }, [refreshStable])
@@ -250,8 +225,9 @@ export function useSuperAdminDashboard(options: UseSuperAdminDashboardOptions) {
       loading,
       error,
       refresh,
-      clearCache: () => clearCache(warehouseId)
+      /** 清除 Repository 缓存 */
+      clearCache: clearRepositoryCache
     }),
-    [data, loading, error, refresh, clearCache, warehouseId]
+    [data, loading, error, refresh, clearRepositoryCache]
   )
 }

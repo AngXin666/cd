@@ -24,8 +24,8 @@ import {formatDateChineseYMD, formatDateChineseYMDNoZero, formatDateShort, forma
 const DriverPieceWork: React.FC = () => {
   const {user} = useAuth({guard: true})
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
-  // 使用缓存 Hook 加载仓库列表，避免重复 API 调用
-  const {warehouses, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '', true)
+  // 使用缓存 Hook 加载仓库列表，缓存由 Repository 层统一管理
+  const {warehouses, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '')
   const [categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [selectedWarehouseIndex, setSelectedWarehouseIndex] = useState(0)
   const [startDate, setStartDate] = useState('')

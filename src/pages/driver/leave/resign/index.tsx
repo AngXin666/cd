@@ -11,12 +11,12 @@ import Taro, {navigateBack, showToast, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {supabase} from '@/client/supabase'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as LeaveAPI from '@/db/api/leave'
 import type {LeaveApplication} from '@/db/types'
 import * as WarehousesAPI from '@/db/api/warehouses'
+import {resignationApplicationsRepository} from '@/db/repositories'
 import {getLocalDateString} from '@/utils/date'
 
 const ApplyResignation: React.FC = () => {
@@ -43,10 +43,16 @@ const ApplyResignation: React.FC = () => {
     }
   })
 
+  /**
+   * 加载草稿数据
+   * 使用 Repository 模式获取离职申请草稿
+   * @param id - 草稿 ID
+   */
   const loadDraft = async (id: string) => {
-    const {data, error} = await supabase.from('resignation_applications').select('*').eq('id', id).maybeSingle()
+    // 使用 Repository 获取离职申请数据（带缓存支持）
+    const data = await resignationApplicationsRepository.getApplicationById(id)
 
-    if (error || !data) {
+    if (!data) {
       showToast({title: '加载草稿失败', icon: 'none'})
       return
     }

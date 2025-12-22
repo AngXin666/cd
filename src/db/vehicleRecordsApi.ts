@@ -1,12 +1,26 @@
 /**
  * 车辆管理系统 API
  * 处理车辆信息的增删改查
+ * 
+ * 迁移说明：
+ * - 查询函数已迁移到 VehiclesRepository，本文件函数作为兼容层
+ * - 写操作保留直接 Supabase 调用，但会清除缓存
+ * - 新代码应直接使用 vehiclesRepository 的方法
+ * 
+ * 迁移状态：
+ * - getAllVehicleRecords: 使用 vehiclesRepository.getAllWithDrivers()
+ * - getVehicleRecordsByDriverId: 使用 vehiclesRepository.getByDriverId()
+ * - getVehicleRecordById: 使用 vehiclesRepository.getById()
+ * - 写操作（createVehicleRecord、updateVehicleRecord、deleteVehicleRecord）：
+ *   保留直接 Supabase 调用，但会清除缓存
+ * 
  * 注意：由于数据库重构，所有车辆信息现在都存储在vehicles表中
  */
 
 import {supabase} from '../client/supabase'
 import {checkCurrentUserPermission, PermissionAction} from '../services/permission-service'
 import {createLogger} from '../utils/logger'
+import {vehiclesRepository} from './repositories/VehiclesRepository'
 import type {VehicleBase, VehicleRecordInput} from './types'
 
 const logger = createLogger('VehicleAPI')
@@ -140,6 +154,7 @@ export async function getVehicleBaseByPlateNumber(plateNumber: string): Promise<
 
 /**
  * 创建或更新车辆录入记录
+ * 写操作后自动清除缓存
  */
 export async function createVehicleRecord(input: VehicleRecordInput): Promise<VehicleBase | null> {
   try {
@@ -200,6 +215,8 @@ export async function createVehicleRecord(input: VehicleRecordInput): Promise<Ve
       return_time: input.return_time
     }
 
+    let result: VehicleBase | null = null
+
     if (existing) {
       const {data: updated, error: updateError} = await supabase
         .from('vehicles')
@@ -213,7 +230,7 @@ export async function createVehicleRecord(input: VehicleRecordInput): Promise<Ve
         throw updateError
       }
 
-      return updated as VehicleBase
+      result = updated as VehicleBase
     } else {
       const {data: created, error: createError} = await supabase.from('vehicles').insert(vehicleData).select().single()
 
@@ -222,8 +239,13 @@ export async function createVehicleRecord(input: VehicleRecordInput): Promise<Ve
         throw createError
       }
 
-      return created as VehicleBase
+      result = created as VehicleBase
     }
+
+    // 清除车辆缓存
+    vehiclesRepository.invalidateCache()
+
+    return result
   } catch (error) {
     logger.error('创建车辆录入记录异常', {error})
     return null
@@ -232,16 +254,35 @@ export async function createVehicleRecord(input: VehicleRecordInput): Promise<Ve
 
 /**
  * 获取所有车辆录入记录
+ * 使用 VehiclesRepository 进行缓存管理
+ * 
  * @param user 用户对象，包含id和可选的role字段
+ * @returns 车辆列表
  */
 export async function getAllVehicleRecords(user: {id: string; role?: string} | null): Promise<VehicleBase[]> {
-  return getAllVehiclesBase(user)
+  try {
+    // 应用层权限检查：查看车辆权限
+    const permissionResult = checkCurrentUserPermission('vehicles', PermissionAction.SELECT, user)
+    if (!permissionResult.hasPermission) {
+      return []
+    }
+
+    // 使用 Repository 方法（带缓存）
+    const vehicles = await vehiclesRepository.getAllWithDrivers()
+    return vehicles as VehicleBase[]
+  } catch (error) {
+    logger.error('获取所有车辆录入记录异常', {error})
+    return []
+  }
 }
 
 /**
  * 根据司机ID获取车辆录入记录
+ * 使用 VehiclesRepository 进行缓存管理
+ * 
  * @param driverId 司机ID
  * @param user 用户对象，包含id和可选的role字段
+ * @returns 车辆列表
  */
 export async function getVehicleRecordsByDriverId(
   driverId: string,
@@ -254,22 +295,9 @@ export async function getVehicleRecordsByDriverId(
       return []
     }
 
-    let query = supabase.from('vehicles').select('*').eq('driver_id', driverId).order('created_at', {ascending: false})
-
-    // 应用数据过滤
-    if (permissionResult.filter) {
-      Object.entries(permissionResult.filter).forEach(([key, value]) => {
-        query = query.eq(key, value)
-      })
-    }
-    const {data: vehicles, error} = await query
-
-    if (error) {
-      logger.error('获取车辆录入记录失败', {error})
-      return []
-    }
-
-    return Array.isArray(vehicles) ? (vehicles as VehicleBase[]) : []
+    // 使用 Repository 方法（带缓存）
+    const vehicles = await vehiclesRepository.getByDriverId(driverId)
+    return vehicles as VehicleBase[]
   } catch (error) {
     logger.error('根据司机ID获取车辆录入记录异常', {error})
     return []
@@ -301,16 +329,15 @@ export async function getVehicleRecordsByWarehouseId(warehouseId: string): Promi
 
 /**
  * 根据ID获取车辆录入记录
+ * 使用 VehiclesRepository 进行缓存管理
+ * 
+ * @param recordId - 车辆记录ID
+ * @returns 车辆信息，如果不存在则返回 null
  */
 export async function getVehicleRecordById(recordId: string): Promise<VehicleBase | null> {
   try {
-    const {data: vehicle, error} = await supabase.from('vehicles').select('*').eq('id', recordId).maybeSingle()
-
-    if (error) {
-      logger.error('获取车辆录入记录失败', {error})
-      return null
-    }
-
+    // 使用 Repository 方法（带缓存）
+    const vehicle = await vehiclesRepository.getById(recordId)
     return vehicle as VehicleBase | null
   } catch (error) {
     logger.error('根据ID获取车辆录入记录异常', {error})
@@ -320,6 +347,12 @@ export async function getVehicleRecordById(recordId: string): Promise<VehicleBas
 
 /**
  * 更新车辆录入记录
+ * 写操作后自动清除缓存
+ * 
+ * @param recordId - 车辆记录ID
+ * @param updates - 要更新的字段
+ * @param user - 用户对象，包含id和可选的role字段
+ * @returns 更新后的车辆信息，如果失败则返回 null
  */
 export async function updateVehicleRecord(
   recordId: string,
@@ -343,6 +376,9 @@ export async function updateVehicleRecord(
       throw error
     }
 
+    // 清除车辆缓存
+    vehiclesRepository.invalidateCache()
+
     return updated as VehicleBase
   } catch (error) {
     logger.error('更新车辆录入记录异常', {error})
@@ -352,6 +388,10 @@ export async function updateVehicleRecord(
 
 /**
  * 删除车辆录入记录
+ * 写操作后自动清除缓存
+ * 
+ * @param recordId - 车辆记录ID
+ * @returns 是否删除成功
  */
 export async function deleteVehicleRecord(recordId: string): Promise<boolean> {
   try {
@@ -362,6 +402,9 @@ export async function deleteVehicleRecord(recordId: string): Promise<boolean> {
       return false
     }
 
+    // 清除车辆缓存
+    vehiclesRepository.invalidateCache()
+
     return true
   } catch (error) {
     logger.error('删除车辆录入记录异常', {error})
@@ -371,6 +414,14 @@ export async function deleteVehicleRecord(recordId: string): Promise<boolean> {
 
 /**
  * 更新车辆审核状态
+ * 写操作后自动清除缓存
+ * 
+ * @param recordId - 车辆记录ID
+ * @param status - 审核状态
+ * @param user - 用户对象，包含id和可选的role字段
+ * @param notes - 审核备注（可选）
+ * @param reviewedBy - 审核人ID（可选）
+ * @returns 更新后的车辆信息，如果失败则返回 null
  */
 export async function updateVehicleReviewStatus(
   recordId: string,
@@ -409,6 +460,9 @@ export async function updateVehicleReviewStatus(
       logger.error('更新车辆审核状态失败', {error})
       throw error
     }
+
+    // 清除车辆缓存
+    vehiclesRepository.invalidateCache()
 
     return updated as VehicleBase
   } catch (error) {

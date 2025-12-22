@@ -14,7 +14,6 @@
 
 import {supabase} from '@/client/supabase'
 import {sendDriverSubmissionNotification} from '@/services/notificationService'
-import {CACHE_KEYS, clearCache, clearCacheByPrefix} from '@/utils/cache'
 import {publish} from '@/utils/eventBus'
 import {createLogger} from '@/utils/logger'
 import {type DriverType, type WarehouseInfo} from '@/utils/notificationMessageBuilder'
@@ -36,8 +35,8 @@ import type {
 // 导入需要调用的users模块函数
 import {getDriverDisplayName, getDriverName, getProfileById} from './users'
 
-// 导入 VehiclesRepository（用于缓存管理）
-import {vehiclesRepository} from '../repositories'
+// 导入 VehiclesRepository 和 DriverLicensesRepository（用于缓存管理）
+import {vehiclesRepository, driverLicensesRepository} from '../repositories'
 
 // 重新导出司机名称查询函数
 export {getDriverDisplayName, getDriverName}
@@ -110,30 +109,17 @@ function flattenVehicleDocument<T extends Record<string, unknown>>(vehicle: T): 
  * - 旧数据可能使用 driver_id
  * - 新数据使用 user_id（添加车辆页面设置的是 user_id）
  * 同时关联 vehicle_documents 表获取图片等扩展信息
+ *
+ * 使用 VehiclesRepository 进行缓存管理：
+ * - 缓存 TTL: 5 分钟
+ * - 在车辆创建/更新/删除时自动清除缓存
+ *
  * @param driverId - 司机ID（可以是 driver_id 或 user_id）
  * @returns 车辆列表（包含图片等扩展信息）
  */
 export async function getDriverVehicles(driverId: string): Promise<Vehicle[]> {
-  logger.db('查询', 'vehicles', {driverId})
-  try {
-    // 使用 or 条件同时查询 driver_id 和 user_id（兼容旧数据和新数据）
-    const {data, error} = await supabase
-      .from('vehicles')
-      .select(`*, document:vehicle_documents(*)`)
-      .or(`driver_id.eq.${driverId},user_id.eq.${driverId}`)
-      .order('created_at', {ascending: false})
-
-    if (error) {
-      logger.error('获取司机车辆失败', {error: error.message, driverId})
-      return []
-    }
-
-    // 将 vehicle_documents 中的字段平铺到车辆对象中
-    return (data || []).map((vehicle) => flattenVehicleDocument(vehicle))
-  } catch (error) {
-    logger.error('获取司机车辆异常', {error, driverId})
-    return []
-  }
+  // 委托给 VehiclesRepository 处理（带缓存）
+  return vehiclesRepository.getByDriverId(driverId)
 }
 
 /**
@@ -154,91 +140,32 @@ export async function getAllVehiclesWithDrivers(): Promise<VehicleWithDriver[]> 
 /**
  * 根据ID获取车辆信息（包含扩展信息）
  * 会将 vehicle_documents 中的字段平铺到车辆对象中
+ *
+ * 使用 VehiclesRepository 进行缓存管理：
+ * - 缓存 TTL: 5 分钟
+ * - 在车辆更新/删除时自动清除缓存
+ *
+ * @param vehicleId - 车辆 ID
+ * @returns 车辆信息（包含文档），如果不存在则返回 null
  */
 export async function getVehicleById(vehicleId: string): Promise<VehicleWithDocuments | null> {
-  logger.db('查询', 'vehicles', {vehicleId})
-  try {
-    const {data, error} = await supabase
-      .from('vehicles')
-      .select(`*, document:vehicle_documents(*)`)
-      .eq('id', vehicleId)
-      .maybeSingle()
-
-    if (error) {
-      logger.error('获取车辆信息失败', error)
-      return null
-    }
-
-    if (!data) {
-      return null
-    }
-
-    // 使用辅助函数平铺字段，并保留 document 对象
-    const flattened = flattenVehicleDocument(data)
-    const docArray = data.document
-    const doc = Array.isArray(docArray) ? docArray[0] : docArray
-
-    return {
-      ...flattened,
-      document: doc
-    } as VehicleWithDocuments
-  } catch (error) {
-    logger.error('获取车辆信息异常', error)
-    return null
-  }
+  // 委托给 VehiclesRepository 处理（带缓存）
+  return vehiclesRepository.getById(vehicleId)
 }
 
 /**
  * 根据车辆ID获取车辆信息（包含司机详细信息）
+ *
+ * 使用 VehiclesRepository 进行缓存管理：
+ * - 缓存 TTL: 5 分钟
+ * - 在车辆更新/删除时自动清除缓存
+ *
+ * @param vehicleId - 车辆 ID
+ * @returns 车辆信息（包含司机详细信息），如果不存在则返回 null
  */
 export async function getVehicleWithDriverDetails(vehicleId: string): Promise<VehicleWithDriverDetails | null> {
-  logger.db('查询', 'vehicles with driver details', {vehicleId})
-  try {
-    const vehicle = await getVehicleById(vehicleId)
-    if (!vehicle) {
-      return null
-    }
-
-    const {data: user, error: userError} = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', vehicle.user_id)
-      .maybeSingle()
-
-    if (userError) {
-      logger.error('获取司机基本信息失败', {error: userError})
-    }
-
-    let profile: Profile | null = null
-    if (user) {
-      const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
-      profile = {
-        ...user,
-        role: roleData?.role || 'DRIVER'
-      }
-    }
-
-    const {data: driverLicense, error: licenseError} = await supabase
-      .from('driver_licenses')
-      .select('*')
-      .eq('driver_id', vehicle.user_id)
-      .maybeSingle()
-
-    if (licenseError) {
-      logger.error('获取司机证件信息失败', {error: licenseError})
-    }
-
-    const result: VehicleWithDriverDetails = {
-      ...vehicle,
-      driver_profile: profile || null,
-      driver_license: driverLicense || null
-    }
-
-    return result
-  } catch (error) {
-    logger.error('获取车辆和司机详细信息异常', error)
-    return null
-  }
+  // 委托给 VehiclesRepository 处理（带缓存）
+  return vehiclesRepository.getWithDriverDetails(vehicleId)
 }
 
 /**
@@ -444,9 +371,8 @@ export async function insertVehicle(vehicle: VehicleInput): Promise<Vehicle | nu
       }
     }
 
-    // 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 发布车辆创建事件，通知相关页面刷新
     if (data) {
@@ -575,9 +501,8 @@ export async function updateVehicle(vehicleId: string, updates: VehicleUpdate): 
       }
     }
 
-    // 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 发布车辆更新事件，通知相关页面刷新
     if (data) {
@@ -654,9 +579,8 @@ export async function deleteVehicle(vehicleId: string): Promise<boolean> {
       return false
     }
 
-    // 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 发布车辆删除事件，通知相关页面刷新
     publish('vehicle:deleted', {
@@ -748,9 +672,8 @@ export async function returnVehicle(vehicleId: string, returnPhotos: string[]): 
       return null
     }
 
-    // 3. 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 3. 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 4. 获取更新后的车辆信息
     const updatedVehicle = await getVehicleById(vehicleId)
@@ -907,22 +830,17 @@ export async function getVehicleByPlateNumber(plateNumber: string): Promise<Vehi
 
 /**
  * 获取驾驶员证件信息
+ *
+ * 使用 DriverLicensesRepository 进行缓存管理：
+ * - 缓存 TTL: 5 分钟
+ * - 在驾驶证创建/更新/删除时自动清除缓存
+ *
+ * @param driverId - 司机 ID
+ * @returns 驾驶员证件信息，如果不存在则返回 null
  */
 export async function getDriverLicense(driverId: string): Promise<DriverLicense | null> {
-  logger.db('查询', 'driver_licenses', {driverId})
-  try {
-    const {data, error} = await supabase.from('driver_licenses').select('*').eq('driver_id', driverId).maybeSingle()
-
-    if (error) {
-      logger.error('获取驾驶员证件信息失败', error)
-      return null
-    }
-
-    return data
-  } catch (error) {
-    logger.error('获取驾驶员证件信息异常', error)
-    return null
-  }
+  // 委托给 DriverLicensesRepository 处理（带缓存）
+  return driverLicensesRepository.getByDriverId(driverId)
 }
 
 /**
@@ -960,6 +878,9 @@ export async function upsertDriverLicense(license: DriverLicenseInput): Promise<
         savedDriverLicense: data.driving_license_photo
       })
     }
+
+    // 清除驾驶证缓存（使用 Repository 统一管理）
+    driverLicensesRepository.clearCache()
 
     // 发布驾照信息更新事件，通知相关页面刷新
     if (data) {
@@ -999,6 +920,9 @@ export async function updateDriverLicense(
       logger.error('更新驾驶员证件信息失败', error)
       return null
     }
+
+    // 清除驾驶证缓存（使用 Repository 统一管理）
+    driverLicensesRepository.clearCache()
 
     // 发布驾照信息更新事件，通知相关页面刷新
     if (data) {
@@ -1052,6 +976,9 @@ export async function deleteDriverLicense(driverId: string): Promise<boolean> {
         }
       }
     }
+
+    // 清除驾驶证缓存（使用 Repository 统一管理）
+    driverLicensesRepository.clearCache()
 
     // 发布驾照信息删除事件，通知相关页面刷新
     publish('driver_license:deleted', {
@@ -1182,9 +1109,8 @@ export async function submitVehicleForReview(vehicleId: string): Promise<boolean
       return false
     }
 
-    // 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 发布车辆审核提交事件，通知管理员页面刷新
     publish('vehicle:review_submitted', {
@@ -1342,9 +1268,8 @@ export async function togglePhotoLock(
         return false
       }
 
-      // 5. 清除相关缓存
-      clearCacheByPrefix('driver_vehicles_')
-      clearCache(CACHE_KEYS.ALL_VEHICLES)
+      // 5. 清除相关缓存（使用 Repository 统一管理）
+      vehiclesRepository.invalidateCache()
     }
 
     return true
@@ -1449,9 +1374,8 @@ export async function approveVehicle(vehicleId: string, reviewerId: string, note
       return false
     }
 
-    // 3. 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 3. 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 4. 发布车辆审核通过事件，通知司机页面刷新
     publish('vehicle:approved', {
@@ -1510,8 +1434,8 @@ export async function lockVehiclePhotos(
       return false
     }
 
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     return true
   } catch (error) {
@@ -1563,9 +1487,8 @@ export async function requireSupplement(vehicleId: string, reviewerId: string, n
       return false
     }
 
-    // 3. 清除缓存
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 3. 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 4. 发布车辆需要补录事件，通知司机页面刷新
     publish('vehicle:supplement_required', {
@@ -1689,9 +1612,8 @@ export async function supplementPhoto(
 
     logger.info('补录图片成功', {vehicleId, photoField, photoIndex, supplementCount})
     
-    // 清除缓存，确保数据一致性
-    clearCacheByPrefix('driver_vehicles_')
-    clearCache(CACHE_KEYS.ALL_VEHICLES)
+    // 清除缓存，确保数据一致性（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
 
     // 发布补录成功事件，通知相关页面刷新
     publish('vehicle:photo_supplemented', {

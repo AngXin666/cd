@@ -7,11 +7,17 @@
  * - 定时通知
  * - 自动提醒规则
  * - 通知统计
+ *
+ * 注意：此文件是 Repository 层的包装器
+ * 核心通知操作通过 NotificationsRepository 进行，确保缓存一致性
+ *
+ * @module db/api/notifications
  */
 
 import {supabase} from '@/client/supabase'
 import {publish} from '@/utils/eventBus'
 import {logger} from '@/utils/logger'
+import { notificationsRepository } from '../repositories'
 import type {
   AutoReminderRule,
   AutoReminderRuleWithWarehouse,
@@ -400,57 +406,25 @@ export async function sendVerificationReminder(
 
 /**
  * 获取用户的通知列表
- * 单用户架构：直接查询 public.notifications 表
- * @param userId 用户ID
- * @param limit 返回数量限制，默认50
+ * 使用 NotificationsRepository，带缓存（TTL 1 分钟）
+ *
+ * @param userId - 用户ID
+ * @param limit - 返回数量限制，默认50
  * @returns 通知列表
  */
 export async function getNotifications(userId: string, limit = 50): Promise<Notification[]> {
-  try {
-    // 单用户架构：直接查询 public.notifications
-    const {data, error} = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('recipient_id', userId)
-      .order('created_at', {ascending: false})
-      .limit(limit)
-
-    if (error) {
-      console.error('❌ 获取通知失败:', error)
-      return []
-    }
-
-    return Array.isArray(data) ? data : []
-  } catch (error) {
-    console.error('❌ 获取通知异常:', error)
-    return []
-  }
+  return notificationsRepository.getByUser(userId, limit)
 }
 
 /**
  * 获取未读通知数量
- * 单用户架构：直接查询 public.notifications 表
- * @param userId 用户ID
+ * 使用 NotificationsRepository，带缓存（TTL 1 分钟）
+ *
+ * @param userId - 用户ID
  * @returns 未读通知数量
  */
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
-  try {
-    const {count, error} = await supabase
-      .from('notifications')
-      .select('*', {count: 'exact', head: true})
-      .eq('recipient_id', userId)
-      .eq('is_read', false)
-
-    if (error) {
-      console.error('获取未读通知数量失败:', error)
-      return 0
-    }
-
-    return count || 0
-  } catch (error) {
-    console.error('获取未读通知数量异常:', error)
-    return 0
-  }
+  return notificationsRepository.getUnreadCount(userId)
 }
 
 /**
@@ -485,79 +459,53 @@ export async function getNotificationSendRecords(): Promise<NotificationSendReco
 
 /**
  * 标记通知为已读
+ * 使用 NotificationsRepository，更新成功后自动清除缓存
+ *
  * @param notificationId - 通知ID
  * @returns 是否成功
  */
 export async function markNotificationAsRead(notificationId: string): Promise<boolean> {
-  try {
-    const {error} = await supabase.from('notifications').update({is_read: true}).eq('id', notificationId)
+  const success = await notificationsRepository.markAsRead(notificationId)
 
-    if (error) {
-      console.error('标记通知为已读失败:', error)
-      return false
-    }
-
+  if (success) {
     // 发布通知已读事件，通知相关页面刷新未读数量
     publish('notification:read', {
       id: notificationId
     })
-
-    return true
-  } catch (error) {
-    console.error('标记通知为已读异常:', error)
-    return false
   }
+
+  return success
 }
 
 /**
  * 标记所有通知为已读
- * @param userId 用户ID
+ * 使用 NotificationsRepository，更新成功后自动清除缓存
+ *
+ * @param userId - 用户ID
  * @returns 是否成功
  */
 export async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
-  try {
-    const {error} = await supabase
-      .from('notifications')
-      .update({is_read: true})
-      .eq('recipient_id', userId)
-      .eq('is_read', false)
-
-    if (error) {
-      console.error('标记所有通知为已读失败:', error)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error('标记所有通知为已读异常:', error)
-    return false
-  }
+  return notificationsRepository.markAllAsRead(userId)
 }
 
 /**
  * 删除通知
+ * 使用 NotificationsRepository，删除成功后自动清除缓存
+ *
  * @param notificationId - 通知ID
  * @returns 是否成功
  */
 export async function deleteNotification(notificationId: string): Promise<boolean> {
-  try {
-    const {error} = await supabase.from('notifications').delete().eq('id', notificationId)
+  const success = await notificationsRepository.deleteNotification(notificationId)
 
-    if (error) {
-      console.error('删除通知失败:', error)
-      return false
-    }
-
+  if (success) {
     // 发布通知删除事件，通知相关页面刷新通知列表
     publish('notification:deleted', {
       id: notificationId
     })
-
-    return true
-  } catch (error) {
-    console.error('删除通知异常:', error)
-    return false
   }
+
+  return success
 }
 
 // ==================== 通知模板管理 ====================

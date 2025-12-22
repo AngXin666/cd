@@ -2,6 +2,9 @@
  * 仪表板数据缓存 Hook
  * 基于通用缓存 Hook 实现仪表板统计数据的缓存和实时更新
  *
+ * 注意：缓存由 Repository 层统一管理
+ * 此 Hook 主要负责实时更新监听和状态管理
+ *
  * @module hooks/useDashboardCache
  * @feature user-list-cache-optimization
  */
@@ -50,6 +53,10 @@ export interface UseDashboardCacheOptions {
  * 仪表板数据缓存 Hook
  * 提供仪表板统计数据的加载、缓存和实时更新功能
  *
+ * 缓存策略：
+ * - Repository 层：各数据源有独立的缓存（attendance: 2分钟, piece_work: 2分钟等）
+ * - Hooks 层：禁用缓存，由 Repository 统一管理
+ *
  * @example
  * ```typescript
  * const {data: dashboardStats, loading, refresh} = useDashboardCache({
@@ -67,8 +74,8 @@ export function useDashboardCache(options: UseDashboardCacheOptions) {
     cacheKey,
     loadData,
     realtimeTables: ['attendance', 'piece_work_records', 'leave_applications'],
-    cacheEnabled: true,
-    cacheTTL: 5 * 60 * 1000, // 5 分钟（仪表板数据更新频繁，缓存时间短一些）
+    cacheEnabled: false, // 禁用 Hooks 层缓存，由 Repository 层统一管理
+    cacheTTL: 5 * 60 * 1000, // 5 分钟（仅作为备用，实际不使用）
     dependencies: [warehouseId]
   })
 }

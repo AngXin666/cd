@@ -227,39 +227,22 @@ export async function getCurrentUserPermissions(): Promise<ManagerPermission | n
 
 /**
  * 获取所有用户档案
+ * 使用 UsersRepository，带缓存（TTL 5 分钟）
+ *
+ * @returns 所有用户档案列表
  */
 export async function getAllProfiles(): Promise<Profile[]> {
-  try {
-    const usersWithRole = await getUsersWithRole()
-
-    if (!usersWithRole || usersWithRole.length === 0) {
-      return []
-    }
-
-    return convertUsersToProfiles(usersWithRole)
-  } catch (error) {
-    console.error('获取所有用户档案异常:', error)
-    return []
-  }
+  return usersRepository.getAllUsers()
 }
 
 /**
  * 获取所有用户
+ * 使用 UsersRepository，带缓存（TTL 5 分钟）
+ *
+ * @returns 所有用户列表
  */
 export async function getAllUsers(): Promise<Profile[]> {
-  try {
-    const users = await getUsersWithRole()
-
-    if (!users || users.length === 0) {
-      return []
-    }
-
-    const profiles = convertUsersToProfiles(users)
-    return profiles
-  } catch (error) {
-    console.error('❌ 获取用户列表异常:', error)
-    return []
-  }
+  return usersRepository.getAllUsers()
 }
 
 /**
@@ -458,16 +441,15 @@ export async function getAllSuperAdmins(): Promise<Profile[]> {
 
 /**
  * 获取管理员管辖的仓库ID列表
+ * 使用 WarehouseAssignmentsRepository，带缓存（TTL 5 分钟）
+ *
+ * @param managerId - 管理员用户 ID
+ * @returns 管理员管辖的仓库 ID 列表
  */
 export async function getManagerWarehouseIds(managerId: string): Promise<string[]> {
-  const {data, error} = await supabase.from('warehouse_assignments').select('warehouse_id').eq('user_id', managerId)
-
-  if (error) {
-    console.error('获取管理员仓库列表失败:', error)
-    return []
-  }
-
-  return Array.isArray(data) ? data.map((item) => item.warehouse_id) : []
+  // 导入 warehouseAssignmentsRepository
+  const { warehouseAssignmentsRepository } = await import('../repositories')
+  return warehouseAssignmentsRepository.getWarehouseIdsByUser(managerId)
 }
 
 // ==================== 权限管理 ====================

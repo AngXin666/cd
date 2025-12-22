@@ -171,9 +171,11 @@ describe('车辆管理 API', () => {
 
     /**
      * 测试错误处理
+     * 注意：使用不同的用户 ID 避免 Repository 缓存影响
      */
     it('应该在查询失败时返回空数组', async () => {
       // 准备：设置 mock 返回错误
+      // 使用不同的用户 ID 避免缓存命中
       const mockQueryBuilder = {
         select: vi.fn().mockReturnThis(),
         or: vi.fn().mockReturnThis(),
@@ -182,8 +184,8 @@ describe('车辆管理 API', () => {
 
       mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
-      // 执行
-      const result = await getDriverVehicles('user-001')
+      // 执行：使用不同的用户 ID 避免缓存
+      const result = await getDriverVehicles('user-error-test')
 
       // 验证
       expect(result).toEqual([])

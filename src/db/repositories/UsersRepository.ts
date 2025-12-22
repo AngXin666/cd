@@ -5,6 +5,9 @@
  * 功能包括：
  * - 获取所有司机列表（带缓存，TTL 5 分钟）
  * - 获取所有管理员列表（带缓存，TTL 5 分钟）
+ * - 获取单个用户信息（带缓存）
+ * - 获取多个用户信息（带缓存）
+ * - 根据角色获取用户列表（带缓存）
  * - 在用户创建/更新/删除时自动清除缓存
  *
  * @module db/repositories/UsersRepository
@@ -13,8 +16,77 @@
 import { supabase } from '@/client/supabase'
 import { getCache, setCache, clearCacheByPrefix, CACHE_KEYS } from '@/utils/cache'
 import { createLogger, Logger } from '@/utils/logger'
-import { convertUsersToProfiles, getUsersByRole, getUsersWithRole, getUserWithRole } from '../helpers'
-import type { Profile } from '../types'
+import type { Profile, UserRole, UserWithRole } from '../types'
+import { PermissionAction, checkCurrentUserPermission } from '@/services/permission-service'
+import { warehouseAssignmentsRepository } from './WarehouseAssignmentsRepository'
+
+// 重新导出 UserWithRole 类型，保持向后兼容
+// 注意：UserWithRole 的主定义在 src/db/types.ts 中
+export type { UserWithRole }
+
+/**
+ * 将 UserWithRole 转换为 Profile 格式（向后兼容）
+ *
+ * 该函数将数据库查询返回的用户数据转换为 Profile 接口格式，
+ * 确保所有字段都被正确映射。
+ *
+ * @param user 用户数据（从数据库查询返回）
+ * @returns Profile 对象（包含所有必要字段）
+ */
+export function convertUserToProfile(user: UserWithRole): Profile {
+  return {
+    // 基本信息
+    id: user.id,
+    phone: user.phone,
+    email: user.email,
+    name: user.name,
+    avatar_url: user.avatar_url,
+    // 角色信息
+    role: user.role || 'DRIVER',
+    driver_type: user.driver_type || null,
+    // 权限信息
+    manager_permissions_enabled: user.manager_permissions_enabled,
+    main_account_id: user.main_account_id,
+    peer_account_permission: user.peer_account_permission,
+    // 扩展信息
+    nickname: user.nickname || null,
+    join_date: user.join_date || null,
+    company_name: user.company_name || null,
+    vehicle_plate: user.vehicle_plate || null,
+    login_account: user.login_account || null,
+    status: user.status || null,
+    is_active: user.is_active,
+    // 地址信息
+    address_province: user.address_province || null,
+    address_city: user.address_city || null,
+    address_district: user.address_district || null,
+    address_detail: user.address_detail || null,
+    // 紧急联系人
+    emergency_contact_name: user.emergency_contact_name || null,
+    emergency_contact_phone: user.emergency_contact_phone || null,
+    emergency_contact_relationship: user.emergency_contact_relationship || null,
+    // 租赁信息
+    lease_start_date: user.lease_start_date || null,
+    lease_end_date: user.lease_end_date || null,
+    monthly_fee: user.monthly_fee || null,
+    notes: user.notes || null,
+    // 会话信息
+    session_token: user.session_token || null,
+    // 时间戳
+    created_at: user.created_at,
+    updated_at: user.updated_at
+  }
+}
+
+/**
+ * 批量转换用户数据为 Profile 格式
+ *
+ * @param users 用户数据数组
+ * @returns Profile 对象数组
+ */
+export function convertUsersToProfiles(users: UserWithRole[]): Profile[] {
+  return users.map(convertUserToProfile)
+}
 
 /**
  * 用户缓存配置
@@ -41,6 +113,9 @@ const USERS_CACHE_CONFIG = {
  *
  * // 获取所有管理员列表
  * const managers = await usersRepo.getAllManagers()
+ *
+ * // 获取单个用户信息
+ * const user = await usersRepo.getById('user-id')
  *
  * // 清除缓存（数据变更后调用）
  * usersRepo.invalidateCache()
@@ -126,7 +201,222 @@ export class UsersRepository {
     this.logger.info('用户缓存已清除')
   }
 
-  // ==================== 数据查询方法 ====================
+  /**
+   * 公开的缓存失效方法（与 BaseRepository 接口一致）
+   * 清除该 Repository 的所有缓存
+   *
+   * 使用场景：
+   * - Realtime 事件触发缓存失效
+   * - 事件驱动的跨 Repository 缓存失效
+   * - 登出时清除所有缓存
+   */
+  public clearAllCache(): void {
+    this.invalidateCache()
+  }
+
+  // ==================== 核心数据查询方法 ====================
+
+  /**
+   * 根据 ID 获取单个用户信息（带缓存）
+   *
+   * @param userId - 用户 ID
+   * @returns 用户信息，如果不存在则返回 null
+   *
+   * @example
+   * ```typescript
+   * const user = await usersRepo.getById('user-123')
+   * if (user) {
+   *   console.log(`用户名: ${user.name}`)
+   * }
+   * ```
+   */
+  async getById(userId: string): Promise<UserWithRole | null> {
+    // 1. 尝试从缓存获取
+    const cacheKey = this.getCacheKey(`user_${userId}`)
+    const cached = this.getFromCache<UserWithRole>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // 2. 从数据库查询
+    this.logger.debug('从数据库查询用户', { userId })
+    
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) {
+      this.logger.error('查询用户失败', { userId, error })
+      throw new Error(`查询用户失败: ${error.message}`)
+    }
+
+    // 3. 缓存结果
+    if (user) {
+      this.setToCache(cacheKey, user)
+    }
+
+    return user
+  }
+
+  /**
+   * 根据 ID 列表获取多个用户信息（带缓存）
+   *
+   * @param userIds - 用户 ID 数组（可选，不传则查询所有用户）
+   * @returns 用户信息数组
+   *
+   * @example
+   * ```typescript
+   * // 获取指定用户
+   * const users = await usersRepo.getByIds(['user-1', 'user-2'])
+   *
+   * // 获取所有用户
+   * const allUsers = await usersRepo.getByIds()
+   * ```
+   */
+  async getByIds(userIds?: string[]): Promise<UserWithRole[]> {
+    // 生成缓存键
+    const cacheKey = userIds && userIds.length > 0
+      ? this.getCacheKey(`users_${userIds.sort().join('_')}`)
+      : this.getCacheKey('all_users_with_role')
+
+    // 1. 尝试从缓存获取
+    const cached = this.getFromCache<UserWithRole[]>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // 2. 从数据库查询
+    this.logger.debug('从数据库查询用户列表', { userIds })
+
+    let query = supabase.from('users').select('*')
+
+    if (userIds && userIds.length > 0) {
+      query = query.in('id', userIds)
+    }
+
+    const { data: users, error } = await query
+
+    if (error) {
+      this.logger.error('查询用户列表失败', { userIds, error })
+      throw new Error(`查询用户失败: ${error.message}`)
+    }
+
+    const result = users || []
+
+    // 3. 缓存结果
+    this.setToCache(cacheKey, result)
+
+    return result
+  }
+
+  /**
+   * 根据角色获取用户列表（带缓存）
+   *
+   * @param role - 用户角色
+   * @returns 用户信息数组
+   *
+   * @example
+   * ```typescript
+   * const drivers = await usersRepo.getByRole('DRIVER')
+   * const managers = await usersRepo.getByRole('MANAGER')
+   * ```
+   */
+  async getByRole(role: UserRole): Promise<UserWithRole[]> {
+    // 1. 尝试从缓存获取
+    const cacheKey = this.getCacheKey(`role_${role}`)
+    const cached = this.getFromCache<UserWithRole[]>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // 2. 从数据库查询
+    this.logger.debug('从数据库查询角色用户列表', { role })
+
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', role)
+
+    if (error) {
+      this.logger.error('查询角色用户列表失败', { role, error })
+      throw new Error(`查询用户失败: ${error.message}`)
+    }
+
+    const result = users || []
+
+    // 3. 缓存结果
+    this.setToCache(cacheKey, result)
+
+    return result
+  }
+
+  /**
+   * 获取用户角色（带缓存）
+   *
+   * @param userId - 用户 ID
+   * @returns 用户角色，如果不存在则返回 null
+   *
+   * @example
+   * ```typescript
+   * const role = await usersRepo.getRole('user-123')
+   * if (role === 'DRIVER') {
+   *   console.log('这是一个司机')
+   * }
+   * ```
+   */
+  async getRole(userId: string): Promise<UserRole | null> {
+    // 1. 尝试从缓存获取
+    const cacheKey = this.getCacheKey(`role_of_${userId}`)
+    const cached = this.getFromCache<UserRole | null>(cacheKey)
+    if (cached !== null) {
+      return cached
+    }
+
+    // 2. 从数据库查询
+    this.logger.debug('从数据库查询用户角色', { userId })
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) {
+      this.logger.error('查询用户角色失败', { userId, error })
+      return null
+    }
+
+    const role = data?.role || null
+
+    // 3. 缓存结果
+    if (role) {
+      this.setToCache(cacheKey, role)
+    }
+
+    return role
+  }
+
+  /**
+   * 检查用户是否具有指定角色（带缓存）
+   *
+   * @param userId - 用户 ID
+   * @param role - 要检查的角色
+   * @returns 是否具有该角色
+   *
+   * @example
+   * ```typescript
+   * const isDriver = await usersRepo.hasRole('user-123', 'DRIVER')
+   * if (isDriver) {
+   *   console.log('用户是司机')
+   * }
+   * ```
+   */
+  async hasRole(userId: string, role: UserRole): Promise<boolean> {
+    const userRole = await this.getRole(userId)
+    return userRole === role
+  }
 
   /**
    * 获取所有司机列表（带缓存）
@@ -250,10 +540,14 @@ export class UsersRepository {
   private async fetchAllDrivers(currentUserId: string): Promise<Profile[]> {
     try {
       // 获取当前用户的角色信息
-      const userWithRole = await getUserWithRole(currentUserId)
-      
+      const userWithRole = await this.getById(currentUserId)
+      if (!userWithRole) {
+        this.logger.warn('无法获取当前用户信息', { currentUserId })
+        return []
+      }
+
       // 根据当前用户角色获取可见的司机列表
-      const drivers = await getUsersByRole('DRIVER', userWithRole)
+      const drivers = await this.getByRoleWithPermission('DRIVER', userWithRole)
 
       if (!drivers || drivers.length === 0) {
         this.logger.debug('未找到司机', { currentUserId })
@@ -284,10 +578,14 @@ export class UsersRepository {
   private async fetchAllManagers(currentUserId: string): Promise<Profile[]> {
     try {
       // 获取当前用户的角色信息
-      const userWithRole = await getUserWithRole(currentUserId)
-      
+      const userWithRole = await this.getById(currentUserId)
+      if (!userWithRole) {
+        this.logger.warn('无法获取当前用户信息', { currentUserId })
+        return []
+      }
+
       // 根据当前用户角色获取可见的管理员列表
-      const managers = await getUsersByRole('MANAGER', userWithRole)
+      const managers = await this.getByRoleWithPermission('MANAGER', userWithRole)
 
       if (!managers || managers.length === 0) {
         this.logger.debug('未找到管理员', { currentUserId })
@@ -316,7 +614,7 @@ export class UsersRepository {
    */
   private async fetchAllUsers(): Promise<Profile[]> {
     try {
-      const users = await getUsersWithRole()
+      const users = await this.getByIds()
 
       if (!users || users.length === 0) {
         this.logger.debug('未找到用户')
@@ -334,6 +632,90 @@ export class UsersRepository {
     } catch (error) {
       this.logger.error('获取用户列表失败', { error })
       return []
+    }
+  }
+
+  /**
+   * 根据角色获取用户列表（带权限过滤）
+   *
+   * 根据当前用户的角色和权限，返回可见的用户列表。
+   * - 老板可以看到所有用户
+   * - 管理员只能看到自己管辖仓库的用户
+   *
+   * @param role - 要查询的角色
+   * @param currentUser - 当前用户信息
+   * @returns 用户信息数组
+   */
+  async getByRoleWithPermission(
+    role: UserRole,
+    currentUser?: { id: string; role?: string | null } | null
+  ): Promise<UserWithRole[]> {
+    try {
+      if (!currentUser) {
+        this.logger.error('用户未登录')
+        throw new Error('用户未登录')
+      }
+
+      // 权限检查
+      const permissionResult = checkCurrentUserPermission('users', PermissionAction.SELECT, {
+        id: currentUser.id,
+        role: currentUser.role || undefined
+      })
+      if (!permissionResult.hasPermission) {
+        this.logger.error('查询用户权限不足', { error: permissionResult.error })
+        throw new Error('查询用户权限不足')
+      }
+
+      let query = supabase.from('users').select('*').eq('role', role)
+
+      // 应用数据过滤
+      if (permissionResult.filter) {
+        // 对于车队长角色，需要特殊处理：查看管辖仓库下的司机
+        if (currentUser.role === 'MANAGER' && role === 'DRIVER') {
+          // 获取车队长管理的所有仓库
+          const managerAssignments = await warehouseAssignmentsRepository.getByUser(currentUser.id)
+          const warehouseIds = managerAssignments.map((a) => a.warehouse_id)
+
+          if (warehouseIds.length > 0) {
+            // 获取这些仓库下的所有用户ID
+            const allUserIds: string[] = []
+            for (const warehouseId of warehouseIds) {
+              const warehouseAssignments = await warehouseAssignmentsRepository.getByWarehouse(warehouseId)
+              const userIds = warehouseAssignments.map((a) => a.user_id)
+              allUserIds.push(...userIds)
+            }
+
+            // 去重并添加到查询中
+            const uniqueUserIds = [...new Set(allUserIds)]
+            if (uniqueUserIds.length > 0) {
+              query = query.in('id', uniqueUserIds)
+            } else {
+              // 如果没有管辖的司机，返回空数组
+              return []
+            }
+          } else {
+            // 如果没有管辖的仓库，返回空数组
+            return []
+          }
+        } else {
+          // 其他情况应用普通过滤
+          Object.entries(permissionResult.filter).forEach(([key, value]) => {
+            query = query.eq(key, value)
+          })
+        }
+      }
+
+      const { data: userData, error } = await query
+
+      if (error) {
+        this.logger.error('查询用户失败', { role, error })
+        throw new Error(`查询用户失败: ${error.message}`)
+      }
+
+      return userData || []
+    } catch (error) {
+      this.logger.error('查询用户异常', { role, error })
+      throw error
     }
   }
 }

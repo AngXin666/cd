@@ -1,3 +1,12 @@
+/**
+ * 司机仪表板数据管理 Hook
+ *
+ * 该 Hook 提供司机仪表板的统计数据加载和实时更新功能。
+ * 缓存由 Repository 层统一管理，Hook 层不再维护独立缓存。
+ *
+ * @module hooks/useDriverDashboard
+ */
+
 import type {RealtimeChannel} from '@supabase/supabase-js'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
@@ -5,33 +14,39 @@ import {getDriverAttendanceStats} from '@/db/api/dashboard'
 import {getPieceWorkRecordsByUser} from '@/db/api/piecework'
 import {getDriverWarehouses} from '@/db/api/warehouses'
 import type {Warehouse} from '@/db/types'
-import {TypeSafeStorage} from '@/utils/storage'
+// 导入 Repository 用于清除缓存
+import {pieceWorkRepository} from '@/db/repositories/PieceWorkRepository'
+import {attendanceRepository} from '@/db/repositories/AttendanceRepository'
+import {warehousesRepository} from '@/db/repositories/WarehousesRepository'
 
-// 司机仪表板统计数据
+/**
+ * 司机仪表板统计数据接口
+ */
 export interface DriverDashboardStats {
+  /** 今日计件数量 */
   todayPieceCount: number
+  /** 今日收入 */
   todayIncome: number
+  /** 本月计件数量 */
   monthPieceCount: number
+  /** 本月收入 */
   monthIncome: number
+  /** 出勤天数 */
   attendanceDays: number
+  /** 请假天数 */
   leaveDays: number
 }
 
-// 缓存配置
-const CACHE_KEY_PREFIX = 'driver_dashboard_'
-const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5分钟
-
-interface CachedData {
-  data: DriverDashboardStats
-  timestamp: number
-  warehouseId: string
-}
-
+/**
+ * useDriverDashboard Hook 配置选项
+ */
 interface UseDriverDashboardOptions {
+  /** 用户 ID */
   userId: string
-  warehouseId?: string // 可选，如果提供则只统计该仓库的数据
-  enableRealtime?: boolean // 是否启用实时更新
-  cacheEnabled?: boolean // 是否启用缓存
+  /** 仓库 ID（可选，如果提供则只统计该仓库的数据） */
+  warehouseId?: string
+  /** 是否启用实时更新，默认 true */
+  enableRealtime?: boolean
 }
 
 /**
@@ -41,10 +56,22 @@ interface UseDriverDashboardOptions {
  * 1. 加载司机的统计数据（今日/本月计件、考勤）
  * 2. 支持按仓库筛选数据
  * 3. 实时订阅数据变化
- * 4. 智能缓存机制
+ * 4. 缓存由 Repository 层统一管理
+ *
+ * @param options - Hook 配置选项
+ * @returns 仪表板数据和操作方法
+ *
+ * @example
+ * ```typescript
+ * const { data, loading, error, refresh } = useDriverDashboard({
+ *   userId: 'user-123',
+ *   warehouseId: 'warehouse-456',
+ *   enableRealtime: true
+ * })
+ * ```
  */
 export function useDriverDashboard(options: UseDriverDashboardOptions) {
-  const {userId, warehouseId, enableRealtime = true, cacheEnabled = true} = options
+  const {userId, warehouseId, enableRealtime = true} = options
 
   const [data, setData] = useState<DriverDashboardStats>({
     todayPieceCount: 0,
@@ -60,49 +87,21 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const loadingRef = useRef(false)
 
-  // 生成缓存键（包含 userId 避免不同用户缓存冲突）
-  const getCacheKey = useCallback(() => {
-    return `${CACHE_KEY_PREFIX}${userId}_${warehouseId || 'all'}`
-  }, [userId, warehouseId])
+  /**
+   * 清除相关 Repository 缓存
+   * 在刷新数据前调用，确保获取最新数据
+   */
+  const clearRepositoryCache = useCallback(() => {
+    // 清除计件记录缓存（使用公开方法）
+    pieceWorkRepository.clearAllCache()
+    // 清除考勤记录缓存（使用公开方法）
+    attendanceRepository.clearAllCache()
+  }, [])
 
-  // 读取缓存
-  const readCache = useCallback((): DriverDashboardStats | null => {
-    if (!cacheEnabled) return null
-
-    const cacheKey = getCacheKey()
-    const cached = TypeSafeStorage.get<CachedData>(cacheKey)
-    if (cached?.data) {
-      const age = Date.now() - cached.timestamp
-      if (age < CACHE_EXPIRY_MS) {
-        return cached.data
-      }
-    }
-    return null
-  }, [cacheEnabled, getCacheKey])
-
-  // 写入缓存
-  const writeCache = useCallback(
-    (stats: DriverDashboardStats) => {
-      if (!cacheEnabled) return
-
-      const cacheKey = getCacheKey()
-      const cacheData: CachedData = {
-        data: stats,
-        timestamp: Date.now(),
-        warehouseId: warehouseId || 'all'
-      }
-      TypeSafeStorage.set(cacheKey, cacheData)
-    },
-    [cacheEnabled, getCacheKey, warehouseId]
-  )
-
-  // 清除缓存
-  const clearCache = useCallback(() => {
-    const cacheKey = getCacheKey()
-    TypeSafeStorage.remove(cacheKey)
-  }, [getCacheKey])
-
-  // 加载统计数据
+  /**
+   * 加载统计数据
+   * 数据通过 API 层获取，缓存由 Repository 层统一管理
+   */
   const loadStats = useCallback(async () => {
     if (!userId) {
       setLoading(false)
@@ -111,15 +110,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
 
     // 防止重复加载
     if (loadingRef.current) {
-      return
-    }
-
-    // 先尝试使用缓存
-    const cachedData = readCache()
-    if (cachedData) {
-      setData(cachedData)
-      setLoading(false)
-      setError(null)
       return
     }
 
@@ -133,7 +123,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       const month = today.getMonth() + 1
       const day = today.getDate()
 
-      // 加载计件记录
+      // 加载计件记录（通过 API 层，缓存由 Repository 管理）
       const pieceWorkRecords = await getPieceWorkRecordsByUser(userId)
 
       // 过滤仓库（如果指定了仓库ID）
@@ -178,7 +168,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       const lastDay = new Date(year, month, 0)
       const lastDayStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`
 
-      // 加载考勤统计
+      // 加载考勤统计（通过 API 层，缓存由 Repository 管理）
       const attendanceStats = await getDriverAttendanceStats(userId, firstDay, lastDayStr)
 
       const stats: DriverDashboardStats = {
@@ -191,7 +181,6 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       }
 
       setData(stats)
-      writeCache(stats)
     } catch (err) {
       console.error('[useDriverDashboard] 加载统计数据失败:', err)
       setError(err instanceof Error ? err.message : '加载失败')
@@ -199,7 +188,7 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       setLoading(false)
       loadingRef.current = false
     }
-  }, [userId, warehouseId, readCache, writeCache])
+  }, [userId, warehouseId])
 
   // 使用 ref 保存最新的 loadStats 函数，避免依赖循环
   const loadStatsRef = useRef(loadStats)
@@ -207,14 +196,20 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
     loadStatsRef.current = loadStats
   }, [loadStats])
 
-  // 创建稳定的刷新函数，不依赖 loadStats
+  /**
+   * 创建稳定的刷新函数
+   * 清除 Repository 缓存后重新加载数据
+   */
   const refreshStable = useCallback(() => {
-    clearCache()
+    clearRepositoryCache()
     // 使用 ref 中的最新函数，避免依赖循环
     loadStatsRef.current()
-  }, [clearCache])
+  }, [clearRepositoryCache])
 
-  // 刷新数据（清除缓存后重新加载）- 导出给外部使用
+  /**
+   * 刷新数据（清除缓存后重新加载）
+   * 导出给外部使用
+   */
   const refresh = useCallback(() => {
     refreshStable()
   }, [refreshStable])
@@ -292,10 +287,19 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
       loading,
       error,
       refresh,
-      clearCache
+      /** 清除 Repository 缓存 */
+      clearCache: clearRepositoryCache
     }),
-    [data, loading, error, refresh, clearCache]
+    [data, loading, error, refresh, clearRepositoryCache]
   )
+}
+
+/**
+ * useDriverWarehouses Hook 配置选项
+ */
+interface UseDriverWarehousesOptions {
+  /** 用户 ID */
+  userId: string
 }
 
 /**
@@ -303,51 +307,36 @@ export function useDriverDashboard(options: UseDriverDashboardOptions) {
  *
  * 功能：
  * 1. 加载司机的仓库列表
- * 2. 智能缓存机制
+ * 2. 缓存由 Repository 层统一管理
+ * 3. 实时订阅仓库分配变化
+ *
+ * @param userId - 用户 ID
+ * @returns 仓库列表数据和操作方法
+ *
+ * @example
+ * ```typescript
+ * const { warehouses, loading, error, refresh } = useDriverWarehouses('user-123')
+ * ```
  */
-export function useDriverWarehouses(userId: string, cacheEnabled = true) {
+export function useDriverWarehouses(userId: string) {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const loadingRef = useRef(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const CACHE_KEY = `driver_warehouses_${userId}`
-  const CACHE_EXPIRY_MS = 1 * 60 * 1000 // 1分钟（从10分钟缩短到1分钟以满足实时同步需求）
 
-  // 读取缓存
-  const readCache = useCallback((): Warehouse[] | null => {
-    if (!cacheEnabled) return null
+  /**
+   * 清除仓库相关 Repository 缓存
+   */
+  const clearRepositoryCache = useCallback(() => {
+    warehousesRepository.invalidateCache()
+  }, [])
 
-    const cached = TypeSafeStorage.get<{data: Warehouse[]; timestamp: number}>(CACHE_KEY)
-    if (cached?.data) {
-      const age = Date.now() - cached.timestamp
-      if (age < CACHE_EXPIRY_MS) {
-        return cached.data
-      }
-    }
-    return null
-  }, [cacheEnabled, CACHE_KEY])
-
-  // 写入缓存
-  const writeCache = useCallback(
-    (data: Warehouse[]) => {
-      if (!cacheEnabled) return
-
-      TypeSafeStorage.set(CACHE_KEY, {
-        data,
-        timestamp: Date.now()
-      })
-    },
-    [cacheEnabled, CACHE_KEY]
-  )
-
-  // 清除缓存
-  const clearCache = useCallback(() => {
-    TypeSafeStorage.remove(CACHE_KEY)
-  }, [CACHE_KEY])
-
-  // 加载仓库列表
+  /**
+   * 加载仓库列表
+   * 数据通过 API 层获取，缓存由 Repository 层统一管理
+   */
   const loadWarehouses = useCallback(async () => {
     if (!userId) {
       setLoading(false)
@@ -359,24 +348,15 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
       return
     }
 
-    // 先尝试使用缓存
-    const cachedData = readCache()
-    if (cachedData) {
-      setWarehouses(cachedData)
-      setLoading(false)
-      setError(null)
-      return
-    }
-
     try {
       loadingRef.current = true
       setLoading(true)
       setError(null)
 
+      // 通过 API 层获取数据（缓存由 Repository 管理）
       const data = await getDriverWarehouses(userId)
 
       setWarehouses(data)
-      writeCache(data)
     } catch (err) {
       console.error('[useDriverWarehouses] 加载仓库列表失败:', err)
       setError(err instanceof Error ? err.message : '加载失败')
@@ -384,13 +364,15 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
       setLoading(false)
       loadingRef.current = false
     }
-  }, [userId, readCache, writeCache])
+  }, [userId])
 
-  // 刷新数据
+  /**
+   * 刷新数据（清除缓存后重新加载）
+   */
   const refresh = useCallback(() => {
-    clearCache()
+    clearRepositoryCache()
     loadWarehouses()
-  }, [clearCache, loadWarehouses])
+  }, [clearRepositoryCache, loadWarehouses])
 
   // 初始加载
   useEffect(() => {
@@ -413,8 +395,8 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
           filter: `user_id=eq.${userId}`
         },
         (_payload) => {
-          // 清除缓存并重新加载数据
-          clearCache()
+          // 清除 Repository 缓存并重新加载数据
+          clearRepositoryCache()
           loadWarehouses()
         }
       )
@@ -429,13 +411,14 @@ export function useDriverWarehouses(userId: string, cacheEnabled = true) {
         channelRef.current = null
       }
     }
-  }, [userId, clearCache, loadWarehouses])
+  }, [userId, clearRepositoryCache, loadWarehouses])
 
   return {
     warehouses,
     loading,
     error,
     refresh,
-    clearCache
+    /** 清除 Repository 缓存 */
+    clearCache: clearRepositoryCache
   }
 }

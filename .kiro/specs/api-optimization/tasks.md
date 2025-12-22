@@ -94,6 +94,20 @@ API 优化已完成，功能正常工作，无回归问题。
 2. 部分页面仍存在重复请求（auth:user, users, leave_applications）
 3. 偶发慢请求（attendance, warehouse_assignments）
 
+### 追加优化（2024-12-21）
+
+**UserContext 查询合并优化**：
+- 将 `users` 表的两次查询（name/email/phone 和 role）合并为一次
+- 预计减少每次登录/页面加载时的 1 次 API 调用
+- 文件：`src/contexts/UserContext.tsx`
+
+**UserContext 缓存优化**：
+- 添加 5 分钟本地缓存机制，避免页面切换时重复查询用户信息
+- 缓存有效时直接使用缓存数据，不发起网络请求
+- 登出时自动清除缓存
+- 预计减少页面切换时的 1-2 次 API 调用
+- 文件：`src/contexts/UserContext.tsx`
+
 ---
 
 ## 优化目标

@@ -27,8 +27,8 @@ const ClockIn: React.FC = () => {
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  // 使用缓存 Hook 加载仓库列表，避免重复 API 调用
-  const {warehouses: allWarehouses, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '', true)
+  // 使用缓存 Hook 加载仓库列表，缓存由 Repository 层统一管理
+  const {warehouses: allWarehouses, refresh: refreshWarehouses} = useDriverWarehouses(user?.id || '')
   // 只显示启用的仓库
   const warehouses = allWarehouses.filter((w) => w.is_active)
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('')

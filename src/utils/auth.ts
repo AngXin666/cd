@@ -1,6 +1,14 @@
+/**
+ * 认证工具模块
+ * 提供用户登出、会话管理等认证相关功能
+ *
+ * @module utils/auth
+ */
+
 import Taro from '@tarojs/taro'
 import {supabase} from '@/client/supabase'
-import {clearAllCache, apiCache} from './cache'
+import {realtimeCacheInvalidator} from '@/db/realtime'
+import {clearAllCache, apiCache, clearAllRepositoryCache} from './cache'
 import {createLogger} from './logger'
 import {hideLoading} from './taroCompat'
 import {clearSession, stopRealtimeMonitor} from './sessionManager'
@@ -33,19 +41,27 @@ export function resetLogoutState(): void {
 /**
  * 清理所有用户相关的缓存和存储
  * 在退出登录时调用，确保下次登录时不会加载旧数据
- * 
+ *
+ * 清理内容包括：
+ * 1. 内存缓存（clearAllCache、apiCache）
+ * 2. Repository 层缓存（clearAllRepositoryCache）
+ * 3. localStorage 中的用户数据（保留记住密码相关数据）
+ *
  * 注意：H5 环境下 Taro.getStorageInfoSync 不可用，需要直接使用 localStorage API
  */
 function clearUserData(): void {
   try {
-    // 1. 清理内存缓存
+    // 1. 清理内存缓存（旧的简单缓存）
     clearAllCache()
     apiCache.clear()
 
-    // 2. 需要保留的存储键（记住密码相关）
+    // 2. 清理所有 Repository 层缓存（新的 Repository 模式缓存）
+    clearAllRepositoryCache()
+
+    // 3. 需要保留的存储键（记住密码相关）
     const keysToKeep = ['saved_account', 'saved_password', 'remember_me', 'login_bg_index']
 
-    // 3. 根据环境选择不同的清理方式
+    // 4. 根据环境选择不同的清理方式
     if (process.env.TARO_ENV === 'h5' && typeof localStorage !== 'undefined') {
       // H5 环境：直接使用 localStorage API
       const localStorageKeysToRemove: string[] = []
@@ -83,7 +99,7 @@ function clearUserData(): void {
       }
     }
 
-    logger.info('用户数据已清理')
+    logger.info('用户数据已清理（包括 Repository 缓存）')
   } catch (error) {
     logger.error('清理用户数据失败', error)
   }
@@ -97,9 +113,10 @@ function clearUserData(): void {
  *
  * 退出时会：
  * 1. 停止会话检查定时器
- * 2. 清除数据库中的会话令牌
- * 3. 清理所有缓存和用户数据
- * 4. 跳转到登录页面
+ * 2. 清理 Realtime 缓存失效订阅
+ * 3. 清除数据库中的会话令牌
+ * 4. 清理所有缓存和用户数据
+ * 5. 跳转到登录页面
  */
 export async function smartLogout(): Promise<void> {
   try {
@@ -111,6 +128,15 @@ export async function smartLogout(): Promise<void> {
 
     // 停止实时会话监听（包括 WebSocket 和轮询）
     stopRealtimeMonitor()
+
+    // 清理 Realtime 缓存失效订阅（在清除缓存之前）
+    try {
+      await realtimeCacheInvalidator.cleanup()
+      logger.debug('Realtime 缓存失效订阅已清理')
+    } catch (error) {
+      logger.error('清理 Realtime 缓存失效订阅失败', error)
+      // 不阻塞登出流程
+    }
 
     // 检查登录来源页面（在清理前获取）
     const loginSourcePage = Taro.getStorageSync('loginSourcePage')

@@ -5,13 +5,16 @@
  * v1.3.18 更新：移除重复的通知发送代码
  * 通知发送已在 LeaveAPI.createLeaveApplication 中统一处理
  * 使用 buildSubmissionMessage 组装消息格式
+ *
+ * v1.3.x 更新：迁移到 Repository 模式
+ * - loadDraft 函数改用 LeaveAPI.getLeaveApplicationById（通过 Repository 层，带缓存）
+ * - 移除直接的 supabase.from('leave_applications') 调用
  */
 import {Button, Picker, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {navigateBack, showToast, useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
-import {supabase} from '@/client/supabase'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as DashboardAPI from '@/db/api/dashboard'
@@ -115,9 +118,10 @@ const ApplyLeave: React.FC = () => {
   })
 
   const loadDraft = async (id: string) => {
-    const {data, error} = await supabase.from('leave_applications').select('*').eq('id', id).maybeSingle()
+    // 使用 LeaveAPI 获取请假申请（通过 Repository 层，带缓存）
+    const data = await LeaveAPI.getLeaveApplicationById(id)
 
-    if (error || !data) {
+    if (!data) {
       showToast({title: '加载草稿失败', icon: 'none'})
       return
     }

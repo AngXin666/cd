@@ -1,101 +1,78 @@
+/**
+ * 仓库列表数据管理 Hook
+ *
+ * 提供管理员仓库列表的加载和实时更新功能。
+ * 缓存由 WarehousesRepository 统一管理，Hook 层不再维护独立缓存。
+ *
+ * @module hooks/useWarehousesData
+ */
+
 import type {RealtimeChannel} from '@supabase/supabase-js'
 import Taro from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {getManagerWarehouses} from '@/db/api/warehouses'
 import type {Warehouse} from '@/db/types'
-import {TypeSafeStorage} from '@/utils/storage'
+// 导入 Repository 用于缓存管理
+import {warehousesRepository} from '@/db/repositories/WarehousesRepository'
 
-// 缓存配置
-const WAREHOUSES_CACHE_KEY = 'manager_warehouses_cache'
-const CACHE_EXPIRY_MS = 10 * 60 * 1000 // 10分钟缓存有效期
-
-interface CachedWarehouses {
-  data: Warehouse[]
-  timestamp: number
-  managerId: string
-}
-
+/**
+ * useWarehousesData Hook 配置选项
+ */
 interface UseWarehousesDataOptions {
+  /** 管理员用户 ID */
   managerId: string
-  cacheEnabled?: boolean
-  enableRealtime?: boolean // 是否启用实时更新
+  /** 是否启用实时更新，默认 false */
+  enableRealtime?: boolean
 }
 
 /**
  * 仓库列表数据管理 Hook
- * 提供仓库列表加载、缓存、实时更新功能
+ *
+ * 功能：
+ * 1. 加载管理员的仓库列表
+ * 2. 实时订阅仓库分配变化
+ * 3. 缓存由 WarehousesRepository 统一管理
+ *
+ * @param options - Hook 配置选项
+ * @returns 仓库列表数据和操作方法
+ *
+ * @example
+ * ```typescript
+ * const { warehouses, loading, error, refresh } = useWarehousesData({
+ *   managerId: 'manager-123',
+ *   enableRealtime: true
+ * })
+ * ```
  */
 export function useWarehousesData(options: UseWarehousesDataOptions) {
-  const {managerId, cacheEnabled = true, enableRealtime = false} = options
+  const {managerId, enableRealtime = false} = options
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
 
-  // 从缓存读取仓库列表
-  const loadFromCache = useCallback((): Warehouse[] | null => {
-    if (!cacheEnabled) return null
-
-    const cached = TypeSafeStorage.get<CachedWarehouses>(WAREHOUSES_CACHE_KEY)
-
-    if (cached && cached.managerId === managerId) {
-      const now = Date.now()
-      // 检查缓存是否过期
-      if (now - cached.timestamp < CACHE_EXPIRY_MS) {
-        return cached.data
-      }
-      // 缓存过期，删除
-      TypeSafeStorage.remove(WAREHOUSES_CACHE_KEY)
-    }
-
-    return null
-  }, [managerId, cacheEnabled])
-
-  // 保存仓库列表到缓存
-  const saveToCache = useCallback(
-    (warehousesData: Warehouse[]) => {
-      if (!cacheEnabled) return
-
-      const cacheData: CachedWarehouses = {
-        data: warehousesData,
-        timestamp: Date.now(),
-        managerId
-      }
-      TypeSafeStorage.set(WAREHOUSES_CACHE_KEY, cacheData)
-    },
-    [managerId, cacheEnabled]
-  )
-
-  // 清除缓存
-  const clearCache = useCallback(() => {
-    TypeSafeStorage.remove(WAREHOUSES_CACHE_KEY)
+  /**
+   * 清除 Repository 缓存
+   */
+  const clearRepositoryCache = useCallback(() => {
+    warehousesRepository.invalidateCache()
   }, [])
 
-  // 加载仓库列表
+  /**
+   * 加载仓库列表
+   * 数据通过 API 层获取，缓存由 WarehousesRepository 管理
+   */
   const loadWarehouses = useCallback(
-    async (forceRefresh = false) => {
+    async () => {
       setLoading(true)
       setError(null)
 
       try {
-        // 如果不是强制刷新，先尝试从缓存读取
-        if (!forceRefresh) {
-          const cachedData = loadFromCache()
-          if (cachedData) {
-            setWarehouses(cachedData)
-            setLoading(false)
-            return cachedData
-          }
-        }
-
-        // 从服务器加载数据
+        // 从 API 层加载数据（缓存由 WarehousesRepository 管理）
         const warehousesData = await getManagerWarehouses(managerId)
         setWarehouses(warehousesData)
-
-        // 保存到缓存
-        saveToCache(warehousesData)
 
         return warehousesData
       } catch (err) {
@@ -106,14 +83,16 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
         setLoading(false)
       }
     },
-    [managerId, loadFromCache, saveToCache]
+    [managerId]
   )
 
-  // 刷新仓库列表（强制从服务器加载）
+  /**
+   * 刷新仓库列表（清除缓存后重新加载）
+   */
   const refresh = useCallback(() => {
-    clearCache()
-    return loadWarehouses(true)
-  }, [clearCache, loadWarehouses])
+    clearRepositoryCache()
+    return loadWarehouses()
+  }, [clearRepositoryCache, loadWarehouses])
 
   // 初始加载
   useEffect(() => {
@@ -171,6 +150,7 @@ export function useWarehousesData(options: UseWarehousesDataOptions) {
     loading,
     error,
     refresh,
-    clearCache
+    /** 清除 Repository 缓存 */
+    clearCache: clearRepositoryCache
   }
 }

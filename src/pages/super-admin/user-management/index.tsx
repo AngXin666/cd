@@ -26,6 +26,7 @@ import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
+import {usersRepository, warehouseAssignmentsRepository, convertUserToProfile} from '@/db/repositories'
 import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
 import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
@@ -188,19 +189,15 @@ const UserManagement: React.FC = () => {
   const loadUsers = useCallback(
     async (forceRefresh: boolean = false) => {
       // 先加载当前登录用户的完整信息（包括 main_account_id）
+      // 使用 UsersRepository 替代直接 supabase 调用
       if (!currentUserProfile && user) {
         try {
-          // 单用户架构：从 users 和 user_roles 表查询
-          const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
-            supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
-            supabase.from('users').select('role').eq('id', user.id).maybeSingle()
-          ])
+          // 使用 Repository 获取用户信息（带缓存）
+          const userWithRole = await usersRepository.getById(user.id)
 
-          if (!userError && userData) {
-            const profile = {
-              ...userData,
-              role: roleData?.role || 'DRIVER'
-            }
+          if (userWithRole) {
+            // 转换为 Profile 格式
+            const profile = convertUserToProfile(userWithRole)
             setCurrentUserProfile(profile)
           }
         } catch (error) {
@@ -455,6 +452,9 @@ const UserManagement: React.FC = () => {
         if (userError || !userData) {
           throw new Error(userError?.message || '创建用户档案失败')
         }
+
+        // 清除用户缓存，确保下次查询获取最新数据
+        usersRepository.invalidateCache()
 
         const profile = {
           ...userData,
@@ -746,11 +746,12 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
       const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
 
       // 先删除该用户的所有仓库分配
+      // 使用 WarehouseAssignmentsRepository 替代直接 supabase 调用
       if (userRole === 'DRIVER') {
         await WarehousesAPI.deleteWarehouseAssignmentsByDriver(userId)
       } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
-        // 删除管理员/车队长的仓库分配
-        await supabase.from('warehouse_assignments').delete().eq('user_id', userId)
+        // 使用 Repository 删除管理员/车队长的仓库分配
+        await warehouseAssignmentsRepository.deleteByUser(userId)
       }
 
       // 添加新的仓库分配

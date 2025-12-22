@@ -1,32 +1,49 @@
+/**
+ * 仪表板数据管理 Hook
+ *
+ * 提供仪表板统计数据的加载和实时更新功能。
+ * 缓存由 DashboardRepository 统一管理，Hook 层不再维护独立缓存。
+ *
+ * @module hooks/useDashboardData
+ */
+
 import type {RealtimeChannel} from '@supabase/supabase-js'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import type {DashboardStats} from '@/db/api/dashboard'
-import {getWarehouseDashboardStats} from '@/db/api/dashboard'
-import {TypeSafeStorage} from '@/utils/storage'
+import {getWarehouseDashboardStats, invalidateDashboardCache} from '@/db/api/dashboard'
 
-// 缓存配置
-const CACHE_KEY_PREFIX = 'dashboard_cache_'
-const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5分钟缓存有效期
-
-interface CachedData {
-  data: DashboardStats
-  timestamp: number
-  warehouseId: string
-}
-
+/**
+ * useDashboardData Hook 配置选项
+ */
 interface UseDashboardDataOptions {
+  /** 仓库 ID */
   warehouseId: string
-  enableRealtime?: boolean // 是否启用实时更新
-  cacheEnabled?: boolean // 是否启用缓存
+  /** 是否启用实时更新，默认 true */
+  enableRealtime?: boolean
 }
 
 /**
  * 仪表板数据管理 Hook
- * 提供数据加载、缓存、实时更新功能
+ *
+ * 功能：
+ * 1. 加载仓库仪表板统计数据
+ * 2. 实时订阅数据变化
+ * 3. 缓存由 DashboardRepository 统一管理
+ *
+ * @param options - Hook 配置选项
+ * @returns 仪表板数据和操作方法
+ *
+ * @example
+ * ```typescript
+ * const { data, loading, error, refresh } = useDashboardData({
+ *   warehouseId: 'warehouse-123',
+ *   enableRealtime: true
+ * })
+ * ```
  */
 export function useDashboardData(options: UseDashboardDataOptions) {
-  const {warehouseId, enableRealtime = true, cacheEnabled = true} = options
+  const {warehouseId, enableRealtime = true} = options
 
   const [data, setData] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -35,62 +52,12 @@ export function useDashboardData(options: UseDashboardDataOptions) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const loadingRef = useRef(false)
 
-  // 获取缓存键
-  const getCacheKey = useCallback((wid: string) => {
-    return `${CACHE_KEY_PREFIX}${wid}`
-  }, [])
-
-  // 从缓存读取数据
-  const loadFromCache = useCallback(
-    (wid: string): DashboardStats | null => {
-      if (!cacheEnabled) return null
-
-      const cacheKey = getCacheKey(wid)
-      const cached = TypeSafeStorage.get<CachedData>(cacheKey)
-
-      if (cached && cached.warehouseId === wid) {
-        const now = Date.now()
-        // 检查缓存是否过期
-        if (now - cached.timestamp < CACHE_EXPIRY_MS) {
-          return cached.data
-        }
-        // 缓存过期，删除
-        TypeSafeStorage.remove(cacheKey)
-      }
-
-      return null
-    },
-    [cacheEnabled, getCacheKey]
-  )
-
-  // 保存数据到缓存
-  const saveToCache = useCallback(
-    (wid: string, dashboardData: DashboardStats) => {
-      if (!cacheEnabled) return
-
-      const cacheKey = getCacheKey(wid)
-      const cacheData: CachedData = {
-        data: dashboardData,
-        timestamp: Date.now(),
-        warehouseId: wid
-      }
-      TypeSafeStorage.set(cacheKey, cacheData)
-    },
-    [cacheEnabled, getCacheKey]
-  )
-
-  // 清除指定仓库的缓存
-  const clearCache = useCallback(
-    (wid: string) => {
-      const cacheKey = getCacheKey(wid)
-      TypeSafeStorage.remove(cacheKey)
-    },
-    [getCacheKey]
-  )
-
-  // 加载仪表板数据
+  /**
+   * 加载仪表板数据
+   * 数据通过 API 层获取，缓存由 DashboardRepository 管理
+   */
   const loadData = useCallback(
-    async (wid: string, forceRefresh = false) => {
+    async (wid: string) => {
       // 防止重复加载
       if (loadingRef.current) return
 
@@ -99,32 +66,18 @@ export function useDashboardData(options: UseDashboardDataOptions) {
       setError(null)
 
       try {
-        // 如果不是强制刷新，先尝试从缓存读取
-        if (!forceRefresh) {
-          const cachedData = loadFromCache(wid)
-          if (cachedData) {
-            setData(cachedData)
-            setLoading(false)
-            loadingRef.current = false
-            return
-          }
-        }
-
-        // 从服务器加载数据
+        // 从 API 层加载数据（缓存由 DashboardRepository 管理）
         const stats = await getWarehouseDashboardStats(wid)
         setData(stats)
-
-        // 保存到缓存
-        saveToCache(wid, stats)
       } catch (err) {
-        console.error('加载仪表板数据失败:', err)
+        console.error('[useDashboardData] 加载仪表板数据失败:', err)
         setError('加载数据失败')
       } finally {
         setLoading(false)
         loadingRef.current = false
       }
     },
-    [loadFromCache, saveToCache]
+    []
   )
 
   // 使用 ref 保存最新的 loadData 函数，避免依赖循环
@@ -133,15 +86,28 @@ export function useDashboardData(options: UseDashboardDataOptions) {
     loadDataRef.current = loadData
   }, [loadData])
 
-  // 创建稳定的刷新函数，不依赖 loadData
+  /**
+   * 清除 Repository 缓存
+   */
+  const clearRepositoryCache = useCallback(() => {
+    invalidateDashboardCache()
+  }, [])
+
+  /**
+   * 创建稳定的刷新函数
+   * 清除 Repository 缓存后重新加载数据
+   */
   const refreshStable = useCallback(() => {
     if (warehouseId) {
-      clearCache(warehouseId)
-      loadDataRef.current(warehouseId, true)
+      clearRepositoryCache()
+      loadDataRef.current(warehouseId)
     }
-  }, [warehouseId, clearCache])
+  }, [warehouseId, clearRepositoryCache])
 
-  // 刷新数据（强制从服务器加载）- 导出给外部使用
+  /**
+   * 刷新数据（清除缓存后重新加载）
+   * 导出给外部使用
+   */
   const refresh = useCallback(() => {
     refreshStable()
   }, [refreshStable])
@@ -227,8 +193,9 @@ export function useDashboardData(options: UseDashboardDataOptions) {
       loading,
       error,
       refresh,
-      clearCache: () => clearCache(warehouseId)
+      /** 清除 Repository 缓存 */
+      clearCache: clearRepositoryCache
     }),
-    [data, loading, error, refresh, clearCache, warehouseId]
+    [data, loading, error, refresh, clearRepositoryCache]
   )
 }

@@ -35,8 +35,8 @@ import {useCallback, useEffect, useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
-import {createNotifications} from '@/db/notificationApi'
 import {supabase} from '@/db/supabase'
+import {usersRepository, convertUserToProfile, notificationsRepository} from '@/db/repositories'
 import type {Profile} from '@/db/types'
 import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
 import {buildDriverTypeChangeMessage, type UserRole as MessageUserRole} from '@/utils/notificationMessageBuilder'
@@ -104,18 +104,15 @@ export const useUserManagement = (): UseUserManagementReturn => {
   const loadUsers = useCallback(
     async (forceRefresh: boolean = false) => {
       // 先加载当前登录用户的完整信息
+      // 使用 UsersRepository 替代直接 supabase 调用
       if (!currentUserProfile && user) {
         try {
-          const [{data: userData, error: userError}, {data: roleData}] = await Promise.all([
-            supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
-            supabase.from('users').select('role').eq('id', user.id).maybeSingle()
-          ])
+          // 使用 Repository 获取用户信息（带缓存）
+          const userWithRole = await usersRepository.getById(user.id)
 
-          if (!userError && userData) {
-            const profile = {
-              ...userData,
-              role: roleData?.role || 'DRIVER'
-            }
+          if (userWithRole) {
+            // 转换为 Profile 格式
+            const profile = convertUserToProfile(userWithRole)
             setCurrentUserProfile(profile)
           }
         } catch (error) {
@@ -237,6 +234,9 @@ export const useUserManagement = (): UseUserManagementReturn => {
             throw new Error(userError?.message || '创建用户档案失败')
           }
 
+          // 清除用户缓存，确保下次查询获取最新数据
+          usersRepository.invalidateCache()
+
           newUser = {...userData, role: 'PEER_ADMIN'}
         } else {
           newUser = await UsersAPI.createUser(data.phone, data.name, data.role, data.driverType)
@@ -299,16 +299,17 @@ export const useUserManagement = (): UseUserManagementReturn => {
           // 示例：您被老板变更为带车司机 / 您被调度李四变更为纯司机
           const message = buildDriverTypeChangeMessage(operatorName, operatorRole, newType)
 
-          const notifications = [
+          // 使用 NotificationsRepository 创建通知
+          // 注意：Repository 使用 NotificationInput 接口，字段名与旧 API 不同
+          await notificationsRepository.createNotifications([
             {
-              userId: targetUser.id,
-              type: 'driver_type_changed' as const,
+              recipient_id: targetUser.id,
+              type: 'driver_type_changed',
               title: '司机类型变更通知',
-              message: message,
-              relatedId: targetUser.id
+              content: message,
+              related_id: targetUser.id
             }
-          ]
-          await createNotifications(notifications)
+          ])
         } catch (error) {
           console.error('发送通知失败:', error)
         }

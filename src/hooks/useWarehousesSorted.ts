@@ -1,32 +1,56 @@
+/**
+ * 仓库排序 Hook
+ *
+ * 提供仓库列表按数据量排序的功能。
+ * 缓存使用 cacheManager 统一管理，与 Repository 层保持一致。
+ *
+ * @module hooks/useWarehousesSorted
+ */
+
 import {useCallback, useEffect, useRef, useState} from 'react'
 import type {WarehouseDataVolume} from '@/db/api/dashboard'
 import {getWarehousesDataVolume} from '@/db/api/dashboard'
 import type {Warehouse} from '@/db/types'
-import {TypeSafeStorage} from '@/utils/storage'
+// 使用 cacheManager 统一管理缓存
+import {cacheManager} from '@/utils/cacheManager'
 
 /**
  * 带数据量的仓库信息
  */
 export interface WarehouseWithVolume extends Warehouse {
+  /** 仓库数据量统计 */
   dataVolume?: WarehouseDataVolume
 }
 
 // ==================== 缓存配置 ====================
-// 仓库数据量缓存有效期：3分钟
-const CACHE_KEY_PREFIX = 'warehouse_sorted_'
-const CACHE_EXPIRY_MS = 3 * 60 * 1000
 
+/** 缓存键前缀 */
+const CACHE_KEY_PREFIX = 'warehouse_sorted_'
+/** 缓存有效期：3分钟 */
+const CACHE_TTL = 3 * 60 * 1000
+
+/**
+ * 缓存数据结构
+ */
 interface CachedSortedData {
+  /** 排序后的仓库列表 */
   warehouses: WarehouseWithVolume[]
-  timestamp: number
+  /** 原始仓库 ID 列表（用于检测变化） */
   warehouseIds: string[]
 }
 
+/**
+ * useWarehousesSorted Hook 配置选项
+ */
 interface UseWarehousesSortedOptions {
+  /** 原始仓库列表 */
   warehouses: Warehouse[]
-  userId?: string // 用户ID，用于统计该用户的数据量
-  sortByVolume?: boolean // 是否按数据量排序
-  hideEmpty?: boolean // 是否隐藏无数据的仓库
+  /** 用户 ID（可选，用于统计该用户的数据量） */
+  userId?: string
+  /** 是否按数据量排序，默认 true */
+  sortByVolume?: boolean
+  /** 是否隐藏无数据的仓库，默认 false */
+  hideEmpty?: boolean
 }
 
 /**
@@ -36,7 +60,20 @@ interface UseWarehousesSortedOptions {
  * 1. 统计每个仓库的数据量
  * 2. 按数据量降序排列仓库
  * 3. 可选择隐藏无数据的仓库
- * 4. 智能缓存机制，避免重复请求
+ * 4. 使用 cacheManager 统一管理缓存
+ *
+ * @param options - Hook 配置选项
+ * @returns 排序后的仓库列表和操作方法
+ *
+ * @example
+ * ```typescript
+ * const { warehouses, loading, refresh } = useWarehousesSorted({
+ *   warehouses: rawWarehouses,
+ *   userId: 'user-123',
+ *   sortByVolume: true,
+ *   hideEmpty: false
+ * })
+ * ```
  */
 export function useWarehousesSorted(options: UseWarehousesSortedOptions) {
   const {warehouses, userId, sortByVolume = true, hideEmpty = false} = options
@@ -45,51 +82,58 @@ export function useWarehousesSorted(options: UseWarehousesSortedOptions) {
   const [loading, setLoading] = useState(false)
   const loadingRef = useRef(false)
 
-  // 生成缓存键
+  /**
+   * 生成缓存键
+   * 包含用户 ID 和仓库 ID 列表，确保缓存的唯一性
+   */
   const getCacheKey = useCallback(() => {
     const warehouseIds = warehouses.map((w) => w.id).sort().join(',')
     return `${CACHE_KEY_PREFIX}${userId || 'all'}_${warehouseIds}`
   }, [warehouses, userId])
 
-  // 读取缓存
+  /**
+   * 从缓存读取数据
+   * 检查缓存是否有效且仓库列表未变化
+   */
   const readCache = useCallback((): WarehouseWithVolume[] | null => {
     const cacheKey = getCacheKey()
-    const cached = TypeSafeStorage.get<CachedSortedData>(cacheKey)
+    const cached = cacheManager.get<CachedSortedData>(cacheKey)
     if (cached?.warehouses) {
-      const age = Date.now() - cached.timestamp
-      // 检查缓存是否过期
-      if (age < CACHE_EXPIRY_MS) {
-        // 检查仓库列表是否变化
-        const currentIds = warehouses.map((w) => w.id).sort().join(',')
-        if (cached.warehouseIds.sort().join(',') === currentIds) {
-          return cached.warehouses
-        }
+      // 检查仓库列表是否变化
+      const currentIds = warehouses.map((w) => w.id).sort().join(',')
+      if (cached.warehouseIds.sort().join(',') === currentIds) {
+        return cached.warehouses
       }
     }
     return null
   }, [getCacheKey, warehouses])
 
-  // 写入缓存
+  /**
+   * 写入缓存
+   */
   const writeCache = useCallback(
     (data: WarehouseWithVolume[]) => {
       const cacheKey = getCacheKey()
       const cacheData: CachedSortedData = {
         warehouses: data,
-        timestamp: Date.now(),
         warehouseIds: warehouses.map((w) => w.id)
       }
-      TypeSafeStorage.set(cacheKey, cacheData)
+      cacheManager.set(cacheKey, cacheData, CACHE_TTL)
     },
     [getCacheKey, warehouses]
   )
 
-  // 清除缓存
+  /**
+   * 清除缓存
+   */
   const clearCache = useCallback(() => {
     const cacheKey = getCacheKey()
-    TypeSafeStorage.remove(cacheKey)
+    cacheManager.invalidate([cacheKey])
   }, [getCacheKey])
 
-  // 加载仓库数据量并排序
+  /**
+   * 加载仓库数据量并排序
+   */
   const loadAndSort = useCallback(async (forceRefresh = false) => {
     if (warehouses.length === 0) {
       setSortedWarehouses([])
@@ -162,7 +206,7 @@ export function useWarehousesSorted(options: UseWarehousesSortedOptions) {
       // 写入缓存
       writeCache(warehousesWithVolume)
     } catch (error) {
-      console.error('加载仓库数据量失败:', error)
+      console.error('[useWarehousesSorted] 加载仓库数据量失败:', error)
       // 出错时返回原始列表
       setSortedWarehouses(warehouses)
     } finally {
@@ -171,7 +215,9 @@ export function useWarehousesSorted(options: UseWarehousesSortedOptions) {
     }
   }, [warehouses, userId, sortByVolume, hideEmpty, readCache, writeCache])
 
-  // 刷新数据（清除缓存后重新加载）
+  /**
+   * 刷新数据（清除缓存后重新加载）
+   */
   const refresh = useCallback(() => {
     clearCache()
     loadAndSort(true)
@@ -183,8 +229,11 @@ export function useWarehousesSorted(options: UseWarehousesSortedOptions) {
   }, [loadAndSort])
 
   return {
+    /** 排序后的仓库列表 */
     warehouses: sortedWarehouses,
+    /** 是否正在加载 */
     loading,
+    /** 刷新数据 */
     refresh
   }
 }

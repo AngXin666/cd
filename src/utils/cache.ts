@@ -571,3 +571,77 @@ export function notifyDataUpdated(key: string): void {
     }
   }
 }
+
+// ==================== Repository 缓存清理 ====================
+
+/**
+ * 清除所有 Repository 层的缓存
+ *
+ * 在用户登出时调用，确保下次登录时不会加载旧用户的数据。
+ * 此函数会清除所有 Repository 的缓存，包括：
+ * - 用户信息缓存
+ * - 考勤记录缓存
+ * - 计件记录缓存
+ * - 仓库信息缓存
+ * - 仓库分配缓存
+ * - 通知缓存
+ * - 车辆信息缓存
+ * - 请假/离职申请缓存
+ * - 品类价格缓存
+ * - 驾驶证缓存
+ * - 仪表盘缓存
+ * - 统计数据缓存
+ *
+ * @example
+ * ```typescript
+ * // 在登出时调用
+ * import { clearAllRepositoryCache } from '@/utils/cache'
+ *
+ * async function logout() {
+ *   // 清除所有 Repository 缓存
+ *   clearAllRepositoryCache()
+ *
+ *   // 执行登出
+ *   await supabase.auth.signOut()
+ * }
+ * ```
+ */
+export function clearAllRepositoryCache(): void {
+  // 延迟导入，避免循环依赖
+  // 使用动态 require 而不是 import，因为这是同步函数
+  try {
+    // 清除所有 Repository 缓存前缀
+    // 这些前缀对应各个 Repository 的 cachePrefix 配置
+    const repositoryCachePrefixes = [
+      'users',                    // UsersRepository (TTL: 5min)
+      'attendance',               // AttendanceRepository (TTL: 2min)
+      'piece_work',               // PieceWorkRepository (TTL: 2min)
+      'warehouses',               // WarehousesRepository (TTL: 10min)
+      'warehouse_assignments',    // WarehouseAssignmentsRepository (TTL: 5min)
+      'notifications',            // NotificationsRepository (TTL: 1min)
+      'vehicles',                 // VehiclesRepository (TTL: 5min)
+      'leave',                    // LeaveRepository (TTL: 2min)
+      'resignation',              // ResignationApplicationsRepository (TTL: 2min)
+      'category_prices',          // CategoryPricesRepository (TTL: 5min)
+      'driver_licenses',          // DriverLicensesRepository (TTL: 5min)
+      'categories',               // CategoriesRepository (TTL: 10min)
+      'dashboard',                // DashboardRepository
+      'stats'                     // StatsRepository
+    ]
+
+    // 清除每个 Repository 的缓存
+    for (const prefix of repositoryCachePrefixes) {
+      clearCacheByPrefix(prefix)
+    }
+
+    // 同时清除 apiCache 实例
+    apiCache.clear()
+
+    logger.info('所有 Repository 缓存已清除', {
+      prefixes: repositoryCachePrefixes.length
+    })
+  } catch (error) {
+    logger.error('清除 Repository 缓存失败', error)
+    // 即使失败也不抛出错误，确保登出流程不被中断
+  }
+}

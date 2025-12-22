@@ -455,13 +455,13 @@ const DriverProfileView: React.FC = () => {
                   showLoading({title: '处理中...'})
                   logger.userAction('提升为管理员', {driverId, operatorId: user?.id})
 
-                  // 单用户架构：更新 user_roles 表
-                  const {error} = await supabase.from('users').update({role: 'MANAGER'}).eq('id', driverId)
+                  // 使用 UsersAPI.updateUserRole 更新用户角色（通过 Repository 模式，自动清除缓存）
+                  const success = await UsersAPI.updateUserRole(driverId, 'MANAGER')
 
                   hideLoading()
 
-                  if (error) {
-                    logger.error('提升为管理员失败', {error, driverId})
+                  if (!success) {
+                    logger.error('提升为管理员失败', {driverId})
                     showToast({
                       title: '操作失败',
                       icon: 'none'

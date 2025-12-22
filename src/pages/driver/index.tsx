@@ -178,11 +178,12 @@ const DriverHome: React.FC = () => {
   }, [user?.id])
 
   // 使用仓库列表管理 Hook（原始列表）
+  // 缓存由 Repository 层统一管理，不再需要传递 cacheEnabled 参数
   const {
     warehouses: rawWarehouses,
     loading: warehousesLoading,
     refresh: refreshWarehouses
-  } = useDriverWarehouses(user?.id || '', true)
+  } = useDriverWarehouses(user?.id || '')
 
   // 使用仓库排序 Hook（按数据量排序，隐藏无数据仓库）
   const {warehouses: sortedWarehouses, refresh: refreshSorting} = useWarehousesSorted({
@@ -199,6 +200,7 @@ const DriverHome: React.FC = () => {
   const currentWarehouseId = warehouses[currentWarehouseIndex]?.id || ''
 
   // 使用仪表板数据管理 Hook
+  // 缓存由 Repository 层统一管理，不再需要传递 cacheEnabled 参数
   const {
     data: stats,
     loading: statsLoading,
@@ -206,8 +208,7 @@ const DriverHome: React.FC = () => {
   } = useDriverDashboard({
     userId: user?.id || '',
     warehouseId: currentWarehouseId, // 根据选中的仓库加载数据
-    enableRealtime: true,
-    cacheEnabled: true
+    enableRealtime: true
   })
 
   const loading = warehousesLoading || statsLoading

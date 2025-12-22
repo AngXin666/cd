@@ -28,9 +28,8 @@ import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useCallback, useEffect, useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
-import {createNotifications} from '@/db/notificationApi'
-import {supabase} from '@/db/supabase'
-import type {Warehouse} from '@/db/types'
+import {warehouseAssignmentsRepository, notificationsRepository} from '@/db/repositories'
+import type {Warehouse, NotificationInput} from '@/db/types'
 import {createLogger} from '@/utils/logger'
 
 const logger = createLogger('WarehouseAssign')
@@ -134,10 +133,12 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
         const previousWarehouseIds = previousAssignments.map((a) => a.warehouse_id)
 
         // 删除所有仓库分配
+        // 使用 WarehouseAssignmentsRepository 替代直接 supabase 调用
         if (userRole === 'DRIVER') {
           await WarehousesAPI.deleteWarehouseAssignmentsByDriver(userId)
         } else if (userRole === 'MANAGER' || isAdminRole(userRole)) {
-          await supabase.from('warehouse_assignments').delete().eq('user_id', userId)
+          // 使用 Repository 删除管理员/车队长的仓库分配
+          await warehouseAssignmentsRepository.deleteByUser(userId)
         }
 
         // 添加新的仓库分配
@@ -153,14 +154,9 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
         showToast({title: '保存成功', icon: 'success'})
 
         // 发送通知
+        // 使用 NotificationsRepository 创建通知
         try {
-          const notifications: Array<{
-            userId: string
-            type: 'warehouse_assigned' | 'warehouse_unassigned'
-            title: string
-            message: string
-            relatedId?: string
-          }> = []
+          const notifications: NotificationInput[] = []
 
           const addedWarehouseIds = selectedIds.filter((id) => !previousWarehouseIds.includes(id))
           const removedWarehouseIds = previousWarehouseIds.filter((id) => !selectedIds.includes(id))
@@ -185,11 +181,11 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
             }
 
             notifications.push({
-              userId: userId,
+              recipient_id: userId,
               type: addedWarehouseIds.length > 0 ? 'warehouse_assigned' : 'warehouse_unassigned',
               title: '仓库分配变更通知',
-              message: message,
-              relatedId: userId
+              content: message,
+              related_id: userId
             })
           }
 
@@ -225,17 +221,17 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
               }
 
               notifications.push({
-                userId: managerId,
+                recipient_id: managerId,
                 type: addedWarehouseIds.length > 0 ? 'warehouse_assigned' : 'warehouse_unassigned',
                 title: '仓库分配操作通知',
-                message: managerMessage,
-                relatedId: userId
+                content: managerMessage,
+                related_id: userId
               })
             }
           }
 
           if (notifications.length > 0) {
-            await createNotifications(notifications)
+            await notificationsRepository.createNotifications(notifications)
           }
         } catch (error) {
           logger.error('发送通知失败', error)

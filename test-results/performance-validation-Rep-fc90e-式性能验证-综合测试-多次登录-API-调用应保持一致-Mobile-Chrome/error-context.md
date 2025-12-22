@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e13]:
+  - generic [ref=e19]:
+    - generic [ref=e20]: 司机工作台
+    - generic [ref=e21]: 欢迎回来，司机admin4
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e26]: 数据仪表盘
+      - generic [ref=e27]: 2025/12/22
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e32]: 今天件数
+        - generic [ref=e33]: "0"
+        - generic [ref=e34]: 件
+      - generic [ref=e35]:
+        - generic [ref=e37]: 今天收入
+        - generic [ref=e38]: "0"
+        - generic [ref=e39]: 元
+      - generic [ref=e40]:
+        - generic [ref=e42]: 本月件数
+        - generic [ref=e43]: "1058"
+        - generic [ref=e44]: 件
+      - generic [ref=e45]:
+        - generic [ref=e47]: 本月收入
+        - generic [ref=e48]: "741"
+        - generic [ref=e49]: 元
+      - generic [ref=e50]:
+        - generic [ref=e52]: 出勤天数
+        - generic [ref=e53]: "6"
+        - generic [ref=e54]: 天
+      - generic [ref=e55]:
+        - generic [ref=e57]: 请假天数
+        - generic [ref=e58]: "0"
+        - generic [ref=e59]: 天
+  - generic [ref=e60]:
+    - generic [ref=e61]:
+      - generic [ref=e64]: 快捷功能
+      - generic [ref=e67]: 个人中心
+    - generic [ref=e68]:
+      - generic [ref=e71]: 计件录入
+      - generic [ref=e74]: 考勤打卡
+      - generic [ref=e77]: 请假申请
+      - generic [ref=e80]: 车辆管理
+  - generic [ref=e81]:
+    - generic [ref=e82]:
+      - generic [ref=e85]: 数据统计
+      - generic [ref=e87]: 查看详情
+    - generic [ref=e89]:
+      - generic [ref=e90]:
+        - generic [ref=e91]: 本月件数
+        - text: "1058"
+      - generic [ref=e92]:
+        - generic [ref=e93]: 本月出勤
+        - generic [ref=e94]: 6天
+  - generic [ref=e95]:
+    - generic [ref=e98]: 所属仓库
+    - generic [ref=e100]:
+      - generic [ref=e102]: 新势力
+      - generic [ref=e104]: 启用中
+  - generic [ref=e109]: 退出登录
+```

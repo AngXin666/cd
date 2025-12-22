@@ -1,36 +1,58 @@
 /**
  * 账号状态检查工具
  *
- * 用于检查用户账号是否可以登录，并返回相应的提示信息
+ * 用于检查用户账号是否可以登录，并返回相应的提示信息。
+ * 支持检查账号过期、停用等状态。
+ *
+ * @module utils/account-status-check
  */
 
 import Taro from '@tarojs/taro'
-import {supabase} from '@/client/supabase'
-import {createLogger} from './logger'
+import { supabase } from '@/client/supabase'
+import { usersRepository } from '@/db/repositories'
+import { createLogger } from './logger'
 
 const logger = createLogger('AccountStatusCheck')
 
 /**
- * 账号状态检查结果
+ * 账号状态检查结果接口
  */
 export interface AccountStatusResult {
+  /** 是否可以登录 */
   can_login: boolean
+  /** 账号状态 */
   status: 'active' | 'inactive' | 'expired' | 'not_found' | 'no_lease'
+  /** 状态消息 */
   message: string
+  /** 用户角色 */
   role?: 'BOSS' | 'admin' | 'DRIVER'
+  /** 是否是主账号 */
   is_main_account?: boolean
+  /** 租赁结束日期 */
   lease_end_date?: string
 }
 
 /**
  * 检查账号状态
  *
- * @param userId 用户ID
- * @returns 账号状态检查结果
+ * 通过 RPC 调用检查用户账号是否可以登录。
+ * 注意：RPC 调用保留直接 Supabase 调用，因为不属于 Repository 范围。
+ *
+ * @param userId - 用户 ID
+ * @returns 账号状态检查结果，如果检查失败则返回 null
+ *
+ * @example
+ * ```typescript
+ * const status = await checkAccountStatus('user-123')
+ * if (status && !status.can_login) {
+ *   console.log('账号不可用:', status.message)
+ * }
+ * ```
  */
 export async function checkAccountStatus(userId: string): Promise<AccountStatusResult | null> {
   try {
-    const {data, error} = await supabase.rpc('check_account_status', {
+    // RPC 调用保留直接 Supabase 调用（不属于 Repository 范围）
+    const { data, error } = await supabase.rpc('check_account_status', {
       user_id: userId
     })
 
@@ -49,16 +71,24 @@ export async function checkAccountStatus(userId: string): Promise<AccountStatusR
 /**
  * 登录后检查账号状态
  *
- * 在用户登录后调用，检查账号是否可以继续使用
- * 如果账号已过期或被停用，显示相应的提示信息并跳转到登录页
+ * 在用户登录后调用，检查账号是否可以继续使用。
+ * 如果账号已过期或被停用，显示相应的提示信息并跳转到登录页。
  *
  * @returns 是否可以继续登录
+ *
+ * @example
+ * ```typescript
+ * const canLogin = await checkLoginStatus()
+ * if (!canLogin) {
+ *   // 用户已被登出并跳转到登录页
+ * }
+ * ```
  */
 export async function checkLoginStatus(): Promise<boolean> {
   try {
     // 获取当前登录用户
     const {
-      data: {user},
+      data: { user },
       error
     } = await supabase.auth.getUser()
 
@@ -111,10 +141,16 @@ export async function checkLoginStatus(): Promise<boolean> {
 /**
  * 显示账号过期提示
  *
- * 根据用户角色显示不同的提示信息
+ * 根据用户角色显示不同的提示信息。
  *
- * @param role 用户角色
- * @param isMainAccount 是否是主账号
+ * @param role - 用户角色
+ * @param isMainAccount - 是否是主账号
+ *
+ * @example
+ * ```typescript
+ * showExpiredMessage('BOSS', true)  // 显示：您的账号已过期，请续费使用
+ * showExpiredMessage('DRIVER', false)  // 显示：您的账号已被停用，请联系管理员
+ * ```
  */
 export function showExpiredMessage(role: string, isMainAccount: boolean = false) {
   let message = ''
@@ -141,15 +177,28 @@ export function showExpiredMessage(role: string, isMainAccount: boolean = false)
 /**
  * 在页面显示时检查账号状态
  *
- * 在 useDidShow 中调用，确保每次页面显示时都检查账号状态
+ * 在 useDidShow 中调用，确保每次页面显示时都检查账号状态。
+ * 使用 usersRepository 获取用户角色（带缓存）。
  *
- * @param excludeRoles 排除的角色（这些角色不需要检查）
+ * @param excludeRoles - 排除的角色（这些角色不需要检查）
+ * @returns 是否可以继续使用
+ *
+ * @example
+ * ```typescript
+ * // 在页面中使用
+ * useDidShow(async () => {
+ *   const canContinue = await checkAccountStatusOnPageShow(['BOSS'])
+ *   if (!canContinue) {
+ *     // 用户已被登出
+ *   }
+ * })
+ * ```
  */
 export async function checkAccountStatusOnPageShow(excludeRoles: string[] = []): Promise<boolean> {
   try {
     // 获取当前登录用户
     const {
-      data: {user},
+      data: { user },
       error
     } = await supabase.auth.getUser()
 
@@ -157,15 +206,15 @@ export async function checkAccountStatusOnPageShow(excludeRoles: string[] = []):
       return false
     }
 
-    // 获取用户角色（单用户架构：从 user_roles 表查询）
-    const {data: roleData} = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+    // 使用 usersRepository 获取用户角色（带缓存）
+    const userRole = await usersRepository.getRole(user.id)
 
-    if (!roleData) {
+    if (!userRole) {
       return false
     }
 
     // 如果是排除的角色，不检查
-    if (excludeRoles.includes(roleData.role)) {
+    if (excludeRoles.includes(userRole)) {
       return true
     }
 

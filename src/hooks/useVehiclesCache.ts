@@ -2,6 +2,9 @@
  * 车辆列表缓存 Hook
  * 基于通用缓存 Hook 实现车辆数据的缓存和实时更新
  *
+ * 注意：缓存由 Repository 层统一管理（VehiclesRepository，TTL: 5分钟）
+ * 此 Hook 主要负责实时更新监听和状态管理
+ *
  * @module hooks/useVehiclesCache
  * @feature user-list-cache-optimization
  */
@@ -13,6 +16,10 @@ import {useDataCache} from './useDataCache'
 /**
  * 车辆列表缓存 Hook
  * 提供车辆列表的加载、缓存和实时更新功能
+ *
+ * 缓存策略：
+ * - Repository 层（VehiclesRepository）：TTL 5 分钟
+ * - Hooks 层：禁用缓存，由 Repository 统一管理
  *
  * @param driverId - 可选的司机 ID，用于过滤特定司机的车辆
  *
@@ -39,8 +46,8 @@ export function useVehiclesCache(driverId?: string) {
       return await VehiclesAPI.getAllVehiclesWithDrivers()
     },
     realtimeTables: ['vehicles'],
-    cacheEnabled: true,
-    cacheTTL: 30 * 60 * 1000, // 30 分钟
+    cacheEnabled: false, // 禁用 Hooks 层缓存，由 Repository 层统一管理
+    cacheTTL: 30 * 60 * 1000, // 30 分钟（仅作为备用，实际不使用）
     dependencies: [driverId] // 当 driverId 变化时重新加载
   })
 }

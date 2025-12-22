@@ -17,6 +17,7 @@ import {supabase} from '@/client/supabase'
 import {GlobalNotificationProvider} from '@/components'
 import {UserContextProvider} from '@/contexts/UserContext'
 import {initMigrations} from '@/db/migrations/runMigrations'
+import {realtimeCacheInvalidator} from '@/db/realtime'
 import {UnifiedUpdateService} from '@/services/unifiedUpdateService'
 import {capacitorApp, capacitorSplashScreen, capacitorStatusBar} from '@/utils/capacitor'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
@@ -120,6 +121,14 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
 
       if (event === 'SIGNED_IN') {
         console.log('用户登录成功')
+
+        // 初始化 Realtime 缓存失效订阅
+        if (userId) {
+          realtimeCacheInvalidator.initialize(userId).catch((error) => {
+            console.error('初始化 Realtime 缓存失效订阅失败:', error)
+          })
+        }
+
         platformExecute.onAndroid(() => {
           // 安卓APP登录后的处理
         })
@@ -128,6 +137,11 @@ const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
         })
       } else if (event === 'SIGNED_OUT') {
         console.log('用户登出')
+
+        // 清理 Realtime 缓存失效订阅
+        realtimeCacheInvalidator.cleanup().catch((error) => {
+          console.error('清理 Realtime 缓存失效订阅失败:', error)
+        })
       }
     })
 

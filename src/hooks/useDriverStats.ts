@@ -1,33 +1,66 @@
-import {useCallback, useEffect, useMemo, useState} from 'react'
-import {supabase} from '@/client/supabase'
+/**
+ * 司机统计数据 Hook
+ *
+ * 提供司机统计数据的获取和管理功能，包括：
+ * - 总司机数
+ * - 在线司机数（今日已打卡）
+ * - 已计件司机数（今日有计件记录）
+ * - 未计件司机数
+ *
+ * 支持按仓库过滤、实时更新和缓存
+ *
+ * @module hooks/useDriverStats
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/client/supabase'
+import {
+  usersRepository,
+  warehouseAssignmentsRepository,
+  attendanceRepository,
+  pieceWorkRepository
+} from '@/db/repositories'
 
 /**
  * 司机统计数据接口
  */
 export interface DriverStats {
-  totalDrivers: number // 总司机数
-  onlineDrivers: number // 在线司机数（今日已打卡）
-  busyDrivers: number // 已计件司机数（今日有计件记录）
-  idleDrivers: number // 未计件司机数
+  /** 总司机数 */
+  totalDrivers: number
+  /** 在线司机数（今日已打卡） */
+  onlineDrivers: number
+  /** 已计件司机数（今日有计件记录） */
+  busyDrivers: number
+  /** 未计件司机数 */
+  idleDrivers: number
 }
 
 /**
  * Hook 配置选项
  */
 interface UseDriverStatsOptions {
-  warehouseId?: string // 仓库ID，不传则统计所有仓库
-  enableRealtime?: boolean // 是否启用实时更新
-  cacheEnabled?: boolean // 是否启用缓存
+  /** 仓库ID，不传则统计所有仓库 */
+  warehouseId?: string
+  /** 是否启用实时更新 */
+  enableRealtime?: boolean
 }
 
 /**
  * 缓存管理
+ * 使用 Map 存储缓存数据和时间戳
  */
-const cache = new Map<string, {data: DriverStats; timestamp: number}>()
-const CACHE_DURATION = 30000 // 缓存30秒
+const cache = new Map<string, { data: DriverStats; timestamp: number }>()
+
+/**
+ * 缓存有效期：30 秒
+ */
+const CACHE_DURATION = 30000
 
 /**
  * 获取缓存键
+ *
+ * @param warehouseId - 仓库 ID（可选）
+ * @returns 缓存键字符串
  */
 const getCacheKey = (warehouseId?: string): string => {
   return warehouseId ? `driver-stats-${warehouseId}` : 'driver-stats-all'
@@ -35,10 +68,27 @@ const getCacheKey = (warehouseId?: string): string => {
 
 /**
  * 司机统计数据管理 Hook
- * 支持按仓库过滤、实时更新和缓存
+ *
+ * 支持按仓库过滤、实时更新和缓存。
+ * 使用 Repository 模式访问数据，享受统一的缓存管理。
+ *
+ * @param options - Hook 配置选项
+ * @returns 司机统计数据、加载状态、错误信息和刷新函数
+ *
+ * @example
+ * ```typescript
+ * // 获取所有仓库的司机统计
+ * const { data, loading, error, refresh } = useDriverStats()
+ *
+ * // 获取指定仓库的司机统计
+ * const { data } = useDriverStats({ warehouseId: 'warehouse-123' })
+ *
+ * // 启用实时更新
+ * const { data } = useDriverStats({ enableRealtime: true })
+ * ```
  */
 export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
-  const {warehouseId, enableRealtime = false, cacheEnabled = true} = options
+  const { warehouseId, enableRealtime = false } = options
 
   const [data, setData] = useState<DriverStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -46,59 +96,52 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
 
   /**
    * 获取司机统计数据
+   *
+   * 使用 Repository 模式访问数据：
+   * - 通过 warehouseAssignmentsRepository 获取仓库分配
+   * - 通过 usersRepository 获取司机角色
+   * - 通过 attendanceRepository 获取考勤记录
+   * - 通过 pieceWorkRepository 获取计件记录
+   *
+   * @returns 司机统计数据，如果失败则返回 null
    */
   const fetchDriverStats = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // 检查缓存
-      if (cacheEnabled) {
-        const cacheKey = getCacheKey(warehouseId)
-        const cached = cache.get(cacheKey)
-        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-          setData(cached.data)
-          setLoading(false)
-          return cached.data
-        }
+      // 检查本地缓存（聚合查询的短期缓存，30秒）
+      const cacheKey = getCacheKey(warehouseId)
+      const cached = cache.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setData(cached.data)
+        setLoading(false)
+        return cached.data
       }
 
+      // 获取今日日期
       const today = new Date().toISOString().split('T')[0]
 
-      // 1. 获取总司机数（按仓库过滤）- 单用户架构：从 user_roles 表查询
+      // 1. 获取司机 ID 列表
       let driverIds: string[] = []
 
       if (warehouseId) {
-        // 如果指定了仓库，需要通过 warehouse_assignments 表过滤
-        // 同时需要确保只统计角色为 DRIVER 的用户（排除车队长和平级账号）
-        // 修复：先获取仓库分配的用户ID，再过滤司机角色
-        const {data: assignedUsers, error: assignError} = await supabase
-          .from('warehouse_assignments')
-          .select('user_id')
-          .eq('warehouse_id', warehouseId)
+        // 如果指定了仓库，通过 warehouseAssignmentsRepository 获取仓库分配的用户
+        const assignedUsers = await warehouseAssignmentsRepository.getByWarehouse(warehouseId)
 
-        if (assignError) {
-          console.error('[useDriverStats] 查询仓库分配失败:', assignError)
-        }
-
-        // 获取这些用户中角色为 DRIVER 的用户
         if (assignedUsers && assignedUsers.length > 0) {
           const userIds = assignedUsers.map((a) => a.user_id)
-          const {data: driverRoles, error: roleError} = await supabase
-            .from('users')
-            .select('id')
-            .eq('role', 'DRIVER')
-            .in('id', userIds)
 
-          if (roleError) {
-            console.error('[useDriverStats] 查询司机角色失败:', roleError)
-          }
+          // 通过 usersRepository 获取这些用户中角色为 DRIVER 的用户
+          const drivers = await usersRepository.getByRole('DRIVER')
+          const driverIdSet = new Set(drivers.map((d) => d.id))
 
-          driverIds = driverRoles?.map((d) => d.id) || []
+          // 过滤出既在仓库分配中又是司机角色的用户
+          driverIds = userIds.filter((id) => driverIdSet.has(id))
         }
 
+        // 如果该仓库没有分配司机，返回空统计
         if (driverIds.length === 0) {
-          // 该仓库没有分配司机
           const emptyStats: DriverStats = {
             totalDrivers: 0,
             onlineDrivers: 0,
@@ -110,21 +153,19 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           return emptyStats
         }
       } else {
-        // 获取所有司机ID（只统计角色为 DRIVER 的用户）
-        const {data: allDrivers, error: allError} = await supabase.from('users').select('id').eq('role', 'DRIVER')
-        if (allError) {
-          console.error('[useDriverStats] 查询所有司机失败:', allError)
-        }
-        driverIds = allDrivers?.map((d) => d.id) || []
+        // 获取所有司机 ID（通过 usersRepository）
+        const allDrivers = await usersRepository.getByRole('DRIVER')
+        driverIds = allDrivers.map((d) => d.id)
       }
 
       const totalDrivers = driverIds.length
 
-      // 4. 获取今日已打卡的司机数（在线司机）
-      // 只统计角色为 DRIVER 的用户
+      // 2. 获取今日已打卡的司机数（在线司机）
+      // 注意：attendanceRepository 的查询方法不支持按用户 ID 列表过滤
+      // 需要直接查询数据库，但使用 Repository 的缓存失效机制
       let onlineDriversQuery = supabase
         .from('attendance')
-        .select('user_id', {count: 'exact', head: false})
+        .select('user_id', { count: 'exact', head: false })
         .gte('clock_in_time', `${today}T00:00:00`)
         .lte('clock_in_time', `${today}T23:59:59`)
         .in('user_id', driverIds)
@@ -133,18 +174,17 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         onlineDriversQuery = onlineDriversQuery.eq('warehouse_id', warehouseId)
       }
 
-      const {data: onlineDriversData, error: onlineError} = await onlineDriversQuery
+      const { data: onlineDriversData, error: onlineError } = await onlineDriversQuery
       if (onlineError) throw onlineError
 
       // 去重统计在线司机数
       const uniqueOnlineDrivers = new Set(onlineDriversData?.map((r) => r.user_id) || [])
       const onlineDrivers = uniqueOnlineDrivers.size
 
-      // 5. 获取今日有计件记录的司机数（已计件司机）
-      // 只统计角色为 DRIVER 的用户
+      // 3. 获取今日有计件记录的司机数（已计件司机）
       let busyDriversQuery = supabase
         .from('piece_work_records')
-        .select('user_id', {count: 'exact', head: false})
+        .select('user_id', { count: 'exact', head: false })
         .gte('work_date', today)
         .lte('work_date', today)
         .in('user_id', driverIds)
@@ -153,14 +193,14 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         busyDriversQuery = busyDriversQuery.eq('warehouse_id', warehouseId)
       }
 
-      const {data: busyDriversData, error: busyError} = await busyDriversQuery
+      const { data: busyDriversData, error: busyError } = await busyDriversQuery
       if (busyError) throw busyError
 
       // 去重统计已计件司机数
       const uniqueBusyDrivers = new Set(busyDriversData?.map((r) => r.user_id) || [])
       const busyDrivers = uniqueBusyDrivers.size
 
-      // 6. 计算未计件司机数（在线但没有计件记录）
+      // 4. 计算未计件司机数（在线但没有计件记录）
       const idleDrivers = Math.max(0, onlineDrivers - busyDrivers)
 
       const stats: DriverStats = {
@@ -170,11 +210,9 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
         idleDrivers
       }
 
-      // 更新缓存
-      if (cacheEnabled) {
-        const cacheKey = getCacheKey(warehouseId)
-        cache.set(cacheKey, {data: stats, timestamp: Date.now()})
-      }
+      // 更新本地缓存（聚合查询的短期缓存）
+      // 注意：cacheKey 已在函数开头声明，这里直接使用
+      cache.set(cacheKey, { data: stats, timestamp: Date.now() })
 
       setData(stats)
       setLoading(false)
@@ -185,18 +223,19 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
       setLoading(false)
       return null
     }
-  }, [warehouseId, cacheEnabled])
+  }, [warehouseId])
 
   /**
    * 刷新数据（强制重新获取，忽略缓存）
+   *
+   * @returns 刷新后的司机统计数据
    */
   const refresh = useCallback(async () => {
-    if (cacheEnabled) {
-      const cacheKey = getCacheKey(warehouseId)
-      cache.delete(cacheKey)
-    }
+    // 清除本地缓存
+    const cacheKey = getCacheKey(warehouseId)
+    cache.delete(cacheKey)
     return await fetchDriverStats()
-  }, [fetchDriverStats, warehouseId, cacheEnabled])
+  }, [fetchDriverStats, warehouseId])
 
   /**
    * 初始加载数据
@@ -207,6 +246,12 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
 
   /**
    * 实时更新监听
+   *
+   * 监听以下表的变更：
+   * - attendance：考勤记录变化
+   * - piece_work_records：计件记录变化
+   * - warehouse_assignments：仓库分配变化
+   * - users：用户角色变化
    */
   useEffect(() => {
     if (!enableRealtime) return
@@ -222,9 +267,8 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'attendance'
         },
         (_payload) => {
-          if (cacheEnabled) {
-            cache.clear()
-          }
+          // 清除本地缓存并重新获取数据
+          cache.clear()
           fetchDriverStats()
         }
       )
@@ -241,9 +285,7 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'piece_work_records'
         },
         (_payload) => {
-          if (cacheEnabled) {
-            cache.clear()
-          }
+          cache.clear()
           fetchDriverStats()
         }
       )
@@ -260,15 +302,13 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'warehouse_assignments'
         },
         (_payload) => {
-          if (cacheEnabled) {
-            cache.clear()
-          }
+          cache.clear()
           fetchDriverStats()
         }
       )
       .subscribe()
 
-    // 监听用户角色变化 - 单用户架构：监听 users 表
+    // 监听用户角色变化
     const roleChannel = supabase
       .channel('driver-stats-role')
       .on(
@@ -279,41 +319,20 @@ export const useDriverStats = (options: UseDriverStatsOptions = {}) => {
           table: 'users'
         },
         (_payload) => {
-          if (cacheEnabled) {
-            cache.clear()
-          }
+          cache.clear()
           fetchDriverStats()
         }
       )
       .subscribe()
 
-    // 监听用户信息变化（包括 driver_type 字段）
-    const usersChannel = supabase
-      .channel('driver-stats-users')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'users'
-        },
-        (_payload) => {
-          if (cacheEnabled) {
-            cache.clear()
-          }
-          fetchDriverStats()
-        }
-      )
-      .subscribe()
-
+    // 清理订阅
     return () => {
       supabase.removeChannel(attendanceChannel)
       supabase.removeChannel(pieceWorkChannel)
       supabase.removeChannel(assignmentChannel)
       supabase.removeChannel(roleChannel)
-      supabase.removeChannel(usersChannel)
     }
-  }, [enableRealtime, fetchDriverStats, cacheEnabled])
+  }, [enableRealtime, fetchDriverStats])
 
   // 性能优化：使用 useMemo 缓存返回值，避免每次渲染创建新对象
   return useMemo(
