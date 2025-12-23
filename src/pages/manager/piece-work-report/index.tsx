@@ -14,7 +14,6 @@ import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
-import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
 // 完成率状态判断和样式配置
@@ -101,6 +100,14 @@ const ManagerPieceWorkReport: React.FC = () => {
   const [_categories, setCategories] = useState<PieceWorkCategory[]>([])
   const [records, setRecords] = useState<PieceWorkRecord[]>([])
 
+  /**
+   * 仓库-司机分配映射：warehouseId -> driverIds[]
+   * 使用 WarehousesAPI.getAllDriverWarehouses() 获取分配关系并构建映射
+   * 用于按仓库筛选司机，确保与其他页面（如 super-admin/leave-approval）使用相同的逻辑
+   * @requirements 2.1, 2.2
+   */
+  const [warehouseDriversMap, setWarehouseDriversMap] = useState<Map<string, string[]>>(new Map())
+
   // 筛选条件 - 简化版本，移除所有筛选UI
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0) // 当前仓库索引（用于Swiper切换）
   const [startDate, setStartDate] = useState('')
@@ -141,55 +148,50 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
   }, [])
 
-  // 加载基础数据
+  /**
+   * 加载基础数据
+   * 获取当前用户信息、管辖仓库、所有司机和品类数据
+   * 直接调用 API 层函数，由 Repository 层统一管理缓存
+   */
   const loadData = useCallback(async () => {
     if (!user?.id) return
 
     try {
-      // 生成缓存键（包含管理员ID）
-      const cacheKey = `manager_piece_work_base_data_${user.id}`
-      const cached = getVersionedCache<{
-        profile: Profile | null
-        warehouses: Warehouse[]
-        drivers: Profile[]
-        categories: PieceWorkCategory[]
-      }>(cacheKey)
-
-      if (cached) {
-        setProfile(cached.profile)
-        setWarehouses(cached.warehouses)
-        setDrivers(cached.drivers)
-        setCategories(cached.categories)
-        return
-      }
-
-      // 加载当前用户信息
+      // 加载当前用户信息（Repository 层缓存 TTL 5 分钟）
       const profileData = await UsersAPI.getCurrentUserProfile()
       setProfile(profileData)
 
-      // 加载管辖的仓库
+      // 加载管辖的仓库（Repository 层缓存 TTL 10 分钟）
       const warehousesData = await WarehousesAPI.getManagerWarehouses(user.id)
       setWarehouses(warehousesData)
 
-      // 加载所有司机
+      // 加载所有司机（Repository 层缓存 TTL 5 分钟）
       const driversData = await UsersAPI.getDriverProfiles()
       setDrivers(driversData)
 
-      // 加载所有品类
+      // 加载所有品类（Repository 层缓存 TTL 10 分钟）
       const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
 
-      // 保存到缓存（5分钟有效期）
-      setVersionedCache(
-        cacheKey,
-        {
-          profile: profileData,
-          warehouses: warehousesData,
-          drivers: driversData,
-          categories: categoriesData
-        },
-        5 * 60 * 1000
-      )
+      /**
+       * 获取所有仓库-司机分配关系（用于按仓库筛选司机）
+       * 使用 Repository 缓存，TTL 5 分钟
+       * 构建 warehouseDriversMap 映射，与其他页面使用相同的统一模式
+       * @requirements 2.1, 2.2
+       */
+      const allDriverWarehouses = await WarehousesAPI.getAllDriverWarehouses()
+
+      // 构建仓库ID -> 司机ID列表的映射（warehouseDriversMap）
+      // 这是统一模式的核心数据结构，用于按仓库筛选司机
+      const warehouseDriversMapping = new Map<string, string[]>()
+      for (const assignment of allDriverWarehouses) {
+        const warehouseId = assignment.warehouse_id
+        if (!warehouseDriversMapping.has(warehouseId)) {
+          warehouseDriversMapping.set(warehouseId, [])
+        }
+        warehouseDriversMapping.get(warehouseId)!.push(assignment.user_id)
+      }
+      setWarehouseDriversMap(warehouseDriversMapping)
     } catch (error) {
       console.error('加载数据失败:', error)
       showToast({
@@ -200,7 +202,11 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
   }, [user?.id])
 
-  // 加载计件记录（带缓存）- 移除司机筛选功能
+  /**
+   * 加载计件记录
+   * 根据当前选中的仓库和日期范围加载计件记录
+   * 直接调用 API 层函数，由 Repository 层统一管理缓存（TTL 2 分钟）
+   */
   const loadRecords = useCallback(async () => {
     if (!startDate || !endDate || warehouses.length === 0) return
 
@@ -217,19 +223,8 @@ const ManagerPieceWorkReport: React.FC = () => {
       const actualStartDate = startDate <= today ? startDate : today
       const actualEndDate = endDate >= today ? endDate : today
 
-      // 生成缓存键（包含仓库ID、日期范围）
-      const cacheKey = `manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
-      const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
-
-      let data: PieceWorkRecord[] = []
-
-      if (cached) {
-        data = cached
-      } else {
-        data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
-        // 保存到缓存（3分钟有效期）
-        setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-      }
+      // 直接调用 API 获取数据（Repository 层缓存 TTL 2 分钟）
+      let data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
 
       // 按日期排序
       data.sort((a, b) => {
@@ -249,7 +244,12 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
   }, [startDate, endDate, warehouses, currentWarehouseIndex, sortOrder])
 
-  // 预加载其他仓库的数据（在空闲时后台加载）
+  /**
+   * 预加载其他仓库的数据
+   * 在空闲时后台加载其他仓库的计件记录，提升切换仓库时的响应速度
+   * 直接调用 API 层函数，由 Repository 层统一管理缓存
+   * 注意：预加载失败不影响正常使用，静默处理
+   */
   const preloadOtherWarehouses = useCallback(async () => {
     if (!startDate || !endDate || warehouses.length <= 1) return
 
@@ -260,23 +260,12 @@ const ManagerPieceWorkReport: React.FC = () => {
         const actualStartDate = startDate <= today ? startDate : today
         const actualEndDate = endDate >= today ? endDate : today
 
-        // 预加载除当前仓库外的所有仓库数据
+        // 预加载除当前仓库外的所有仓库数据（Repository 层会自动缓存）
         const preloadPromises = warehouses
           .filter((_, index) => index !== currentWarehouseIndex)
           .map(async (warehouse) => {
-            const cacheKey = `manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
-            const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
-
-            // 如果缓存中没有数据，则预加载
-            if (!cached) {
-              const data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(
-                warehouse.id,
-                actualStartDate,
-                actualEndDate
-              )
-              setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-            } else {
-            }
+            // 直接调用 API，Repository 层会自动处理缓存
+            await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
           })
 
         await Promise.all(preloadPromises)
@@ -302,20 +291,14 @@ const ManagerPieceWorkReport: React.FC = () => {
     }
   }, [records.length, warehouses.length, preloadOtherWarehouses])
 
+  /**
+   * 页面显示时重新加载数据
+   * 由 Repository 层统一管理缓存，无需手动清除页面级缓存
+   */
   useDidShow(() => {
-    // 清除缓存，强制重新加载最新数据
-    if (user?.id) {
-      clearVersionedCache(`manager_piece_work_base_data_${user.id}`)
-      // 清除所有计件记录缓存
-      warehouses.forEach((warehouse) => {
-        const today = new Date().toISOString().split('T')[0]
-        const actualStartDate = startDate <= today ? startDate : today
-        const actualEndDate = endDate >= today ? endDate : today
-        clearVersionedCache(`manager_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`)
-      })
-    }
+    // 直接重新加载数据，Repository 层会根据 TTL 自动处理缓存
     loadData()
-    loadRecords() // 添加：页面显示时重新加载记录
+    loadRecords()
   })
 
   // 下拉刷新
@@ -356,7 +339,11 @@ const ManagerPieceWorkReport: React.FC = () => {
     return target
   }, [warehouses, currentWarehouseIndex])
 
-  // 计算司机汇总数据（不含考勤）
+  /**
+   * 计算司机汇总数据（不含考勤）
+   * 使用 warehouseDriversMap 筛选当前仓库分配的司机
+   * @requirements 2.1, 2.2
+   */
   const driverSummariesBase = useMemo(() => {
     const summaryMap = new Map<
       string,
@@ -373,8 +360,26 @@ const ManagerPieceWorkReport: React.FC = () => {
       return diffDays
     }
 
-    // 首先，为所有司机创建初始汇总数据
-    drivers.forEach((driver) => {
+    // 获取当前仓库ID
+    const currentWarehouse = warehouses[currentWarehouseIndex]
+    const currentWarehouseId = currentWarehouse?.id
+
+    /**
+     * 使用 warehouseDriversMap 获取当前仓库分配的司机ID列表
+     * 这是统一模式的核心逻辑，与其他页面（如 super-admin/leave-approval）保持一致
+     * @requirements 2.1, 2.2
+     */
+    const assignedDriverIds = currentWarehouseId
+      ? warehouseDriversMap.get(currentWarehouseId) || []
+      : []
+
+    // 筛选出分配到当前仓库的司机
+    const filteredDrivers = currentWarehouseId
+      ? drivers.filter((driver) => assignedDriverIds.includes(driver.id))
+      : drivers
+
+    // 首先，为筛选后的司机创建初始汇总数据
+    filteredDrivers.forEach((driver) => {
       const daysEmployed = calculateDaysEmployed(driver.join_date || null)
       summaryMap.set(driver.id, {
         driverId: driver.id,
@@ -429,7 +434,7 @@ const ManagerPieceWorkReport: React.FC = () => {
     }))
 
     return summaries
-  }, [records, drivers, getWarehouseName])
+  }, [records, drivers, getWarehouseName, warehouses, currentWarehouseIndex, warehouseDriversMap])
 
   // 司机汇总数据（含考勤）
   const [driverSummaries, setDriverSummaries] = useState<DriverSummary[]>([])

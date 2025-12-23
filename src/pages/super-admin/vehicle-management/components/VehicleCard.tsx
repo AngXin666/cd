@@ -2,11 +2,13 @@
  * 车辆卡片组件
  *
  * @description 显示单个车辆的信息卡片
+ * 使用 CachedImage 组件实现图片本地缓存
  */
 
-import {Image, Text, View} from '@tarojs/components'
+import {Text, View} from '@tarojs/components'
 import type React from 'react'
 import {memo} from 'react'
+import CachedImage from '@/components/CachedImage'
 import type {VehicleWithDriver} from '@/db/types'
 
 export interface VehicleCardProps {
@@ -57,10 +59,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, historyCount = 0, onV
 
   return (
     <View className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all mb-4">
-      {/* 车辆照片 */}
+      {/* 车辆照片 - 使用 CachedImage 组件实现本地缓存 */}
       {vehicle.left_front_photo && (
         <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-          <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
+          <CachedImage src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" enableCache={true} />
           {/* 状态标签 */}
           <View className="absolute top-3 right-3">
             <View className={`backdrop-blur rounded-full px-3 py-1 flex items-center ${statusBadge.bg}`}>

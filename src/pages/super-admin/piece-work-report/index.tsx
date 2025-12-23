@@ -14,7 +14,6 @@ import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {PieceWorkCategory, PieceWorkRecord, Profile, Warehouse} from '@/db/types'
-import {clearVersionedCache, getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {getFirstDayOfMonthString, getLocalDateString} from '@/utils/date'
 
 // 完成率状态判断和样式配置
@@ -142,48 +141,24 @@ const SuperAdminPieceWorkReport: React.FC = () => {
     }
   }, [])
 
-  // 加载基础数据（带缓存）
+  // 加载基础数据
+  // 注意：WarehousesAPI、UsersAPI、PieceworkAPI 都使用 Repository 层缓存
+  // 不需要额外的页面级缓存
   const loadData = useCallback(async () => {
     if (!user?.id) return
 
     try {
-      // 尝试从缓存加载仓库数据
-      const cacheKey = 'super_admin_piece_work_base_data'
-      const cached = getVersionedCache<{
-        warehouses: Warehouse[]
-        drivers: Profile[]
-        categories: PieceWorkCategory[]
-      }>(cacheKey)
-
-      if (cached) {
-        setWarehouses(cached.warehouses)
-        setDrivers(cached.drivers)
-        setCategories(cached.categories)
-        return
-      }
-
-      // 加载所有仓库
+      // 加载所有仓库（Repository 缓存 TTL 10 分钟）
       const warehousesData = await WarehousesAPI.getAllWarehouses()
       setWarehouses(warehousesData)
 
-      // 加载所有司机
+      // 加载所有司机（Repository 缓存 TTL 5 分钟）
       const driversData = await UsersAPI.getDriverProfiles()
       setDrivers(driversData)
 
-      // 加载所有品类
+      // 加载所有品类（Repository 缓存 TTL 10 分钟）
       const categoriesData = await PieceworkAPI.getActiveCategories()
       setCategories(categoriesData)
-
-      // 保存到缓存（5分钟有效期）
-      setVersionedCache(
-        cacheKey,
-        {
-          warehouses: warehousesData,
-          drivers: driversData,
-          categories: categoriesData
-        },
-        5 * 60 * 1000
-      )
     } catch (error) {
       console.error('加载数据失败:', error)
       Taro.showToast({
@@ -211,19 +186,8 @@ const SuperAdminPieceWorkReport: React.FC = () => {
       const actualStartDate = startDate <= today ? startDate : today
       const actualEndDate = endDate >= today ? endDate : today
 
-      // 生成缓存键（包含仓库ID、日期范围）
-      const cacheKey = `super_admin_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
-      const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
-
-      let data: PieceWorkRecord[] = []
-
-      if (cached) {
-        data = cached
-      } else {
-        data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
-        // 保存到缓存（3分钟有效期）
-        setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-      }
+      // 直接调用 API（Repository 层已有缓存，TTL 2 分钟）
+      let data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(warehouse.id, actualStartDate, actualEndDate)
 
       // 排序
       data.sort((a, b) => {
@@ -244,10 +208,11 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   }, [warehouses, currentWarehouseIndex, startDate, endDate, sortOrder])
 
   // 预加载其他仓库的数据（在空闲时后台加载）
+  // 注意：Repository 层已有缓存，预加载可以提前触发缓存
   const preloadOtherWarehouses = useCallback(async () => {
     if (!startDate || !endDate || warehouses.length <= 1) return
 
-    // 使用 setTimeout 模拟 requestIdleCallback（小程序环境不支持 requestIdleCallback）
+    // 使用 setTimeout 延迟执行，避免影响当前页面加载
     setTimeout(async () => {
       try {
         const today = new Date().toISOString().split('T')[0]
@@ -258,19 +223,12 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         const preloadPromises = warehouses
           .filter((_, index) => index !== currentWarehouseIndex)
           .map(async (warehouse) => {
-            const cacheKey = `super_admin_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`
-            const cached = getVersionedCache<PieceWorkRecord[]>(cacheKey)
-
-            // 如果缓存中没有数据，则预加载
-            if (!cached) {
-              const data = await PieceworkAPI.getPieceWorkRecordsByWarehouse(
-                warehouse.id,
-                actualStartDate,
-                actualEndDate
-              )
-              setVersionedCache(cacheKey, data, 3 * 60 * 1000)
-            } else {
-            }
+            // 直接调用 API，触发 Repository 缓存
+            await PieceworkAPI.getPieceWorkRecordsByWarehouse(
+              warehouse.id,
+              actualStartDate,
+              actualEndDate
+            )
           })
 
         await Promise.all(preloadPromises)
@@ -278,7 +236,7 @@ const SuperAdminPieceWorkReport: React.FC = () => {
         console.error('[超级管理端] 预加载数据失败:', error)
         // 预加载失败不影响正常使用，静默处理
       }
-    }, 1000) // 延迟1秒后开始预加载，确保不影响当前页面加载
+    }, 1000) // 延迟1秒后开始预加载
   }, [startDate, endDate, warehouses, currentWarehouseIndex])
 
   useEffect(() => {
@@ -297,15 +255,8 @@ const SuperAdminPieceWorkReport: React.FC = () => {
   }, [records.length, warehouses.length, preloadOtherWarehouses])
 
   useDidShow(() => {
-    // 清除缓存，强制重新加载最新数据
-    clearVersionedCache('super_admin_piece_work_base_data')
-    // 清除所有计件记录缓存
-    warehouses.forEach((warehouse) => {
-      const today = new Date().toISOString().split('T')[0]
-      const actualStartDate = startDate <= today ? startDate : today
-      const actualEndDate = endDate >= today ? endDate : today
-      clearVersionedCache(`super_admin_piece_work_records_${warehouse.id}_${actualStartDate}_${actualEndDate}`)
-    })
+    // 直接重新加载数据
+    // Repository 层缓存会自动处理，不需要手动清除
     loadData()
     loadRecords()
   })

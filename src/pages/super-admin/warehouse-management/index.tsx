@@ -29,6 +29,14 @@ import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
 import {confirmDelete} from '@/utils/confirm'
 import {sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
+import {
+  SUCCESS_MESSAGES,
+  ERROR_MESSAGES,
+  REQUIRED_MESSAGES,
+  FORMAT_MESSAGES,
+  BUSINESS_MESSAGES,
+  LOADING_MESSAGES
+} from '@/constants/messages'
 
 const WarehouseManagement: React.FC = () => {
   const {user} = useAuth({guard: true})
@@ -142,7 +150,7 @@ const WarehouseManagement: React.FC = () => {
   const handleAddWarehouse = async () => {
     if (!newWarehouseName.trim()) {
       showToast({
-        title: '请输入仓库名称',
+        title: REQUIRED_MESSAGES.WAREHOUSE_NAME,
         icon: 'none',
         duration: 2000
       })
@@ -150,7 +158,7 @@ const WarehouseManagement: React.FC = () => {
     }
 
     try {
-      showLoading({title: '创建中...'})
+      showLoading({title: LOADING_MESSAGES.PROCESSING})
 
       const warehouse = await WarehousesAPI.createWarehouse({
         name: newWarehouseName.trim()
@@ -170,7 +178,7 @@ const WarehouseManagement: React.FC = () => {
         })
 
         showToast({
-          title: '创建成功',
+          title: SUCCESS_MESSAGES.CREATE,
           icon: 'success',
           duration: 1500
         })
@@ -179,7 +187,7 @@ const WarehouseManagement: React.FC = () => {
         await loadWarehouses()
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '创建失败'
+      const errorMessage = error instanceof Error ? error.message : ERROR_MESSAGES.CREATE
       showToast({
         title: errorMessage,
         icon: 'none',
@@ -231,7 +239,7 @@ const WarehouseManagement: React.FC = () => {
 
     if (!editWarehouseName.trim()) {
       showToast({
-        title: '请输入仓库名称',
+        title: REQUIRED_MESSAGES.WAREHOUSE_NAME,
         icon: 'none',
         duration: 2000
       })
@@ -244,7 +252,7 @@ const WarehouseManagement: React.FC = () => {
 
     if (Number.isNaN(maxLeaveDays) || maxLeaveDays < 1 || maxLeaveDays > 365) {
       showToast({
-        title: '月度请假天数必须在1-365之间',
+        title: FORMAT_MESSAGES.INVALID_LEAVE_DAYS,
         icon: 'none',
         duration: 2000
       })
@@ -253,7 +261,7 @@ const WarehouseManagement: React.FC = () => {
 
     if (Number.isNaN(resignationNoticeDays) || resignationNoticeDays < 1 || resignationNoticeDays > 365) {
       showToast({
-        title: '离职提前天数必须在1-365之间',
+        title: FORMAT_MESSAGES.INVALID_NOTICE_DAYS,
         icon: 'none',
         duration: 2000
       })
@@ -266,7 +274,7 @@ const WarehouseManagement: React.FC = () => {
 
     if (Number.isNaN(lateThreshold) || lateThreshold < 0) {
       showToast({
-        title: '迟到阈值必须大于等于0',
+        title: FORMAT_MESSAGES.INVALID_LATE_THRESHOLD,
         icon: 'none',
         duration: 2000
       })
@@ -275,7 +283,7 @@ const WarehouseManagement: React.FC = () => {
 
     if (Number.isNaN(earlyThreshold) || earlyThreshold < 0) {
       showToast({
-        title: '早退阈值必须大于等于0',
+        title: FORMAT_MESSAGES.INVALID_EARLY_THRESHOLD,
         icon: 'none',
         duration: 2000
       })
@@ -285,7 +293,7 @@ const WarehouseManagement: React.FC = () => {
     // 请求密码验证
     requestPasswordVerify(async () => {
       try {
-        showLoading({title: '保存中...'})
+        showLoading({title: LOADING_MESSAGES.SAVING})
 
         // 1. 更新仓库基本信息
         const success = await WarehousesAPI.updateWarehouse(currentWarehouse.id, {
@@ -332,7 +340,7 @@ const WarehouseManagement: React.FC = () => {
         }
 
         showToast({
-          title: '保存成功',
+          title: SUCCESS_MESSAGES.SAVE,
           icon: 'success',
           duration: 1500
         })
@@ -341,7 +349,7 @@ const WarehouseManagement: React.FC = () => {
         await loadWarehouses()
       } catch (_error) {
         showToast({
-          title: '保存失败',
+          title: ERROR_MESSAGES.SAVE,
           icon: 'none',
           duration: 2000
         })
@@ -356,7 +364,7 @@ const WarehouseManagement: React.FC = () => {
     // 检查是否是最后一个仓库
     if (warehouses.length <= 1) {
       showToast({
-        title: '无法删除：每个老板号必须保留至少一个仓库',
+        title: BUSINESS_MESSAGES.KEEP_ONE_WAREHOUSE,
         icon: 'none',
         duration: 3000
       })
@@ -373,13 +381,13 @@ const WarehouseManagement: React.FC = () => {
     // 请求密码验证
     requestPasswordVerify(async () => {
       try {
-        showLoading({title: '删除中...'})
+        showLoading({title: LOADING_MESSAGES.PROCESSING})
 
         const success = await WarehousesAPI.deleteWarehouse(warehouse.id)
 
         if (success) {
           showToast({
-            title: '删除成功',
+            title: SUCCESS_MESSAGES.DELETE,
             icon: 'success',
             duration: 1500
           })
@@ -387,13 +395,13 @@ const WarehouseManagement: React.FC = () => {
           await loadWarehouses()
         } else {
           showToast({
-            title: '删除失败',
+            title: ERROR_MESSAGES.DELETE,
             icon: 'none',
             duration: 2000
           })
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '删除失败'
+        const errorMessage = error instanceof Error ? error.message : ERROR_MESSAGES.DELETE
         showToast({
           title: errorMessage,
           icon: 'none',

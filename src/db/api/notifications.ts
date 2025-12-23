@@ -777,3 +777,144 @@ export async function deleteAutoReminderRule(id: string): Promise<boolean> {
     return false
   }
 }
+
+// ==================== 通知状态更新 ====================
+
+/**
+ * 通知审批状态类型
+ */
+export type NotificationApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+/**
+ * 更新通知审批状态
+ * 用于请假审批时更新原始申请通知的状态
+ *
+ * @param notificationId - 通知 ID
+ * @param approvalStatus - 审批状态
+ * @param title - 新标题
+ * @param content - 新内容
+ * @returns 是否更新成功
+ */
+export async function updateNotificationApprovalStatus(
+  notificationId: string,
+  approvalStatus: NotificationApprovalStatus,
+  title: string,
+  content: string
+): Promise<boolean> {
+  try {
+    logger.db('更新', 'notifications', {notificationId, approvalStatus, action: '更新审批状态'})
+
+    // 参数验证
+    if (!notificationId) {
+      logger.warn('更新通知审批状态：notificationId 为空')
+      return false
+    }
+
+    // 更新通知状态
+    // 注意：notifications 表中没有 updated_at 字段
+    const {error} = await supabase
+      .from('notifications')
+      .update({
+        approval_status: approvalStatus,
+        is_read: false, // 重置为未读
+        title: title,
+        content: content
+      })
+      .eq('id', notificationId)
+
+    if (error) {
+      logger.error('更新通知审批状态失败', {notificationId, error})
+      return false
+    }
+
+    // 清除通知缓存
+    notificationsRepository.clearAllCache()
+
+    logger.info('更新通知审批状态成功', {notificationId, approvalStatus})
+    return true
+  } catch (error) {
+    logger.error('更新通知审批状态异常', {notificationId, error})
+    return false
+  }
+}
+
+/**
+ * 批量更新通知审批状态
+ * 用于请假审批时批量更新相关通知的状态
+ *
+ * @param relatedId - 关联 ID（如请假申请 ID）
+ * @param notificationType - 通知类型（如 'leave_application_submitted'）
+ * @param approvalStatus - 审批状态
+ * @param getMessageForRecipient - 根据接收者生成消息的函数
+ * @param reviewerId - 审批人 ID（用于判断是否为审批人本人）
+ * @returns 更新结果 { successCount, failCount, errors }
+ */
+export async function batchUpdateNotificationApprovalStatus(
+  relatedId: string,
+  notificationType: string,
+  approvalStatus: NotificationApprovalStatus,
+  getMessageForRecipient: (recipientId: string, isReviewer: boolean) => { title: string; content: string },
+  reviewerId: string
+): Promise<{ successCount: number; failCount: number; errors: string[] }> {
+  const result = { successCount: 0, failCount: 0, errors: [] as string[] }
+
+  try {
+    logger.db('批量更新', 'notifications', {relatedId, notificationType, approvalStatus})
+
+    // 参数验证
+    if (!relatedId || !notificationType) {
+      logger.warn('批量更新通知审批状态：参数不完整')
+      return result
+    }
+
+    // 查询相关通知
+    const {data: existingNotifications, error: queryError} = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('related_id', relatedId)
+      .eq('type', notificationType)
+
+    if (queryError) {
+      logger.error('查询相关通知失败', {relatedId, error: queryError})
+      result.errors.push(`查询通知失败: ${queryError.message}`)
+      return result
+    }
+
+    if (!existingNotifications || existingNotifications.length === 0) {
+      logger.debug('没有找到相关通知', {relatedId, notificationType})
+      return result
+    }
+
+    // 针对每个通知接收者单独更新
+    for (const notification of existingNotifications) {
+      const isReviewer = notification.recipient_id === reviewerId
+      const { title, content } = getMessageForRecipient(notification.recipient_id, isReviewer)
+
+      const success = await updateNotificationApprovalStatus(
+        notification.id,
+        approvalStatus,
+        title,
+        content
+      )
+
+      if (success) {
+        result.successCount++
+      } else {
+        result.failCount++
+        result.errors.push(`通知 ${notification.id.substring(0, 8)}... 更新失败`)
+      }
+    }
+
+    logger.info('批量更新通知审批状态完成', {
+      relatedId,
+      successCount: result.successCount,
+      failCount: result.failCount
+    })
+
+    return result
+  } catch (error) {
+    logger.error('批量更新通知审批状态异常', {relatedId, error})
+    result.errors.push(`异常: ${error instanceof Error ? error.message : '未知错误'}`)
+    return result
+  }
+}

@@ -57,6 +57,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  // 仓库-司机分配映射：warehouseId -> driverIds[]
+  const [warehouseDriversMap, setWarehouseDriversMap] = useState<Map<string, string[]>>(new Map())
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<'pending' | 'stats'>('stats')
   const [urlWarehouseId, setUrlWarehouseId] = useState<string | null>(null)
@@ -106,6 +108,20 @@ const SuperAdminLeaveApproval: React.FC = () => {
       // 获取所有用户信息
       const allProfiles = await UsersAPI.getAllProfiles()
       setProfiles(allProfiles)
+
+      // 获取所有仓库-司机分配关系（用于按仓库筛选司机）
+      // 使用 Repository 缓存，TTL 5 分钟
+      const allDriverWarehouses = await WarehousesAPI.getAllDriverWarehouses()
+      // 构建仓库ID -> 司机ID列表的映射
+      const warehouseDriversMapping = new Map<string, string[]>()
+      for (const assignment of allDriverWarehouses) {
+        const warehouseId = assignment.warehouse_id
+        if (!warehouseDriversMapping.has(warehouseId)) {
+          warehouseDriversMapping.set(warehouseId, [])
+        }
+        warehouseDriversMapping.get(warehouseId)!.push(assignment.user_id)
+      }
+      setWarehouseDriversMap(warehouseDriversMapping)
 
       // 获取所有请假申请（包括历史数据）
       const allLeaveApps = await LeaveAPI.getAllLeaveApplications()
@@ -548,11 +564,15 @@ const SuperAdminLeaveApproval: React.FC = () => {
       }
     }
 
-    // 按仓库筛选
+    // 按仓库筛选：使用 warehouseDriversMap（仓库-司机分配关系）
+    // 这与用户管理、件数报表使用相同的逻辑
     let statsArray = Array.from(statsMap.values())
     const currentWarehouseId = getCurrentWarehouseId()
     if (currentWarehouseId !== 'all') {
-      statsArray = statsArray.filter((stats) => stats.warehouseIds.includes(currentWarehouseId))
+      // 获取当前仓库分配的司机ID列表
+      const assignedDriverIds = warehouseDriversMap.get(currentWarehouseId) || []
+      // 只显示分配到当前仓库的司机
+      statsArray = statsArray.filter((stats) => assignedDriverIds.includes(stats.driverId))
     }
 
     return statsArray
@@ -569,7 +589,8 @@ const SuperAdminLeaveApproval: React.FC = () => {
     getUserName,
     getVisibleApplications,
     getWarehouseName,
-    initCurrentMonth
+    initCurrentMonth,
+    warehouseDriversMap
   ])
 
   // 审批请假申请
@@ -1081,20 +1102,20 @@ const SuperAdminLeaveApproval: React.FC = () => {
               </View>
             </View>
 
-            {/* 标签切换 */}
+            {/* 标签切换 - 司机统计是重点，放在前面 */}
             <View className="flex gap-2 mb-4">
-              <View
-                className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'pending' ? 'bg-blue-600' : 'bg-white'}`}
-                onClick={() => setActiveTab('pending')}>
-                <Text className={`text-xs font-bold ${activeTab === 'pending' ? 'text-white' : 'text-gray-600'}`}>
-                  待审批 ({totalPending})
-                </Text>
-              </View>
               <View
                 className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'stats' ? 'bg-blue-600' : 'bg-white'}`}
                 onClick={() => setActiveTab('stats')}>
                 <Text className={`text-xs font-bold ${activeTab === 'stats' ? 'text-white' : 'text-gray-600'}`}>
                   司机统计
+                </Text>
+              </View>
+              <View
+                className={`flex-1 text-center py-3 rounded-lg ${activeTab === 'pending' ? 'bg-blue-600' : 'bg-white'}`}
+                onClick={() => setActiveTab('pending')}>
+                <Text className={`text-xs font-bold ${activeTab === 'pending' ? 'text-white' : 'text-gray-600'}`}>
+                  待审批 ({totalPending})
                 </Text>
               </View>
             </View>

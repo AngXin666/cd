@@ -13,6 +13,7 @@
  */
 
 import Taro from '@tarojs/taro'
+import {BUSINESS_MESSAGES} from '@/constants/messages'
 
 /**
  * 用户角色类型
@@ -130,7 +131,7 @@ export function validatePageAccess(userRole: UserRole | null | undefined, redire
 
     // 显示提示
     Taro.showToast({
-      title: '无权限访问此页面',
+      title: BUSINESS_MESSAGES.NO_PERMISSION,
       icon: 'none',
       duration: 2000
     })

@@ -25,6 +25,7 @@
 
 import Taro from '@tarojs/taro'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
+import {ERROR_MESSAGES, SUCCESS_MESSAGES, LOADING_MESSAGES} from '@/constants/messages'
 import {useCallback, useEffect, useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -72,13 +73,13 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
       setWarehouses(data.filter((w) => w.is_active))
     } catch (error) {
       logger.error('加载仓库列表失败', error)
-      showToast({title: '加载仓库失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.LOAD, icon: 'error'})
     }
   }, [])
 
   // 加载用户已分配的仓库
   const loadUserWarehouses = useCallback(async (userId: string, userRole: string) => {
-    showLoading({title: '加载中...'})
+    showLoading({title: LOADING_MESSAGES.LOADING})
     try {
       let assignments: Array<{warehouse_id: string}> = []
 
@@ -91,7 +92,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
       setSelectedIds(assignments.map((a) => a.warehouse_id))
     } catch (error) {
       logger.error('加载用户仓库失败', error)
-      showToast({title: '加载失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.LOAD, icon: 'error'})
     } finally {
       hideLoading()
     }
@@ -120,7 +121,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
         return false
       }
 
-      showLoading({title: '保存中...'})
+      showLoading({title: LOADING_MESSAGES.SAVING})
 
       try {
         // 获取之前的仓库分配
@@ -151,7 +152,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
         }
 
         hideLoading()
-        showToast({title: '保存成功', icon: 'success'})
+        showToast({title: SUCCESS_MESSAGES.SAVE, icon: 'success'})
 
         // 发送通知
         // 使用 NotificationsRepository 创建通知
@@ -241,7 +242,7 @@ export const useWarehouseAssign = (): UseWarehouseAssignReturn => {
       } catch (error) {
         hideLoading()
         logger.error('保存仓库分配失败', error)
-        showToast({title: '保存失败', icon: 'error'})
+        showToast({title: ERROR_MESSAGES.SAVE, icon: 'error'})
         return false
       }
     },

@@ -1568,3 +1568,197 @@ export async function getDriverName(userId: string): Promise<string> {
     return '未知司机'
   }
 }
+
+// ==================== 权限配置相关 ====================
+
+/**
+ * 权限配置信息类型
+ */
+export interface PermissionConfigInfo {
+  /** 用户 ID */
+  user_id: string
+  /** 用户姓名 */
+  user_name: string
+  /** 用户角色 */
+  role: UserRole
+  /** 管理员权限是否启用 */
+  manager_permissions_enabled: boolean | null
+  /** 更新时间 */
+  updated_at: string
+}
+
+/**
+ * 获取用户权限配置信息
+ * 用于权限配置页面加载用户权限数据
+ *
+ * @param userId - 用户 ID
+ * @returns 权限配置信息，如果不存在则返回 null
+ */
+export async function getPermissionConfig(userId: string): Promise<PermissionConfigInfo | null> {
+  try {
+    logger.db('查询', 'users', {userId, action: '获取权限配置'})
+
+    // 参数验证
+    if (!userId) {
+      logger.warn('获取权限配置：userId 为空')
+      return null
+    }
+
+    // 查询用户权限配置
+    const {data, error} = await supabase
+      .from('users')
+      .select('id, name, role, manager_permissions_enabled, updated_at')
+      .eq('id', userId)
+      .maybeSingle()
+
+    // 如果字段不存在（错误码 42703），返回默认值
+    if (error && error.code === '42703') {
+      logger.warn('manager_permissions_enabled 字段不存在，使用默认值')
+      
+      // 备用查询：不包含 manager_permissions_enabled 字段
+      const {data: fallbackData, error: fallbackError} = await supabase
+        .from('users')
+        .select('id, name, role, updated_at')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (fallbackError || !fallbackData) {
+        logger.error('获取权限配置失败', {userId, error: fallbackError})
+        return null
+      }
+
+      return {
+        user_id: fallbackData.id,
+        user_name: fallbackData.name,
+        role: fallbackData.role as UserRole,
+        manager_permissions_enabled: true, // 默认为完整权限
+        updated_at: fallbackData.updated_at || new Date().toISOString()
+      }
+    }
+
+    if (error) {
+      logger.error('获取权限配置失败', {userId, error})
+      return null
+    }
+
+    if (!data) {
+      return null
+    }
+
+    return {
+      user_id: data.id,
+      user_name: data.name,
+      role: data.role as UserRole,
+      manager_permissions_enabled: data.manager_permissions_enabled,
+      updated_at: data.updated_at || new Date().toISOString()
+    }
+  } catch (error) {
+    logger.error('获取权限配置异常', {userId, error})
+    return null
+  }
+}
+
+/**
+ * 更新用户权限配置
+ * 用于权限配置页面保存权限设置
+ *
+ * @param userId - 用户 ID
+ * @param managerPermissionsEnabled - 管理员权限是否启用
+ * @returns 是否更新成功，如果字段不存在返回 'field_not_exists'
+ */
+export async function updatePermissionConfig(
+  userId: string,
+  managerPermissionsEnabled: boolean
+): Promise<boolean | 'field_not_exists'> {
+  try {
+    logger.db('更新', 'users', {userId, action: '更新权限配置', managerPermissionsEnabled})
+
+    // 参数验证
+    if (!userId) {
+      logger.warn('更新权限配置：userId 为空')
+      return false
+    }
+
+    // 先检查字段是否存在
+    const {error: checkError} = await supabase
+      .from('users')
+      .select('manager_permissions_enabled')
+      .eq('id', userId)
+      .maybeSingle()
+
+    // 如果字段不存在，返回特殊标识
+    if (checkError && (checkError.code === '42703' || checkError.message?.includes('manager_permissions_enabled'))) {
+      logger.warn('manager_permissions_enabled 字段不存在')
+      return 'field_not_exists'
+    }
+
+    // 更新权限配置
+    const {error: updateError} = await supabase
+      .from('users')
+      .update({
+        manager_permissions_enabled: managerPermissionsEnabled,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+
+    if (updateError) {
+      // 检查是否是字段不存在的错误
+      if (updateError.code === '42703' || updateError.message?.includes('manager_permissions_enabled')) {
+        logger.warn('更新时字段不存在')
+        return 'field_not_exists'
+      }
+      logger.error('更新权限配置失败', {userId, error: updateError})
+      return false
+    }
+
+    // 验证更新是否生效
+    const {data: verifyData, error: verifyError} = await supabase
+      .from('users')
+      .select('manager_permissions_enabled')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (verifyError) {
+      if (verifyError.code === '42703') {
+        return 'field_not_exists'
+      }
+      logger.error('验证权限配置更新失败', {userId, error: verifyError})
+      return false
+    }
+
+    // 检查值是否正确更新
+    if (verifyData?.manager_permissions_enabled !== managerPermissionsEnabled) {
+      logger.warn('权限配置更新可能未生效', {
+        expected: managerPermissionsEnabled,
+        actual: verifyData?.manager_permissions_enabled
+      })
+      // 如果值没有变化，可能是字段不存在
+      if (verifyData?.manager_permissions_enabled === undefined || verifyData?.manager_permissions_enabled === null) {
+        return 'field_not_exists'
+      }
+    }
+
+    // 清除用户缓存
+    usersRepository.invalidateCache()
+
+    // 发布权限更新事件
+    publish('user:permission_updated', {userId, managerPermissionsEnabled})
+
+    logger.info('更新权限配置成功', {userId, managerPermissionsEnabled})
+    return true
+  } catch (error) {
+    logger.error('更新权限配置异常', {userId, error})
+    return false
+  }
+}
+
+/**
+ * 重置用户权限配置为默认值
+ * 将 manager_permissions_enabled 重置为 true（完整权限）
+ *
+ * @param userId - 用户 ID
+ * @returns 是否重置成功，如果字段不存在返回 'field_not_exists'
+ */
+export async function resetPermissionConfig(userId: string): Promise<boolean | 'field_not_exists'> {
+  return updatePermissionConfig(userId, true)
+}

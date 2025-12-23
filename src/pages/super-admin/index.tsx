@@ -25,7 +25,6 @@ import {isH5} from '@/utils/platform'
 
 import type {Profile} from '@/db/types'
 import {
-  useBackButtonBlock,
   useDriverStats,
   useNotifications,
   usePollingNotifications,
@@ -60,9 +59,6 @@ const SuperAdminHome: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   const [loadTimeout, setLoadTimeout] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // 首页返回键拦截：防止用户在首页按返回键退出应用
-  useBackButtonBlock()
 
   // 使用全局缓存 Hook 加载仓库列表
   const {

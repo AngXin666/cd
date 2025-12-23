@@ -7,13 +7,13 @@
  * @feature event-driven-data-refresh
  */
 
-import {Image, Input, ScrollView, Text, View} from '@tarojs/components'
+import {Input, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {supabase} from '@/client/supabase'
+import CachedImage from '@/components/CachedImage'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
@@ -44,20 +44,9 @@ const VehicleManagement: React.FC = () => {
       setVehicles(data)
       setFilteredVehicles(data)
 
-      // 查询每辆车的历史记录数量
-      const historyCountMap = new Map<string, number>()
-      for (const vehicle of data) {
-        try {
-          const {count, error} = await supabase
-            .from('vehicles')
-            .select('*', {count: 'exact', head: true})
-            .eq('plate_number', vehicle.plate_number)
-
-          if (!error && count !== null) {
-            historyCountMap.set(vehicle.plate_number, count)
-          }
-        } catch (_err) {}
-      }
+      // 查询每辆车的历史记录数量（使用 API 层统一管理）
+      const plateNumbers = data.map((v) => v.plate_number)
+      const historyCountMap = await VehiclesAPI.getVehicleHistoryCounts(plateNumbers)
       setVehicleHistoryCount(historyCountMap)
     } catch (error) {
       logger.error('❌ 加载车辆列表失败', error)
@@ -399,10 +388,10 @@ const VehicleManagement: React.FC = () => {
                         className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all">
                         {/* 顶部导航栏 */}
                         <TopNavBar />
-                        {/* 车辆照片 */}
+                        {/* 车辆照片 - 使用 CachedImage 组件实现本地缓存 */}
                         {vehicle.left_front_photo && (
                           <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                            <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
+                            <CachedImage src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" enableCache={true} />
                             {/* 状态标签 - 使用综合状态 */}
                             <View className="absolute top-3 right-3">
                               <View
@@ -573,7 +562,7 @@ const VehicleManagement: React.FC = () => {
 
                           {/* 操作按钮 - 始终显示 */}
                           <View className="flex flex-col gap-2">
-                            {/* 第一行：查看详情、查看司机、车辆审核 */}
+                            {/* 第一行：查看详情、车辆审核 */}
                             <View className="flex gap-2">
                               {/* 查看详情按钮 */}
                               <View
@@ -584,18 +573,6 @@ const VehicleManagement: React.FC = () => {
                                   <Text className="text-white text-sm font-medium">查看详情</Text>
                                 </View>
                               </View>
-
-                              {/* 查看司机按钮 - 仅当有司机时显示 */}
-                              {vehicle.driver_id && (
-                                <View
-                                  className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
-                                  onClick={() => handleViewDriver(vehicle.driver_id!)}>
-                                  <View className="flex items-center justify-center">
-                                    <View className="i-mdi-account text-base text-white mr-1"></View>
-                                    <Text className="text-white text-sm font-medium">查看司机</Text>
-                                  </View>
-                                </View>
-                              )}
 
                               {/* 车辆审核按钮 - 仅当需要审核时显示 */}
                               {shouldShowReviewButton(vehicle) && (
@@ -636,10 +613,10 @@ const VehicleManagement: React.FC = () => {
                       <View
                         key={vehicle.id}
                         className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all">
-                        {/* 车辆照片 */}
+                        {/* 车辆照片 - 使用 CachedImage 组件实现本地缓存 */}
                         {vehicle.left_front_photo && (
                           <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                            <Image src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" />
+                            <CachedImage src={vehicle.left_front_photo} mode="aspectFill" className="w-full h-full" enableCache={true} />
                             {/* 状态标签 - 使用综合状态 */}
                             <View className="absolute top-3 right-3">
                               <View
@@ -810,7 +787,7 @@ const VehicleManagement: React.FC = () => {
 
                           {/* 操作按钮 - 始终显示 */}
                           <View className="flex flex-col gap-2">
-                            {/* 第一行：查看详情、查看司机、车辆审核 */}
+                            {/* 第一行：查看详情、车辆审核 */}
                             <View className="flex gap-2">
                               {/* 查看详情按钮 */}
                               <View
@@ -821,18 +798,6 @@ const VehicleManagement: React.FC = () => {
                                   <Text className="text-white text-sm font-medium">查看详情</Text>
                                 </View>
                               </View>
-
-                              {/* 查看司机按钮 - 仅当有司机时显示 */}
-                              {vehicle.driver_id && (
-                                <View
-                                  className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg py-2 active:scale-95 transition-all"
-                                  onClick={() => handleViewDriver(vehicle.driver_id!)}>
-                                  <View className="flex items-center justify-center">
-                                    <View className="i-mdi-account text-base text-white mr-1"></View>
-                                    <Text className="text-white text-sm font-medium">查看司机</Text>
-                                  </View>
-                                </View>
-                              )}
 
                               {/* 车辆审核按钮 - 仅当需要审核时显示 */}
                               {shouldShowReviewButton(vehicle) && (

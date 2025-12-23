@@ -11,6 +11,7 @@ import Taro from '@tarojs/taro'
 import { supabase } from '@/client/supabase'
 import { usersRepository } from '@/db/repositories'
 import { createLogger } from './logger'
+import { BUSINESS_MESSAGES } from '@/constants/messages'
 
 const logger = createLogger('AccountStatusCheck')
 
@@ -102,7 +103,7 @@ export async function checkLoginStatus(): Promise<boolean> {
     if (!status) {
       logger.error('无法获取账号状态')
       Taro.showToast({
-        title: '无法获取账号状态，请重试',
+        title: BUSINESS_MESSAGES.CANNOT_GET_ACCOUNT_STATUS,
         icon: 'none',
         duration: 2000
       })

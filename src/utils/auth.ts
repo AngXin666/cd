@@ -12,6 +12,7 @@ import {clearAllCache, apiCache, clearAllRepositoryCache} from './cache'
 import {createLogger} from './logger'
 import {hideLoading} from './taroCompat'
 import {clearSession, stopRealtimeMonitor} from './sessionManager'
+import {SUCCESS_MESSAGES, ERROR_MESSAGES} from '@/constants/messages'
 
 const logger = createLogger('Auth')
 
@@ -157,7 +158,7 @@ export async function smartLogout(): Promise<void> {
 
     // 显示退出成功提示
     Taro.showToast({
-      title: '已退出登录',
+      title: SUCCESS_MESSAGES.LOGOUT,
       icon: 'success',
       duration: 1500
     })
@@ -185,7 +186,7 @@ export async function smartLogout(): Promise<void> {
     isLoggingOut = false
     logger.error('退出登录失败', error)
     Taro.showToast({
-      title: '退出登录失败',
+      title: ERROR_MESSAGES.LOGOUT,
       icon: 'none'
     })
   }

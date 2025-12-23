@@ -1,3 +1,8 @@
+/**
+ * 仓库编辑页面
+ * 提供仓库基本信息、品类价格、管理员、考勤规则的编辑功能
+ * @module pages/super-admin/warehouse-edit
+ */
 import {Button, Input, Picker, ScrollView, Switch, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {hideLoading, showLoading, showModal, showToast} from '@/utils/taroCompat'
@@ -6,6 +11,16 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {
+  BUSINESS_MESSAGES,
+  ERROR_MESSAGES,
+  FORMAT_MESSAGES,
+  REQUIRED_MESSAGES,
+  SELECT_MESSAGES,
+  SUCCESS_MESSAGES,
+  getImportSuccessMessage,
+  getPriceValidationMessage,
+} from '@/constants/messages'
 import * as AttendanceAPI from '@/db/api/attendance'
 import * as PieceworkAPI from '@/db/api/piecework'
 import * as UsersAPI from '@/db/api/users'
@@ -78,7 +93,7 @@ const WarehouseEdit: React.FC = () => {
       }
     } catch (error) {
       console.error('[仓库管理-编辑仓库] 加载仓库信息失败:', error)
-      showToast({title: '加载失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.LOAD, icon: 'error'})
     } finally {
       hideLoading()
     }
@@ -187,7 +202,7 @@ const WarehouseEdit: React.FC = () => {
     if (id) {
       setWarehouseId(id)
     } else {
-      showToast({title: '缺少仓库ID', icon: 'error'})
+      showToast({title: BUSINESS_MESSAGES.MISSING_WAREHOUSE_ID, icon: 'error'})
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
@@ -284,14 +299,14 @@ const WarehouseEdit: React.FC = () => {
       const newSelected = new Set(selectedManagers)
       newSelected.add(currentUser.id)
       setSelectedManagers(newSelected)
-      showToast({title: '已添加自己为管理员', icon: 'success'})
+      showToast({title: SUCCESS_MESSAGES.ADDED_SELF_AS_MANAGER, icon: 'success'})
     }
   }
 
   // 从其他仓库复制配置
   const _handleCopyFromWarehouse = async () => {
     if (allWarehouses.length === 0) {
-      showToast({title: '暂无其他仓库', icon: 'none'})
+      showToast({title: BUSINESS_MESSAGES.NO_OTHER_WAREHOUSE, icon: 'none'})
       return
     }
 
@@ -349,10 +364,10 @@ const WarehouseEdit: React.FC = () => {
         setRuleActive(rule.is_active)
       }
 
-      showToast({title: '配置已复制', icon: 'success'})
+      showToast({title: SUCCESS_MESSAGES.CONFIG_COPIED, icon: 'success'})
     } catch (error) {
       console.error('复制配置失败:', error)
-      showToast({title: '复制失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.COPY, icon: 'error'})
     } finally {
       hideLoading()
     }
@@ -372,7 +387,7 @@ const WarehouseEdit: React.FC = () => {
     // 验证必填项
     if (!newCategoryName.trim()) {
       console.warn('[仓库管理-品类操作] 品类名称为空')
-      showToast({title: '请输入品类名称', icon: 'error'})
+      showToast({title: REQUIRED_MESSAGES.CATEGORY_NAME, icon: 'error'})
       return
     }
 
@@ -386,7 +401,7 @@ const WarehouseEdit: React.FC = () => {
 
       if (!newCategory) {
         console.error('[仓库管理-品类操作] 创建品类失败，返回null')
-        showToast({title: '创建品类失败', icon: 'error'})
+        showToast({title: BUSINESS_MESSAGES.CATEGORY_CREATE_FAILED, icon: 'error'})
         hideLoading()
         return
       }
@@ -423,18 +438,18 @@ const WarehouseEdit: React.FC = () => {
         newSortingPrices.set(newCategoryName.trim(), newCategorySortingPrice || '0')
         setCategorySortingPrices(newSortingPrices)
 
-        showToast({title: '品类创建成功', icon: 'success'})
+        showToast({title: BUSINESS_MESSAGES.CATEGORY_CREATED, icon: 'success'})
         setShowNewCategoryDialog(false)
 
         // 清除缓存
         onDataUpdated([CACHE_KEYS.WAREHOUSE_CATEGORIES])
       } else {
         console.error('[仓库管理-品类操作] 品类价格创建失败')
-        showToast({title: '创建失败', icon: 'error'})
+        showToast({title: ERROR_MESSAGES.CREATE, icon: 'error'})
       }
     } catch (error) {
       console.error('[仓库管理-品类操作] 创建品类异常:', error)
-      showToast({title: '创建失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.CREATE, icon: 'error'})
     } finally {
       hideLoading()
     }
@@ -452,7 +467,7 @@ const WarehouseEdit: React.FC = () => {
       setAllWarehouses(others)
 
       if (others.length === 0) {
-        showToast({title: '暂无其他仓库', icon: 'none'})
+        showToast({title: BUSINESS_MESSAGES.NO_OTHER_WAREHOUSE, icon: 'none'})
         return
       }
 
@@ -460,7 +475,7 @@ const WarehouseEdit: React.FC = () => {
       setShowImportDialog(true)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
-      showToast({title: '加载仓库列表失败', icon: 'error'})
+      showToast({title: BUSINESS_MESSAGES.LOAD_WAREHOUSE_LIST_FAILED, icon: 'error'})
     }
   }
 
@@ -468,7 +483,7 @@ const WarehouseEdit: React.FC = () => {
   const handleImportCategories = async () => {
     if (!selectedWarehouseForImport) {
       console.warn('[仓库管理-导入品类] 未选择仓库')
-      showToast({title: '请选择仓库', icon: 'error'})
+      showToast({title: SELECT_MESSAGES.WAREHOUSE, icon: 'error'})
       return
     }
 
@@ -478,7 +493,7 @@ const WarehouseEdit: React.FC = () => {
       const prices = await PieceworkAPI.getCategoryPricesByWarehouse(selectedWarehouseForImport)
       if (prices.length === 0) {
         console.warn('[仓库管理-导入品类] 源仓库没有品类配置')
-        showToast({title: '该仓库暂无品类配置', icon: 'none'})
+        showToast({title: BUSINESS_MESSAGES.NO_CATEGORY_CONFIG, icon: 'none'})
         hideLoading()
         return
       }
@@ -504,7 +519,7 @@ const WarehouseEdit: React.FC = () => {
       const categories = await PieceworkAPI.getAllCategories()
       setAllCategories(categories)
 
-      showToast({title: `成功导入 ${prices.length} 个品类`, icon: 'success'})
+      showToast({title: getImportSuccessMessage(prices.length, '品类'), icon: 'success'})
       setShowImportDialog(false)
     } catch (error) {
       console.error('[仓库管理-导入品类] 导入品类失败:', error)
@@ -519,13 +534,13 @@ const WarehouseEdit: React.FC = () => {
     // 验证必填项
     if (!name.trim()) {
       console.warn('[仓库管理-保存操作] 仓库名称为空')
-      showToast({title: '请输入仓库名称', icon: 'error'})
+      showToast({title: REQUIRED_MESSAGES.WAREHOUSE_NAME, icon: 'error'})
       return
     }
 
     if (selectedManagers.size === 0) {
       console.warn('[仓库管理-保存操作] 未选择管理员')
-      showToast({title: '请至少选择一个管理员', icon: 'error'})
+      showToast({title: SELECT_MESSAGES.AT_LEAST_ONE_MANAGER, icon: 'error'})
       return
     }
 
@@ -534,7 +549,7 @@ const WarehouseEdit: React.FC = () => {
       const targetNum = Number(dailyTarget)
       if (Number.isNaN(targetNum) || targetNum < 0) {
         console.warn('[仓库管理-保存操作] 每日指标格式不正确', {dailyTarget})
-        showToast({title: '每日指标必须是非负整数', icon: 'error'})
+        showToast({title: FORMAT_MESSAGES.INVALID_DAILY_TARGET, icon: 'error'})
         return
       }
     }
@@ -551,7 +566,7 @@ const WarehouseEdit: React.FC = () => {
           categoryName: category?.category_name,
           driverPrice
         })
-        showToast({title: `请为品类"${category?.category_name}"设置有效的纯司机单价`, icon: 'error'})
+        showToast({title: getPriceValidationMessage(category?.category_name || '', 'driver'), icon: 'error'})
         return
       }
 
@@ -561,7 +576,7 @@ const WarehouseEdit: React.FC = () => {
           categoryName: category?.category_name,
           vehiclePrice
         })
-        showToast({title: `请为品类"${category?.category_name}"设置有效的带车司机单价`, icon: 'error'})
+        showToast({title: getPriceValidationMessage(category?.category_name || '', 'vehicle'), icon: 'error'})
         return
       }
     }
@@ -661,13 +676,13 @@ const WarehouseEdit: React.FC = () => {
         CACHE_KEYS.DASHBOARD_DATA
       ])
 
-      showToast({title: '保存成功', icon: 'success'})
+      showToast({title: SUCCESS_MESSAGES.SAVE, icon: 'success'})
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
     } catch (error) {
       console.error('[仓库管理-保存操作] 保存失败:', error)
-      showToast({title: '保存失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.SAVE, icon: 'error'})
     } finally {
       hideLoading()
     }

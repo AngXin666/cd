@@ -20,6 +20,7 @@ import {initMigrations} from '@/db/migrations/runMigrations'
 import {realtimeCacheInvalidator} from '@/db/realtime'
 import {UnifiedUpdateService} from '@/services/unifiedUpdateService'
 import {capacitorApp, capacitorSplashScreen, capacitorStatusBar} from '@/utils/capacitor'
+import {h5BackNavigationManager} from '@/utils/h5BackNavigation'
 import {setCurrentUserId, setupGlobalErrorHandler} from '@/utils/logger'
 import {platformExecute} from '@/utils/platform'
 import {initTaroCompat} from '@/utils/taroCompat'
@@ -43,6 +44,10 @@ const initializePlatform = async () => {
   // H5初始化
   platformExecute.onH5(() => {
     console.log('H5环境初始化')
+    
+    // 初始化 H5 返回导航管理器
+    // 工作台页面阻止返回，普通页面正常返回
+    h5BackNavigationManager.initialize()
   })
 
   // 安卓APP初始化

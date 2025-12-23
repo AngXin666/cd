@@ -12,7 +12,7 @@ import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import * as WarehousesAPI from '@/db/api/warehouses'
 import type {Profile, Warehouse} from '@/db/types'
-import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
+import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 
 // 创建页面日志记录器
@@ -91,27 +91,14 @@ const DriverManagement: React.FC = () => {
     return result
   }, [drivers, searchKeyword, warehouses, currentWarehouseIndex, driverWarehouseMap])
 
-  // 加载司机列表
-  const loadDrivers = useCallback(async (forceRefresh: boolean = false) => {
-    // 如果不是强制刷新，先尝试从缓存加载
-    if (!forceRefresh) {
-      const cachedDrivers = getVersionedCache<DriverWithRealName[]>(CACHE_KEYS.MANAGER_DRIVERS)
-      const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.MANAGER_DRIVER_DETAILS)
-      const cachedWarehouseMap = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES)
-
-      if (cachedDrivers && cachedDetails && cachedWarehouseMap) {
-        setDrivers(cachedDrivers)
-        // 将普通对象转换为 Map
-        const detailsMap = new Map(Object.entries(cachedDetails))
-        setDriverDetails(detailsMap)
-        const warehouseMap = new Map(Object.entries(cachedWarehouseMap))
-        setDriverWarehouseMap(warehouseMap)
-        return
-      }
-    }
-
-    // 从数据库加载
+  /**
+   * 加载司机列表
+   * 直接调用 API 层获取数据，Repository 层已有缓存机制
+   * @param _forceRefresh - 保留参数以保持接口兼容性（Repository 层自动处理缓存）
+   */
+  const loadDrivers = useCallback(async (_forceRefresh: boolean = false) => {
     try {
+      // 直接调用 API 层获取司机列表（Repository 层已有 5 分钟缓存）
       const driverList = await UsersAPI.getAllDriversWithRealName()
       setDrivers(driverList)
 
@@ -123,29 +110,21 @@ const DriverManagement: React.FC = () => {
         Promise.all(warehousePromises)
       ])
 
+      // 构建司机详细信息映射
       const detailsMap = new Map<string, DriverDetailInfo>()
-      const warehouseMap = new Map<string, string[]>()
-
       detailsResults.forEach((detail, index) => {
         if (detail) {
           detailsMap.set(driverList[index].id, detail)
         }
       })
+      setDriverDetails(detailsMap)
 
+      // 构建司机-仓库分配映射
+      const warehouseMap = new Map<string, string[]>()
       warehouseResults.forEach((warehouseIds, index) => {
         warehouseMap.set(driverList[index].id, warehouseIds)
       })
-
-      setDriverDetails(detailsMap)
       setDriverWarehouseMap(warehouseMap)
-
-      // 使用带版本号的缓存（5分钟有效期）
-      setVersionedCache(CACHE_KEYS.MANAGER_DRIVERS, driverList, 5 * 60 * 1000)
-      // Map 需要转换为普通对象才能缓存
-      const detailsObj = Object.fromEntries(detailsMap)
-      setVersionedCache(CACHE_KEYS.MANAGER_DRIVER_DETAILS, detailsObj, 5 * 60 * 1000)
-      const warehouseObj = Object.fromEntries(warehouseMap)
-      setVersionedCache(CACHE_KEYS.MANAGER_DRIVER_WAREHOUSES, warehouseObj, 5 * 60 * 1000)
     } catch (error) {
       logger.error('加载司机列表失败', error)
     }

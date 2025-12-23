@@ -255,6 +255,164 @@ export async function updateOrderStatus(
 
 ---
 
+## 统一数据获取模式
+
+### 仓库-司机关系获取（推荐模式）
+
+当需要获取仓库与司机的关联关系时，使用以下统一模式：
+
+```typescript
+/**
+ * 加载数据并构建仓库-司机映射
+ */
+const loadData = async () => {
+  // 1. 获取所有仓库-司机分配关系
+  const allDriverWarehouses = await WarehousesAPI.getAllDriverWarehouses()
+
+  // 2. 构建 warehouseDriversMap 映射（仓库 → 司机列表）
+  const warehouseDriversMapping = new Map<string, string[]>()
+  for (const assignment of allDriverWarehouses) {
+    if (!warehouseDriversMapping.has(assignment.warehouse_id)) {
+      warehouseDriversMapping.set(assignment.warehouse_id, [])
+    }
+    warehouseDriversMapping.get(assignment.warehouse_id)!.push(assignment.user_id)
+  }
+  setWarehouseDriversMap(warehouseDriversMapping)
+
+  // 3. 获取其他数据...
+}
+
+/**
+ * 按仓库筛选司机
+ */
+const getDriversByWarehouse = (warehouseId: string) => {
+  const assignedDriverIds = warehouseDriversMap.get(warehouseId) || []
+  return drivers.filter(d => assignedDriverIds.includes(d.id))
+}
+```
+
+#### 使用此模式的页面
+
+| 页面 | 用途 |
+|------|------|
+| `super-admin/leave-approval` | 按仓库筛选请假司机 |
+| `super-admin/piece-work-report` | 按仓库筛选计件司机 |
+| `super-admin/user-management` | 显示用户关联的仓库 |
+| `manager/piece-work-report` | 按仓库筛选计件司机 |
+
+---
+
+## 各角色数据获取规范
+
+### 仓库列表获取
+
+根据用户角色使用不同的 API 获取仓库列表：
+
+| 角色 | API 方法 | 说明 |
+|------|---------|------|
+| BOSS (super-admin) | `WarehousesAPI.getAllWarehouses()` | 获取所有仓库 |
+| MANAGER | `WarehousesAPI.getManagerWarehouses(userId)` | 获取管理员负责的仓库 |
+| DRIVER | `WarehousesAPI.getDriverWarehouses(userId)` | 获取司机分配的仓库 |
+
+```typescript
+// BOSS 角色示例
+const loadWarehousesForBoss = async () => {
+  const warehouses = await WarehousesAPI.getAllWarehouses()
+  // 或使用 getAllWarehousesWithRules() 获取含规则的仓库
+  setWarehouses(warehouses)
+}
+
+// MANAGER 角色示例
+const loadWarehousesForManager = async (userId: string) => {
+  const warehouses = await WarehousesAPI.getManagerWarehouses(userId)
+  setWarehouses(warehouses)
+}
+
+// DRIVER 角色示例
+const loadWarehousesForDriver = async (userId: string) => {
+  const warehouses = await WarehousesAPI.getDriverWarehouses(userId)
+  setWarehouses(warehouses)
+}
+```
+
+### 司机列表获取
+
+根据使用场景选择合适的 API：
+
+| 场景 | API 方法 | 说明 |
+|------|---------|------|
+| 获取所有司机 | `UsersAPI.getDriverProfiles()` | 基本司机信息 |
+| 获取司机含实名 | `UsersAPI.getAllDriversWithRealName()` | 包含驾驶证实名信息 |
+| 获取特定仓库司机 | `WarehousesAPI.getDriversByWarehouse(warehouseId)` | 按仓库筛选 |
+| 获取所有用户 | `UsersAPI.getAllProfiles()` | 所有角色用户 |
+
+```typescript
+// 获取所有司机（基本信息）
+const loadDrivers = async () => {
+  const drivers = await UsersAPI.getDriverProfiles()
+  setDrivers(drivers)
+}
+
+// 获取司机含实名信息（用于显示真实姓名）
+const loadDriversWithRealName = async () => {
+  const drivers = await UsersAPI.getAllDriversWithRealName()
+  setDrivers(drivers)
+}
+
+// 获取特定仓库的司机
+const loadWarehouseDrivers = async (warehouseId: string) => {
+  const drivers = await WarehousesAPI.getDriversByWarehouse(warehouseId)
+  setDrivers(drivers)
+}
+```
+
+### 当前用户信息获取
+
+| 场景 | 方法 | 说明 |
+|------|------|------|
+| 基本认证信息 | `useAuth()` Hook | 来自 Supabase Auth |
+| 完整用户信息 | `useUserContext()` Hook | 包含 role, name, phone 等 |
+| 用户档案 | `UsersAPI.getCurrentUserProfile()` | 获取当前用户档案 |
+| 用户档案含实名 | `UsersAPI.getCurrentUserWithRealName()` | 包含驾驶证实名 |
+| 用户权限 | `UsersAPI.getCurrentUserPermissions()` | 获取权限配置 |
+
+```typescript
+// 在组件中获取当前用户
+const MyComponent = () => {
+  const { user } = useAuth()           // 基本认证信息
+  const { userInfo } = useUserContext() // 完整用户信息
+  
+  // 根据角色加载数据
+  useEffect(() => {
+    if (userInfo?.role === 'BOSS') {
+      loadDataForBoss()
+    } else if (userInfo?.role === 'MANAGER') {
+      loadDataForManager(user.id)
+    } else if (userInfo?.role === 'DRIVER') {
+      loadDataForDriver(user.id)
+    }
+  }, [userInfo])
+}
+```
+
+---
+
+## Repository 缓存 TTL 配置参考
+
+| Repository | TTL | 说明 |
+|------------|-----|------|
+| WarehousesRepository | 10 分钟 | 仓库信息变化不频繁 |
+| WarehouseAssignmentsRepository | 5 分钟 | 仓库分配关系 |
+| UsersRepository | 5 分钟 | 用户信息 |
+| VehiclesRepository | 5 分钟 | 车辆信息 |
+| CategoriesRepository | 10 分钟 | 品类信息 |
+| AttendanceRepository | 2 分钟 | 考勤记录变化频繁 |
+| PieceWorkRepository | 2 分钟 | 计件记录变化频繁 |
+| LeaveRepository | 2 分钟 | 请假申请变化频繁 |
+| NotificationsRepository | 1 分钟 | 通知需要及时更新 |
+
+---
+
 ## 如何配置缓存
 
 ### 缓存配置选项
@@ -326,6 +484,63 @@ ordersRepository.clearCacheByUser('user-123')
 ---
 
 ## 最佳实践
+
+### 🚨 重要：不要使用页面级缓存
+
+> **强制规则**：所有缓存必须由 Repository 层统一管理，页面组件不应该实现自己的缓存逻辑！
+
+#### 为什么不要使用页面级缓存？
+
+1. **缓存不一致**：页面级缓存和 Repository 缓存可能存储不同版本的数据
+2. **重复缓存**：同一数据被缓存两次，浪费内存
+3. **失效困难**：数据更新时需要同时清除多处缓存
+4. **维护复杂**：每个页面都有自己的缓存逻辑，难以统一管理
+
+#### 错误示例（不要这样做）
+
+```typescript
+// ❌ 错误：在页面中实现自己的缓存
+import { getVersionedCache, setVersionedCache } from '@/utils/cache'
+
+const loadData = async () => {
+  // 不要这样做！
+  const cached = getVersionedCache('page_data_key')
+  if (cached) {
+    setData(cached)
+    return
+  }
+  
+  const data = await SomeAPI.getData()
+  setVersionedCache('page_data_key', data)
+  setData(data)
+}
+```
+
+#### 正确示例
+
+```typescript
+// ✅ 正确：直接调用 API，让 Repository 层管理缓存
+const loadData = async () => {
+  const data = await SomeAPI.getData()  // Repository 层已有缓存
+  setData(data)
+}
+
+// ✅ 正确：需要强制刷新时，使用 useCache: false
+const handleRefresh = async () => {
+  const data = await SomeAPI.getData({ useCache: false })
+  setData(data)
+}
+```
+
+#### 已移除页面级缓存的页面
+
+以下页面已完成页面级缓存移除，可作为参考：
+- `super-admin/user-management` - 用户管理
+- `manager/piece-work-report` - 件数报表
+- `manager/driver-management` - 司机管理
+- `driver/vehicle-list` - 车辆列表
+
+---
 
 ### 1. 始终使用 Repository 访问数据
 

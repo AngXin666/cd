@@ -31,45 +31,152 @@ export interface ShowToastOptions {
   mask?: boolean
 }
 
-// 当前显示的 toast 元素引用（用于 hideToast）
+// ============================================
+// Toast 状态管理
+// ============================================
+
+/** 当前显示的 toast 元素引用（用于 hideToast） */
 let currentToastElement: HTMLElement | null = null
-// 当前 toast 的定时器（用于清理）
+
+/** 当前 toast 的定时器（用于清理） */
 let currentToastTimer: ReturnType<typeof setTimeout> | null = null
+
+/** 上次显示的消息内容（用于防抖） */
+let lastToastMessage = ''
+
+/** 上次显示消息的时间戳（用于防抖） */
+let lastToastTime = 0
+
+/** 防抖时间间隔（毫秒）- 相同消息在此时间内不重复显示 */
+const TOAST_DEBOUNCE_INTERVAL = 1000
+
+/** 当前是否正在显示 Loading */
+let isLoadingShowing = false
+
+/** 待显示的 Toast（Loading 结束后显示） */
+let pendingToastOptions: ShowToastOptions | null = null
+
+/**
+ * 检查 Toast 消息是否应该被防抖过滤
+ * @param message - 消息内容
+ * @returns 是否应该过滤（true = 不显示）
+ */
+function shouldDebounceToast(message: string): boolean {
+  const now = Date.now()
+  
+  // 相同消息在防抖间隔内不重复显示
+  if (message === lastToastMessage && now - lastToastTime < TOAST_DEBOUNCE_INTERVAL) {
+    return true
+  }
+  
+  // 更新记录
+  lastToastMessage = message
+  lastToastTime = now
+  return false
+}
+
+/**
+ * 实际显示 Toast 的内部函数
+ * @param options - Toast 配置
+ */
+function showToastInternal(options: ShowToastOptions): void {
+  // 先清除已存在的 toast
+  hideToastInternal()
+  
+  // H5环境使用自定义toast组件（原生DOM实现，轻量无依赖）
+  if (options.icon !== 'loading') {
+    // 创建自定义toast元素
+    const toast = document.createElement('div')
+    toast.id = 'taro-compat-toast'
+    toast.innerText = options.title
+    toast.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 9999;
+      max-width: 80%;
+      text-align: center;
+      word-wrap: break-word;
+    `
+    document.body.appendChild(toast)
+    currentToastElement = toast
+
+    // 设置自动隐藏定时器
+    currentToastTimer = setTimeout(() => {
+      hideToastInternal()
+      // 检查是否有待显示的 Toast
+      if (pendingToastOptions) {
+        const pending = pendingToastOptions
+        pendingToastOptions = null
+        showToastInternal(pending)
+      }
+    }, options.duration || 1500)
+  }
+}
+
+/**
+ * 内部隐藏 Toast 函数
+ */
+function hideToastInternal(): void {
+  // 清除定时器
+  if (currentToastTimer) {
+    clearTimeout(currentToastTimer)
+    currentToastTimer = null
+  }
+  
+  // 移除当前 toast 元素
+  if (currentToastElement) {
+    try {
+      if (document.body.contains(currentToastElement)) {
+        document.body.removeChild(currentToastElement)
+      }
+    } catch (e) {
+      // 忽略移除错误
+    }
+    currentToastElement = null
+  }
+  
+  // 也尝试通过 ID 移除（以防引用丢失）
+  const existingToast = document.getElementById('taro-compat-toast')
+  if (existingToast) {
+    try {
+      existingToast.remove()
+    } catch (e) {
+      // 忽略移除错误
+    }
+  }
+}
 
 export function showToast(options: ShowToastOptions): void {
   if (isH5) {
-    // 先清除已存在的 toast
-    hideToast()
-    
-    // H5环境使用自定义toast组件（原生DOM实现，轻量无依赖）
-    if (options.icon !== 'loading') {
-      // 创建自定义toast元素
-      const toast = document.createElement('div')
-      toast.id = 'taro-compat-toast'
-      toast.innerText = options.title
-      toast.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        z-index: 9999;
-        max-width: 80%;
-        text-align: center;
-        word-wrap: break-word;
-      `
-      document.body.appendChild(toast)
-      currentToastElement = toast
-
-      // 设置自动隐藏定时器
-      currentToastTimer = setTimeout(() => {
-        hideToast()
-      }, options.duration || 1500)
+    // 空消息不显示
+    if (!options.title || !options.title.trim()) {
+      return
     }
+    
+    // 防抖检查
+    if (shouldDebounceToast(options.title)) {
+      return
+    }
+    
+    // 如果正在显示 Loading，将 Toast 加入待显示队列（错误消息除外）
+    if (isLoadingShowing && options.icon !== 'error') {
+      pendingToastOptions = options
+      return
+    }
+    
+    // 错误消息优先级高，先隐藏 Loading
+    if (isLoadingShowing && options.icon === 'error') {
+      hideLoading()
+    }
+    
+    showToastInternal(options)
   } else {
     Taro.showToast(options)
   }
@@ -81,33 +188,8 @@ export function showToast(options: ShowToastOptions): void {
  */
 export function hideToast(): void {
   if (isH5) {
-    // 清除定时器
-    if (currentToastTimer) {
-      clearTimeout(currentToastTimer)
-      currentToastTimer = null
-    }
-    
-    // 移除当前 toast 元素
-    if (currentToastElement) {
-      try {
-        if (document.body.contains(currentToastElement)) {
-          document.body.removeChild(currentToastElement)
-        }
-      } catch (e) {
-        // 忽略移除错误
-      }
-      currentToastElement = null
-    }
-    
-    // 也尝试通过 ID 移除（以防引用丢失）
-    const existingToast = document.getElementById('taro-compat-toast')
-    if (existingToast) {
-      try {
-        existingToast.remove()
-      } catch (e) {
-        // 忽略移除错误
-      }
-    }
+    hideToastInternal()
+    pendingToastOptions = null
   } else {
     Taro.hideToast()
   }
@@ -125,8 +207,12 @@ let loadingElement: HTMLElement | null = null
 
 export function showLoading(options: ShowLoadingOptions): void {
   if (isH5) {
-    // 先移除已存在的 loading
+    // 先移除已存在的 loading 和 toast
     hideLoading()
+    hideToastInternal()
+    
+    // 更新状态
+    isLoadingShowing = true
     
     // 创建新的 loading 元素
     loadingElement = document.createElement('div')
@@ -176,6 +262,9 @@ export function showLoading(options: ShowLoadingOptions): void {
  */
 export function hideLoading(): void {
   if (isH5) {
+    // 更新状态
+    isLoadingShowing = false
+    
     // 移除我们自定义的 loading
     if (loadingElement) {
       try {
@@ -196,6 +285,16 @@ export function hideLoading(): void {
       } catch (e) {
         // 忽略移除错误
       }
+    }
+    
+    // 显示待显示的 Toast（如果有）
+    if (pendingToastOptions) {
+      const pending = pendingToastOptions
+      pendingToastOptions = null
+      // 延迟一点显示，避免视觉冲突
+      setTimeout(() => {
+        showToastInternal(pending)
+      }, 100)
     }
   } else {
     Taro.hideLoading()

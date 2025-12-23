@@ -30,7 +30,7 @@ import {usersRepository, warehouseAssignmentsRepository, convertUserToProfile} f
 import type {Profile, UserRole, Warehouse} from '@/db/types'
 import {useMultiEventSubscription} from '@/hooks/useEventSubscription'
 import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
-import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
+import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 import {sendDebouncedNotification} from '@/utils/notificationDebounce'
 import {
   buildDriverTypeChangeMessage,
@@ -87,6 +87,10 @@ const UserManagement: React.FC = () => {
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
   // 存储每个用户的仓库ID列表（用于过滤）
   const [userWarehouseIdsMap, setUserWarehouseIdsMap] = useState<Map<string, string[]>>(new Map())
+  // 仓库-用户分配映射：warehouseId -> userIds[]（统一模式）
+  // 使用 WarehousesAPI.getAllDriverWarehouses() 获取分配关系并构建映射
+  // @requirements 2.1, 2.2
+  const [warehouseDriversMap, setWarehouseDriversMap] = useState<Map<string, string[]>>(new Map())
 
   // 添加用户相关状态
   const [showAddUser, setShowAddUser] = useState(false)
@@ -137,16 +141,21 @@ const UserManagement: React.FC = () => {
     }
 
     // 仓库过滤（对司机和车队长生效，老板和调度不受仓库过滤限制）
+    // 使用统一的 warehouseDriversMap 模式进行仓库筛选
+    // @requirements 2.1, 2.2
     if (warehouses.length > 0 && warehouses[currentWarehouseIndex]) {
       const currentWarehouseId = warehouses[currentWarehouseIndex].id
+      // 获取当前仓库分配的用户ID列表（统一模式）
+      const assignedUserIds = warehouseDriversMap.get(currentWarehouseId) || []
       filtered = filtered.filter((u) => {
         // 老板和调度不受仓库过滤限制，始终显示
         if (u.role === 'BOSS' || u.role === 'PEER_ADMIN') {
           return true
         }
-        const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
+        // 使用 warehouseDriversMap 进行筛选（统一模式）
         // 包含分配到该仓库的用户，以及未分配任何仓库的用户（新用户）
-        return userWarehouseIds.includes(currentWarehouseId) || userWarehouseIds.length === 0
+        const userWarehouseIds = userWarehouseIdsMap.get(u.id) || []
+        return assignedUserIds.includes(u.id) || userWarehouseIds.length === 0
       })
     }
 
@@ -174,6 +183,7 @@ const UserManagement: React.FC = () => {
     currentWarehouseIndex,
     warehouses,
     userWarehouseIdsMap,
+    warehouseDriversMap, // 添加统一模式的依赖项
     currentUserProfile,
     user
   ])
@@ -185,9 +195,14 @@ const UserManagement: React.FC = () => {
     setWarehouses(data.filter((w) => w.is_active))
   }, [])
 
-  // 加载用户列表
+  /**
+   * 加载用户列表
+   * 直接调用 API 层函数，Repository 层已有缓存管理
+   * 移除了页面级缓存，避免缓存不一致问题
+   * @requirements 1.1, 4.1, 4.2
+   */
   const loadUsers = useCallback(
-    async (forceRefresh: boolean = false) => {
+    async () => {
       // 先加载当前登录用户的完整信息（包括 main_account_id）
       // 使用 UsersRepository 替代直接 supabase 调用
       if (!currentUserProfile && user) {
@@ -205,30 +220,32 @@ const UserManagement: React.FC = () => {
         }
       }
 
-      // 如果不是强制刷新，先尝试从缓存加载
-      if (!forceRefresh) {
-        const cachedUsers = getVersionedCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
-        const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
-        const cachedWarehouseIds = getVersionedCache<Map<string, string[]>>(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES)
-
-        if (cachedUsers && cachedDetails && cachedWarehouseIds) {
-          setUsers(cachedUsers)
-          // 将普通对象转换为 Map
-          const detailsMap = new Map(Object.entries(cachedDetails))
-          setUserDetails(detailsMap)
-          const warehouseIdsMap = new Map(Object.entries(cachedWarehouseIds))
-          setUserWarehouseIdsMap(warehouseIdsMap)
-          return
-        }
-      }
-
-      // 从数据库加载
+      // 直接从 API 层加载数据（Repository 层已有缓存）
       showLoading({title: '加载中...'})
       try {
+        // 调用 API 层函数，Repository 层自动处理缓存
         const data = await UsersAPI.getAllUsers()
 
         // 批量并行加载：真实姓名、详细信息、仓库分配（优化性能）
         const allWarehouses = await WarehousesAPI.getAllWarehouses()
+
+        // 获取所有仓库-用户分配关系（统一模式）
+        // 使用 WarehousesAPI.getAllDriverWarehouses() 获取分配关系
+        // Repository 缓存 TTL 5 分钟
+        // @requirements 2.1, 2.2
+        const allDriverWarehouses = await WarehousesAPI.getAllDriverWarehouses()
+
+        // 构建仓库ID -> 用户ID列表的映射（warehouseDriversMap）
+        // 这是统一模式的核心数据结构，用于按仓库筛选用户
+        const warehouseDriversMapping = new Map<string, string[]>()
+        for (const assignment of allDriverWarehouses) {
+          const warehouseId = assignment.warehouse_id
+          if (!warehouseDriversMapping.has(warehouseId)) {
+            warehouseDriversMapping.set(warehouseId, [])
+          }
+          warehouseDriversMapping.get(warehouseId)!.push(assignment.user_id)
+        }
+        setWarehouseDriversMap(warehouseDriversMapping)
 
         const userDataPromises = data.map(async (u) => {
           // 并行加载每个用户的所有信息
@@ -280,14 +297,7 @@ const UserManagement: React.FC = () => {
         setUserDetails(driverDetails)
         setDriverWarehouseMap(driverWarehouses)
         setUserWarehouseIdsMap(userWarehouseIds)
-
-        // 使用带版本号的缓存（5分钟有效期）
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
-        // Map 需要转换为普通对象才能缓存
-        const detailsObj = Object.fromEntries(driverDetails)
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
-        const warehouseIdsObj = Object.fromEntries(userWarehouseIds)
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_WAREHOUSES, warehouseIdsObj, 5 * 60 * 1000)
+        // 注意：移除了页面级缓存，Repository 层已有缓存管理
       } catch (error) {
         console.error('❌ 加载用户列表失败:', error)
         showToast({title: '加载失败', icon: 'error'})
@@ -532,9 +542,9 @@ const UserManagement: React.FC = () => {
             setNewDriverType('pure')
             setNewUserWarehouseIds([])
             setShowAddUser(false)
-            // 数据更新，增加版本号并清除相关缓存
+            // 数据更新，触发事件通知其他组件
             onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-            loadUsers(true)
+            loadUsers()
           }
         })
       } else {
@@ -660,9 +670,9 @@ const UserManagement: React.FC = () => {
           console.error('❌ 发送司机类型变更通知失败:', error)
         }
 
-        // 数据更新，增加版本号并清除相关缓存
+        // 数据更新，触发事件通知其他组件
         onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-        await loadUsers(true)
+        await loadUsers()
         // 重新加载该用户的详细信息
         const detail = await VehiclesAPI.getDriverDetailInfo(targetUser.id)
         if (detail) {
@@ -939,15 +949,15 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
 
   // 页面显示时加载数据（批量并行查询优化）
   useDidShow(() => {
-    // 批量并行刷新，不使用缓存
-    Promise.all([loadUsers(true), loadWarehouses()]).catch((error) => {
+    // 批量并行刷新数据
+    Promise.all([loadUsers(), loadWarehouses()]).catch((error) => {
       console.error('[UserManagement] 批量刷新数据失败:', error)
     })
   })
 
   // 下拉刷新
   usePullDownRefresh(async () => {
-    await Promise.all([loadUsers(true), loadWarehouses()])
+    await Promise.all([loadUsers(), loadWarehouses()])
     Taro.stopPullDownRefresh()
   })
 
@@ -987,7 +997,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
         })
 
         // 刷新用户列表
-        loadUsers(true)
+        loadUsers()
       },
       [loadUsers]
     ),
@@ -1017,7 +1027,7 @@ ${selectedWarehouseIds.length === 0 ? '（将清除该用户的所有仓库分�
     ],
     useCallback(() => {
       console.log('[用户管理] 收到本地用户事件，刷新数据')
-      loadUsers(true)
+      loadUsers()
     }, [loadUsers])
   )
 

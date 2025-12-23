@@ -1,3 +1,8 @@
+/**
+ * 员工管理页面
+ * 提供管理员和司机的管理功能，包括查看、编辑、权限设置等
+ * @module pages/super-admin/staff-management
+ */
 import {Button, Input, ScrollView, Swiper, SwiperItem, Text, View} from '@tarojs/components'
 import Taro, {navigateTo, useDidShow, usePullDownRefresh} from '@tarojs/taro'
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
@@ -6,6 +11,12 @@ import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import {
+  BUSINESS_MESSAGES,
+  ERROR_MESSAGES,
+  REQUIRED_MESSAGES,
+  SUCCESS_MESSAGES,
+} from '@/constants/messages'
 import * as NotificationsAPI from '@/db/api/notifications'
 import * as UsersAPI from '@/db/api/users'
 import * as WarehousesAPI from '@/db/api/warehouses'
@@ -47,7 +58,7 @@ const StaffManagement: React.FC = () => {
       setWarehouses(enabledWarehouses)
     } catch (error) {
       console.error('加载仓库列表失败:', error)
-      showToast({title: '加载仓库失败', icon: 'error'})
+      showToast({title: BUSINESS_MESSAGES.LOAD_WAREHOUSE_FAILED, icon: 'error'})
     }
   }, [])
 
@@ -77,7 +88,7 @@ const StaffManagement: React.FC = () => {
       setManagerPermissions(permissionMap)
     } catch (error) {
       console.error('加载管理员列表失败:', error)
-      showToast({title: '加载管理员失败', icon: 'error'})
+      showToast({title: BUSINESS_MESSAGES.LOAD_MANAGER_FAILED, icon: 'error'})
     } finally {
       hideLoading()
     }
@@ -145,7 +156,7 @@ const StaffManagement: React.FC = () => {
         filterDrivers(data, searchKeyword, driverTypeFilter)
       } catch (error) {
         console.error('加载司机列表失败:', error)
-        showToast({title: '加载司机失败', icon: 'error'})
+        showToast({title: BUSINESS_MESSAGES.LOAD_DRIVER_FAILED, icon: 'error'})
       } finally {
         hideLoading()
       }
@@ -193,13 +204,13 @@ const StaffManagement: React.FC = () => {
       try {
         const success = await UsersAPI.resetUserPassword(userId)
         if (success) {
-          showToast({title: '密码已重置', icon: 'success'})
+          showToast({title: SUCCESS_MESSAGES.PASSWORD_RESET, icon: 'success'})
         } else {
-          showToast({title: '重置失败', icon: 'error'})
+          showToast({title: ERROR_MESSAGES.RESET, icon: 'error'})
         }
       } catch (error) {
         console.error('重置密码失败:', error)
-        showToast({title: '重置失败', icon: 'error'})
+        showToast({title: ERROR_MESSAGES.RESET, icon: 'error'})
       } finally {
         hideLoading()
       }
@@ -226,15 +237,15 @@ const StaffManagement: React.FC = () => {
         try {
           const success = await UsersAPI.updateUserRole(userId, newRole)
           if (success) {
-            showToast({title: '角色变更成功', icon: 'success'})
+            showToast({title: BUSINESS_MESSAGES.ROLE_CHANGED, icon: 'success'})
             // 刷新管理员列表
             loadManagers()
           } else {
-            showToast({title: '角色变更失败', icon: 'error'})
+            showToast({title: BUSINESS_MESSAGES.ROLE_CHANGE_FAILED, icon: 'error'})
           }
         } catch (error) {
           console.error('变更角色失败:', error)
-          showToast({title: '角色变更失败', icon: 'error'})
+          showToast({title: BUSINESS_MESSAGES.ROLE_CHANGE_FAILED, icon: 'error'})
         } finally {
           hideLoading()
         }
@@ -339,7 +350,7 @@ const StaffManagement: React.FC = () => {
     if (!editingManager) return
 
     if (!editForm.name.trim()) {
-      showToast({title: '请输入姓名', icon: 'none'})
+      showToast({title: REQUIRED_MESSAGES.NAME, icon: 'none'})
       return
     }
 
@@ -352,15 +363,15 @@ const StaffManagement: React.FC = () => {
       })
 
       if (success) {
-        showToast({title: '保存成功', icon: 'success'})
+        showToast({title: SUCCESS_MESSAGES.SAVE, icon: 'success'})
         handleCancelEdit()
         loadManagers()
       } else {
-        showToast({title: '保存失败', icon: 'error'})
+        showToast({title: ERROR_MESSAGES.SAVE, icon: 'error'})
       }
     } catch (error) {
       console.error('保存管理员信息失败:', error)
-      showToast({title: '保存失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.SAVE, icon: 'error'})
     } finally {
       hideLoading()
     }
@@ -370,7 +381,7 @@ const StaffManagement: React.FC = () => {
   const handleAssignWarehouseToManager = useCallback(
     (managerId: string, managerName: string) => {
       if (warehouses.length === 0) {
-        showToast({title: '暂无可分配的仓库', icon: 'none'})
+        showToast({title: BUSINESS_MESSAGES.NO_ASSIGNABLE_WAREHOUSE, icon: 'none'})
         return
       }
 

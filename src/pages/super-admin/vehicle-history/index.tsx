@@ -3,7 +3,7 @@
  * 显示单个车辆的完整提车和还车信息
  */
 
-import {Image, ScrollView, Text, View} from '@tarojs/components'
+import {ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow, useRouter} from '@tarojs/taro'
 import {showToast} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
@@ -11,11 +11,13 @@ import type React from 'react'
 import {useCallback, useState} from 'react'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
+import CachedImage from '@/components/CachedImage'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {VehicleWithDriver} from '@/db/types'
 import {calculateAge, calculateDrivingYears} from '@/utils/date'
 import {formatDateTime} from '@/utils/dateFormat'
 import {createLogger} from '@/utils/logger'
+import {BUSINESS_MESSAGES, ERROR_MESSAGES} from '@/constants/messages'
 
 const logger = createLogger('VehicleHistory')
 
@@ -30,7 +32,7 @@ const VehicleHistory: React.FC = () => {
 
   const loadVehicleInfo = useCallback(async () => {
     if (!plateNumber) {
-      showToast({title: '缺少车牌号参数', icon: 'none'})
+      showToast({title: BUSINESS_MESSAGES.MISSING_PLATE_NUMBER, icon: 'none'})
       return
     }
 
@@ -41,11 +43,11 @@ const VehicleHistory: React.FC = () => {
       if (data) {
         setVehicle(data)
       } else {
-        showToast({title: '未找到车辆信息', icon: 'none'})
+        showToast({title: BUSINESS_MESSAGES.VEHICLE_NOT_FOUND, icon: 'none'})
       }
     } catch (error) {
       logger.error('加载车辆信息失败', {error})
-      showToast({title: '加载失败', icon: 'error'})
+      showToast({title: ERROR_MESSAGES.LOAD, icon: 'error'})
     } finally {
       setLoading(false)
     }
@@ -136,20 +138,35 @@ const VehicleHistory: React.FC = () => {
     return allDamagePhotos.filter((url) => url.includes('return_damage'))
   }
 
-  // 渲染照片网格
+  /**
+   * 渲染照片网格
+   * 使用 4:3 比例显示图片，避免变形
+   * 图片使用本地 IndexedDB 缓存，实现秒开效果
+   * @param photos - 照片URL数组
+   * @param title - 标题文字
+   */
   const renderPhotoGrid = (photos: string[], title: string) => {
     if (photos.length === 0) return null
 
     return (
       <View className="mb-4">
-        <Text className="text-sm font-medium text-foreground mb-2">{title}</Text>
-        <View className="flex flex-wrap gap-2">
+        {/* 标题居中显示 */}
+        <Text className="text-sm font-medium text-foreground mb-2 block text-center">{title}</Text>
+        <View className="flex flex-wrap gap-2 justify-center">
           {photos.map((photo, index) => (
             <View
               key={index}
-              className="w-[calc(33.333%-0.5rem)] aspect-square rounded-lg overflow-hidden border border-border bg-gray-50"
+              className="w-[calc(33.333%-0.5rem)] rounded-lg overflow-hidden border border-border bg-gray-50"
+              style={{aspectRatio: '4/3'}}
               onClick={() => handlePreviewImage(photo, photos)}>
-              <Image src={photo} mode="aspectFill" className="w-full h-full" />
+              {/* 使用 CachedImage 组件，自动缓存到本地 IndexedDB */}
+              <CachedImage
+                src={photo}
+                mode="aspectFit"
+                className="w-full h-full"
+                style={{objectFit: 'contain'}}
+                enableCache={true}
+              />
             </View>
           ))}
         </View>
@@ -217,29 +234,29 @@ const VehicleHistory: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Tab 切换 */}
+                {/* Tab 切换 - 使用 flex 居中文字 */}
                 <View className="flex gap-2 mb-4">
                   <View
-                    className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'pickup' ? 'bg-green-500' : 'bg-gray-100'}`}
+                    className={`flex-1 py-3 rounded-lg transition-all shadow-sm flex items-center justify-center ${activeTab === 'pickup' ? 'bg-green-500' : 'bg-gray-100'}`}
                     onClick={() => setActiveTab('pickup')}>
                     <Text
-                      className={`text-center text-sm font-bold ${activeTab === 'pickup' ? 'text-white' : 'text-gray-600'}`}>
+                      className={`text-sm font-bold ${activeTab === 'pickup' ? 'text-white' : 'text-gray-600'}`}>
                       提车信息
                     </Text>
                   </View>
                   <View
-                    className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'return' ? 'bg-blue-500' : 'bg-gray-100'}`}
+                    className={`flex-1 py-3 rounded-lg transition-all shadow-sm flex items-center justify-center ${activeTab === 'return' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onClick={() => setActiveTab('return')}>
                     <Text
-                      className={`text-center text-sm font-bold ${activeTab === 'return' ? 'text-white' : 'text-gray-600'}`}>
+                      className={`text-sm font-bold ${activeTab === 'return' ? 'text-white' : 'text-gray-600'}`}>
                       还车信息
                     </Text>
                   </View>
                   <View
-                    className={`flex-1 py-3 rounded-lg transition-all shadow-sm ${activeTab === 'DRIVER' ? 'bg-orange-500' : 'bg-gray-100'}`}
+                    className={`flex-1 py-3 rounded-lg transition-all shadow-sm flex items-center justify-center ${activeTab === 'DRIVER' ? 'bg-orange-500' : 'bg-gray-100'}`}
                     onClick={() => setActiveTab('DRIVER')}>
                     <Text
-                      className={`text-center text-sm font-bold ${activeTab === 'DRIVER' ? 'text-white' : 'text-gray-600'}`}>
+                      className={`text-sm font-bold ${activeTab === 'DRIVER' ? 'text-white' : 'text-gray-600'}`}>
                       实名信息
                     </Text>
                   </View>

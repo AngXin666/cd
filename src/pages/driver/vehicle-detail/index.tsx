@@ -8,13 +8,14 @@
  * - 实时接收审核状态变更通知
  */
 
-import {Image, ScrollView, Text, View} from '@tarojs/components'
+import {ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
 import {formatDateTime} from '@/utils/dateFormat'
 import {hideLoading, showLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
+import CachedImage from '@/components/CachedImage'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import {SupplementedBadge} from '@/components/SupplementedBadge'
 import TopNavBar from '@/components/TopNavBar'
@@ -345,10 +346,11 @@ const VehicleDetail: React.FC = () => {
                                 <Text className="text-red-600 text-xs">加载失败</Text>
                               </View>
                             ) : (
-                              <Image
+                              <CachedImage
                                 src={photoUrl}
                                 mode="aspectFill"
                                 className="w-full h-24"
+                                enableCache={true}
                                 onError={() => handleImageError(photoUrl, '提车照片', index)}
                               />
                             )
@@ -431,10 +433,11 @@ const VehicleDetail: React.FC = () => {
                                 <Text className="text-red-600 text-xs">加载失败</Text>
                               </View>
                             ) : (
-                              <Image
+                              <CachedImage
                                 src={photoUrl}
                                 mode="aspectFill"
                                 className="w-full h-24"
+                                enableCache={true}
                                 onError={() => handleImageError(photoUrl, '还车照片', index)}
                               />
                             )
@@ -500,10 +503,11 @@ const VehicleDetail: React.FC = () => {
                               </View>
                             ) : (
                               <>
-                                <Image
+                                <CachedImage
                                   src={photoUrl}
                                   mode="aspectFit"
                                   className="w-full h-32 bg-gray-100"
+                                  enableCache={true}
                                   onError={() => handleImageError(photoUrl, '行驶证照片', index)}
                                 />
                                 <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
@@ -575,10 +579,11 @@ const VehicleDetail: React.FC = () => {
                               </View>
                             ) : (
                               <>
-                                <Image
+                                <CachedImage
                                   src={photoUrl}
                                   mode="aspectFill"
                                   className="w-full h-24 bg-gray-100"
+                                  enableCache={true}
                                   onError={() => handleImageError(photoUrl, '车损照片', index)}
                                 />
                                 <View className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">

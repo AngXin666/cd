@@ -14,6 +14,12 @@ import TopNavBar from '@/components/TopNavBar'
 import {useBackButtonBlock} from '@/hooks'
 import {createSession, startRealtimeMonitor} from '@/utils/sessionManager'
 import {resetLogoutState} from '@/utils/auth'
+import {
+  SUCCESS_MESSAGES,
+  ERROR_MESSAGES,
+  REQUIRED_MESSAGES,
+  FORMAT_MESSAGES,
+} from '@/constants/messages'
 
 // 使用 ?url 后缀强制 Vite 将图片作为独立文件输出，不内联为 base64
 import loginBg1 from '@/assets/images/login-bg-1.jpg?url'
@@ -90,7 +96,8 @@ const Login: React.FC = () => {
   const [bgIndex, setBgIndexState] = useState(0)
 
   // 登录页返回键拦截：防止用户在登录页按返回键退出应用
-  useBackButtonBlock(true, false) // 不显示提示，直接阻止返回
+  // 简化版 Hook：静默阻止返回，无提示
+  useBackButtonBlock()
 
   useEffect(() => {
     try {
@@ -159,11 +166,11 @@ const Login: React.FC = () => {
 
   const handleSendOtp = async () => {
     if (!account) {
-      showToast({title: '请输入手机号', icon: 'none'})
+      showToast({title: REQUIRED_MESSAGES.PHONE, icon: 'none'})
       return
     }
     if (!validatePhone(account)) {
-      showToast({title: '请输入正确的11位手机号', icon: 'none'})
+      showToast({title: FORMAT_MESSAGES.INVALID_PHONE, icon: 'none'})
       return
     }
     if (countdown > 0) return
@@ -176,9 +183,9 @@ const Login: React.FC = () => {
         options: {channel: 'sms'}
       })
       if (error) {
-        showToast({title: error.message || '发送验证码失败', icon: 'none'})
+        showToast({title: error.message || ERROR_MESSAGES.SEND_OTP, icon: 'none'})
       } else {
-        showToast({title: '验证码已发送', icon: 'success'})
+        showToast({title: SUCCESS_MESSAGES.OTP_SENT, icon: 'success'})
         setCountdown(60)
         const timer = setInterval(() => {
           setCountdown((prev) => {
@@ -191,7 +198,7 @@ const Login: React.FC = () => {
         }, 1000)
       }
     } catch (_err) {
-      showToast({title: '发送验证码失败', icon: 'none'})
+      showToast({title: ERROR_MESSAGES.SEND_OTP, icon: 'none'})
     } finally {
       setLoading(false)
     }
@@ -203,11 +210,11 @@ const Login: React.FC = () => {
    */
   const handleOtpLogin = async () => {
     if (!account || !otp) {
-      showToast({title: '请输入手机号和验证码', icon: 'none'})
+      showToast({title: REQUIRED_MESSAGES.PHONE_AND_OTP, icon: 'none'})
       return
     }
     if (!validatePhone(account)) {
-      showToast({title: '请输入正确的11位手机号', icon: 'none'})
+      showToast({title: FORMAT_MESSAGES.INVALID_PHONE, icon: 'none'})
       return
     }
     setLoading(true)
@@ -223,17 +230,17 @@ const Login: React.FC = () => {
         if (process.env.NODE_ENV === 'development') {
           console.error('[OTP登录失败]', error)
         }
-        showToast({title: '验证码错误或已过期', icon: 'none'})
+        showToast({title: ERROR_MESSAGES.OTP_INVALID, icon: 'none'})
       } else {
         // 获取用户ID并创建会话
         const userId = data.user?.id
         if (!userId) {
           // 无法获取用户ID视为登录异常
           console.error('[OTP登录] 登录成功但无法获取用户ID')
-          showToast({title: '登录异常，请重试', icon: 'none'})
+          showToast({title: ERROR_MESSAGES.LOGIN_EXCEPTION, icon: 'none'})
           return
         }
-        showToast({title: '登录成功', icon: 'success'})
+        showToast({title: SUCCESS_MESSAGES.LOGIN, icon: 'success'})
         await handleLoginSuccess(userId)
       }
     } catch (_err) {
@@ -241,7 +248,7 @@ const Login: React.FC = () => {
       if (process.env.NODE_ENV === 'development') {
         console.error('[OTP登录异常]', _err)
       }
-      showToast({title: '登录失败，请稍后重试', icon: 'none'})
+      showToast({title: ERROR_MESSAGES.LOGIN, icon: 'none'})
     } finally {
       setLoading(false)
     }
@@ -253,7 +260,7 @@ const Login: React.FC = () => {
    */
   const handlePasswordLogin = async () => {
     if (!account || !password) {
-      showToast({title: '请输入账号和密码', icon: 'none'})
+      showToast({title: REQUIRED_MESSAGES.ACCOUNT_AND_PASSWORD, icon: 'none'})
       return
     }
     setLoading(true)
@@ -272,14 +279,14 @@ const Login: React.FC = () => {
           console.error('[密码登录失败]', error)
         }
         // 统一错误提示，不区分账号不存在还是密码错误
-        showToast({title: '账号或密码错误', icon: 'none', duration: 2000})
+        showToast({title: ERROR_MESSAGES.ACCOUNT_PASSWORD, icon: 'none', duration: 2000})
       } else {
         // 获取用户ID并创建会话
         const userId = result.data.user?.id
         if (!userId) {
           // 无法获取用户ID视为登录异常
           console.error('[密码登录] 登录成功但无法获取用户ID')
-          showToast({title: '登录异常，请重试', icon: 'none'})
+          showToast({title: ERROR_MESSAGES.LOGIN_EXCEPTION, icon: 'none'})
           return
         }
         // 保存或清除记住的账号密码
@@ -296,7 +303,7 @@ const Login: React.FC = () => {
         } catch (err) {
           console.error('保存账号密码失败:', err)
         }
-        showToast({title: '登录成功', icon: 'success'})
+        showToast({title: SUCCESS_MESSAGES.LOGIN, icon: 'success'})
         await handleLoginSuccess(userId)
       }
     } catch (err) {
@@ -304,7 +311,7 @@ const Login: React.FC = () => {
       if (process.env.NODE_ENV === 'development') {
         console.error('[密码登录异常]', err)
       }
-      showToast({title: '登录失败，请稍后重试', icon: 'none'})
+      showToast({title: ERROR_MESSAGES.LOGIN, icon: 'none'})
     } finally {
       setLoading(false)
     }

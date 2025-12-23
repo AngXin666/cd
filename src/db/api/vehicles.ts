@@ -1711,3 +1711,122 @@ export async function getSupplementedPhotos(vehicleId: string): Promise<Suppleme
     return {}
   }
 }
+
+/**
+ * 更新车辆文档的锁定照片
+ * 用于批量锁定照片（在要求补录时使用）
+ *
+ * @param vehicleId - 车辆 ID
+ * @param lockedPhotos - 锁定照片映射（字段名 -> 索引数组）
+ * @returns 是否更新成功
+ */
+export async function updateLockedPhotos(
+  vehicleId: string,
+  lockedPhotos: Record<string, number[]>
+): Promise<boolean> {
+  try {
+    logger.db('更新锁定照片', 'vehicle_documents', {vehicleId, lockedPhotos})
+
+    // 参数验证
+    if (!vehicleId) {
+      logger.warn('更新锁定照片：vehicleId 为空')
+      return false
+    }
+
+    // 更新 vehicle_documents 表的 locked_photos 字段
+    const {error} = await supabase
+      .from('vehicle_documents')
+      .update({
+        locked_photos: lockedPhotos,
+        updated_at: new Date().toISOString()
+      })
+      .eq('vehicle_id', vehicleId)
+
+    if (error) {
+      logger.error('更新锁定照片失败', {error, vehicleId})
+      return false
+    }
+
+    // 清除缓存（使用 Repository 统一管理）
+    vehiclesRepository.invalidateCache()
+
+    logger.info('更新锁定照片成功', {vehicleId})
+    return true
+  } catch (error) {
+    logger.error('更新锁定照片异常', {error, vehicleId})
+    return false
+  }
+}
+
+/**
+ * 获取车牌号的历史记录数量
+ * 用于显示同一车牌号的车辆历史记录数
+ *
+ * @param plateNumber - 车牌号
+ * @returns 历史记录数量
+ */
+export async function getVehicleHistoryCount(plateNumber: string): Promise<number> {
+  try {
+    logger.db('查询车辆历史记录数量', 'vehicles', {plateNumber})
+
+    // 参数验证
+    if (!plateNumber) {
+      logger.warn('查询车辆历史记录数量：plateNumber 为空')
+      return 0
+    }
+
+    // 查询同一车牌号的车辆数量
+    const {count, error} = await supabase
+      .from('vehicles')
+      .select('*', {count: 'exact', head: true})
+      .eq('plate_number', plateNumber)
+
+    if (error) {
+      logger.error('查询车辆历史记录数量失败', {error, plateNumber})
+      return 0
+    }
+
+    return count || 0
+  } catch (error) {
+    logger.error('查询车辆历史记录数量异常', {error, plateNumber})
+    return 0
+  }
+}
+
+/**
+ * 批量获取车牌号的历史记录数量
+ * 用于车辆列表页面显示历史记录数
+ *
+ * @param plateNumbers - 车牌号数组
+ * @returns 车牌号 -> 历史记录数量的映射
+ */
+export async function getVehicleHistoryCounts(plateNumbers: string[]): Promise<Map<string, number>> {
+  const historyCountMap = new Map<string, number>()
+
+  try {
+    logger.db('批量查询车辆历史记录数量', 'vehicles', {count: plateNumbers.length})
+
+    // 参数验证
+    if (!plateNumbers || plateNumbers.length === 0) {
+      return historyCountMap
+    }
+
+    // 并行查询每个车牌号的历史记录数量
+    const results = await Promise.all(
+      plateNumbers.map(async (plateNumber) => {
+        const count = await getVehicleHistoryCount(plateNumber)
+        return {plateNumber, count}
+      })
+    )
+
+    // 构建映射
+    for (const {plateNumber, count} of results) {
+      historyCountMap.set(plateNumber, count)
+    }
+
+    return historyCountMap
+  } catch (error) {
+    logger.error('批量查询车辆历史记录数量异常', {error})
+    return historyCountMap
+  }
+}

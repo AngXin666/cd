@@ -8,15 +8,20 @@
  * @example
  * ```tsx
  * const {
- *   users,           // 用户列表
- *   loading,         // 加载状态
- *   loadUsers,       // 加载用户列表
- *   addUser,         // 添加用户
- *   toggleUserType   // 切换司机类型
+ *   users,              // 用户列表
+ *   loading,            // 加载状态
+ *   warehouseDriversMap, // 仓库-用户分配映射（统一模式）
+ *   loadUsers,          // 加载用户列表
+ *   addUser,            // 添加用户
+ *   toggleUserType      // 切换司机类型
  * } = useUserManagement()
  *
- * // 强制刷新用户列表
- * await loadUsers(true)
+ * // 刷新用户列表
+ * await loadUsers()
+ *
+ * // 按仓库筛选用户（统一模式）
+ * const assignedUserIds = warehouseDriversMap.get(warehouseId) || []
+ * const filteredUsers = users.filter(u => assignedUserIds.includes(u.id))
  *
  * // 添加新用户
  * await addUser({
@@ -30,6 +35,7 @@
  */
 
 import {hideLoading, showLoading, showToast} from '@/utils/taroCompat'
+import {ERROR_MESSAGES, BUSINESS_MESSAGES} from '@/constants/messages'
 import {useAuth} from 'miaoda-auth-taro'
 import {useCallback, useEffect, useState} from 'react'
 import * as UsersAPI from '@/db/api/users'
@@ -38,7 +44,7 @@ import * as WarehousesAPI from '@/db/api/warehouses'
 import {supabase} from '@/db/supabase'
 import {usersRepository, convertUserToProfile, notificationsRepository} from '@/db/repositories'
 import type {Profile} from '@/db/types'
-import {CACHE_KEYS, getVersionedCache, onDataUpdated, setVersionedCache} from '@/utils/cache'
+import {CACHE_KEYS, onDataUpdated} from '@/utils/cache'
 import {buildDriverTypeChangeMessage, type UserRole as MessageUserRole} from '@/utils/notificationMessageBuilder'
 
 /** 司机详细信息类型 */
@@ -76,9 +82,15 @@ export interface UseUserManagementReturn {
   currentUserProfile: Profile | null
   /** 用户详情Map（userId -> 详情） */
   userDetails: Map<string, DriverDetailInfo>
+  /**
+   * 仓库-用户分配映射：warehouseId -> userIds[]（统一模式）
+   * 使用 WarehousesAPI.getAllDriverWarehouses() 获取分配关系并构建映射
+   * @requirements 2.1, 2.2
+   */
+  warehouseDriversMap: Map<string, string[]>
 
-  /** 加载用户列表 @param forceRefresh 是否强制刷新（忽略缓存） */
-  loadUsers: (forceRefresh?: boolean) => Promise<void>
+  /** 加载用户列表（Repository 层自动处理缓存） */
+  loadUsers: () => Promise<void>
   /** 添加新用户 */
   addUser: (data: {
     phone: string
@@ -99,10 +111,19 @@ export const useUserManagement = (): UseUserManagementReturn => {
   const [users, setUsers] = useState<UserWithRealName[]>([])
   const [loading, setLoading] = useState(false)
   const [userDetails, setUserDetails] = useState<Map<string, DriverDetailInfo>>(new Map())
+  // 仓库-用户分配映射：warehouseId -> userIds[]（统一模式）
+  // 使用 WarehousesAPI.getAllDriverWarehouses() 获取分配关系并构建映射
+  // @requirements 2.1, 2.2
+  const [warehouseDriversMap, setWarehouseDriversMap] = useState<Map<string, string[]>>(new Map())
 
-  // 加载用户列表
+  /**
+   * 加载用户列表
+   * 直接调用 API 层函数，Repository 层已有缓存管理
+   * 移除了页面级缓存，避免缓存不一致问题
+   * @requirements 1.1, 4.1, 4.2
+   */
   const loadUsers = useCallback(
-    async (forceRefresh: boolean = false) => {
+    async () => {
       // 先加载当前登录用户的完整信息
       // 使用 UsersRepository 替代直接 supabase 调用
       if (!currentUserProfile && user) {
@@ -120,24 +141,30 @@ export const useUserManagement = (): UseUserManagementReturn => {
         }
       }
 
-      // 如果不是强制刷新，先尝试从缓存加载
-      if (!forceRefresh) {
-        const cachedUsers = getVersionedCache<UserWithRealName[]>(CACHE_KEYS.SUPER_ADMIN_USERS)
-        const cachedDetails = getVersionedCache<Map<string, DriverDetailInfo>>(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS)
-
-        if (cachedUsers && cachedDetails) {
-          setUsers(cachedUsers)
-          const detailsMap = new Map(Object.entries(cachedDetails))
-          setUserDetails(detailsMap)
-          return
-        }
-      }
-
-      // 从数据库加载
+      // 直接从 API 层加载数据（Repository 层已有缓存）
       setLoading(true)
       try {
+        // 调用 API 层函数，Repository 层自动处理缓存
         const data = await UsersAPI.getAllUsers()
         const allWarehouses = await WarehousesAPI.getAllWarehouses()
+
+        // 获取所有仓库-用户分配关系（统一模式）
+        // 使用 WarehousesAPI.getAllDriverWarehouses() 获取分配关系
+        // Repository 缓存 TTL 5 分钟
+        // @requirements 2.1, 2.2
+        const allDriverWarehouses = await WarehousesAPI.getAllDriverWarehouses()
+
+        // 构建仓库ID -> 用户ID列表的映射（warehouseDriversMap）
+        // 这是统一模式的核心数据结构，用于按仓库筛选用户
+        const warehouseDriversMapping = new Map<string, string[]>()
+        for (const assignment of allDriverWarehouses) {
+          const warehouseId = assignment.warehouse_id
+          if (!warehouseDriversMapping.has(warehouseId)) {
+            warehouseDriversMapping.set(warehouseId, [])
+          }
+          warehouseDriversMapping.get(warehouseId)!.push(assignment.user_id)
+        }
+        setWarehouseDriversMap(warehouseDriversMapping)
 
         const userDataPromises = data.map(async (u) => {
           let assignments: {warehouse_id: string}[] = []
@@ -175,14 +202,10 @@ export const useUserManagement = (): UseUserManagementReturn => {
 
         setUsers(usersWithRealName)
         setUserDetails(driverDetails)
-
-        // 缓存数据
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USERS, usersWithRealName, 5 * 60 * 1000)
-        const detailsObj = Object.fromEntries(driverDetails)
-        setVersionedCache(CACHE_KEYS.SUPER_ADMIN_USER_DETAILS, detailsObj, 5 * 60 * 1000)
+        // 注意：移除了页面级缓存，Repository 层已有缓存管理
       } catch (error) {
         console.error('❌ 加载用户列表失败:', error)
-        showToast({title: '加载失败', icon: 'error'})
+        showToast({title: ERROR_MESSAGES.LOAD, icon: 'error'})
       } finally {
         setLoading(false)
       }
@@ -254,7 +277,7 @@ export const useUserManagement = (): UseUserManagementReturn => {
         }
 
         onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-        await loadUsers(true)
+        await loadUsers()
         return newUser
       } catch (error) {
         console.error('添加用户失败', error)
@@ -268,7 +291,7 @@ export const useUserManagement = (): UseUserManagementReturn => {
   const toggleUserType = useCallback(
     async (targetUser: UserWithRealName) => {
       if (targetUser.role !== 'DRIVER') {
-        showToast({title: '只能切换司机类型', icon: 'none'})
+        showToast({title: BUSINESS_MESSAGES.ONLY_SWITCH_DRIVER_TYPE, icon: 'none'})
         return false
       }
 
@@ -315,7 +338,7 @@ export const useUserManagement = (): UseUserManagementReturn => {
         }
 
         onDataUpdated([CACHE_KEYS.SUPER_ADMIN_USERS, CACHE_KEYS.SUPER_ADMIN_USER_DETAILS])
-        await loadUsers(true)
+        await loadUsers()
       }
 
       return success
@@ -348,6 +371,7 @@ export const useUserManagement = (): UseUserManagementReturn => {
     loading,
     currentUserProfile,
     userDetails,
+    warehouseDriversMap,
     loadUsers,
     addUser,
     toggleUserType,

@@ -14,19 +14,19 @@
  * @feature event-driven-data-refresh
  */
 
-import {Button, Image, ScrollView, Text, View} from '@tarojs/components'
+import {Button, ScrollView, Text, View} from '@tarojs/components'
 import Taro, {useDidShow} from '@tarojs/taro'
 import {hideLoading, showLoading} from '@/utils/taroCompat'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useEffect, useState} from 'react'
+import CachedImage from '@/components/CachedImage'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import TopNavBar from '@/components/TopNavBar'
 import * as UsersAPI from '@/db/api/users'
 import * as VehiclesAPI from '@/db/api/vehicles'
 import type {Profile, Vehicle} from '@/db/types'
 import {useRealtimeSubscription} from '@/hooks/useRealtimeSubscription'
-import {getVersionedCache, setVersionedCache} from '@/utils/cache'
 import {createLogger} from '@/utils/logger'
 import {NotificationPresets, sendDebouncedNotification} from '@/utils/notificationDebounce'
 
@@ -74,10 +74,15 @@ const VehicleList: React.FC = () => {
     loadDriverInfo
   ]) // 只在组件挂载时执行一次
 
-  // 加载车辆列表（带缓存）
-  // forceRefresh: 是否强制刷新（跳过缓存）
+  /**
+   * 加载车辆列表
+   * 直接调用 API 层函数，Repository 层已有缓存（TTL 5 分钟）
+   * 移除页面级缓存，避免缓存不一致问题
+   * @param _forceRefresh - 保留参数以保持接口兼容性（实际由 Repository 层管理缓存）
+   * _Requirements: 1.1, 4.1, 4.2_
+   */
   const loadVehicles = useCallback(
-    async (forceRefresh = false) => {
+    async (_forceRefresh = false) => {
       // 如果是管理员查看模式，使用targetDriverId，否则使用当前用户ID
       const driverId = targetDriverId || user?.id
 
@@ -88,31 +93,19 @@ const VehicleList: React.FC = () => {
       setLoading(true)
       showLoading({title: '加载中...'})
       try {
-        // 生成缓存键
-        const cacheKey = `driver_vehicles_${driverId}`
-        const cached = !forceRefresh ? getVersionedCache<Vehicle[]>(cacheKey) : null
-
-        let data: Vehicle[]
-
-        if (cached) {
-          data = cached
-          logger.info('🔍 [DEBUG] 使用缓存数据', {cacheKey, vehicleCount: data.length})
-        } else {
-          // 获取司机车辆数据
-          logger.info('🔍 [DEBUG] 开始调用 getDriverVehicles', {driverId})
-          data = await VehiclesAPI.getDriverVehicles(driverId)
-          logger.info('🔍 [DEBUG] getDriverVehicles 返回结果', {
-            vehicleCount: data.length,
-            vehicles: data.map(v => ({
-              id: v.id,
-              plate: v.plate_number,
-              hasLeftFrontPhoto: !!v.left_front_photo,
-              leftFrontPhotoValue: v.left_front_photo || '无'
-            }))
-          })
-          // 保存到缓存（30秒有效期，缩短缓存时间以便更快看到审核结果）
-          setVersionedCache(cacheKey, data, 30 * 1000)
-        }
+        // 直接调用 API 层函数，Repository 层已有缓存（TTL 5 分钟）
+        // 移除页面级缓存逻辑，避免缓存不一致问题
+        logger.info('🔍 [DEBUG] 开始调用 getDriverVehicles', {driverId})
+        const data = await VehiclesAPI.getDriverVehicles(driverId)
+        logger.info('🔍 [DEBUG] getDriverVehicles 返回结果', {
+          vehicleCount: data.length,
+          vehicles: data.map(v => ({
+            id: v.id,
+            plate: v.plate_number,
+            hasLeftFrontPhoto: !!v.left_front_photo,
+            leftFrontPhotoValue: v.left_front_photo || '无'
+          }))
+        })
 
         // 调试：打印最终设置到 state 的数据
         logger.info('🔍 [DEBUG] 设置 vehicles state', {
@@ -131,7 +124,7 @@ const VehicleList: React.FC = () => {
         hideLoading()
       }
     },
-    [user, targetDriverId, isManagerView]
+    [user, targetDriverId]
   )
 
   // 页面显示时加载数据（只在初始化完成后）
@@ -488,13 +481,14 @@ const VehicleList: React.FC = () => {
                   key={vehicle.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-lg active:scale-98 transition-all"
                   onClick={() => handleViewDetail(vehicle.id)}>
-                  {/* 车辆照片 - 调试：显示照片状态 */}
+                  {/* 车辆照片 - 使用 CachedImage 组件实现本地缓存 */}
                   {vehicle.left_front_photo ? (
                     <View className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                      <Image
+                      <CachedImage
                         src={vehicle.left_front_photo}
                         mode="aspectFill"
                         className="w-full h-full"
+                        enableCache={true}
                         onError={() =>
                           logger.error('车辆照片加载失败', {vehicleId: vehicle.id, photo: vehicle.left_front_photo})
                         }

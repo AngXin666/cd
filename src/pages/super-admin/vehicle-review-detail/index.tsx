@@ -2,14 +2,16 @@
  * 车辆信息详细审核页面
  * 老板审核车辆图片
  * 功能：锁定图片、删除图片、通过审核、要求补录、显示补录标记
+ * 使用 CachedImage 组件实现图片本地缓存
  */
 
-import {Button, Image, ScrollView, Text, Textarea, View} from '@tarojs/components'
+import {Button, ScrollView, Text, Textarea, View} from '@tarojs/components'
 import Taro, {useLoad} from '@tarojs/taro'
 import {useAuth} from 'miaoda-auth-taro'
 import type React from 'react'
 import {useCallback, useState} from 'react'
-import {supabase} from '@/client/supabase'
+import {supabase} from '@/client/supabase' // 仅用于 storage 操作
+import CachedImage from '@/components/CachedImage'
 import SafeAreaTop from '@/components/SafeAreaTop'
 import {SupplementedBadge} from '@/components/SupplementedBadge'
 import TopNavBar from '@/components/TopNavBar'
@@ -332,19 +334,11 @@ const VehicleReviewDetail: React.FC = () => {
             }
 
             // 如果有需要锁定的照片，则锁定它们
-            // 注意：locked_photos 字段在 vehicle_documents 表中，不在 vehicles 表中
+            // 使用 VehiclesAPI 统一管理，确保缓存一致性
             if (totalLockedCount > 0) {
-              // 更新锁定的照片到 vehicle_documents 表
-              const {error: lockError} = await supabase
-                .from('vehicle_documents')
-                .update({
-                  locked_photos: lockedPhotosData,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('vehicle_id', vehicle.id)
-
-              if (lockError) {
-                logger.error('锁定照片失败', lockError)
+              const lockSuccess = await VehiclesAPI.updateLockedPhotos(vehicle.id, lockedPhotosData)
+              if (!lockSuccess) {
+                logger.error('锁定照片失败')
                 throw new Error('锁定照片失败')
               }
             }
@@ -581,10 +575,11 @@ const VehicleReviewDetail: React.FC = () => {
                             )
                           }}>
                           <Text className="text-xs text-gray-500 mb-1 block">身份证正面</Text>
-                          <Image
+                          <CachedImage
                             src={getImageUrl(vehicle.driver_license.id_card_photo_front)}
                             mode="aspectFill"
                             className="w-full h-32 rounded-lg"
+                            enableCache={true}
                           />
                         </View>
                       )}
@@ -603,10 +598,11 @@ const VehicleReviewDetail: React.FC = () => {
                             )
                           }}>
                           <Text className="text-xs text-gray-500 mb-1 block">身份证背面</Text>
-                          <Image
+                          <CachedImage
                             src={getImageUrl(vehicle.driver_license.id_card_photo_back)}
                             mode="aspectFill"
                             className="w-full h-32 rounded-lg"
+                            enableCache={true}
                           />
                         </View>
                       )}
@@ -625,10 +621,11 @@ const VehicleReviewDetail: React.FC = () => {
                             )
                           }}>
                           <Text className="text-xs text-gray-500 mb-1 block">驾驶证照片</Text>
-                          <Image
+                          <CachedImage
                             src={getImageUrl(vehicle.driver_license.driving_license_photo)}
                             mode="aspectFill"
                             className="w-full h-32 rounded-lg"
+                            enableCache={true}
                           />
                         </View>
                       )}
@@ -683,16 +680,17 @@ const VehicleReviewDetail: React.FC = () => {
                           </View>
                         )}
 
-                        {/* 图片容器 - 补录照片添加高亮边框 */}
+                        {/* 图片容器 - 补录照片添加高亮边框，使用 CachedImage 实现本地缓存 */}
                         <View
                           className={`relative w-full h-40 rounded-lg overflow-hidden bg-gray-100 ${supplementedMeta ? 'border-2 border-orange-500 shadow-lg' : ''}`}
                           style={supplementedMeta ? {boxShadow: '0 0 8px rgba(255, 107, 53, 0.4)'} : {}}
                           onClick={() => imageUrl && previewImage(imageUrl, photos.map(getImageUrl).filter(Boolean))}>
                           {imageUrl ? (
-                            <Image
+                            <CachedImage
                               src={imageUrl}
                               mode="aspectFill"
                               className="w-full h-full"
+                              enableCache={true}
                               onError={() => logger.error('图片加载失败', {imageUrl, field: config.field, index})}
                             />
                           ) : (

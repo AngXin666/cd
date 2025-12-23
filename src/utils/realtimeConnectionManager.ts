@@ -13,7 +13,6 @@
  * @requirements 9.1
  */
 
-import Taro from '@tarojs/taro'
 import {createLogger} from './logger'
 
 // ==================== 类型定义 ====================
@@ -243,13 +242,9 @@ export function updateConnectionStatus(status: RealtimeConnectionStatus): void {
     lastError = null
   }
 
-  // 如果正在重连，显示重连提示
-  if (status === 'reconnecting' && shouldShowToast()) {
-    Taro.showToast({
-      title: USER_MESSAGES.reconnecting,
-      icon: 'none',
-      duration: 2000
-    })
+  // 如果正在重连，只记录日志，不显示 Toast 提示
+  if (status === 'reconnecting') {
+    logger.debug('正在重新连接 Realtime...')
   }
 
   // 通知所有订阅者
@@ -296,15 +291,9 @@ export function handleConnectionError(error: Error | string, reconnectAttempts: 
   // 更新连接状态
   updateConnectionStatus('error')
 
-  // 显示用户友好的提示（使用节流）
-  if (shouldShowToast()) {
-    const userMessage = getUserFriendlyMessage(errorType)
-    Taro.showToast({
-      title: userMessage,
-      icon: 'none',
-      duration: 3000
-    })
-  }
+  // 只记录日志，不显示 Toast 提示（避免打扰用户）
+  // 用户可以通过手动刷新获取最新数据
+  logger.warn(`Realtime 连接错误提示: ${getUserFriendlyMessage(errorType)}`)
 
   // 通知所有错误订阅者
   errorCallbacks.forEach((callback) => {

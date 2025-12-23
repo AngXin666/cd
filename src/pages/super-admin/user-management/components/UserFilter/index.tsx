@@ -11,7 +11,7 @@
  *   searchKeyword={keyword}
  *   onSearchChange={setKeyword}
  *   onAddUser={() => setShowAddModal(true)}
- *   onRefresh={() => loadUsers(true)}
+ *   onRefresh={() => loadUsers()}
  * />
  * ```
  */
