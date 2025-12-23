@@ -1,0 +1,36 @@
+# Fleet Manager Backend Dependencies
+# FastAPI core framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Database ORM
+sqlmodel>=0.0.14
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Data validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# File upload
+python-multipart>=0.0.6
+
+# OCR (Baidu OCR)
+baidu-aip>=4.16.0
+
+# Database drivers
+psycopg2-binary>=2.9.0
+
+# Development tools
+httpx>=0.24.0
+
+# Scheduler for scheduled notifications
+apscheduler>=3.10.0
+
+# Data migration (from Supabase)
+supabase>=2.0.0

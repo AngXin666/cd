@@ -1,0 +1,277 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "首页"
+      }
+    },
+    {
+      "path": "pages/driver/clock/index",
+      "style": {
+        "navigationBarTitleText": "打卡"
+      }
+    },
+    {
+      "path": "pages/driver/attendance/index",
+      "style": {
+        "navigationBarTitleText": "考勤记录"
+      }
+    },
+    {
+      "path": "pages/driver/piece-work/entry",
+      "style": {
+        "navigationBarTitleText": "计件录入"
+      }
+    },
+    {
+      "path": "pages/driver/piece-work/list",
+      "style": {
+        "navigationBarTitleText": "计件记录"
+      }
+    },
+    {
+      "path": "pages/driver/leave/apply",
+      "style": {
+        "navigationBarTitleText": "请假申请"
+      }
+    },
+    {
+      "path": "pages/driver/leave/list",
+      "style": {
+        "navigationBarTitleText": "请假记录"
+      }
+    },
+    {
+      "path": "pages/driver/vehicle/list",
+      "style": {
+        "navigationBarTitleText": "我的车辆"
+      }
+    },
+    {
+      "path": "pages/driver/vehicle/add",
+      "style": {
+        "navigationBarTitleText": "添加车辆"
+      }
+    },
+    {
+      "path": "pages/driver/vehicle/detail",
+      "style": {
+        "navigationBarTitleText": "车辆详情"
+      }
+    },
+    {
+      "path": "pages/driver/vehicle/lease",
+      "style": {
+        "navigationBarTitleText": "租赁信息"
+      }
+    },
+    {
+      "path": "pages/driver/vehicle/supplement-photos",
+      "style": {
+        "navigationBarTitleText": "补录照片"
+      }
+    },
+    {
+      "path": "pages/manager/drivers/index",
+      "style": {
+        "navigationBarTitleText": "司机管理"
+      }
+    },
+    {
+      "path": "pages/manager/drivers/detail",
+      "style": {
+        "navigationBarTitleText": "司机详情"
+      }
+    },
+    {
+      "path": "pages/manager/approval/list",
+      "style": {
+        "navigationBarTitleText": "请假审批"
+      }
+    },
+    {
+      "path": "pages/manager/approval/detail",
+      "style": {
+        "navigationBarTitleText": "审批详情"
+      }
+    },
+    {
+      "path": "pages/manager/piece-work/index",
+      "style": {
+        "navigationBarTitleText": "计件管理"
+      }
+    },
+    {
+      "path": "pages/manager/stats/index",
+      "style": {
+        "navigationBarTitleText": "统计报表"
+      }
+    },
+    {
+      "path": "pages/manager/notify/index",
+      "style": {
+        "navigationBarTitleText": "发送通知"
+      }
+    },
+    {
+      "path": "pages/boss/users/index",
+      "style": {
+        "navigationBarTitleText": "用户管理"
+      }
+    },
+    {
+      "path": "pages/boss/users/detail",
+      "style": {
+        "navigationBarTitleText": "用户详情"
+      }
+    },
+    {
+      "path": "pages/boss/users/create",
+      "style": {
+        "navigationBarTitleText": "创建用户"
+      }
+    },
+    {
+      "path": "pages/boss/warehouses/index",
+      "style": {
+        "navigationBarTitleText": "仓库管理"
+      }
+    },
+    {
+      "path": "pages/boss/warehouses/detail",
+      "style": {
+        "navigationBarTitleText": "仓库详情"
+      }
+    },
+    {
+      "path": "pages/boss/vehicles/index",
+      "style": {
+        "navigationBarTitleText": "车辆管理"
+      }
+    },
+    {
+      "path": "pages/boss/vehicles/review",
+      "style": {
+        "navigationBarTitleText": "车辆审核"
+      }
+    },
+    {
+      "path": "pages/boss/vehicles/lease-reminders",
+      "style": {
+        "navigationBarTitleText": "租金提醒"
+      }
+    },
+    {
+      "path": "pages/boss/approval/index",
+      "style": {
+        "navigationBarTitleText": "请假审批"
+      }
+    },
+    {
+      "path": "pages/boss/piece-work/index",
+      "style": {
+        "navigationBarTitleText": "计件管理"
+      }
+    },
+    {
+      "path": "pages/boss/stats/index",
+      "style": {
+        "navigationBarTitleText": "统计报表"
+      }
+    },
+    {
+      "path": "pages/boss/categories/index",
+      "style": {
+        "navigationBarTitleText": "分类管理"
+      }
+    },
+    {
+      "path": "pages/boss/templates/index",
+      "style": {
+        "navigationBarTitleText": "通知模板"
+      }
+    },
+    {
+      "path": "pages/boss/scheduled/index",
+      "style": {
+        "navigationBarTitleText": "定时通知"
+      }
+    },
+    {
+      "path": "pages/boss/scheduled/edit",
+      "style": {
+        "navigationBarTitleText": "编辑定时通知"
+      }
+    },
+    {
+      "path": "pages/boss/versions/index",
+      "style": {
+        "navigationBarTitleText": "版本管理"
+      }
+    },
+    {
+      "path": "pages/boss/versions/edit",
+      "style": {
+        "navigationBarTitleText": "编辑版本"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path": "pages/notifications/index",
+      "style": {
+        "navigationBarTitleText": "通知中心"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "车队管家",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#007AFF",
+    "borderStyle": "black",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/notifications/index",
+        "text": "通知",
+        "iconPath": "static/tabbar/notification.png",
+        "selectedIconPath": "static/tabbar/notification-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/profile.png",
+        "selectedIconPath": "static/tabbar/profile-active.png"
+      }
+    ]
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+    }
+  }
+}

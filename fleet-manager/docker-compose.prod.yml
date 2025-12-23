@@ -1,0 +1,97 @@
+# 车队管家生产环境 Docker Compose 配置
+# 
+# 使用方法：
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# 此配置覆盖基础配置，添加：
+# - HTTPS 支持（通过 Nginx 反向代理）
+# - 更严格的安全配置
+# - 资源限制
+# - 日志配置
+
+version: '3.8'
+
+services:
+  # ============================================
+  # PostgreSQL 数据库服务（生产配置）
+  # ============================================
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # 后端服务（生产配置）
+  # ============================================
+  backend:
+    environment:
+      - DEBUG=false
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================
+  # 前端服务（生产配置）
+  # ============================================
+  frontend:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # Nginx 反向代理（HTTPS 支持）
+  # ============================================
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: fleet-manager-proxy
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"

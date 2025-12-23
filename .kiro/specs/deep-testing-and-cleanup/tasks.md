@@ -1,0 +1,334 @@
+# Implementation Plan
+
+## fleet-manager 新框架深度测试和功能补充
+
+- [x] 1. 环境准备和后端服务启动
+  - [x] 1.1 配置 fleet-manager 后端环境
+    - 创建 Python 虚拟环境
+    - 安装依赖 `pip install -r requirements.txt`
+    - 配置 .env 文件（JWT_SECRET 等）
+    - _Requirements: 4.1_
+  - [x] 1.2 启动后端服务并验证
+    - 运行 `python main.py`
+    - 访问 http://localhost:8000/docs 验证 Swagger UI
+    - 访问 http://localhost:8000/api/health 验证健康检查
+    - _Requirements: 4.1, 4.4, 1.10_
+
+- [x] 2. 后端 API 功能测试 - 认证模块
+  - [x] 2.1 测试登录 API
+    - POST /api/auth/login 测试正确登录
+    - 测试错误密码返回 401
+    - 验证返回 access_token
+    - _Requirements: 1.1_
+  - [x] 2.2 测试获取当前用户 API
+    - GET /api/auth/me 测试获取用户信息
+    - 测试无 Token 返回 401
+    - _Requirements: 1.1_
+  - [x] 2.3 测试修改密码 API
+    - PUT /api/auth/password 测试修改密码
+    - 测试旧密码错误返回 400
+    - _Requirements: 1.1_
+
+- [x] 3. 后端 API 功能测试 - 用户管理模块
+  - [x] 3.1 测试用户 CRUD API
+    - GET /api/users 获取用户列表
+    - POST /api/users 创建用户
+    - GET /api/users/{id} 获取用户详情
+    - PUT /api/users/{id} 更新用户
+    - DELETE /api/users/{id} 删除用户
+    - _Requirements: 1.2_
+  - [x] 3.2 测试用户权限控制
+    - 验证只有老板可以管理用户
+    - 验证司机无法访问用户管理 API
+    - _Requirements: 1.2_
+
+- [x] 4. 后端 API 功能测试 - 仓库管理模块
+  - [x] 4.1 测试仓库 CRUD API
+    - GET /api/warehouses 获取仓库列表
+    - POST /api/warehouses 创建仓库
+    - GET /api/warehouses/{id} 获取仓库详情
+    - PUT /api/warehouses/{id} 更新仓库
+    - DELETE /api/warehouses/{id} 删除仓库
+    - _Requirements: 1.3_
+  - [x] 4.2 测试仓库用户分配 API
+    - POST /api/warehouses/{id}/assign 分配用户
+    - GET /api/warehouses/{id}/users 获取仓库用户
+    - _Requirements: 1.3_
+
+- [-] 5. 后端 API 功能测试 - 考勤模块
+  - [x] 5.1 测试打卡 API
+    - POST /api/attendance/clock-in 上班打卡
+    - POST /api/attendance/clock-out 下班打卡
+    - GET /api/attendance/today 获取今日状态
+    - _Requirements: 1.4_
+  - [ ] 5.2 测试考勤记录查询 API
+    - GET /api/attendance 获取考勤记录
+    - 测试日期范围筛选
+    - 测试用户筛选
+    - _Requirements: 1.4_
+
+- [-] 6. 后端 API 功能测试 - 计件模块
+  - [ ] 6.1 测试计件分类 API
+    - GET /api/piece-work/categories 获取分类
+    - POST /api/piece-work/categories 创建分类
+    - PUT /api/piece-work/categories/{id} 更新分类
+    - _Requirements: 1.5_
+  - [ ] 6.2 测试计件记录 API
+    - GET /api/piece-work/records 获取记录
+    - POST /api/piece-work/records 录入计件
+    - PUT /api/piece-work/records/{id} 更新记录
+    - DELETE /api/piece-work/records/{id} 删除记录
+    - _Requirements: 1.5_
+  - [ ] 6.3 测试计件统计 API
+    - GET /api/piece-work/stats 获取统计
+    - 测试日期范围筛选
+    - _Requirements: 1.5_
+
+- [ ] 7. 后端 API 功能测试 - 请假模块
+  - [ ] 7.1 测试请假申请 API
+    - GET /api/leave 获取请假列表
+    - POST /api/leave 提交请假申请
+    - GET /api/leave/{id} 获取请假详情
+    - _Requirements: 1.6_
+  - [ ] 7.2 测试请假审批 API
+    - PUT /api/leave/{id}/approve 审批请假
+    - 测试审批通过和拒绝
+    - _Requirements: 1.6_
+
+- [ ] 8. 后端 API 功能测试 - 车辆模块
+  - [ ] 8.1 测试车辆 CRUD API
+    - GET /api/vehicles 获取车辆列表
+    - POST /api/vehicles 添加车辆
+    - GET /api/vehicles/{id} 获取车辆详情
+    - PUT /api/vehicles/{id} 更新车辆
+    - _Requirements: 1.7_
+  - [ ] 8.2 测试车辆审核 API
+    - PUT /api/vehicles/{id}/review 审核车辆
+    - 测试审核通过和拒绝
+    - _Requirements: 1.7_
+  - [ ] 8.3 测试车辆证件 API
+    - POST /api/vehicles/{id}/documents 上传证件
+    - _Requirements: 1.7_
+
+- [ ] 9. 后端 API 功能测试 - 通知模块
+  - [ ] 9.1 测试通知 CRUD API
+    - GET /api/notifications 获取通知列表
+    - POST /api/notifications 发送通知
+    - PUT /api/notifications/{id}/read 标记已读
+    - GET /api/notifications/unread-count 获取未读数量
+    - _Requirements: 1.8_
+  - [ ] 9.2 测试 SSE 实时推送
+    - GET /api/notifications/stream 测试 SSE 连接
+    - 验证新通知实时推送
+    - _Requirements: 1.8_
+
+- [ ] 10. 后端 API 功能测试 - OCR 和健康检查
+  - [ ] 10.1 测试 OCR API
+    - GET /api/ocr/status 检查 OCR 服务状态
+    - POST /api/ocr/driving-license 测试驾驶证识别（如已配置）
+    - _Requirements: 1.9_
+  - [ ] 10.2 测试健康检查 API
+    - GET /api/health 健康检查
+    - GET /api/health/live 存活检查
+    - GET /api/health/ready 就绪检查
+    - _Requirements: 1.10_
+
+- [ ] 11. Checkpoint - 后端 API 测试完成
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 12. 前端服务启动和页面测试
+  - [ ] 12.1 启动前端服务
+    - 安装依赖 `npm install`
+    - 运行 `npm run dev:h5`
+    - 访问 http://localhost:5173 验证页面加载
+    - _Requirements: 4.2_
+  - [ ] 12.2 测试登录页面
+    - 验证登录表单显示
+    - 测试登录流程
+    - 验证登录成功跳转
+    - _Requirements: 2.1_
+  - [ ] 12.3 测试司机功能页面
+    - 测试打卡页面
+    - 测试考勤记录页面
+    - 测试计件录入页面
+    - 测试请假申请页面
+    - 测试车辆管理页面
+    - _Requirements: 2.2_
+  - [ ] 12.4 测试车队长功能页面
+    - 测试司机管理页面
+    - 测试审批页面
+    - 测试统计页面
+    - 测试通知页面
+    - _Requirements: 2.3_
+  - [ ] 12.5 测试老板功能页面
+    - 测试用户管理页面
+    - 测试仓库管理页面
+    - 测试车辆审核页面
+    - 测试分类管理页面
+    - 测试统计页面
+    - _Requirements: 2.4_
+  - [ ] 12.6 测试通知和个人中心
+    - 测试通知列表页面
+    - 测试个人中心页面
+    - _Requirements: 2.5, 2.6_
+
+- [ ] 13. Checkpoint - 前端页面测试完成
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 14. 功能对比分析和报告生成
+  - [ ] 14.1 生成功能对比报告
+    - 列出已实现功能
+    - 列出缺失功能
+    - 计算功能完成度
+    - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  - [ ] 14.2 生成迁移建议
+    - 评估是否可以替代主项目
+    - 列出必须补充的功能
+    - 提供迁移路线图
+    - _Requirements: 6.5_
+
+- [x] 15. 补充实现缺失功能 - 角色系统 ✅ 已完成
+  - [x] 15.1 添加调度角色 (PEER_ADMIN) ✅
+    - 更新 models.py 添加 PEER_ADMIN 角色
+    - 更新 auth.py 添加权限控制（require_admin, require_management）
+    - 更新 main.py 所有 API 权限控制支持 PEER_ADMIN
+    - 更新 crud.py 添加默认调度账号 dispatcher / dispatch123
+    - 更新前端类型定义和 store 支持 PEER_ADMIN
+    - _Requirements: 3.1_
+  - [x] 15.2 添加超级管理员角色 (SUPER_ADMIN) ✅
+    - 更新 models.py 添加 SUPER_ADMIN 角色
+    - 更新 auth.py 添加权限控制（require_super_admin, require_boss_or_super）
+    - 更新 main.py 添加超级管理员专属 API 和权限控制
+    - 更新 crud.py 添加默认超级管理员账号 superadmin / super123
+    - 更新前端类型定义和 store 支持 SUPER_ADMIN（isSuperAdmin 计算属性）
+    - _Requirements: 3.1_
+
+- [x] 16. 补充实现缺失功能 - 车辆租赁
+  - [x] 16.1 添加车辆租赁数据模型
+    - 创建 VehicleLease 模型
+    - 添加租金、租期、缴费日字段
+    - _Requirements: 3.2_
+  - [x] 16.2 添加车辆租赁 API
+    - GET /api/vehicles/{id}/lease 获取租赁信息
+    - PUT /api/vehicles/{id}/lease 更新租赁信息
+    - GET /api/vehicles/lease-reminders 获取租金提醒
+    - _Requirements: 3.2_
+  - [x] 16.3 添加车辆租赁前端页面
+    - 添加租赁信息编辑页面
+    - 添加租金提醒列表
+    - _Requirements: 3.2_
+
+- [x] 17. 补充实现缺失功能 - 补录照片 ✅ 已完成
+  - [x] 17.1 添加补录照片数据模型 ✅
+    - 更新 VehicleDocument 模型添加 supplemented_photos 字段（JSON 格式）
+    - 添加 SupplementedPhotoMeta、SupplementPhotoRequest、SupplementedPhotosResponse 模式
+    - 添加前端 TypeScript 类型定义
+    - _Requirements: 3.2_
+  - [x] 17.2 添加补录照片 API ✅
+    - PUT /api/vehicles/{id}/supplement-photo 补录照片
+    - GET /api/vehicles/{id}/supplement-photos 获取补录照片
+    - 添加 CRUD 函数：get_or_create_vehicle_document、supplement_vehicle_photo、get_supplemented_photos、clear_supplemented_photo
+    - _Requirements: 3.2_
+  - [x] 17.3 添加补录照片前端页面 ✅
+    - 创建 supplement-photos.vue 补录照片页面
+    - 在 detail.vue 添加补录照片入口和徽章显示
+    - 添加 supplementVehiclePhoto、getSupplementedPhotos API 函数
+    - 在 pages.json 注册页面路由
+    - _Requirements: 3.2_
+
+- [x] 18. 补充实现缺失功能 - 通知模板
+  - [x] 18.1 添加通知模板数据模型
+    - 创建 NotificationTemplate 模型
+    - 添加模板名称、内容、变量字段
+    - _Requirements: 3.2_
+  - [x] 18.2 添加通知模板 API
+    - GET /api/notification-templates 获取模板列表
+    - POST /api/notification-templates 创建模板
+    - PUT /api/notification-templates/{id} 更新模板
+    - DELETE /api/notification-templates/{id} 删除模板
+    - _Requirements: 3.2_
+  - [x] 18.3 添加通知模板前端页面
+    - 添加模板管理页面
+    - 添加模板选择功能
+    - _Requirements: 3.2_
+
+- [x] 19. 补充实现缺失功能 - 定时通知
+  - [x] 19.1 添加定时通知数据模型
+    - 创建 ScheduledNotification 模型
+    - 添加发送时间、重复规则字段
+    - _Requirements: 3.2_
+  - [x] 19.2 添加定时通知 API
+    - GET /api/scheduled-notifications 获取定时通知列表
+    - POST /api/scheduled-notifications 创建定时通知
+    - PUT /api/scheduled-notifications/{id} 更新定时通知
+    - DELETE /api/scheduled-notifications/{id} 删除定时通知
+    - _Requirements: 3.2_
+  - [x] 19.3 实现定时任务调度
+    - 使用 APScheduler 或 Celery 实现定时任务
+    - 添加定时发送通知逻辑
+    - _Requirements: 3.2_
+  - [x] 19.4 添加定时通知前端页面
+    - 添加定时通知管理页面
+    - 添加定时规则设置
+    - _Requirements: 3.2_
+
+- [x] 20. 补充实现缺失功能 - 热更新
+  - [x] 20.1 添加版本管理数据模型
+    - 创建 AppVersion 模型
+    - 添加版本号、更新包 URL、更新说明字段
+    - _Requirements: 3.2_
+  - [x] 20.2 添加版本管理 API
+    - GET /api/app-versions 获取版本列表
+    - POST /api/app-versions 发布新版本
+    - GET /api/app-versions/latest 获取最新版本
+    - GET /api/app-versions/check 检查更新
+    - _Requirements: 3.2_
+  - [x] 20.3 前端实现热更新检测
+    - 添加版本检查逻辑
+    - 添加更新提示弹窗
+    - 实现增量更新下载
+    - _Requirements: 3.2_
+
+- [x] 21. Checkpoint - 缺失功能补充完成
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 22. 集成测试和验证
+  - [x] 22.1 运行完整功能测试
+    - 重新测试所有 API
+    - 重新测试所有页面
+    - 验证新增功能正常
+    - _Requirements: 4.1, 4.2_
+  - [x] 22.2 Docker 部署测试
+    - 运行 docker-compose up -d
+    - 验证所有服务正常启动
+    - 测试生产环境配置
+    - _Requirements: 4.3_
+
+- [x] 23. 生成最终报告
+  - [x] 23.1 更新功能对比报告
+    - 更新已实现功能列表
+    - 更新功能完成度
+    - _Requirements: 6.1, 6.2, 6.4_
+  - [x] 23.2 生成迁移建议文档
+    - 评估是否可以替代主项目
+    - 提供迁移步骤
+    - 列出注意事项
+    - _Requirements: 6.5_
+  - [x] 23.3 更新项目文档
+    - 更新 fleet-manager/README.md
+    - 更新 CHANGELOG.md
+    - _Requirements: 6.1_
+
+- [x] 24. 主项目清理评估
+  - [x] 24.1 评估是否可以清理主项目
+    - 确认新框架功能完整
+    - 确认数据迁移方案
+    - _Requirements: 5.1, 5.2_
+  - [x] 24.2 标记可清理的代码（如适用）
+    - 列出可清理的文件
+    - 列出可清理的目录
+    - _Requirements: 5.1_
+
+- [x] 25. Final Checkpoint - 确保所有测试通过
+  - Ensure all tests pass, ask the user if questions arise.
+
