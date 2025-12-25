@@ -221,6 +221,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getAllVehicles, getWarehouses, getWarehouseUsers, assignVehicle } from '@/api'
 import type { Vehicle, User, Warehouse } from '@/api/types'
+import { VehicleStatus } from '@/api/types'
 import { navigateTo } from '@/utils'
 
 // ==================== 常量定义 ====================
@@ -292,11 +293,12 @@ const filteredVehicles = computed(() => {
     result = result.filter(v => {
       switch (currentFilter.value) {
         case 'active':
-          return (v.status === 'active' || v.status === 'picked_up') && !v.return_time
+          // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
+          return (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && !v.return_time
         case 'unassigned':
           return !v.user_id
         case 'returned':
-          return v.status === 'returned' || v.return_time
+          return v.status === VehicleStatus.RETURNED || v.return_time
         default:
           return true
       }
@@ -420,7 +422,8 @@ function getWarehouseName(warehouseId: number): string {
  * 是否可以还车
  */
 function canReturnVehicle(vehicle: Vehicle): boolean {
-  return (vehicle.status === 'active' || vehicle.status === 'picked_up') && 
+  // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
+  return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
          !vehicle.return_time && 
          vehicle.review_status === 'approved'
 }

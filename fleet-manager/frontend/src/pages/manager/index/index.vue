@@ -27,7 +27,7 @@
               <text class="welcome-subtitle">欢迎回来，{{ displayName }}</text>
             </view>
             <!-- 通知铃铛 - Requirements 2.1 -->
-            <NotificationBell :user-id="userStore.userId" />
+            <NotificationBell :user-id="userStore.user?.id?.toString() || ''" />
           </view>
         </view>
 
@@ -220,7 +220,8 @@ async function loadData(): Promise<void> {
 async function loadWarehouses(): Promise<void> {
   try {
     const data = await getWarehouses()
-    warehouses.value = data.map(w => ({ id: w.id, name: w.name }))
+    // 将 API 返回的 number 类型 id 转换为 string 类型，以匹配组件类型定义
+    warehouses.value = data.map(w => ({ id: String(w.id), name: w.name }))
   } catch (error) {
     console.error('加载仓库列表失败:', error)
     warehouses.value = []

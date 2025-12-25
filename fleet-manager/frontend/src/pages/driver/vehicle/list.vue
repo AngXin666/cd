@@ -234,6 +234,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { getVehicles, deleteVehicle } from '@/api'
 import type { Vehicle } from '@/api/types'
+import { VehicleStatus } from '@/api/types'
 import { navigateTo } from '@/utils'
 import CachedImage from '@/components/CachedImage/index.vue'
 import { useImagePreloader } from '@/utils/imagePreloader/useImagePreloader'
@@ -287,7 +288,7 @@ const shouldShowAddButton = computed(() => {
   if (vehicles.value.length === 0) return true
   // 如果有任何车辆处于"已提车未还车"状态，隐藏按钮
   const hasPickedUpVehicle = vehicles.value.some(
-    v => (v.status === 'active' || v.status === 'picked_up') && 
+    v => (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && 
          v.review_status === 'approved' && 
          !v.return_time
   )
@@ -462,6 +463,8 @@ function getCachedImageUrl(vehicleId: number, originalUrl: string): string {
 /**
  * 获取车辆综合状态标识
  * 根据review_status和status综合判断显示的状态
+ * @param vehicle - 车辆信息对象
+ * @returns 状态标识对象，包含文本、颜色类名和图标
  */
 function getVehicleStatusBadge(vehicle: Vehicle): { text: string; colorClass: string; icon: string } {
   // 优先判断审核状态
@@ -473,7 +476,8 @@ function getVehicleStatusBadge(vehicle: Vehicle): { text: string; colorClass: st
   }
   // 审核通过后，根据车辆状态判断
   if (vehicle.review_status === 'approved') {
-    if (vehicle.status === 'returned' || vehicle.status === 'inactive') {
+    // 使用枚举值比较，RETURNED 表示已停用
+    if (vehicle.status === VehicleStatus.RETURNED) {
       return { text: '已停用', colorClass: 'badge-gray', icon: '⛔' }
     }
     return { text: '已启用', colorClass: 'badge-green', icon: '✅' }
@@ -484,7 +488,8 @@ function getVehicleStatusBadge(vehicle: Vehicle): { text: string; colorClass: st
 
 /** 是否可以还车 */
 function canReturnVehicle(vehicle: Vehicle): boolean {
-  return (vehicle.status === 'active' || vehicle.status === 'picked_up') && 
+  // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
+  return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
          !vehicle.return_time && 
          vehicle.review_status === 'approved'
 }

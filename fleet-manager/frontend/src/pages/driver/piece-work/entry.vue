@@ -130,7 +130,7 @@
               class="form-input"
               :value="item.quantity"
               placeholder="请输入件数"
-              @input="(e) => updateItem(item.id, 'quantity', e.detail.value)"
+              @input="(e: any) => updateItem(item.id, 'quantity', e.detail.value)"
             />
           </view>
 
@@ -146,7 +146,7 @@
               :value="item.unitPrice"
               :disabled="item.unitPriceLocked"
               :placeholder="item.unitPriceLocked ? '管理员已设置价格' : '请输入单价'"
-              @input="(e) => !item.unitPriceLocked && updateItem(item.id, 'unitPrice', e.detail.value)"
+              @input="(e: any) => !item.unitPriceLocked && updateItem(item.id, 'unitPrice', e.detail.value)"
             />
           </view>
 
@@ -157,7 +157,7 @@
               <switch 
                 :checked="item.needUpstairs" 
                 color="#3B82F6"
-                @change="(e) => updateItem(item.id, 'needUpstairs', e.detail.value)"
+                @change="(e: any) => updateItem(item.id, 'needUpstairs', e.detail.value)"
               />
             </view>
           </view>
@@ -172,7 +172,7 @@
               class="form-input"
               :value="item.upstairsPrice"
               placeholder="请输入上楼单价"
-              @input="(e) => updateItem(item.id, 'upstairsPrice', e.detail.value)"
+              @input="(e: any) => updateItem(item.id, 'upstairsPrice', e.detail.value)"
             />
           </view>
 
@@ -183,7 +183,7 @@
               <switch 
                 :checked="item.needSorting" 
                 color="#8B5CF6"
-                @change="(e) => updateItem(item.id, 'needSorting', e.detail.value)"
+                @change="(e: any) => updateItem(item.id, 'needSorting', e.detail.value)"
               />
             </view>
           </view>
@@ -199,7 +199,7 @@
                 class="form-input"
                 :value="item.sortingQuantity"
                 placeholder="请输入分拣件数"
-                @input="(e) => updateItem(item.id, 'sortingQuantity', e.detail.value)"
+                @input="(e: any) => updateItem(item.id, 'sortingQuantity', e.detail.value)"
               />
             </view>
             <view class="form-item">
@@ -211,7 +211,7 @@
                 class="form-input"
                 :value="item.sortingUnitPrice"
                 placeholder="请输入分拣单价"
-                @input="(e) => updateItem(item.id, 'sortingUnitPrice', e.detail.value)"
+                @input="(e: any) => updateItem(item.id, 'sortingUnitPrice', e.detail.value)"
               />
             </view>
           </template>

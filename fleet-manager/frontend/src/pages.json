@@ -32,7 +32,8 @@
       "path": "pages/boss/index/index",
       "style": {
         "navigationBarTitleText": "管理后台",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {

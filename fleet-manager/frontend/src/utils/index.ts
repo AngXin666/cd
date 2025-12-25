@@ -6,8 +6,22 @@
 // 导出子模块
 export * from './storage'
 export * from './imageCache'
+// 注意：draftImage 和 draftStorage 有重复导出，只导出 draftImage
 export * from './draftImage'
-export * from './draftStorage'
+// draftStorage 的类型与 draftImage 冲突，使用命名导出避免冲突
+export {
+  type DraftType,
+  type ImageType,
+  type DraftImageInfo,
+  type DraftMeta,
+  type DraftStorageOptions,
+  type SaveImageOptions as DraftSaveImageOptions,
+  DEFAULT_DRAFT_OPTIONS as DRAFT_STORAGE_DEFAULT_OPTIONS,
+  DRAFT_META_FILENAME as DRAFT_STORAGE_META_FILENAME,
+  IMAGES_META_FILENAME,
+  DraftImageStorage as DraftStorageImageStorage,
+  getDraftImageStorage as getDraftStorageImageStorage
+} from './draftStorage'
 export * from './submitRecovery'
 export * from './imagePreloader'
 

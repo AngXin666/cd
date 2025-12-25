@@ -186,6 +186,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getAllVehicles, getWarehouseUsers, assignVehicle } from '@/api'
 import type { Vehicle, User } from '@/api/types'
+import { VehicleStatus } from '@/api/types'
 import { useUserStore } from '@/store/user'
 import { navigateTo } from '@/utils'
 
@@ -230,11 +231,12 @@ const filteredVehicles = computed(() => {
   return vehicles.value.filter(v => {
     switch (currentFilter.value) {
       case 'active':
-        return (v.status === 'active' || v.status === 'picked_up') && !v.return_time
+        // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
+        return (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && !v.return_time
       case 'unassigned':
         return !v.user_id
       case 'returned':
-        return v.status === 'returned' || v.return_time
+        return v.status === VehicleStatus.RETURNED || v.return_time
       case 'pending':
         return v.review_status === 'pending_review'
       default:
@@ -351,7 +353,8 @@ function getDriverName(userId: number): string {
  * 是否可以还车
  */
 function canReturnVehicle(vehicle: Vehicle): boolean {
-  return (vehicle.status === 'active' || vehicle.status === 'picked_up') && 
+  // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
+  return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
          !vehicle.return_time && 
          vehicle.review_status === 'approved'
 }
@@ -403,10 +406,12 @@ async function confirmAssign(): Promise<void> {
 
   uni.showLoading({ title: '分配中...' })
   try {
+    // 获取仓库ID，将 null 转换为 undefined
+    const warehouseId = userStore.user?.warehouse_id ?? undefined
     await assignVehicle(
       selectedVehicle.value.id,
       selectedDriverId.value,
-      userStore.user?.warehouse_id
+      warehouseId
     )
     uni.hideLoading()
     uni.showToast({ title: '分配成功', icon: 'success' })

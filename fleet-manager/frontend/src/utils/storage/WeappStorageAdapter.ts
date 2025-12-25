@@ -4,6 +4,9 @@
  * @module utils/storage/WeappStorageAdapter
  */
 
+// 引入微信小程序类型声明
+/// <reference path="./weapp.d.ts" />
+
 import type {
   PlatformStorageAdapter,
   FileInfo,
@@ -96,7 +99,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
         dirPath: fullPath,
         recursive: true,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           // 目录已存在不算错误
           if (error.errMsg?.includes('file already exists')) {
             resolve()
@@ -215,7 +218,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
         data: data,
         encoding: encoding,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           reject(new StorageError(
             `写入文件失败: ${normalizedPath} - ${error.errMsg}`,
             StorageErrorCodes.WRITE_FAILED,
@@ -256,10 +259,10 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
       this.fs!.readFile({
         filePath: fullPath,
         encoding: encoding,
-        success: (res) => {
-          resolve(res.data as ArrayBuffer | string)
+        success: (res: { data: ArrayBuffer | string }) => {
+          resolve(res.data)
         },
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           if (error.errMsg?.includes('no such file')) {
             reject(new StorageError(
               `文件不存在: ${normalizedPath}`,
@@ -292,7 +295,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
       this.fs!.unlink({
         filePath: fullPath,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           // 文件不存在不算错误
           if (error.errMsg?.includes('no such file')) {
             resolve()
@@ -342,8 +345,8 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
     return new Promise((resolve) => {
       this.fs!.stat({
         path: fullPath,
-        success: (res) => {
-          const stats = res.stats as WechatMiniprogram.Stats
+        success: (res: { stats: WechatMiniprogram.Stats }) => {
+          const stats = res.stats
           if (stats.isFile()) {
             resolve({
               path: normalizedPath,
@@ -408,7 +411,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
     return new Promise((resolve, reject) => {
       this.fs!.readdir({
         dirPath: fullPath,
-        success: async (res) => {
+        success: async (res: { files: string[] }) => {
           for (const name of res.files) {
             const itemFullPath = `${fullPath}/${name}`
             const itemRelativePath = relativePath ? `${relativePath}/${name}` : name
@@ -449,7 +452,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
           }
           resolve()
         },
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           // 目录不存在不算错误
           if (error.errMsg?.includes('no such file')) {
             resolve()
@@ -470,7 +473,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
     return new Promise((resolve) => {
       this.fs!.stat({
         path: path,
-        success: (res) => resolve(res.stats as WechatMiniprogram.Stats),
+        success: (res: { stats: WechatMiniprogram.Stats }) => resolve(res.stats),
         fail: () => resolve(null)
       })
     })
@@ -492,7 +495,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
         dirPath: fullPath,
         recursive: recursive !== false,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           // 目录已存在不算错误
           if (error.errMsg?.includes('file already exists')) {
             resolve()
@@ -524,7 +527,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
         dirPath: fullPath,
         recursive: recursive === true,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           // 目录不存在不算错误
           if (error.errMsg?.includes('no such file')) {
             resolve()
@@ -610,7 +613,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
         srcPath: srcFullPath,
         destPath: destFullPath,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           reject(new StorageError(
             `复制文件失败: ${sourcePath} -> ${destPath} - ${error.errMsg}`,
             StorageErrorCodes.WRITE_FAILED,
@@ -660,7 +663,7 @@ export class WeappStorageAdapter implements PlatformStorageAdapter {
         oldPath: srcFullPath,
         newPath: destFullPath,
         success: () => resolve(),
-        fail: (error) => {
+        fail: (error: { errMsg: string }) => {
           reject(new StorageError(
             `移动文件失败: ${sourcePath} -> ${destPath} - ${error.errMsg}`,
             StorageErrorCodes.WRITE_FAILED,

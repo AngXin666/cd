@@ -25,6 +25,7 @@ import type {
   PieceWorkCategoryCreate,
   PieceWorkRecord,
   PieceWorkRecordCreate,
+  PieceWorkRecordUpdate,
   PieceWorkStats,
   LeaveApplication,
   LeaveApplicationCreate,
@@ -373,10 +374,10 @@ export const getPieceWorkStats = (
 /**
  * 更新计件记录
  * @param id - 记录ID
- * @param data - 更新数据
+ * @param data - 更新数据（支持单价、上楼、分拣等字段）
  * @returns 更新后的记录
  */
-export const updatePieceWorkRecord = (id: number, data: { quantity?: number; remark?: string }) =>
+export const updatePieceWorkRecord = (id: number, data: PieceWorkRecordUpdate) =>
   put<PieceWorkRecord>(`/piece-work/records/${id}`, data);
 
 /**

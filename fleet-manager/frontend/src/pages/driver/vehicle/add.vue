@@ -65,9 +65,9 @@
             <text class="section-title">识别结果</text>
           </view>
           <view class="ocr-result-list">
-            <view v-if="formData.plate_number" class="result-item">
+            <view v-if="formData.license_plate" class="result-item">
               <text class="result-label">车牌号：</text>
-              <text class="result-value">{{ formData.plate_number }}</text>
+              <text class="result-value">{{ formData.license_plate }}</text>
             </view>
             <view v-if="formData.brand" class="result-item">
               <text class="result-label">品牌：</text>
@@ -313,7 +313,7 @@ const ocrConfigured = ref(true)
 
 /** 表单数据（从行驶证OCR填充） */
 const formData = reactive<Partial<VehicleCreate>>({
-  plate_number: '',
+  license_plate: '',
   brand: '',
   model: '',
   color: '',
@@ -370,7 +370,7 @@ const damagePhotos = ref<{ path: string; size: number }[]>([])
 
 /** 是否有 OCR 识别结果 */
 const hasOCRResult = computed(() => {
-  return !!(formData.plate_number || formData.brand || formData.model)
+  return !!(formData.license_plate || formData.brand || formData.model)
 })
 
 /** 是否有驾驶员 OCR 识别结果 */
@@ -385,7 +385,7 @@ const canGoNext = computed(() => {
       return photos.driving_license_main && 
              photos.driving_license_sub && 
              photos.driving_license_sub_back &&
-             formData.plate_number &&
+             formData.license_plate &&
              formData.brand
     case 1: // 车辆照片
       return photos.left_front && 
@@ -477,8 +477,8 @@ async function retryFailedTask(taskId: string): Promise<void> {
     const result = await submitRecoveryHook.retryTask(
       taskId,
       async (formData, imageUrls) => {
-        // 构建车辆数据并提交
-        const vehicleData = formData as VehicleCreate
+        // 构建车辆数据并提交（使用 unknown 中间转换确保类型安全）
+        const vehicleData = formData as unknown as VehicleCreate
         return createVehicle(vehicleData)
       },
       {
@@ -550,7 +550,7 @@ async function loadDraft(): Promise<void> {
 /** 恢复草稿数据 */
 function restoreDraft(draft: VehicleDraft): void {
   // 恢复表单数据
-  if (draft.plate_number) formData.plate_number = draft.plate_number
+  if (draft.plate_number) formData.license_plate = draft.plate_number
   if (draft.brand) formData.brand = draft.brand
   if (draft.model) formData.model = draft.model
   if (draft.color) formData.color = draft.color
@@ -596,7 +596,7 @@ async function saveCurrentDraft(): Promise<void> {
   if (!userStore.user?.id) return
 
   const draft: VehicleDraft = {
-    plate_number: formData.plate_number,
+    plate_number: formData.license_plate,
     brand: formData.brand,
     model: formData.model,
     color: formData.color,
@@ -657,7 +657,7 @@ async function handleDrivingLicenseMainChange(path: string): Promise<void> {
     if (result.success && result.data) {
       // 填充表单（行驶证主页字段）
       // 注意：后端 OCR 可能返回的是驾驶证字段，需要适配
-      if (result.data.license_number) formData.plate_number = result.data.license_number
+      if (result.data.license_number) formData.license_plate = result.data.license_number
       if (result.data.name) formData.owner_name = result.data.name
       if (result.data.vehicle_type) formData.vehicle_type = result.data.vehicle_type
       
@@ -744,7 +744,9 @@ function handleAddDamagePhoto(): void {
     sizeType: ['compressed'],
     sourceType: ['camera', 'album'],
     success: (res) => {
-      const newPhotos = res.tempFiles.map(file => ({
+      // 确保 tempFiles 是数组类型，使用类型断言处理 UniApp 类型兼容性
+      const tempFiles = (Array.isArray(res.tempFiles) ? res.tempFiles : [res.tempFiles]) as Array<{ path: string; size?: number }>
+      const newPhotos = tempFiles.map((file) => ({
         path: file.path,
         size: file.size || 0
       }))
@@ -790,7 +792,7 @@ function showStepError(): void {
         uni.showToast({ title: '请拍摄行驶证副页', icon: 'none' })
       } else if (!photos.driving_license_sub_back) {
         uni.showToast({ title: '请拍摄行驶证副页背页', icon: 'none' })
-      } else if (!formData.plate_number) {
+      } else if (!formData.license_plate) {
         uni.showToast({ title: '请先识别行驶证获取车牌号', icon: 'none' })
       }
       break
@@ -817,7 +819,7 @@ async function handleSubmit(): Promise<void> {
 
   uni.showModal({
     title: '确认提交',
-    content: `确定要提交车牌号为 ${formData.plate_number} 的车辆信息吗？`,
+    content: `确定要提交车牌号为 ${formData.license_plate} 的车辆信息吗？`,
     success: async (res) => {
       if (res.confirm) {
         await doSubmit()
@@ -859,7 +861,7 @@ async function doSubmit(): Promise<void> {
     if (submitRecoveryHook && userStore.user?.id) {
       // 构建表单数据
       const submitFormData = {
-        plate_number: formData.plate_number,
+        license_plate: formData.license_plate,
         brand: formData.brand,
         model: formData.model,
         color: formData.color,
@@ -960,7 +962,7 @@ async function doSubmit(): Promise<void> {
 
     // 构建车辆数据
     const vehicleData: VehicleCreate = {
-      license_plate: formData.plate_number!,
+      license_plate: formData.license_plate!,
       brand: formData.brand || undefined,
       model: formData.model || undefined,
       color: formData.color || undefined,

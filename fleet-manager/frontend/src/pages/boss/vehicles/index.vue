@@ -154,6 +154,7 @@ function getStatusClass(status: VehicleStatus): string {
 function getStatusName(status: VehicleStatus): string {
   const statusMap: Record<VehicleStatus, string> = {
     [VehicleStatus.ACTIVE]: '使用中',
+    [VehicleStatus.PICKED_UP]: '已提车',
     [VehicleStatus.REVIEWING]: '审核中',
     [VehicleStatus.RETURNED]: '已归还',
   }

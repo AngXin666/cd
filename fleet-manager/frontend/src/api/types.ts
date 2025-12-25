@@ -79,6 +79,8 @@ export enum LeaveStatus {
 export enum VehicleStatus {
   /** 使用中 */
   ACTIVE = 'active',
+  /** 已提车 */
+  PICKED_UP = 'picked_up',
   /** 已归还 */
   RETURNED = 'returned',
   /** 审核中 */
@@ -126,6 +128,8 @@ export interface User {
   role: UserRole;
   is_active: boolean;
   created_at: string;
+  /** 所属仓库ID */
+  warehouse_id?: number | null;
 }
 
 /** 创建用户请求 */
@@ -265,6 +269,22 @@ export interface PieceWorkRecord {
   user_name?: string;
   category_name?: string;
   warehouse_name?: string;
+  /** 单价 */
+  unit_price?: number;
+  /** 是否需要上楼 */
+  need_upstairs?: boolean;
+  /** 上楼单价 */
+  upstairs_price?: number;
+  /** 上楼金额 */
+  upstairs_amount?: number;
+  /** 是否需要分拣 */
+  need_sorting?: boolean;
+  /** 分拣件数 */
+  sorting_quantity?: number;
+  /** 分拣单价 */
+  sorting_unit_price?: number;
+  /** 分拣金额 */
+  sorting_amount?: number;
 }
 
 /** 创建计件记录请求 */
@@ -280,6 +300,20 @@ export interface PieceWorkRecordCreate {
 export interface PieceWorkRecordUpdate {
   quantity?: number;
   remark?: string;
+  /** 单价 */
+  unit_price?: number;
+  /** 是否需要上楼 */
+  need_upstairs?: boolean;
+  /** 上楼单价 */
+  upstairs_price?: number;
+  /** 是否需要分拣 */
+  need_sorting?: boolean;
+  /** 分拣件数 */
+  sorting_quantity?: number;
+  /** 分拣单价 */
+  sorting_unit_price?: number;
+  /** 金额 */
+  amount?: number;
 }
 
 /** 计件统计 */
@@ -287,6 +321,8 @@ export interface PieceWorkStats {
   total_quantity: number;
   total_amount: number;
   record_count: number;
+  /** 司机数量（可选，某些统计接口返回） */
+  driver_count?: number;
 }
 
 // ==================== 请假相关类型 ====================
