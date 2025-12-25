@@ -3,6 +3,14 @@
  * 提供通用的工具函数
  */
 
+// 导出子模块
+export * from './storage'
+export * from './imageCache'
+export * from './draftImage'
+export * from './draftStorage'
+export * from './submitRecovery'
+export * from './imagePreloader'
+
 /**
  * 格式化日期
  * 

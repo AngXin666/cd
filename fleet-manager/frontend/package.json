@@ -9,7 +9,10 @@
     "build:mp-weixin": "uni build -p mp-weixin",
     "dev:app": "uni -p app",
     "build:app": "uni build -p app",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4010520240507001",
@@ -29,6 +32,9 @@
     "@dcloudio/vite-plugin-uni": "3.0.0-4010520240507001",
     "@types/node": "^20.12.7",
     "@vue/tsconfig": "^0.5.1",
+    "fast-check": "^3.22.0",
+    "vitest": "^2.1.0",
+    "@vitest/coverage-v8": "^2.1.0",
     "sass": "^1.75.0",
     "typescript": "^5.4.5",
     "vite": "^5.2.10",

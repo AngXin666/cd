@@ -1,0 +1,20 @@
+=== Restore main project pages from 8b6e91d0 ===
+
+=== Done - check src/pages ===
+ Volume in drive C is 系统
+ Volume Serial Number is AA0B-B795
+
+ Directory of C:\Users\Administrator\Desktop\cdgj\src\pages
+
+2025/12/24  13:23    <DIR>          .
+2025/12/24  13:23    <DIR>          ..
+2025/12/24  13:23    <DIR>          common
+2025/12/24  13:23    <DIR>          driver
+2025/12/24  13:23    <DIR>          index
+2025/12/24  13:23    <DIR>          login
+2025/12/24  13:23    <DIR>          manager
+2025/12/24  13:23    <DIR>          profile
+2025/12/24  13:23    <DIR>          shared
+2025/12/24  13:23    <DIR>          super-admin
+               0 File(s)              0 bytes
+              10 Dir(s)   6,117,376,000 bytes free

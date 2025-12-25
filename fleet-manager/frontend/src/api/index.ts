@@ -3,7 +3,10 @@
  * 导出所有 API 方法和类型
  */
 
-import { get, post, put, del } from './request';
+import { get, post, put, del, getApiBaseUrl } from './request';
+
+// 导出 getApiBaseUrl 供其他模块使用
+export { getApiBaseUrl };
 import type {
   LoginRequest,
   TokenResponse,
@@ -16,6 +19,8 @@ import type {
   WarehouseUpdate,
   Attendance,
   TodayAttendance,
+  AttendanceRule,
+  LeaveCheckResult,
   PieceWorkCategory,
   PieceWorkCategoryCreate,
   PieceWorkRecord,
@@ -177,9 +182,11 @@ export const getWarehouseUsers = (warehouseId: number) =>
 
 /**
  * 上班打卡
+ * @param warehouseId - 可选的仓库 ID（用于记录打卡仓库）
  * @returns 考勤记录
  */
-export const clockIn = () => post<Attendance>('/attendance/clock-in');
+export const clockIn = (warehouseId?: number) => 
+  post<Attendance>('/attendance/clock-in', warehouseId ? { warehouse_id: warehouseId } : undefined);
 
 /**
  * 下班打卡
@@ -194,6 +201,36 @@ export const clockOut = () => post<Attendance>('/attendance/clock-out');
 export const getTodayAttendance = () => get<TodayAttendance>('/attendance/today');
 
 /**
+ * 获取指定用户的今日考勤记录
+ * 用于计件录入页面检查用户是否已打卡
+ * 
+ * @param userId - 用户ID
+ * @returns 今日考勤记录，如果未打卡则返回 null
+ * @requirements 1.2 - 打卡仓库自动选择
+ */
+export async function getTodayAttendanceForUser(userId: number): Promise<Attendance | null> {
+  // 获取今天的日期字符串 (YYYY-MM-DD)
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  try {
+    // 查询指定用户今日的考勤记录
+    const records = await getAttendanceRecords({
+      user_id: userId,
+      start_date: dateStr,
+      end_date: dateStr,
+      limit: 1,
+    });
+    
+    // 返回第一条记录，如果没有则返回 null
+    return records.length > 0 ? records[0] : null;
+  } catch (error) {
+    console.error('获取用户今日考勤失败:', error);
+    return null;
+  }
+}
+
+/**
  * 获取考勤记录列表
  * @param params - 查询参数
  * @returns 考勤记录列表
@@ -205,6 +242,78 @@ export const getAttendanceRecords = (
     end_date?: string;
   }
 ) => get<Attendance[]>('/attendance', params);
+
+/**
+ * 获取仓库的考勤规则
+ * 返回指定仓库的考勤规则配置
+ * 
+ * @param warehouseId - 仓库 ID
+ * @returns 考勤规则，如果未配置则返回默认规则
+ * @requirements 9.4 - 显示考勤规则
+ * 
+ * @description
+ * 当前后端可能没有考勤规则表，此函数返回默认规则。
+ * 未来如果后端支持考勤规则配置，可以扩展此函数。
+ */
+export async function getAttendanceRule(warehouseId: number): Promise<AttendanceRule> {
+  // 当前返回默认考勤规则
+  // 未来可以从后端获取仓库特定的考勤规则
+  return {
+    id: 0,
+    warehouse_id: warehouseId,
+    work_start_time: '08:00',
+    work_end_time: '18:00',
+    late_threshold: 30, // 迟到阈值：30分钟
+    early_threshold: 30, // 早退阈值：30分钟
+    require_clock_out: true, // 默认需要打下班卡
+  };
+}
+
+/**
+ * 检查用户是否在请假中
+ * 检查当前用户今天是否有已批准的请假
+ * 
+ * @returns 请假状态检查结果
+ * @requirements 9.8 - 请假中禁用打卡
+ * 
+ * @description
+ * 查询当前用户今天是否有已批准的请假申请，
+ * 如果在请假中则返回 onLeave: true。
+ */
+export async function checkUserOnLeave(): Promise<LeaveCheckResult> {
+  try {
+    // 获取今天的日期字符串 (YYYY-MM-DD)
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    // 查询当前用户已批准的请假申请
+    const applications = await getLeaveApplications({
+      status: LeaveStatus.APPROVED,
+      limit: 100,
+    });
+    
+    // 检查是否有覆盖今天的请假
+    for (const app of applications) {
+      const startDate = app.start_date;
+      const endDate = app.end_date;
+      
+      // 检查今天是否在请假日期范围内
+      if (dateStr >= startDate && dateStr <= endDate) {
+        return {
+          onLeave: true,
+          leaveType: app.leave_type,
+          startDate: app.start_date,
+          endDate: app.end_date,
+        };
+      }
+    }
+    
+    return { onLeave: false };
+  } catch (error) {
+    console.error('检查请假状态失败:', error);
+    return { onLeave: false };
+  }
+}
 
 // ==================== 计件 API ====================
 
@@ -277,6 +386,109 @@ export const updatePieceWorkRecord = (id: number, data: { quantity?: number; rem
  */
 export const deletePieceWorkRecord = (id: number) =>
   del<MessageResponse>(`/piece-work/records/${id}`);
+
+/**
+ * 司机类型枚举
+ * 用于区分带车司机和纯司机的单价配置
+ */
+export type DriverType = 'with_vehicle' | 'driver_only';
+
+/**
+ * 单价配置接口
+ * 包含基础单价和司机类型相关的单价信息
+ */
+export interface CategoryPriceConfig {
+  /** 基础单价（从分类获取） */
+  unitPrice: number;
+  /** 是否由管理员设置（锁定状态） */
+  isLocked: boolean;
+  /** 单价来源说明 */
+  source: string;
+}
+
+/**
+ * 获取司机对应的单价配置
+ * 根据仓库、品类和司机类型获取对应的单价
+ * 
+ * @param warehouseId - 仓库 ID
+ * @param categoryId - 品类 ID
+ * @param driverType - 司机类型 (with_vehicle | driver_only)
+ * @returns 单价配置，如果未找到则返回 null
+ * @requirements 1.3 - 司机类型单价加载
+ * 
+ * @description
+ * 当前后端只支持统一单价，此函数从分类中获取单价。
+ * 未来如果后端支持按司机类型区分单价，可以扩展此函数。
+ */
+export async function getCategoryPriceForDriver(
+  warehouseId: number,
+  categoryId: number,
+  driverType: DriverType
+): Promise<CategoryPriceConfig | null> {
+  try {
+    // 获取所有启用的分类
+    const categories = await getPieceWorkCategories(true);
+    
+    // 查找指定的分类
+    const category = categories.find(c => c.id === categoryId);
+    
+    if (!category) {
+      console.warn(`未找到分类 ID: ${categoryId}`);
+      return null;
+    }
+    
+    // 当前后端只有统一单价，返回分类的单价
+    // 未来可以根据 driverType 和 warehouseId 获取不同的单价
+    return {
+      unitPrice: category.unit_price,
+      isLocked: category.unit_price > 0, // 如果有单价则认为是管理员设置的
+      source: category.unit_price > 0 ? '管理员已设置' : '请输入单价',
+    };
+  } catch (error) {
+    console.error('获取司机单价配置失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 检查是否存在重复记录
+ * 检查指定用户在指定日期、仓库、品类是否已有计件记录
+ * 
+ * @param userId - 用户 ID
+ * @param warehouseId - 仓库 ID
+ * @param categoryId - 品类 ID
+ * @param workDate - 工作日期 (YYYY-MM-DD)
+ * @returns 如果存在重复记录则返回该记录，否则返回 null
+ * @requirements 1.6 - 重复记录检测
+ * 
+ * @description
+ * 用于在提交计件记录前检查是否已存在相同条件的记录，
+ * 如果存在则提示用户选择累计或新增。
+ */
+export async function checkDuplicateRecord(
+  userId: number,
+  warehouseId: number,
+  categoryId: number,
+  workDate: string
+): Promise<PieceWorkRecord | null> {
+  try {
+    // 查询指定条件的计件记录
+    const records = await getPieceWorkRecords({
+      user_id: userId,
+      warehouse_id: warehouseId,
+      category_id: categoryId,
+      start_date: workDate,
+      end_date: workDate,
+      limit: 1,
+    });
+    
+    // 返回第一条匹配的记录，如果没有则返回 null
+    return records.length > 0 ? records[0] : null;
+  } catch (error) {
+    console.error('检查重复记录失败:', error);
+    return null;
+  }
+}
 
 // ==================== 请假 API ====================
 
@@ -363,6 +575,89 @@ export const updateVehicle = (id: number, data: VehicleUpdate) =>
  */
 export const reviewVehicle = (id: number, status: VehicleStatus) =>
   put<Vehicle>(`/vehicles/${id}/review`, { status });
+
+/**
+ * 删除车辆
+ * @param id - 车辆ID
+ * @returns 消息响应
+ */
+export const deleteVehicle = (id: number) =>
+  del<MessageResponse>(`/vehicles/${id}`);
+
+/**
+ * 还车
+ * @param vehicleId - 车辆ID
+ * @param returnPhotos - 还车照片数组（7张车辆照片）
+ * @param damagePhotos - 车损照片数组（可选）
+ * @returns 更新后的车辆
+ */
+export const returnVehicle = async (
+  vehicleId: number,
+  returnPhotos: string[],
+  damagePhotos?: string[]
+): Promise<Vehicle> => {
+  const data: any = {
+    return_photos: returnPhotos,
+    return_time: new Date().toISOString(),
+    status: 'returned'
+  };
+  
+  if (damagePhotos && damagePhotos.length > 0) {
+    data.damage_photos = damagePhotos;
+  }
+  
+  return put<Vehicle>(`/vehicles/${vehicleId}/return`, data);
+};
+
+/**
+ * 分配车辆给司机
+ * @param vehicleId - 车辆ID
+ * @param userId - 司机用户ID
+ * @param warehouseId - 仓库ID（可选）
+ * @returns 更新后的车辆
+ */
+export const assignVehicle = (
+  vehicleId: number,
+  userId: number,
+  warehouseId?: number
+): Promise<Vehicle> => {
+  const data: any = {
+    user_id: userId
+  };
+  
+  if (warehouseId) {
+    data.warehouse_id = warehouseId;
+  }
+  
+  return put<Vehicle>(`/vehicles/${vehicleId}/assign`, data);
+};
+
+/**
+ * 获取所有车辆（管理员用）
+ * @param params - 查询参数
+ * @returns 车辆列表
+ */
+export const getAllVehicles = (
+  params?: PaginationParams & {
+    warehouse_id?: number;
+    status?: VehicleStatus;
+    review_status?: string;
+  }
+) => get<Vehicle[]>('/vehicles/all', params);
+
+/**
+ * 获取仓库下的车辆
+ * @param warehouseId - 仓库ID
+ * @param params - 查询参数
+ * @returns 车辆列表
+ */
+export const getWarehouseVehicles = (
+  warehouseId: number,
+  params?: PaginationParams & {
+    status?: VehicleStatus;
+    review_status?: string;
+  }
+) => get<Vehicle[]>(`/warehouses/${warehouseId}/vehicles`, params);
 
 /**
  * 上传车辆证件
@@ -718,6 +1013,25 @@ export const deleteAppVersion = (id: number) =>
 // 导出 SSE 服务
 export { sseService, SSEConnectionState } from '@/utils/sse';
 export type { SSENotification, SSEHeartbeat, SSECallbacks } from '@/utils/sse';
+
+// ==================== 车辆历史 API ====================
+
+import type {
+  VehicleHistory,
+  VehicleHistoryListResponse,
+} from './types';
+
+/**
+ * 获取车辆使用历史
+ * @param vehicleId - 车辆ID
+ * @param params - 分页参数
+ * @returns 车辆历史列表响应
+ */
+export const getVehicleHistory = (
+  vehicleId: number,
+  params?: PaginationParams
+): Promise<VehicleHistoryListResponse> =>
+  get<VehicleHistoryListResponse>(`/vehicles/${vehicleId}/history`, params);
 
 // 导出类型
 export * from './types';

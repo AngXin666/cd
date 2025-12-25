@@ -73,8 +73,45 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 | 计件 | `/api/piece-work` | 计件分类、计件记录、统计 |
 | 请假 | `/api/leave` | 请假申请、审批 |
 | 车辆 | `/api/vehicles` | 车辆管理、证件上传 |
+| 图片上传 | `/api/upload` | 图片文件上传 |
 | 通知 | `/api/notifications` | 通知发送、已读标记 |
 | 系统管理 | `/api/admin` | 系统信息、角色管理（超级管理员） |
+
+## 图片上传 API
+
+### 上传图片
+
+```
+POST /api/upload/image
+```
+
+**请求参数：**
+- `file` (必需): 图片文件（multipart/form-data）
+- `category` (可选): 图片分类，默认 "vehicle"，可选值：vehicle/document/other
+
+**支持的图片格式：** jpg, jpeg, png, webp
+
+**文件大小限制：** 最大 10MB
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "url": "/uploads/images/vehicle/20241224120000_abc123def456.jpg",
+  "filename": "20241224120000_abc123def456.jpg",
+  "size": 102400
+}
+```
+
+### 访问上传的图片
+
+上传成功后，可以通过返回的 URL 直接访问图片：
+
+```
+GET /uploads/images/{category}/{filename}
+```
+
+例如：`http://localhost:8000/uploads/images/vehicle/20241224120000_abc123def456.jpg`
 
 ## 角色权限
 

@@ -10,7 +10,29 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "首页"
+        "navigationBarTitleText": "首页",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/driver/index/index",
+      "style": {
+        "navigationBarTitleText": "司机工作台",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/manager/index/index",
+      "style": {
+        "navigationBarTitleText": "车队长工作台",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/index/index",
+      "style": {
+        "navigationBarTitleText": "管理后台",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -68,6 +90,12 @@
       }
     },
     {
+      "path": "pages/driver/vehicle/return",
+      "style": {
+        "navigationBarTitleText": "还车录入"
+      }
+    },
+    {
       "path": "pages/driver/vehicle/lease",
       "style": {
         "navigationBarTitleText": "租赁信息"
@@ -104,9 +132,23 @@
       }
     },
     {
+      "path": "pages/manager/approval/leave-detail",
+      "style": {
+        "navigationBarTitleText": "请假详情",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/manager/piece-work/index",
       "style": {
         "navigationBarTitleText": "计件管理"
+      }
+    },
+    {
+      "path": "pages/manager/piece-work/detail",
+      "style": {
+        "navigationBarTitleText": "件数报表详情",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -116,9 +158,22 @@
       }
     },
     {
+      "path": "pages/manager/vehicle/list",
+      "style": {
+        "navigationBarTitleText": "车辆管理"
+      }
+    },
+    {
       "path": "pages/manager/notify/index",
       "style": {
         "navigationBarTitleText": "发送通知"
+      }
+    },
+    {
+      "path": "pages/manager/warehouse-categories/index",
+      "style": {
+        "navigationBarTitleText": "仓库品类配置",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -152,9 +207,22 @@
       }
     },
     {
+      "path": "pages/boss/warehouses/edit",
+      "style": {
+        "navigationBarTitleText": "编辑仓库",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/boss/vehicles/index",
       "style": {
         "navigationBarTitleText": "车辆管理"
+      }
+    },
+    {
+      "path": "pages/boss/vehicle/list",
+      "style": {
+        "navigationBarTitleText": "车辆管理（新）"
       }
     },
     {
@@ -170,9 +238,30 @@
       }
     },
     {
+      "path": "pages/boss/vehicles/rental-edit",
+      "style": {
+        "navigationBarTitleText": "车辆租金编辑",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/vehicles/history",
+      "style": {
+        "navigationBarTitleText": "车辆历史",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/boss/approval/index",
       "style": {
         "navigationBarTitleText": "请假审批"
+      }
+    },
+    {
+      "path": "pages/boss/approval/leave-detail",
+      "style": {
+        "navigationBarTitleText": "请假详情",
+        "navigationStyle": "custom"
       }
     },
     {

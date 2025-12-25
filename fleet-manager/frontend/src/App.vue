@@ -1,30 +1,58 @@
 <!--
   App.vue - 应用根组件
   配置应用生命周期和全局样式
+  集成临时文件清理功能
 -->
 <script setup lang="ts">
 /**
  * 应用根组件
  * 处理应用级别的生命周期事件
+ * 包括用户状态初始化和临时文件清理
  */
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
+import {
+  initAppCleanup,
+  performLaunchCleanup,
+  performForegroundCleanup
+} from '@/utils/cleanup';
 
 // 应用启动时执行
-onLaunch(() => {
+onLaunch(async () => {
   console.log('🚀 车队管家启动');
   
   // 初始化用户状态
   const userStore = useUserStore();
   userStore.initFromStorage();
+  
+  // 初始化清理管理器并执行启动清理
+  // 清理超过 24 小时的临时图片（Requirements 12.4）
+  try {
+    await initAppCleanup({ debug: false });
+    await performLaunchCleanup();
+  } catch (error) {
+    // 清理失败不影响应用启动
+    console.warn('[App] 启动清理失败:', error);
+  }
 });
 
-// 应用显示时执行
-onShow(() => {
+// 应用显示时执行（进入前台）
+onShow(async () => {
   console.log('📱 应用进入前台');
+  
+  // 执行前台清理：清理过期的缓存和草稿（Requirements 7.4, 12.5）
+  // 使用 setTimeout 延迟执行，避免影响页面渲染
+  setTimeout(async () => {
+    try {
+      await performForegroundCleanup();
+    } catch (error) {
+      // 清理失败不影响应用使用
+      console.warn('[App] 前台清理失败:', error);
+    }
+  }, 1000); // 延迟 1 秒执行，让页面先渲染
 });
 
-// 应用隐藏时执行
+// 应用隐藏时执行（进入后台）
 onHide(() => {
   console.log('📱 应用进入后台');
 });

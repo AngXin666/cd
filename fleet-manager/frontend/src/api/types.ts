@@ -179,6 +179,8 @@ export interface Attendance {
   clock_in: string | null;
   clock_out: string | null;
   work_hours: number | null;
+  warehouse_id?: number | null;
+  warehouse_name?: string;
   created_at: string;
   user_name?: string;
 }
@@ -190,6 +192,44 @@ export interface TodayAttendance {
   clock_in_time: string | null;
   clock_out_time: string | null;
   work_hours: number | null;
+  warehouse_id?: number | null;
+}
+
+/**
+ * 考勤规则接口
+ * 定义仓库的考勤规则配置
+ * @requirements 9.4 - 显示考勤规则
+ */
+export interface AttendanceRule {
+  /** 规则 ID */
+  id: number;
+  /** 仓库 ID */
+  warehouse_id: number;
+  /** 上班时间 (HH:mm 格式) */
+  work_start_time: string;
+  /** 下班时间 (HH:mm 格式) */
+  work_end_time: string;
+  /** 迟到阈值（分钟） */
+  late_threshold: number;
+  /** 早退阈值（分钟） */
+  early_threshold: number;
+  /** 是否需要打下班卡 */
+  require_clock_out: boolean;
+}
+
+/**
+ * 请假状态检查结果
+ * @requirements 9.8 - 请假中禁用打卡
+ */
+export interface LeaveCheckResult {
+  /** 是否在请假中 */
+  onLeave: boolean;
+  /** 请假类型（如果在请假中） */
+  leaveType?: string;
+  /** 请假开始日期 */
+  startDate?: string;
+  /** 请假结束日期 */
+  endDate?: string;
 }
 
 // ==================== 计件相关类型 ====================
@@ -297,6 +337,88 @@ export interface Vehicle {
   created_at: string;
   updated_at: string;
   user_name?: string;
+  /** 车辆类型 */
+  vehicle_type?: string | null;
+  /** VIN 车架号 */
+  vin?: string | null;
+  /** 发动机号码 */
+  engine_number?: string | null;
+  /** 所有人 */
+  owner_name?: string | null;
+  /** 使用性质 */
+  use_character?: string | null;
+  /** 注册日期 */
+  register_date?: string | null;
+  /** 发证日期 */
+  issue_date?: string | null;
+  /** 档案编号 */
+  archive_number?: string | null;
+  /** 总质量 */
+  total_mass?: string | null;
+  /** 核定载客 */
+  approved_passengers?: string | null;
+  /** 整备质量 */
+  curb_weight?: string | null;
+  /** 核定载质量 */
+  approved_load?: string | null;
+  /** 外廓尺寸-长 */
+  overall_dimension_length?: string | null;
+  /** 外廓尺寸-宽 */
+  overall_dimension_width?: string | null;
+  /** 外廓尺寸-高 */
+  overall_dimension_height?: string | null;
+  /** 检验有效期至 */
+  inspection_valid_until?: string | null;
+  /** 检验日期 */
+  inspection_date?: string | null;
+  /** 强制报废日期 */
+  mandatory_scrap_date?: string | null;
+  
+  // ==================== 车辆照片（7个角度） ====================
+  /** 左前45°照片 */
+  left_front_photo?: string | null;
+  /** 右前45°照片 */
+  right_front_photo?: string | null;
+  /** 左后45°照片 */
+  left_rear_photo?: string | null;
+  /** 右后45°照片 */
+  right_rear_photo?: string | null;
+  /** 仪表盘照片 */
+  dashboard_photo?: string | null;
+  /** 后门照片 */
+  rear_door_photo?: string | null;
+  /** 货箱照片 */
+  cargo_box_photo?: string | null;
+  
+  // ==================== 行驶证照片（3张） ====================
+  /** 行驶证主页照片 */
+  driving_license_main_photo?: string | null;
+  /** 行驶证副页照片 */
+  driving_license_sub_photo?: string | null;
+  /** 行驶证副页背页照片 */
+  driving_license_sub_back_photo?: string | null;
+  
+  // ==================== 提车/还车照片 ====================
+  /** 提车照片数组 */
+  pickup_photos?: string[] | null;
+  /** 还车照片数组 */
+  return_photos?: string[] | null;
+  /** 行驶证照片数组 */
+  registration_photos?: string[] | null;
+  /** 车损照片数组 */
+  damage_photos?: string[] | null;
+  
+  // ==================== 时间和状态 ====================
+  /** 提车时间 */
+  pickup_time?: string | null;
+  /** 还车时间 */
+  return_time?: string | null;
+  /** 审核状态 */
+  review_status?: 'drafting' | 'pending_review' | 'need_supplement' | 'approved';
+  /** 仓库ID */
+  warehouse_id?: number | null;
+  /** 仓库名称 */
+  warehouse_name?: string | null;
 }
 
 /** 创建车辆请求 */
@@ -306,6 +428,87 @@ export interface VehicleCreate {
   model?: string;
   color?: string;
   ownership_type?: string;
+  /** 车辆类型 */
+  vehicle_type?: string;
+  /** VIN 车架号 */
+  vin?: string;
+  /** 发动机号码 */
+  engine_number?: string;
+  /** 所有人 */
+  owner_name?: string;
+  /** 使用性质 */
+  use_character?: string;
+  /** 注册日期 */
+  register_date?: string;
+  /** 发证日期 */
+  issue_date?: string;
+  /** 档案编号 */
+  archive_number?: string;
+  /** 总质量 */
+  total_mass?: string;
+  /** 核定载客 */
+  approved_passengers?: string;
+  /** 整备质量 */
+  curb_weight?: string;
+  /** 核定载质量 */
+  approved_load?: string;
+  /** 外廓尺寸-长 */
+  overall_dimension_length?: string;
+  /** 外廓尺寸-宽 */
+  overall_dimension_width?: string;
+  /** 外廓尺寸-高 */
+  overall_dimension_height?: string;
+  /** 检验有效期至 */
+  inspection_valid_until?: string;
+  /** 检验日期 */
+  inspection_date?: string;
+  /** 强制报废日期 */
+  mandatory_scrap_date?: string;
+  
+  // ==================== 车辆照片（7个角度） ====================
+  /** 左前45°照片 */
+  left_front_photo?: string;
+  /** 右前45°照片 */
+  right_front_photo?: string;
+  /** 左后45°照片 */
+  left_rear_photo?: string;
+  /** 右后45°照片 */
+  right_rear_photo?: string;
+  /** 仪表盘照片 */
+  dashboard_photo?: string;
+  /** 后门照片 */
+  rear_door_photo?: string;
+  /** 货箱照片 */
+  cargo_box_photo?: string;
+  
+  // ==================== 行驶证照片（3张） ====================
+  /** 行驶证主页照片 */
+  driving_license_main_photo?: string;
+  /** 行驶证副页照片 */
+  driving_license_sub_photo?: string;
+  /** 行驶证副页背页照片 */
+  driving_license_sub_back_photo?: string;
+  
+  // ==================== 提车照片 ====================
+  /** 提车照片数组 */
+  pickup_photos?: string[];
+  /** 行驶证照片数组 */
+  registration_photos?: string[];
+  /** 车损照片数组 */
+  damage_photos?: string[];
+  
+  // ==================== 状态 ====================
+  /** 车辆状态 */
+  status?: string;
+  /** 提车时间 */
+  pickup_time?: string;
+  /** 审核状态 */
+  review_status?: 'drafting' | 'pending_review' | 'need_supplement' | 'approved';
+  /** 仓库ID */
+  warehouse_id?: number;
+  /** 分配给的司机ID */
+  assigned_user_id?: number;
+  
   // 租赁信息
   lessor_name?: string;
   lessor_contact?: string;
@@ -377,6 +580,123 @@ export interface VehicleDocument {
   file_url: string | null;
   expiry_date: string | null;
   created_at: string;
+}
+
+// ==================== 驾驶员证件相关类型 ====================
+
+/** 驾驶员证件信息 */
+export interface DriverLicense {
+  id: number;
+  /** 司机用户ID */
+  driver_id: number;
+  /** 驾驶证号 */
+  license_number: string;
+  /** 身份证号码 */
+  id_card_number?: string | null;
+  /** 身份证姓名 */
+  id_card_name?: string | null;
+  /** 身份证地址 */
+  id_card_address?: string | null;
+  /** 身份证出生日期 */
+  id_card_birth_date?: string | null;
+  /** 身份证正面照片 */
+  id_card_photo_front?: string | null;
+  /** 身份证背面照片 */
+  id_card_photo_back?: string | null;
+  /** 准驾车型 */
+  license_class?: string | null;
+  /** 初次领证日期 */
+  first_issue_date?: string | null;
+  /** 有效期起始 */
+  valid_from?: string | null;
+  /** 有效期截止 */
+  valid_to?: string | null;
+  /** 发证机关 */
+  issue_authority?: string | null;
+  /** 驾驶证照片 */
+  driving_license_photo?: string | null;
+  /** 状态 */
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 创建/更新驾驶员证件请求 */
+export interface DriverLicenseInput {
+  /** 司机用户ID */
+  driver_id: number;
+  /** 驾驶证号 */
+  license_number: string;
+  /** 身份证号码 */
+  id_card_number?: string;
+  /** 身份证姓名 */
+  id_card_name?: string;
+  /** 身份证地址 */
+  id_card_address?: string;
+  /** 身份证出生日期 */
+  id_card_birth_date?: string;
+  /** 身份证正面照片 */
+  id_card_photo_front?: string;
+  /** 身份证背面照片 */
+  id_card_photo_back?: string;
+  /** 准驾车型 */
+  license_class?: string;
+  /** 初次领证日期 */
+  first_issue_date?: string;
+  /** 有效期起始 */
+  valid_from?: string;
+  /** 有效期截止 */
+  valid_to?: string;
+  /** 发证机关 */
+  issue_authority?: string;
+  /** 驾驶证照片 */
+  driving_license_photo?: string;
+  /** 状态 */
+  status?: string;
+}
+
+// ==================== 还车相关类型 ====================
+
+/** 还车请求 */
+export interface VehicleReturnRequest {
+  /** 车辆ID */
+  vehicle_id: number;
+  /** 还车照片数组（7张车辆照片） */
+  return_photos: string[];
+  /** 车损照片数组（可选） */
+  damage_photos?: string[];
+}
+
+/** 还车响应 */
+export interface VehicleReturnResponse {
+  /** 是否成功 */
+  success: boolean;
+  /** 消息 */
+  message: string;
+  /** 更新后的车辆信息 */
+  vehicle?: Vehicle;
+}
+
+// ==================== 车辆分配相关类型 ====================
+
+/** 车辆分配请求 */
+export interface VehicleAssignRequest {
+  /** 车辆ID */
+  vehicle_id: number;
+  /** 分配给的司机ID */
+  user_id: number;
+  /** 仓库ID */
+  warehouse_id?: number;
+}
+
+/** 车辆分配响应 */
+export interface VehicleAssignResponse {
+  /** 是否成功 */
+  success: boolean;
+  /** 消息 */
+  message: string;
+  /** 更新后的车辆信息 */
+  vehicle?: Vehicle;
 }
 
 // ==================== 通知相关类型 ====================
@@ -764,4 +1084,63 @@ export interface AppVersionCheckResponse {
   file_size: number | null;
   file_hash: string | null;
   is_force_update: boolean;
+}
+
+
+// ==================== 车辆历史相关类型 ====================
+
+/** 车辆历史操作类型枚举 */
+export enum VehicleHistoryActionType {
+  /** 提车 */
+  PICKUP = 'pickup',
+  /** 还车 */
+  RETURN = 'return',
+}
+
+/** 车辆历史照片（7张基本照片） */
+export interface VehicleHistoryPhotos {
+  /** 左前45°照片 */
+  left_front: string | null;
+  /** 右前45°照片 */
+  right_front: string | null;
+  /** 左后45°照片 */
+  left_rear: string | null;
+  /** 右后45°照片 */
+  right_rear: string | null;
+  /** 仪表盘照片 */
+  dashboard: string | null;
+  /** 后门照片 */
+  rear_door: string | null;
+  /** 货箱照片 */
+  cargo_box: string | null;
+}
+
+/** 车辆历史记录 */
+export interface VehicleHistory {
+  /** 记录ID */
+  id: number;
+  /** 车辆ID */
+  vehicle_id: number;
+  /** 司机ID */
+  user_id: number;
+  /** 司机姓名 */
+  user_name: string | null;
+  /** 操作类型 */
+  action_type: VehicleHistoryActionType;
+  /** 操作时间 */
+  action_time: string;
+  /** 7张基本照片 */
+  photos: VehicleHistoryPhotos | null;
+  /** 车损照片数组 */
+  damage_photos: string[] | null;
+  /** 备注 */
+  remark: string | null;
+}
+
+/** 车辆历史列表响应 */
+export interface VehicleHistoryListResponse {
+  /** 总记录数 */
+  total: number;
+  /** 历史记录列表 */
+  items: VehicleHistory[];
 }

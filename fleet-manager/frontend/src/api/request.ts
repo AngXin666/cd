@@ -8,6 +8,14 @@ import { useUserStore } from '@/store/user';
 /** API 基础地址 */
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+/**
+ * 获取 API 基础地址
+ * @returns API 基础地址
+ */
+export function getApiBaseUrl(): string {
+  return BASE_URL;
+}
+
 /** 请求超时时间（毫秒） */
 const TIMEOUT = 30000;
 

@@ -1,0 +1,248 @@
+/**
+ * 统一主题变量文件
+ * 定义与主项目一致的蓝色主题颜色和样式变量
+ * 
+ * @module styles/theme
+ * @requirements 1.1, 1.2, 1.3 - 颜色主题统一
+ */
+
+// ==================== 主题色 ====================
+
+/// 主色 - 深蓝色
+$theme-primary: #1E3A8A;
+
+/// 主色浅 - 蓝色
+$theme-primary-light: #1D4ED8;
+
+/// 主色更浅 - 用于背景
+$theme-primary-lighter: #3B82F6;
+
+/// 主色最浅 - 用于悬停状态
+$theme-primary-lightest: #60A5FA;
+
+// ==================== 渐变色 ====================
+
+/// 欢迎卡片渐变 - 蓝色主题（与主项目一致）
+$gradient-welcome: linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%);
+
+/// 页面背景渐变
+$gradient-page-bg: linear-gradient(to bottom, #F8FAFC, #E2E8F0);
+
+/// 退出登录按钮渐变
+$gradient-logout: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+
+// ==================== 统计卡片颜色 ====================
+
+/// 蓝色卡片（今天出勤）
+$stat-blue: #3B82F6;
+$stat-blue-bg: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+$stat-blue-border: #BFDBFE;
+
+/// 绿色卡片（今天总件数）
+$stat-green: #10B981;
+$stat-green-bg: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+$stat-green-border: #BBF7D0;
+
+/// 橙色卡片（待审批）
+$stat-orange: #F97316;
+$stat-orange-bg: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+$stat-orange-border: #FED7AA;
+
+/// 紫色卡片（本月完成件数）
+$stat-purple: #8B5CF6;
+$stat-purple-bg: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
+$stat-purple-border: #E9D5FF;
+
+/// 红色卡片
+$stat-red: #EF4444;
+$stat-red-bg: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+$stat-red-border: #FECACA;
+
+/// 青色卡片
+$stat-teal: #14B8A6;
+$stat-teal-bg: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%);
+$stat-teal-border: #99F6E4;
+
+/// 灰色卡片（默认）
+$stat-gray-bg: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+
+// ==================== 文字颜色 ====================
+
+/// 主要文字颜色
+$text-primary: #1F2937;
+
+/// 次要文字颜色
+$text-secondary: #6B7280;
+
+/// 辅助文字颜色
+$text-tertiary: #9CA3AF;
+
+/// 白色文字
+$text-white: #FFFFFF;
+
+/// 白色文字半透明
+$text-white-80: rgba(255, 255, 255, 0.8);
+
+// ==================== 背景颜色 ====================
+
+/// 卡片背景
+$bg-card: #FFFFFF;
+
+/// 页面背景起始色
+$bg-page-start: #F8FAFC;
+
+/// 页面背景结束色
+$bg-page-end: #E2E8F0;
+
+// ==================== 阴影 ====================
+
+/// 卡片阴影
+$shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+
+/// 欢迎卡片阴影
+$shadow-welcome: 0 8rpx 32rpx rgba(30, 58, 138, 0.3);
+
+/// 退出按钮阴影
+$shadow-logout: 0 4rpx 16rpx rgba(239, 68, 68, 0.3);
+
+// ==================== 圆角 ====================
+
+/// 大圆角
+$radius-lg: 24rpx;
+
+/// 中圆角
+$radius-md: 20rpx;
+
+/// 小圆角
+$radius-sm: 16rpx;
+
+/// 圆形
+$radius-full: 32rpx;
+
+// ==================== 间距 ====================
+
+/// 页面内边距
+$spacing-page: 32rpx;
+
+/// 卡片内边距
+$spacing-card: 24rpx;
+
+/// 欢迎卡片内边距
+$spacing-welcome: 48rpx;
+
+/// 区块间距
+$spacing-section: 32rpx;
+
+/// 网格间距
+$spacing-grid: 20rpx;
+
+// ==================== 字体大小 ====================
+
+/// 超大标题
+$font-size-xxl: 48rpx;
+
+/// 大标题
+$font-size-xl: 36rpx;
+
+/// 标题
+$font-size-lg: 32rpx;
+
+/// 正文
+$font-size-md: 28rpx;
+
+/// 小字
+$font-size-sm: 26rpx;
+
+/// 辅助文字
+$font-size-xs: 24rpx;
+
+/// 最小文字
+$font-size-xxs: 22rpx;
+
+/// 微小文字
+$font-size-tiny: 20rpx;
+
+// ==================== 混入 ====================
+
+/// 欢迎卡片样式混入
+@mixin welcome-card {
+  background: $gradient-welcome;
+  border-radius: $radius-lg;
+  padding: $spacing-welcome;
+  box-shadow: $shadow-welcome;
+}
+
+/// 白色卡片样式混入
+@mixin white-card {
+  background-color: $bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-card;
+  box-shadow: $shadow-card;
+}
+
+/// 统计卡片样式混入
+@mixin stat-card($bg, $border: null) {
+  background: $bg;
+  border-radius: $radius-md;
+  padding: $spacing-card;
+  transition: transform 0.2s;
+  
+  @if $border {
+    border: 2rpx solid $border;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+/// 快捷功能项样式混入
+@mixin action-item($bg) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-card $spacing-sm;
+  border-radius: $radius-sm;
+  background: $bg;
+  transition: transform 0.2s;
+  
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+/// 徽章样式混入
+@mixin badge {
+  position: absolute;
+  top: -8rpx;
+  right: -16rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  background-color: $stat-red;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+  
+  .badge-count {
+    font-size: $font-size-tiny;
+    font-weight: bold;
+    color: $text-white;
+  }
+}
+
+/// 区块标题样式混入
+@mixin section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+/// 区块标题文字样式混入
+@mixin section-title {
+  font-size: $font-size-lg;
+  font-weight: bold;
+  color: $text-primary;
+}

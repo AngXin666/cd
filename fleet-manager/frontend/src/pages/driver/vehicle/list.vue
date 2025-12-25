@@ -1,102 +1,243 @@
 ﻿<template>
   <!-- 
-    车辆列表页面
-    显示我的车辆，支持添加、查看详情
+    车辆列表页面 - 提车/还车管理版
+    显示司机名下的所有车辆，支持管理员查看指定司机的车辆
+    功能：
+    - 提车录入：添加新车辆时自动记录提车时间
+    - 还车录入：对已提车的车辆进行还车操作
+    - 动态按钮：根据车辆状态显示不同的操作按钮
+    - 智能控制：有未还车车辆时隐藏"添加新车辆"按钮
+    - 图片缓存：使用 ImageCacheManager 缓存缩略图
+    - 图片预加载：使用 ImagePreloader 预加载可视区域图片
+    
+    @requirements 7.1, 9.2, 12.1, 12.2, 12.3, 12.4, 12.5
   -->
-  <view class="list-page">
-    <!-- 状态筛选 -->
-    <view class="filter-section">
-      <view 
-        v-for="item in statusOptions" 
-        :key="item.value"
-        :class="['filter-item', { active: currentStatus === item.value }]"
-        @click="currentStatus = item.value"
-      >
-        <text class="filter-text">{{ item.label }}</text>
-      </view>
-    </view>
-
-    <!-- 车辆列表 -->
-    <view class="list-section">
-      <view v-if="loading" class="loading-container">
-        <text class="loading-text">加载中...</text>
-      </view>
-      
-      <view v-else-if="filteredVehicles.length === 0" class="empty-container">
-        <text class="empty-icon">🚗</text>
-        <text class="empty-text">暂无车辆</text>
-        <view class="empty-btn" @click="goToAdd">
-          <text class="empty-btn-text">添加车辆</text>
-        </view>
-      </view>
-      
-      <view v-else class="vehicle-list">
-        <view 
-          v-for="vehicle in filteredVehicles" 
-          :key="vehicle.id" 
-          class="vehicle-item"
-          @click="goToDetail(vehicle.id)"
-        >
-          <!-- 车辆图标 -->
-          <view class="vehicle-icon">
-            <text class="icon-text">🚗</text>
-          </view>
-          
-          <!-- 车辆信息 -->
-          <view class="vehicle-info">
-            <view class="info-header">
-              <text class="license-plate">{{ vehicle.license_plate }}</text>
-              <view :class="['status-tag', vehicle.status]">
-                <text class="status-text">{{ getVehicleStatusText(vehicle.status) }}</text>
+  <view class="page">
+    <scroll-view 
+      scroll-y 
+      class="scroll-container"
+      @scroll="handleScroll"
+    >
+      <view class="content">
+        <!-- 页面标题卡片 -->
+        <view class="header-card">
+          <view class="header-content">
+            <view class="header-left">
+              <view class="header-title-row">
+                <text class="header-icon">🚗</text>
+                <text class="header-title">{{ isManagerView ? '司机车辆' : '我的车辆' }}</text>
+              </view>
+              <text class="header-subtitle">
+                {{ isManagerView ? `查看 ${targetDriver?.name || '司机'} 的车辆信息` : '管理您的车辆信息' }}
+              </text>
+            </view>
+            <view class="header-right">
+              <!-- 刷新按钮 -->
+              <view class="refresh-btn" @click="loadVehicles">
+                <text :class="['refresh-icon', { spinning: loading }]">🔄</text>
+              </view>
+              <!-- 车辆数量 -->
+              <view class="vehicle-count">
+                <text class="count-number">{{ vehicles.length }}</text>
+                <text class="count-unit">辆</text>
               </view>
             </view>
-            <view class="info-detail">
-              <text class="detail-text">{{ vehicle.brand || '-' }} {{ vehicle.model || '' }}</text>
-            </view>
-            <view v-if="vehicle.color" class="info-color">
-              <text class="color-label">颜色：</text>
-              <text class="color-value">{{ vehicle.color }}</text>
-            </view>
-          </view>
-          
-          <!-- 箭头 -->
-          <view class="vehicle-arrow">
-            <text class="arrow-text">›</text>
           </view>
         </view>
-      </view>
-    </view>
 
-    <!-- 添加按钮 -->
-    <view class="fab-btn" @click="goToAdd">
-      <text class="fab-icon">+</text>
-    </view>
+        <!-- 管理员查看提示 -->
+        <view v-if="isManagerView && targetDriver" class="manager-tip">
+          <text class="tip-icon">ℹ️</text>
+          <view class="tip-content">
+            <text class="tip-title">管理员查看模式</text>
+            <text class="tip-text">司机姓名：{{ targetDriver.name || '未设置' }}</text>
+            <text class="tip-text">联系方式：{{ targetDriver.phone || targetDriver.email }}</text>
+          </view>
+        </view>
+
+        <!-- 添加车辆按钮 - 只在司机自己的视图且满足条件时显示 -->
+        <view v-if="!isManagerView && shouldShowAddButton" class="add-btn-container">
+          <view class="add-btn" @click="handleAddVehicle">
+            <text class="add-icon">➕</text>
+            <text class="add-text">添加新车辆（提车录入）</text>
+          </view>
+        </view>
+
+        <!-- 加载中 -->
+        <view v-if="loading" class="loading">
+          <text>⏳ 加载中...</text>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-else-if="vehicles.length === 0" class="empty-state">
+          <view class="empty-icon-wrapper">
+            <text class="empty-icon">🚗</text>
+          </view>
+          <text class="empty-title">暂无车辆信息</text>
+          <text class="empty-subtitle">
+            {{ isManagerView ? '该司机还未添加车辆' : '点击上方按钮添加您的第一辆车' }}
+          </text>
+        </view>
+
+        <!-- 车辆列表 -->
+        <view v-else class="vehicle-list">
+          <view 
+            v-for="(vehicle, index) in vehicles" 
+            :key="vehicle.id" 
+            class="vehicle-card"
+            :data-index="index"
+            @click="handleViewDetail(vehicle.id)"
+          >
+            <!-- 车辆照片 - 使用 CachedImage 组件 -->
+            <view v-if="vehicle.left_front_photo" class="vehicle-photo">
+              <CachedImage
+                :src="getCachedImageUrl(vehicle.id, vehicle.left_front_photo)"
+                mode="aspectFill"
+                width="100%"
+                height="100%"
+                :use-cache="true"
+                :lazy-load="true"
+                priority="high"
+                @error="onPhotoError(vehicle.id)"
+              />
+              <!-- 状态标签 -->
+              <view class="status-badge" :class="getVehicleStatusBadge(vehicle).colorClass">
+                <text class="status-icon">{{ getVehicleStatusBadge(vehicle).icon }}</text>
+                <text class="status-text">{{ getVehicleStatusBadge(vehicle).text }}</text>
+              </view>
+            </view>
+            <!-- 无照片时显示占位 -->
+            <view v-else class="vehicle-photo-placeholder">
+              <view class="placeholder-content">
+                <text class="placeholder-icon">📷</text>
+                <text class="placeholder-text">无照片</text>
+              </view>
+              <!-- 状态标签 -->
+              <view class="status-badge" :class="getVehicleStatusBadge(vehicle).colorClass">
+                <text class="status-icon">{{ getVehicleStatusBadge(vehicle).icon }}</text>
+                <text class="status-text">{{ getVehicleStatusBadge(vehicle).text }}</text>
+              </view>
+            </view>
+
+            <!-- 车辆信息 -->
+            <view class="vehicle-info">
+              <!-- 车牌号和品牌 -->
+              <view class="info-header">
+                <view class="plate-row">
+                  <view class="plate-badge">
+                    <text class="plate-text">{{ vehicle.license_plate }}</text>
+                  </view>
+                  <!-- 综合状态标签 -->
+                  <view class="status-tag" :class="getVehicleStatusBadge(vehicle).colorClass">
+                    <text class="tag-icon">{{ getVehicleStatusBadge(vehicle).icon }}</text>
+                    <text class="tag-text">{{ getVehicleStatusBadge(vehicle).text }}</text>
+                  </view>
+                </view>
+                <text class="brand-model">{{ vehicle.brand || '-' }} {{ vehicle.model || '' }}</text>
+              </view>
+
+              <!-- 车辆详细信息标签 -->
+              <view class="info-tags">
+                <view v-if="vehicle.color" class="info-tag purple">
+                  <text class="tag-icon">🎨</text>
+                  <text class="tag-label">{{ vehicle.color }}</text>
+                </view>
+                <view v-if="vehicle.vehicle_type" class="info-tag blue">
+                  <text class="tag-icon">🚛</text>
+                  <text class="tag-label">{{ vehicle.vehicle_type }}</text>
+                </view>
+                <view v-if="vehicle.vin" class="info-tag gray">
+                  <text class="tag-icon">📋</text>
+                  <text class="tag-label">VIN: {{ vehicle.vin.slice(-6) }}</text>
+                </view>
+              </view>
+
+              <!-- 提车/还车时间 -->
+              <view v-if="vehicle.pickup_time || vehicle.return_time" class="time-info">
+                <view v-if="vehicle.pickup_time" class="time-item">
+                  <text class="time-icon">🕐</text>
+                  <text class="time-label">提车时间：{{ formatDateTime(vehicle.pickup_time) }}</text>
+                </view>
+                <view v-if="vehicle.return_time" class="time-item">
+                  <text class="time-icon">🕑</text>
+                  <text class="time-label">还车时间：{{ formatDateTime(vehicle.return_time) }}</text>
+                </view>
+                <!-- 车损责任提醒 -->
+                <view v-if="vehicle.return_time && vehicle.review_status !== 'approved'" class="damage-warning">
+                  <text class="warning-icon">⚠️</text>
+                  <text class="warning-text">如未联系核实车损，一切车损由司机负责</text>
+                </view>
+              </view>
+
+              <!-- 操作按钮 -->
+              <view class="action-buttons">
+                <!-- 需补录状态：显示补录按钮和删除按钮 -->
+                <template v-if="vehicle.review_status === 'need_supplement' && !isManagerView">
+                  <view class="action-btn red" @click.stop="handleSupplementPhotos(vehicle.id)">
+                    <text class="btn-icon">📷</text>
+                    <text class="btn-text">补录图片</text>
+                  </view>
+                  <view class="action-btn gray small" @click.stop="handleDeleteVehicle(vehicle.id, vehicle.license_plate)">
+                    <text class="btn-icon">🗑️</text>
+                  </view>
+                </template>
+                <!-- 其他状态 -->
+                <template v-else>
+                  <view class="action-btn blue" @click.stop="handleViewDetail(vehicle.id)">
+                    <text class="btn-icon">👁️</text>
+                    <text class="btn-text">查看详情</text>
+                  </view>
+                  <!-- 还车按钮 - 仅在已提车未还车、审核通过且非管理员视图时显示 -->
+                  <view 
+                    v-if="canReturnVehicle(vehicle) && !isManagerView"
+                    class="action-btn orange" 
+                    @click.stop="handleReturnVehicle(vehicle.id, vehicle.license_plate)"
+                  >
+                    <text class="btn-icon">🚗</text>
+                    <text class="btn-text">还车</text>
+                  </view>
+                  <!-- 删除按钮 - 非管理员视图时显示 -->
+                  <view 
+                    v-if="!isManagerView"
+                    class="action-btn gray small" 
+                    @click.stop="handleDeleteVehicle(vehicle.id, vehicle.license_plate)"
+                  >
+                    <text class="btn-icon">🗑️</text>
+                  </view>
+                </template>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 底部间距 -->
+        <view class="bottom-spacer"></view>
+      </view>
+    </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 /**
- * 车辆列表页面
- * 显示我的车辆，支持添加、查看详情
+ * 车辆列表页面 - 提车/还车管理版
+ * 显示司机名下的所有车辆，支持管理员查看指定司机的车辆
+ * 功能：
+ * - 提车录入：添加新车辆时自动记录提车时间
+ * - 还车录入：对已提车的车辆进行还车操作
+ * - 动态按钮：根据车辆状态显示不同的操作按钮
+ * - 智能控制：有未还车车辆时隐藏"添加新车辆"按钮
+ * - 图片缓存：使用 ImageCacheManager 缓存缩略图（Requirements 7.1）
+ * - 图片预加载：使用 ImagePreloader 预加载可视区域图片（Requirements 9.2）
  */
 
-import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
-import { getVehicles } from '@/api'
+import { ref, computed, onMounted, watch } from 'vue'
+import { onShow, onLoad } from '@dcloudio/uni-app'
+import { getVehicles, deleteVehicle } from '@/api'
 import type { Vehicle } from '@/api/types'
-import { getVehicleStatusText, navigateTo } from '@/utils'
-
-// ==================== 常量 ====================
-
-/** 状态选项 */
-const statusOptions = [
-  { label: '全部', value: '' },
-  { label: '使用中', value: 'active' },
-  { label: '审核中', value: 'reviewing' },
-  { label: '已归还', value: 'returned' },
-]
-
-// ==================== 状态 ====================
+import { navigateTo } from '@/utils'
+import CachedImage from '@/components/CachedImage/index.vue'
+import { useImagePreloader } from '@/utils/imagePreloader/useImagePreloader'
+import { getImageCacheManager } from '@/utils/imageCache'
 
 /** 车辆列表 */
 const vehicles = ref<Vehicle[]>([])
@@ -104,280 +245,780 @@ const vehicles = ref<Vehicle[]>([])
 /** 加载状态 */
 const loading = ref(false)
 
-/** 当前筛选状态 */
-const currentStatus = ref('')
+/** 目标司机ID（管理员查看模式） */
+const targetDriverId = ref<string>('')
 
-// ==================== 计算属性 ====================
+/** 目标司机信息 */
+const targetDriver = ref<{ name?: string; phone?: string; email?: string } | null>(null)
 
-/** 筛选后的车辆 */
-const filteredVehicles = computed(() => {
-  if (!currentStatus.value) return vehicles.value
-  return vehicles.value.filter(v => v.status === currentStatus.value)
+/** 是否为管理员查看模式 */
+const isManagerView = ref(false)
+
+/** 当前滚动位置 */
+const scrollTop = ref(0)
+
+/** 可视区域高度（估算值，单位 rpx） */
+const VISIBLE_HEIGHT = 1200
+
+/** 每个卡片高度（估算值，单位 rpx） */
+const CARD_HEIGHT = 500
+
+/** 预加载缓冲区（向下多预加载几个） */
+const PRELOAD_BUFFER = 3
+
+/** 图片缓存管理器实例 */
+const cacheManager = getImageCacheManager()
+
+/** 图片预加载器 Hook */
+const {
+  preloadVisible,
+  preloadBackground,
+  cancelGroup,
+  stats: preloaderStats,
+  isLoading: isPreloading
+} = useImagePreloader()
+
+/** 已缓存的图片 URL 映射（vehicleId -> cachedUrl） */
+const cachedImageUrls = ref<Map<number, string>>(new Map())
+
+/** 是否显示添加按钮 */
+const shouldShowAddButton = computed(() => {
+  // 如果没有车辆，显示按钮
+  if (vehicles.value.length === 0) return true
+  // 如果有任何车辆处于"已提车未还车"状态，隐藏按钮
+  const hasPickedUpVehicle = vehicles.value.some(
+    v => (v.status === 'active' || v.status === 'picked_up') && 
+         v.review_status === 'approved' && 
+         !v.return_time
+  )
+  return !hasPickedUpVehicle
 })
-
-// ==================== 生命周期 ====================
-
-onMounted(() => {
-  loadVehicles()
-})
-
-onShow(() => {
-  // 刷新数据
-  loadVehicles()
-})
-
-// ==================== 方法 ====================
 
 /**
- * 加载车辆列表
+ * 计算当前可视区域内的车辆索引范围
+ * @returns 可视区域内的起始和结束索引
  */
+const visibleRange = computed(() => {
+  // 将 scrollTop 从 px 转换为 rpx（假设 1px = 2rpx）
+  const scrollTopRpx = scrollTop.value * 2
+  
+  // 计算可视区域内的第一个卡片索引
+  const startIndex = Math.max(0, Math.floor(scrollTopRpx / CARD_HEIGHT) - 1)
+  
+  // 计算可视区域内的最后一个卡片索引（加上缓冲区）
+  const endIndex = Math.min(
+    vehicles.value.length - 1,
+    Math.ceil((scrollTopRpx + VISIBLE_HEIGHT) / CARD_HEIGHT) + PRELOAD_BUFFER
+  )
+  
+  return { startIndex, endIndex }
+})
+
+/**
+ * 获取可视区域内的车辆图片 URL 列表
+ * @returns 可视区域内的图片 URL 数组
+ */
+const visibleImageUrls = computed(() => {
+  const { startIndex, endIndex } = visibleRange.value
+  const urls: string[] = []
+  
+  for (let i = startIndex; i <= endIndex; i++) {
+    const vehicle = vehicles.value[i]
+    if (vehicle?.left_front_photo) {
+      urls.push(vehicle.left_front_photo)
+    }
+  }
+  
+  return urls
+})
+
+/**
+ * 获取后台预加载的图片 URL 列表（可视区域之外的）
+ * @returns 后台预加载的图片 URL 数组
+ */
+const backgroundImageUrls = computed(() => {
+  const { startIndex, endIndex } = visibleRange.value
+  const urls: string[] = []
+  
+  // 预加载可视区域之后的图片
+  const backgroundEndIndex = Math.min(vehicles.value.length - 1, endIndex + 5)
+  
+  for (let i = endIndex + 1; i <= backgroundEndIndex; i++) {
+    const vehicle = vehicles.value[i]
+    if (vehicle?.left_front_photo) {
+      urls.push(vehicle.left_front_photo)
+    }
+  }
+  
+  return urls
+})
+
+/** 页面加载时获取参数 */
+onLoad((options) => {
+  if (options?.driverId) {
+    targetDriverId.value = options.driverId
+    isManagerView.value = true
+    // TODO: 加载司机信息
+  }
+})
+
+onMounted(async () => {
+  // 初始化图片缓存管理器
+  await cacheManager.initialize()
+  // 加载车辆列表
+  await loadVehicles()
+})
+
+onShow(() => loadVehicles())
+
+/**
+ * 监听可视区域变化，触发预加载
+ */
+watch(visibleImageUrls, (newUrls) => {
+  if (newUrls.length > 0) {
+    // 取消之前的可视区域预加载任务
+    cancelGroup('visible')
+    // 预加载当前可视区域的图片（高优先级）
+    preloadVisible(newUrls)
+  }
+}, { immediate: true })
+
+/**
+ * 监听后台预加载区域变化
+ */
+watch(backgroundImageUrls, (newUrls) => {
+  if (newUrls.length > 0) {
+    // 取消之前的后台预加载任务
+    cancelGroup('background')
+    // 后台预加载即将显示的图片（低优先级）
+    preloadBackground(newUrls)
+  }
+})
+
+/**
+ * 处理滚动事件
+ * 更新当前滚动位置，用于计算可视区域
+ * @param event - 滚动事件对象
+ */
+function handleScroll(event: { detail: { scrollTop: number } }): void {
+  scrollTop.value = event.detail.scrollTop
+}
+
+/** 加载车辆列表 */
 async function loadVehicles(): Promise<void> {
   loading.value = true
-  
   try {
-    const data = await getVehicles({
-      limit: 100,
-    })
-    vehicles.value = data
+    vehicles.value = await getVehicles({ limit: 100 })
+    
+    // 车辆列表加载完成后，预加载所有车辆的缩略图
+    await preloadAllThumbnails()
   } catch (error) {
     console.error('加载车辆列表失败:', error)
-    uni.showToast({
-      title: '加载失败',
-      icon: 'none',
-    })
+    uni.showToast({ title: '加载失败', icon: 'none' })
   } finally {
     loading.value = false
   }
 }
 
 /**
- * 跳转到添加页面
+ * 预加载所有车辆的缩略图
+ * 使用 ImagePreloader 进行批量预加载
  */
-function goToAdd(): void {
-  navigateTo('/pages/driver/vehicle/add')
+async function preloadAllThumbnails(): Promise<void> {
+  // 收集所有有照片的车辆的图片 URL
+  const allPhotoUrls = vehicles.value
+    .filter(v => v.left_front_photo)
+    .map(v => v.left_front_photo as string)
+  
+  if (allPhotoUrls.length === 0) {
+    return
+  }
+  
+  // 先预加载可视区域的图片（高优先级）
+  const visibleUrls = visibleImageUrls.value
+  if (visibleUrls.length > 0) {
+    preloadVisible(visibleUrls)
+  }
+  
+  // 后台预加载其他图片（低优先级）
+  const otherUrls = allPhotoUrls.filter(url => !visibleUrls.includes(url))
+  if (otherUrls.length > 0) {
+    preloadBackground(otherUrls)
+  }
 }
 
 /**
- * 跳转到详情页面
- * 
- * @param id - 车辆ID
+ * 获取缓存的图片 URL
+ * 如果图片已缓存，返回缓存的 URL；否则返回原始 URL
+ * @param vehicleId - 车辆 ID
+ * @param originalUrl - 原始图片 URL
+ * @returns 缓存的图片 URL 或原始 URL
  */
-function goToDetail(id: number): void {
-  navigateTo('/pages/driver/vehicle/detail', { id })
+function getCachedImageUrl(vehicleId: number, originalUrl: string): string {
+  // 直接返回原始 URL，CachedImage 组件会自动处理缓存
+  return originalUrl
+}
+
+/**
+ * 获取车辆综合状态标识
+ * 根据review_status和status综合判断显示的状态
+ */
+function getVehicleStatusBadge(vehicle: Vehicle): { text: string; colorClass: string; icon: string } {
+  // 优先判断审核状态
+  if (vehicle.review_status === 'need_supplement') {
+    return { text: '需补录', colorClass: 'badge-red', icon: '⚠️' }
+  }
+  if (vehicle.review_status === 'pending_review') {
+    return { text: '待审核', colorClass: 'badge-yellow', icon: '⏳' }
+  }
+  // 审核通过后，根据车辆状态判断
+  if (vehicle.review_status === 'approved') {
+    if (vehicle.status === 'returned' || vehicle.status === 'inactive') {
+      return { text: '已停用', colorClass: 'badge-gray', icon: '⛔' }
+    }
+    return { text: '已启用', colorClass: 'badge-green', icon: '✅' }
+  }
+  // 默认状态（录入中）
+  return { text: '录入中', colorClass: 'badge-gray', icon: '📝' }
+}
+
+/** 是否可以还车 */
+function canReturnVehicle(vehicle: Vehicle): boolean {
+  return (vehicle.status === 'active' || vehicle.status === 'picked_up') && 
+         !vehicle.return_time && 
+         vehicle.review_status === 'approved'
+}
+
+/** 格式化日期时间 */
+function formatDateTime(dateStr: string): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  return d.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+/** 照片加载失败处理 */
+function onPhotoError(vehicleId: number): void {
+  console.error('车辆照片加载失败:', vehicleId)
+}
+
+/** 添加车辆 */
+function handleAddVehicle(): void {
+  navigateTo('/pages/driver/vehicle/add')
+}
+
+/** 查看车辆详情 */
+function handleViewDetail(vehicleId: number): void {
+  navigateTo('/pages/driver/vehicle/detail', { id: vehicleId })
+}
+
+/** 还车录入 */
+function handleReturnVehicle(vehicleId: number, plateNumber: string): void {
+  navigateTo('/pages/driver/vehicle/return', { id: vehicleId, plate: plateNumber })
+}
+
+/** 补录图片 */
+function handleSupplementPhotos(vehicleId: number): void {
+  navigateTo('/pages/driver/vehicle/supplement', { vehicleId })
+}
+
+/** 删除车辆 */
+async function handleDeleteVehicle(vehicleId: number, plateNumber: string): Promise<void> {
+  // 弹出确认对话框
+  uni.showModal({
+    title: '确认删除',
+    content: `确定要删除车牌号为 "${plateNumber}" 的车辆吗？此操作不可恢复！`,
+    confirmText: '删除',
+    confirmColor: '#EF4444',
+    cancelText: '取消',
+    success: async (res) => {
+      if (res.confirm) {
+        uni.showLoading({ title: '删除中...' })
+        try {
+          await deleteVehicle(vehicleId)
+          uni.hideLoading()
+          uni.showToast({ title: '删除成功', icon: 'success' })
+          // 刷新车辆列表
+          loadVehicles()
+        } catch (error) {
+          uni.hideLoading()
+          console.error('删除车辆失败:', error)
+          uni.showToast({ title: '删除失败', icon: 'none' })
+        }
+      }
+    }
+  })
 }
 </script>
 
 <style lang="scss" scoped>
-.list-page {
+.page {
   min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 120rpx;
+  background: linear-gradient(to bottom, #EFF6FF, #DBEAFE);
 }
 
-/* 筛选区域 */
-.filter-section {
-  display: flex;
-  background-color: #ffffff;
-  padding: 24rpx;
-  margin-bottom: 24rpx;
+.scroll-container {
+  height: 100vh;
+  box-sizing: border-box;
 }
 
-.filter-item {
-  flex: 1;
-  text-align: center;
+.content {
   padding: 16rpx;
-  border-radius: 8rpx;
-  transition: all 0.2s;
-  
-  &.active {
-    background-color: #4a90e2;
-    
-    .filter-text {
-      color: #ffffff;
-    }
-  }
 }
 
-.filter-text {
-  font-size: 26rpx;
-  color: #666666;
+/* 页面标题卡片 */
+.header-card {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(30, 58, 138, 0.3);
 }
 
-/* 列表区域 */
-.list-section {
-  padding: 0 24rpx;
-}
-
-.loading-container,
-.empty-container {
+.header-content {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 80rpx 0;
+  justify-content: space-between;
 }
 
-.loading-text {
-  font-size: 28rpx;
-  color: #999999;
+.header-left {
+  flex: 1;
 }
 
-.empty-icon {
-  font-size: 80rpx;
+.header-title-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.header-icon {
+  font-size: 48rpx;
+  margin-right: 16rpx;
+}
+
+.header-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+.header-subtitle {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.refresh-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 16rpx;
+}
+
+.refresh-icon {
+  font-size: 32rpx;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.vehicle-count {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 32rpx;
+  padding: 12rpx 24rpx;
+  display: flex;
+  align-items: baseline;
+}
+
+.count-number {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+.count-unit {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-left: 4rpx;
+}
+
+/* 管理员提示 */
+.manager-tip {
+  background: #EFF6FF;
+  border: 2rpx solid #BFDBFE;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  align-items: flex-start;
+}
+
+.tip-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.tip-content {
+  flex: 1;
+}
+
+.tip-title {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #1e40af;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.tip-text {
+  font-size: 22rpx;
+  color: #1d4ed8;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+/* 添加按钮 */
+.add-btn-container {
   margin-bottom: 16rpx;
 }
 
-.empty-text {
-  font-size: 28rpx;
-  color: #999999;
-  margin-bottom: 24rpx;
+.add-btn {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #fff;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.3);
 }
 
-.empty-btn {
-  background-color: #4a90e2;
-  padding: 16rpx 48rpx;
-  border-radius: 8rpx;
+.add-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
 }
 
-.empty-btn-text {
+.add-text {
   font-size: 28rpx;
-  color: #ffffff;
+  font-weight: 500;
+}
+
+/* 加载中 */
+.loading {
+  text-align: center;
+  padding: 60rpx;
+  color: #666;
+}
+
+/* 空状态 */
+.empty-state {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 80rpx 40rpx;
+  text-align: center;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+
+.empty-icon-wrapper {
+  background: #EFF6FF;
+  border-radius: 50%;
+  width: 120rpx;
+  height: 120rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24rpx;
+}
+
+.empty-icon {
+  font-size: 64rpx;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.empty-subtitle {
+  font-size: 26rpx;
+  color: #999;
 }
 
 /* 车辆列表 */
 .vehicle-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 20rpx;
 }
 
-.vehicle-item {
-  display: flex;
-  align-items: center;
-  background-color: #ffffff;
-  border-radius: 16rpx;
-  padding: 24rpx;
+/* 车辆卡片 */
+.vehicle-card {
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
-/* 车辆图标 */
-.vehicle-icon {
-  width: 100rpx;
-  height: 100rpx;
-  background-color: #f0f0f0;
-  border-radius: 16rpx;
+/* 车辆照片 */
+.vehicle-photo {
+  position: relative;
+  width: 100%;
+  height: 320rpx;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  overflow: hidden;
+}
+
+.vehicle-photo-placeholder {
+  position: relative;
+  width: 100%;
+  height: 200rpx;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 24rpx;
 }
 
-.icon-text {
-  font-size: 48rpx;
+.placeholder-content {
+  text-align: center;
 }
+
+.placeholder-icon {
+  font-size: 64rpx;
+  display: block;
+  margin-bottom: 8rpx;
+  opacity: 0.5;
+}
+
+.placeholder-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 状态标签 */
+.status-badge {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  backdrop-filter: blur(8px);
+}
+
+.status-icon {
+  font-size: 20rpx;
+  margin-right: 6rpx;
+}
+
+.status-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #fff;
+}
+
+.badge-green { background: rgba(34, 197, 94, 0.9); }
+.badge-red { background: rgba(239, 68, 68, 0.9); }
+.badge-yellow { background: rgba(245, 158, 11, 0.9); }
+.badge-gray { background: rgba(156, 163, 175, 0.9); }
 
 /* 车辆信息 */
 .vehicle-info {
-  flex: 1;
+  padding: 24rpx;
 }
 
 .info-header {
+  margin-bottom: 16rpx;
+}
+
+.plate-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.plate-badge {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  border-radius: 12rpx;
+  padding: 8rpx 16rpx;
+}
+
+.plate-text {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+.status-tag {
+  border-radius: 24rpx;
+  padding: 6rpx 16rpx;
+  display: flex;
+  align-items: center;
+}
+
+.tag-icon {
+  font-size: 18rpx;
+  margin-right: 4rpx;
+}
+
+.tag-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #fff;
+}
+
+.brand-model {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 信息标签 */
+.info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.info-tag {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 16rpx;
+  border-radius: 12rpx;
+  
+  &.purple {
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    .tag-label { color: #7c3aed; }
+  }
+  
+  &.blue {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    .tag-label { color: #1d4ed8; }
+  }
+  
+  &.gray {
+    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+    .tag-label { color: #4b5563; }
+  }
+}
+
+.tag-icon {
+  font-size: 24rpx;
+  margin-right: 6rpx;
+}
+
+.tag-label {
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+/* 时间信息 */
+.time-info {
+  margin-bottom: 16rpx;
+}
+
+.time-item {
   display: flex;
   align-items: center;
   margin-bottom: 8rpx;
 }
 
-.license-plate {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333333;
-  margin-right: 16rpx;
+.time-icon {
+  font-size: 24rpx;
+  margin-right: 8rpx;
 }
 
-.status-tag {
-  padding: 4rpx 12rpx;
-  border-radius: 6rpx;
-  
-  &.active {
-    background-color: #f6ffed;
-    
-    .status-text {
-      color: #52c41a;
-    }
-  }
-  
-  &.reviewing {
-    background-color: #fff7e6;
-    
-    .status-text {
-      color: #faad14;
-    }
-  }
-  
-  &.returned {
-    background-color: #f0f0f0;
-    
-    .status-text {
-      color: #999999;
-    }
-  }
-}
-
-.status-text {
+.time-label {
   font-size: 22rpx;
+  color: #666;
 }
 
-.info-detail {
-  margin-bottom: 4rpx;
-}
-
-.detail-text {
-  font-size: 26rpx;
-  color: #666666;
-}
-
-.info-color {
+.damage-warning {
   display: flex;
   align-items: center;
+  background: #FFF7ED;
+  border-radius: 8rpx;
+  padding: 8rpx 12rpx;
+  margin-top: 8rpx;
 }
 
-.color-label {
-  font-size: 24rpx;
-  color: #999999;
+.warning-icon {
+  font-size: 22rpx;
+  margin-right: 6rpx;
 }
 
-.color-value {
-  font-size: 24rpx;
-  color: #666666;
+.warning-text {
+  font-size: 22rpx;
+  color: #c2410c;
 }
 
-/* 箭头 */
-.vehicle-arrow {
-  margin-left: 16rpx;
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 12rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx solid #f3f4f6;
 }
 
-.arrow-text {
-  font-size: 32rpx;
-  color: #cccccc;
-}
-
-/* 浮动按钮 */
-.fab-btn {
-  position: fixed;
-  right: 32rpx;
-  bottom: 120rpx;
-  width: 100rpx;
-  height: 100rpx;
-  background: linear-gradient(135deg, #4a90e2 0%, #6ba3e8 100%);
-  border-radius: 50%;
+.action-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(74, 144, 226, 0.4);
+  padding: 16rpx;
+  border-radius: 12rpx;
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  
+  &.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+  &.red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+  &.orange { background: linear-gradient(135deg, #f97316, #ea580c); }
+  &.gray { background: linear-gradient(135deg, #6b7280, #4b5563); }
+  
+  &.small {
+    flex: none;
+    padding: 16rpx 20rpx;
+  }
 }
 
-.fab-icon {
-  font-size: 56rpx;
-  color: #ffffff;
-  font-weight: bold;
+.btn-icon {
+  font-size: 28rpx;
+  margin-right: 8rpx;
+}
+
+.btn-text {
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+.action-btn.small .btn-icon {
+  margin-right: 0;
+}
+
+/* 底部间距 */
+.bottom-spacer {
+  height: 32rpx;
 }
 </style>

@@ -4,13 +4,13 @@
 支持 SSE 实时通知推送
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
 from contextlib import asynccontextmanager
 import asyncio
 import json
 
-from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, text
@@ -40,6 +40,7 @@ from schemas import (
     VehicleCreate, VehicleUpdate, VehicleResponse, VehicleReviewRequest,
     VehicleDocumentCreate, VehicleDocumentResponse,
     VehicleLeaseUpdate, VehicleLeaseResponse, VehicleLeaseReminderResponse,
+    VehicleReturnRequest, VehicleAssignRequest,
     SupplementPhotoRequest, SupplementedPhotosResponse,
     NotificationCreate, NotificationResponse, UnreadCountResponse,
     NotificationFromTemplateCreate,
@@ -47,14 +48,17 @@ from schemas import (
     NotificationTemplatePreviewRequest,
     ScheduledNotificationCreate, ScheduledNotificationUpdate, ScheduledNotificationResponse,
     SchedulerStatusResponse, ScheduledNotificationStatus as SchemaScheduledNotificationStatus,
-    OCRDrivingLicenseRequest, OCRDrivingLicenseResponse, OCRDrivingLicenseData, OCRStatusResponse
+    OCRDrivingLicenseRequest, OCRDrivingLicenseResponse, OCRDrivingLicenseData, OCRStatusResponse,
+    ImageUploadResponse,
+    VehicleHistoryResponse, VehicleHistoryListResponse, VehicleHistoryPhotos,
+    VehicleHistoryActionType as SchemaVehicleHistoryActionType
 )
 
 # 导入定时通知相关模型
 from models import ScheduledNotificationStatus
 
 # 导入调度器模块
-from scheduler import start_scheduler, stop_scheduler, is_scheduler_running, get_scheduler_info
+from scheduler import start_scheduler, stop_scheduler, is_scheduler_running, get_scheduler_status as get_scheduler_info
 
 
 # ==================== 应用生命周期 ====================
@@ -75,6 +79,7 @@ async def lifespan(app: FastAPI):
     
     # 启动定时任务调度器
     start_scheduler()
+    print("⏰ 定时任务调度器已启动")
     
     print("✅ 服务启动完成！")
     
@@ -82,7 +87,9 @@ async def lifespan(app: FastAPI):
     
     # 关闭时执行
     stop_scheduler()
+    print("⏰ 定时任务调度器已停止")
     print("👋 服务已关闭")
+
 
 
 # ==================== 创建 FastAPI 应用 ====================
@@ -102,6 +109,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==================== 静态文件服务配置 ====================
+# 导入静态文件服务所需模块
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import os
+
+# 创建上传目录（如果不存在）
+UPLOAD_BASE_DIR = Path("uploads")
+UPLOAD_BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+# 挂载静态文件服务，用于访问上传的图片
+# URL 路径 /uploads 映射到本地 uploads 目录
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_BASE_DIR)), name="uploads")
 
 
 # ==================== 认证 API ====================
@@ -441,6 +462,84 @@ async def get_warehouse_users(
     
     users = crud.get_warehouse_users(session, warehouse_id)
     return users
+
+
+@app.get("/api/warehouses/{warehouse_id}/vehicles", response_model=List[VehicleResponse], tags=["仓库管理"])
+async def get_warehouse_vehicles(
+    warehouse_id: int,
+    vehicle_status: Optional[VehicleStatus] = Query(None, alias="status", description="按车辆状态过滤"),
+    skip: int = Query(0, ge=0, description="跳过记录数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回记录数上限"),
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    获取仓库下的车辆列表
+    所有登录用户可访问，但需要验证仓库存在
+    支持按状态过滤和分页
+    
+    Args:
+        warehouse_id: 仓库ID
+        vehicle_status: 按车辆状态过滤（可选）
+        skip: 跳过记录数，默认0
+        limit: 返回记录数上限，默认100，最大1000
+        
+    Returns:
+        List[VehicleResponse]: 该仓库的车辆列表
+        
+    Raises:
+        HTTPException 404: 仓库不存在
+        HTTPException 403: 当前用户无权访问该仓库
+    """
+    # 验证仓库是否存在 (Requirement 4.4)
+    warehouse = crud.get_warehouse_by_id(session, warehouse_id)
+    if not warehouse:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="仓库不存在"
+        )
+    
+    # 权限检查：司机只能访问自己分配的仓库 (Requirement 4.5)
+    if current_user.role == UserRole.DRIVER:
+        # 获取用户分配的仓库列表
+        user_warehouses = crud.get_user_warehouses(session, current_user.id)
+        user_warehouse_ids = [w.id for w in user_warehouses]
+        
+        # 检查用户是否有权访问该仓库
+        if warehouse_id not in user_warehouse_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权访问该仓库"
+            )
+    
+    # 获取仓库车辆列表 (Requirement 4.1, 4.2, 4.3)
+    vehicles = crud.get_warehouse_vehicles(
+        session,
+        warehouse_id=warehouse_id,
+        status=vehicle_status,
+        skip=skip,
+        limit=limit
+    )
+    
+    # 构建响应（添加车主姓名）
+    result = []
+    for vehicle in vehicles:
+        user = crud.get_user_by_id(session, vehicle.user_id)
+        result.append(VehicleResponse(
+            id=vehicle.id,
+            user_id=vehicle.user_id,
+            license_plate=vehicle.license_plate,
+            brand=vehicle.brand,
+            model=vehicle.model,
+            color=vehicle.color,
+            status=vehicle.status,
+            ownership_type=vehicle.ownership_type,
+            created_at=vehicle.created_at,
+            updated_at=vehicle.updated_at,
+            user_name=user.name if user else None
+        ))
+    
+    return result
 
 
 # ==================== 考勤 API ====================
@@ -886,6 +985,7 @@ async def create_leave_application(
 ):
     """
     提交请假申请（司机操作）
+    创建申请后自动发送通知给管理员
     """
     application = crud.create_leave_application(
         session,
@@ -895,6 +995,41 @@ async def create_leave_application(
         end_date=request.end_date,
         reason=request.reason
     )
+    
+    # 发送通知给管理员（车队长、调度、老板、超级管理员）
+    try:
+        # 获取所有管理员用户
+        admin_users = crud.get_users(
+            session, 
+            is_active=True,
+            skip=0,
+            limit=1000
+        )
+        # 筛选管理角色
+        admin_ids = [
+            u.id for u in admin_users 
+            if u.role in [UserRole.MANAGER, UserRole.DISPATCHER, UserRole.BOSS, UserRole.SUPER_ADMIN]
+        ]
+        
+        if admin_ids:
+            # 构建通知内容
+            leave_type_text = "请假" if request.leave_type == "leave" else "离职"
+            title = f"新的{leave_type_text}申请"
+            content = f"{current_user.name} 提交了{leave_type_text}申请，日期：{request.start_date} 至 {request.end_date}"
+            if request.reason:
+                content += f"，原因：{request.reason}"
+            
+            # 发送通知
+            crud.create_notifications_batch(
+                session,
+                user_ids=admin_ids,
+                title=title,
+                content=content,
+                sender_id=current_user.id
+            )
+    except Exception as e:
+        # 通知发送失败不影响申请创建
+        print(f"发送请假申请通知失败: {e}")
     
     return LeaveApplicationResponse(
         id=application.id,
@@ -1056,6 +1191,62 @@ async def get_vehicles(
     return result
 
 
+@app.get("/api/vehicles/all", response_model=List[VehicleResponse], tags=["车辆管理"])
+async def get_all_vehicles(
+    warehouse_id: Optional[int] = Query(None, description="按仓库ID过滤"),
+    status: Optional[VehicleStatus] = Query(None, description="按车辆状态过滤"),
+    skip: int = Query(0, ge=0, description="跳过记录数"),
+    limit: int = Query(100, ge=1, le=1000, description="返回记录数上限"),
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    获取所有车辆列表（管理员用）
+    需要管理权限（车队长、调度、老板、超级管理员）
+    支持按仓库和状态过滤，支持分页
+    
+    Args:
+        warehouse_id: 按仓库ID过滤（可选）
+        status: 按车辆状态过滤（可选）
+        skip: 跳过记录数，默认0
+        limit: 返回记录数上限，默认100，最大1000
+        
+    Returns:
+        List[VehicleResponse]: 车辆列表
+        
+    Raises:
+        HTTPException 403: 当前用户无管理权限
+    """
+    # 获取车辆列表（已通过 require_management 验证权限）
+    vehicles = crud.get_all_vehicles(
+        session,
+        warehouse_id=warehouse_id,
+        status=status,
+        skip=skip,
+        limit=limit
+    )
+    
+    # 构建响应（添加车主姓名）
+    result = []
+    for vehicle in vehicles:
+        user = crud.get_user_by_id(session, vehicle.user_id)
+        result.append(VehicleResponse(
+            id=vehicle.id,
+            user_id=vehicle.user_id,
+            license_plate=vehicle.license_plate,
+            brand=vehicle.brand,
+            model=vehicle.model,
+            color=vehicle.color,
+            status=vehicle.status,
+            ownership_type=vehicle.ownership_type,
+            created_at=vehicle.created_at,
+            updated_at=vehicle.updated_at,
+            user_name=user.name if user else None
+        ))
+    
+    return result
+
+
 @app.post("/api/vehicles", response_model=VehicleResponse, tags=["车辆管理"])
 async def create_vehicle(
     request: VehicleCreate,
@@ -1065,10 +1256,13 @@ async def create_vehicle(
     """
     添加车辆（司机操作）
     支持同时设置租赁信息
+    创建车辆后自动发送通知给管理员进行审核
     """
     # 检查车牌号是否已存在
+    from sqlmodel import select as sql_select
+    from models import Vehicle as VehicleModel
     existing = session.exec(
-        crud.select(crud.Vehicle).where(crud.Vehicle.license_plate == request.license_plate)
+        sql_select(VehicleModel).where(VehicleModel.license_plate == request.license_plate)
     ).first()
     if existing:
         raise HTTPException(
@@ -1093,6 +1287,43 @@ async def create_vehicle(
         lease_end_date=request.lease_end_date,
         rent_payment_day=request.rent_payment_day
     )
+    
+    # 发送通知给管理员（调度、老板、超级管理员）进行车辆审核
+    try:
+        # 获取所有管理员用户
+        admin_users = crud.get_users(
+            session, 
+            is_active=True,
+            skip=0,
+            limit=1000
+        )
+        # 筛选有车辆审核权限的角色
+        admin_ids = [
+            u.id for u in admin_users 
+            if u.role in [UserRole.DISPATCHER, UserRole.BOSS, UserRole.SUPER_ADMIN]
+        ]
+        
+        if admin_ids:
+            # 构建通知内容
+            title = "新的车辆审核申请"
+            content = f"{current_user.name} 添加了新车辆，车牌号：{request.license_plate}"
+            if request.brand:
+                content += f"，品牌：{request.brand}"
+            if request.model:
+                content += f"，型号：{request.model}"
+            content += "，请及时审核。"
+            
+            # 发送通知
+            crud.create_notifications_batch(
+                session,
+                user_ids=admin_ids,
+                title=title,
+                content=content,
+                sender_id=current_user.id
+            )
+    except Exception as e:
+        # 通知发送失败不影响车辆创建
+        print(f"发送车辆审核通知失败: {e}")
     
     return VehicleResponse(
         id=vehicle.id,
@@ -1275,6 +1506,363 @@ async def create_vehicle_document(
         file_url=document.file_url,
         expiry_date=document.expiry_date,
         created_at=document.created_at
+    )
+
+
+# ==================== 车辆还车 API ====================
+
+@app.put("/api/vehicles/{vehicle_id}/return", response_model=VehicleResponse, tags=["车辆管理"])
+async def return_vehicle(
+    vehicle_id: int,
+    request: VehicleReturnRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    还车操作（司机操作）
+    
+    验证车辆存在且属于当前用户，存储还车照片和车损照片，
+    更新车辆状态为 returned，记录还车时间，并自动创建历史记录。
+    
+    Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 15.2
+    
+    Args:
+        vehicle_id: 车辆ID
+        request: 还车请求，包含还车照片（7张）和车损照片（可选）
+        current_user: 当前登录用户
+        session: 数据库会话
+        
+    Returns:
+        VehicleResponse: 更新后的车辆信息
+        
+    Raises:
+        HTTPException 404: 车辆不存在
+        HTTPException 403: 无权操作该车辆（车辆不属于当前用户）
+        HTTPException 400: 还车照片数量不正确
+    """
+    import json
+    from models import VehicleHistoryActionType
+    
+    # 1. 验证车辆存在
+    vehicle = session.get(crud.Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="车辆不存在"
+        )
+    
+    # 2. 验证车辆归属（司机只能还自己的车，管理员可以操作所有车辆）
+    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权操作该车辆"
+        )
+    
+    # 3. 验证还车照片数量（必须为7张）
+    # 注意：Pydantic 已经在 schema 层面验证了 min_length=7, max_length=7
+    # 这里再次验证以确保安全
+    if len(request.return_photos) != 7:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="还车照片必须为7张"
+        )
+    
+    # 4. 存储还车照片（JSON 格式）
+    return_photos_json = json.dumps(request.return_photos)
+    vehicle.return_photos = return_photos_json
+    
+    # 5. 存储车损照片（如果有）
+    damage_photos_json = None
+    if request.damage_photos:
+        damage_photos_json = json.dumps(request.damage_photos)
+        vehicle.damage_photos = damage_photos_json
+    
+    # 6. 记录还车时间
+    return_time = request.return_time if request.return_time else datetime.now()
+    vehicle.return_time = return_time
+    
+    # 7. 更新车辆状态为 returned
+    vehicle.status = VehicleStatus.RETURNED
+    
+    # 8. 更新时间戳
+    vehicle.updated_at = datetime.now()
+    
+    # 9. 保存到数据库
+    session.add(vehicle)
+    session.commit()
+    session.refresh(vehicle)
+    
+    # 10. 创建还车历史记录 (Requirement 15.2)
+    try:
+        crud.create_vehicle_history(
+            session,
+            vehicle_id=vehicle.id,
+            user_id=current_user.id,
+            action_type=VehicleHistoryActionType.RETURN,
+            action_time=return_time,
+            photos=return_photos_json,
+            damage_photos=damage_photos_json,
+            remark=request.remark
+        )
+    except Exception as e:
+        # 历史记录创建失败不影响还车操作
+        print(f"创建还车历史记录失败: {e}")
+    
+    # 11. 获取车主信息用于响应
+    user = crud.get_user_by_id(session, vehicle.user_id)
+    
+    return VehicleResponse(
+        id=vehicle.id,
+        user_id=vehicle.user_id,
+        license_plate=vehicle.license_plate,
+        brand=vehicle.brand,
+        model=vehicle.model,
+        color=vehicle.color,
+        status=vehicle.status,
+        ownership_type=vehicle.ownership_type,
+        created_at=vehicle.created_at,
+        updated_at=vehicle.updated_at,
+        user_name=user.name if user else None
+    )
+
+
+# ==================== 车辆分配 API ====================
+
+@app.put("/api/vehicles/{vehicle_id}/assign", response_model=VehicleResponse, tags=["车辆管理"])
+async def assign_vehicle(
+    vehicle_id: int,
+    request: VehicleAssignRequest,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    分配车辆给司机（管理权限操作）
+    
+    验证当前用户具有管理权限，将车辆分配给指定司机，
+    更新车辆的 user_id 和 warehouse_id（如果提供），
+    更新车辆状态为 active，并自动创建提车历史记录。
+    
+    Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 15.2
+    
+    Args:
+        vehicle_id: 车辆ID
+        request: 分配请求，包含目标司机ID和仓库ID（可选）
+        current_user: 当前登录用户（必须具有管理权限）
+        session: 数据库会话
+        
+    Returns:
+        VehicleResponse: 更新后的车辆信息
+        
+    Raises:
+        HTTPException 404: 车辆不存在
+        HTTPException 404: 目标用户不存在
+        HTTPException 403: 无管理权限（由 require_management 依赖处理）
+    """
+    from models import VehicleHistoryActionType
+    
+    # 1. 验证车辆存在
+    vehicle = session.get(crud.Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="车辆不存在"
+        )
+    
+    # 2. 验证目标用户存在
+    target_user = crud.get_user_by_id(session, request.user_id)
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="目标用户不存在"
+        )
+    
+    # 3. 验证仓库存在（如果提供了 warehouse_id）
+    if request.warehouse_id is not None:
+        warehouse = crud.get_warehouse_by_id(session, request.warehouse_id)
+        if not warehouse:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="仓库不存在"
+            )
+        # 更新车辆的仓库ID
+        vehicle.warehouse_id = request.warehouse_id
+    
+    # 4. 更新车辆的 user_id 为指定用户
+    vehicle.user_id = request.user_id
+    
+    # 5. 更新车辆状态为 active
+    vehicle.status = VehicleStatus.ACTIVE
+    
+    # 6. 记录提车时间
+    pickup_time = datetime.now()
+    vehicle.pickup_time = pickup_time
+    
+    # 7. 更新时间戳
+    vehicle.updated_at = datetime.now()
+    
+    # 8. 保存到数据库
+    session.add(vehicle)
+    session.commit()
+    session.refresh(vehicle)
+    
+    # 9. 创建提车历史记录 (Requirement 15.2)
+    try:
+        # 获取提车照片（如果有）
+        pickup_photos_json = vehicle.pickup_photos
+        
+        crud.create_vehicle_history(
+            session,
+            vehicle_id=vehicle.id,
+            user_id=request.user_id,
+            action_type=VehicleHistoryActionType.PICKUP,
+            action_time=pickup_time,
+            photos=pickup_photos_json,
+            damage_photos=None,
+            remark=f"由 {current_user.name} 分配"
+        )
+    except Exception as e:
+        # 历史记录创建失败不影响分配操作
+        print(f"创建提车历史记录失败: {e}")
+    
+    # 10. 发送通知给目标司机
+    try:
+        title = "车辆分配通知"
+        content = f"管理员 {current_user.name} 已将车辆 {vehicle.license_plate} 分配给您"
+        if vehicle.brand:
+            content += f"，品牌：{vehicle.brand}"
+        if vehicle.model:
+            content += f"，型号：{vehicle.model}"
+        content += "。"
+        
+        crud.create_notifications_batch(
+            session,
+            user_ids=[request.user_id],
+            title=title,
+            content=content,
+            sender_id=current_user.id
+        )
+    except Exception as e:
+        # 通知发送失败不影响分配操作
+        print(f"发送车辆分配通知失败: {e}")
+    
+    return VehicleResponse(
+        id=vehicle.id,
+        user_id=vehicle.user_id,
+        license_plate=vehicle.license_plate,
+        brand=vehicle.brand,
+        model=vehicle.model,
+        color=vehicle.color,
+        status=vehicle.status,
+        ownership_type=vehicle.ownership_type,
+        created_at=vehicle.created_at,
+        updated_at=vehicle.updated_at,
+        user_name=target_user.name
+    )
+
+
+# ==================== 车辆历史 API ====================
+
+@app.get("/api/vehicles/{vehicle_id}/history", response_model=VehicleHistoryListResponse, tags=["车辆历史"])
+async def get_vehicle_history(
+    vehicle_id: int,
+    skip: int = Query(0, ge=0, description="跳过记录数"),
+    limit: int = Query(20, ge=1, le=100, description="返回记录数上限"),
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    获取车辆使用历史
+    返回车辆的提车/还车记录列表，包含照片、时间、司机信息
+    
+    Requirements: 15.1, 15.2, 15.3, 15.4, 15.5
+    
+    Args:
+        vehicle_id: 车辆ID
+        skip: 跳过记录数，默认0
+        limit: 返回记录数上限，默认20，最大100
+        current_user: 当前登录用户（必须具有管理权限）
+        session: 数据库会话
+        
+    Returns:
+        VehicleHistoryListResponse: 包含总数和历史记录列表
+        
+    Raises:
+        HTTPException 404: 车辆不存在
+        HTTPException 403: 无管理权限（由 require_management 依赖处理）
+    """
+    import json
+    
+    # 1. 验证车辆存在
+    vehicle = session.get(crud.Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="车辆不存在"
+        )
+    
+    # 2. 获取历史记录总数
+    total = crud.get_vehicle_history_count(session, vehicle_id)
+    
+    # 3. 获取历史记录列表
+    history_records = crud.get_vehicle_history(
+        session,
+        vehicle_id=vehicle_id,
+        skip=skip,
+        limit=limit
+    )
+    
+    # 4. 构建响应
+    items = []
+    for record in history_records:
+        # 获取司机信息
+        user = crud.get_user_by_id(session, record.user_id)
+        
+        # 解析照片 JSON
+        photos = None
+        if record.photos:
+            try:
+                photos_list = json.loads(record.photos)
+                # 将照片数组转换为按角度组织的对象
+                if isinstance(photos_list, list) and len(photos_list) >= 7:
+                    photos = VehicleHistoryPhotos(
+                        left_front=photos_list[0] if len(photos_list) > 0 else None,
+                        right_front=photos_list[1] if len(photos_list) > 1 else None,
+                        left_rear=photos_list[2] if len(photos_list) > 2 else None,
+                        right_rear=photos_list[3] if len(photos_list) > 3 else None,
+                        dashboard=photos_list[4] if len(photos_list) > 4 else None,
+                        rear_door=photos_list[5] if len(photos_list) > 5 else None,
+                        cargo_box=photos_list[6] if len(photos_list) > 6 else None
+                    )
+            except json.JSONDecodeError:
+                photos = None
+        
+        # 解析车损照片 JSON
+        damage_photos = None
+        if record.damage_photos:
+            try:
+                damage_photos = json.loads(record.damage_photos)
+            except json.JSONDecodeError:
+                damage_photos = None
+        
+        # 转换操作类型
+        action_type = SchemaVehicleHistoryActionType(record.action_type.value)
+        
+        items.append(VehicleHistoryResponse(
+            id=record.id,
+            vehicle_id=record.vehicle_id,
+            user_id=record.user_id,
+            user_name=user.name if user else None,
+            action_type=action_type,
+            action_time=record.action_time,
+            photos=photos,
+            damage_photos=damage_photos,
+            remark=record.remark,
+            created_at=record.created_at
+        ))
+    
+    return VehicleHistoryListResponse(
+        total=total,
+        items=items
     )
 
 
@@ -1774,7 +2362,7 @@ async def notification_stream(
     });
     ```
     """
-    from auth import decode_token, get_user_by_id
+    from auth import decode_token
     from database import engine
     
     # SSE 不支持 Authorization header，需要通过 query 参数传递 token
@@ -3233,6 +3821,161 @@ async def delete_app_version(
     
     crud.delete_app_version(session, version)
     return MessageResponse(message="版本已删除")
+
+
+# ==================== 图片上传 API ====================
+
+import uuid
+
+# 图片存储配置
+UPLOAD_DIR = Path("uploads/images")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# 支持的图片格式
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+# 最大文件大小（10MB）
+MAX_FILE_SIZE = 10 * 1024 * 1024
+
+
+def get_file_extension(filename: str) -> str:
+    """
+    获取文件扩展名（小写）
+    
+    Args:
+        filename: 文件名
+        
+    Returns:
+        str: 小写的文件扩展名，如 ".jpg"
+    """
+    return Path(filename).suffix.lower()
+
+
+def generate_unique_filename(original_filename: str) -> str:
+    """
+    生成唯一的文件名
+    使用 UUID 和原始扩展名组合
+    
+    Args:
+        original_filename: 原始文件名
+        
+    Returns:
+        str: 唯一的文件名
+    """
+    ext = get_file_extension(original_filename)
+    unique_id = uuid.uuid4().hex[:16]
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    return f"{timestamp}_{unique_id}{ext}"
+
+
+@app.post("/api/upload/image", response_model=ImageUploadResponse, tags=["图片上传"])
+async def upload_image(
+    file: UploadFile = File(..., description="图片文件"),
+    category: str = Query("vehicle", description="图片分类（vehicle/document/other）"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    上传图片文件
+    
+    接收图片文件，验证格式和大小，保存到本地文件系统，返回访问 URL
+    
+    支持的图片格式：jpg, jpeg, png, webp
+    最大文件大小：10MB
+    
+    Args:
+        file: 上传的图片文件
+        category: 图片分类，用于组织存储目录
+        current_user: 当前登录用户
+        
+    Returns:
+        ImageUploadResponse: 包含图片访问 URL、文件名、大小等信息
+        
+    Raises:
+        HTTPException 400: 图片格式不支持或文件大小超过限制
+        HTTPException 401: 用户未登录
+    """
+    # 验证文件扩展名 (Requirement 6.3)
+    ext = get_file_extension(file.filename or "")
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的图片格式。支持的格式：{', '.join(ALLOWED_EXTENSIONS)}"
+        )
+    
+    # 读取文件内容
+    content = await file.read()
+    file_size = len(content)
+    
+    # 验证文件大小 (Requirement 6.4)
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"图片大小超过限制（最大 {MAX_FILE_SIZE // (1024 * 1024)}MB）"
+        )
+    
+    # 验证文件内容是否为有效图片（通过检查文件头）
+    if not is_valid_image_content(content, ext):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="文件内容不是有效的图片"
+        )
+    
+    # 生成唯一文件名
+    unique_filename = generate_unique_filename(file.filename or "image.jpg")
+    
+    # 创建分类目录
+    category_dir = UPLOAD_DIR / category
+    category_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 保存文件
+    file_path = category_dir / unique_filename
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    # 构建访问 URL (Requirement 6.2)
+    # URL 格式：/uploads/images/{category}/{filename}
+    url = f"/uploads/images/{category}/{unique_filename}"
+    
+    return ImageUploadResponse(
+        success=True,
+        url=url,
+        filename=unique_filename,
+        size=file_size
+    )
+
+
+def is_valid_image_content(content: bytes, ext: str) -> bool:
+    """
+    验证文件内容是否为有效的图片
+    通过检查文件头（magic bytes）来验证
+    
+    Args:
+        content: 文件内容
+        ext: 文件扩展名
+        
+    Returns:
+        bool: 是否为有效图片
+    """
+    if len(content) < 8:
+        return False
+    
+    # JPEG: FF D8 FF
+    if ext in [".jpg", ".jpeg"]:
+        return content[:3] == b'\xff\xd8\xff'
+    
+    # PNG: 89 50 4E 47 0D 0A 1A 0A
+    if ext == ".png":
+        return content[:8] == b'\x89PNG\r\n\x1a\n'
+    
+    # WebP: RIFF....WEBP
+    if ext == ".webp":
+        return content[:4] == b'RIFF' and content[8:12] == b'WEBP'
+    
+    return False
+
+
+# 挂载静态文件服务（用于访问上传的图片）
+# 注意：这行代码需要在所有路由定义之后执行
+# 在应用启动时会自动挂载
 
 
 # ==================== 健康检查 ====================

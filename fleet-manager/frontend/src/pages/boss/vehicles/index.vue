@@ -55,8 +55,13 @@
             <text class="vehicle-owner">所属：{{ vehicle.user_name || '未知' }}</text>
           </view>
         </view>
-        <view class="vehicle-arrow">
-          <text class="arrow-icon">›</text>
+        <view class="vehicle-actions">
+          <view class="history-btn" @click.stop="viewVehicleHistory(vehicle.id)">
+            <text class="history-icon">📋</text>
+          </view>
+          <view class="vehicle-arrow">
+            <text class="arrow-icon">›</text>
+          </view>
         </view>
       </view>
     </view>
@@ -160,6 +165,14 @@ function viewVehicleDetail(vehicleId: number): void {
 }
 
 /**
+ * 跳转到车辆历史页面
+ * @param vehicleId - 车辆ID
+ */
+function viewVehicleHistory(vehicleId: number): void {
+  uni.navigateTo({ url: `/pages/boss/vehicles/history?id=${vehicleId}` })
+}
+
+/**
  * 跳转到租金提醒页面
  */
 function goToLeaseReminders(): void {
@@ -197,6 +210,9 @@ function goToLeaseReminders(): void {
 .status-text { font-size: 22rpx; }
 .vehicle-brand { font-size: 26rpx; color: #666666; margin-bottom: 4rpx; display: block; }
 .vehicle-owner { font-size: 24rpx; color: #999999; }
+.vehicle-actions { display: flex; align-items: center; gap: 16rpx; }
+.history-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; background-color: #f0f0f0; border-radius: 28rpx; }
+.history-icon { font-size: 28rpx; }
 .vehicle-arrow { padding-left: 16rpx; }
 .arrow-icon { font-size: 36rpx; color: #cccccc; }
 .stats-footer { padding: 24rpx; text-align: center; }

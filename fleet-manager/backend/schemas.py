@@ -960,3 +960,235 @@ class AppVersionCheckResponse(BaseModel):
     file_size: Optional[int] = Field(default=None, description="文件大小")
     file_hash: Optional[str] = Field(default=None, description="文件哈希")
     is_force_update: bool = Field(default=False, description="是否强制更新")
+
+
+# ==================== 车辆还车/分配相关模式 ====================
+
+class VehicleReturnRequest(BaseModel):
+    """
+    还车请求模式
+    用于司机提交还车信息和照片
+    
+    Attributes:
+        return_photos: 还车照片URL数组，必须包含7张照片
+        damage_photos: 车损照片URL数组，无数量限制
+        return_time: 还车时间，可选，默认为当前时间
+        remark: 备注信息
+    """
+    return_photos: List[str] = Field(
+        ..., 
+        min_length=7, 
+        max_length=7, 
+        description="还车照片URL（必须7张：左前、右前、左后、右后、仪表盘、后门、货箱）"
+    )
+    damage_photos: Optional[List[str]] = Field(
+        default=None, 
+        description="车损照片URL（无数量限制）"
+    )
+    return_time: Optional[datetime] = Field(
+        default=None, 
+        description="还车时间，不填则使用当前时间"
+    )
+    remark: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="备注"
+    )
+
+
+class VehicleAssignRequest(BaseModel):
+    """
+    分配车辆请求模式
+    用于管理员将车辆分配给指定司机
+    
+    Attributes:
+        user_id: 目标司机ID
+        warehouse_id: 仓库ID，可选
+    """
+    user_id: int = Field(..., description="目标司机ID")
+    warehouse_id: Optional[int] = Field(default=None, description="仓库ID")
+
+
+class ImageUploadResponse(BaseModel):
+    """
+    图片上传响应模式
+    返回上传成功后的图片信息
+    
+    Attributes:
+        success: 是否上传成功
+        url: 图片访问URL
+        filename: 文件名
+        size: 文件大小（字节）
+    """
+    success: bool = Field(..., description="是否成功")
+    url: str = Field(..., description="图片访问URL")
+    filename: str = Field(..., description="文件名")
+    size: int = Field(..., description="文件大小（字节）")
+
+
+class VehicleReturnResponse(BaseModel):
+    """
+    还车响应模式
+    返回还车操作的结果
+    
+    Attributes:
+        id: 车辆ID
+        license_plate: 车牌号
+        status: 车辆状态
+        return_time: 还车时间
+        return_photos: 还车照片URL列表
+        damage_photos: 车损照片URL列表
+    """
+    id: int = Field(..., description="车辆ID")
+    license_plate: str = Field(..., description="车牌号")
+    status: VehicleStatus = Field(..., description="车辆状态")
+    return_time: Optional[datetime] = Field(default=None, description="还车时间")
+    return_photos: Optional[List[str]] = Field(default=None, description="还车照片URL列表")
+    damage_photos: Optional[List[str]] = Field(default=None, description="车损照片URL列表")
+    
+    class Config:
+        from_attributes = True
+
+
+class VehicleAssignResponse(BaseModel):
+    """
+    分配车辆响应模式
+    返回分配操作的结果
+    
+    Attributes:
+        id: 车辆ID
+        license_plate: 车牌号
+        user_id: 车主ID
+        user_name: 车主姓名
+        warehouse_id: 仓库ID
+        warehouse_name: 仓库名称
+        status: 车辆状态
+    """
+    id: int = Field(..., description="车辆ID")
+    license_plate: str = Field(..., description="车牌号")
+    user_id: int = Field(..., description="车主ID")
+    user_name: Optional[str] = Field(default=None, description="车主姓名")
+    warehouse_id: Optional[int] = Field(default=None, description="仓库ID")
+    warehouse_name: Optional[str] = Field(default=None, description="仓库名称")
+    status: VehicleStatus = Field(..., description="车辆状态")
+    
+    class Config:
+        from_attributes = True
+
+
+class VehicleListResponse(BaseModel):
+    """
+    车辆列表响应模式
+    用于返回车辆列表查询结果
+    
+    Attributes:
+        id: 车辆ID
+        license_plate: 车牌号
+        brand: 品牌
+        model: 型号
+        color: 颜色
+        status: 车辆状态
+        user_id: 车主ID
+        user_name: 车主姓名
+        warehouse_id: 仓库ID
+        warehouse_name: 仓库名称
+        created_at: 创建时间
+    """
+    id: int = Field(..., description="车辆ID")
+    license_plate: str = Field(..., description="车牌号")
+    brand: Optional[str] = Field(default=None, description="品牌")
+    model: Optional[str] = Field(default=None, description="型号")
+    color: Optional[str] = Field(default=None, description="颜色")
+    status: VehicleStatus = Field(..., description="车辆状态")
+    user_id: int = Field(..., description="车主ID")
+    user_name: Optional[str] = Field(default=None, description="车主姓名")
+    warehouse_id: Optional[int] = Field(default=None, description="仓库ID")
+    warehouse_name: Optional[str] = Field(default=None, description="仓库名称")
+    created_at: datetime = Field(..., description="创建时间")
+    
+    class Config:
+        from_attributes = True
+
+
+# ==================== 车辆历史相关模式 ====================
+
+class VehicleHistoryActionType(str, Enum):
+    """
+    车辆历史操作类型枚举
+    - PICKUP: 提车操作
+    - RETURN: 还车操作
+    """
+    PICKUP = "pickup"
+    RETURN = "return"
+
+
+class VehicleHistoryPhotos(BaseModel):
+    """
+    车辆历史照片模式
+    按角度组织的7张基本照片
+    
+    Attributes:
+        left_front: 左前照片URL
+        right_front: 右前照片URL
+        left_rear: 左后照片URL
+        right_rear: 右后照片URL
+        dashboard: 仪表盘照片URL
+        rear_door: 后门照片URL
+        cargo_box: 货箱照片URL
+    """
+    left_front: Optional[str] = Field(default=None, description="左前照片URL")
+    right_front: Optional[str] = Field(default=None, description="右前照片URL")
+    left_rear: Optional[str] = Field(default=None, description="左后照片URL")
+    right_rear: Optional[str] = Field(default=None, description="右后照片URL")
+    dashboard: Optional[str] = Field(default=None, description="仪表盘照片URL")
+    rear_door: Optional[str] = Field(default=None, description="后门照片URL")
+    cargo_box: Optional[str] = Field(default=None, description="货箱照片URL")
+
+
+class VehicleHistoryResponse(BaseModel):
+    """
+    车辆历史记录响应模式
+    返回单条车辆使用历史记录
+    
+    Attributes:
+        id: 记录ID
+        vehicle_id: 车辆ID
+        user_id: 司机ID
+        user_name: 司机姓名
+        action_type: 操作类型（pickup=提车, return=还车）
+        action_time: 操作时间
+        photos: 7张基本照片（按角度组织）
+        damage_photos: 车损照片数组
+        remark: 备注
+        created_at: 记录创建时间
+    
+    Requirements: 15.1, 15.2, 15.3
+    """
+    id: int = Field(..., description="记录ID")
+    vehicle_id: int = Field(..., description="车辆ID")
+    user_id: int = Field(..., description="司机ID")
+    user_name: Optional[str] = Field(default=None, description="司机姓名")
+    action_type: VehicleHistoryActionType = Field(..., description="操作类型")
+    action_time: datetime = Field(..., description="操作时间")
+    photos: Optional[VehicleHistoryPhotos] = Field(default=None, description="7张基本照片")
+    damage_photos: Optional[List[str]] = Field(default=None, description="车损照片数组")
+    remark: Optional[str] = Field(default=None, description="备注")
+    created_at: datetime = Field(..., description="记录创建时间")
+    
+    class Config:
+        from_attributes = True
+
+
+class VehicleHistoryListResponse(BaseModel):
+    """
+    车辆历史列表响应模式
+    返回分页的车辆历史记录列表
+    
+    Attributes:
+        total: 总记录数
+        items: 历史记录列表
+    
+    Requirements: 15.4
+    """
+    total: int = Field(..., description="总记录数")
+    items: List[VehicleHistoryResponse] = Field(..., description="历史记录列表")

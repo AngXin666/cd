@@ -139,6 +139,8 @@ class Warehouse(SQLModel, table=True):
     # 关联关系
     assignments: List["WarehouseAssignment"] = Relationship(back_populates="warehouse")
     piece_work_records: List["PieceWorkRecord"] = Relationship(back_populates="warehouse")
+    # 新增：仓库下的车辆列表
+    vehicles: List["Vehicle"] = Relationship(back_populates="warehouse")
 
 
 class WarehouseAssignment(SQLModel, table=True):
@@ -294,11 +296,12 @@ class LeaveApplication(SQLModel, table=True):
 class Vehicle(SQLModel, table=True):
     """
     车辆信息表
-    记录司机的车辆信息，包含租赁相关字段
+    记录司机的车辆信息，包含租赁相关字段和还车/提车照片
     
     Attributes:
         id: 主键，自增
         user_id: 车主ID（外键）
+        warehouse_id: 所属仓库ID（外键）
         license_plate: 车牌号，唯一
         brand: 品牌
         model: 型号
@@ -313,6 +316,11 @@ class Vehicle(SQLModel, table=True):
         lease_start_date: 租赁开始日期
         lease_end_date: 租赁结束日期
         rent_payment_day: 每月租金缴纳日（1-31）
+        pickup_photos: 提车照片JSON数组
+        pickup_time: 提车时间
+        return_photos: 还车照片JSON数组
+        damage_photos: 车损照片JSON数组
+        return_time: 还车时间
         created_at: 创建时间
         updated_at: 更新时间
     """
@@ -320,6 +328,8 @@ class Vehicle(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
+    # 新增：所属仓库ID（外键关联仓库）
+    warehouse_id: Optional[int] = Field(default=None, foreign_key="warehouses.id", index=True, description="所属仓库ID")
     license_plate: str = Field(unique=True, index=True, max_length=20)
     brand: Optional[str] = Field(default=None, max_length=50)
     model: Optional[str] = Field(default=None, max_length=50)
@@ -338,6 +348,13 @@ class Vehicle(SQLModel, table=True):
     lease_start_date: Optional[date] = Field(default=None)
     lease_end_date: Optional[date] = Field(default=None)
     rent_payment_day: Optional[int] = Field(default=None)  # 每月缴纳日（1-31）
+    # 新增：提车照片和时间
+    pickup_photos: Optional[str] = Field(default=None, description="提车照片JSON数组")
+    pickup_time: Optional[datetime] = Field(default=None, description="提车时间")
+    # 新增：还车照片和时间
+    return_photos: Optional[str] = Field(default=None, description="还车照片JSON数组（7张）")
+    damage_photos: Optional[str] = Field(default=None, description="车损照片JSON数组（最多9张）")
+    return_time: Optional[datetime] = Field(default=None, description="还车时间")
     # 时间戳
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -345,6 +362,7 @@ class Vehicle(SQLModel, table=True):
     # 关联关系
     user: Optional[User] = Relationship(back_populates="vehicles")
     documents: List["VehicleDocument"] = Relationship(back_populates="vehicle")
+    warehouse: Optional[Warehouse] = Relationship(back_populates="vehicles")
 
 
 class VehicleDocument(SQLModel, table=True):
@@ -591,3 +609,49 @@ class AppVersion(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     creator_id: Optional[int] = Field(default=None, foreign_key="users.id", description="创建者ID")
+
+
+# ==================== 车辆历史记录相关 ====================
+
+class VehicleHistoryActionType(str, Enum):
+    """
+    车辆历史操作类型枚举
+    - PICKUP: 提车操作
+    - RETURN: 还车操作
+    """
+    PICKUP = "pickup"
+    RETURN = "return"
+
+
+class VehicleHistory(SQLModel, table=True):
+    """
+    车辆使用历史表
+    记录车辆的每次提车和还车操作，包含照片、时间、司机信息
+    
+    Attributes:
+        id: 主键，自增
+        vehicle_id: 车辆ID（外键）
+        user_id: 司机ID（外键）
+        action_type: 操作类型（pickup=提车, return=还车）
+        action_time: 操作时间
+        photos: 照片JSON数组（7张基本照片）
+        damage_photos: 车损照片JSON数组
+        remark: 备注
+        created_at: 记录创建时间
+    
+    Requirements: 15.2, 15.3
+    """
+    __tablename__ = "vehicle_history"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    vehicle_id: int = Field(foreign_key="vehicles.id", index=True, description="车辆ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="司机ID")
+    action_type: VehicleHistoryActionType = Field(description="操作类型：pickup=提车, return=还车")
+    action_time: datetime = Field(description="操作时间")
+    photos: Optional[str] = Field(default=None, description="照片JSON数组（7张基本照片）")
+    damage_photos: Optional[str] = Field(default=None, description="车损照片JSON数组")
+    remark: Optional[str] = Field(default=None, max_length=500, description="备注")
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    # 关联关系（可选，用于 ORM 查询）
+    # 注意：这里不添加 back_populates 以避免循环引用问题

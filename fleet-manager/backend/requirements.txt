@@ -34,3 +34,7 @@ apscheduler>=3.10.0
 
 # Data migration (from Supabase)
 supabase>=2.0.0
+
+# Testing
+pytest>=7.0.0
+hypothesis>=6.0.0

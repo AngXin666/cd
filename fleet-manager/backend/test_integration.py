@@ -580,7 +580,7 @@ def test_leave(tokens: Dict[str, str]):
     leave_id = None
     try:
         response = api_request("POST", "/api/leave", token=driver_token, json_data={
-            "leave_type": "事假",
+            "leave_type": "leave",
             "start_date": (date.today() + timedelta(days=1)).isoformat(),
             "end_date": (date.today() + timedelta(days=2)).isoformat(),
             "reason": "测试请假"
@@ -620,7 +620,7 @@ def test_leave(tokens: Dict[str, str]):
     if leave_id and admin_token:
         try:
             response = api_request("PUT", f"/api/leave/{leave_id}/approve", token=admin_token, json_data={
-                "status": "APPROVED",
+                "status": "approved",
                 "approve_remark": "测试审批通过"
             })
             if response.status_code == 200:
@@ -706,7 +706,7 @@ def test_vehicles(tokens: Dict[str, str]):
     if vehicle_id and admin_token:
         try:
             response = api_request("PUT", f"/api/vehicles/{vehicle_id}/review", token=admin_token, json_data={
-                "status": "APPROVED"
+                "status": "active"
             })
             if response.status_code == 200:
                 log_test("审核车辆", True)

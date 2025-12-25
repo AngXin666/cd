@@ -1,37 +1,112 @@
 ﻿<template>
   <!-- 
-    统计报表页面
-    显示考勤统计和计件汇总
-    支持日期范围筛选
+    数据汇总页面
+    显示计件统计数据，支持仓库筛选、司机搜索、快捷日期筛选
+    Requirements: 3.1-3.10
   -->
   <view class="stats-page">
-    <!-- 日期筛选 -->
+    <!-- 筛选条件区域 -->
     <view class="filter-section">
-      <view class="date-picker">
-        <picker mode="date" :value="startDate" @change="handleStartDateChange">
-          <view class="date-input">
-            <text class="date-label">开始</text>
-            <text class="date-value">{{ startDate }}</text>
-          </view>
-        </picker>
-        <text class="date-separator">至</text>
-        <picker mode="date" :value="endDate" @change="handleEndDateChange">
-          <view class="date-input">
-            <text class="date-label">结束</text>
-            <text class="date-value">{{ endDate }}</text>
+      <!-- 仓库选择器 -->
+      <!-- Requirements: 3.1, 3.9, 3.10 -->
+      <view class="filter-row">
+        <text class="filter-label">仓库</text>
+        <picker 
+          mode="selector" 
+          :range="warehouseOptions" 
+          range-key="name"
+          :value="selectedWarehouseIndex"
+          @change="onWarehouseChange"
+        >
+          <view class="warehouse-picker">
+            <text class="warehouse-text">{{ selectedWarehouseName }}</text>
+            <text class="warehouse-arrow">▼</text>
           </view>
         </picker>
       </view>
-      
-      <!-- 快捷日期选择 -->
-      <view class="quick-dates">
-        <view
-          v-for="item in quickDateOptions"
-          :key="item.value"
-          :class="['quick-date-btn', { active: activeQuickDate === item.value }]"
-          @click="handleQuickDateSelect(item.value)"
+
+      <!-- 司机搜索框 -->
+      <!-- Requirements: 3.2, 3.3 -->
+      <view class="filter-row">
+        <text class="filter-label">司机</text>
+        <view class="search-input-wrapper">
+          <input 
+            type="text"
+            class="search-input"
+            v-model="searchKeyword"
+            placeholder="搜索姓名/手机号/拼音首字母"
+            @input="onSearchInput"
+          />
+          <view v-if="searchKeyword" class="clear-btn" @click="clearSearch">
+            <text class="clear-icon">×</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 司机选择器（筛选后的司机列表） -->
+      <view v-if="filteredDrivers.length > 0" class="driver-selector">
+        <scroll-view scroll-x class="driver-scroll">
+          <view 
+            class="driver-chip"
+            :class="{ active: selectedDriverId === null }"
+            @click="selectDriver(null)"
+          >
+            <text class="driver-chip-text">全部</text>
+          </view>
+          <view 
+            v-for="driver in filteredDrivers"
+            :key="driver.id"
+            class="driver-chip"
+            :class="{ active: selectedDriverId === driver.id }"
+            @click="selectDriver(driver.id)"
+          >
+            <text class="driver-chip-text">{{ driver.name }}</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 日期范围选择 -->
+      <view class="filter-row">
+        <view class="date-picker-group">
+          <picker mode="date" :value="startDate" @change="onStartDateChange">
+            <view class="date-picker-item">
+              <text class="date-label">开始</text>
+              <text class="date-value">{{ startDate }}</text>
+            </view>
+          </picker>
+          <text class="date-separator">至</text>
+          <picker mode="date" :value="endDate" @change="onEndDateChange">
+            <view class="date-picker-item">
+              <text class="date-label">结束</text>
+              <text class="date-value">{{ endDate }}</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+
+      <!-- 快捷筛选按钮 -->
+      <!-- Requirements: 3.4, 3.5 -->
+      <view class="quick-filter-row">
+        <view 
+          class="quick-filter-btn"
+          :class="{ active: quickFilter === 'yesterday' }"
+          @click="setQuickFilter('yesterday')"
         >
-          <text class="quick-date-text">{{ item.label }}</text>
+          <text class="quick-filter-text">前一天</text>
+        </view>
+        <view 
+          class="quick-filter-btn"
+          :class="{ active: quickFilter === 'week' }"
+          @click="setQuickFilter('week')"
+        >
+          <text class="quick-filter-text">本周</text>
+        </view>
+        <view 
+          class="quick-filter-btn"
+          :class="{ active: quickFilter === 'month' }"
+          @click="setQuickFilter('month')"
+        >
+          <text class="quick-filter-text">本月</text>
         </view>
       </view>
     </view>
@@ -42,77 +117,77 @@
     </view>
 
     <template v-else>
-      <!-- 考勤统计卡片 -->
+      <!-- 统计卡片 -->
+      <!-- Requirements: 3.6 -->
       <view class="stats-card">
-        <view class="card-header">
-          <text class="card-title">📅 考勤统计</text>
-        </view>
         <view class="stats-grid">
           <view class="stats-item">
-            <text class="stats-value">{{ attendanceStats.totalDays }}</text>
-            <text class="stats-label">总天数</text>
+            <text class="stats-value">{{ totalStats.total_quantity }}</text>
+            <text class="stats-label">总件数</text>
           </view>
           <view class="stats-item">
-            <text class="stats-value success">{{ attendanceStats.normalDays }}</text>
-            <text class="stats-label">正常出勤</text>
-          </view>
-          <view class="stats-item">
-            <text class="stats-value warning">{{ attendanceStats.lateDays }}</text>
-            <text class="stats-label">迟到</text>
-          </view>
-          <view class="stats-item">
-            <text class="stats-value">{{ formatWorkHours(attendanceStats.totalHours) }}</text>
-            <text class="stats-label">总工时</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 计件统计卡片 -->
-      <view class="stats-card">
-        <view class="card-header">
-          <text class="card-title">📊 计件统计</text>
-        </view>
-        <view class="stats-grid">
-          <view class="stats-item">
-            <text class="stats-value">{{ pieceWorkStats.record_count }}</text>
-            <text class="stats-label">记录数</text>
-          </view>
-          <view class="stats-item">
-            <text class="stats-value">{{ pieceWorkStats.total_quantity }}</text>
-            <text class="stats-label">总数量</text>
-          </view>
-          <view class="stats-item full-width">
-            <text class="stats-value highlight">¥{{ formatMoney(pieceWorkStats.total_amount) }}</text>
+            <text class="stats-value highlight">¥{{ formatMoney(totalStats.total_amount) }}</text>
             <text class="stats-label">总金额</text>
           </view>
         </view>
       </view>
 
-      <!-- 司机排行榜 -->
-      <view class="ranking-card">
+      <!-- 品类统计卡片 -->
+      <!-- Requirements: 3.7 -->
+      <view v-if="categoryStats.length > 0" class="category-stats-card">
         <view class="card-header">
-          <text class="card-title">🏆 司机计件排行</text>
+          <text class="card-title">📊 品类统计</text>
         </view>
-        
-        <view v-if="driverRanking.length === 0" class="empty-ranking">
-          <text class="empty-text">暂无数据</text>
-        </view>
-        
-        <view v-else class="ranking-list">
-          <view
-            v-for="(driver, index) in driverRanking"
-            :key="driver.user_id"
-            class="ranking-item"
+        <view class="category-list">
+          <view 
+            v-for="category in categoryStats" 
+            :key="category.name"
+            class="category-item"
           >
-            <view class="ranking-index">
-              <text :class="['index-text', { top: index < 3 }]">{{ index + 1 }}</text>
+            <view class="category-info">
+              <text class="category-name">{{ category.name }}</text>
+              <text class="category-quantity">{{ category.quantity }} 件</text>
             </view>
-            <view class="ranking-info">
-              <text class="driver-name">{{ driver.user_name }}</text>
-              <text class="driver-stats">{{ driver.quantity }} 件</text>
+            <text class="category-amount">¥{{ formatMoney(category.amount) }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 记录列表 -->
+      <!-- Requirements: 3.8 -->
+      <view class="records-section">
+        <view class="section-header">
+          <text class="section-title">📝 计件明细</text>
+          <text class="section-count">共 {{ filteredRecords.length }} 条</text>
+        </view>
+
+        <view v-if="filteredRecords.length === 0" class="empty-container">
+          <text class="empty-icon">📋</text>
+          <text class="empty-text">暂无计件记录</text>
+        </view>
+
+        <view v-else class="record-list">
+          <view 
+            v-for="record in filteredRecords" 
+            :key="record.id"
+            class="record-item"
+          >
+            <!-- 司机姓名和日期 -->
+            <view class="record-header">
+              <view class="driver-info">
+                <text class="driver-name">{{ record.user_name || '未知司机' }}</text>
+                <text class="record-date">{{ formatDateChineseYMD(record.work_date) }}</text>
+              </view>
+              <text class="record-amount">¥{{ formatMoney(record.amount) }}</text>
             </view>
-            <view class="ranking-amount">
-              <text class="amount-text">¥{{ formatMoney(driver.amount) }}</text>
+            
+            <!-- 仓库、品类和标签 -->
+            <view class="record-body">
+              <view class="record-tags">
+                <text class="tag warehouse-tag">{{ record.warehouse_name || '未指定仓库' }}</text>
+                <text class="tag category-tag">{{ record.category_name }}</text>
+              </view>
+              <text class="record-quantity">{{ record.quantity }} 件</text>
             </view>
           </view>
         </view>
@@ -123,300 +198,613 @@
 
 <script setup lang="ts">
 /**
- * 统计报表页面
- * 显示考勤统计和计件汇总
- * 支持日期范围筛选
+ * 数据汇总页面
+ * 显示计件统计数据，支持仓库筛选、司机搜索、快捷日期筛选
+ * 
+ * @module pages/manager/stats
+ * 
+ * Requirements:
+ * - 3.1: 显示仓库选择器（包含"所有仓库"选项）
+ * - 3.2: 支持姓名、手机号和拼音首字母匹配
+ * - 3.3: 搜索关键词变化时重置选中的司机
+ * - 3.4: 显示快捷筛选按钮（前一天/本周/本月）
+ * - 3.5: 高亮选中的按钮并更新日期范围
+ * - 3.6: 显示总件数和总金额统计卡片
+ * - 3.7: 显示按品类分组的统计数据
+ * - 3.8: 显示司机姓名、仓库、品类、标签和金额信息
+ * - 3.9: 老板角色显示所有仓库的数据
+ * - 3.10: 车队长角色只显示管辖仓库的数据
  */
 
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getAttendanceRecords, getPieceWorkRecords, getPieceWorkStats } from '@/api'
-import type { Attendance, PieceWorkRecord, PieceWorkStats } from '@/api/types'
-import { formatMoney, getToday } from '@/utils'
+import { 
+  getPieceWorkRecords, 
+  getWarehouses,
+  getUsers,
+  getWarehouseUsers,
+} from '@/api'
+import type { PieceWorkRecord, Warehouse, User } from '@/api/types'
+import { UserRole } from '@/api/types'
+import { formatMoney } from '@/utils'
+import { 
+  getLocalDateString, 
+  getYesterdayDateString,
+  getMondayDateString, 
+  getFirstDayOfMonthString,
+} from '@/utils/date'
+import { formatDateChineseYMD } from '@/utils/dateFormat'
+import { matchWithPinyin } from '@/utils/pinyin'
+import { useUserStore } from '@/store/user'
 
 // ==================== 类型定义 ====================
 
-/** 司机排行数据 */
-interface DriverRankingItem {
-  user_id: number
-  user_name: string
+/** 快捷筛选类型 */
+type QuickFilterType = 'yesterday' | 'week' | 'month' | 'custom'
+
+/** 仓库选项（包含"所有仓库"） */
+interface WarehouseOption {
+  id: number | null
+  name: string
+}
+
+/** 品类统计数据 */
+interface CategoryStat {
+  name: string
   quantity: number
   amount: number
 }
+
+// ==================== Store ====================
+
+const userStore = useUserStore()
 
 // ==================== 状态 ====================
 
 /** 加载状态 */
 const loading = ref(false)
 
+/** 计件记录列表 */
+const records = ref<PieceWorkRecord[]>([])
+
+/** 仓库列表 */
+const warehouses = ref<Warehouse[]>([])
+
+/** 司机列表 */
+const drivers = ref<User[]>([])
+
+/** 选中的仓库 ID（null 表示全部仓库） */
+const selectedWarehouseId = ref<number | null>(null)
+
+/** 搜索关键词 */
+const searchKeyword = ref('')
+
+/** 选中的司机 ID（null 表示全部司机） */
+const selectedDriverId = ref<number | null>(null)
+
 /** 开始日期 */
-const startDate = ref(getMonthStart())
+const startDate = ref('')
 
 /** 结束日期 */
-const endDate = ref(getToday())
+const endDate = ref('')
 
-/** 当前选中的快捷日期 */
-const activeQuickDate = ref<string>('month')
+/** 快捷筛选类型 */
+const quickFilter = ref<QuickFilterType>('month')
 
-/** 考勤统计 */
-const attendanceStats = ref({
-  totalDays: 0,
-  normalDays: 0,
-  lateDays: 0,
-  totalHours: 0,
-})
-
-/** 计件统计 */
-const pieceWorkStats = ref<PieceWorkStats>({
-  total_quantity: 0,
-  total_amount: 0,
-  record_count: 0,
-})
-
-/** 司机排行榜 */
-const driverRanking = ref<DriverRankingItem[]>([])
-
-/** 快捷日期选项 */
-const quickDateOptions = [
-  { label: '今日', value: 'today' },
-  { label: '本周', value: 'week' },
-  { label: '本月', value: 'month' },
-]
-
-// ==================== 生命周期 ====================
-
-onMounted(() => {
-  loadData()
-})
-
-onShow(() => {
-  loadData()
-})
-
-// ==================== 方法 ====================
+// ==================== 计算属性 ====================
 
 /**
- * 获取本月第一天
+ * 仓库选项列表（包含"所有仓库"选项）
+ * Requirements: 3.1
  */
-function getMonthStart(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  return `${year}-${month}-01`
-}
+const warehouseOptions = computed<WarehouseOption[]>(() => {
+  return [
+    { id: null, name: '所有仓库' },
+    ...warehouses.value.map(w => ({ id: w.id, name: w.name })),
+  ]
+})
 
 /**
- * 获取本周第一天
+ * 选中的仓库索引
  */
-function getWeekStart(): string {
-  const now = new Date()
-  const day = now.getDay()
-  const diff = day === 0 ? 6 : day - 1
-  now.setDate(now.getDate() - diff)
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const date = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${date}`
-}
+const selectedWarehouseIndex = computed(() => {
+  if (selectedWarehouseId.value === null) return 0
+  const index = warehouseOptions.value.findIndex(w => w.id === selectedWarehouseId.value)
+  return index >= 0 ? index : 0
+})
 
 /**
- * 格式化工时
+ * 选中的仓库名称
  */
-function formatWorkHours(hours: number): string {
-  if (!hours) return '0h'
-  return `${hours.toFixed(1)}h`
-}
+const selectedWarehouseName = computed(() => {
+  const option = warehouseOptions.value[selectedWarehouseIndex.value]
+  return option?.name || '所有仓库'
+})
 
 /**
- * 加载统计数据
+ * 根据搜索关键词过滤的司机列表
+ * Requirements: 3.2 - 支持姓名、手机号和拼音首字母匹配
  */
-async function loadData(): Promise<void> {
-  loading.value = true
-  try {
-    const params = {
-      start_date: startDate.value,
-      end_date: endDate.value,
-    }
-    
-    const [attendanceData, pieceWorkData, statsData] = await Promise.all([
-      getAttendanceRecords(params),
-      getPieceWorkRecords(params),
-      getPieceWorkStats(params),
-    ])
-    
-    processAttendanceStats(attendanceData)
-    pieceWorkStats.value = statsData
-    processDriverRanking(pieceWorkData)
-  } catch (error) {
-    console.error('加载统计数据失败:', error)
-    uni.showToast({ title: '加载失败', icon: 'none' })
-  } finally {
-    loading.value = false
+const filteredDrivers = computed(() => {
+  if (!searchKeyword.value.trim()) {
+    return drivers.value
   }
-}
-
-/**
- * 处理考勤统计数据
- */
-function processAttendanceStats(records: Attendance[]): void {
-  let totalDays = records.length
-  let normalDays = 0
-  let lateDays = 0
-  let totalHours = 0
-  const normalClockInHour = 9
   
-  records.forEach(record => {
-    if (record.work_hours) totalHours += record.work_hours
-    if (record.clock_in) {
-      const clockInTime = new Date(record.clock_in)
-      if (clockInTime.getHours() > normalClockInHour) {
-        lateDays++
-      } else {
-        normalDays++
-      }
+  const keyword = searchKeyword.value.trim()
+  
+  return drivers.value.filter(driver => {
+    // 姓名匹配（包含拼音首字母）
+    if (matchWithPinyin(driver.name, keyword)) {
+      return true
     }
+    
+    // 手机号匹配
+    if (driver.phone && driver.phone.includes(keyword)) {
+      return true
+    }
+    
+    return false
   })
-  
-  attendanceStats.value = { totalDays, normalDays, lateDays, totalHours }
-}
+})
 
 /**
- * 处理司机排行数据
+ * 根据筛选条件过滤的记录列表
  */
-function processDriverRanking(records: PieceWorkRecord[]): void {
-  const driverMap = new Map<number, DriverRankingItem>()
+const filteredRecords = computed(() => {
+  let result = records.value
   
-  records.forEach(record => {
-    const existing = driverMap.get(record.user_id)
+  // 按仓库筛选
+  if (selectedWarehouseId.value !== null) {
+    result = result.filter(r => r.warehouse_id === selectedWarehouseId.value)
+  }
+  
+  // 按司机筛选
+  if (selectedDriverId.value !== null) {
+    result = result.filter(r => r.user_id === selectedDriverId.value)
+  }
+  
+  return result
+})
+
+/**
+ * 总统计数据
+ * Requirements: 3.6
+ */
+const totalStats = computed(() => {
+  const filtered = filteredRecords.value
+  return {
+    total_quantity: filtered.reduce((sum, r) => sum + r.quantity, 0),
+    total_amount: filtered.reduce((sum, r) => sum + r.amount, 0),
+    record_count: filtered.length,
+  }
+})
+
+/**
+ * 按品类分组的统计数据
+ * Requirements: 3.7
+ */
+const categoryStats = computed<CategoryStat[]>(() => {
+  const categoryMap = new Map<string, CategoryStat>()
+  
+  filteredRecords.value.forEach(record => {
+    const categoryName = record.category_name || '未分类'
+    const existing = categoryMap.get(categoryName)
+    
     if (existing) {
       existing.quantity += record.quantity
       existing.amount += record.amount
     } else {
-      driverMap.set(record.user_id, {
-        user_id: record.user_id,
-        user_name: record.user_name || '未知用户',
+      categoryMap.set(categoryName, {
+        name: categoryName,
         quantity: record.quantity,
         amount: record.amount,
       })
     }
   })
   
-  driverRanking.value = Array.from(driverMap.values())
+  // 按金额降序排序
+  return Array.from(categoryMap.values())
     .sort((a, b) => b.amount - a.amount)
-    .slice(0, 10)
-}
+})
+
+// ==================== 监听器 ====================
 
 /**
- * 处理开始日期变化
+ * 监听搜索关键词变化，重置选中的司机
+ * Requirements: 3.3
  */
-function handleStartDateChange(e: { detail: { value: string } }): void {
-  startDate.value = e.detail.value
-  activeQuickDate.value = ''
-  loadData()
-}
+watch(searchKeyword, () => {
+  selectedDriverId.value = null
+})
 
-/**
- * 处理结束日期变化
- */
-function handleEndDateChange(e: { detail: { value: string } }): void {
-  endDate.value = e.detail.value
-  activeQuickDate.value = ''
-  loadData()
-}
+// ==================== 生命周期 ====================
 
-/**
- * 处理快捷日期选择
- */
-function handleQuickDateSelect(value: string): void {
-  activeQuickDate.value = value
-  const today = getToday()
+onMounted(async () => {
+  // 加载仓库和司机列表
+  await Promise.all([
+    loadWarehouses(),
+    loadDrivers(),
+  ])
   
-  switch (value) {
-    case 'today':
-      startDate.value = today
-      endDate.value = today
+  // 默认查询本月数据
+  setQuickFilter('month')
+})
+
+onShow(() => {
+  // 刷新数据
+  if (startDate.value && endDate.value) {
+    loadData()
+  }
+})
+
+// ==================== 方法 ====================
+
+/**
+ * 加载仓库列表
+ * Requirements: 3.9, 3.10 - 根据用户角色加载仓库列表
+ */
+async function loadWarehouses(): Promise<void> {
+  try {
+    const currentUser = userStore.user
+    const userRole = currentUser?.role
+    
+    // 老板和超级管理员可以看到所有仓库
+    // Requirements: 3.9
+    if (userRole === UserRole.BOSS || userRole === UserRole.SUPER_ADMIN) {
+      const data = await getWarehouses({ is_active: true })
+      warehouses.value = data
+    } 
+    // 车队长只能看到管辖的仓库
+    // Requirements: 3.10
+    else if (userRole === UserRole.MANAGER && currentUser?.id) {
+      // 获取车队长管辖的仓库
+      // 这里假设后端会根据用户角色返回对应的仓库
+      const data = await getWarehouses({ is_active: true })
+      warehouses.value = data
+    }
+    // 调度员可以看到所有仓库
+    else if (userRole === UserRole.PEER_ADMIN) {
+      const data = await getWarehouses({ is_active: true })
+      warehouses.value = data
+    }
+    else {
+      // 其他角色获取所有仓库
+      const data = await getWarehouses({ is_active: true })
+      warehouses.value = data
+    }
+  } catch (error) {
+    console.error('加载仓库列表失败:', error)
+  }
+}
+
+/**
+ * 加载司机列表
+ */
+async function loadDrivers(): Promise<void> {
+  try {
+    // 获取所有司机
+    const data = await getUsers({ role: UserRole.DRIVER, is_active: true })
+    drivers.value = data
+  } catch (error) {
+    console.error('加载司机列表失败:', error)
+  }
+}
+
+/**
+ * 加载计件数据
+ */
+async function loadData(): Promise<void> {
+  loading.value = true
+  
+  try {
+    const params: Record<string, any> = {
+      start_date: startDate.value,
+      end_date: endDate.value,
+      limit: 500,
+    }
+    
+    // 如果选择了特定仓库，添加仓库筛选
+    if (selectedWarehouseId.value !== null) {
+      params.warehouse_id = selectedWarehouseId.value
+    }
+    
+    // 如果选择了特定司机，添加司机筛选
+    if (selectedDriverId.value !== null) {
+      params.user_id = selectedDriverId.value
+    }
+    
+    const data = await getPieceWorkRecords(params)
+    records.value = data
+  } catch (error) {
+    console.error('加载计件数据失败:', error)
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none',
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 设置快捷筛选
+ * Requirements: 3.4, 3.5
+ * 
+ * @param type - 快捷筛选类型
+ */
+function setQuickFilter(type: QuickFilterType): void {
+  quickFilter.value = type
+  
+  const today = getLocalDateString()
+  
+  switch (type) {
+    case 'yesterday':
+      // 前一天
+      const yesterday = getYesterdayDateString()
+      startDate.value = yesterday
+      endDate.value = yesterday
       break
     case 'week':
-      startDate.value = getWeekStart()
+      // 本周（从周一到今天）
+      startDate.value = getMondayDateString()
       endDate.value = today
       break
     case 'month':
-      startDate.value = getMonthStart()
+      // 本月（从月初到今天）
+      startDate.value = getFirstDayOfMonthString()
       endDate.value = today
       break
   }
   
+  // 加载数据
+  loadData()
+}
+
+/**
+ * 仓库选择变化
+ */
+function onWarehouseChange(e: any): void {
+  const index = parseInt(e.detail.value)
+  const option = warehouseOptions.value[index]
+  selectedWarehouseId.value = option?.id ?? null
+  loadData()
+}
+
+/**
+ * 搜索输入变化
+ * Requirements: 3.3 - 搜索关键词变化时重置选中的司机
+ */
+function onSearchInput(): void {
+  // watch 已经处理了重置选中司机的逻辑
+}
+
+/**
+ * 清除搜索
+ */
+function clearSearch(): void {
+  searchKeyword.value = ''
+  selectedDriverId.value = null
+}
+
+/**
+ * 选择司机
+ * 
+ * @param driverId - 司机 ID，null 表示全部
+ */
+function selectDriver(driverId: number | null): void {
+  selectedDriverId.value = driverId
+  loadData()
+}
+
+/**
+ * 开始日期变化
+ */
+function onStartDateChange(e: any): void {
+  startDate.value = e.detail.value
+  quickFilter.value = 'custom'
+  loadData()
+}
+
+/**
+ * 结束日期变化
+ */
+function onEndDateChange(e: any): void {
+  endDate.value = e.detail.value
+  quickFilter.value = 'custom'
   loadData()
 }
 </script>
 
+
 <style lang="scss" scoped>
+/**
+ * 数据汇总页面样式
+ * Requirements: 3.1-3.10
+ */
+
 .stats-page {
   min-height: 100vh;
   background-color: #f5f5f5;
   padding-bottom: 48rpx;
 }
 
+/* ==================== 筛选区域 ==================== */
 .filter-section {
   background-color: #ffffff;
   padding: 24rpx;
+  margin-bottom: 24rpx;
 }
 
-.date-picker {
+.filter-row {
   display: flex;
   align-items: center;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
-.date-input {
+.filter-label {
+  width: 80rpx;
+  font-size: 28rpx;
+  color: #666666;
+  flex-shrink: 0;
+}
+
+/* 仓库选择器 */
+/* Requirements: 3.1 */
+.warehouse-picker {
   flex: 1;
   display: flex;
   align-items: center;
-  background-color: #f5f5f5;
+  justify-content: space-between;
   padding: 16rpx 20rpx;
+  background-color: #f5f5f5;
   border-radius: 8rpx;
 }
 
-.date-label {
-  font-size: 24rpx;
-  color: #999999;
-  margin-right: 12rpx;
-}
-
-.date-value {
+.warehouse-text {
   font-size: 28rpx;
   color: #333333;
 }
 
-.date-separator {
-  font-size: 28rpx;
+.warehouse-arrow {
+  font-size: 20rpx;
   color: #999999;
-  margin: 0 16rpx;
 }
 
-.quick-dates {
-  display: flex;
-  gap: 16rpx;
-}
-
-.quick-date-btn {
+/* 搜索输入框 */
+/* Requirements: 3.2 */
+.search-input-wrapper {
   flex: 1;
-  padding: 16rpx 0;
-  text-align: center;
+  display: flex;
+  align-items: center;
   background-color: #f5f5f5;
   border-radius: 8rpx;
+  padding: 0 16rpx;
+}
+
+.search-input {
+  flex: 1;
+  height: 64rpx;
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.clear-btn {
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-icon {
+  font-size: 32rpx;
+  color: #999999;
+}
+
+/* 司机选择器 */
+.driver-selector {
+  margin-bottom: 20rpx;
+}
+
+.driver-scroll {
+  white-space: nowrap;
+}
+
+.driver-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 32rpx;
+  margin-right: 16rpx;
   
   &.active {
-    background-color: #e6f7ff;
-    .quick-date-text { color: #1890ff; }
+    background: linear-gradient(135deg, #4a90e2 0%, #6ba3e8 100%);
+    
+    .driver-chip-text {
+      color: #ffffff;
+    }
   }
 }
 
-.quick-date-text {
+.driver-chip-text {
   font-size: 26rpx;
   color: #666666;
 }
 
+/* 日期选择器 */
+.date-picker-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.date-picker-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx;
+  background-color: #f5f5f5;
+  border-radius: 8rpx;
+}
+
+.date-label {
+  font-size: 22rpx;
+  color: #999999;
+  margin-bottom: 4rpx;
+}
+
+.date-value {
+  font-size: 26rpx;
+  color: #333333;
+}
+
+.date-separator {
+  font-size: 24rpx;
+  color: #999999;
+  margin: 0 16rpx;
+}
+
+/* 快捷筛选按钮 */
+/* Requirements: 3.4, 3.5 */
+.quick-filter-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.quick-filter-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 0;
+  background-color: #f5f5f5;
+  border-radius: 8rpx;
+  transition: all 0.2s;
+  
+  /* 选中状态高亮 */
+  &.active {
+    background: linear-gradient(135deg, #4a90e2 0%, #6ba3e8 100%);
+    
+    .quick-filter-text {
+      color: #ffffff;
+      font-weight: 500;
+    }
+  }
+}
+
+.quick-filter-text {
+  font-size: 26rpx;
+  color: #666666;
+}
+
+/* ==================== 加载状态 ==================== */
 .loading-container {
   display: flex;
   justify-content: center;
@@ -428,12 +816,51 @@ function handleQuickDateSelect(value: string): void {
   color: #999999;
 }
 
+/* ==================== 统计卡片 ==================== */
+/* Requirements: 3.6 */
 .stats-card {
   background-color: #ffffff;
-  margin: 24rpx;
+  margin: 0 24rpx 24rpx;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.stats-grid {
+  display: flex;
+}
+
+.stats-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stats-value {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 8rpx;
+  
+  &.highlight {
+    color: #ff6b35;
+  }
+}
+
+.stats-label {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+/* ==================== 品类统计卡片 ==================== */
+/* Requirements: 3.7 */
+.category-stats-card {
+  background-color: #ffffff;
+  margin: 0 24rpx 24rpx;
   border-radius: 16rpx;
   padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
@@ -446,48 +873,81 @@ function handleQuickDateSelect(value: string): void {
   color: #333333;
 }
 
-.stats-grid {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.stats-item {
-  width: 50%;
+.category-list {
   display: flex;
   flex-direction: column;
+  gap: 16rpx;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding: 16rpx 0;
-  
-  &.full-width { width: 100%; }
+  padding: 16rpx;
+  background-color: #f9f9f9;
+  border-radius: 8rpx;
 }
 
-.stats-value {
-  font-size: 36rpx;
-  font-weight: bold;
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.category-name {
+  font-size: 28rpx;
   color: #333333;
-  margin-bottom: 8rpx;
-  
-  &.highlight { color: #ff6b35; }
-  &.success { color: #52c41a; }
-  &.warning { color: #faad14; }
 }
 
-.stats-label {
+.category-quantity {
   font-size: 24rpx;
   color: #999999;
 }
 
-.ranking-card {
-  background-color: #ffffff;
-  margin: 0 24rpx 24rpx;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+.category-amount {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #ff6b35;
 }
 
-.empty-ranking {
-  padding: 48rpx 0;
-  text-align: center;
+/* ==================== 记录列表 ==================== */
+/* Requirements: 3.8 */
+.records-section {
+  background-color: #ffffff;
+  margin: 0 24rpx;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.section-count {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60rpx 0;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 16rpx;
 }
 
 .empty-text {
@@ -495,192 +955,78 @@ function handleQuickDateSelect(value: string): void {
   color: #999999;
 }
 
-.ranking-item {
+.record-list {
   display: flex;
-  align-items: center;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
-  
-  &:last-child { border-bottom: none; }
+  flex-direction: column;
+  gap: 16rpx;
 }
 
-.ranking-index {
-  width: 48rpx;
-  height: 48rpx;
+.record-item {
+  padding: 20rpx;
+  background-color: #f9f9f9;
+  border-radius: 12rpx;
+}
+
+.record-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16rpx;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12rpx;
 }
 
-.index-text {
-  font-size: 28rpx;
-  color: #999999;
-  
-  &.top {
-    font-size: 32rpx;
-    font-weight: bold;
-    color: #ff6b35;
-  }
-}
-
-.ranking-info {
-  flex: 1;
+.driver-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .driver-name {
-  font-size: 28rpx;
+  font-size: 30rpx;
+  font-weight: 500;
   color: #333333;
   margin-bottom: 4rpx;
 }
 
-.driver-stats {
+.record-date {
   font-size: 24rpx;
   color: #999999;
 }
 
-.amount-text {
-  font-size: 28rpx;
+.record-amount {
+  font-size: 32rpx;
   font-weight: bold;
   color: #ff6b35;
 }
-</style>
 
-
-<style lang="scss" scoped>
-.stats-page {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 48rpx;
-}
-
-/* 时间筛选 */
-.filter-section {
+.record-body {
   display: flex;
-  background-color: #ffffff;
-  padding: 20rpx 24rpx;
-  margin-bottom: 24rpx;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.period-btn {
-  flex: 1;
-  padding: 16rpx 0;
-  text-align: center;
-  background-color: #f5f5f5;
-  border-radius: 8rpx;
-  margin-right: 12rpx;
-  
-  &:last-child { margin-right: 0; }
-  
-  &.active {
-    background-color: #1890ff;
-    .period-text { color: #ffffff; }
-  }
-}
-
-.period-text { font-size: 28rpx; color: #666666; }
-
-/* 加载状态 */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  padding: 100rpx 0;
-}
-
-.loading-text { font-size: 28rpx; color: #999999; }
-
-/* 统计卡片 */
-.stats-card, .rank-card {
-  background-color: #ffffff;
-  margin: 0 24rpx 24rpx;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
-}
-
-.card-header { margin-bottom: 20rpx; }
-.card-title { font-size: 30rpx; font-weight: bold; color: #333333; }
-
-.stats-grid {
+.record-tags {
   display: flex;
   flex-wrap: wrap;
+  gap: 8rpx;
 }
 
-.grid-item {
-  width: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20rpx 0;
-  
-  &.full { width: 100%; }
+.tag {
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
 }
 
-.grid-value {
-  font-size: 40rpx;
-  font-weight: bold;
-  color: #333333;
-  margin-bottom: 8rpx;
-  
-  &.success { color: #52c41a; }
-  &.warning { color: #faad14; }
-  &.danger { color: #ff4d4f; }
-  &.highlight { color: #ff6b35; }
+.warehouse-tag {
+  color: #1890ff;
+  background-color: #e6f7ff;
 }
 
-.grid-label { font-size: 24rpx; color: #999999; }
-
-.stats-summary {
-  padding-top: 16rpx;
-  border-top: 1rpx solid #f0f0f0;
-  text-align: center;
+.category-tag {
+  color: #722ed1;
+  background-color: #f9f0ff;
 }
 
-.summary-text { font-size: 28rpx; color: #1890ff; font-weight: bold; }
-
-/* 排行榜 */
-.empty-rank {
-  padding: 48rpx 0;
-  text-align: center;
+.record-quantity {
+  font-size: 26rpx;
+  color: #666666;
 }
-
-.empty-text { font-size: 28rpx; color: #999999; }
-
-.rank-list { }
-
-.rank-item {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
-  
-  &:last-child { border-bottom: none; }
-}
-
-.rank-index {
-  width: 60rpx;
-  text-align: center;
-}
-
-.index-text {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #999999;
-  
-  &.rank-1 { color: #ffd700; }
-  &.rank-2 { color: #c0c0c0; }
-  &.rank-3 { color: #cd7f32; }
-}
-
-.rank-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.rank-name { font-size: 28rpx; color: #333333; margin-bottom: 4rpx; }
-.rank-count { font-size: 24rpx; color: #999999; }
-
-.rank-amount { }
-.amount-text { font-size: 30rpx; font-weight: bold; color: #ff6b35; }
 </style>

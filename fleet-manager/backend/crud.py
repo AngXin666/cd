@@ -990,6 +990,80 @@ def get_vehicles(
     return list(session.exec(statement).all())
 
 
+def get_all_vehicles(
+    session: Session,
+    warehouse_id: Optional[int] = None,
+    status: Optional[VehicleStatus] = None,
+    skip: int = 0,
+    limit: int = 100
+) -> List[Vehicle]:
+    """
+    获取所有车辆列表（管理员用）
+    支持按仓库和状态过滤
+    
+    Args:
+        session: 数据库会话
+        warehouse_id: 按仓库筛选（可选）
+        status: 按状态筛选（可选）
+        skip: 跳过记录数
+        limit: 返回记录数上限
+        
+    Returns:
+        List[Vehicle]: 车辆列表
+    """
+    statement = select(Vehicle)
+    
+    # 按仓库过滤
+    if warehouse_id is not None:
+        statement = statement.where(Vehicle.warehouse_id == warehouse_id)
+    # 按状态过滤
+    if status is not None:
+        statement = statement.where(Vehicle.status == status)
+    
+    # 按创建时间倒序排列
+    statement = statement.order_by(Vehicle.created_at.desc())
+    # 分页
+    statement = statement.offset(skip).limit(limit)
+    
+    return list(session.exec(statement).all())
+
+
+def get_warehouse_vehicles(
+    session: Session,
+    warehouse_id: int,
+    status: Optional[VehicleStatus] = None,
+    skip: int = 0,
+    limit: int = 100
+) -> List[Vehicle]:
+    """
+    获取指定仓库的车辆列表
+    用于车队长查看本仓库的车辆
+    
+    Args:
+        session: 数据库会话
+        warehouse_id: 仓库ID（必需）
+        status: 按状态筛选（可选）
+        skip: 跳过记录数
+        limit: 返回记录数上限
+        
+    Returns:
+        List[Vehicle]: 该仓库的车辆列表
+    """
+    # 构建查询语句，按仓库ID过滤
+    statement = select(Vehicle).where(Vehicle.warehouse_id == warehouse_id)
+    
+    # 按状态过滤（可选）
+    if status is not None:
+        statement = statement.where(Vehicle.status == status)
+    
+    # 按创建时间倒序排列
+    statement = statement.order_by(Vehicle.created_at.desc())
+    # 分页
+    statement = statement.offset(skip).limit(limit)
+    
+    return list(session.exec(statement).all())
+
+
 def update_vehicle(
     session: Session,
     vehicle: Vehicle,
@@ -2967,3 +3041,161 @@ def compare_versions(v1: str, v2: str) -> int:
             return 1
     
     return 0
+
+
+# ==================== 车辆历史 CRUD ====================
+
+from models import VehicleHistory, VehicleHistoryActionType
+
+
+def create_vehicle_history(
+    session: Session,
+    vehicle_id: int,
+    user_id: int,
+    action_type: VehicleHistoryActionType,
+    action_time: datetime,
+    photos: Optional[str] = None,
+    damage_photos: Optional[str] = None,
+    remark: Optional[str] = None
+) -> VehicleHistory:
+    """
+    创建车辆历史记录
+    记录车辆的提车或还车操作
+    
+    Args:
+        session: 数据库会话
+        vehicle_id: 车辆ID
+        user_id: 司机ID
+        action_type: 操作类型（pickup=提车, return=还车）
+        action_time: 操作时间
+        photos: 照片JSON数组（7张基本照片）
+        damage_photos: 车损照片JSON数组
+        remark: 备注
+        
+    Returns:
+        VehicleHistory: 创建的历史记录对象
+        
+    Requirements: 15.2, 15.3
+    """
+    history = VehicleHistory(
+        vehicle_id=vehicle_id,
+        user_id=user_id,
+        action_type=action_type,
+        action_time=action_time,
+        photos=photos,
+        damage_photos=damage_photos,
+        remark=remark
+    )
+    session.add(history)
+    session.commit()
+    session.refresh(history)
+    return history
+
+
+def get_vehicle_history_by_id(
+    session: Session,
+    history_id: int
+) -> Optional[VehicleHistory]:
+    """
+    根据ID获取车辆历史记录
+    
+    Args:
+        session: 数据库会话
+        history_id: 历史记录ID
+        
+    Returns:
+        VehicleHistory: 历史记录对象，不存在则返回 None
+    """
+    return session.get(VehicleHistory, history_id)
+
+
+def get_vehicle_history(
+    session: Session,
+    vehicle_id: int,
+    action_type: Optional[VehicleHistoryActionType] = None,
+    skip: int = 0,
+    limit: int = 20
+) -> List[VehicleHistory]:
+    """
+    获取车辆的使用历史列表
+    返回指定车辆的所有提车和还车记录
+    
+    Args:
+        session: 数据库会话
+        vehicle_id: 车辆ID
+        action_type: 按操作类型筛选（可选）
+        skip: 跳过记录数，默认0
+        limit: 返回记录数上限，默认20
+        
+    Returns:
+        List[VehicleHistory]: 历史记录列表，按操作时间倒序排列
+        
+    Requirements: 15.1, 15.2, 15.3, 15.4
+    """
+    statement = select(VehicleHistory).where(VehicleHistory.vehicle_id == vehicle_id)
+    
+    # 按操作类型筛选（可选）
+    if action_type is not None:
+        statement = statement.where(VehicleHistory.action_type == action_type)
+    
+    # 按操作时间倒序排列
+    statement = statement.order_by(VehicleHistory.action_time.desc())
+    # 分页
+    statement = statement.offset(skip).limit(limit)
+    
+    return list(session.exec(statement).all())
+
+
+def get_vehicle_history_count(
+    session: Session,
+    vehicle_id: int,
+    action_type: Optional[VehicleHistoryActionType] = None
+) -> int:
+    """
+    获取车辆历史记录总数
+    用于分页
+    
+    Args:
+        session: 数据库会话
+        vehicle_id: 车辆ID
+        action_type: 按操作类型筛选（可选）
+        
+    Returns:
+        int: 历史记录总数
+        
+    Requirements: 15.4
+    """
+    statement = select(func.count(VehicleHistory.id)).where(
+        VehicleHistory.vehicle_id == vehicle_id
+    )
+    
+    if action_type is not None:
+        statement = statement.where(VehicleHistory.action_type == action_type)
+    
+    return session.exec(statement).first() or 0
+
+
+def get_user_vehicle_history(
+    session: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 20
+) -> List[VehicleHistory]:
+    """
+    获取用户的车辆使用历史
+    返回指定用户的所有提车和还车记录
+    
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+        skip: 跳过记录数
+        limit: 返回记录数上限
+        
+    Returns:
+        List[VehicleHistory]: 历史记录列表
+    """
+    statement = select(VehicleHistory).where(
+        VehicleHistory.user_id == user_id
+    ).order_by(VehicleHistory.action_time.desc()).offset(skip).limit(limit)
+    
+    return list(session.exec(statement).all())
