@@ -1,3 +1,0 @@
-=== Find commits with src/pages (main project) ===
-'head' is not recognized as an internal or external command,
-operable program or batch file.

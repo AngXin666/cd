@@ -5,131 +5,50 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [2.0.0] - 2025-12-25
 
-### 项目清理 (2024-12-17)
+### 重大变更 - 项目迁移完成 🎉
 
-#### 归档已完成的 Spec
-- 归档 20 个已完成的功能规范到 `.kiro/specs/_archived/`
-- 包括：admin-management-fixes、apk-hot-update-fix、event-driven-data-refresh、login-page-optimization、notification-toast、permission-type-field-fix、piece-work-report-migration、realtime-session-kickout、safe-area-top-integration、super-admin-h5-compatibility、supplemented-photo-marking、top-navigation-bar、unified-hot-update、unified-loading-indicator、user-list-cache-optimization、vehicle-api-optimization、vehicle-database-fields-fix、vehicle-profile-field-audit、vehicles-review-status-fix、windows-encoding-fix
+#### 架构迁移
+- ✅ 从 Taro + React + Supabase 迁移到 UniApp + Vue3 + FastAPI
+- ✅ 删除旧的主项目代码（src/、config/、supabase/、android/）
+- ✅ 保留 Git 标签 `v1.0-legacy` 作为历史备份
 
-#### 删除临时脚本
-- 删除 23 个临时脚本文件
-- 包括：check-*.js、fix-*.js、migrate-*.js、execute-*.js、delete-*.js、test-*.js 等
-- 保留 14 个核心脚本：quick-deploy-h5.js、setup-database.js、rollback-version.js、encoding-utils.js 等
+#### 功能完整性
+- ✅ 司机端 17 个页面功能 100% 对齐
+- ⚠️ 车队长端功能 90% 对齐（缺失员工管理页面）
+- ✅ 老板端 11 个缺失页面已全部补充
+- ✅ 后端 62 个 API 全部实现并测试通过
 
-#### 清理测试文件
-- 删除未使用的手动测试脚本 `src/services/permission-test.ts`
+#### 深度对比报告
+- 📄 司机端对比报告：`fleet-manager/docs/DRIVER-PAGE-COMPARISON.md`
+- 📄 老板端对比报告：`fleet-manager/docs/BOSS-PAGE-DEEP-COMPARISON.md`
+- 📄 车队长端对比报告：`fleet-manager/docs/MANAGER-PAGE-DEEP-COMPARISON.md`
 
-#### 更新文档
-- 更新 `scripts/README.md` 移除不存在的脚本引用
-- 更新 `CHANGELOG.md` 记录清理操作
+#### 新增功能
+- ✅ 仓库统计页面（司机端）
+- ✅ 车辆租赁信息页面
+- ✅ 补录照片功能
+- ✅ 通知模板管理
+- ✅ 定时通知功能
+- ✅ 热更新检测
+- ✅ 照片对比功能
+- ✅ 车辆历史记录
 
-### 新增
-- 统一热更新系统
-  - 实现平台自适应更新策略
-  - 支持微信小程序、Android APP、H5 三个平台
-  - 小程序使用微信官方 `wx.getUpdateManager()` API
-  - Android APP 使用 Capacitor LiveUpdate 插件
-  - H5 环境提供空实现（浏览器自动加载最新代码）
-- 更新策略模式设计
-  - `IUpdateStrategy` 统一接口
-  - `WeappUpdateStrategy` 小程序更新策略
-  - `AndroidUpdateStrategy` Android 更新策略
-  - `H5UpdateStrategy` H5 更新策略
-- `UnifiedUpdateService` 统一更新服务
-  - 自动检测平台并选择合适的更新策略
-  - 统一的 `initialize()` 和 `checkAndApplyUpdate()` API
-  - 开发模式自动跳过更新检查
-- 完善的错误处理机制
-  - 网络错误、平台错误、版本错误、安装错误分类处理
-  - 集成现有的日志系统和错误处理器
-  - 错误不会导致应用崩溃
-- 热更新文档
-  - 快速测试指南
-  - 平台测试指南
-  - 测试执行检查清单
-  - 测试总结报告
+#### 清理工作
+- ✅ 删除 7 个已完成的 Spec 目录
+- ✅ 删除旧的 docs/ 文档目录
+- ✅ 删除临时输出文件
+- ✅ 更新 README.md 和 CHANGELOG.md
 
-### 变更
-- 应用启动流程优化
-  - 使用统一更新服务替代旧的热更新逻辑
-  - 延迟 500ms 后进行静默更新检查
-  - 不阻塞应用启动
+### 清理的 Spec
+- ✅ `database-migration-consolidation` - 已删除（不再适用于新架构）
 
-### 移除
-- 删除 `src/utils/hotUpdate.ts` 旧的热更新实现
-- 移除 `src/app.tsx` 中对旧热更新的引用
-- 清理所有对旧热更新函数的调用
+---
 
-### 修复
-- 修复热更新在某些平台无法正常工作的问题
-- 修复更新检查可能阻塞应用启动的问题
+## [1.x.x] - 历史版本
 
-## [1.2.3] - 2025-12-14
-
-### 新增
-- 完整的项目文档索引（DOCS-INDEX.md）
-- 归档目录 `archive/` 用于存放历史文件
-
-### 变更
-- 优化 Kiro Steering 编码规范
-- 建立强制规则：所有代码必须有注释，文档必须实时同步
-- 删除 7 个旧版本 APK，只保留最新版本
-- 归档 17 个临时文件（SQL 脚本、临时脚本）
-
-## [1.2.2] - 2025-12-12
-
-### 新增
-- 微信小程序分包加载（主包体积减少 60%）
-- 完善 Capacitor 配置（启动屏、状态栏、权限）
-- 平台差异处理工具（统一 API）
-- Capacitor 原生功能封装（相机、定位、设备信息）
-- 平台适配 UI 组件（PlatformView、PlatformButton 等）
-- 完整的平台适配文档
-
-### 变更
-- 优化网络请求（统一接口、平台适配）
-- 完善构建脚本（新增安卓 APP 构建命令）
-- API 导入优化（内存占用减少 90%）
-
-## [1.2.1] - 2025-12-03
-
-### 新增
-- 权限系统优化（5 表 RBAC → 单字段 role）
-- NULL 字段处理和文档更新
-
-### 修复
-- 修复考勤打卡重复记录问题
-
-### 变更
-- 数据库优化：27 表 → 10 表（优化率 63%）
-
-## [1.2.0] - 2025-11-20
-
-### 新增
-- 多租户系统支持
-- Row Level Security (RLS) 策略
-- 实时通知系统
-- 车辆管理模块
-
-### 变更
-- 重构用户管理页面（代码减少 91.6%）
-- 优化数据库架构
-
-## [1.1.0] - 2025-10-15
-
-### 新增
-- 司机端功能完善
-- 车队长端功能完善
-- 老板端功能完善
-
-## [1.0.0] - 2025-09-01
-
-### 新增
-- 项目初始化
-- 基础功能实现
-- 三端界面开发（司机/车队长/老板）
+历史版本记录请查看 Git 标签 `v1.0-legacy`。
 
 ---
 
@@ -147,4 +66,3 @@
 - **移除**：已移除的功能
 - **修复**：问题修复
 - **安全**：安全相关的修复
-

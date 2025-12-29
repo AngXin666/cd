@@ -42,11 +42,12 @@
           @card-click="handleDashboardCardClick"
         />
 
-        <!-- 仓库切换器 - Requirements 4.1 -->
+        <!-- 仓库切换器 - Requirements 4.1, 5.4 -->
         <WarehouseSwitcher
           :warehouses="warehouses"
           :current-index="currentWarehouseIndex"
           @change="handleWarehouseChange"
+          @assignment-update="handleAssignmentUpdate"
         />
 
         <!-- 司机实时状态统计 - Requirements 6.1 -->
@@ -158,6 +159,7 @@ import { UserRole, LeaveStatus } from '@/api/types'
 import type { DashboardStats, CardType } from '@/components/Dashboard/types'
 import type { DriverStatsData } from '@/components/DriverStats/types'
 import type { Warehouse } from '@/components/WarehouseSwitcher/types'
+import type { AssignmentUpdateEvent } from '@/types/sse-events'
 import NotificationBell from '@/components/NotificationBell/index.vue'
 import RealNotificationBar from '@/components/RealNotificationBar/index.vue'
 import Dashboard from '@/components/Dashboard/index.vue'
@@ -309,6 +311,32 @@ function handleWarehouseChange(index: number): void {
   loadData()
 }
 
+/**
+ * 处理仓库分配更新事件
+ * 当收到 SSE 仓库分配更新事件时，直接使用推送的数据更新本地仓库列表
+ * 
+ * @param data - 仓库分配更新事件数据
+ * Requirements: 5.4 - 仓库选择器集成实时更新
+ */
+function handleAssignmentUpdate(data: AssignmentUpdateEvent): void {
+  console.log('[ManagerHome] 收到仓库分配更新事件:', data)
+  
+  // 直接使用推送的数据更新本地仓库列表
+  // 将 API 返回的 number 类型 id 转换为 string 类型，以匹配组件类型定义
+  warehouses.value = data.warehouses.map(w => ({ 
+    id: String(w.id), 
+    name: w.name 
+  }))
+  
+  // 如果当前选中的仓库索引超出范围，重置为 0
+  if (currentWarehouseIndex.value >= warehouses.value.length) {
+    currentWarehouseIndex.value = Math.max(0, warehouses.value.length - 1)
+  }
+  
+  // 重新加载数据以更新统计信息
+  loadData()
+}
+
 function handleDashboardCardClick(type: CardType): void {
   switch (type) {
     case 'attendance': navigateTo('/pages/manager/approval/list'); break
@@ -388,6 +416,7 @@ function handleLogout(): void {
   &.purple { background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%); }
   &.teal { background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%); }
   &.red { background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%); }
+  &.cyan { background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); }
 }
 .action-icon-wrapper { position: relative; margin-bottom: 12rpx; }
 .action-icon { font-size: 56rpx; }

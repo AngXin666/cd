@@ -335,15 +335,18 @@
  * 
  * @module pages/driver/leave/list
  * @requirements 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8
+ * @requirements 3.3 - 请假列表页集成实时更新
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getLeaveApplications, getAttendanceRecords } from '@/api'
 import type { LeaveApplication } from '@/api/types'
 import { LeaveStatus, LeaveType } from '@/api/types'
 import { useUserStore } from '@/store/user'
 import { formatDate as formatDateUtil, navigateTo } from '@/utils'
+import { sseService } from '@/utils/sse'
+import type { LeaveUpdateEvent, LeaveData } from '@/types/sse-events'
 
 // ==================== Store ====================
 
@@ -407,6 +410,17 @@ const draftCount = computed(() => {
 onMounted(() => {
   loadData()
   loadStats()
+  // 注册 SSE 请假更新事件回调
+  // Requirements: 3.3 - 请假列表页集成实时更新
+  registerSSECallbacks()
+})
+
+/**
+ * 页面卸载时取消 SSE 回调注册
+ * Requirements: 3.3 - 页面卸载时取消回调注册
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
 })
 
 onShow(() => {
@@ -414,6 +428,211 @@ onShow(() => {
   loadData()
   loadStats()
 })
+
+// ==================== SSE 实时更新 ====================
+
+/**
+ * 注册 SSE 请假更新事件回调
+ * 当收到请假更新事件时，直接更新本地请假列表数据
+ * Requirements: 3.3 - 请假列表页集成实时更新
+ */
+function registerSSECallbacks(): void {
+  sseService.setCallbacks({
+    onLeaveUpdate: handleLeaveUpdate,
+  })
+  console.log('[请假列表] 已注册 SSE 请假更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ * 清除请假更新事件的回调处理器
+ * Requirements: 3.3 - 页面卸载时取消回调注册
+ */
+function unregisterSSECallbacks(): void {
+  sseService.setCallbacks({
+    onLeaveUpdate: undefined,
+  })
+  console.log('[请假列表] 已取消 SSE 请假更新回调')
+}
+
+/**
+ * 处理请假更新事件
+ * 根据事件动作类型更新本地请假列表
+ * Requirements: 3.3 - 收到事件后直接更新本地请假列表数据
+ * @param event - 请假更新事件数据
+ */
+function handleLeaveUpdate(event: LeaveUpdateEvent): void {
+  console.log('[请假列表] 收到请假更新事件:', event.action, event.leave.id)
+  
+  const { action, leave: leaveData } = event
+  
+  // 检查是否是当前用户的请假申请
+  const currentUserId = userStore.user?.id
+  if (leaveData.user_id !== currentUserId) {
+    console.log('[请假列表] 非当前用户的请假申请，忽略:', leaveData.user_id)
+    return
+  }
+  
+  // 根据事件动作类型处理
+  switch (action) {
+    case 'create':
+      // 新增请假申请：添加到列表开头
+      handleLeaveCreate(leaveData)
+      break
+    case 'update':
+      // 更新请假申请：更新列表中对应的数据
+      handleLeaveUpdateData(leaveData)
+      break
+    default:
+      console.warn('[请假列表] 未知的事件动作类型:', action)
+  }
+  
+  // 更新待审批状态
+  updatePendingStatus()
+}
+
+/**
+ * 处理请假创建事件
+ * 将新请假申请添加到对应列表开头
+ * @param leaveData - 请假数据
+ */
+function handleLeaveCreate(leaveData: LeaveData): void {
+  // 转换为 LeaveApplication 类型
+  const newApplication: LeaveApplication = convertLeaveDataToApplication(leaveData)
+  
+  // 根据请假类型添加到对应列表
+  if (leaveData.leave_type === 'resign' || leaveData.leave_type === LeaveType.RESIGN) {
+    // 检查是否已存在（避免重复添加）
+    const existingIndex = resignationApplications.value.findIndex(a => a.id === leaveData.id)
+    if (existingIndex >= 0) {
+      // 已存在，更新数据
+      resignationApplications.value[existingIndex] = newApplication
+    } else {
+      // 添加到列表开头
+      resignationApplications.value.unshift(newApplication)
+    }
+    
+    // 显示提示
+    uni.showToast({
+      title: '新离职申请已添加',
+      icon: 'none',
+      duration: 2000,
+    })
+  } else {
+    // 请假申请
+    const existingIndex = leaveApplications.value.findIndex(a => a.id === leaveData.id)
+    if (existingIndex >= 0) {
+      // 已存在，更新数据
+      leaveApplications.value[existingIndex] = newApplication
+    } else {
+      // 添加到列表开头
+      leaveApplications.value.unshift(newApplication)
+    }
+    
+    // 显示提示
+    uni.showToast({
+      title: '新请假申请已添加',
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 处理请假更新事件
+ * 更新列表中对应的请假数据
+ * @param leaveData - 请假数据
+ */
+function handleLeaveUpdateData(leaveData: LeaveData): void {
+  // 转换为 LeaveApplication 类型
+  const updatedApplication: LeaveApplication = convertLeaveDataToApplication(leaveData)
+  
+  // 根据请假类型更新对应列表
+  if (leaveData.leave_type === 'resign' || leaveData.leave_type === LeaveType.RESIGN) {
+    // 离职申请
+    const index = resignationApplications.value.findIndex(a => a.id === leaveData.id)
+    if (index >= 0) {
+      resignationApplications.value[index] = updatedApplication
+      
+      // 显示审批结果提示
+      showApprovalResultToast(leaveData, '离职')
+    } else {
+      // 不在列表中，可能是新创建的，添加到列表
+      resignationApplications.value.unshift(updatedApplication)
+    }
+  } else {
+    // 请假申请
+    const index = leaveApplications.value.findIndex(a => a.id === leaveData.id)
+    if (index >= 0) {
+      leaveApplications.value[index] = updatedApplication
+      
+      // 显示审批结果提示
+      showApprovalResultToast(leaveData, '请假')
+    } else {
+      // 不在列表中，可能是新创建的，添加到列表
+      leaveApplications.value.unshift(updatedApplication)
+    }
+  }
+}
+
+/**
+ * 将 SSE 事件的 LeaveData 转换为 LeaveApplication 类型
+ * @param leaveData - SSE 事件中的请假数据
+ * @returns LeaveApplication 类型的数据
+ */
+function convertLeaveDataToApplication(leaveData: LeaveData): LeaveApplication {
+  return {
+    id: leaveData.id,
+    user_id: leaveData.user_id,
+    leave_type: leaveData.leave_type as LeaveType,
+    start_date: leaveData.start_date,
+    end_date: leaveData.end_date,
+    status: leaveData.status as LeaveStatus,
+    reason: leaveData.reason,
+    approver_id: leaveData.approver_id,
+    approve_remark: leaveData.approve_remark,
+    created_at: leaveData.created_at,
+    updated_at: leaveData.updated_at,
+  }
+}
+
+/**
+ * 显示审批结果提示
+ * @param leaveData - 请假数据
+ * @param type - 申请类型（请假/离职）
+ */
+function showApprovalResultToast(leaveData: LeaveData, type: string): void {
+  // 根据状态显示不同的提示
+  if (leaveData.status === LeaveStatus.APPROVED || leaveData.status === 'approved') {
+    uni.showToast({
+      title: `${type}申请已通过`,
+      icon: 'success',
+      duration: 2000,
+    })
+  } else if (leaveData.status === LeaveStatus.REJECTED || leaveData.status === 'rejected') {
+    uni.showToast({
+      title: `${type}申请已被驳回`,
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 更新待审批状态
+ * 检查是否有审核中的请假/离职申请
+ */
+function updatePendingStatus(): void {
+  // 检查是否有审核中的请假申请
+  hasPendingLeave.value = leaveApplications.value.some(
+    app => app.status === LeaveStatus.PENDING
+  )
+  
+  // 检查是否有审核中的离职申请
+  hasPendingResignation.value = resignationApplications.value.some(
+    app => app.status === LeaveStatus.PENDING
+  )
+}
 
 // ==================== 方法 ====================
 

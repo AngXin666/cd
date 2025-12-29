@@ -72,6 +72,8 @@ class Settings(BaseSettings):
         # 环境变量名称映射（支持大写环境变量）
         env_prefix = ""
         case_sensitive = False
+        # 允许额外的环境变量（避免测试时因其他环境变量报错）
+        extra = "ignore"
     
     @property
     def is_postgresql(self) -> bool:

@@ -2,8 +2,9 @@
   <!-- 
     计件记录页面
     显示历史计件记录，支持快捷筛选、仓库筛选、排序、编辑和删除功能
+    集成 SSE 实时更新，实现审批结果实时显示
     UI 风格与主项目对齐：渐变背景、卡片式布局、图标按钮
-    Requirements: 2.1-2.10
+    Requirements: 2.1-2.10, 4.2
   -->
   <view class="list-page" :style="{ background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)' }">
     <!-- 顶部安全区域 -->
@@ -381,6 +382,7 @@
 /**
  * 计件记录页面
  * 显示历史计件记录，支持快捷筛选、仓库筛选、排序、编辑和删除功能
+ * 集成 SSE 实时更新，实现审批结果实时显示
  * 
  * @module pages/driver/piece-work/list
  * 
@@ -393,9 +395,10 @@
  * - 2.6, 2.7: 编辑功能
  * - 2.8: 删除功能
  * - 2.9, 2.10: 记录列表样式优化
+ * - 4.2: 司机计件页集成实时更新，实现审批结果实时显示
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { 
   getPieceWorkRecords, 
@@ -414,6 +417,8 @@ import {
 } from '@/utils/date'
 import { formatDateChineseYMD, getWeekdayName } from '@/utils/dateFormat'
 import { confirmDelete, confirmEdit } from '@/utils/confirm'
+import { sseService } from '@/utils/sse'
+import type { PieceWorkUpdateEvent, PieceWorkRecordData } from '@/types/sse-events'
 
 // ==================== 类型定义 ====================
 
@@ -565,6 +570,10 @@ const filteredStats = computed<PieceWorkStats>(() => {
 // ==================== 生命周期 ====================
 
 onMounted(async () => {
+  // 注册 SSE 计件更新事件回调
+  // Requirements: 4.2 - 司机计件页集成实时更新
+  registerSSECallbacks()
+  
   // 加载仓库列表
   await loadWarehouses()
   
@@ -588,6 +597,14 @@ onMounted(async () => {
     // 默认查询本月数据
     setQuickFilter('month')
   }
+})
+
+/**
+ * 页面卸载时取消 SSE 回调注册
+ * Requirements: 4.2 - 页面卸载时取消回调注册
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
 })
 
 onShow(() => {
@@ -930,6 +947,198 @@ async function handleDelete(record: PieceWorkRecord): Promise<void> {
  */
 function goToEntry(): void {
   navigateTo('/pages/driver/piece-work/entry')
+}
+
+// ==================== SSE 实时更新 ====================
+
+/**
+ * 注册 SSE 计件更新事件回调
+ * 当收到计件更新事件时，直接更新本地计件列表数据
+ * Requirements: 4.2 - 司机计件页集成实时更新
+ */
+function registerSSECallbacks(): void {
+  sseService.setCallbacks({
+    onPieceWorkUpdate: handlePieceWorkUpdate,
+  })
+  console.log('[司机计件] 已注册 SSE 计件更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ * 清除计件更新事件的回调处理器
+ * Requirements: 4.2 - 页面卸载时取消回调注册
+ */
+function unregisterSSECallbacks(): void {
+  sseService.setCallbacks({
+    onPieceWorkUpdate: undefined,
+  })
+  console.log('[司机计件] 已取消 SSE 计件更新回调')
+}
+
+/**
+ * 处理计件更新事件
+ * 根据事件动作类型更新本地计件列表，实现审批结果实时显示
+ * Requirements: 4.2 - 实现审批结果实时显示
+ * @param event - 计件更新事件数据
+ */
+function handlePieceWorkUpdate(event: PieceWorkUpdateEvent): void {
+  console.log('[司机计件] 收到计件更新事件:', event.action, event.record.id)
+  
+  const { action, record: recordData } = event
+  
+  // 检查记录日期是否在当前筛选范围内
+  const recordDate = recordData.work_date.split('T')[0]
+  if (!isDateInRange(recordDate)) {
+    console.log('[司机计件] 记录日期不在当前筛选范围内，忽略:', recordDate)
+    return
+  }
+  
+  // 根据事件动作类型处理
+  switch (action) {
+    case 'create':
+      // 新增计件记录：添加到列表
+      handlePieceWorkCreate(recordData)
+      break
+    case 'update':
+      // 更新计件记录：更新列表中对应的数据（审批结果）
+      handlePieceWorkUpdateData(recordData)
+      break
+    default:
+      console.warn('[司机计件] 未知的事件动作类型:', action)
+  }
+  
+  // 更新统计数据
+  updateLocalStats()
+}
+
+/**
+ * 检查日期是否在当前筛选范围内
+ * @param dateStr - 日期字符串（YYYY-MM-DD 格式）
+ * @returns 是否在范围内
+ */
+function isDateInRange(dateStr: string): boolean {
+  if (!startDate.value || !endDate.value) {
+    return false
+  }
+  return dateStr >= startDate.value && dateStr <= endDate.value
+}
+
+/**
+ * 处理计件创建事件
+ * 将新计件记录添加到列表
+ * @param recordData - 计件记录数据
+ */
+function handlePieceWorkCreate(recordData: PieceWorkRecordData): void {
+  // 转换为 PieceWorkRecord 类型
+  const newRecord: PieceWorkRecord = convertPieceWorkDataToRecord(recordData)
+  
+  // 检查是否已存在（避免重复添加）
+  const existingIndex = records.value.findIndex(r => r.id === recordData.id)
+  if (existingIndex >= 0) {
+    // 已存在，更新数据
+    records.value[existingIndex] = newRecord
+    console.log('[司机计件] 更新已存在的记录:', recordData.id)
+  } else {
+    // 添加到列表开头
+    records.value.unshift(newRecord)
+    console.log('[司机计件] 添加新记录到列表:', recordData.id)
+    
+    // 显示提示
+    uni.showToast({
+      title: '新计件记录已添加',
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 处理计件更新事件
+ * 更新列表中对应的计件数据，实现审批结果实时显示
+ * Requirements: 4.2 - 实现审批结果实时显示
+ * @param recordData - 计件记录数据
+ */
+function handlePieceWorkUpdateData(recordData: PieceWorkRecordData): void {
+  // 转换为 PieceWorkRecord 类型
+  const updatedRecord: PieceWorkRecord = convertPieceWorkDataToRecord(recordData)
+  
+  // 查找并更新列表中的记录
+  const index = records.value.findIndex(r => r.id === recordData.id)
+  if (index >= 0) {
+    records.value[index] = updatedRecord
+    console.log('[司机计件] 更新记录:', recordData.id)
+    
+    // 显示审批结果提示
+    showApprovalResultToast(recordData)
+  } else {
+    // 不在列表中，可能是新创建的，添加到列表
+    records.value.unshift(updatedRecord)
+    console.log('[司机计件] 记录不在列表中，添加:', recordData.id)
+  }
+}
+
+/**
+ * 将 SSE 事件的 PieceWorkRecordData 转换为 PieceWorkRecord 类型
+ * @param recordData - SSE 事件中的计件记录数据
+ * @returns PieceWorkRecord 类型的数据
+ */
+function convertPieceWorkDataToRecord(recordData: PieceWorkRecordData): PieceWorkRecord {
+  return {
+    id: recordData.id,
+    user_id: recordData.user_id,
+    user_name: recordData.user_name,
+    warehouse_id: recordData.warehouse_id,
+    warehouse_name: recordData.warehouse_name,
+    category_id: recordData.category_id,
+    category_name: recordData.category_name,
+    quantity: recordData.quantity,
+    amount: recordData.amount,
+    work_date: recordData.work_date,
+    remark: recordData.remark,
+    created_at: recordData.created_at,
+  }
+}
+
+/**
+ * 显示审批结果提示
+ * 根据计件记录的状态显示不同的提示信息
+ * Requirements: 4.2 - 实现审批结果实时显示
+ * @param recordData - 计件记录数据
+ */
+function showApprovalResultToast(recordData: PieceWorkRecordData): void {
+  // 根据状态显示不同的提示
+  if (recordData.status === 'approved') {
+    uni.showToast({
+      title: '计件记录已通过审批',
+      icon: 'success',
+      duration: 2000,
+    })
+  } else if (recordData.status === 'rejected') {
+    uni.showToast({
+      title: '计件记录已被驳回',
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 更新本地统计数据
+ * 根据当前列表重新计算统计数据
+ */
+function updateLocalStats(): void {
+  // 重新计算统计数据
+  const totalQuantity = records.value.reduce((sum, r) => sum + r.quantity, 0)
+  const totalAmount = records.value.reduce((sum, r) => sum + r.amount, 0)
+  const recordCount = records.value.length
+  
+  stats.value = {
+    total_quantity: totalQuantity,
+    total_amount: totalAmount,
+    record_count: recordCount,
+  }
+  
+  console.log('[司机计件] 更新统计数据:', stats.value)
 }
 </script>
 

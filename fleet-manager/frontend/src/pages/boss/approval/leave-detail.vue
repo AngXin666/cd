@@ -2,9 +2,17 @@
   <!-- 
     请假审批详情页面（老板端）
     显示申请详情，支持审批操作
-    Requirements: 8.5
+    Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
   -->
   <view class="leave-detail-page">
+    <!-- 顶部导航栏 -->
+    <TopNavBar 
+      title="请假详情" 
+      :showBack="true"
+      backgroundColor="#1E3A8A"
+      textColor="#ffffff"
+    />
+    
     <!-- 加载状态 -->
     <view v-if="loading" class="loading-container">
       <text class="loading-text">加载中...</text>
@@ -122,7 +130,11 @@
  * 请假审批详情页面（老板端）
  * 显示申请详情，支持审批操作
  * 
- * @requirements 8.5 - 请假详情页面
+ * @requirements 3.1 - 从请假列表点击某条记录跳转到请假详情页面
+ * @requirements 3.2 - 显示申请人、请假类型、开始时间、结束时间、请假原因
+ * @requirements 3.3 - 待审批状态显示通过和拒绝按钮
+ * @requirements 3.4 - 点击通过按钮更新请假状态为已通过
+ * @requirements 3.5 - 点击拒绝按钮弹出拒绝原因输入框
  */
 
 import { ref, onMounted } from 'vue'
@@ -131,6 +143,7 @@ import { getLeaveApplication, approveLeaveApplication } from '@/api'
 import type { LeaveApplication } from '@/api/types'
 import { LeaveStatus, LeaveType } from '@/api/types'
 import { formatDate, formatDateTime } from '@/utils'
+import TopNavBar from '@/components/TopNavBar/index.vue'
 
 // ==================== 状态 ====================
 
@@ -296,8 +309,10 @@ async function doApprove(status: LeaveStatus): Promise<void> {
       icon: 'success',
     })
     
-    // 刷新详情
-    await loadApplication()
+    // 审批成功后返回列表页面
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 1500)
   } catch (error) {
     console.error('审批失败:', error)
     uni.hideLoading()
@@ -322,6 +337,7 @@ async function doApprove(status: LeaveStatus): Promise<void> {
   justify-content: center;
   align-items: center;
   padding: 100rpx 0;
+  margin-top: 100rpx;
 }
 
 .loading-text {

@@ -3,6 +3,8 @@
     计件管理页面
     查看司机计件记录
     支持编辑修正
+    显示完成率状态
+    Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
   -->
   <view class="piece-work-page">
     <!-- 搜索和筛选 -->
@@ -35,7 +37,7 @@
       </view>
     </view>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片（含完成率） -->
     <view class="stats-card">
       <view class="stats-item">
         <text class="stats-value">{{ stats.record_count }}</text>
@@ -48,6 +50,24 @@
       <view class="stats-item">
         <text class="stats-value highlight">¥{{ formatMoney(stats.total_amount) }}</text>
         <text class="stats-label">总金额</text>
+      </view>
+      <!-- 完成率显示 Requirements: 5.1 -->
+      <view v-if="showCompletionRate" class="stats-item">
+        <view class="completion-rate-container">
+          <text 
+            class="stats-value" 
+            :style="{ color: overallCompletionRate.color }"
+          >
+            {{ formatCompletionRate(overallCompletionRate.rate) }}
+          </text>
+          <view 
+            class="completion-status-tag"
+            :style="{ backgroundColor: overallCompletionRate.color + '20', color: overallCompletionRate.color }"
+          >
+            <text class="status-text">{{ overallCompletionRate.label }}</text>
+          </view>
+        </view>
+        <text class="stats-label">完成率</text>
       </view>
     </view>
 
@@ -78,6 +98,17 @@
             <view class="category-tag">
               <text class="category-text">{{ record.category_name || '未知分类' }}</text>
             </view>
+            <!-- 完成率状态标签 Requirements: 5.2, 5.3, 5.4, 5.5 -->
+            <view 
+              v-if="getRecordCompletionRate(record)"
+              class="completion-tag"
+              :style="{ 
+                backgroundColor: getRecordCompletionRate(record).color + '20', 
+                color: getRecordCompletionRate(record).color 
+              }"
+            >
+              <text class="completion-text">{{ getRecordCompletionRate(record).label }}</text>
+            </view>
             <!-- 编辑按钮 -->
             <view class="edit-btn" @click="openEditModal(record)">
               <text class="edit-icon">✏️</text>
@@ -97,6 +128,16 @@
           <view class="record-item">
             <text class="item-label">金额</text>
             <text class="item-value highlight">¥{{ formatMoney(record.amount) }}</text>
+          </view>
+          <!-- 完成率百分比显示 Requirements: 5.1 -->
+          <view v-if="getRecordCompletionRate(record)" class="record-item">
+            <text class="item-label">完成率</text>
+            <text 
+              class="item-value" 
+              :style="{ color: getRecordCompletionRate(record).color }"
+            >
+              {{ formatCompletionRate(getRecordCompletionRate(record).rate) }}
+            </text>
           </view>
         </view>
         
@@ -180,9 +221,14 @@
  * 计件管理页面
  * 查看司机计件记录
  * 支持编辑修正
+ * 显示完成率状态
+ * 支持实时更新（通过 SSE 接收计件记录变化）
+ * 
+ * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+ * Requirements: 4.4 - 计件列表页集成实时更新（车队长）
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { 
   getUsers, 
@@ -194,6 +240,22 @@ import {
 import type { User, PieceWorkRecord, PieceWorkStats } from '@/api/types'
 import { UserRole } from '@/api/types'
 import { formatDate, formatDateTime, formatMoney, getToday } from '@/utils'
+import { 
+  calculateCompletionRate, 
+  formatCompletionRate,
+  type CompletionRateResult 
+} from '@/utils/completionRate'
+import { sseService } from '@/utils/sse'
+import type { PieceWorkUpdateEvent, PieceWorkRecordData } from '@/types/sse-events'
+
+// ==================== 常量定义 ====================
+
+/**
+ * 默认每日目标件数
+ * 用于计算完成率的基准值
+ * 实际项目中可以从配置或后端获取
+ */
+const DEFAULT_DAILY_TARGET = 100
 
 // ==================== 状态 ====================
 
@@ -231,6 +293,9 @@ const editForm = ref({
   remark: '',
 })
 
+/** 每日目标件数（可配置） */
+const dailyTarget = ref(DEFAULT_DAILY_TARGET)
+
 // ==================== 计算属性 ====================
 
 /** 司机选项（包含"全部"选项） */
@@ -246,11 +311,39 @@ const selectedDriverName = computed(() => {
   return driver?.name || '全部司机'
 })
 
+/**
+ * 是否显示完成率
+ * 当有记录且有目标值时显示
+ */
+const showCompletionRate = computed(() => {
+  return stats.value.total_quantity > 0 && dailyTarget.value > 0
+})
+
+/**
+ * 整体完成率
+ * 基于总数量和每日目标计算
+ * Requirements: 5.1
+ */
+const overallCompletionRate = computed((): CompletionRateResult => {
+  return calculateCompletionRate(stats.value.total_quantity, dailyTarget.value)
+})
+
 // ==================== 生命周期 ====================
 
 onMounted(() => {
   loadDrivers()
   loadRecords()
+  // 注册 SSE 计件更新事件回调
+  // Requirements: 4.4 - 计件列表页集成实时更新（车队长）
+  registerSSECallbacks()
+})
+
+/**
+ * 页面卸载时取消 SSE 回调注册
+ * Requirements: 4.4 - 页面卸载时取消回调注册
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
 })
 
 onShow(() => {
@@ -343,6 +436,25 @@ function handleDateChange(e: { detail: { value: string } }): void {
 function getUnitPrice(record: PieceWorkRecord): number {
   if (record.quantity === 0) return 0
   return record.amount / record.quantity
+}
+
+/**
+ * 获取单条记录的完成率
+ * 基于记录数量和每日目标计算
+ * 
+ * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+ * 
+ * @param record - 计件记录
+ * @returns 完成率结果，如果目标为0则返回null
+ */
+function getRecordCompletionRate(record: PieceWorkRecord): CompletionRateResult | null {
+  // 如果没有设置目标，不显示完成率
+  if (dailyTarget.value <= 0) {
+    return null
+  }
+  
+  // 计算该记录的完成率
+  return calculateCompletionRate(record.quantity, dailyTarget.value)
 }
 
 /**
@@ -452,6 +564,192 @@ async function handleDelete(): Promise<void> {
     },
   })
 }
+
+// ==================== SSE 实时更新 ====================
+
+/**
+ * 注册 SSE 计件更新事件回调
+ * 当收到计件更新事件时，直接更新本地计件列表数据
+ * Requirements: 4.4 - 计件列表页集成实时更新（车队长）
+ */
+function registerSSECallbacks(): void {
+  sseService.setCallbacks({
+    onPieceWorkUpdate: handlePieceWorkUpdate,
+  })
+  console.log('[计件管理] 已注册 SSE 计件更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ * 清除计件更新事件的回调处理器
+ * Requirements: 4.4 - 页面卸载时取消回调注册
+ */
+function unregisterSSECallbacks(): void {
+  sseService.setCallbacks({
+    onPieceWorkUpdate: undefined,
+  })
+  console.log('[计件管理] 已取消 SSE 计件更新回调')
+}
+
+/**
+ * 处理计件更新事件
+ * 根据事件动作类型更新本地计件列表
+ * Requirements: 4.4 - 新记录到达时自动添加到列表，审批状态变化时更新对应记录
+ * @param event - 计件更新事件数据
+ */
+function handlePieceWorkUpdate(event: PieceWorkUpdateEvent): void {
+  console.log('[计件管理] 收到计件更新事件:', event.action, event.record.id)
+  
+  const { action, record: recordData } = event
+  
+  // 检查记录日期是否与当前选中日期匹配
+  // 只处理当前日期的记录更新
+  const recordDate = recordData.work_date.split('T')[0]
+  if (recordDate !== selectedDate.value) {
+    console.log('[计件管理] 记录日期不匹配当前选中日期，忽略:', recordDate, '!=', selectedDate.value)
+    return
+  }
+  
+  // 如果选中了特定司机，检查记录是否属于该司机
+  if (selectedDriverId.value && recordData.user_id !== selectedDriverId.value) {
+    console.log('[计件管理] 记录不属于当前选中司机，忽略:', recordData.user_id, '!=', selectedDriverId.value)
+    return
+  }
+  
+  // 根据事件动作类型处理
+  switch (action) {
+    case 'create':
+      // 新增计件记录：添加到列表开头
+      handlePieceWorkCreate(recordData)
+      break
+    case 'update':
+      // 更新计件记录：更新列表中对应的数据
+      handlePieceWorkUpdateData(recordData)
+      break
+    default:
+      console.warn('[计件管理] 未知的事件动作类型:', action)
+  }
+  
+  // 更新统计数据
+  updateStats()
+}
+
+/**
+ * 处理计件创建事件
+ * 将新计件记录添加到列表开头
+ * Requirements: 4.4 - 新记录到达时自动添加到列表
+ * @param recordData - 计件记录数据
+ */
+function handlePieceWorkCreate(recordData: PieceWorkRecordData): void {
+  // 转换为 PieceWorkRecord 类型
+  const newRecord: PieceWorkRecord = convertPieceWorkDataToRecord(recordData)
+  
+  // 检查是否已存在（避免重复添加）
+  const existingIndex = records.value.findIndex(r => r.id === recordData.id)
+  if (existingIndex >= 0) {
+    // 已存在，更新数据
+    records.value[existingIndex] = newRecord
+    console.log('[计件管理] 更新已存在的记录:', recordData.id)
+  } else {
+    // 添加到列表开头
+    records.value.unshift(newRecord)
+    console.log('[计件管理] 添加新记录到列表:', recordData.id)
+    
+    // 显示提示
+    uni.showToast({
+      title: `${recordData.user_name} 提交了新计件`,
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 处理计件更新事件
+ * 更新列表中对应的计件数据
+ * Requirements: 4.4 - 审批状态变化时更新对应记录
+ * @param recordData - 计件记录数据
+ */
+function handlePieceWorkUpdateData(recordData: PieceWorkRecordData): void {
+  // 转换为 PieceWorkRecord 类型
+  const updatedRecord: PieceWorkRecord = convertPieceWorkDataToRecord(recordData)
+  
+  // 查找并更新列表中的记录
+  const index = records.value.findIndex(r => r.id === recordData.id)
+  if (index >= 0) {
+    records.value[index] = updatedRecord
+    console.log('[计件管理] 更新记录:', recordData.id)
+    
+    // 显示状态变化提示
+    showStatusChangeToast(recordData)
+  } else {
+    // 不在列表中，可能是新创建的，添加到列表
+    records.value.unshift(updatedRecord)
+    console.log('[计件管理] 记录不在列表中，添加:', recordData.id)
+  }
+}
+
+/**
+ * 将 SSE 事件的 PieceWorkRecordData 转换为 PieceWorkRecord 类型
+ * @param recordData - SSE 事件中的计件记录数据
+ * @returns PieceWorkRecord 类型的数据
+ */
+function convertPieceWorkDataToRecord(recordData: PieceWorkRecordData): PieceWorkRecord {
+  return {
+    id: recordData.id,
+    user_id: recordData.user_id,
+    user_name: recordData.user_name,
+    warehouse_id: recordData.warehouse_id,
+    warehouse_name: recordData.warehouse_name,
+    category_id: recordData.category_id,
+    category_name: recordData.category_name,
+    quantity: recordData.quantity,
+    amount: recordData.amount,
+    work_date: recordData.work_date,
+    remark: recordData.remark,
+    created_at: recordData.created_at,
+  }
+}
+
+/**
+ * 显示状态变化提示
+ * @param recordData - 计件记录数据
+ */
+function showStatusChangeToast(recordData: PieceWorkRecordData): void {
+  // 根据状态显示不同的提示
+  if (recordData.status === 'approved') {
+    uni.showToast({
+      title: `${recordData.user_name} 的计件已通过`,
+      icon: 'success',
+      duration: 2000,
+    })
+  } else if (recordData.status === 'rejected') {
+    uni.showToast({
+      title: `${recordData.user_name} 的计件已驳回`,
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 更新统计数据
+ * 根据当前列表重新计算统计数据
+ */
+function updateStats(): void {
+  // 重新计算统计数据
+  const totalQuantity = records.value.reduce((sum, r) => sum + r.quantity, 0)
+  const totalAmount = records.value.reduce((sum, r) => sum + r.amount, 0)
+  const recordCount = records.value.length
+  
+  stats.value = {
+    total_quantity: totalQuantity,
+    total_amount: totalAmount,
+    record_count: recordCount,
+  }
+  
+  console.log('[计件管理] 更新统计数据:', stats.value)
+}
 </script>
 
 
@@ -538,6 +836,26 @@ async function handleDelete(): Promise<void> {
   color: #999999;
 }
 
+/* 完成率容器 */
+.completion-rate-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+
+/* 完成率状态标签 */
+.completion-status-tag {
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-top: 4rpx;
+}
+
+.status-text {
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
 /* 加载状态 */
 .loading-container {
   display: flex;
@@ -621,6 +939,17 @@ async function handleDelete(): Promise<void> {
 .category-text {
   font-size: 24rpx;
   color: #1890ff;
+}
+
+/* 完成率标签 Requirements: 5.2, 5.3, 5.4, 5.5 */
+.completion-tag {
+  padding: 6rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.completion-text {
+  font-size: 22rpx;
+  font-weight: 500;
 }
 
 .edit-btn {

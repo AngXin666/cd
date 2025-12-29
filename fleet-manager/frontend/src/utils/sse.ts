@@ -1,10 +1,30 @@
 /**
  * SSE 实时通知服务模块
  * 提供 Server-Sent Events 连接管理和降级轮询功能
- * 用于实时接收服务器推送的通知消息
+ * 用于实时接收服务器推送的通知消息和业务事件
+ * 
+ * 支持的事件类型：
+ * - notification: 通知消息
+ * - heartbeat: 心跳包
+ * - vehicle_update: 车辆更新事件
+ * - leave_update: 请假更新事件
+ * - piece_work_update: 计件更新事件
+ * - assignment_update: 仓库分配更新事件
+ * - permission_update: 权限更新事件
+ * - user_update: 用户状态更新事件
+ * 
+ * Requirements: 1.1, 1.2, 1.4 - 扩展 SSE 事件类型支持
  */
 
 import { useUserStore } from '@/store/user';
+import type {
+  VehicleUpdateEvent,
+  LeaveUpdateEvent,
+  PieceWorkUpdateEvent,
+  AssignmentUpdateEvent,
+  PermissionUpdateEvent,
+  UserUpdateEvent,
+} from '@/types/sse-events';
 
 /** API 基础地址 */
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -47,6 +67,8 @@ export interface SSEHeartbeat {
 
 /** SSE 事件回调接口 */
 export interface SSECallbacks {
+  // ==================== 现有回调 ====================
+  
   /** 收到新通知时的回调 */
   onNotification?: (notifications: SSENotification[]) => void;
   /** 收到心跳时的回调 */
@@ -55,6 +77,45 @@ export interface SSECallbacks {
   onStateChange?: (state: SSEConnectionState) => void;
   /** 发生错误时的回调 */
   onError?: (error: Error) => void;
+  
+  // ==================== 新增业务事件回调 ====================
+  // Requirements: 1.2, 1.4 - 支持通过回调注册方式添加处理器
+  
+  /** 
+   * 收到车辆更新事件时的回调
+   * Requirements: 2.3 - 车辆列表页集成实时更新
+   */
+  onVehicleUpdate?: (data: VehicleUpdateEvent) => void;
+  
+  /** 
+   * 收到请假更新事件时的回调
+   * Requirements: 3.3, 3.4 - 请假列表页集成实时更新
+   */
+  onLeaveUpdate?: (data: LeaveUpdateEvent) => void;
+  
+  /** 
+   * 收到计件更新事件时的回调
+   * Requirements: 4.2, 4.4 - 计件列表页集成实时更新
+   */
+  onPieceWorkUpdate?: (data: PieceWorkUpdateEvent) => void;
+  
+  /** 
+   * 收到仓库分配更新事件时的回调
+   * Requirements: 5.4 - 仓库选择器集成实时更新
+   */
+  onAssignmentUpdate?: (data: AssignmentUpdateEvent) => void;
+  
+  /** 
+   * 收到权限更新事件时的回调
+   * Requirements: 6.3, 6.4 - 权限状态集成实时更新
+   */
+  onPermissionUpdate?: (data: PermissionUpdateEvent) => void;
+  
+  /** 
+   * 收到用户状态更新事件时的回调
+   * Requirements: 7.3, 7.4 - 用户状态集成实时更新
+   */
+  onUserUpdate?: (data: UserUpdateEvent) => void;
 }
 
 /**
@@ -189,6 +250,81 @@ export class SSENotificationService {
           this.callbacks.onHeartbeat?.(data);
         } catch (error) {
           console.error('[SSE] 解析心跳数据失败:', error);
+        }
+      });
+
+      // ==================== 新增业务事件监听器 ====================
+      // Requirements: 1.1, 1.2 - 根据事件类型分发给对应的回调处理器
+
+      // 监听车辆更新事件
+      // Requirements: 2.3 - 车辆列表页集成实时更新
+      this.eventSource.addEventListener('vehicle_update', (event) => {
+        try {
+          const data: VehicleUpdateEvent = JSON.parse(event.data);
+          console.log('[SSE] 收到车辆更新事件:', data.action, data.vehicle.license_plate);
+          this.callbacks.onVehicleUpdate?.(data);
+        } catch (error) {
+          console.error('[SSE] 解析车辆更新数据失败:', error);
+        }
+      });
+
+      // 监听请假更新事件
+      // Requirements: 3.3, 3.4 - 请假列表页集成实时更新
+      this.eventSource.addEventListener('leave_update', (event) => {
+        try {
+          const data: LeaveUpdateEvent = JSON.parse(event.data);
+          console.log('[SSE] 收到请假更新事件:', data.action, data.leave.id);
+          this.callbacks.onLeaveUpdate?.(data);
+        } catch (error) {
+          console.error('[SSE] 解析请假更新数据失败:', error);
+        }
+      });
+
+      // 监听计件更新事件
+      // Requirements: 4.2, 4.4 - 计件列表页集成实时更新
+      this.eventSource.addEventListener('piece_work_update', (event) => {
+        try {
+          const data: PieceWorkUpdateEvent = JSON.parse(event.data);
+          console.log('[SSE] 收到计件更新事件:', data.action, data.record.id);
+          this.callbacks.onPieceWorkUpdate?.(data);
+        } catch (error) {
+          console.error('[SSE] 解析计件更新数据失败:', error);
+        }
+      });
+
+      // 监听仓库分配更新事件
+      // Requirements: 5.4 - 仓库选择器集成实时更新
+      this.eventSource.addEventListener('assignment_update', (event) => {
+        try {
+          const data: AssignmentUpdateEvent = JSON.parse(event.data);
+          console.log('[SSE] 收到仓库分配更新事件:', data.user_id, data.warehouses.length, '个仓库');
+          this.callbacks.onAssignmentUpdate?.(data);
+        } catch (error) {
+          console.error('[SSE] 解析仓库分配更新数据失败:', error);
+        }
+      });
+
+      // 监听权限更新事件
+      // Requirements: 6.3, 6.4 - 权限状态集成实时更新
+      this.eventSource.addEventListener('permission_update', (event) => {
+        try {
+          const data: PermissionUpdateEvent = JSON.parse(event.data);
+          console.log('[SSE] 收到权限更新事件:', data.user_id, data.permissions.length, '项权限');
+          this.callbacks.onPermissionUpdate?.(data);
+        } catch (error) {
+          console.error('[SSE] 解析权限更新数据失败:', error);
+        }
+      });
+
+      // 监听用户状态更新事件
+      // Requirements: 7.3, 7.4 - 用户状态集成实时更新
+      this.eventSource.addEventListener('user_update', (event) => {
+        try {
+          const data: UserUpdateEvent = JSON.parse(event.data);
+          console.log('[SSE] 收到用户状态更新事件:', data.action, data.user.id);
+          this.callbacks.onUserUpdate?.(data);
+        } catch (error) {
+          console.error('[SSE] 解析用户状态更新数据失败:', error);
         }
       });
 

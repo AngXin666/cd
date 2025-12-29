@@ -1,4 +1,0 @@
-# file: C:\Users\Administrator\Desktop\cdgj\fleet-manager\backend\scheduler.py
-# hypothesis_version: 6.148.8
-
-['Asia/Shanghai', 'coalesce', 'cron', 'default', 'id', 'is_running', 'jobs', 'jobs_count', 'max_instances', 'misfire_grace_time', 'name', 'next_run_time', 'trigger', '定时任务调度器初始化完成', '定时任务调度器已停止', '定时任务调度器已启动', '开始检查定时通知...', '开始清理已完成的定时通知...', '手动触发定时通知检查...', '手动触发的定时通知检查完成', '检查定时通知', '正在初始化定时任务调度器...', '没有待执行的定时通知', '没有需要清理的定时通知', '清理已完成的定时通知', '调度器已经初始化', '调度器已经在运行中', '调度器未初始化', '调度器未运行']

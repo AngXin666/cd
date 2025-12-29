@@ -120,17 +120,16 @@
             </view>
           </view>
 
-          <!-- 件数输入 -->
+          <!-- 件数输入 - 使用 v-model 确保 H5 兼容性 -->
           <view class="form-item">
             <text class="form-label">
               <text class="required">*</text> 件数（正整数）
             </text>
             <input 
+              v-model="pieceWorkItems[index].quantity"
               type="number" 
               class="form-input"
-              :value="item.quantity"
               placeholder="请输入件数"
-              @input="(e: any) => updateItem(item.id, 'quantity', e.detail.value)"
             />
           </view>
 
@@ -138,15 +137,18 @@
           <view class="form-item">
             <text class="form-label">
               <text class="required">*</text> 单价（元/件）
-              <text v-if="item.unitPriceLocked" class="price-locked">（管理员已设置）</text>
+              <text v-if="item.unitPriceLocked" class="price-locked">（管理员已设置：¥{{ item.unitPrice }}）</text>
             </text>
+            <!-- 锁定时显示只读文本，未锁定时显示输入框 -->
+            <view v-if="item.unitPriceLocked" class="form-input locked">
+              <text class="locked-price">¥{{ item.unitPrice || '0' }}</text>
+            </view>
             <input 
+              v-else
+              v-model="pieceWorkItems[index].unitPrice"
               type="digit" 
-              :class="['form-input', { locked: item.unitPriceLocked }]"
-              :value="item.unitPrice"
-              :disabled="item.unitPriceLocked"
-              :placeholder="item.unitPriceLocked ? '管理员已设置价格' : '请输入单价'"
-              @input="(e: any) => !item.unitPriceLocked && updateItem(item.id, 'unitPrice', e.detail.value)"
+              class="form-input"
+              placeholder="请输入单价"
             />
           </view>
 
@@ -155,9 +157,9 @@
             <view class="switch-row">
               <text class="switch-label">是否需要上楼</text>
               <switch 
-                :checked="item.needUpstairs" 
+                :checked="item.needUpstairs"
+                @change="(e: any) => onUpstairsChange(e, item.id)"
                 color="#3B82F6"
-                @change="(e: any) => updateItem(item.id, 'needUpstairs', e.detail.value)"
               />
             </view>
           </view>
@@ -168,11 +170,10 @@
               <text class="required">*</text> 上楼单价（元/件）
             </text>
             <input 
+              v-model="pieceWorkItems[index].upstairsPrice"
               type="digit" 
               class="form-input"
-              :value="item.upstairsPrice"
               placeholder="请输入上楼单价"
-              @input="(e: any) => updateItem(item.id, 'upstairsPrice', e.detail.value)"
             />
           </view>
 
@@ -181,9 +182,9 @@
             <view class="switch-row">
               <text class="switch-label">是否需要分拣</text>
               <switch 
-                :checked="item.needSorting" 
+                :checked="item.needSorting"
+                @change="(e: any) => onSortingChange(e, item.id)"
                 color="#8B5CF6"
-                @change="(e: any) => updateItem(item.id, 'needSorting', e.detail.value)"
               />
             </view>
           </view>
@@ -195,11 +196,10 @@
                 <text class="required">*</text> 分拣件数
               </text>
               <input 
+                v-model="pieceWorkItems[index].sortingQuantity"
                 type="number" 
                 class="form-input"
-                :value="item.sortingQuantity"
                 placeholder="请输入分拣件数"
-                @input="(e: any) => updateItem(item.id, 'sortingQuantity', e.detail.value)"
               />
             </view>
             <view class="form-item">
@@ -207,11 +207,10 @@
                 <text class="required">*</text> 分拣单价（元/件）
               </text>
               <input 
+                v-model="pieceWorkItems[index].sortingUnitPrice"
                 type="digit" 
                 class="form-input"
-                :value="item.sortingUnitPrice"
                 placeholder="请输入分拣单价"
-                @input="(e: any) => updateItem(item.id, 'sortingUnitPrice', e.detail.value)"
               />
             </view>
           </template>
@@ -285,7 +284,7 @@
  * - 4.8 打卡和请假检查
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { 
   getWarehouses, 
@@ -527,6 +526,10 @@ function loadDriverType(): void {
     // 这里假设用户有 driver_type 字段，如果没有则默认为 driver_only
     // 实际项目中可能需要从用户扩展信息中获取
     driverType.value = (user as any).driver_type || 'driver_only'
+  } else {
+    // 用户未登录时，设置默认司机类型
+    // 确保 loadCategoryPrice 可以正常执行
+    driverType.value = 'driver_only'
   }
 }
 
@@ -606,11 +609,19 @@ async function loadCategories(warehouseId: number): Promise<void> {
   
   try {
     const data = await getPieceWorkCategories(true)
+    
+    console.log('[计件录入] loadCategories 获取到分类:', {
+      count: data.length,
+      categories: data.map(c => ({ id: c.id, name: c.name, unit_price: c.unit_price })),
+    })
+    
     categories.value = data
     selectedCategoryIndex.value = 0
     
     // 加载单价配置
-    if (categories.value.length > 0) {
+    if (data.length > 0) {
+      // 使用 nextTick 确保响应式更新完成
+      await nextTick()
       await loadCategoryPrice()
     }
   } catch (error) {
@@ -630,7 +641,17 @@ async function loadCategoryPrice(): Promise<void> {
   const warehouse = currentWarehouse.value
   const category = currentCategory.value
   
-  if (!warehouse || !category || !driverType.value) return
+  console.log('[计件录入] loadCategoryPrice 调用:', {
+    warehouse: warehouse?.id,
+    category: category?.id,
+    driverType: driverType.value,
+    categoryUnitPrice: category?.unit_price,
+  })
+  
+  if (!warehouse || !category || !driverType.value) {
+    console.log('[计件录入] loadCategoryPrice 提前返回: 缺少必要数据')
+    return
+  }
   
   try {
     const priceConfig = await getCategoryPriceForDriver(
@@ -639,11 +660,16 @@ async function loadCategoryPrice(): Promise<void> {
       driverType.value
     )
     
+    console.log('[计件录入] 获取到单价配置:', priceConfig)
+    
     if (priceConfig) {
       // 更新所有计件项的单价
+      const newUnitPrice = priceConfig.unitPrice > 0 ? priceConfig.unitPrice.toString() : ''
+      console.log('[计件录入] 设置单价:', newUnitPrice, '锁定:', priceConfig.isLocked)
+      
       pieceWorkItems.value = pieceWorkItems.value.map(item => ({
         ...item,
-        unitPrice: priceConfig.unitPrice > 0 ? priceConfig.unitPrice.toString() : item.unitPrice,
+        unitPrice: newUnitPrice || item.unitPrice,
         unitPriceLocked: priceConfig.isLocked,
       }))
     }
@@ -687,15 +713,29 @@ function onDateChange(e: any): void {
 }
 
 /**
- * 更新计件项字段
+ * 上楼开关变化
+ * @param e - 事件对象
  * @param id - 计件项 ID
- * @param field - 字段名
- * @param value - 字段值
  */
-function updateItem(id: string, field: keyof PieceWorkItem, value: string | boolean): void {
-  pieceWorkItems.value = pieceWorkItems.value.map(item => 
-    item.id === id ? { ...item, [field]: value } : item
-  )
+function onUpstairsChange(e: any, id: string): void {
+  const value = e.detail?.value ?? false
+  const index = pieceWorkItems.value.findIndex(item => item.id === id)
+  if (index >= 0) {
+    pieceWorkItems.value[index].needUpstairs = value
+  }
+}
+
+/**
+ * 分拣开关变化
+ * @param e - 事件对象
+ * @param id - 计件项 ID
+ */
+function onSortingChange(e: any, id: string): void {
+  const value = e.detail?.value ?? false
+  const index = pieceWorkItems.value.findIndex(item => item.id === id)
+  if (index >= 0) {
+    pieceWorkItems.value[index].needSorting = value
+  }
 }
 
 /**
@@ -1140,10 +1180,11 @@ async function doSubmit(): Promise<void> {
   padding: 24rpx 0;
 }
 
-/* 输入框 */
+/* 输入框 - 修复 H5 输入问题 */
 .form-input {
   width: 100%;
-  padding: 24rpx;
+  height: 88rpx;
+  padding: 0 24rpx;
   background-color: #F9FAFB;
   border-radius: 16rpx;
   border: 2rpx solid #E5E7EB;
@@ -1154,6 +1195,14 @@ async function doSubmit(): Promise<void> {
   &.locked {
     background-color: #E5E7EB;
     color: #6B7280;
+    display: flex;
+    align-items: center;
+    height: 88rpx;
+    .locked-price {
+      font-size: 32rpx;
+      font-weight: bold;
+      color: #3B82F6;
+    }
   }
 }
 

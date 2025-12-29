@@ -5,6 +5,89 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2025-12-26
+
+### 🎉 车队长端功能对齐完成
+
+本版本完成了车队长端与主项目的 100% 功能对齐，新增员工管理页面和多项功能增强。
+
+### 新增功能
+
+#### 员工管理页面
+- 新增 `manager/staff/index.vue` 员工管理页面
+- 支持查看所辖仓库的司机列表
+- 支持司机信息编辑（姓名、手机号）
+- 支持仓库分配功能（多选仓库）
+- 支持搜索功能（姓名、手机号、拼音首字母匹配）
+
+#### 司机管理增强
+- 新增仓库筛选器组件
+- 支持按仓库筛选司机列表
+- 支持"全部仓库"选项
+
+#### 仓库品类配置增强
+- 新增上楼单价、分拣单价配置
+- 车队长可编辑品类配置
+- 车队长可删除品类（带约束检查：有计件记录不可删除）
+
+#### 数据汇总增强
+- 新增排序功能（按金额/按数量/按日期）
+- 支持升序/降序切换
+
+#### 计件管理增强
+- 新增完成率状态显示
+- 超额完成（>110%）：绿色
+- 达标（100%-110%）：蓝色
+- 不达标（70%-100%）：橙色
+- 严重不达标（<70%）：红色
+
+### 后端 API
+
+#### 新增 API
+- `PUT /api/users/{user_id}/driver-info` - 更新司机信息（姓名、手机号）
+- `POST /api/users/{user_id}/warehouses` - 分配仓库给用户
+- `GET /api/users/{user_id}/warehouses` - 获取用户的仓库列表
+
+#### API 权限调整
+- `PUT /api/piece-work/categories/{category_id}` - 权限从 admin 调整为 management
+- `DELETE /api/piece-work/categories/{category_id}` - 权限从 admin 调整为 management
+
+### 前端工具函数
+
+#### 新增工具函数
+- `utils/completionRate.ts` - 完成率计算和状态判断
+- `utils/sort.ts` - 多字段排序功能
+- `utils/filter.ts` - 仓库筛选功能
+- `utils/validation/driverInfoValidation.ts` - 司机信息验证
+- `utils/validation/warehouseAssignmentValidation.ts` - 仓库分配验证
+- `utils/validation/pieceWorkCalculation.ts` - 计件计算验证
+- `utils/validation/leaveApprovalValidation.ts` - 请假审批验证
+- `utils/validation/rentalValidation.ts` - 租赁验证
+- `utils/validation/warehouseValidation.ts` - 仓库验证
+
+### 测试
+
+#### 属性测试（Property-Based Testing）
+- 新增完成率状态判断属性测试
+- 新增司机信息验证属性测试
+- 新增仓库分配验证属性测试
+- 新增计件计算验证属性测试
+- 新增请假审批验证属性测试
+- 新增租赁验证属性测试
+- 新增仓库验证属性测试
+
+#### 测试覆盖
+- 21 个测试文件
+- 383 个测试用例
+- 全部通过
+
+### 文档
+
+- 更新 `MANAGER-PAGE-DEEP-COMPARISON.md` - 标记已完成功能
+- 功能覆盖率从 90% 提升到 100%
+
+---
+
 ## [1.0.0] - 2024-12-23
 
 ### 🎉 首个正式版本发布

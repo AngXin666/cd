@@ -1,21 +1,141 @@
 <!--
   App.vue - 应用根组件
   配置应用生命周期和全局样式
-  集成临时文件清理功能
+  集成临时文件清理功能和 SSE 实时更新服务
+  
+  Requirements: 6.3, 6.4 - 权限状态集成实时更新
 -->
 <script setup lang="ts">
 /**
  * 应用根组件
  * 处理应用级别的生命周期事件
- * 包括用户状态初始化和临时文件清理
+ * 包括用户状态初始化、临时文件清理和 SSE 实时更新
+ * 
+ * SSE 实时更新功能：
+ * - 权限更新：当用户权限变化时自动更新本地状态
+ * - 用户状态更新：当用户被禁用时强制登出
+ * 
+ * Requirements: 6.3, 6.4, 7.3, 7.4 - 权限和用户状态实时更新
  */
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
+import { sseService } from '@/utils/sse';
+import type { PermissionUpdateEvent, UserUpdateEvent } from '@/types/sse-events';
 import {
   initAppCleanup,
   performLaunchCleanup,
   performForegroundCleanup
 } from '@/utils/cleanup';
+
+/**
+ * 初始化 SSE 服务并注册回调
+ * 在用户登录后调用，用于接收实时更新事件
+ * 
+ * Requirements: 6.3, 6.4 - 权限状态集成实时更新
+ */
+function initSSEService(): void {
+  const userStore = useUserStore();
+  
+  // 如果用户未登录，不初始化 SSE
+  if (!userStore.isLoggedIn) {
+    console.log('[App] 用户未登录，跳过 SSE 初始化');
+    return;
+  }
+  
+  console.log('[App] 初始化 SSE 服务');
+  
+  // 设置 SSE 回调
+  sseService.setCallbacks({
+    /**
+     * 处理权限更新事件
+     * Requirements: 6.3, 6.4 - 权限变化时更新本地权限状态，权限被撤销时提示和跳转
+     */
+    onPermissionUpdate: (event: PermissionUpdateEvent) => {
+      console.log('[App] 收到权限更新事件:', event);
+      
+      // 调用 store 处理权限更新
+      const result = userStore.handlePermissionUpdate(event);
+      
+      // 如果需要跳转（权限被撤销）
+      if (result.needRedirect && result.message) {
+        // 显示提示
+        uni.showModal({
+          title: '权限变更',
+          content: result.message,
+          showCancel: false,
+          confirmText: '我知道了',
+          success: () => {
+            // 跳转到首页
+            // Requirements: 6.4 - 权限被撤销时引导用户返回
+            uni.reLaunch({
+              url: '/pages/index/index',
+            });
+          },
+        });
+      }
+    },
+    
+    /**
+     * 处理用户状态更新事件
+     * Requirements: 7.3, 7.4 - 用户状态集成实时更新
+     */
+    onUserUpdate: (event: UserUpdateEvent) => {
+      console.log('[App] 收到用户状态更新事件:', event);
+      
+      // 调用 store 处理用户状态更新
+      const result = userStore.handleUserUpdate(event);
+      
+      // 如果需要强制登出
+      if (result.needLogout) {
+        // 根据原因显示不同的提示
+        const title = result.reason === 'disabled' ? '账号已禁用' : '角色变更';
+        const confirmText = result.reason === 'disabled' ? '确定' : '重新登录';
+        
+        uni.showModal({
+          title,
+          content: result.message || '您的账号状态已变更，请重新登录。',
+          showCancel: false,
+          confirmText,
+          success: () => {
+            // 强制登出
+            // Requirements: 7.3 - 账号被禁用时强制登出
+            userStore.forceLogout(result.reason);
+            // 跳转到登录页
+            uni.reLaunch({
+              url: '/pages/login/index',
+            });
+          },
+        });
+      }
+    },
+    
+    /**
+     * SSE 连接状态变化回调
+     */
+    onStateChange: (state) => {
+      console.log('[App] SSE 连接状态:', state);
+    },
+    
+    /**
+     * SSE 错误回调
+     */
+    onError: (error) => {
+      console.error('[App] SSE 错误:', error);
+    },
+  });
+  
+  // 连接 SSE 服务
+  sseService.connect();
+}
+
+/**
+ * 断开 SSE 服务
+ * 在用户登出或应用进入后台时调用
+ */
+function disconnectSSEService(): void {
+  console.log('[App] 断开 SSE 服务');
+  sseService.disconnect();
+}
 
 // 应用启动时执行
 onLaunch(async () => {
@@ -24,6 +144,17 @@ onLaunch(async () => {
   // 初始化用户状态
   const userStore = useUserStore();
   userStore.initFromStorage();
+  
+  // 如果用户已登录，初始化 SSE 服务
+  // Requirements: 6.3 - 权限状态集成实时更新
+  if (userStore.isLoggedIn) {
+    // 延迟初始化 SSE，避免影响启动速度
+    setTimeout(() => {
+      initSSEService();
+      // 加载用户权限
+      userStore.loadPermissions();
+    }, 500);
+  }
   
   // 初始化清理管理器并执行启动清理
   // 清理超过 24 小时的临时图片（Requirements 12.4）
@@ -40,6 +171,12 @@ onLaunch(async () => {
 onShow(async () => {
   console.log('📱 应用进入前台');
   
+  // 重新连接 SSE 服务（如果用户已登录）
+  const userStore = useUserStore();
+  if (userStore.isLoggedIn) {
+    initSSEService();
+  }
+  
   // 执行前台清理：清理过期的缓存和草稿（Requirements 7.4, 12.5）
   // 使用 setTimeout 延迟执行，避免影响页面渲染
   setTimeout(async () => {
@@ -55,6 +192,9 @@ onShow(async () => {
 // 应用隐藏时执行（进入后台）
 onHide(() => {
   console.log('📱 应用进入后台');
+  
+  // 断开 SSE 服务以节省资源
+  disconnectSSEService();
 });
 </script>
 

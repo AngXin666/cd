@@ -36,12 +36,47 @@ interface RequestConfig {
 }
 
 /**
- * 错误响应接口
+ * 错误响应接口（旧格式，字符串）
  */
-interface ErrorResponse {
-  /** 错误详情 */
+interface ErrorResponseLegacy {
+  /** 错误详情（字符串格式） */
   detail: string;
 }
+
+/**
+ * 权限错误详情接口（新格式，包含 error_code）
+ */
+interface PermissionErrorDetail {
+  /** 错误代码，用于区分不同类型的权限错误 */
+  error_code: string;
+  /** 错误信息，用于显示给用户 */
+  message: string;
+}
+
+/**
+ * 错误响应接口（新格式，支持结构化错误）
+ */
+interface ErrorResponseNew {
+  /** 错误详情（结构化格式） */
+  detail: PermissionErrorDetail;
+}
+
+/**
+ * 权限错误代码枚举
+ * 与后端 PermissionErrorCode 保持一致
+ */
+const PermissionErrorCode = {
+  /** 用户已被禁用 */
+  USER_DISABLED: 'user_disabled',
+  /** 角色权限不足 */
+  ROLE_INSUFFICIENT: 'role_insufficient',
+  /** 资源不属于当前用户 */
+  RESOURCE_NOT_OWNED: 'resource_not_owned',
+  /** 无权访问该仓库 */
+  WAREHOUSE_NOT_ACCESSIBLE: 'warehouse_not_accessible',
+  /** 需要超级管理员权限 */
+  HIGH_ROLE_OPERATION: 'high_role_operation',
+} as const;
 
 /**
  * 显示加载提示
@@ -144,13 +179,66 @@ export async function request<T = unknown>(config: RequestConfig): Promise<T> {
         
         // 权限不足（403）
         if (statusCode === 403) {
-          showError('权限不足');
-          reject(new Error('权限不足'));
+          // 解析错误响应，支持新旧两种格式
+          let errorCode = '';
+          let errorMessage = '权限不足';
+          
+          // 尝试解析新格式（包含 error_code）
+          const errorDataNew = responseData as ErrorResponseNew;
+          if (errorDataNew?.detail && typeof errorDataNew.detail === 'object') {
+            errorCode = errorDataNew.detail.error_code || '';
+            errorMessage = errorDataNew.detail.message || '权限不足';
+          } else {
+            // 旧格式（字符串）
+            const errorDataLegacy = responseData as ErrorResponseLegacy;
+            errorMessage = errorDataLegacy?.detail || '权限不足';
+            
+            // 兼容旧格式：检查是否是用户被禁用
+            if (errorMessage === '用户已被禁用') {
+              errorCode = PermissionErrorCode.USER_DISABLED;
+            }
+          }
+          
+          // 根据错误代码处理不同情况
+          switch (errorCode) {
+            case PermissionErrorCode.USER_DISABLED:
+              // 用户被禁用，强制登出
+              const userStore = useUserStore();
+              userStore.logout();
+              
+              uni.showModal({
+                title: '账号已被禁用',
+                content: '您的账号已被管理员禁用，请联系管理员',
+                showCancel: false,
+                success: () => {
+                  uni.reLaunch({ url: '/pages/login/index' });
+                }
+              });
+              break;
+              
+            case PermissionErrorCode.RESOURCE_NOT_OWNED:
+            case PermissionErrorCode.WAREHOUSE_NOT_ACCESSIBLE:
+              // 资源访问被拒绝，显示错误信息
+              showError(errorMessage);
+              break;
+              
+            case PermissionErrorCode.ROLE_INSUFFICIENT:
+            case PermissionErrorCode.HIGH_ROLE_OPERATION:
+              // 角色权限不足，显示错误信息
+              showError(errorMessage);
+              break;
+              
+            default:
+              // 未知错误代码或旧格式，显示错误信息
+              showError(errorMessage);
+          }
+          
+          reject(new Error(errorMessage));
           return;
         }
         
         // 其他错误
-        const errorData = responseData as ErrorResponse;
+        const errorData = responseData as ErrorResponseLegacy;
         const errorMessage = errorData?.detail || '请求失败';
         showError(errorMessage);
         reject(new Error(errorMessage));

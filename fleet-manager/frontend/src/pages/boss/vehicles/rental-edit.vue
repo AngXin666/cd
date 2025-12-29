@@ -1,10 +1,13 @@
 <template>
   <!-- 
     车辆租金编辑页面
-    编辑车辆的租赁信息，包括出租方、承租方、租金等
-    Requirements: 8.4
+    编辑车辆的租赁信息，包括月租金、开始日期、结束日期、押金、备注
+    Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
   -->
   <view class="rental-edit-page">
+    <!-- 顶部导航栏 -->
+    <TopNavBar title="车辆租金编辑" :showBack="true" />
+    
     <!-- 加载状态 -->
     <view v-if="loading" class="loading-container">
       <text class="loading-text">加载中...</text>
@@ -22,71 +25,7 @@
         </view>
       </view>
 
-      <!-- 租赁信息表单 -->
-      <view class="form-section">
-        <view class="section-title">
-          <text class="title-text">出租方信息</text>
-        </view>
-        
-        <!-- 出租方名称 -->
-        <view class="form-item">
-          <view class="form-label">
-            <text class="label-text">出租方名称</text>
-          </view>
-          <input
-            v-model="formData.lessor_name"
-            type="text"
-            class="form-input"
-            placeholder="请输入出租方名称"
-          />
-        </view>
-        
-        <!-- 出租方联系方式 -->
-        <view class="form-item">
-          <view class="form-label">
-            <text class="label-text">联系方式</text>
-          </view>
-          <input
-            v-model="formData.lessor_contact"
-            type="text"
-            class="form-input"
-            placeholder="请输入出租方联系方式"
-          />
-        </view>
-      </view>
-
-      <view class="form-section">
-        <view class="section-title">
-          <text class="title-text">承租方信息</text>
-        </view>
-        
-        <!-- 承租方名称 -->
-        <view class="form-item">
-          <view class="form-label">
-            <text class="label-text">承租方名称</text>
-          </view>
-          <input
-            v-model="formData.lessee_name"
-            type="text"
-            class="form-input"
-            placeholder="请输入承租方名称"
-          />
-        </view>
-        
-        <!-- 承租方联系方式 -->
-        <view class="form-item">
-          <view class="form-label">
-            <text class="label-text">联系方式</text>
-          </view>
-          <input
-            v-model="formData.lessee_contact"
-            type="text"
-            class="form-input"
-            placeholder="请输入承租方联系方式"
-          />
-        </view>
-      </view>
-
+      <!-- 租金信息表单 -->
       <view class="form-section">
         <view class="section-title">
           <text class="title-text">租金信息</text>
@@ -96,32 +35,33 @@
         <view class="form-item">
           <view class="form-label">
             <text class="label-text">月租金（元）</text>
+            <text class="required">*</text>
           </view>
           <input
             v-model="formData.monthly_rent"
             type="digit"
             class="form-input"
-            placeholder="请输入月租金"
+            :class="{ 'input-error': errors.monthly_rent }"
+            placeholder="请输入月租金（0-100000）"
+            @blur="validateMonthlyRent"
           />
+          <text v-if="errors.monthly_rent" class="error-text">{{ errors.monthly_rent }}</text>
         </view>
-        
-        <!-- 租金支付日 -->
+
+        <!-- 押金 -->
         <view class="form-item">
           <view class="form-label">
-            <text class="label-text">每月支付日</text>
+            <text class="label-text">押金（元）</text>
           </view>
-          <picker
-            mode="selector"
-            :range="dayOptions"
-            @change="handleDayChange"
-          >
-            <view class="picker-value">
-              <text class="picker-text">
-                {{ formData.rent_payment_day ? `每月${formData.rent_payment_day}日` : '请选择支付日' }}
-              </text>
-              <text class="picker-arrow">▼</text>
-            </view>
-          </picker>
+          <input
+            v-model="formData.deposit"
+            type="digit"
+            class="form-input"
+            :class="{ 'input-error': errors.deposit }"
+            placeholder="请输入押金金额"
+            @blur="validateDeposit"
+          />
+          <text v-if="errors.deposit" class="error-text">{{ errors.deposit }}</text>
         </view>
       </view>
 
@@ -134,39 +74,63 @@
         <view class="form-item">
           <view class="form-label">
             <text class="label-text">租期开始</text>
+            <text class="required">*</text>
           </view>
           <picker
             mode="date"
-            :value="formData.lease_start_date"
+            :value="formData.start_date"
             @change="handleStartDateChange"
           >
-            <view class="picker-value">
+            <view class="picker-value" :class="{ 'input-error': errors.start_date }">
               <text class="picker-text">
-                {{ formData.lease_start_date || '请选择开始日期' }}
+                {{ formData.start_date || '请选择开始日期' }}
               </text>
               <text class="picker-arrow">▼</text>
             </view>
           </picker>
+          <text v-if="errors.start_date" class="error-text">{{ errors.start_date }}</text>
         </view>
         
         <!-- 租期结束日期 -->
         <view class="form-item">
           <view class="form-label">
             <text class="label-text">租期结束</text>
+            <text class="required">*</text>
           </view>
           <picker
             mode="date"
-            :value="formData.lease_end_date"
-            :start="formData.lease_start_date"
+            :value="formData.end_date"
+            :start="formData.start_date"
             @change="handleEndDateChange"
           >
-            <view class="picker-value">
+            <view class="picker-value" :class="{ 'input-error': errors.end_date }">
               <text class="picker-text">
-                {{ formData.lease_end_date || '请选择结束日期' }}
+                {{ formData.end_date || '请选择结束日期' }}
               </text>
               <text class="picker-arrow">▼</text>
             </view>
           </picker>
+          <text v-if="errors.end_date" class="error-text">{{ errors.end_date }}</text>
+        </view>
+      </view>
+
+      <!-- 备注信息 -->
+      <view class="form-section">
+        <view class="section-title">
+          <text class="title-text">备注信息</text>
+        </view>
+        
+        <!-- 备注 -->
+        <view class="form-item">
+          <view class="form-label">
+            <text class="label-text">备注</text>
+          </view>
+          <textarea
+            v-model="formData.notes"
+            class="form-textarea"
+            placeholder="请输入备注信息（选填）"
+            :maxlength="500"
+          />
         </view>
       </view>
 
@@ -197,8 +161,8 @@
 
       <!-- 操作按钮 -->
       <view class="action-section">
-        <view class="btn primary-btn" @click="handleSubmit">
-          <text class="btn-text">保存租赁信息</text>
+        <view class="btn primary-btn" :class="{ 'btn-disabled': submitting }" @click="handleSubmit">
+          <text class="btn-text">{{ submitting ? '保存中...' : '保存租赁信息' }}</text>
         </view>
       </view>
     </template>
@@ -208,20 +172,36 @@
 <script setup lang="ts">
 /**
  * 车辆租金编辑页面
- * 编辑车辆的租赁信息，包括出租方、承租方、租金等
+ * 编辑车辆的租赁信息，包括月租金、开始日期、结束日期、押金、备注
  * 
- * @requirements 8.4 - 车辆租金编辑页面
+ * @requirements 2.1 - 从车辆详情页点击编辑租金按钮跳转到租金编辑页面并显示当前租金信息
+ * @requirements 2.2 - 验证月租金为正数且不超过 100000
+ * @requirements 2.3 - 验证日期格式正确
+ * @requirements 2.4 - 验证结束日期晚于开始日期
+ * @requirements 2.5 - 点击保存按钮提交修改并返回车辆详情页
  */
 
 import { ref, reactive, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getVehicle, getVehicleLease, updateVehicleLease } from '@/api'
 import type { Vehicle, VehicleLease, VehicleLeaseUpdate } from '@/api/types'
+import TopNavBar from '@/components/TopNavBar/index.vue'
+
+// ==================== 常量定义 ====================
+
+/** 月租金最大值：100000元 */
+const MAX_MONTHLY_RENT = 100000
+
+/** 押金最大值：100000元 */
+const MAX_DEPOSIT = 100000
 
 // ==================== 状态 ====================
 
 /** 加载状态 */
 const loading = ref(false)
+
+/** 提交状态 */
+const submitting = ref(false)
 
 /** 车辆ID */
 const vehicleId = ref<number>(0)
@@ -234,18 +214,20 @@ const leaseInfo = ref<VehicleLease | null>(null)
 
 /** 表单数据 */
 const formData = reactive({
-  lessor_name: '',
-  lessor_contact: '',
-  lessee_name: '',
-  lessee_contact: '',
   monthly_rent: '',
-  rent_payment_day: 0,
-  lease_start_date: '',
-  lease_end_date: '',
+  start_date: '',
+  end_date: '',
+  deposit: '',
+  notes: '',
 })
 
-/** 日期选项（1-28日） */
-const dayOptions = Array.from({ length: 28 }, (_, i) => `每月${i + 1}日`)
+/** 表单错误信息 */
+const errors = reactive({
+  monthly_rent: '',
+  start_date: '',
+  end_date: '',
+  deposit: '',
+})
 
 // ==================== 生命周期 ====================
 
@@ -262,10 +244,11 @@ onMounted(() => {
   }
 })
 
-// ==================== 方法 ====================
+// ==================== 数据加载方法 ====================
 
 /**
  * 加载数据
+ * 并行加载车辆信息和租赁信息
  */
 async function loadData(): Promise<void> {
   loading.value = true
@@ -279,16 +262,14 @@ async function loadData(): Promise<void> {
     vehicle.value = vehicleData
     leaseInfo.value = leaseData
     
-    // 填充表单
+    // 填充表单数据
     if (leaseData) {
-      formData.lessor_name = leaseData.lessor_name || ''
-      formData.lessor_contact = leaseData.lessor_contact || ''
-      formData.lessee_name = leaseData.lessee_name || ''
-      formData.lessee_contact = leaseData.lessee_contact || ''
       formData.monthly_rent = leaseData.monthly_rent ? String(leaseData.monthly_rent) : ''
-      formData.rent_payment_day = leaseData.rent_payment_day || 0
-      formData.lease_start_date = leaseData.lease_start_date || ''
-      formData.lease_end_date = leaseData.lease_end_date || ''
+      formData.start_date = leaseData.lease_start_date || ''
+      formData.end_date = leaseData.lease_end_date || ''
+      // 押金和备注字段可能需要从其他地方获取，暂时留空
+      formData.deposit = ''
+      formData.notes = ''
     }
   } catch (error) {
     console.error('加载数据失败:', error)
@@ -301,71 +282,218 @@ async function loadData(): Promise<void> {
   }
 }
 
+// ==================== 表单验证方法 ====================
+
 /**
- * 处理支付日选择
- * 
- * @param e - 事件对象
+ * 验证月租金
+ * 必须为正数且不超过 100000
+ * @requirements 2.2
+ * @returns 是否验证通过
  */
-function handleDayChange(e: { detail: { value: number } }): void {
-  formData.rent_payment_day = e.detail.value + 1
+function validateMonthlyRent(): boolean {
+  const value = formData.monthly_rent.trim()
+  
+  if (!value) {
+    errors.monthly_rent = '请输入月租金'
+    return false
+  }
+  
+  const rent = parseFloat(value)
+  
+  if (isNaN(rent)) {
+    errors.monthly_rent = '请输入有效的数字'
+    return false
+  }
+  
+  if (rent <= 0) {
+    errors.monthly_rent = '月租金必须为正数'
+    return false
+  }
+  
+  if (rent > MAX_MONTHLY_RENT) {
+    errors.monthly_rent = `月租金不能超过${MAX_MONTHLY_RENT}元`
+    return false
+  }
+  
+  errors.monthly_rent = ''
+  return true
 }
 
 /**
+ * 验证押金
+ * 如果填写，必须为非负数且不超过 100000
+ * @returns 是否验证通过
+ */
+function validateDeposit(): boolean {
+  const value = formData.deposit.trim()
+  
+  // 押金为选填项
+  if (!value) {
+    errors.deposit = ''
+    return true
+  }
+  
+  const deposit = parseFloat(value)
+  
+  if (isNaN(deposit)) {
+    errors.deposit = '请输入有效的数字'
+    return false
+  }
+  
+  if (deposit < 0) {
+    errors.deposit = '押金不能为负数'
+    return false
+  }
+  
+  if (deposit > MAX_DEPOSIT) {
+    errors.deposit = `押金不能超过${MAX_DEPOSIT}元`
+    return false
+  }
+  
+  errors.deposit = ''
+  return true
+}
+
+/**
+ * 验证日期格式
+ * 检查日期字符串是否为有效的 YYYY-MM-DD 格式
+ * @requirements 2.3
+ * @param dateStr - 日期字符串
+ * @returns 是否为有效日期格式
+ */
+function isValidDateFormat(dateStr: string): boolean {
+  if (!dateStr) return false
+  
+  // 检查格式是否为 YYYY-MM-DD
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(dateStr)) return false
+  
+  // 检查是否为有效日期
+  const date = new Date(dateStr)
+  return !isNaN(date.getTime())
+}
+
+/**
+ * 验证开始日期
+ * @requirements 2.3
+ * @returns 是否验证通过
+ */
+function validateStartDate(): boolean {
+  if (!formData.start_date) {
+    errors.start_date = '请选择租期开始日期'
+    return false
+  }
+  
+  if (!isValidDateFormat(formData.start_date)) {
+    errors.start_date = '日期格式不正确'
+    return false
+  }
+  
+  errors.start_date = ''
+  return true
+}
+
+/**
+ * 验证结束日期
+ * 必须晚于开始日期
+ * @requirements 2.3, 2.4
+ * @returns 是否验证通过
+ */
+function validateEndDate(): boolean {
+  if (!formData.end_date) {
+    errors.end_date = '请选择租期结束日期'
+    return false
+  }
+  
+  if (!isValidDateFormat(formData.end_date)) {
+    errors.end_date = '日期格式不正确'
+    return false
+  }
+  
+  // 验证结束日期晚于开始日期
+  if (formData.start_date && formData.end_date) {
+    const startDate = new Date(formData.start_date)
+    const endDate = new Date(formData.end_date)
+    
+    if (endDate <= startDate) {
+      errors.end_date = '结束日期必须晚于开始日期'
+      return false
+    }
+  }
+  
+  errors.end_date = ''
+  return true
+}
+
+/**
+ * 验证所有表单字段
+ * @returns 是否所有验证都通过
+ */
+function validateForm(): boolean {
+  const isMonthlyRentValid = validateMonthlyRent()
+  const isDepositValid = validateDeposit()
+  const isStartDateValid = validateStartDate()
+  const isEndDateValid = validateEndDate()
+  
+  return isMonthlyRentValid && isDepositValid && isStartDateValid && isEndDateValid
+}
+
+// ==================== 事件处理方法 ====================
+
+/**
  * 处理开始日期选择
- * 
  * @param e - 事件对象
  */
 function handleStartDateChange(e: { detail: { value: string } }): void {
-  formData.lease_start_date = e.detail.value
+  formData.start_date = e.detail.value
+  validateStartDate()
+  
+  // 如果结束日期已选择，重新验证结束日期
+  if (formData.end_date) {
+    validateEndDate()
+  }
 }
 
 /**
  * 处理结束日期选择
- * 
  * @param e - 事件对象
  */
 function handleEndDateChange(e: { detail: { value: string } }): void {
-  formData.lease_end_date = e.detail.value
+  formData.end_date = e.detail.value
+  validateEndDate()
 }
 
 /**
  * 提交表单
+ * 验证通过后调用 API 更新租金信息
+ * @requirements 2.5
  */
 async function handleSubmit(): Promise<void> {
+  // 防止重复提交
+  if (submitting.value) return
+  
+  // 验证表单
+  if (!validateForm()) {
+    uni.showToast({
+      title: '请检查表单填写',
+      icon: 'none',
+    })
+    return
+  }
+  
+  submitting.value = true
+  
   try {
     uni.showLoading({ title: '保存中...' })
     
-    const updateData: VehicleLeaseUpdate = {}
-    
-    // 只提交有值的字段
-    if (formData.lessor_name.trim()) {
-      updateData.lessor_name = formData.lessor_name.trim()
-    }
-    if (formData.lessor_contact.trim()) {
-      updateData.lessor_contact = formData.lessor_contact.trim()
-    }
-    if (formData.lessee_name.trim()) {
-      updateData.lessee_name = formData.lessee_name.trim()
-    }
-    if (formData.lessee_contact.trim()) {
-      updateData.lessee_contact = formData.lessee_contact.trim()
-    }
-    if (formData.monthly_rent) {
-      const rent = parseFloat(formData.monthly_rent)
-      if (!isNaN(rent) && rent >= 0) {
-        updateData.monthly_rent = rent
-      }
-    }
-    if (formData.rent_payment_day > 0) {
-      updateData.rent_payment_day = formData.rent_payment_day
-    }
-    if (formData.lease_start_date) {
-      updateData.lease_start_date = formData.lease_start_date
-    }
-    if (formData.lease_end_date) {
-      updateData.lease_end_date = formData.lease_end_date
+    // 构建更新数据
+    const updateData: VehicleLeaseUpdate = {
+      monthly_rent: parseFloat(formData.monthly_rent),
+      lease_start_date: formData.start_date,
+      lease_end_date: formData.end_date,
     }
     
+    // 调用 API 更新租金信息
     await updateVehicleLease(vehicleId.value, updateData)
     
     uni.hideLoading()
@@ -374,21 +502,26 @@ async function handleSubmit(): Promise<void> {
       icon: 'success',
     })
     
-    // 刷新数据
-    await loadData()
+    // 成功后返回车辆详情页
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 1500)
   } catch (error) {
     console.error('保存失败:', error)
     uni.hideLoading()
     uni.showToast({
-      title: '保存失败',
+      title: '保存失败，请重试',
       icon: 'none',
     })
+  } finally {
+    submitting.value = false
   }
 }
 
+// ==================== 辅助方法 ====================
+
 /**
  * 格式化距付款日天数
- * 
  * @param days - 天数
  * @returns 格式化后的文本
  */
@@ -401,7 +534,6 @@ function formatDaysUntilPayment(days: number | null): string {
 
 /**
  * 获取天数样式类
- * 
  * @param days - 天数
  * @returns 样式类名
  */
@@ -414,7 +546,6 @@ function getDaysClass(days: number | null): string {
 
 /**
  * 获取租赁状态文本
- * 
  * @param status - 状态值
  * @returns 状态文本
  */
@@ -429,7 +560,6 @@ function getLeaseStatusText(status: string | null): string {
 
 /**
  * 获取租赁状态样式类
- * 
  * @param status - 状态值
  * @returns 样式类名
  */
@@ -444,6 +574,9 @@ function getLeaseStatusClass(status: string | null): string {
 </script>
 
 <style lang="scss" scoped>
+/**
+ * 车辆租金编辑页面样式
+ */
 .rental-edit-page {
   min-height: 100vh;
   background-color: #f5f5f5;
@@ -533,12 +666,19 @@ function getLeaseStatusClass(status: string | null): string {
 }
 
 .form-label {
+  display: flex;
+  align-items: center;
   margin-bottom: 12rpx;
 }
 
 .label-text {
   font-size: 26rpx;
   color: #666666;
+}
+
+.required {
+  color: #ff4d4f;
+  margin-left: 4rpx;
 }
 
 .form-input {
@@ -550,6 +690,30 @@ function getLeaseStatusClass(status: string | null): string {
   background-color: #f5f5f5;
   border-radius: 12rpx;
   box-sizing: border-box;
+  border: 2rpx solid transparent;
+  
+  &.input-error {
+    border-color: #ff4d4f;
+    background-color: #fff2f0;
+  }
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: #333333;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+  box-sizing: border-box;
+}
+
+.error-text {
+  font-size: 24rpx;
+  color: #ff4d4f;
+  margin-top: 8rpx;
+  display: block;
 }
 
 .picker-value {
@@ -560,6 +724,12 @@ function getLeaseStatusClass(status: string | null): string {
   padding: 0 20rpx;
   background-color: #f5f5f5;
   border-radius: 12rpx;
+  border: 2rpx solid transparent;
+  
+  &.input-error {
+    border-color: #ff4d4f;
+    background-color: #fff2f0;
+  }
 }
 
 .picker-text {
@@ -662,6 +832,10 @@ function getLeaseStatusClass(status: string | null): string {
 
 .primary-btn {
   background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  
+  &.btn-disabled {
+    opacity: 0.6;
+  }
   
   .btn-text {
     color: #ffffff;

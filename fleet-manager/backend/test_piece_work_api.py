@@ -432,19 +432,21 @@ def test_update_record(admin_token: str, record_id: int):
 
 def test_update_record_driver_forbidden(driver_token: str, record_id: int):
     """
-    测试 6.2.5: 司机无权更新计件记录
-    PUT /api/piece-work/records/{id} 司机尝试更新应返回 403
+    测试 6.2.5: 司机可以更新自己的计件记录
+    PUT /api/piece-work/records/{id} 司机更新自己的记录应成功
+    
+    注意：司机只能更新自己的记录，不能更新他人的记录
     """
-    print("\n--- 测试 6.2.5: 司机无权更新计件记录 ---")
+    print("\n--- 测试 6.2.5: 司机可以更新自己的计件记录 ---")
     
     if not record_id:
-        log_test("司机无权更新计件记录", False, "无有效记录ID")
+        log_test("司机更新自己的计件记录", False, "无有效记录ID")
         return
     
     try:
         update_data = {
             "quantity": 200,
-            "remark": "司机尝试更新"
+            "remark": "司机更新自己的记录"
         }
         
         response = httpx.put(
@@ -454,12 +456,16 @@ def test_update_record_driver_forbidden(driver_token: str, record_id: int):
             timeout=10
         )
         
-        if response.status_code == 403:
-            log_test("司机无权更新计件记录", True, "正确返回 403 Forbidden")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("quantity") == 200:
+                log_test("司机更新自己的计件记录", True, f"更新成功，新数量: {data.get('quantity')}")
+            else:
+                log_test("司机更新自己的计件记录", False, f"数量未更新: {data.get('quantity')}")
         else:
-            log_test("司机无权更新计件记录", False, f"状态码: {response.status_code}")
+            log_test("司机更新自己的计件记录", False, f"状态码: {response.status_code}, 响应: {response.text}")
     except Exception as e:
-        log_test("司机无权更新计件记录", False, f"请求异常: {str(e)}")
+        log_test("司机更新自己的计件记录", False, f"请求异常: {str(e)}")
 
 
 def test_delete_record(admin_token: str, record_id: int):

@@ -268,3 +268,67 @@ export function calculateCategoryStats(records: PieceWorkRecord[]): CategoryStat
   return Array.from(categoryMap.values())
     .sort((a, b) => b.amount - a.amount)
 }
+
+
+/**
+ * 带仓库信息的用户接口
+ * 扩展 User 类型，添加仓库 ID 字段
+ */
+export interface UserWithWarehouse extends User {
+  /** 所属仓库 ID */
+  warehouse_id: number | null
+}
+
+/**
+ * 根据仓库 ID 筛选司机列表
+ * 
+ * Requirements: 2.2 - 按仓库筛选司机
+ * 
+ * @param drivers - 司机列表（包含仓库信息）
+ * @param warehouseId - 仓库 ID，null 表示不筛选（返回全部）
+ * @returns 筛选后的司机列表
+ * 
+ * @example
+ * ```typescript
+ * // 筛选仓库 ID 为 1 的司机
+ * const filtered = filterDriversByWarehouse(drivers, 1)
+ * 
+ * // 不筛选，返回全部司机
+ * const all = filterDriversByWarehouse(drivers, null)
+ * ```
+ */
+export function filterDriversByWarehouse(
+  drivers: UserWithWarehouse[],
+  warehouseId: number | null
+): UserWithWarehouse[] {
+  // 如果 warehouseId 为 null，返回全部司机 - Requirements 2.3
+  if (warehouseId === null) {
+    return drivers
+  }
+  
+  // 筛选指定仓库的司机 - Requirements 2.2
+  return drivers.filter(driver => driver.warehouse_id === warehouseId)
+}
+
+/**
+ * 获取仓库的司机数量
+ * 
+ * @param drivers - 司机列表（包含仓库信息）
+ * @param warehouseId - 仓库 ID，null 表示统计全部
+ * @returns 司机数量
+ * 
+ * @example
+ * ```typescript
+ * // 获取仓库 ID 为 1 的司机数量
+ * const count = getDriverCountByWarehouse(drivers, 1)
+ * 
+ * // 获取全部司机数量
+ * const total = getDriverCountByWarehouse(drivers, null)
+ * ```
+ */
+export function getDriverCountByWarehouse(
+  drivers: UserWithWarehouse[],
+  warehouseId: number | null
+): number {
+  return filterDriversByWarehouse(drivers, warehouseId).length
+}

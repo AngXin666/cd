@@ -109,6 +109,36 @@
           <text class="quick-filter-text">本月</text>
         </view>
       </view>
+
+      <!-- 排序选项 -->
+      <!-- Requirements: 4.1, 4.2, 4.3 -->
+      <view class="sort-section">
+        <text class="sort-label">排序</text>
+        <view class="sort-options">
+          <view 
+            v-for="option in sortOptions"
+            :key="option.field"
+            class="sort-option"
+            :class="{ active: sortConfig.field === option.field }"
+            @click="onSortFieldChange(option.field)"
+          >
+            <text class="sort-option-icon">{{ option.icon }}</text>
+            <text class="sort-option-text">{{ option.label }}</text>
+            <!-- 显示当前排序方向（仅在选中时显示） -->
+            <text 
+              v-if="sortConfig.field === option.field" 
+              class="sort-order-icon"
+            >
+              {{ sortOrderIcon }}
+            </text>
+          </view>
+        </view>
+        <!-- 升序/降序切换按钮 -->
+        <view class="sort-order-toggle" @click="onToggleSortOrder">
+          <text class="sort-order-text">{{ sortOrderLabel }}</text>
+          <text class="sort-order-arrow">{{ sortOrderIcon }}</text>
+        </view>
+      </view>
     </view>
 
     <!-- 加载状态 -->
@@ -199,7 +229,7 @@
 <script setup lang="ts">
 /**
  * 数据汇总页面
- * 显示计件统计数据，支持仓库筛选、司机搜索、快捷日期筛选
+ * 显示计件统计数据，支持仓库筛选、司机搜索、快捷日期筛选、排序功能
  * 
  * @module pages/manager/stats
  * 
@@ -214,6 +244,9 @@
  * - 3.8: 显示司机姓名、仓库、品类、标签和金额信息
  * - 3.9: 老板角色显示所有仓库的数据
  * - 3.10: 车队长角色只显示管辖仓库的数据
+ * - 4.1: 显示排序选项（按金额/按数量/按日期）
+ * - 4.2: 按选定方式重新排列记录列表
+ * - 4.3: 支持升序/降序切换
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
@@ -236,6 +269,17 @@ import {
 import { formatDateChineseYMD } from '@/utils/dateFormat'
 import { matchWithPinyin } from '@/utils/pinyin'
 import { useUserStore } from '@/store/user'
+import {
+  sortRecords,
+  toggleSortOrder,
+  getSortOrderLabel,
+  getSortOrderIcon,
+  DEFAULT_SORT_OPTIONS,
+  DEFAULT_SORT_CONFIG,
+  type SortConfig,
+  type SortField,
+  type SortOption,
+} from '@/utils/sort'
 
 // ==================== 类型定义 ====================
 
@@ -290,6 +334,13 @@ const endDate = ref('')
 
 /** 快捷筛选类型 */
 const quickFilter = ref<QuickFilterType>('month')
+
+/** 排序配置 */
+/** Requirements: 4.1, 4.2, 4.3 */
+const sortConfig = ref<SortConfig>({ ...DEFAULT_SORT_CONFIG })
+
+/** 排序选项列表 */
+const sortOptions = DEFAULT_SORT_OPTIONS
 
 // ==================== 计算属性 ====================
 
@@ -348,7 +399,20 @@ const filteredDrivers = computed(() => {
 })
 
 /**
- * 根据筛选条件过滤的记录列表
+ * 排序方向显示文本
+ * Requirements: 4.3
+ */
+const sortOrderLabel = computed(() => getSortOrderLabel(sortConfig.value.order))
+
+/**
+ * 排序方向图标
+ * Requirements: 4.3
+ */
+const sortOrderIcon = computed(() => getSortOrderIcon(sortConfig.value.order))
+
+/**
+ * 根据筛选条件过滤并排序的记录列表
+ * Requirements: 4.2 - 按选定方式重新排列记录列表
  */
 const filteredRecords = computed(() => {
   let result = records.value
@@ -362,6 +426,10 @@ const filteredRecords = computed(() => {
   if (selectedDriverId.value !== null) {
     result = result.filter(r => r.user_id === selectedDriverId.value)
   }
+  
+  // 应用排序
+  // Requirements: 4.2 - 按选定方式重新排列记录列表
+  result = sortRecords(result, sortConfig.value)
   
   return result
 })
@@ -613,6 +681,39 @@ function onEndDateChange(e: any): void {
   quickFilter.value = 'custom'
   loadData()
 }
+
+/**
+ * 排序字段变化
+ * Requirements: 4.1, 4.2 - 点击排序选项时更新排序字段
+ * 
+ * @param field - 新的排序字段
+ */
+function onSortFieldChange(field: SortField): void {
+  // 如果点击的是当前选中的字段，切换排序方向
+  if (sortConfig.value.field === field) {
+    sortConfig.value = {
+      ...sortConfig.value,
+      order: toggleSortOrder(sortConfig.value.order),
+    }
+  } else {
+    // 切换到新字段，默认降序
+    sortConfig.value = {
+      field,
+      order: 'desc',
+    }
+  }
+}
+
+/**
+ * 切换排序方向
+ * Requirements: 4.3 - 切换升序/降序
+ */
+function onToggleSortOrder(): void {
+  sortConfig.value = {
+    ...sortConfig.value,
+    order: toggleSortOrder(sortConfig.value.order),
+  }
+}
 </script>
 
 
@@ -802,6 +903,96 @@ function onEndDateChange(e: any): void {
 .quick-filter-text {
   font-size: 26rpx;
   color: #666666;
+}
+
+/* ==================== 排序区域 ==================== */
+/* Requirements: 4.1, 4.2, 4.3 */
+.sort-section {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.sort-label {
+  font-size: 28rpx;
+  color: #666666;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.sort-options {
+  display: flex;
+  flex: 1;
+  gap: 12rpx;
+}
+
+.sort-option {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 16rpx;
+  background-color: #f5f5f5;
+  border-radius: 8rpx;
+  transition: all 0.2s;
+  
+  /* 选中状态 */
+  &.active {
+    background: linear-gradient(135deg, #4a90e2 0%, #6ba3e8 100%);
+    
+    .sort-option-text {
+      color: #ffffff;
+    }
+    
+    .sort-option-icon {
+      opacity: 1;
+    }
+    
+    .sort-order-icon {
+      color: #ffffff;
+    }
+  }
+}
+
+.sort-option-icon {
+  font-size: 24rpx;
+  margin-right: 6rpx;
+  opacity: 0.7;
+}
+
+.sort-option-text {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.sort-order-icon {
+  font-size: 20rpx;
+  color: #4a90e2;
+  margin-left: 4rpx;
+  font-weight: bold;
+}
+
+/* 升序/降序切换按钮 */
+.sort-order-toggle {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 16rpx;
+  background-color: #fff3e0;
+  border-radius: 8rpx;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+
+.sort-order-text {
+  font-size: 24rpx;
+  color: #ff9800;
+}
+
+.sort-order-arrow {
+  font-size: 20rpx;
+  color: #ff9800;
+  margin-left: 4rpx;
+  font-weight: bold;
 }
 
 /* ==================== 加载状态 ==================== */

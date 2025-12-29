@@ -55,7 +55,7 @@
 
     <!-- 记录列表 -->
     <view v-else class="record-list">
-      <view v-for="record in records" :key="record.id" class="record-card">
+      <view v-for="record in records" :key="record.id" class="record-card" @click="handleRecordClick(record)">
         <view class="record-header">
           <view class="user-info">
             <view class="user-avatar">
@@ -97,12 +97,20 @@
 /**
  * 全局计件管理页面
  * 显示所有计件记录，支持筛选统计
+ * 
+ * 支持 SSE 实时更新：
+ * - 当有新的计件记录提交时，自动添加到列表
+ * - 当计件记录状态变化时，自动更新对应记录
+ * 
+ * Requirements: 4.4 - 计件列表页集成实时更新
  */
-import { ref, reactive, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide } from '@dcloudio/uni-app'
 import { getPieceWorkRecords, getPieceWorkStats } from '@/api'
 import type { PieceWorkRecord, PieceWorkStats } from '@/api/types'
-import { formatDate } from '@/utils'
+import { formatDate, navigateTo } from '@/utils'
+import { sseService } from '@/utils/sse'
+import type { PieceWorkUpdateEvent, PieceWorkRecordData } from '@/types/sse-events'
 
 const loading = ref(false)
 const records = ref<PieceWorkRecord[]>([])
@@ -119,9 +127,29 @@ onMounted(() => {
   startDate.value = formatDateStr(firstDay)
   endDate.value = formatDateStr(now)
   loadData()
+  // 注册 SSE 回调
+  registerSSECallbacks()
 })
 
-onShow(() => { loadData() })
+onShow(() => { 
+  loadData()
+  // 重新注册 SSE 回调（页面可能从后台恢复）
+  registerSSECallbacks()
+})
+
+/**
+ * 页面隐藏时取消 SSE 回调
+ */
+onHide(() => {
+  unregisterSSECallbacks()
+})
+
+/**
+ * 组件卸载时取消 SSE 回调
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
+})
 
 /**
  * 格式化日期为字符串
@@ -170,6 +198,132 @@ function handleStartDateChange(e: any): void {
 function handleEndDateChange(e: any): void {
   endDate.value = e.detail.value
   loadData()
+}
+
+/**
+ * 处理记录点击
+ * 跳转到件数报表详情页面
+ * 
+ * @param record - 计件记录
+ */
+function handleRecordClick(record: PieceWorkRecord): void {
+  // 构建跳转参数
+  const params: Record<string, string | number> = {
+    user_id: record.user_id,
+    date: record.work_date,
+  }
+  
+  // 添加司机名称（如果有）
+  if (record.user_name) {
+    params.name = record.user_name
+  }
+  
+  // 添加仓库名称（如果有）
+  if (record.warehouse_name) {
+    params.warehouse_name = record.warehouse_name
+  }
+  
+  navigateTo('/pages/boss/piece-work/detail', params)
+}
+
+// ==================== SSE 实时更新 ====================
+// Requirements: 4.4 - 计件列表页集成实时更新
+
+/**
+ * 注册 SSE 回调
+ * 监听计件记录更新事件
+ */
+function registerSSECallbacks(): void {
+  sseService.setCallbacks({
+    onPieceWorkUpdate: handlePieceWorkUpdate,
+  })
+  console.log('[老板计件管理] 已注册 SSE 计件更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ */
+function unregisterSSECallbacks(): void {
+  sseService.setCallbacks({
+    onPieceWorkUpdate: undefined,
+  })
+  console.log('[老板计件管理] 已取消 SSE 计件更新回调')
+}
+
+/**
+ * 处理计件更新事件
+ * 当收到 SSE piece_work_update 事件时调用
+ * 
+ * @param event - 计件更新事件数据
+ * Requirements: 4.4 - 新记录到达时自动添加到列表，审批状态变化时更新对应记录
+ */
+function handlePieceWorkUpdate(event: PieceWorkUpdateEvent): void {
+  console.log('[老板计件管理] 收到计件更新事件:', event.action, event.record.id)
+  
+  const eventRecord = event.record
+  
+  // 检查记录日期是否在当前筛选范围内
+  const recordDate = eventRecord.work_date.split('T')[0]
+  const inDateRange = (!startDate.value || recordDate >= startDate.value) && 
+                      (!endDate.value || recordDate <= endDate.value)
+  
+  if (!inDateRange) {
+    console.log('[老板计件管理] 记录日期不在筛选范围内，忽略')
+    return
+  }
+  
+  // 将事件数据转换为 PieceWorkRecord 格式
+  const newRecord: PieceWorkRecord = {
+    id: eventRecord.id,
+    user_id: eventRecord.user_id,
+    user_name: eventRecord.user_name,
+    warehouse_id: eventRecord.warehouse_id ?? undefined,
+    warehouse_name: eventRecord.warehouse_name ?? undefined,
+    category_id: eventRecord.category_id,
+    category_name: eventRecord.category_name,
+    quantity: eventRecord.quantity,
+    amount: eventRecord.amount,
+    work_date: eventRecord.work_date,
+    remark: eventRecord.remark ?? undefined,
+    status: eventRecord.status,
+    created_at: eventRecord.created_at,
+  }
+  
+  if (event.action === 'create') {
+    // 新记录：添加到列表开头
+    records.value.unshift(newRecord)
+    // 更新统计数据
+    stats.record_count += 1
+    stats.total_quantity += newRecord.quantity
+    stats.total_amount += newRecord.amount
+    
+    // 显示提示
+    uni.showToast({
+      title: '收到新计件记录',
+      icon: 'none',
+      duration: 2000,
+    })
+    console.log('[老板计件管理] 已添加新记录:', newRecord.id)
+  } else if (event.action === 'update') {
+    // 更新记录：查找并更新
+    const index = records.value.findIndex(r => r.id === newRecord.id)
+    if (index !== -1) {
+      const oldRecord = records.value[index]
+      // 更新统计数据（先减去旧值，再加上新值）
+      stats.total_quantity = stats.total_quantity - oldRecord.quantity + newRecord.quantity
+      stats.total_amount = stats.total_amount - oldRecord.amount + newRecord.amount
+      // 更新记录
+      records.value[index] = newRecord
+      console.log('[老板计件管理] 已更新记录:', newRecord.id)
+    } else {
+      // 如果找不到记录，可能是新进入筛选范围的，添加到列表
+      records.value.unshift(newRecord)
+      stats.record_count += 1
+      stats.total_quantity += newRecord.quantity
+      stats.total_amount += newRecord.amount
+      console.log('[老板计件管理] 记录不在列表中，已添加:', newRecord.id)
+    }
+  }
 }
 </script>
 

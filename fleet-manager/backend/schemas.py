@@ -2,13 +2,25 @@
 Pydantic 模式模块
 定义 API 请求和响应的数据结构
 用于数据验证和序列化
+
+注意：枚举类型统一从 models.py 导入，避免重复定义
 """
 
 from datetime import datetime, date
 from typing import Optional, List
 from enum import Enum
 from pydantic import BaseModel, Field
-from models import UserRole, LeaveType, LeaveStatus, VehicleStatus, DocumentType
+from models import (
+    UserRole, 
+    LeaveType, 
+    LeaveStatus, 
+    VehicleStatus, 
+    DocumentType,
+    RepeatType,
+    ScheduledNotificationStatus,
+    UpdateType,
+    VehicleHistoryActionType
+)
 
 
 # ==================== 认证相关模式 ====================
@@ -82,6 +94,16 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = Field(default=None, description="是否启用")
 
 
+class DriverInfoUpdate(BaseModel):
+    """
+    司机信息更新请求模式
+    车队长可用，只允许更新姓名和手机号
+    Requirements: 1.3 - 车队长更新司机信息
+    """
+    name: Optional[str] = Field(default=None, max_length=50, description="真实姓名")
+    phone: Optional[str] = Field(default=None, max_length=20, description="手机号")
+
+
 class UserResponse(UserBase):
     """
     用户响应模式
@@ -146,6 +168,15 @@ class WarehouseAssignRequest(BaseModel):
     user_ids: List[int] = Field(..., description="要分配的用户ID列表")
 
 
+class UserWarehouseAssignRequest(BaseModel):
+    """
+    用户仓库分配请求模式
+    用于给用户分配仓库列表
+    Requirements: 1.5 - 车队长选择仓库并确认分配
+    """
+    warehouse_ids: List[int] = Field(..., description="要分配的仓库ID列表")
+
+
 # ==================== 考勤相关模式 ====================
 
 class AttendanceResponse(BaseModel):
@@ -183,9 +214,13 @@ class TodayAttendanceResponse(BaseModel):
 class PieceWorkCategoryBase(BaseModel):
     """
     计件分类基础模式
+    支持基础单价、上楼单价、分拣单价配置
+    Requirements: 3.1 - 支持多种单价配置
     """
     name: str = Field(..., min_length=1, max_length=50, description="分类名称")
-    unit_price: float = Field(..., ge=0, description="单价（元/件）")
+    unit_price: float = Field(..., ge=0, description="基础单价（元/件）")
+    upstairs_price: Optional[float] = Field(default=None, ge=0, description="上楼单价（元/件）")
+    sorting_price: Optional[float] = Field(default=None, ge=0, description="分拣单价（元/件）")
     unit: str = Field(default="件", max_length=20, description="计量单位")
     is_active: bool = Field(default=True, description="是否启用")
 
@@ -198,9 +233,12 @@ class PieceWorkCategoryCreate(PieceWorkCategoryBase):
 class PieceWorkCategoryUpdate(BaseModel):
     """
     更新计件分类请求模式
+    Requirements: 3.2 - 支持编辑品类配置
     """
     name: Optional[str] = Field(default=None, max_length=50, description="分类名称")
-    unit_price: Optional[float] = Field(default=None, ge=0, description="单价")
+    unit_price: Optional[float] = Field(default=None, ge=0, description="基础单价")
+    upstairs_price: Optional[float] = Field(default=None, ge=0, description="上楼单价")
+    sorting_price: Optional[float] = Field(default=None, ge=0, description="分拣单价")
     unit: Optional[str] = Field(default=None, max_length=20, description="计量单位")
     is_active: Optional[bool] = Field(default=None, description="是否启用")
 
@@ -701,35 +739,7 @@ class OCRStatusResponse(BaseModel):
 
 
 # ==================== 定时通知相关模式 ====================
-
-class RepeatType(str, Enum):
-    """
-    定时通知重复类型枚举
-    - ONCE: 仅执行一次
-    - DAILY: 每天重复
-    - WEEKLY: 每周重复
-    - MONTHLY: 每月重复
-    """
-    ONCE = "once"
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-
-
-class ScheduledNotificationStatus(str, Enum):
-    """
-    定时通知状态枚举
-    - PENDING: 待执行
-    - ACTIVE: 执行中（用于重复任务）
-    - COMPLETED: 已完成
-    - CANCELLED: 已取消
-    - FAILED: 执行失败
-    """
-    PENDING = "pending"
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    FAILED = "failed"
+# 注意：RepeatType 和 ScheduledNotificationStatus 枚举已从 models.py 导入，避免重复定义
 
 
 class ScheduledNotificationBase(BaseModel):
@@ -847,12 +857,7 @@ class SchedulerStatusResponse(BaseModel):
 
 
 # ==================== 应用版本（热更新）模式 ====================
-
-class UpdateType(str, Enum):
-    """更新类型枚举"""
-    OPTIONAL = "optional"
-    RECOMMENDED = "recommended"
-    REQUIRED = "required"
+# 注意：UpdateType 枚举已从 models.py 导入，避免重复定义
 
 
 class AppVersionBase(BaseModel):
@@ -1111,15 +1116,7 @@ class VehicleListResponse(BaseModel):
 
 
 # ==================== 车辆历史相关模式 ====================
-
-class VehicleHistoryActionType(str, Enum):
-    """
-    车辆历史操作类型枚举
-    - PICKUP: 提车操作
-    - RETURN: 还车操作
-    """
-    PICKUP = "pickup"
-    RETURN = "return"
+# 注意：VehicleHistoryActionType 枚举已从 models.py 导入，避免重复定义
 
 
 class VehicleHistoryPhotos(BaseModel):
@@ -1192,3 +1189,81 @@ class VehicleHistoryListResponse(BaseModel):
     """
     total: int = Field(..., description="总记录数")
     items: List[VehicleHistoryResponse] = Field(..., description="历史记录列表")
+
+
+# ==================== 权限配置相关模式 ====================
+
+class RolePermissionBase(BaseModel):
+    """
+    角色权限基础模式
+    
+    Attributes:
+        role: 用户角色
+        permissions: 权限键列表
+    """
+    role: UserRole = Field(..., description="用户角色")
+    permissions: List[str] = Field(..., description="权限键列表")
+
+
+class RolePermissionUpdate(BaseModel):
+    """
+    更新角色权限请求模式
+    
+    Attributes:
+        permissions: 权限键列表
+    """
+    permissions: List[str] = Field(..., description="权限键列表")
+
+
+class RolePermissionResponse(RolePermissionBase):
+    """
+    角色权限响应模式
+    """
+    updated_at: Optional[datetime] = Field(default=None, description="更新时间")
+    
+    class Config:
+        from_attributes = True
+
+
+class PermissionItem(BaseModel):
+    """
+    权限项模式
+    
+    Attributes:
+        key: 权限键
+        name: 权限名称
+        description: 权限描述
+        group: 权限分组
+    """
+    key: str = Field(..., description="权限键")
+    name: str = Field(..., description="权限名称")
+    description: str = Field(..., description="权限描述")
+    group: str = Field(..., description="权限分组")
+
+
+class PermissionGroupResponse(BaseModel):
+    """
+    权限分组响应模式
+    
+    Attributes:
+        key: 分组键
+        name: 分组名称
+        icon: 分组图标
+        permissions: 权限列表
+    """
+    key: str = Field(..., description="分组键")
+    name: str = Field(..., description="分组名称")
+    icon: str = Field(..., description="分组图标")
+    permissions: List[PermissionItem] = Field(..., description="权限列表")
+
+
+class AllPermissionsResponse(BaseModel):
+    """
+    所有权限响应模式
+    
+    Attributes:
+        groups: 权限分组列表
+        role_permissions: 各角色的权限配置
+    """
+    groups: List[PermissionGroupResponse] = Field(..., description="权限分组列表")
+    role_permissions: dict = Field(..., description="各角色的权限配置")

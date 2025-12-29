@@ -147,6 +147,8 @@ export interface UserUpdate {
   phone?: string;
   role?: UserRole;
   is_active?: boolean;
+  /** 所属仓库ID */
+  warehouse_id?: number | null;
 }
 
 // ==================== 仓库相关类型 ====================
@@ -238,21 +240,54 @@ export interface LeaveCheckResult {
 
 // ==================== 计件相关类型 ====================
 
-/** 计件分类 */
+/** 
+ * 计件分类
+ * 支持基础单价、上楼单价、分拣单价配置
+ * Requirements: 3.1 - 支持多种单价配置
+ */
 export interface PieceWorkCategory {
   id: number;
   name: string;
+  /** 基础单价（元/件） */
   unit_price: number;
+  /** 上楼单价（元/件），可选 */
+  upstairs_price?: number | null;
+  /** 分拣单价（元/件），可选 */
+  sorting_price?: number | null;
   unit: string;
   is_active: boolean;
   created_at: string;
 }
 
-/** 创建计件分类请求 */
+/** 
+ * 创建计件分类请求
+ * Requirements: 3.1 - 支持多种单价配置
+ */
 export interface PieceWorkCategoryCreate {
   name: string;
+  /** 基础单价（元/件） */
   unit_price: number;
+  /** 上楼单价（元/件），可选 */
+  upstairs_price?: number;
+  /** 分拣单价（元/件），可选 */
+  sorting_price?: number;
   unit?: string;
+}
+
+/**
+ * 更新计件分类请求
+ * Requirements: 3.2 - 支持编辑品类配置
+ */
+export interface PieceWorkCategoryUpdate {
+  name?: string;
+  /** 基础单价（元/件） */
+  unit_price?: number;
+  /** 上楼单价（元/件） */
+  upstairs_price?: number;
+  /** 分拣单价（元/件） */
+  sorting_price?: number;
+  unit?: string;
+  is_active?: boolean;
 }
 
 /** 计件记录 */
@@ -1179,4 +1214,55 @@ export interface VehicleHistoryListResponse {
   total: number;
   /** 历史记录列表 */
   items: VehicleHistory[];
+}
+
+
+// ==================== 权限配置相关类型 ====================
+
+/** 权限项 */
+export interface PermissionItem {
+  /** 权限键 */
+  key: string;
+  /** 权限名称 */
+  name: string;
+  /** 权限描述 */
+  description: string;
+  /** 权限分组 */
+  group: string;
+}
+
+/** 权限分组 */
+export interface PermissionGroup {
+  /** 分组键 */
+  key: string;
+  /** 分组名称 */
+  name: string;
+  /** 分组图标 */
+  icon: string;
+  /** 权限列表 */
+  permissions: PermissionItem[];
+}
+
+/** 角色权限配置 */
+export interface RolePermission {
+  /** 用户角色 */
+  role: UserRole;
+  /** 权限键列表 */
+  permissions: string[];
+  /** 更新时间 */
+  updated_at?: string;
+}
+
+/** 更新角色权限请求 */
+export interface RolePermissionUpdate {
+  /** 权限键列表 */
+  permissions: string[];
+}
+
+/** 所有权限响应 */
+export interface AllPermissionsResponse {
+  /** 权限分组列表 */
+  groups: PermissionGroup[];
+  /** 各角色的权限配置 */
+  role_permissions: Record<string, string[]>;
 }

@@ -75,19 +75,50 @@
 /**
  * 车辆审核页面
  * 显示待审核车辆列表，支持审核操作
+ * 
+ * 支持 SSE 实时更新：
+ * - 当有新的车辆提交审核时，自动添加到列表
+ * - 当车辆审核状态变化时，自动从列表移除
+ * 
+ * Requirements: 2.3 - 车辆列表页集成实时更新
  */
-import { ref, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide } from '@dcloudio/uni-app'
 import { getVehicles, reviewVehicle } from '@/api'
 import type { Vehicle } from '@/api/types'
 import { VehicleStatus } from '@/api/types'
 import { formatDateTime } from '@/utils'
+import { sseService } from '@/utils/sse'
+import type { VehicleUpdateEvent } from '@/types/sse-events'
 
 const loading = ref(false)
 const vehicles = ref<Vehicle[]>([])
 
-onMounted(() => { loadVehicles() })
-onShow(() => { loadVehicles() })
+onMounted(() => { 
+  loadVehicles()
+  // 注册 SSE 回调
+  registerSSECallbacks()
+})
+
+onShow(() => { 
+  loadVehicles()
+  // 重新注册 SSE 回调（页面可能从后台恢复）
+  registerSSECallbacks()
+})
+
+/**
+ * 页面隐藏时取消 SSE 回调
+ */
+onHide(() => {
+  unregisterSSECallbacks()
+})
+
+/**
+ * 组件卸载时取消 SSE 回调
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
+})
 
 /**
  * 加载待审核车辆列表
@@ -155,6 +186,83 @@ async function doReview(vehicleId: number, status: VehicleStatus): Promise<void>
     console.error('审核失败:', error)
     uni.hideLoading()
     uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+
+// ==================== SSE 实时更新 ====================
+// Requirements: 2.3 - 车辆列表页集成实时更新
+
+/**
+ * 注册 SSE 回调
+ * 监听车辆更新事件
+ */
+function registerSSECallbacks(): void {
+  sseService.setCallbacks({
+    onVehicleUpdate: handleVehicleUpdate,
+  })
+  console.log('[老板车辆审核] 已注册 SSE 车辆更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ */
+function unregisterSSECallbacks(): void {
+  sseService.setCallbacks({
+    onVehicleUpdate: undefined,
+  })
+  console.log('[老板车辆审核] 已取消 SSE 车辆更新回调')
+}
+
+/**
+ * 处理车辆更新事件
+ * 当收到 SSE vehicle_update 事件时调用
+ * 
+ * @param event - 车辆更新事件数据
+ * Requirements: 2.3 - 新车辆提交审核时自动添加，审核完成时自动移除
+ */
+function handleVehicleUpdate(event: VehicleUpdateEvent): void {
+  console.log('[老板车辆审核] 收到车辆更新事件:', event.action, event.vehicle.id, event.vehicle.status)
+  
+  const eventVehicle = event.vehicle
+  
+  // 如果车辆状态变为 reviewing，添加到列表
+  if (eventVehicle.status === 'reviewing') {
+    // 检查是否已存在
+    const existingIndex = vehicles.value.findIndex(v => v.id === eventVehicle.id)
+    if (existingIndex === -1) {
+      // 将事件数据转换为 Vehicle 格式
+      const newVehicle: Vehicle = {
+        id: eventVehicle.id,
+        license_plate: eventVehicle.license_plate,
+        brand: eventVehicle.brand ?? undefined,
+        model: eventVehicle.model ?? undefined,
+        color: eventVehicle.color ?? undefined,
+        status: eventVehicle.status as VehicleStatus,
+        user_id: eventVehicle.user_id,
+        warehouse_id: eventVehicle.warehouse_id ?? undefined,
+        ownership_type: eventVehicle.ownership_type ?? undefined,
+        created_at: eventVehicle.created_at,
+        updated_at: eventVehicle.updated_at,
+      }
+      
+      // 添加到列表开头
+      vehicles.value.unshift(newVehicle)
+      
+      // 显示提示
+      uni.showToast({
+        title: '收到新的车辆审核申请',
+        icon: 'none',
+        duration: 2000,
+      })
+      console.log('[老板车辆审核] 已添加新车辆:', newVehicle.id)
+    }
+  } else {
+    // 如果车辆状态不是 reviewing，从列表移除
+    const index = vehicles.value.findIndex(v => v.id === eventVehicle.id)
+    if (index !== -1) {
+      vehicles.value.splice(index, 1)
+      console.log('[老板车辆审核] 已移除车辆:', eventVehicle.id, '新状态:', eventVehicle.status)
+    }
   }
 }
 </script>

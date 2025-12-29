@@ -89,7 +89,7 @@
           />
         </view>
 
-        <!-- 仓库切换器 - Requirements 4.1, 4.2 -->
+        <!-- 仓库切换器 - Requirements 4.1, 4.2, 5.4 -->
         <view v-if="warehouses.length > 0" class="section">
           <view class="section-header">
             <view class="section-title-wrapper">
@@ -103,6 +103,7 @@
             :warehouses="warehouses"
             :current-index="currentWarehouseIndex"
             @change="handleWarehouseChange"
+            @assignment-update="handleAssignmentUpdate"
           />
         </view>
 
@@ -130,10 +131,10 @@
               <text class="section-icon">🛡️</text>
               <text class="section-title">权限管理</text>
             </view>
-            <!-- 个人中心按钮 -->
-            <view class="profile-btn" @click="navigateTo('/pages/profile/index')">
+            <!-- 管理员资料按钮 -->
+            <view class="profile-btn" @click="navigateTo('/pages/boss/admin-profile/index')">
               <text class="profile-icon">👤</text>
-              <text class="profile-text">个人中心</text>
+              <text class="profile-text">管理员资料</text>
             </view>
           </view>
 
@@ -266,6 +267,7 @@ import WarehouseSwitcher from '@/components/WarehouseSwitcher/index.vue'
 import Dashboard from '@/components/Dashboard/index.vue'
 import DriverStats from '@/components/DriverStats/index.vue'
 import type { Warehouse } from '@/components/WarehouseSwitcher/types'
+import type { AssignmentUpdateEvent } from '@/types/sse-events'
 import type { DashboardStats, CardType } from '@/components/Dashboard/types'
 import type { DriverStatsData } from '@/components/DriverStats/types'
 
@@ -758,6 +760,32 @@ function navigateTo(url: string): void {
 function handleWarehouseChange(index: number): void {
   currentWarehouseIndex.value = index
   // 切换仓库后重新加载数据
+  loadData()
+}
+
+/**
+ * 处理仓库分配更新事件
+ * 当收到 SSE 仓库分配更新事件时，直接使用推送的数据更新本地仓库列表
+ * 
+ * @param data - 仓库分配更新事件数据
+ * Requirements: 5.4 - 仓库选择器集成实时更新
+ */
+function handleAssignmentUpdate(data: AssignmentUpdateEvent): void {
+  console.log('[BossHome] 收到仓库分配更新事件:', data)
+  
+  // 直接使用推送的数据更新本地仓库列表
+  // 将 API 返回的 number 类型 id 转换为 string 类型，以匹配组件类型定义
+  warehouses.value = data.warehouses.map(w => ({ 
+    id: String(w.id), 
+    name: w.name 
+  }))
+  
+  // 如果当前选中的仓库索引超出范围，重置为 0
+  if (currentWarehouseIndex.value >= warehouses.value.length) {
+    currentWarehouseIndex.value = Math.max(0, warehouses.value.length - 1)
+  }
+  
+  // 重新加载数据以更新统计信息
   loadData()
 }
 

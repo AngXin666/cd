@@ -228,9 +228,10 @@
  * - 智能控制：有未还车车辆时隐藏"添加新车辆"按钮
  * - 图片缓存：使用 ImageCacheManager 缓存缩略图（Requirements 7.1）
  * - 图片预加载：使用 ImagePreloader 预加载可视区域图片（Requirements 9.2）
+ * - 实时更新：通过 SSE 接收车辆状态变化事件（Requirements 2.3）
  */
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { getVehicles, deleteVehicle } from '@/api'
 import type { Vehicle } from '@/api/types'
@@ -239,6 +240,8 @@ import { navigateTo } from '@/utils'
 import CachedImage from '@/components/CachedImage/index.vue'
 import { useImagePreloader } from '@/utils/imagePreloader/useImagePreloader'
 import { getImageCacheManager } from '@/utils/imageCache'
+import { sseService } from '@/utils/sse'
+import type { VehicleUpdateEvent } from '@/types/sse-events'
 
 /** 车辆列表 */
 const vehicles = ref<Vehicle[]>([])
@@ -368,7 +371,170 @@ onMounted(async () => {
   await cacheManager.initialize()
   // 加载车辆列表
   await loadVehicles()
+  // 注册 SSE 车辆更新事件回调
+  // Requirements: 2.3 - 车辆列表页集成实时更新
+  registerSSECallbacks()
 })
+
+/**
+ * 页面卸载时取消 SSE 回调注册
+ * Requirements: 2.3 - 页面卸载时取消回调注册
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
+})
+
+/**
+ * 注册 SSE 车辆更新事件回调
+ * 当收到车辆更新事件时，直接更新本地车辆列表数据
+ * Requirements: 2.3 - 车辆列表页集成实时更新
+ */
+function registerSSECallbacks(): void {
+  const currentCallbacks = sseService.getState() ? {} : {}
+  sseService.setCallbacks({
+    ...currentCallbacks,
+    onVehicleUpdate: handleVehicleUpdate,
+  })
+  console.log('[车辆列表] 已注册 SSE 车辆更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ * 清除车辆更新事件的回调处理器
+ */
+function unregisterSSECallbacks(): void {
+  // 获取当前回调并移除 onVehicleUpdate
+  sseService.setCallbacks({
+    onVehicleUpdate: undefined,
+  })
+  console.log('[车辆列表] 已取消 SSE 车辆更新回调')
+}
+
+/**
+ * 处理车辆更新事件
+ * 根据事件动作类型更新本地车辆列表
+ * Requirements: 2.3 - 收到事件后直接更新本地车辆列表数据
+ * @param event - 车辆更新事件数据
+ */
+function handleVehicleUpdate(event: VehicleUpdateEvent): void {
+  console.log('[车辆列表] 收到车辆更新事件:', event.action, event.vehicle.license_plate)
+  
+  const { action, vehicle: vehicleData } = event
+  
+  // 根据事件动作类型处理
+  switch (action) {
+    case 'create':
+      // 新增车辆：添加到列表开头
+      handleVehicleCreate(vehicleData)
+      break
+    case 'update':
+      // 更新车辆：更新列表中对应的车辆数据
+      handleVehicleUpdateData(vehicleData)
+      break
+    case 'delete':
+      // 删除车辆：从列表中移除
+      handleVehicleDelete(vehicleData.id)
+      break
+    default:
+      console.warn('[车辆列表] 未知的事件动作类型:', action)
+  }
+}
+
+/**
+ * 处理车辆创建事件
+ * 将新车辆添加到列表开头
+ * @param vehicleData - 车辆数据
+ */
+function handleVehicleCreate(vehicleData: VehicleUpdateEvent['vehicle']): void {
+  // 检查是否已存在（避免重复添加）
+  const existingIndex = vehicles.value.findIndex(v => v.id === vehicleData.id)
+  if (existingIndex >= 0) {
+    // 已存在，更新数据
+    handleVehicleUpdateData(vehicleData)
+    return
+  }
+  
+  // 转换为 Vehicle 类型并添加到列表开头
+  const newVehicle: Vehicle = {
+    id: vehicleData.id,
+    license_plate: vehicleData.license_plate,
+    brand: vehicleData.brand,
+    model: vehicleData.model,
+    color: vehicleData.color,
+    status: vehicleData.status as VehicleStatus,
+    user_id: vehicleData.user_id,
+    warehouse_id: vehicleData.warehouse_id,
+    ownership_type: vehicleData.ownership_type,
+    created_at: vehicleData.created_at,
+    updated_at: vehicleData.updated_at,
+  }
+  
+  vehicles.value.unshift(newVehicle)
+  
+  // 显示提示
+  uni.showToast({
+    title: `新车辆 ${vehicleData.license_plate} 已添加`,
+    icon: 'none',
+    duration: 2000,
+  })
+}
+
+/**
+ * 处理车辆更新事件
+ * 更新列表中对应的车辆数据
+ * @param vehicleData - 车辆数据
+ */
+function handleVehicleUpdateData(vehicleData: VehicleUpdateEvent['vehicle']): void {
+  const index = vehicles.value.findIndex(v => v.id === vehicleData.id)
+  if (index < 0) {
+    console.log('[车辆列表] 车辆不在列表中，忽略更新:', vehicleData.id)
+    return
+  }
+  
+  // 更新车辆数据（保留原有的其他字段）
+  vehicles.value[index] = {
+    ...vehicles.value[index],
+    license_plate: vehicleData.license_plate,
+    brand: vehicleData.brand,
+    model: vehicleData.model,
+    color: vehicleData.color,
+    status: vehicleData.status as VehicleStatus,
+    user_id: vehicleData.user_id,
+    warehouse_id: vehicleData.warehouse_id,
+    ownership_type: vehicleData.ownership_type,
+    updated_at: vehicleData.updated_at,
+  }
+  
+  // 显示提示
+  uni.showToast({
+    title: `车辆 ${vehicleData.license_plate} 已更新`,
+    icon: 'none',
+    duration: 2000,
+  })
+}
+
+/**
+ * 处理车辆删除事件
+ * 从列表中移除对应的车辆
+ * @param vehicleId - 车辆ID
+ */
+function handleVehicleDelete(vehicleId: number): void {
+  const index = vehicles.value.findIndex(v => v.id === vehicleId)
+  if (index < 0) {
+    console.log('[车辆列表] 车辆不在列表中，忽略删除:', vehicleId)
+    return
+  }
+  
+  const deletedVehicle = vehicles.value[index]
+  vehicles.value.splice(index, 1)
+  
+  // 显示提示
+  uni.showToast({
+    title: `车辆 ${deletedVehicle.license_plate} 已删除`,
+    icon: 'none',
+    duration: 2000,
+  })
+}
 
 onShow(() => loadVehicles())
 

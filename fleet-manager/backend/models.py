@@ -56,10 +56,12 @@ class VehicleStatus(str, Enum):
     - ACTIVE: 使用中
     - RETURNED: 已归还
     - REVIEWING: 审核中
+    - REJECTED: 审核拒绝
     """
     ACTIVE = "active"
     RETURNED = "returned"
     REVIEWING = "reviewing"
+    REJECTED = "rejected"
 
 
 class DocumentType(str, Enum):
@@ -202,16 +204,22 @@ class PieceWorkCategory(SQLModel, table=True):
     Attributes:
         id: 主键，自增
         name: 分类名称
-        unit_price: 单价（元/件）
+        unit_price: 基础单价（元/件）
+        upstairs_price: 上楼单价（元/件），可选
+        sorting_price: 分拣单价（元/件），可选
         unit: 计量单位（如：件、箱、趟）
         is_active: 是否启用
         created_at: 创建时间
+    
+    Requirements: 3.1 - 支持多种单价配置
     """
     __tablename__ = "piece_work_categories"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, index=True)
-    unit_price: float = Field(default=0.0)
+    unit_price: float = Field(default=0.0, description="基础单价（元/件）")
+    upstairs_price: Optional[float] = Field(default=None, description="上楼单价（元/件）")
+    sorting_price: Optional[float] = Field(default=None, description="分拣单价（元/件）")
     unit: str = Field(default="件", max_length=20)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)

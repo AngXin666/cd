@@ -1,10 +1,22 @@
 """
 认证模块
-实现 JWT Token 认证、密码哈希、权限检查
+实现 JWT Token 认证、密码哈希、权限检查、统一权限错误处理
+
+主要功能：
+- JWT Token 创建和验证
+- 密码哈希和验证
+- 角色权限检查
+- 统一权限错误代码和响应格式
+- 资源所有权检查
+- 车辆所有权检查
+- 高权限角色操作检查
+- 车队长仓库权限检查
 """
 
+import logging
 from datetime import datetime, timedelta
-from typing import Optional, List
+from enum import Enum
+from typing import Optional, List, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
@@ -15,6 +27,9 @@ from config import get_settings
 from database import get_session
 from models import User, UserRole
 
+# 配置日志
+logger = logging.getLogger(__name__)
+
 # 获取配置
 settings = get_settings()
 
@@ -24,6 +39,62 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # HTTP Bearer 认证方案
 security = HTTPBearer()
+
+
+# ==================== 权限错误代码枚举 ====================
+
+class PermissionErrorCode(str, Enum):
+    """
+    权限错误代码枚举
+    用于前端区分不同类型的权限错误，以便进行相应的处理
+    
+    错误代码说明：
+    - USER_DISABLED: 用户已被禁用，前端应强制登出
+    - ROLE_INSUFFICIENT: 角色权限不足，无法执行此操作
+    - RESOURCE_NOT_OWNED: 资源不属于当前用户
+    - WAREHOUSE_NOT_ACCESSIBLE: 无权访问该仓库的资源
+    - HIGH_ROLE_OPERATION: 需要超级管理员权限操作高权限角色
+    """
+    USER_DISABLED = "user_disabled"
+    ROLE_INSUFFICIENT = "role_insufficient"
+    RESOURCE_NOT_OWNED = "resource_not_owned"
+    WAREHOUSE_NOT_ACCESSIBLE = "warehouse_not_accessible"
+    HIGH_ROLE_OPERATION = "high_role_operation"
+
+
+class PermissionError(HTTPException):
+    """
+    权限错误异常类
+    继承自 HTTPException，提供统一的权限错误响应格式
+    
+    Attributes:
+        error_code: 权限错误代码
+        message: 错误信息
+    """
+    
+    def __init__(
+        self,
+        error_code: PermissionErrorCode,
+        message: str,
+        status_code: int = status.HTTP_403_FORBIDDEN
+    ):
+        """
+        初始化权限错误
+        
+        Args:
+            error_code: 权限错误代码枚举值
+            message: 错误信息，用于显示给用户
+            status_code: HTTP 状态码，默认 403
+        """
+        super().__init__(
+            status_code=status_code,
+            detail={
+                "error_code": error_code.value,
+                "message": message
+            }
+        )
+        self.error_code = error_code
+        self.message = message
 
 
 def hash_password(password: str) -> str:
@@ -152,9 +223,9 @@ async def get_current_user(
     
     # 检查用户是否启用
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="用户已被禁用"
+        raise PermissionError(
+            error_code=PermissionErrorCode.USER_DISABLED,
+            message="用户已被禁用"
         )
     
     return user
@@ -187,12 +258,16 @@ def require_roles(allowed_roles: List[UserRole]):
             User: 通过检查的用户对象
             
         Raises:
-            HTTPException: 权限不足时抛出 403 错误
+            PermissionError: 权限不足时抛出 403 错误
         """
         if current_user.role not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="权限不足，无法执行此操作"
+            logger.warning(
+                f"权限拒绝: 用户 {current_user.id} (角色: {current_user.role}) "
+                f"尝试访问需要 {allowed_roles} 角色的资源"
+            )
+            raise PermissionError(
+                error_code=PermissionErrorCode.ROLE_INSUFFICIENT,
+                message="权限不足，无法执行此操作"
             )
         return current_user
     
@@ -362,3 +437,168 @@ def can_manage_user(manager_role: UserRole, target_role: UserRole) -> bool:
     
     # 管理者权限等级必须高于目标用户
     return manager_level > target_level
+
+
+# ==================== 统一权限检查函数 ====================
+
+def check_resource_ownership(
+    resource: Any,
+    current_user: User,
+    resource_name: str,
+    owner_field: str = "user_id"
+) -> None:
+    """
+    检查资源所有权
+    
+    管理角色（车队长、调度、老板、超级管理员）可以访问任何资源。
+    司机只能访问自己的资源。
+    
+    Args:
+        resource: 要检查的资源对象
+        current_user: 当前用户
+        resource_name: 资源名称（用于错误信息，如 "车辆"、"计件记录"）
+        owner_field: 所有者字段名，默认为 "user_id"
+    
+    Raises:
+        PermissionError: 当用户不是资源所有者且不是管理角色时
+    
+    Example:
+        # 检查计件记录所有权
+        check_resource_ownership(record, current_user, "计件记录")
+        
+        # 检查车辆所有权（使用自定义字段）
+        check_resource_ownership(vehicle, current_user, "车辆", "user_id")
+    """
+    # 管理角色可以访问任何资源
+    if has_management_permission(current_user.role):
+        return
+    
+    # 获取资源所有者 ID
+    owner_id = getattr(resource, owner_field, None)
+    
+    # 检查所有权
+    if owner_id != current_user.id:
+        logger.warning(
+            f"权限拒绝: 用户 {current_user.id} (角色: {current_user.role}) "
+            f"尝试访问 {resource_name} (owner: {owner_id})"
+        )
+        raise PermissionError(
+            error_code=PermissionErrorCode.RESOURCE_NOT_OWNED,
+            message=f"无权操作此{resource_name}"
+        )
+
+
+def check_vehicle_ownership(vehicle: Any, current_user: User) -> None:
+    """
+    检查车辆所有权
+    
+    管理角色（车队长、调度、老板、超级管理员）可以访问任何车辆。
+    司机只能访问自己的车辆。
+    
+    Args:
+        vehicle: 车辆对象（需要有 user_id 属性）
+        current_user: 当前用户
+    
+    Raises:
+        PermissionError: 当司机不是车辆所有者时
+    
+    Example:
+        vehicle = session.get(Vehicle, vehicle_id)
+        check_vehicle_ownership(vehicle, current_user)
+    """
+    check_resource_ownership(vehicle, current_user, "车辆")
+
+
+def require_super_admin_for_high_roles(
+    target_role: UserRole,
+    current_user: User,
+    operation: str = "操作"
+) -> None:
+    """
+    检查是否需要超级管理员权限操作高权限角色
+    
+    当目标角色是老板或超级管理员时，只有超级管理员才能执行操作。
+    
+    Args:
+        target_role: 目标角色
+        current_user: 当前用户
+        operation: 操作描述（用于错误信息，如 "创建"、"修改"、"删除"）
+    
+    Raises:
+        PermissionError: 当非超级管理员尝试操作高权限角色时
+    
+    Example:
+        # 创建用户时检查
+        require_super_admin_for_high_roles(user_data.role, current_user, "创建")
+        
+        # 修改用户时检查
+        require_super_admin_for_high_roles(target_user.role, current_user, "修改")
+    """
+    # 高权限角色：老板和超级管理员
+    high_roles = [UserRole.BOSS, UserRole.SUPER_ADMIN]
+    
+    if target_role in high_roles:
+        if current_user.role != UserRole.SUPER_ADMIN:
+            logger.warning(
+                f"权限拒绝: 用户 {current_user.id} (角色: {current_user.role}) "
+                f"尝试{operation}高权限角色 {target_role}"
+            )
+            raise PermissionError(
+                error_code=PermissionErrorCode.HIGH_ROLE_OPERATION,
+                message=f"只有超级管理员可以{operation}老板或超级管理员角色"
+            )
+
+
+def check_manager_warehouse_access(
+    manager: User,
+    target_user: User,
+    session: Session
+) -> None:
+    """
+    检查车队长是否有权操作目标用户
+    
+    车队长只能操作司机，且司机必须属于车队长管理的仓库。
+    
+    Args:
+        manager: 车队长用户
+        target_user: 目标用户
+        session: 数据库会话
+    
+    Raises:
+        PermissionError: 当车队长无权操作目标用户时
+    
+    Example:
+        if current_user.role == UserRole.MANAGER:
+            check_manager_warehouse_access(current_user, target_user, session)
+    """
+    # 导入 crud 模块（延迟导入避免循环依赖）
+    import crud
+    
+    # 车队长只能操作司机
+    if target_user.role != UserRole.DRIVER:
+        logger.warning(
+            f"权限拒绝: 车队长 {manager.id} 尝试操作非司机用户 {target_user.id} "
+            f"(角色: {target_user.role})"
+        )
+        raise PermissionError(
+            error_code=PermissionErrorCode.ROLE_INSUFFICIENT,
+            message="车队长只能操作司机"
+        )
+    
+    # 获取车队长管理的仓库
+    manager_warehouses = crud.get_user_warehouses(session, manager.id)
+    manager_warehouse_ids = set(w.id for w in manager_warehouses)
+    
+    # 获取司机所属的仓库
+    driver_warehouses = crud.get_user_warehouses(session, target_user.id)
+    driver_warehouse_ids = set(w.id for w in driver_warehouses)
+    
+    # 检查是否有交集（司机是否属于车队长管理的仓库）
+    if not manager_warehouse_ids & driver_warehouse_ids:
+        logger.warning(
+            f"权限拒绝: 车队长 {manager.id} 尝试操作不属于其仓库的司机 {target_user.id}"
+        )
+        raise PermissionError(
+            error_code=PermissionErrorCode.WAREHOUSE_NOT_ACCESSIBLE,
+            message="无权操作该司机，该司机不属于您管理的仓库"
+        )

@@ -109,6 +109,13 @@
       }
     },
     {
+      "path": "pages/driver/warehouse-stats/index",
+      "style": {
+        "navigationBarTitleText": "仓库统计",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/manager/drivers/index",
       "style": {
         "navigationBarTitleText": "司机管理"
@@ -272,9 +279,65 @@
       }
     },
     {
+      "path": "pages/boss/piece-work/detail",
+      "style": {
+        "navigationBarTitleText": "件数报表详情",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/piece-work/form",
+      "style": {
+        "navigationBarTitleText": "件数录入",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/boss/stats/index",
       "style": {
         "navigationBarTitleText": "统计报表"
+      }
+    },
+    {
+      "path": "pages/boss/staff/index",
+      "style": {
+        "navigationBarTitleText": "员工管理",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/permissions/index",
+      "style": {
+        "navigationBarTitleText": "权限配置",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/assignments/driver",
+      "style": {
+        "navigationBarTitleText": "司机仓库分配",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/assignments/manager",
+      "style": {
+        "navigationBarTitleText": "车队长仓库分配",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/attendance/detail",
+      "style": {
+        "navigationBarTitleText": "考勤详情",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/boss/admin-profile/index",
+      "style": {
+        "navigationBarTitleText": "管理员资料",
+        "navigationStyle": "custom"
       }
     },
     {

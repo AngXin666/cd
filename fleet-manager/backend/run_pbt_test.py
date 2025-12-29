@@ -1,41 +1,43 @@
-#!/usr/bin/env python
 """
-运行车辆还车 API 属性测试的脚本
+运行 Property 4 属性测试的脚本
 """
 import subprocess
 import sys
-import os
 
-# 切换到 backend 目录
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+def run_tests():
+    """运行 Property 4 的属性测试"""
+    output_file = "pbt_test_output.txt"
+    
+    # 运行 pytest
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "pytest",
+            "test_events_pbt.py",
+            "-v",
+            "-k", "vehicle_approval or vehicle_event_only or vehicle_approval_status or multiple_vehicle or vehicle_event_serializable",
+            "--tb=short"
+        ],
+        capture_output=True,
+        text=True
+    )
+    
+    # 写入输出文件
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("=" * 70 + "\n")
+        f.write("Running Property 4: Vehicle Approval Event Trigger Tests\n")
+        f.write("**Feature: unified-realtime-system**\n")
+        f.write("**Validates: Requirements 2.1, 2.4**\n")
+        f.write("=" * 70 + "\n\n")
+        f.write("STDOUT:\n")
+        f.write(result.stdout)
+        if result.stderr:
+            f.write("\nSTDERR:\n")
+            f.write(result.stderr)
+        f.write("\n" + "=" * 70 + "\n")
+        f.write(f"Exit code: {result.returncode}\n")
+    
+    print(f"Test output written to {output_file}")
+    return result.returncode
 
-print("=" * 60)
-print("Running Property-Based Tests for Vehicle Return API")
-print("=" * 60)
-print()
-
-# 首先检查后端服务是否运行
-import httpx
-try:
-    response = httpx.get("http://localhost:8000/api/health", timeout=5)
-    if response.status_code == 200:
-        print("Backend service is running.")
-    else:
-        print(f"Backend service returned status {response.status_code}")
-        sys.exit(1)
-except Exception as e:
-    print(f"Cannot connect to backend service: {e}")
-    print("\nPlease start the backend service first:")
-    print("  cd fleet-manager/backend")
-    print("  venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000")
-    sys.exit(1)
-
-print()
-
-# 运行 pytest
-result = subprocess.run(
-    [sys.executable, "-m", "pytest", "test_vehicle_return_pbt.py", "-v", "--tb=short"],
-    capture_output=False
-)
-
-sys.exit(result.returncode)
+if __name__ == "__main__":
+    sys.exit(run_tests())

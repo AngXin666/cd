@@ -8,7 +8,8 @@ Requirements: 3.2, 3.3, 4.1, 4.2
 import requests
 
 BASE_URL = "http://localhost:8000"
-VEHICLE_STATUSES = ["active", "returned", "reviewing", "inactive"]
+# 车辆状态枚举（与 models.py 中的 VehicleStatus 保持一致）
+VEHICLE_STATUSES = ["active", "returned", "reviewing"]
 
 
 def get_token():

@@ -23,6 +23,7 @@ import type {
   LeaveCheckResult,
   PieceWorkCategory,
   PieceWorkCategoryCreate,
+  PieceWorkCategoryUpdate,
   PieceWorkRecord,
   PieceWorkRecordCreate,
   PieceWorkRecordUpdate,
@@ -179,6 +180,34 @@ export const assignUsersToWarehouse = (warehouseId: number, userIds: number[]) =
 export const getWarehouseUsers = (warehouseId: number) =>
   get<User[]>(`/warehouses/${warehouseId}/users`);
 
+/**
+ * 为用户分配仓库
+ * 通过更新用户的 warehouse_id 字段实现仓库分配
+ * 
+ * @param userId - 用户ID
+ * @param warehouseIds - 仓库ID列表（当前只支持单仓库，取第一个）
+ * @returns 消息响应
+ * @requirements 1.5 - 仓库分配功能
+ * 
+ * @description
+ * 当前后端用户模型只支持单仓库分配（warehouse_id 字段），
+ * 此函数通过更新用户信息实现仓库分配。
+ * 如果传入多个仓库ID，只使用第一个。
+ * 如果传入空数组，则清除用户的仓库分配。
+ */
+export async function assignUserWarehouses(
+  userId: number,
+  warehouseIds: number[]
+): Promise<MessageResponse> {
+  // 当前后端只支持单仓库分配，取第一个仓库ID
+  const warehouseId = warehouseIds.length > 0 ? warehouseIds[0] : null;
+  
+  // 通过更新用户信息实现仓库分配
+  await updateUser(userId, { warehouse_id: warehouseId });
+  
+  return { message: '仓库分配成功' };
+}
+
 // ==================== 考勤 API ====================
 
 /**
@@ -328,11 +357,32 @@ export const getPieceWorkCategories = (isActive?: boolean) =>
 
 /**
  * 创建计件分类
- * @param data - 分类信息
+ * @param data - 分类信息（支持基础单价、上楼单价、分拣单价）
  * @returns 创建的分类
+ * Requirements: 3.1 - 支持多种单价配置
  */
 export const createPieceWorkCategory = (data: PieceWorkCategoryCreate) =>
   post<PieceWorkCategory>('/piece-work/categories', data);
+
+/**
+ * 更新计件分类
+ * @param id - 分类ID
+ * @param data - 更新数据（支持基础单价、上楼单价、分拣单价）
+ * @returns 更新后的分类
+ * Requirements: 3.2 - 支持编辑品类配置
+ */
+export const updatePieceWorkCategory = (id: number, data: PieceWorkCategoryUpdate) =>
+  put<PieceWorkCategory>(`/piece-work/categories/${id}`, data);
+
+/**
+ * 删除计件分类
+ * 如果品类已有计件记录，则不允许删除
+ * @param id - 分类ID
+ * @returns 消息响应
+ * Requirements: 3.3, 3.4 - 删除品类功能和约束检查
+ */
+export const deletePieceWorkCategory = (id: number) =>
+  del<MessageResponse>(`/piece-work/categories/${id}`);
 
 /**
  * 获取计件记录列表
@@ -427,26 +477,48 @@ export async function getCategoryPriceForDriver(
   driverType: DriverType
 ): Promise<CategoryPriceConfig | null> {
   try {
+    console.log('[getCategoryPriceForDriver] 开始获取单价配置:', {
+      warehouseId,
+      categoryId,
+      driverType,
+    });
+    
     // 获取所有启用的分类
     const categories = await getPieceWorkCategories(true);
+    
+    console.log('[getCategoryPriceForDriver] 获取到分类列表:', {
+      count: categories.length,
+      categories: categories.map(c => ({ id: c.id, name: c.name, unit_price: c.unit_price })),
+    });
     
     // 查找指定的分类
     const category = categories.find(c => c.id === categoryId);
     
     if (!category) {
-      console.warn(`未找到分类 ID: ${categoryId}`);
+      console.warn(`[getCategoryPriceForDriver] 未找到分类 ID: ${categoryId}`);
       return null;
     }
     
+    console.log('[getCategoryPriceForDriver] 找到分类:', {
+      id: category.id,
+      name: category.name,
+      unit_price: category.unit_price,
+      unit_price_type: typeof category.unit_price,
+    });
+    
     // 当前后端只有统一单价，返回分类的单价
     // 未来可以根据 driverType 和 warehouseId 获取不同的单价
-    return {
+    const result = {
       unitPrice: category.unit_price,
       isLocked: category.unit_price > 0, // 如果有单价则认为是管理员设置的
       source: category.unit_price > 0 ? '管理员已设置' : '请输入单价',
     };
+    
+    console.log('[getCategoryPriceForDriver] 返回单价配置:', result);
+    
+    return result;
   } catch (error) {
-    console.error('获取司机单价配置失败:', error);
+    console.error('[getCategoryPriceForDriver] 获取司机单价配置失败:', error);
     return null;
   }
 }
@@ -1036,3 +1108,46 @@ export const getVehicleHistory = (
 
 // 导出类型
 export * from './types';
+
+
+// ==================== 权限配置 API ====================
+
+import type {
+  PermissionGroup,
+  RolePermission,
+  RolePermissionUpdate,
+  AllPermissionsResponse,
+} from './types';
+
+/**
+ * 获取所有权限配置
+ * 返回权限分组列表和各角色的权限配置
+ * @returns 所有权限配置
+ */
+export const getAllPermissions = () =>
+  get<AllPermissionsResponse>('/permissions');
+
+/**
+ * 获取指定角色的权限配置
+ * @param role - 用户角色
+ * @returns 角色权限配置
+ */
+export const getRolePermissions = (role: UserRole) =>
+  get<RolePermission>(`/permissions/${role}`);
+
+/**
+ * 更新角色权限配置
+ * @param role - 用户角色
+ * @param data - 权限更新请求
+ * @returns 更新后的角色权限配置
+ */
+export const updateRolePermissions = (role: UserRole, data: RolePermissionUpdate) =>
+  put<RolePermission>(`/permissions/${role}`, data);
+
+/**
+ * 重置角色权限为默认配置
+ * @param role - 用户角色
+ * @returns 重置后的角色权限配置
+ */
+export const resetRolePermissions = (role: UserRole) =>
+  post<RolePermission>(`/permissions/${role}/reset`);

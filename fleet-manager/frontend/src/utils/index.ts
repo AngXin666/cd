@@ -24,6 +24,8 @@ export {
 } from './draftStorage'
 export * from './submitRecovery'
 export * from './imagePreloader'
+export * from './sort'
+export * from './completionRate'
 
 /**
  * 格式化日期

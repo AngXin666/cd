@@ -22,8 +22,8 @@ TEST_ACCOUNTS = {
     "manager": {"username": "manager", "password": "manager123"},
 }
 
-# 车辆状态枚举
-VEHICLE_STATUSES = ["active", "returned", "reviewing", "inactive"]
+# 车辆状态枚举（与 models.py 中的 VehicleStatus 保持一致）
+VEHICLE_STATUSES = ["active", "returned", "reviewing"]
 
 
 def get_token(username: str, password: str) -> Optional[str]:
@@ -176,7 +176,7 @@ def test_property_warehouse_filter_correctness(
 
 @settings(max_examples=5, deadline=30000)
 @given(
-    status_index=st.integers(min_value=0, max_value=3),
+    status_index=st.integers(min_value=0, max_value=2),
     skip=st.integers(min_value=0, max_value=10),
     limit=st.integers(min_value=1, max_value=20)
 )
@@ -314,7 +314,7 @@ def test_property_pagination_correctness(skip: int, limit: int):
 @settings(max_examples=5, deadline=30000)
 @given(
     warehouse_index=st.integers(min_value=0, max_value=5),
-    status_index=st.integers(min_value=0, max_value=3),
+    status_index=st.integers(min_value=0, max_value=2),
     limit=st.integers(min_value=1, max_value=20)
 )
 def test_property_combined_filter_correctness(

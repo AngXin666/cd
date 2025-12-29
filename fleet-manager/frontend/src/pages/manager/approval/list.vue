@@ -93,14 +93,19 @@
  * 请假审批列表页面
  * 显示待审批的请假申请
  * 支持快速审批操作
+ * 
+ * @module pages/manager/approval/list
+ * @requirements 3.4 - 审批列表页集成实时更新
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getLeaveApplications, approveLeaveApplication } from '@/api'
 import type { LeaveApplication } from '@/api/types'
 import { LeaveStatus, LeaveType } from '@/api/types'
 import { formatDate, formatDateTime } from '@/utils'
+import { sseService } from '@/utils/sse'
+import type { LeaveUpdateEvent, LeaveData } from '@/types/sse-events'
 
 // ==================== 状态 ====================
 
@@ -157,12 +162,147 @@ const filteredApplications = computed(() => {
 
 onMounted(() => {
   loadApplications()
+  // 注册 SSE 请假更新事件回调
+  // Requirements: 3.4 - 审批列表页集成实时更新
+  registerSSECallbacks()
+})
+
+/**
+ * 页面卸载时取消 SSE 回调注册
+ * Requirements: 3.4 - 页面卸载时取消回调注册
+ */
+onUnmounted(() => {
+  unregisterSSECallbacks()
 })
 
 onShow(() => {
   // 每次显示页面时刷新数据
   loadApplications()
 })
+
+// ==================== SSE 实时更新 ====================
+
+/**
+ * 注册 SSE 请假更新事件回调
+ * 当收到请假更新事件时，直接更新本地审批列表数据
+ * Requirements: 3.4 - 审批列表页集成实时更新
+ */
+function registerSSECallbacks(): void {
+  sseService.setCallbacks({
+    onLeaveUpdate: handleLeaveUpdate,
+  })
+  console.log('[审批列表] 已注册 SSE 请假更新回调')
+}
+
+/**
+ * 取消 SSE 回调注册
+ * 清除请假更新事件的回调处理器
+ * Requirements: 3.4 - 页面卸载时取消回调注册
+ */
+function unregisterSSECallbacks(): void {
+  sseService.setCallbacks({
+    onLeaveUpdate: undefined,
+  })
+  console.log('[审批列表] 已取消 SSE 请假更新回调')
+}
+
+/**
+ * 处理请假更新事件
+ * 根据事件动作类型更新本地审批列表
+ * Requirements: 3.4 - 新申请到达时自动添加到列表
+ * @param event - 请假更新事件数据
+ */
+function handleLeaveUpdate(event: LeaveUpdateEvent): void {
+  console.log('[审批列表] 收到请假更新事件:', event.action, event.leave.id)
+  
+  const { action, leave: leaveData } = event
+  
+  // 根据事件动作类型处理
+  switch (action) {
+    case 'create':
+      // 新增请假申请：添加到列表开头
+      handleLeaveCreate(leaveData)
+      break
+    case 'update':
+      // 更新请假申请：更新列表中对应的数据
+      handleLeaveUpdateData(leaveData)
+      break
+    default:
+      console.warn('[审批列表] 未知的事件动作类型:', action)
+  }
+}
+
+/**
+ * 处理请假创建事件
+ * 将新请假申请添加到列表开头
+ * Requirements: 3.4 - 新申请到达时自动添加到列表
+ * @param leaveData - 请假数据
+ */
+function handleLeaveCreate(leaveData: LeaveData): void {
+  // 转换为 LeaveApplication 类型
+  const newApplication: LeaveApplication = convertLeaveDataToApplication(leaveData)
+  
+  // 检查是否已存在（避免重复添加）
+  const existingIndex = applications.value.findIndex(a => a.id === leaveData.id)
+  if (existingIndex >= 0) {
+    // 已存在，更新数据
+    applications.value[existingIndex] = newApplication
+    console.log('[审批列表] 更新已存在的申请:', leaveData.id)
+  } else {
+    // 添加到列表开头
+    applications.value.unshift(newApplication)
+    console.log('[审批列表] 添加新申请到列表:', leaveData.id)
+    
+    // 显示提示
+    uni.showToast({
+      title: '收到新的请假申请',
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 处理请假更新事件
+ * 更新列表中对应的请假数据
+ * @param leaveData - 请假数据
+ */
+function handleLeaveUpdateData(leaveData: LeaveData): void {
+  // 转换为 LeaveApplication 类型
+  const updatedApplication: LeaveApplication = convertLeaveDataToApplication(leaveData)
+  
+  // 查找并更新列表中的数据
+  const index = applications.value.findIndex(a => a.id === leaveData.id)
+  if (index >= 0) {
+    applications.value[index] = updatedApplication
+    console.log('[审批列表] 更新申请数据:', leaveData.id, '状态:', leaveData.status)
+  } else {
+    // 不在列表中，可能是新创建的，添加到列表
+    applications.value.unshift(updatedApplication)
+    console.log('[审批列表] 申请不在列表中，添加:', leaveData.id)
+  }
+}
+
+/**
+ * 将 SSE 事件的 LeaveData 转换为 LeaveApplication 类型
+ * @param leaveData - SSE 事件中的请假数据
+ * @returns LeaveApplication 类型的数据
+ */
+function convertLeaveDataToApplication(leaveData: LeaveData): LeaveApplication {
+  return {
+    id: leaveData.id,
+    user_id: leaveData.user_id,
+    leave_type: leaveData.leave_type as LeaveType,
+    start_date: leaveData.start_date,
+    end_date: leaveData.end_date,
+    status: leaveData.status as LeaveStatus,
+    reason: leaveData.reason,
+    approver_id: leaveData.approver_id,
+    approve_remark: leaveData.approve_remark,
+    created_at: leaveData.created_at,
+    updated_at: leaveData.updated_at,
+  }
+}
 
 // ==================== 方法 ====================
 

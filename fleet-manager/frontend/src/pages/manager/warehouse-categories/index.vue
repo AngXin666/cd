@@ -3,7 +3,8 @@
     仓库品类配置页面
     管理仓库的计件品类和单价配置
     支持添加、编辑、删除品类
-    Requirements: 8.2
+    支持基础单价、上楼单价、分拣单价配置
+    Requirements: 3.1, 3.2, 3.3, 3.4
   -->
   <view class="warehouse-categories-page">
     <!-- 仓库选择器 -->
@@ -69,9 +70,20 @@
             </view>
             
             <view class="card-content">
+              <!-- 基础单价 -->
               <view class="info-row">
-                <text class="info-label">单价</text>
+                <text class="info-label">基础单价</text>
                 <text class="info-value price">¥{{ formatMoney(category.unit_price) }}</text>
+              </view>
+              <!-- 上楼单价（如果有） -->
+              <view v-if="category.upstairs_price != null" class="info-row">
+                <text class="info-label">上楼单价</text>
+                <text class="info-value price-secondary">¥{{ formatMoney(category.upstairs_price) }}</text>
+              </view>
+              <!-- 分拣单价（如果有） -->
+              <view v-if="category.sorting_price != null" class="info-row">
+                <text class="info-label">分拣单价</text>
+                <text class="info-value price-secondary">¥{{ formatMoney(category.sorting_price) }}</text>
               </view>
               <view class="info-row">
                 <text class="info-label">单位</text>
@@ -107,14 +119,36 @@
             />
           </view>
           
-          <!-- 单价 -->
+          <!-- 基础单价 -->
           <view class="form-item">
-            <text class="form-label">单价（元） <text class="required">*</text></text>
+            <text class="form-label">基础单价（元） <text class="required">*</text></text>
             <input
               v-model="formData.unit_price"
               type="digit"
               class="form-input"
-              placeholder="请输入单价"
+              placeholder="请输入基础单价"
+            />
+          </view>
+          
+          <!-- 上楼单价 -->
+          <view class="form-item">
+            <text class="form-label">上楼单价（元）</text>
+            <input
+              v-model="formData.upstairs_price"
+              type="digit"
+              class="form-input"
+              placeholder="请输入上楼单价（可选）"
+            />
+          </view>
+          
+          <!-- 分拣单价 -->
+          <view class="form-item">
+            <text class="form-label">分拣单价（元）</text>
+            <input
+              v-model="formData.sorting_price"
+              type="digit"
+              class="form-input"
+              placeholder="请输入分拣单价（可选）"
             />
           </view>
           
@@ -167,8 +201,12 @@
  * 仓库品类配置页面
  * 管理仓库的计件品类和单价配置
  * 支持添加、编辑、删除品类
+ * 支持基础单价、上楼单价、分拣单价配置
  * 
- * @requirements 8.2 - 仓库品类配置页面
+ * @requirements 3.1 - 支持多种单价配置
+ * @requirements 3.2 - 支持编辑品类配置
+ * @requirements 3.3 - 支持删除品类
+ * @requirements 3.4 - 删除约束检查（有计件记录不可删除）
  */
 
 import { ref, reactive, computed, onMounted } from 'vue'
@@ -176,9 +214,11 @@ import { onLoad } from '@dcloudio/uni-app'
 import { 
   getWarehouses, 
   getPieceWorkCategories, 
-  createPieceWorkCategory 
+  createPieceWorkCategory,
+  updatePieceWorkCategory,
+  deletePieceWorkCategory
 } from '@/api'
-import type { Warehouse, PieceWorkCategory, PieceWorkCategoryCreate } from '@/api/types'
+import type { Warehouse, PieceWorkCategory, PieceWorkCategoryCreate, PieceWorkCategoryUpdate } from '@/api/types'
 import { formatDate, formatMoney } from '@/utils'
 
 // ==================== 状态 ====================
@@ -204,10 +244,15 @@ const isEditing = ref(false)
 /** 编辑中的品类ID */
 const editingId = ref<number | null>(null)
 
-/** 表单数据 */
+/** 
+ * 表单数据
+ * 支持基础单价、上楼单价、分拣单价
+ */
 const formData = reactive({
   name: '',
   unit_price: '',
+  upstairs_price: '',
+  sorting_price: '',
   unit: '',
   is_active: true,
 })
@@ -293,12 +338,15 @@ function handleWarehouseChange(e: { detail: { value: number } }): void {
 
 /**
  * 打开添加弹窗
+ * 重置表单数据
  */
 function openAddModal(): void {
   isEditing.value = false
   editingId.value = null
   formData.name = ''
   formData.unit_price = ''
+  formData.upstairs_price = ''
+  formData.sorting_price = ''
   formData.unit = ''
   formData.is_active = true
   showModal.value = true
@@ -306,6 +354,7 @@ function openAddModal(): void {
 
 /**
  * 打开编辑弹窗
+ * 填充现有品类数据
  * 
  * @param category - 要编辑的品类
  */
@@ -314,6 +363,9 @@ function openEditModal(category: PieceWorkCategory): void {
   editingId.value = category.id
   formData.name = category.name
   formData.unit_price = String(category.unit_price)
+  // 处理可选的上楼单价和分拣单价
+  formData.upstairs_price = category.upstairs_price != null ? String(category.upstairs_price) : ''
+  formData.sorting_price = category.sorting_price != null ? String(category.sorting_price) : ''
   formData.unit = category.unit || ''
   formData.is_active = category.is_active
   showModal.value = true
@@ -327,42 +379,84 @@ function closeModal(): void {
 }
 
 /**
+ * 验证表单数据
+ * @returns 是否验证通过
+ */
+function validateForm(): boolean {
+  // 验证品类名称
+  if (!formData.name.trim()) {
+    uni.showToast({ title: '请输入品类名称', icon: 'none' })
+    return false
+  }
+  
+  // 验证基础单价
+  const unitPrice = parseFloat(formData.unit_price)
+  if (isNaN(unitPrice) || unitPrice < 0) {
+    uni.showToast({ title: '请输入有效的基础单价', icon: 'none' })
+    return false
+  }
+  
+  // 验证上楼单价（如果填写了）
+  if (formData.upstairs_price.trim()) {
+    const upstairsPrice = parseFloat(formData.upstairs_price)
+    if (isNaN(upstairsPrice) || upstairsPrice < 0) {
+      uni.showToast({ title: '请输入有效的上楼单价', icon: 'none' })
+      return false
+    }
+  }
+  
+  // 验证分拣单价（如果填写了）
+  if (formData.sorting_price.trim()) {
+    const sortingPrice = parseFloat(formData.sorting_price)
+    if (isNaN(sortingPrice) || sortingPrice < 0) {
+      uni.showToast({ title: '请输入有效的分拣单价', icon: 'none' })
+      return false
+    }
+  }
+  
+  return true
+}
+
+/**
  * 提交表单
+ * 支持添加和编辑模式
+ * Requirements: 3.1, 3.2
  */
 async function handleSubmit(): Promise<void> {
   // 验证表单
-  if (!formData.name.trim()) {
-    uni.showToast({ title: '请输入品类名称', icon: 'none' })
-    return
-  }
-  
-  const unitPrice = parseFloat(formData.unit_price)
-  if (isNaN(unitPrice) || unitPrice < 0) {
-    uni.showToast({ title: '请输入有效的单价', icon: 'none' })
+  if (!validateForm()) {
     return
   }
   
   try {
     uni.showLoading({ title: isEditing.value ? '保存中...' : '添加中...' })
     
-    const data: PieceWorkCategoryCreate = {
-      name: formData.name.trim(),
-      unit_price: unitPrice,
-      unit: formData.unit.trim() || '件',
-    }
+    // 解析单价数据
+    const unitPrice = parseFloat(formData.unit_price)
+    const upstairsPrice = formData.upstairs_price.trim() ? parseFloat(formData.upstairs_price) : undefined
+    const sortingPrice = formData.sorting_price.trim() ? parseFloat(formData.sorting_price) : undefined
     
     if (isEditing.value && editingId.value) {
-      // 编辑模式 - 当前 API 不支持更新，显示提示
-      uni.hideLoading()
-      uni.showToast({
-        title: '暂不支持编辑，请删除后重新添加',
-        icon: 'none',
-        duration: 2000,
-      })
-      return
+      // 编辑模式 - 调用更新 API
+      const updateData: PieceWorkCategoryUpdate = {
+        name: formData.name.trim(),
+        unit_price: unitPrice,
+        upstairs_price: upstairsPrice,
+        sorting_price: sortingPrice,
+        unit: formData.unit.trim() || '件',
+        is_active: formData.is_active,
+      }
+      await updatePieceWorkCategory(editingId.value, updateData)
     } else {
-      // 添加模式
-      await createPieceWorkCategory(data)
+      // 添加模式 - 调用创建 API
+      const createData: PieceWorkCategoryCreate = {
+        name: formData.name.trim(),
+        unit_price: unitPrice,
+        upstairs_price: upstairsPrice,
+        sorting_price: sortingPrice,
+        unit: formData.unit.trim() || '件',
+      }
+      await createPieceWorkCategory(createData)
     }
     
     uni.hideLoading()
@@ -385,29 +479,51 @@ async function handleSubmit(): Promise<void> {
 
 /**
  * 删除品类
+ * 如果品类已有计件记录，则不允许删除
  * 
  * @param category - 要删除的品类
+ * Requirements: 3.3, 3.4
  */
 function handleDelete(category: PieceWorkCategory): void {
   uni.showModal({
     title: '确认删除',
-    content: `确定要删除品类"${category.name}"吗？`,
+    content: `确定要删除品类"${category.name}"吗？\n\n注意：如果该品类已有计件记录，将无法删除。`,
     confirmColor: '#ff4d4f',
     success: async (res) => {
       if (res.confirm) {
-        // 当前 API 不支持删除，显示提示
-        uni.showToast({
-          title: '暂不支持删除操作',
-          icon: 'none',
-          duration: 2000,
-        })
+        try {
+          uni.showLoading({ title: '删除中...' })
+          await deletePieceWorkCategory(category.id)
+          uni.hideLoading()
+          uni.showToast({
+            title: '删除成功',
+            icon: 'success',
+          })
+          // 重新加载品类列表
+          loadCategories()
+        } catch (error: any) {
+          uni.hideLoading()
+          // 处理删除约束错误
+          const errorMessage = error?.response?.data?.detail || error?.message || '删除失败'
+          uni.showToast({
+            title: errorMessage,
+            icon: 'none',
+            duration: 2500,
+          })
+        }
       }
     },
   })
 }
 </script>
 
+
 <style lang="scss" scoped>
+/**
+ * 仓库品类配置页面样式
+ * 支持品类列表展示、添加/编辑弹窗
+ */
+
 .warehouse-categories-page {
   min-height: 100vh;
   background-color: #f5f5f5;
@@ -624,10 +740,18 @@ function handleDelete(category: PieceWorkCategory): void {
   font-size: 26rpx;
   color: #333333;
   
+  /* 基础单价样式 - 主要颜色 */
   &.price {
     font-size: 30rpx;
     font-weight: bold;
     color: #ff6b35;
+  }
+  
+  /* 上楼/分拣单价样式 - 次要颜色 */
+  &.price-secondary {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #1890ff;
   }
 }
 
@@ -648,9 +772,12 @@ function handleDelete(category: PieceWorkCategory): void {
 .modal-content {
   width: 90%;
   max-width: 600rpx;
+  max-height: 80vh;
   background-color: #ffffff;
   border-radius: 16rpx;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -659,6 +786,7 @@ function handleDelete(category: PieceWorkCategory): void {
   align-items: center;
   padding: 24rpx;
   border-bottom: 1rpx solid #f0f0f0;
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -675,6 +803,8 @@ function handleDelete(category: PieceWorkCategory): void {
 
 .modal-body {
   padding: 24rpx;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .form-item {
@@ -740,6 +870,7 @@ function handleDelete(category: PieceWorkCategory): void {
 .modal-footer {
   display: flex;
   border-top: 1rpx solid #f0f0f0;
+  flex-shrink: 0;
 }
 
 .modal-btn {

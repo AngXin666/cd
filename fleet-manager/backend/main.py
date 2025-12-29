@@ -22,7 +22,12 @@ from auth import (
     authenticate_user, create_access_token, get_current_user,
     verify_password,
     require_boss, require_manager_or_boss, require_admin, require_management,
-    decode_token
+    decode_token,
+    # 统一权限检查函数
+    PermissionErrorCode, PermissionError,
+    check_resource_ownership, check_vehicle_ownership,
+    require_super_admin_for_high_roles, check_manager_warehouse_access,
+    has_management_permission
 )
 import crud
 
@@ -31,7 +36,7 @@ settings = get_settings()
 
 from schemas import (
     LoginRequest, TokenResponse, PasswordChangeRequest, MessageResponse,
-    UserCreate, UserUpdate, UserResponse,
+    UserCreate, UserUpdate, UserResponse, DriverInfoUpdate, UserWarehouseAssignRequest,
     WarehouseCreate, WarehouseUpdate, WarehouseResponse, WarehouseAssignRequest,
     AttendanceResponse, TodayAttendanceResponse,
     PieceWorkCategoryCreate, PieceWorkCategoryUpdate, PieceWorkCategoryResponse,
@@ -59,6 +64,9 @@ from models import ScheduledNotificationStatus
 
 # 导入调度器模块
 from scheduler import start_scheduler, stop_scheduler, is_scheduler_running, get_scheduler_status as get_scheduler_info
+
+# 导入事件触发器模块（用于实时数据同步）
+from events import emit_vehicle_update, emit_leave_update, emit_piece_work_update, emit_assignment_update, emit_permission_update, emit_user_update
 
 
 # ==================== 应用生命周期 ====================
@@ -187,11 +195,11 @@ async def get_users(
     is_active: Optional[bool] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_management),
     session: Session = Depends(get_session)
 ):
     """
-    获取用户列表（管理员级别可访问：调度、老板、超级管理员）
+    获取用户列表（管理权限可访问：车队长、调度、老板、超级管理员）
     """
     users = crud.get_users(session, role=role, is_active=is_active, skip=skip, limit=limit)
     return users
@@ -214,13 +222,8 @@ async def create_user(
             detail="用户名已存在"
         )
     
-    # 权限控制：只有超级管理员可以创建老板和超级管理员角色
-    if request.role in [UserRole.BOSS, UserRole.SUPER_ADMIN]:
-        if current_user.role != UserRole.SUPER_ADMIN:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="只有超级管理员可以创建老板或超级管理员角色"
-            )
+    # 权限控制：使用统一的高权限角色检查
+    require_super_admin_for_high_roles(request.role, current_user, "创建")
     
     user = crud.create_user(
         session,
@@ -260,6 +263,11 @@ async def update_user(
 ):
     """
     更新用户信息（管理员级别可访问：调度、老板、超级管理员）
+    
+    当用户角色或状态发生变更时，会向该用户推送 user_update 事件，
+    让用户及时了解账号状态变更。
+    
+    Requirements: 7.1, 7.2 - 用户状态实时通知
     """
     user = crud.get_user_by_id(session, user_id)
     if not user:
@@ -268,21 +276,17 @@ async def update_user(
             detail="用户不存在"
         )
     
-    # 权限控制：只有超级管理员可以修改老板和超级管理员角色
-    if user.role in [UserRole.BOSS, UserRole.SUPER_ADMIN]:
-        if current_user.role != UserRole.SUPER_ADMIN:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="只有超级管理员可以修改老板或超级管理员"
-            )
+    # 记录更新前的状态，用于判断是否需要推送事件
+    old_role = user.role
+    old_is_active = user.is_active
     
-    # 权限控制：只有超级管理员可以将用户角色改为老板或超级管理员
-    if request.role in [UserRole.BOSS, UserRole.SUPER_ADMIN]:
-        if current_user.role != UserRole.SUPER_ADMIN:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="只有超级管理员可以设置老板或超级管理员角色"
-            )
+    # 权限控制：使用统一的高权限角色检查
+    # 检查是否有权修改当前用户（如果是老板或超级管理员）
+    require_super_admin_for_high_roles(user.role, current_user, "修改")
+    
+    # 检查是否有权设置目标角色（如果要设置为老板或超级管理员）
+    if request.role:
+        require_super_admin_for_high_roles(request.role, current_user, "设置")
     
     updated_user = crud.update_user(
         session, user,
@@ -291,6 +295,26 @@ async def update_user(
         role=request.role,
         is_active=request.is_active
     )
+    
+    # 检查角色或状态是否发生变更，如果变更则推送事件
+    # Requirements: 7.1 - 管理员修改用户角色或状态时推送 user_update 事件
+    role_changed = request.role is not None and request.role != old_role
+    status_changed = request.is_active is not None and request.is_active != old_is_active
+    
+    if role_changed or status_changed:
+        # 确定操作类型：如果用户被禁用，action 为 "disable"，否则为 "update"
+        action = "disable" if (request.is_active is False) else "update"
+        
+        # 触发用户状态更新事件
+        # Requirements: 7.2 - 事件负载包含用户ID、变更类型、新的状态值
+        emit_user_update(
+            user_id=updated_user.id,
+            role=updated_user.role.value,
+            is_active=updated_user.is_active,
+            updated_at=updated_user.updated_at.isoformat() if updated_user.updated_at else datetime.now().isoformat(),
+            action=action
+        )
+    
     return updated_user
 
 
@@ -317,16 +341,179 @@ async def delete_user(
             detail="不能删除自己的账号"
         )
     
-    # 权限控制：只有超级管理员可以删除老板和超级管理员
-    if user.role in [UserRole.BOSS, UserRole.SUPER_ADMIN]:
-        if current_user.role != UserRole.SUPER_ADMIN:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="只有超级管理员可以删除老板或超级管理员"
-            )
+    # 权限控制：使用统一的高权限角色检查
+    require_super_admin_for_high_roles(user.role, current_user, "删除")
     
     crud.delete_user(session, user)
     return MessageResponse(message="用户已删除")
+
+
+@app.put("/api/users/{user_id}/driver-info", response_model=UserResponse, tags=["用户管理"])
+async def update_driver_info(
+    user_id: int,
+    request: DriverInfoUpdate,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    更新司机信息（车队长可用）
+    车队长只能更新司机的姓名和手机号，不能修改角色和状态
+    Requirements: 1.3 - 车队长提交编辑后的司机信息
+    
+    Args:
+        user_id: 要更新的用户ID
+        request: 更新请求，包含姓名和手机号
+        
+    Returns:
+        UserResponse: 更新后的用户信息
+        
+    Raises:
+        HTTPException 404: 用户不存在
+        HTTPException 403: 无权限修改该用户
+    """
+    # 获取目标用户
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 权限控制：车队长使用统一的仓库权限检查
+    if current_user.role == UserRole.MANAGER:
+        check_manager_warehouse_access(current_user, user, session)
+    
+    # 更新用户信息（只更新姓名和手机号）
+    updated_user = crud.update_user(
+        session, user,
+        name=request.name,
+        phone=request.phone
+    )
+    return updated_user
+
+
+@app.post("/api/users/{user_id}/warehouses", response_model=MessageResponse, tags=["用户管理"])
+async def assign_warehouses_to_user(
+    user_id: int,
+    request: UserWarehouseAssignRequest,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    给用户分配仓库（车队长可用）
+    替换用户现有的仓库分配
+    Requirements: 1.5 - 车队长选择仓库并确认分配
+    
+    Args:
+        user_id: 要分配仓库的用户ID
+        request: 分配请求，包含仓库ID列表
+        
+    Returns:
+        MessageResponse: 操作结果消息
+        
+    Raises:
+        HTTPException 404: 用户不存在
+        HTTPException 403: 无权限操作
+        HTTPException 400: 仓库不存在
+    """
+    # 获取目标用户
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 权限控制：车队长只能给司机分配仓库
+    if current_user.role == UserRole.MANAGER:
+        # 检查目标用户是否是司机
+        if user.role != UserRole.DRIVER:
+            raise PermissionError(
+                error_code=PermissionErrorCode.ROLE_INSUFFICIENT,
+                message="车队长只能给司机分配仓库"
+            )
+        
+        # 车队长只能分配自己管理的仓库
+        manager_warehouses = crud.get_user_warehouses(session, current_user.id)
+        manager_warehouse_ids = set(w.id for w in manager_warehouses)
+        
+        # 检查请求的仓库是否都在车队长管理范围内
+        requested_warehouse_ids = set(request.warehouse_ids)
+        if not requested_warehouse_ids.issubset(manager_warehouse_ids):
+            raise PermissionError(
+                error_code=PermissionErrorCode.WAREHOUSE_NOT_ACCESSIBLE,
+                message="只能分配您管理的仓库"
+            )
+    
+    # 验证所有仓库是否存在
+    for warehouse_id in request.warehouse_ids:
+        warehouse = crud.get_warehouse_by_id(session, warehouse_id)
+        if not warehouse:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"仓库 {warehouse_id} 不存在"
+            )
+    
+    # 执行仓库分配
+    crud.assign_warehouses_to_user(session, user_id, request.warehouse_ids)
+    
+    # 获取分配后的完整仓库列表，用于推送事件
+    # Requirements: 5.1, 5.2, 5.3 - 仓库分配实时数据同步
+    assigned_warehouses = crud.get_user_warehouses(session, user_id)
+    
+    # 构建仓库数据列表（包含 id, name, address）
+    warehouses_data = [
+        {
+            "id": w.id,
+            "name": w.name,
+            "address": w.address
+        }
+        for w in assigned_warehouses
+    ]
+    
+    # 确定分配类型（根据用户角色）
+    assignment_type = "manager" if user.role == UserRole.MANAGER else "driver"
+    
+    # 触发仓库分配更新事件
+    emit_assignment_update(
+        user_id=user_id,
+        warehouses=warehouses_data,
+        assignment_type=assignment_type
+    )
+    
+    return MessageResponse(message="仓库分配成功")
+
+
+@app.get("/api/users/{user_id}/warehouses", response_model=List[WarehouseResponse], tags=["用户管理"])
+async def get_user_warehouses(
+    user_id: int,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    获取用户分配的仓库列表
+    Requirements: 1.4 - 显示可分配的仓库列表
+    
+    Args:
+        user_id: 用户ID
+        
+    Returns:
+        List[WarehouseResponse]: 用户分配的仓库列表
+        
+    Raises:
+        HTTPException 404: 用户不存在
+    """
+    # 获取目标用户
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 获取用户的仓库列表
+    warehouses = crud.get_user_warehouses(session, user_id)
+    return warehouses
 
 
 # ==================== 仓库 API ====================
@@ -432,6 +619,10 @@ async def assign_users_to_warehouse(
 ):
     """
     分配用户到仓库（管理员级别可访问：调度、老板、超级管理员）
+    
+    将指定用户列表分配到指定仓库，并向每个被分配的用户推送仓库分配更新事件。
+    
+    Requirements: 5.1, 5.2 - 仓库分配实时数据同步
     """
     warehouse = crud.get_warehouse_by_id(session, warehouse_id)
     if not warehouse:
@@ -440,7 +631,38 @@ async def assign_users_to_warehouse(
             detail="仓库不存在"
         )
     
+    # 执行仓库分配
     crud.assign_users_to_warehouse(session, warehouse_id, request.user_ids)
+    
+    # 为每个被分配的用户推送仓库分配更新事件
+    # Requirements: 5.1, 5.2, 5.3 - 仓库分配实时数据同步
+    for assigned_user_id in request.user_ids:
+        # 获取用户信息以确定分配类型
+        assigned_user = crud.get_user_by_id(session, assigned_user_id)
+        if assigned_user:
+            # 获取该用户分配后的完整仓库列表
+            user_warehouses = crud.get_user_warehouses(session, assigned_user_id)
+            
+            # 构建仓库数据列表（包含 id, name, address）
+            warehouses_data = [
+                {
+                    "id": w.id,
+                    "name": w.name,
+                    "address": w.address
+                }
+                for w in user_warehouses
+            ]
+            
+            # 确定分配类型（根据用户角色）
+            assignment_type = "manager" if assigned_user.role == UserRole.MANAGER else "driver"
+            
+            # 触发仓库分配更新事件
+            emit_assignment_update(
+                user_id=assigned_user_id,
+                warehouses=warehouses_data,
+                assignment_type=assignment_type
+            )
+    
     return MessageResponse(message="用户分配成功")
 
 
@@ -686,17 +908,21 @@ async def get_piece_work_categories(
 @app.post("/api/piece-work/categories", response_model=PieceWorkCategoryResponse, tags=["计件管理"])
 async def create_piece_work_category(
     request: PieceWorkCategoryCreate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_management),
     session: Session = Depends(get_session)
 ):
     """
-    创建计件分类（管理员级别可访问：调度、老板、超级管理员）
+    创建计件分类（管理权限可访问：车队长、调度、老板、超级管理员）
+    支持基础单价、上楼单价、分拣单价配置
+    Requirements: 3.1 - 支持多种单价配置
     """
     category = crud.create_piece_work_category(
         session,
         name=request.name,
         unit_price=request.unit_price,
-        unit=request.unit
+        unit=request.unit,
+        upstairs_price=request.upstairs_price,
+        sorting_price=request.sorting_price
     )
     return category
 
@@ -705,11 +931,13 @@ async def create_piece_work_category(
 async def update_piece_work_category(
     category_id: int,
     request: PieceWorkCategoryUpdate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_management),
     session: Session = Depends(get_session)
 ):
     """
-    更新计件分类（管理员级别可访问：调度、老板、超级管理员）
+    更新计件分类（管理权限可访问：车队长、调度、老板、超级管理员）
+    支持更新基础单价、上楼单价、分拣单价
+    Requirements: 3.2 - 支持编辑品类配置
     """
     category = session.get(crud.PieceWorkCategory, category_id)
     if not category:
@@ -723,9 +951,37 @@ async def update_piece_work_category(
         name=request.name,
         unit_price=request.unit_price,
         unit=request.unit,
-        is_active=request.is_active
+        is_active=request.is_active,
+        upstairs_price=request.upstairs_price,
+        sorting_price=request.sorting_price
     )
     return updated
+
+
+@app.delete("/api/piece-work/categories/{category_id}", response_model=MessageResponse, tags=["计件管理"])
+async def delete_piece_work_category(
+    category_id: int,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    删除计件分类（管理权限可访问：车队长、调度、老板、超级管理员）
+    如果品类已有计件记录，则不允许删除
+    Requirements: 3.3, 3.4 - 删除品类功能和约束检查
+    """
+    try:
+        success = crud.delete_piece_work_category(session, category_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="分类不存在"
+            )
+        return MessageResponse(message="删除成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 # ==================== 计件记录 API ====================
@@ -794,6 +1050,8 @@ async def create_piece_work_record(
 ):
     """
     录入计件记录（司机操作）
+    录入完成后会触发 piece_work_update 事件，通知对应仓库的车队长
+    Requirements: 4.1 - 计件记录实时数据同步
     """
     # 验证分类是否存在
     category = session.get(crud.PieceWorkCategory, request.category_id)
@@ -813,6 +1071,42 @@ async def create_piece_work_record(
         remark=request.remark
     )
     
+    # 获取仓库信息
+    warehouse = crud.get_warehouse_by_id(session, request.warehouse_id) if request.warehouse_id else None
+    warehouse_name = warehouse.name if warehouse else None
+    
+    # ==================== 触发计件更新事件 ====================
+    # Requirements: 4.1 - 向对应仓库的车队长推送新计件记录
+    
+    # 构建目标用户列表：司机 + 对应仓库的车队长
+    target_user_ids = [current_user.id]  # 首先添加司机自己
+    
+    # 如果有仓库，获取该仓库的所有车队长
+    if request.warehouse_id:
+        warehouse_users = crud.get_warehouse_users(session, request.warehouse_id)
+        for warehouse_user in warehouse_users:
+            # 只添加车队长角色的用户
+            if warehouse_user.role == UserRole.MANAGER and warehouse_user.id not in target_user_ids:
+                target_user_ids.append(warehouse_user.id)
+    
+    # 触发计件更新事件
+    emit_piece_work_update(
+        record_id=record.id,
+        user_id=record.user_id,
+        user_name=current_user.name,
+        warehouse_id=record.warehouse_id,
+        warehouse_name=warehouse_name,
+        category_id=record.category_id,
+        category_name=category.name,
+        quantity=record.quantity,
+        amount=record.amount,
+        work_date=record.work_date.isoformat(),
+        remark=record.remark,
+        created_at=record.created_at.isoformat(),
+        target_user_ids=target_user_ids,
+        action="create"
+    )
+    
     return PieceWorkRecordResponse(
         id=record.id,
         user_id=record.user_id,
@@ -825,7 +1119,7 @@ async def create_piece_work_record(
         created_at=record.created_at,
         user_name=current_user.name,
         category_name=category.name,
-        warehouse_name=None
+        warehouse_name=warehouse_name
     )
 
 
@@ -861,12 +1155,18 @@ async def get_piece_work_stats(
 async def update_piece_work_record(
     record_id: int,
     request: PieceWorkRecordUpdate,
-    current_user: User = Depends(require_management),
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     """
-    更新计件记录（管理权限可操作：车队长、调度、老板、超级管理员）
-    用于修正司机录入的计件数据
+    更新计件记录
+    
+    权限规则：
+    - 司机只能更新自己的计件记录
+    - 管理角色（车队长、调度、老板、超级管理员）可以更新任何记录
+    
+    更新完成后会触发 piece_work_update 事件，通知相关用户
+    Requirements: 4.2 - 计件审批实时数据同步
     """
     # 获取记录
     record = session.get(crud.PieceWorkRecord, record_id)
@@ -875,6 +1175,9 @@ async def update_piece_work_record(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="计件记录不存在"
         )
+    
+    # 权限检查：使用统一的资源所有权检查
+    check_resource_ownership(record, current_user, "计件记录")
     
     # 更新记录
     updated = crud.update_piece_work_record(
@@ -887,6 +1190,38 @@ async def update_piece_work_record(
     user = crud.get_user_by_id(session, updated.user_id)
     category = session.get(crud.PieceWorkCategory, updated.category_id)
     warehouse = crud.get_warehouse_by_id(session, updated.warehouse_id) if updated.warehouse_id else None
+    
+    # ==================== 触发计件更新事件 ====================
+    # Requirements: 4.2 - 向司机推送审批/修改结果
+    
+    # 构建目标用户列表：司机 + 对应仓库的车队长
+    target_user_ids = [updated.user_id]  # 首先添加司机
+    
+    # 如果有仓库，获取该仓库的所有车队长
+    if updated.warehouse_id:
+        warehouse_users = crud.get_warehouse_users(session, updated.warehouse_id)
+        for warehouse_user in warehouse_users:
+            # 只添加车队长角色的用户
+            if warehouse_user.role == UserRole.MANAGER and warehouse_user.id not in target_user_ids:
+                target_user_ids.append(warehouse_user.id)
+    
+    # 触发计件更新事件
+    emit_piece_work_update(
+        record_id=updated.id,
+        user_id=updated.user_id,
+        user_name=user.name if user else "未知",
+        warehouse_id=updated.warehouse_id,
+        warehouse_name=warehouse.name if warehouse else None,
+        category_id=updated.category_id,
+        category_name=category.name if category else "未知",
+        quantity=updated.quantity,
+        amount=updated.amount,
+        work_date=updated.work_date.isoformat(),
+        remark=updated.remark,
+        created_at=updated.created_at.isoformat(),
+        target_user_ids=target_user_ids,
+        action="update"
+    )
     
     return PieceWorkRecordResponse(
         id=updated.id,
@@ -907,11 +1242,15 @@ async def update_piece_work_record(
 @app.delete("/api/piece-work/records/{record_id}", response_model=MessageResponse, tags=["计件管理"])
 async def delete_piece_work_record(
     record_id: int,
-    current_user: User = Depends(require_management),
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     """
-    删除计件记录（管理权限可操作：车队长、调度、老板、超级管理员）
+    删除计件记录
+    
+    权限规则：
+    - 司机只能删除自己的计件记录
+    - 管理角色（车队长、调度、老板、超级管理员）可以删除任何记录
     """
     # 获取记录
     record = session.get(crud.PieceWorkRecord, record_id)
@@ -920,6 +1259,9 @@ async def delete_piece_work_record(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="计件记录不存在"
         )
+    
+    # 权限检查：使用统一的资源所有权检查
+    check_resource_ownership(record, current_user, "计件记录")
     
     crud.delete_piece_work_record(session, record)
     return MessageResponse(message="计件记录已删除")
@@ -1064,12 +1406,8 @@ async def get_leave_application(
             detail="申请不存在"
         )
     
-    # 权限控制：司机只能查看自己的申请
-    if current_user.role == UserRole.DRIVER and application.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权查看此申请"
-        )
+    # 权限控制：使用统一的资源所有权检查
+    check_resource_ownership(application, current_user, "请假申请")
     
     user = crud.get_user_by_id(session, application.user_id)
     approver = crud.get_user_by_id(session, application.approver_id) if application.approver_id else None
@@ -1100,6 +1438,8 @@ async def approve_leave_application(
 ):
     """
     审批请假申请（管理权限可操作：车队长、调度、老板、超级管理员）
+    审批完成后会触发 leave_update 事件，通知申请人和相关车队长
+    Requirements: 3.1, 3.4 - 请假审批实时数据同步
     """
     application = session.get(crud.LeaveApplication, application_id)
     if not application:
@@ -1125,6 +1465,40 @@ async def approve_leave_application(
     )
     
     user = crud.get_user_by_id(session, updated.user_id)
+    
+    # ==================== 触发请假更新事件 ====================
+    # Requirements: 3.1, 3.4 - 向申请人和车队长推送审批结果
+    
+    # 构建目标用户列表：申请人 + 对应仓库的车队长
+    target_user_ids = [updated.user_id]  # 首先添加申请人
+    
+    # 获取申请人分配的仓库
+    applicant_warehouses = crud.get_user_warehouses(session, updated.user_id)
+    
+    # 获取这些仓库的所有车队长
+    for warehouse in applicant_warehouses:
+        warehouse_users = crud.get_warehouse_users(session, warehouse.id)
+        for warehouse_user in warehouse_users:
+            # 只添加车队长角色的用户
+            if warehouse_user.role == UserRole.MANAGER and warehouse_user.id not in target_user_ids:
+                target_user_ids.append(warehouse_user.id)
+    
+    # 触发请假更新事件
+    emit_leave_update(
+        leave_id=updated.id,
+        user_id=updated.user_id,
+        leave_type=updated.leave_type.value,
+        start_date=updated.start_date.isoformat(),
+        end_date=updated.end_date.isoformat(),
+        reason=updated.reason,
+        status=updated.status.value,
+        approver_id=updated.approver_id,
+        approve_remark=updated.approve_remark,
+        created_at=updated.created_at.isoformat(),
+        updated_at=updated.updated_at.isoformat(),
+        target_user_ids=target_user_ids,
+        action="update"
+    )
     
     return LeaveApplicationResponse(
         id=updated.id,
@@ -1356,12 +1730,8 @@ async def get_vehicle(
             detail="车辆不存在"
         )
     
-    # 权限控制：司机只能查看自己的车辆
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权查看此车辆"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     user = crud.get_user_by_id(session, vehicle.user_id)
     
@@ -1398,12 +1768,8 @@ async def update_vehicle(
             detail="车辆不存在"
         )
     
-    # 权限控制
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权更新此车辆"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     # 更新车辆信息
     updated = crud.update_vehicle(
@@ -1441,6 +1807,11 @@ async def review_vehicle(
 ):
     """
     审核车辆（管理员级别可操作：调度、老板、超级管理员）
+    
+    审批完成后会向车辆所有者推送 vehicle_update 事件，
+    包含完整的车辆数据，前端无需额外 API 请求即可更新 UI。
+    
+    Requirements: 2.1, 2.4 - 车辆审批实时数据同步
     """
     vehicle = session.get(crud.Vehicle, vehicle_id)
     if not vehicle:
@@ -1451,6 +1822,24 @@ async def review_vehicle(
     
     updated = crud.review_vehicle(session, vehicle, request.status)
     user = crud.get_user_by_id(session, updated.user_id)
+    
+    # 触发车辆更新事件，向车辆所有者推送实时更新
+    # Requirements: 2.1 - 向车辆所有者推送 vehicle_update 事件
+    emit_vehicle_update(
+        vehicle_id=updated.id,
+        license_plate=updated.license_plate,
+        brand=updated.brand,
+        model=updated.model,
+        color=updated.color,
+        status=updated.status.value,  # 枚举转字符串
+        user_id=updated.user_id,
+        warehouse_id=updated.warehouse_id,
+        ownership_type=updated.ownership_type,
+        created_at=updated.created_at.isoformat(),
+        updated_at=updated.updated_at.isoformat(),
+        target_user_id=updated.user_id,  # 推送给车辆所有者
+        action="update"
+    )
     
     return VehicleResponse(
         id=updated.id,
@@ -1484,12 +1873,8 @@ async def create_vehicle_document(
             detail="车辆不存在"
         )
     
-    # 权限控制：司机只能上传自己车辆的证件
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权操作此车辆"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     document = crud.create_vehicle_document(
         session,
@@ -1509,7 +1894,133 @@ async def create_vehicle_document(
     )
 
 
+# ==================== 车辆删除 API ====================
+
+@app.delete("/api/vehicles/{vehicle_id}", response_model=MessageResponse, tags=["车辆管理"])
+async def delete_vehicle(
+    vehicle_id: int,
+    current_user: User = Depends(require_admin),
+    session: Session = Depends(get_session)
+):
+    """
+    删除车辆（管理员操作）
+    
+    只有管理员级别（调度、老板、超级管理员）可以删除车辆。
+    删除前会检查车辆是否存在，删除后会同时删除关联的证件记录。
+    
+    Args:
+        vehicle_id: 车辆ID
+        current_user: 当前登录用户（必须是管理员）
+        session: 数据库会话
+        
+    Returns:
+        MessageResponse: 删除成功消息
+        
+    Raises:
+        HTTPException 404: 车辆不存在
+        HTTPException 403: 无管理员权限
+    """
+    # 1. 验证车辆存在
+    vehicle = session.get(crud.Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="车辆不存在"
+        )
+    
+    # 2. 删除关联的证件记录
+    from sqlmodel import select as sql_select
+    from models import VehicleDocument
+    documents = session.exec(
+        sql_select(VehicleDocument).where(VehicleDocument.vehicle_id == vehicle_id)
+    ).all()
+    for doc in documents:
+        session.delete(doc)
+    
+    # 3. 删除关联的历史记录
+    from models import VehicleHistory
+    histories = session.exec(
+        sql_select(VehicleHistory).where(VehicleHistory.vehicle_id == vehicle_id)
+    ).all()
+    for history in histories:
+        session.delete(history)
+    
+    # 4. 删除车辆
+    license_plate = vehicle.license_plate
+    session.delete(vehicle)
+    session.commit()
+    
+    return MessageResponse(message=f"车辆 {license_plate} 删除成功")
+
+
 # ==================== 车辆还车 API ====================
+
+@app.post("/api/vehicles/{vehicle_id}/return", response_model=VehicleResponse, tags=["车辆管理"])
+async def return_vehicle_simple(
+    vehicle_id: int,
+    request: dict,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    简化版还车操作（管理员操作）
+    
+    用于管理员快速执行还车操作，只需提供还车日期和原因。
+    更新车辆状态为 returned，记录还车时间。
+    
+    Args:
+        vehicle_id: 车辆ID
+        request: 还车请求，包含 return_date（还车日期）和 reason（原因，可选）
+        current_user: 当前登录用户（必须是管理员）
+        session: 数据库会话
+        
+    Returns:
+        VehicleResponse: 更新后的车辆信息
+        
+    Raises:
+        HTTPException 404: 车辆不存在
+    """
+    from datetime import datetime
+    
+    # 1. 验证车辆存在
+    vehicle = session.get(crud.Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="车辆不存在"
+        )
+    
+    # 2. 更新车辆状态为 returned
+    vehicle.status = VehicleStatus.RETURNED
+    
+    # 3. 记录还车时间
+    vehicle.return_time = datetime.now()
+    
+    # 4. 更新时间戳
+    vehicle.updated_at = datetime.now()
+    
+    # 5. 保存到数据库
+    session.add(vehicle)
+    session.commit()
+    session.refresh(vehicle)
+    
+    # 6. 获取车主信息用于响应
+    user = crud.get_user_by_id(session, vehicle.user_id)
+    
+    return VehicleResponse(
+        id=vehicle.id,
+        user_id=vehicle.user_id,
+        license_plate=vehicle.license_plate,
+        brand=vehicle.brand,
+        model=vehicle.model,
+        color=vehicle.color,
+        status=vehicle.status,
+        ownership_type=vehicle.ownership_type,
+        created_at=vehicle.created_at,
+        updated_at=vehicle.updated_at,
+        user_name=user.name if user else None
+    )
+
 
 @app.put("/api/vehicles/{vehicle_id}/return", response_model=VehicleResponse, tags=["车辆管理"])
 async def return_vehicle(
@@ -1551,12 +2062,8 @@ async def return_vehicle(
             detail="车辆不存在"
         )
     
-    # 2. 验证车辆归属（司机只能还自己的车，管理员可以操作所有车辆）
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权操作该车辆"
-        )
+    # 2. 验证车辆归属：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     # 3. 验证还车照片数量（必须为7张）
     # 注意：Pydantic 已经在 schema 层面验证了 min_length=7, max_length=7
@@ -1885,12 +2392,8 @@ async def get_vehicle_lease(
             detail="车辆不存在"
         )
     
-    # 权限控制：司机只能查看自己的车辆
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权查看此车辆的租赁信息"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     # 计算下一个缴纳日期和距离天数
     next_payment = crud.calculate_next_payment_date(
@@ -1949,12 +2452,8 @@ async def update_vehicle_lease(
             detail="车辆不存在"
         )
     
-    # 权限控制：司机只能更新自己的车辆
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权更新此车辆的租赁信息"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     # 更新租赁信息
     updated = crud.update_vehicle_lease(
@@ -2057,6 +2556,72 @@ async def get_lease_reminders(
 
 # ==================== 补录照片 API ====================
 
+@app.post("/api/vehicles/{vehicle_id}/supplement-photos", response_model=SupplementedPhotosResponse, tags=["补录照片"])
+async def supplement_photos_simple(
+    vehicle_id: int,
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    简化版补录照片 API
+    
+    用于快速补录车辆照片，支持简单的请求格式。
+    
+    Args:
+        vehicle_id: 车辆ID
+        request: 补录照片请求，包含 photo_type（照片类型）和 photo_url（照片URL）
+        current_user: 当前登录用户
+        session: 数据库会话
+        
+    Returns:
+        SupplementedPhotosResponse: 补录照片元数据
+        
+    Raises:
+        HTTPException 404: 车辆不存在
+        HTTPException 403: 无权操作该车辆
+    """
+    # 1. 获取车辆
+    vehicle = session.get(crud.Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="车辆不存在"
+        )
+    
+    # 2. 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
+    
+    # 3. 解析请求参数
+    photo_type = request.get("photo_type", "front")
+    photo_url = request.get("photo_url", "")
+    
+    # 4. 映射 photo_type 到实际字段名
+    type_to_field = {
+        "front": "left_front_photo",
+        "rear": "right_rear_photo",
+        "left": "left_front_photo",
+        "right": "right_front_photo",
+        "dashboard": "dashboard_photo",
+        "cargo": "cargo_box_photo"
+    }
+    field = type_to_field.get(photo_type, "left_front_photo")
+    
+    # 5. 执行补录操作
+    supplemented_photos = crud.supplement_vehicle_photo(
+        session,
+        vehicle_id=vehicle_id,
+        field=field,
+        index=0,
+        new_url=photo_url
+    )
+    
+    return SupplementedPhotosResponse(
+        vehicle_id=vehicle_id,
+        supplemented_photos=supplemented_photos
+    )
+
+
 @app.put("/api/vehicles/{vehicle_id}/supplement-photo", response_model=SupplementedPhotosResponse, tags=["补录照片"])
 async def supplement_photo(
     vehicle_id: int,
@@ -2083,12 +2648,8 @@ async def supplement_photo(
             detail="车辆不存在"
         )
     
-    # 权限控制：司机只能补录自己车辆的照片，管理员可以补录所有
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权补录此车辆的照片"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     # 验证字段名是否有效（允许的照片字段）
     valid_fields = [
@@ -2143,12 +2704,8 @@ async def get_supplement_photos(
             detail="车辆不存在"
         )
     
-    # 权限控制：司机只能查看自己车辆的补录信息，管理员可以查看所有
-    if current_user.role == UserRole.DRIVER and vehicle.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权查看此车辆的补录照片信息"
-        )
+    # 权限控制：使用统一的车辆所有权检查
+    check_vehicle_ownership(vehicle, current_user)
     
     # 获取补录照片元数据
     supplemented_photos = crud.get_supplemented_photos(session, vehicle_id)
@@ -2218,15 +2775,51 @@ async def mark_notification_as_read(
             detail="通知不存在"
         )
     
-    # 权限控制：只能标记自己的通知
-    if notification.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权操作此通知"
-        )
+    # 权限控制：使用统一的资源所有权检查
+    check_resource_ownership(notification, current_user, "通知")
     
     updated = crud.mark_notification_as_read(session, notification)
     return updated
+
+
+@app.put("/api/notifications/read-all", response_model=MessageResponse, tags=["通知管理"])
+async def mark_all_notifications_as_read(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    标记所有通知为已读
+    
+    将当前用户的所有未读通知标记为已读状态。
+    
+    Args:
+        current_user: 当前登录用户
+        session: 数据库会话
+        
+    Returns:
+        MessageResponse: 操作成功消息
+    """
+    from sqlmodel import select as sql_select
+    from models import Notification as NotificationModel
+    
+    # 查询当前用户的所有未读通知
+    notifications = session.exec(
+        sql_select(NotificationModel).where(
+            NotificationModel.user_id == current_user.id,
+            NotificationModel.is_read == False
+        )
+    ).all()
+    
+    # 标记为已读
+    count = 0
+    for notification in notifications:
+        notification.is_read = True
+        session.add(notification)
+        count += 1
+    
+    session.commit()
+    
+    return MessageResponse(message=f"已将 {count} 条通知标记为已读")
 
 
 @app.get("/api/notifications/unread-count", response_model=UnreadCountResponse, tags=["通知管理"])
@@ -2236,9 +2829,61 @@ async def get_unread_count(
 ):
     """
     获取当前用户未读通知数量
+    
+    注意：此路由必须在 /api/notifications/{notification_id} 之前定义，
+    否则 "unread-count" 会被当作 notification_id 解析。
     """
     count = crud.get_unread_count(session, current_user.id)
     return UnreadCountResponse(count=count)
+
+
+@app.get("/api/notifications/{notification_id}", response_model=NotificationResponse, tags=["通知管理"])
+async def get_notification_detail(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    获取通知详情
+    
+    获取指定通知的详细信息，只能查看自己的通知。
+    
+    Args:
+        notification_id: 通知ID
+        current_user: 当前登录用户
+        session: 数据库会话
+        
+    Returns:
+        NotificationResponse: 通知详情
+        
+    Raises:
+        HTTPException 404: 通知不存在
+        HTTPException 403: 无权查看该通知
+    """
+    notification = session.get(crud.Notification, notification_id)
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="通知不存在"
+        )
+    
+    # 权限控制：只能查看自己的通知
+    if notification.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权查看该通知"
+        )
+    
+    return NotificationResponse(
+        id=notification.id,
+        user_id=notification.user_id,
+        title=notification.title,
+        content=notification.content,
+        is_read=notification.is_read,
+        sender_id=notification.sender_id,
+        template_id=notification.template_id,
+        created_at=notification.created_at
+    )
 
 
 # ==================== SSE 实时通知 ====================
@@ -2251,7 +2896,19 @@ _active_connections: dict[int, float] = {}
 async def notification_event_generator(user_id: int, last_id: int = 0):
     """
     SSE 事件生成器
-    定期检查新通知并推送给客户端
+    定期检查新通知和业务事件并推送给客户端
+    
+    支持的事件类型：
+    - notification: 新通知到达
+    - heartbeat: 心跳包（包含未读数量）
+    - vehicle_update: 车辆更新事件
+    - leave_update: 请假更新事件
+    - piece_work_update: 计件更新事件
+    - assignment_update: 仓库分配更新事件
+    - permission_update: 权限更新事件
+    - user_update: 用户状态更新事件
+    
+    Requirements: 1.1, 1.2 - 扩展 SSE 事件类型，支持业务事件分发
     
     Args:
         user_id: 用户ID
@@ -2262,6 +2919,8 @@ async def notification_event_generator(user_id: int, last_id: int = 0):
     """
     import time
     from database import engine
+    # 导入事件队列模块
+    from events import pop_events
     
     # 记录连接
     _active_connections[user_id] = time.time()
@@ -2309,6 +2968,23 @@ async def notification_event_generator(user_id: int, last_id: int = 0):
                 # 获取未读数量
                 unread_count = crud.get_unread_count(session, user_id)
             
+            # ==================== 检查业务事件 ====================
+            # Requirements: 1.1, 1.2 - 在通知检查循环中添加业务事件检查
+            # 从事件队列获取待推送的业务事件
+            business_events = pop_events(user_id)
+            
+            # 遍历业务事件并按类型发送 SSE 消息
+            for event in business_events:
+                # 获取事件类型值（字符串形式）
+                event_type = event.event_type.value
+                
+                # 构建事件数据（包含完整的业务数据）
+                event_data = event.data
+                
+                # 按事件类型格式化并发送 SSE 消息
+                # 格式：event: <事件类型>\ndata: <JSON数据>\n\n
+                yield f"event: {event_type}\ndata: {json.dumps(event_data, ensure_ascii=False, default=str)}\n\n"
+            
             # 发送心跳（包含未读数量）
             if current_time - last_heartbeat >= heartbeat_interval:
                 heartbeat_data = {
@@ -2341,24 +3017,73 @@ async def notification_stream(
     token: Optional[str] = Query(None, description="JWT Token（用于 SSE 认证）")
 ):
     """
-    SSE 实时通知推送接口
+    SSE 实时通知和业务事件推送接口
     
-    客户端通过 EventSource 连接此接口，实时接收新通知
+    客户端通过 EventSource 连接此接口，实时接收新通知和业务事件。
+    支持统一实时更新系统的所有事件类型。
+    
+    Requirements: 1.1, 1.2 - 扩展 SSE 事件类型，支持业务事件分发
     
     事件类型：
     - notification: 新通知到达
     - heartbeat: 心跳包（包含未读数量）
+    - vehicle_update: 车辆更新事件（审批结果、信息变更）
+    - leave_update: 请假更新事件（审批结果）
+    - piece_work_update: 计件更新事件（新记录、审批结果）
+    - assignment_update: 仓库分配更新事件
+    - permission_update: 权限更新事件
+    - user_update: 用户状态更新事件（角色变更、账号禁用）
     
     使用示例（前端）：
     ```javascript
     const eventSource = new EventSource('/api/notifications/stream?token=xxx&last_id=0');
+    
+    // 监听通知事件
     eventSource.addEventListener('notification', (e) => {
         const notifications = JSON.parse(e.data);
         console.log('新通知:', notifications);
     });
+    
+    // 监听心跳事件
     eventSource.addEventListener('heartbeat', (e) => {
         const data = JSON.parse(e.data);
         console.log('未读数量:', data.unread_count);
+    });
+    
+    // 监听车辆更新事件
+    eventSource.addEventListener('vehicle_update', (e) => {
+        const data = JSON.parse(e.data);
+        console.log('车辆更新:', data);
+    });
+    
+    // 监听请假更新事件
+    eventSource.addEventListener('leave_update', (e) => {
+        const data = JSON.parse(e.data);
+        console.log('请假更新:', data);
+    });
+    
+    // 监听计件更新事件
+    eventSource.addEventListener('piece_work_update', (e) => {
+        const data = JSON.parse(e.data);
+        console.log('计件更新:', data);
+    });
+    
+    // 监听仓库分配更新事件
+    eventSource.addEventListener('assignment_update', (e) => {
+        const data = JSON.parse(e.data);
+        console.log('仓库分配更新:', data);
+    });
+    
+    // 监听权限更新事件
+    eventSource.addEventListener('permission_update', (e) => {
+        const data = JSON.parse(e.data);
+        console.log('权限更新:', data);
+    });
+    
+    // 监听用户状态更新事件
+    eventSource.addEventListener('user_update', (e) => {
+        const data = JSON.parse(e.data);
+        console.log('用户状态更新:', data);
     });
     ```
     """
@@ -2645,7 +3370,7 @@ async def delete_notification_template(
 @app.post("/api/notification-templates/{template_id}/preview", tags=["通知模板"])
 async def preview_notification_template(
     template_id: int,
-    variables: Optional[dict] = None,
+    request: dict = None,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
@@ -2654,6 +3379,15 @@ async def preview_notification_template(
     
     传入变量值，返回渲染后的标题和内容
     用于发送通知前预览效果
+    
+    Args:
+        template_id: 模板ID
+        request: 请求体，包含 variables 字段
+        current_user: 当前登录用户
+        session: 数据库会话
+        
+    Returns:
+        dict: 渲染后的标题和内容
     """
     template = crud.get_notification_template_by_id(session, template_id)
     if not template:
@@ -2662,12 +3396,19 @@ async def preview_notification_template(
             detail="模板不存在"
         )
     
+    # 从请求体中获取变量
+    variables = None
+    if request:
+        variables = request.get("variables", {})
+    
     # 渲染模板
     title, content = crud.render_notification_template(template, variables)
     
     return {
         "template_id": template_id,
         "template_name": template.name,
+        "title": title,
+        "content": content,
         "rendered_title": title,
         "rendered_content": content,
         "variables_used": variables or {}
@@ -4066,4 +4807,343 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=settings.debug  # 开发模式下启用热重载
+    )
+
+
+# ==================== 权限配置 API ====================
+
+from schemas import (
+    RolePermissionUpdate, RolePermissionResponse,
+    PermissionItem, PermissionGroupResponse, AllPermissionsResponse
+)
+
+# 权限分组配置（与前端保持一致）
+PERMISSION_GROUPS = [
+    {
+        "key": "attendance",
+        "name": "考勤管理",
+        "icon": "⏰",
+        "permissions": [
+            {"key": "attendance.clock", "name": "打卡", "description": "上下班打卡功能"},
+            {"key": "attendance.view_own", "name": "查看个人考勤", "description": "查看自己的考勤记录"},
+            {"key": "attendance.view_all", "name": "查看所有考勤", "description": "查看所有人的考勤记录"},
+        ],
+    },
+    {
+        "key": "piece_work",
+        "name": "计件管理",
+        "icon": "📦",
+        "permissions": [
+            {"key": "piece_work.entry", "name": "计件录入", "description": "录入计件数据"},
+            {"key": "piece_work.view_own", "name": "查看个人计件", "description": "查看自己的计件记录"},
+            {"key": "piece_work.view_all", "name": "查看所有计件", "description": "查看所有人的计件记录"},
+            {"key": "piece_work.manage", "name": "计件管理", "description": "管理计件分类和单价"},
+        ],
+    },
+    {
+        "key": "leave",
+        "name": "请假管理",
+        "icon": "📝",
+        "permissions": [
+            {"key": "leave.apply", "name": "申请请假", "description": "提交请假申请"},
+            {"key": "leave.view_own", "name": "查看个人请假", "description": "查看自己的请假记录"},
+            {"key": "leave.approve", "name": "审批请假", "description": "审批他人的请假申请"},
+            {"key": "leave.view_all", "name": "查看所有请假", "description": "查看所有人的请假记录"},
+        ],
+    },
+    {
+        "key": "vehicle",
+        "name": "车辆管理",
+        "icon": "🚛",
+        "permissions": [
+            {"key": "vehicle.view_own", "name": "查看个人车辆", "description": "查看自己的车辆信息"},
+            {"key": "vehicle.add", "name": "添加车辆", "description": "添加新车辆"},
+            {"key": "vehicle.return", "name": "还车", "description": "提交还车申请"},
+            {"key": "vehicle.view_all", "name": "查看所有车辆", "description": "查看所有车辆信息"},
+            {"key": "vehicle.review", "name": "审核车辆", "description": "审核车辆信息"},
+            {"key": "vehicle.assign", "name": "分配车辆", "description": "将车辆分配给司机"},
+        ],
+    },
+    {
+        "key": "warehouse",
+        "name": "仓库管理",
+        "icon": "🏭",
+        "permissions": [
+            {"key": "warehouse.view", "name": "查看仓库", "description": "查看仓库列表"},
+            {"key": "warehouse.manage", "name": "管理仓库", "description": "创建、编辑、删除仓库"},
+            {"key": "warehouse.assign", "name": "分配仓库", "description": "将用户分配到仓库"},
+        ],
+    },
+    {
+        "key": "user",
+        "name": "用户管理",
+        "icon": "👥",
+        "permissions": [
+            {"key": "user.view", "name": "查看用户", "description": "查看用户列表"},
+            {"key": "user.manage", "name": "管理用户", "description": "创建、编辑、删除用户"},
+            {"key": "user.permission", "name": "权限配置", "description": "配置用户权限"},
+        ],
+    },
+    {
+        "key": "notification",
+        "name": "通知管理",
+        "icon": "🔔",
+        "permissions": [
+            {"key": "notification.receive", "name": "接收通知", "description": "接收系统通知"},
+            {"key": "notification.send", "name": "发送通知", "description": "向其他用户发送通知"},
+            {"key": "notification.manage", "name": "管理通知", "description": "管理通知模板和定时通知"},
+        ],
+    },
+    {
+        "key": "stats",
+        "name": "统计报表",
+        "icon": "📊",
+        "permissions": [
+            {"key": "stats.view_own", "name": "查看个人统计", "description": "查看自己的统计数据"},
+            {"key": "stats.view_all", "name": "查看所有统计", "description": "查看所有统计报表"},
+        ],
+    },
+]
+
+def get_all_permission_keys() -> List[str]:
+    """获取所有权限键"""
+    keys = []
+    for group in PERMISSION_GROUPS:
+        for perm in group["permissions"]:
+            keys.append(perm["key"])
+    return keys
+
+# 默认角色权限配置
+DEFAULT_ROLE_PERMISSIONS = {
+    UserRole.DRIVER: [
+        "attendance.clock", "attendance.view_own",
+        "piece_work.entry", "piece_work.view_own",
+        "leave.apply", "leave.view_own",
+        "vehicle.view_own", "vehicle.add", "vehicle.return",
+        "notification.receive",
+        "stats.view_own",
+    ],
+    UserRole.MANAGER: [
+        "attendance.clock", "attendance.view_own", "attendance.view_all",
+        "piece_work.entry", "piece_work.view_own", "piece_work.view_all",
+        "leave.apply", "leave.view_own", "leave.approve", "leave.view_all",
+        "vehicle.view_own", "vehicle.view_all", "vehicle.add", "vehicle.return",
+        "warehouse.view",
+        "user.view",
+        "notification.receive", "notification.send",
+        "stats.view_own", "stats.view_all",
+    ],
+    UserRole.PEER_ADMIN: [
+        "attendance.view_all",
+        "piece_work.view_all", "piece_work.manage",
+        "leave.view_all", "leave.approve",
+        "vehicle.view_all", "vehicle.review", "vehicle.assign",
+        "warehouse.view", "warehouse.manage", "warehouse.assign",
+        "user.view",
+        "notification.receive", "notification.send", "notification.manage",
+        "stats.view_all",
+    ],
+    UserRole.BOSS: get_all_permission_keys(),
+    UserRole.SUPER_ADMIN: get_all_permission_keys(),
+}
+
+# 内存中存储角色权限配置（实际项目中应存储到数据库）
+role_permissions_store = {role: list(perms) for role, perms in DEFAULT_ROLE_PERMISSIONS.items()}
+
+
+@app.get("/api/permissions", response_model=AllPermissionsResponse, tags=["权限配置"])
+async def get_all_permissions(
+    current_user: User = Depends(require_admin),
+    session: Session = Depends(get_session)
+):
+    """
+    获取所有权限配置（管理员级别可访问：调度、老板、超级管理员）
+    返回权限分组列表和各角色的权限配置
+    
+    Requirements: 6.1, 6.2
+    """
+    # 构建权限分组响应
+    groups = []
+    for group in PERMISSION_GROUPS:
+        permissions = [
+            PermissionItem(
+                key=perm["key"],
+                name=perm["name"],
+                description=perm["description"],
+                group=group["key"]
+            )
+            for perm in group["permissions"]
+        ]
+        groups.append(PermissionGroupResponse(
+            key=group["key"],
+            name=group["name"],
+            icon=group["icon"],
+            permissions=permissions
+        ))
+    
+    # 构建角色权限映射
+    role_perms = {}
+    for role in UserRole:
+        role_perms[role.value] = role_permissions_store.get(role, [])
+    
+    return AllPermissionsResponse(
+        groups=groups,
+        role_permissions=role_perms
+    )
+
+
+@app.get("/api/permissions/{role}", response_model=RolePermissionResponse, tags=["权限配置"])
+async def get_role_permissions(
+    role: UserRole,
+    current_user: User = Depends(require_admin),
+    session: Session = Depends(get_session)
+):
+    """
+    获取指定角色的权限配置（管理员级别可访问：调度、老板、超级管理员）
+    
+    Args:
+        role: 用户角色
+        
+    Returns:
+        RolePermissionResponse: 角色权限配置
+        
+    Requirements: 6.2
+    """
+    permissions = role_permissions_store.get(role, [])
+    
+    return RolePermissionResponse(
+        role=role,
+        permissions=permissions,
+        updated_at=datetime.now()
+    )
+
+
+@app.put("/api/permissions/{role}", response_model=RolePermissionResponse, tags=["权限配置"])
+async def update_role_permissions(
+    role: UserRole,
+    request: RolePermissionUpdate,
+    current_user: User = Depends(require_boss),
+    session: Session = Depends(get_session)
+):
+    """
+    更新角色权限配置（仅老板和超级管理员可操作）
+    
+    当老板修改某个角色的权限时，系统会向该角色的所有用户推送权限更新事件，
+    让用户无需手动刷新即可看到最新的权限状态。
+    
+    Args:
+        role: 用户角色
+        request: 权限更新请求
+        
+    Returns:
+        RolePermissionResponse: 更新后的角色权限配置
+        
+    Requirements: 6.1, 6.2, 6.3, 6.4 - 权限变更实时数据同步
+    """
+    # 老板和超级管理员的权限不可修改
+    if role in [UserRole.BOSS, UserRole.SUPER_ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="老板和超级管理员的权限不可修改"
+        )
+    
+    # 验证权限键是否有效
+    all_keys = get_all_permission_keys()
+    invalid_keys = [k for k in request.permissions if k not in all_keys]
+    if invalid_keys:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"无效的权限键: {', '.join(invalid_keys)}"
+        )
+    
+    # 验证权限组合合理性
+    perms = request.permissions
+    
+    # 如果有审批权限，必须有查看权限
+    if "leave.approve" in perms and "leave.view_all" not in perms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="审批请假需要查看所有请假权限"
+        )
+    
+    # 如果有管理权限，必须有查看权限
+    if "warehouse.manage" in perms and "warehouse.view" not in perms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="管理仓库需要查看仓库权限"
+        )
+    
+    if "user.manage" in perms and "user.view" not in perms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="管理用户需要查看用户权限"
+        )
+    
+    # 更新权限配置
+    role_permissions_store[role] = list(request.permissions)
+    
+    # 获取该角色的所有用户，向他们推送权限更新事件
+    # Requirements: 6.1 - 向该角色的用户推送包含完整权限数据的 permission_update 事件
+    users_with_role = crud.get_users(session, role=role, is_active=True)
+    for user in users_with_role:
+        # 触发权限更新事件
+        # Requirements: 6.2 - 事件负载包含用户ID、完整的权限对象
+        emit_permission_update(
+            user_id=user.id,
+            permissions=list(request.permissions)
+        )
+    
+    return RolePermissionResponse(
+        role=role,
+        permissions=request.permissions,
+        updated_at=datetime.now()
+    )
+
+
+@app.post("/api/permissions/{role}/reset", response_model=RolePermissionResponse, tags=["权限配置"])
+async def reset_role_permissions(
+    role: UserRole,
+    current_user: User = Depends(require_boss),
+    session: Session = Depends(get_session)
+):
+    """
+    重置角色权限为默认配置（仅老板和超级管理员可操作）
+    
+    当老板重置某个角色的权限时，系统会向该角色的所有用户推送权限更新事件，
+    让用户无需手动刷新即可看到最新的权限状态。
+    
+    Args:
+        role: 用户角色
+        
+    Returns:
+        RolePermissionResponse: 重置后的角色权限配置
+        
+    Requirements: 6.1, 6.2 - 权限变更实时数据同步
+    """
+    # 老板和超级管理员的权限不可修改
+    if role in [UserRole.BOSS, UserRole.SUPER_ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="老板和超级管理员的权限不可修改"
+        )
+    
+    # 重置为默认权限
+    default_perms = DEFAULT_ROLE_PERMISSIONS.get(role, [])
+    role_permissions_store[role] = list(default_perms)
+    
+    # 获取该角色的所有用户，向他们推送权限更新事件
+    # Requirements: 6.1 - 向该角色的用户推送包含完整权限数据的 permission_update 事件
+    users_with_role = crud.get_users(session, role=role, is_active=True)
+    for user in users_with_role:
+        # 触发权限更新事件
+        # Requirements: 6.2 - 事件负载包含用户ID、完整的权限对象
+        emit_permission_update(
+            user_id=user.id,
+            permissions=list(default_perms)
+        )
+    
+    return RolePermissionResponse(
+        role=role,
+        permissions=default_perms,
+        updated_at=datetime.now()
     )

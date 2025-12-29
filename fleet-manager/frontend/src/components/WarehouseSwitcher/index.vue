@@ -1,9 +1,11 @@
 <!--
   仓库切换器组件
   支持 Swiper 滑动切换多个仓库
+  集成 SSE 实时更新功能，当仓库分配变化时自动通知父组件刷新
   
   @module components/WarehouseSwitcher
   @requirements 4.1, 4.3, 4.4 - 仓库切换器组件
+  @requirements 5.4 - 仓库选择器集成实时更新
 -->
 <template>
   <!-- 无仓库提示 - Requirements 4.4 -->
@@ -58,15 +60,19 @@
 /**
  * 仓库切换器组件
  * 
- * @description 支持 Swiper 滑动切换多个仓库
+ * @description 支持 Swiper 滑动切换多个仓库，集成 SSE 实时更新功能
  * 
  * @requirements 4.1 - 用户分配了多个仓库时显示 Swiper 滑动切换器
  * @requirements 4.3 - 用户只有一个仓库时显示单个仓库卡片而非切换器
  * @requirements 4.4 - 用户没有分配仓库时显示"暂无分配仓库"提示
+ * @requirements 5.4 - 仓库选择器集成实时更新
  */
 
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { sseService } from '@/utils/sse'
+import { useUserStore } from '@/store/user'
 import type { Warehouse } from './types'
+import type { AssignmentUpdateEvent } from '@/types/sse-events'
 
 // ==================== Props ====================
 
@@ -87,6 +93,12 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   /** 仓库切换事件 */
   (e: 'change', index: number): void
+  /** 
+   * 仓库分配更新事件
+   * 当收到 SSE 仓库分配更新事件时触发，通知父组件刷新仓库列表
+   * Requirements: 5.4 - 仓库选择器集成实时更新
+   */
+  (e: 'assignment-update', data: AssignmentUpdateEvent): void
 }>()
 
 // ==================== 状态 ====================
@@ -94,9 +106,96 @@ const emit = defineEmits<{
 /** 内部索引状态 */
 const internalIndex = ref(props.currentIndex)
 
+/** 用户 Store */
+const userStore = useUserStore()
+
+/** 原始 SSE 回调（用于恢复） */
+let originalOnAssignmentUpdate: ((data: AssignmentUpdateEvent) => void) | undefined
+
 // 监听外部索引变化
 watch(() => props.currentIndex, (newIndex) => {
   internalIndex.value = newIndex
+})
+
+// ==================== SSE 实时更新 ====================
+
+/**
+ * 处理仓库分配更新事件
+ * 当收到 SSE 仓库分配更新事件时，检查是否与当前用户相关
+ * 如果相关，则通知父组件刷新仓库列表
+ * 
+ * @param data - 仓库分配更新事件数据
+ * Requirements: 5.4 - 仓库选择器集成实时更新
+ */
+function handleAssignmentUpdate(data: AssignmentUpdateEvent): void {
+  // 获取当前用户 ID
+  const currentUserId = userStore.user?.id
+  
+  // 检查事件是否与当前用户相关
+  if (currentUserId && data.user_id === currentUserId) {
+    console.log('[WarehouseSwitcher] 收到仓库分配更新事件，通知父组件刷新')
+    
+    // 通知父组件刷新仓库列表
+    emit('assignment-update', data)
+    
+    // 显示提示
+    uni.showToast({
+      title: '仓库分配已更新',
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+}
+
+/**
+ * 注册 SSE 仓库分配更新回调
+ * Requirements: 5.4 - 仓库选择器集成实时更新
+ */
+function registerSSECallback(): void {
+  // 保存原始回调
+  const currentCallbacks = (sseService as any).callbacks || {}
+  originalOnAssignmentUpdate = currentCallbacks.onAssignmentUpdate
+  
+  // 设置新的回调，同时保留原有回调
+  sseService.setCallbacks({
+    ...currentCallbacks,
+    onAssignmentUpdate: (data: AssignmentUpdateEvent) => {
+      // 先调用原有回调
+      originalOnAssignmentUpdate?.(data)
+      // 再调用组件的处理函数
+      handleAssignmentUpdate(data)
+    },
+  })
+  
+  console.log('[WarehouseSwitcher] SSE 仓库分配更新回调已注册')
+}
+
+/**
+ * 取消注册 SSE 仓库分配更新回调
+ * 恢复原始回调
+ * Requirements: 5.4 - 仓库选择器集成实时更新
+ */
+function unregisterSSECallback(): void {
+  // 恢复原始回调
+  const currentCallbacks = (sseService as any).callbacks || {}
+  sseService.setCallbacks({
+    ...currentCallbacks,
+    onAssignmentUpdate: originalOnAssignmentUpdate,
+  })
+  
+  console.log('[WarehouseSwitcher] SSE 仓库分配更新回调已取消注册')
+}
+
+// ==================== 生命周期 ====================
+
+onMounted(() => {
+  // 注册 SSE 回调
+  registerSSECallback()
+})
+
+onUnmounted(() => {
+  // 取消注册 SSE 回调
+  unregisterSSECallback()
 })
 
 // ==================== 方法 ====================

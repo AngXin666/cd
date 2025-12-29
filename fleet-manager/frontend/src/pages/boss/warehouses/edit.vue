@@ -2,9 +2,18 @@
   <!-- 
     仓库编辑页面
     支持创建新仓库和编辑现有仓库信息
-    Requirements: 8.3
+    Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
   -->
   <view class="warehouse-edit-page">
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-back" @click="handleBack">
+        <text class="back-icon">←</text>
+      </view>
+      <text class="nav-title">{{ isEditing ? '编辑仓库' : '新建仓库' }}</text>
+      <view class="nav-placeholder"></view>
+    </view>
+
     <!-- 加载状态 -->
     <view v-if="loading" class="loading-container">
       <text class="loading-text">加载中...</text>
@@ -22,10 +31,13 @@
           <input
             v-model="formData.name"
             type="text"
-            class="form-input"
-            placeholder="请输入仓库名称"
+            :class="['form-input', { 'input-error': errors.name }]"
+            placeholder="请输入仓库名称（最多50字符）"
             maxlength="50"
+            @input="clearError('name')"
           />
+          <text v-if="errors.name" class="error-text">{{ errors.name }}</text>
+          <text class="char-count">{{ formData.name.length }}/50</text>
         </view>
 
         <!-- 仓库地址 -->
@@ -35,10 +47,13 @@
           </view>
           <textarea
             v-model="formData.address"
-            class="form-textarea"
-            placeholder="请输入仓库地址（选填）"
+            :class="['form-textarea', { 'input-error': errors.address }]"
+            placeholder="请输入仓库地址（选填，最多200字符）"
             maxlength="200"
+            @input="clearError('address')"
           />
+          <text v-if="errors.address" class="error-text">{{ errors.address }}</text>
+          <text class="char-count">{{ formData.address.length }}/200</text>
         </view>
 
         <!-- 仓库状态（仅编辑模式显示） -->
@@ -85,8 +100,11 @@
 
       <!-- 操作按钮 -->
       <view class="action-section">
-        <view class="btn primary-btn" @click="handleSubmit">
-          <text class="btn-text">{{ isEditing ? '保存修改' : '创建仓库' }}</text>
+        <view 
+          :class="['btn', 'primary-btn', { 'btn-disabled': submitting }]" 
+          @click="handleSubmit"
+        >
+          <text class="btn-text">{{ submitting ? '保存中...' : (isEditing ? '保存修改' : '创建仓库') }}</text>
         </view>
         
         <view v-if="isEditing" class="btn danger-btn" @click="handleDelete">
@@ -102,7 +120,11 @@
  * 仓库编辑页面
  * 支持创建新仓库和编辑现有仓库信息
  * 
- * @requirements 8.3 - 仓库编辑页面
+ * @requirements 1.1 - 从仓库详情页点击编辑按钮跳转到编辑页面并显示当前仓库信息
+ * @requirements 1.2 - 验证名称不为空且长度不超过50字符
+ * @requirements 1.3 - 验证地址格式正确
+ * @requirements 1.4 - 点击保存按钮提交修改并返回仓库详情页
+ * @requirements 1.5 - 保存失败时显示错误提示并保留用户输入
  */
 
 import { ref, reactive, computed, onMounted } from 'vue'
@@ -116,10 +138,21 @@ import {
 import type { Warehouse, WarehouseCreate, WarehouseUpdate } from '@/api/types'
 import { formatDateTime } from '@/utils'
 
+// ==================== 常量定义 ====================
+
+/** 仓库名称最大长度 */
+const MAX_NAME_LENGTH = 50
+
+/** 仓库地址最大长度 */
+const MAX_ADDRESS_LENGTH = 200
+
 // ==================== 状态 ====================
 
 /** 加载状态 */
 const loading = ref(false)
+
+/** 提交状态 */
+const submitting = ref(false)
 
 /** 仓库ID（编辑模式） */
 const warehouseId = ref<number | null>(null)
@@ -132,6 +165,12 @@ const formData = reactive({
   name: '',
   address: '',
   is_active: true,
+})
+
+/** 表单验证错误 */
+const errors = reactive({
+  name: '',
+  address: '',
 })
 
 // ==================== 计算属性 ====================
@@ -164,7 +203,15 @@ onMounted(() => {
 // ==================== 方法 ====================
 
 /**
+ * 返回上一页
+ */
+function handleBack(): void {
+  uni.navigateBack()
+}
+
+/**
  * 加载仓库信息
+ * 从API获取仓库详情并填充表单
  */
 async function loadWarehouse(): Promise<void> {
   if (!warehouseId.value) return
@@ -174,14 +221,14 @@ async function loadWarehouse(): Promise<void> {
     const data = await getWarehouse(warehouseId.value)
     warehouse.value = data
     
-    // 填充表单
+    // 填充表单数据
     formData.name = data.name
     formData.address = data.address || ''
     formData.is_active = data.is_active
   } catch (error) {
     console.error('加载仓库信息失败:', error)
     uni.showToast({
-      title: '加载失败',
+      title: '加载失败，请重试',
       icon: 'none',
     })
   } finally {
@@ -190,33 +237,113 @@ async function loadWarehouse(): Promise<void> {
 }
 
 /**
- * 验证表单
- * 
+ * 清除指定字段的错误信息
+ * @param field - 字段名称
+ */
+function clearError(field: 'name' | 'address'): void {
+  errors[field] = ''
+}
+
+/**
+ * 验证仓库名称
  * @returns 是否验证通过
  */
-function validateForm(): boolean {
-  if (!formData.name.trim()) {
-    uni.showToast({
-      title: '请输入仓库名称',
-      icon: 'none',
-    })
+function validateName(): boolean {
+  const name = formData.name.trim()
+  
+  // 检查是否为空
+  if (!name) {
+    errors.name = '请输入仓库名称'
     return false
   }
   
+  // 检查长度限制
+  if (name.length > MAX_NAME_LENGTH) {
+    errors.name = `仓库名称不能超过${MAX_NAME_LENGTH}个字符`
+    return false
+  }
+  
+  // 检查是否包含特殊字符（只允许中文、英文、数字、空格、括号、横线）
+  const validNamePattern = /^[\u4e00-\u9fa5a-zA-Z0-9\s\-()（）]+$/
+  if (!validNamePattern.test(name)) {
+    errors.name = '仓库名称只能包含中文、英文、数字、空格、括号和横线'
+    return false
+  }
+  
+  errors.name = ''
   return true
 }
 
 /**
+ * 验证仓库地址
+ * @returns 是否验证通过
+ */
+function validateAddress(): boolean {
+  const address = formData.address.trim()
+  
+  // 地址是可选的，如果为空则跳过验证
+  if (!address) {
+    errors.address = ''
+    return true
+  }
+  
+  // 检查长度限制
+  if (address.length > MAX_ADDRESS_LENGTH) {
+    errors.address = `仓库地址不能超过${MAX_ADDRESS_LENGTH}个字符`
+    return false
+  }
+  
+  // 检查地址格式（至少包含2个字符，不能只有特殊字符）
+  const validAddressPattern = /[\u4e00-\u9fa5a-zA-Z0-9]{2,}/
+  if (!validAddressPattern.test(address)) {
+    errors.address = '请输入有效的仓库地址'
+    return false
+  }
+  
+  errors.address = ''
+  return true
+}
+
+/**
+ * 验证表单
+ * @returns 是否验证通过
+ */
+function validateForm(): boolean {
+  // 验证所有字段
+  const nameValid = validateName()
+  const addressValid = validateAddress()
+  
+  return nameValid && addressValid
+}
+
+/**
  * 提交表单
+ * 创建或更新仓库信息
  */
 async function handleSubmit(): Promise<void> {
-  if (!validateForm()) return
+  // 防止重复提交
+  if (submitting.value) return
+  
+  // 验证表单
+  if (!validateForm()) {
+    // 显示第一个错误
+    const firstError = errors.name || errors.address
+    if (firstError) {
+      uni.showToast({
+        title: firstError,
+        icon: 'none',
+      })
+    }
+    return
+  }
+  
+  submitting.value = true
   
   try {
     uni.showLoading({ title: isEditing.value ? '保存中...' : '创建中...' })
     
     if (isEditing.value && warehouseId.value) {
-      // 编辑模式
+      // 编辑模式：更新仓库信息
       const updateData: WarehouseUpdate = {
         name: formData.name.trim(),
         address: formData.address.trim() || undefined,
@@ -231,10 +358,12 @@ async function handleSubmit(): Promise<void> {
         icon: 'success',
       })
       
-      // 刷新数据
-      await loadWarehouse()
+      // 返回仓库详情页（Requirements 1.4）
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 1500)
     } else {
-      // 创建模式
+      // 创建模式：创建新仓库
       const createData: WarehouseCreate = {
         name: formData.name.trim(),
         address: formData.address.trim() || undefined,
@@ -254,17 +383,29 @@ async function handleSubmit(): Promise<void> {
       }, 1500)
     }
   } catch (error) {
+    // 保存失败时显示错误提示并保留用户输入（Requirements 1.5）
     console.error('操作失败:', error)
     uni.hideLoading()
+    
+    // 解析错误信息
+    let errorMessage = '操作失败，请重试'
+    if (error instanceof Error) {
+      errorMessage = error.message || errorMessage
+    }
+    
     uni.showToast({
-      title: '操作失败',
+      title: errorMessage,
       icon: 'none',
+      duration: 2000,
     })
+  } finally {
+    submitting.value = false
   }
 }
 
 /**
  * 删除仓库
+ * 显示确认对话框后执行删除操作
  */
 function handleDelete(): void {
   if (!warehouseId.value || !warehouse.value) return
@@ -286,7 +427,7 @@ function handleDelete(): void {
             icon: 'success',
           })
           
-          // 返回上一页
+          // 返回仓库列表页
           setTimeout(() => {
             uni.navigateBack()
           }, 1500)
@@ -294,7 +435,7 @@ function handleDelete(): void {
           console.error('删除失败:', error)
           uni.hideLoading()
           uni.showToast({
-            title: '删除失败',
+            title: '删除失败，请重试',
             icon: 'none',
           })
         }
@@ -305,10 +446,50 @@ function handleDelete(): void {
 </script>
 
 <style lang="scss" scoped>
+/**
+ * 仓库编辑页面样式
+ * 包含导航栏、表单、信息展示和操作按钮样式
+ */
+
 .warehouse-edit-page {
   min-height: 100vh;
   background-color: #f5f5f5;
   padding-bottom: 48rpx;
+}
+
+/* 导航栏样式 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 24rpx;
+  padding-top: env(safe-area-inset-top);
+  background-color: #ffffff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.nav-back {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-icon {
+  font-size: 36rpx;
+  color: #333333;
+}
+
+.nav-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.nav-placeholder {
+  width: 60rpx;
 }
 
 /* 加载状态 */
@@ -335,6 +516,7 @@ function handleDelete(): void {
 
 .form-item {
   margin-bottom: 32rpx;
+  position: relative;
   
   &:last-child {
     margin-bottom: 0;
@@ -367,6 +549,13 @@ function handleDelete(): void {
   background-color: #f5f5f5;
   border-radius: 12rpx;
   box-sizing: border-box;
+  border: 2rpx solid transparent;
+  transition: border-color 0.3s;
+  
+  &.input-error {
+    border-color: #ff4d4f;
+    background-color: #fff2f0;
+  }
 }
 
 .form-textarea {
@@ -378,6 +567,28 @@ function handleDelete(): void {
   background-color: #f5f5f5;
   border-radius: 12rpx;
   box-sizing: border-box;
+  border: 2rpx solid transparent;
+  transition: border-color 0.3s;
+  
+  &.input-error {
+    border-color: #ff4d4f;
+    background-color: #fff2f0;
+  }
+}
+
+.error-text {
+  font-size: 24rpx;
+  color: #ff4d4f;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.char-count {
+  font-size: 22rpx;
+  color: #999999;
+  position: absolute;
+  right: 0;
+  bottom: -24rpx;
 }
 
 .form-hint {
@@ -486,6 +697,12 @@ function handleDelete(): void {
   align-items: center;
   justify-content: center;
   border-radius: 12rpx;
+  transition: opacity 0.3s;
+  
+  &.btn-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
 }
 
 .primary-btn {

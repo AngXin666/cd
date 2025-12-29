@@ -375,6 +375,46 @@ def get_warehouse_users(session: Session, warehouse_id: int) -> List[User]:
     return list(session.exec(statement).all())
 
 
+def assign_warehouses_to_user(
+    session: Session,
+    user_id: int,
+    warehouse_ids: List[int]
+) -> List[WarehouseAssignment]:
+    """
+    给用户分配仓库（替换现有分配）
+    
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+        warehouse_ids: 仓库ID列表
+        
+    Returns:
+        List[WarehouseAssignment]: 创建的分配记录列表
+        
+    Requirements: 1.5 - 车队长选择仓库并确认分配
+    """
+    # 删除用户现有的所有仓库分配
+    existing_assignments = session.exec(
+        select(WarehouseAssignment).where(WarehouseAssignment.user_id == user_id)
+    ).all()
+    
+    for assignment in existing_assignments:
+        session.delete(assignment)
+    
+    # 创建新的分配记录
+    new_assignments = []
+    for warehouse_id in warehouse_ids:
+        assignment = WarehouseAssignment(
+            user_id=user_id,
+            warehouse_id=warehouse_id
+        )
+        session.add(assignment)
+        new_assignments.append(assignment)
+    
+    session.commit()
+    return new_assignments
+
+
 # ==================== 考勤 CRUD ====================
 
 def clock_in(session: Session, user_id: int) -> Attendance:
@@ -523,7 +563,9 @@ def create_piece_work_category(
     session: Session,
     name: str,
     unit_price: float,
-    unit: str = "件"
+    unit: str = "件",
+    upstairs_price: Optional[float] = None,
+    sorting_price: Optional[float] = None
 ) -> PieceWorkCategory:
     """
     创建计件分类
@@ -531,16 +573,22 @@ def create_piece_work_category(
     Args:
         session: 数据库会话
         name: 分类名称
-        unit_price: 单价
+        unit_price: 基础单价
         unit: 计量单位
+        upstairs_price: 上楼单价（可选）
+        sorting_price: 分拣单价（可选）
         
     Returns:
         PieceWorkCategory: 创建的分类对象
+        
+    Requirements: 3.1 - 支持多种单价配置
     """
     category = PieceWorkCategory(
         name=name,
         unit_price=unit_price,
-        unit=unit
+        unit=unit,
+        upstairs_price=upstairs_price,
+        sorting_price=sorting_price
     )
     session.add(category)
     session.commit()
@@ -576,7 +624,9 @@ def update_piece_work_category(
     name: Optional[str] = None,
     unit_price: Optional[float] = None,
     unit: Optional[str] = None,
-    is_active: Optional[bool] = None
+    is_active: Optional[bool] = None,
+    upstairs_price: Optional[float] = None,
+    sorting_price: Optional[float] = None
 ) -> PieceWorkCategory:
     """
     更新计件分类
@@ -585,12 +635,16 @@ def update_piece_work_category(
         session: 数据库会话
         category: 要更新的分类对象
         name: 新名称（可选）
-        unit_price: 新单价（可选）
+        unit_price: 新基础单价（可选）
         unit: 新单位（可选）
         is_active: 新启用状态（可选）
+        upstairs_price: 新上楼单价（可选）
+        sorting_price: 新分拣单价（可选）
         
     Returns:
         PieceWorkCategory: 更新后的分类对象
+        
+    Requirements: 3.2 - 支持编辑品类配置
     """
     if name is not None:
         category.name = name
@@ -600,11 +654,68 @@ def update_piece_work_category(
         category.unit = unit
     if is_active is not None:
         category.is_active = is_active
+    if upstairs_price is not None:
+        category.upstairs_price = upstairs_price
+    if sorting_price is not None:
+        category.sorting_price = sorting_price
     
     session.add(category)
     session.commit()
     session.refresh(category)
     return category
+
+
+def delete_piece_work_category(
+    session: Session,
+    category_id: int
+) -> bool:
+    """
+    删除计件分类
+    
+    Args:
+        session: 数据库会话
+        category_id: 分类ID
+        
+    Returns:
+        bool: 是否删除成功
+        
+    Raises:
+        ValueError: 如果分类有关联的计件记录，则不允许删除
+        
+    Requirements: 3.3, 3.4 - 删除品类功能和约束检查
+    """
+    # 检查分类是否存在
+    category = session.get(PieceWorkCategory, category_id)
+    if not category:
+        return False
+    
+    # 检查是否有关联的计件记录
+    statement = select(PieceWorkRecord).where(PieceWorkRecord.category_id == category_id)
+    records = session.exec(statement).first()
+    if records:
+        raise ValueError("该品类已有计件记录，无法删除")
+    
+    # 删除分类
+    session.delete(category)
+    session.commit()
+    return True
+
+
+def get_piece_work_category_by_id(
+    session: Session,
+    category_id: int
+) -> Optional[PieceWorkCategory]:
+    """
+    根据ID获取计件分类
+    
+    Args:
+        session: 数据库会话
+        category_id: 分类ID
+        
+    Returns:
+        Optional[PieceWorkCategory]: 分类对象，不存在则返回 None
+    """
+    return session.get(PieceWorkCategory, category_id)
 
 
 # ==================== 计件记录 CRUD ====================
