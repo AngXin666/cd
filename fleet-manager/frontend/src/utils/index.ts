@@ -331,3 +331,91 @@ export function getRoleText(role: string): string {
 export function getRoleName(role: string): string {
   return getRoleText(role);
 }
+
+/**
+ * 隐藏身份证号中间部分
+ * 保留前3位和后4位，中间用*替换
+ * 
+ * @param idCard - 身份证号
+ * @returns 部分隐藏的身份证号（如：110***********1234）
+ * 
+ * @example
+ * maskIdCard('110101199001011234') // '110***********1234'
+ */
+export function maskIdCard(idCard: string | null | undefined): string {
+  if (!idCard) return '未录入';
+  // 如果后端已经返回了隐藏后的身份证号，直接使用
+  if (idCard.includes('*')) return idCard;
+  if (idCard.length < 8) return idCard;
+  // 保留前3位和后4位，中间用*替换
+  const prefix = idCard.substring(0, 3);
+  const suffix = idCard.substring(idCard.length - 4);
+  const masked = '*'.repeat(idCard.length - 7);
+  return `${prefix}${masked}${suffix}`;
+}
+
+/**
+ * 获取完整的图片URL
+ * 将相对路径转换为完整的API URL
+ * 
+ * @param url - 图片路径（相对路径或完整URL）
+ * @param baseUrl - API基础URL（可选，默认从环境变量获取）
+ * @returns 完整的图片URL
+ * 
+ * @example
+ * getFullImageUrl('/uploads/image.jpg') // 'http://localhost:8000/uploads/image.jpg'
+ * getFullImageUrl('https://example.com/image.jpg') // 'https://example.com/image.jpg'
+ */
+export function getFullImageUrl(url: string, baseUrl?: string): string {
+  if (!url) return '';
+  // 如果已经是完整URL，直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // 获取API基础URL并拼接
+  const apiBaseUrl = baseUrl || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  return `${apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+/**
+ * 预览照片
+ * 支持在照片列表中滑动查看
+ * 
+ * @param url - 当前点击的图片URL（相对路径或完整URL）
+ * @param urls - 图片列表（可选，用于支持滑动查看，应为完整URL数组）
+ * 
+ * @example
+ * // 单张预览
+ * previewPhoto('/uploads/image.jpg')
+ * // 列表预览（支持滑动）
+ * previewPhoto('/uploads/image1.jpg', ['http://xxx/image1.jpg', 'http://xxx/image2.jpg'])
+ */
+export function previewPhoto(url: string, urls?: string[]): void {
+  const fullUrl = getFullImageUrl(url);
+  // 如果提供了图片列表，使用列表进行预览（支持滑动）
+  const previewUrls = urls && urls.length > 0 ? urls : [fullUrl];
+  uni.previewImage({
+    urls: previewUrls,
+    current: fullUrl,
+  });
+}
+
+/**
+ * 格式化入职/雇佣日期
+ * 
+ * @param dateStr - 日期字符串
+ * @returns 格式化后的日期（YYYY-MM-DD），无效日期返回'未知'
+ * 
+ * @example
+ * formatHireDate('2024-01-15T10:30:00') // '2024-01-15'
+ * formatHireDate(undefined) // '未知'
+ */
+export function formatHireDate(dateStr: string | undefined): string {
+  if (!dateStr) return '未知';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '未知';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

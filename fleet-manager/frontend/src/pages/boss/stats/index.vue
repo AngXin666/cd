@@ -1,8 +1,10 @@
 ﻿<template>
   <!-- 
-    全局统计报表页面
-    显示全局考勤统计和计件统计
+    计件报表页面
+    显示计件统计和用户统计
+    考勤和请假统计已移至考勤管理页面
     仅老板角色可访问
+    Requirements: 5.1-5.6
   -->
   <view class="stats-page">
     <!-- 日期筛选 -->
@@ -31,7 +33,7 @@
 
     <view v-else class="stats-content">
       <!-- 计件统计卡片 -->
-      <!-- Requirements: 6.1 - 数据统计单位显示 -->
+      <!-- Requirements: 5.1, 5.2 - 只显示计件统计数据和品类统计数据 -->
       <view class="stats-card piece-work">
         <view class="card-header">
           <text class="card-title">📊 计件统计</text>
@@ -54,57 +56,8 @@
         </view>
       </view>
 
-      <!-- 考勤统计卡片 -->
-      <view class="stats-card attendance">
-        <view class="card-header">
-          <text class="card-title">📋 考勤统计</text>
-        </view>
-        <view class="card-body">
-          <view class="stat-row">
-            <view class="stat-item">
-              <text class="stat-value">{{ attendanceStats.total_records }}</text>
-              <text class="stat-label">打卡记录</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-value">{{ attendanceStats.total_hours.toFixed(1) }}</text>
-              <text class="stat-label">总工时(h)</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-value">{{ attendanceStats.avg_hours.toFixed(1) }}</text>
-              <text class="stat-label">平均工时(h)</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 请假统计卡片 -->
-      <view class="stats-card leave">
-        <view class="card-header">
-          <text class="card-title">🏖️ 请假统计</text>
-        </view>
-        <view class="card-body">
-          <view class="stat-row">
-            <view class="stat-item">
-              <text class="stat-value">{{ leaveStats.total }}</text>
-              <text class="stat-label">总申请</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-value pending">{{ leaveStats.pending }}</text>
-              <text class="stat-label">待审批</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-value approved">{{ leaveStats.approved }}</text>
-              <text class="stat-label">已批准</text>
-            </view>
-            <view class="stat-item">
-              <text class="stat-value rejected">{{ leaveStats.rejected }}</text>
-              <text class="stat-label">已拒绝</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
       <!-- 用户统计卡片 -->
+      <!-- Requirements: 5.6 - 保留现有的仓库筛选、司机搜索、日期筛选、排序功能 -->
       <view class="stats-card users">
         <view class="card-header">
           <text class="card-title">👥 用户统计</text>
@@ -136,26 +89,26 @@
 
 <script setup lang="ts">
 /**
- * 全局统计报表页面
- * 显示全局考勤统计和计件统计
+ * 计件报表页面
+ * 显示计件统计和用户统计
+ * 考勤和请假统计已移至考勤管理页面
+ * Requirements: 5.1-5.6
  */
 import { ref, reactive, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getPieceWorkStats, getAttendanceRecords, getLeaveApplications, getUsers } from '@/api'
-import { LeaveStatus, UserRole } from '@/api/types'
+import { getPieceWorkStats, getUsers } from '@/api'
+import { UserRole } from '@/api/types'
 
+/** 加载状态 */
 const loading = ref(false)
+/** 开始日期 */
 const startDate = ref('')
+/** 结束日期 */
 const endDate = ref('')
 
-// 计件统计
-// Requirements: 6.1 - 数据统计单位显示
+/** 计件统计数据 - Requirements: 5.1, 5.2 */
 const pieceWorkStats = reactive({ total_quantity: 0, total_amount: 0, record_count: 0, unit: '件' })
-// 考勤统计
-const attendanceStats = reactive({ total_records: 0, total_hours: 0, avg_hours: 0 })
-// 请假统计
-const leaveStats = reactive({ total: 0, pending: 0, approved: 0, rejected: 0 })
-// 用户统计
+/** 用户统计数据 */
 const userStats = reactive({ total: 0, drivers: 0, managers: 0, bosses: 0 })
 
 onMounted(() => {
@@ -171,6 +124,8 @@ onShow(() => { loadData() })
 
 /**
  * 格式化日期为字符串
+ * @param date - 日期对象
+ * @returns 格式化后的日期字符串 (YYYY-MM-DD)
  */
 function formatDateStr(date: Date): string {
   const year = date.getFullYear()
@@ -180,34 +135,23 @@ function formatDateStr(date: Date): string {
 }
 
 /**
- * 加载所有统计数据
+ * 加载统计数据
+ * 只加载计件统计和用户统计
+ * Requirements: 5.4, 5.5 - 不显示考勤和请假统计
  */
 async function loadData(): Promise<void> {
   loading.value = true
   try {
     const params = { start_date: startDate.value || undefined, end_date: endDate.value || undefined }
     
-    // 并行加载所有数据
-    const [pieceWork, attendance, leave, users] = await Promise.all([
+    // 并行加载计件和用户数据
+    const [pieceWork, users] = await Promise.all([
       getPieceWorkStats(params),
-      getAttendanceRecords(params),
-      getLeaveApplications(),
       getUsers(),
     ])
     
     // 计件统计
     Object.assign(pieceWorkStats, pieceWork)
-    
-    // 考勤统计
-    attendanceStats.total_records = attendance.length
-    attendanceStats.total_hours = attendance.reduce((sum, a) => sum + (a.work_hours || 0), 0)
-    attendanceStats.avg_hours = attendance.length > 0 ? attendanceStats.total_hours / attendance.length : 0
-    
-    // 请假统计
-    leaveStats.total = leave.length
-    leaveStats.pending = leave.filter(l => l.status === LeaveStatus.PENDING).length
-    leaveStats.approved = leave.filter(l => l.status === LeaveStatus.APPROVED).length
-    leaveStats.rejected = leave.filter(l => l.status === LeaveStatus.REJECTED).length
     
     // 用户统计
     userStats.total = users.length
@@ -222,11 +166,24 @@ async function loadData(): Promise<void> {
   }
 }
 
+/**
+ * 处理开始日期变更
+ * @param e - 日期选择器事件
+ */
 function handleStartDateChange(e: any): void { startDate.value = e.detail.value; loadData() }
+
+/**
+ * 处理结束日期变更
+ * @param e - 日期选择器事件
+ */
 function handleEndDateChange(e: any): void { endDate.value = e.detail.value; loadData() }
 </script>
 
 <style lang="scss" scoped>
+/**
+ * 计件报表页面样式
+ * Requirements: 5.1-5.6
+ */
 .stats-page { min-height: 100vh; background-color: #f5f5f5; padding-bottom: 24rpx; }
 .filter-section { padding: 24rpx; }
 .date-filter { display: flex; align-items: center; background-color: #ffffff; padding: 16rpx 24rpx; border-radius: 12rpx; }
@@ -243,6 +200,19 @@ function handleEndDateChange(e: any): void { endDate.value = e.detail.value; loa
 .card-body { padding: 24rpx; }
 .stat-row { display: flex; }
 .stat-item { flex: 1; text-align: center; }
-.stat-value { font-size: 36rpx; font-weight: bold; color: #333333; display: block; margin-bottom: 8rpx; &.highlight { color: #52c41a; } &.pending { color: #faad14; } &.approved { color: #52c41a; } &.rejected { color: #ff4d4f; } &.driver { color: #4a90e2; } &.manager { color: #52c41a; } &.boss { color: #faad14; } }
+/* 统计数值样式 */
+.stat-value { 
+  font-size: 36rpx; 
+  font-weight: bold; 
+  color: #333333; 
+  display: block; 
+  margin-bottom: 8rpx; 
+  /* 计件金额高亮 */
+  &.highlight { color: #52c41a; } 
+  /* 用户角色颜色 */
+  &.driver { color: #4a90e2; } 
+  &.manager { color: #52c41a; } 
+  &.boss { color: #faad14; } 
+}
 .stat-label { font-size: 24rpx; color: #666666; }
 </style>

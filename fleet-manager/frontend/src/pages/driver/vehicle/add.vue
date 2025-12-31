@@ -240,12 +240,12 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import StepIndicator from '@/components/StepIndicator.vue'
 import PhotoCapture from '@/components/PhotoCapture.vue'
-import { createVehicle, recognizeDrivingLicense, getOCRStatus } from '@/api'
-import type { VehicleCreate } from '@/api/types'
+import { createVehicle, recognizeDrivingLicense, getOCRStatus, createDriverLicense } from '@/api'
+import type { VehicleCreate, DriverLicenseCreate } from '@/api/types'
 import { useUserStore } from '@/store/user'
 import { saveDraft, getDraft, deleteDraft, type VehicleDraft } from '@/utils/draftUtils'
 import { uploadImage, readImageAsBase64 } from '@/utils/imageUpload'
-import { navigateBack } from '@/utils'
+import { navigateBack, maskIdCard } from '@/utils'
 // 集成草稿图片存储和提交失败恢复
 import { useDraftImage, generateDraftId } from '@/utils/draftImage'
 import { useSubmitRecovery, showSubmitFailedTip } from '@/utils/submitRecovery/useSubmitRecovery'
@@ -1014,6 +1014,41 @@ async function doSubmit(): Promise<void> {
     // 创建车辆
     await createVehicle(vehicleData)
 
+    // 保存司机证件信息
+    // 如果有驾驶员证件数据，调用 createDriverLicense API 保存
+    if (userStore.user?.id && (driverLicenseData.id_card_number || driverLicenseData.id_card_name || driverLicenseData.license_class)) {
+      try {
+        uni.showLoading({ title: '保存证件信息...', mask: true })
+        
+        // 构建司机证件创建请求
+        const driverLicenseCreateData: DriverLicenseCreate = {
+          // 身份证信息
+          id_card_number: driverLicenseData.id_card_number || undefined,
+          id_card_name: driverLicenseData.id_card_name || undefined,
+          id_card_photo_front: uploadedPhotos.driver_id_card_front || undefined,
+          // 驾驶证信息
+          license_number: driverLicenseData.license_number || undefined,
+          license_class: driverLicenseData.license_class || undefined,
+          valid_from: driverLicenseData.valid_from || undefined,
+          valid_to: driverLicenseData.valid_to || undefined,
+          driving_license_photo: uploadedPhotos.driver_driver_license || undefined,
+        }
+        
+        // 调用 API 创建或更新司机证件信息
+        await createDriverLicense(userStore.user.id, driverLicenseCreateData)
+        console.log('司机证件信息保存成功')
+      } catch (licenseError: any) {
+        // 证件保存失败不影响车辆创建成功
+        console.error('保存司机证件信息失败:', licenseError)
+        // 可以选择提示用户，但不阻止流程
+        uni.showToast({ 
+          title: '车辆已创建，但证件信息保存失败', 
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    }
+
     uni.hideLoading()
     uni.showToast({ title: '提交成功', icon: 'success' })
 
@@ -1053,14 +1088,6 @@ async function doSubmit(): Promise<void> {
   } finally {
     submitting.value = false
   }
-}
-
-// ==================== 工具函数 ====================
-
-/** 脱敏身份证号 */
-function maskIdCard(idCard: string): string {
-  if (!idCard || idCard.length < 10) return idCard
-  return idCard.substring(0, 6) + '****' + idCard.substring(idCard.length - 4)
 }
 </script>
 

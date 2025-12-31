@@ -236,7 +236,7 @@ import { onShow, onLoad } from '@dcloudio/uni-app'
 import { getVehicles, deleteVehicle } from '@/api'
 import type { Vehicle } from '@/api/types'
 import { VehicleStatus } from '@/api/types'
-import { navigateTo } from '@/utils'
+import { navigateTo, formatDateTime } from '@/utils'
 import CachedImage from '@/components/CachedImage/index.vue'
 import { useImagePreloader } from '@/utils/imagePreloader/useImagePreloader'
 import { getImageCacheManager } from '@/utils/imageCache'
@@ -658,19 +658,6 @@ function canReturnVehicle(vehicle: Vehicle): boolean {
   return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
          !vehicle.return_time && 
          vehicle.review_status === 'approved'
-}
-
-/** 格式化日期时间 */
-function formatDateTime(dateStr: string): string {
-  if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 /** 照片加载失败处理 */

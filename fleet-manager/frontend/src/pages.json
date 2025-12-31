@@ -166,6 +166,13 @@
       }
     },
     {
+      "path": "pages/manager/attendance/index",
+      "style": {
+        "navigationBarTitleText": "考勤管理",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/manager/vehicle/list",
       "style": {
         "navigationBarTitleText": "车辆管理"
@@ -309,6 +316,13 @@
       }
     },
     {
+      "path": "pages/boss/attendance/index",
+      "style": {
+        "navigationBarTitleText": "考勤管理",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/boss/attendance/detail",
       "style": {
         "navigationBarTitleText": "考勤详情",
@@ -346,18 +360,7 @@
         "navigationBarTitleText": "编辑定时通知"
       }
     },
-    {
-      "path": "pages/boss/versions/index",
-      "style": {
-        "navigationBarTitleText": "版本管理"
-      }
-    },
-    {
-      "path": "pages/boss/versions/edit",
-      "style": {
-        "navigationBarTitleText": "编辑版本"
-      }
-    },
+
     {
       "path": "pages/profile/index",
       "style": {

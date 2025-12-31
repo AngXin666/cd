@@ -34,29 +34,63 @@
         <!-- 实时通知栏 - Requirements 3.1 -->
         <RealNotificationBar ref="notificationBarRef" />
 
-        <!-- 数据仪表盘 - Requirements 5.1 -->
-        <Dashboard
-          :stats="dashboardStats"
-          :loading="loading"
-          :warehouse-name="currentWarehouseName"
-          @card-click="handleDashboardCardClick"
-        />
+        <!-- 数据仪表盘 - Requirements 5.1, 5.2 -->
+        <view class="section">
+          <view class="section-header">
+            <view class="section-title-wrapper">
+              <text class="section-icon">📊</text>
+              <text class="section-title">数据仪表盘</text>
+              <text v-if="loading" class="loading-icon">⏳</text>
+            </view>
+            <view class="section-info">
+              <text class="section-warehouse">{{ currentWarehouseName }}</text>
+              <text class="section-divider">|</text>
+              <text class="section-date">{{ todayDate }}</text>
+            </view>
+          </view>
+          <Dashboard
+            :stats="dashboardStats"
+            :loading="loading"
+            :warehouse-name="currentWarehouseName"
+            @card-click="handleDashboardCardClick"
+          />
+        </view>
 
         <!-- 仓库切换器 - Requirements 4.1, 5.4 -->
-        <WarehouseSwitcher
-          :warehouses="warehouses"
-          :current-index="currentWarehouseIndex"
-          @change="handleWarehouseChange"
-          @assignment-update="handleAssignmentUpdate"
-        />
+        <view v-if="warehouses.length > 0" class="section">
+          <view class="section-header">
+            <view class="section-title-wrapper">
+              <text class="section-icon">🏭</text>
+              <text class="section-title">选择仓库</text>
+              <text class="warehouse-count">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
+            </view>
+            <text class="sort-hint">按数据量排序</text>
+          </view>
+          <WarehouseSwitcher
+            :warehouses="warehouses"
+            :current-index="currentWarehouseIndex"
+            @change="handleWarehouseChange"
+            @assignment-update="handleAssignmentUpdate"
+          />
+        </view>
 
         <!-- 司机实时状态统计 - Requirements 6.1 -->
-        <DriverStats
-          :stats="driverStats"
-          :loading="driverStatsLoading"
-          :warehouse-name="currentWarehouseName"
-          @click="navigateTo('/pages/manager/drivers/index')"
-        />
+        <view class="section">
+          <view class="section-header">
+            <view class="section-title-wrapper">
+              <text class="section-icon">👥</text>
+              <text class="section-title">统计概览</text>
+              <text v-if="driverStatsLoading" class="loading-icon">⏳</text>
+            </view>
+            <text class="section-warehouse">{{ currentWarehouseName }}</text>
+          </view>
+          <DriverStats
+            :stats="driverStats"
+            :loading="driverStatsLoading"
+            :warehouse-name="currentWarehouseName"
+            @click="navigateTo('/pages/manager/drivers/index')"
+          />
+        </view>
 
         <!-- 快捷功能入口 - 2x3 网格布局 -->
         <view class="section">
@@ -82,8 +116,8 @@
                 <text class="action-text">件数报表</text>
               </view>
 
-              <!-- 考勤管理 -->
-              <view class="action-item red" @click="navigateTo('/pages/manager/approval/list')">
+              <!-- 考勤管理 - 跳转到考勤管理页面 Requirements 6.1 -->
+              <view class="action-item red" @click="navigateTo('/pages/manager/attendance/index')">
                 <view class="action-icon-wrapper">
                   <text class="action-icon">📅</text>
                   <view v-if="stats.pendingCount > 0" class="badge">
@@ -188,6 +222,7 @@ const driverStats = ref<DriverStatsData | null>(null)
 
 const displayName = computed(() => userStore.userName || '车队长')
 const currentWarehouseName = computed(() => warehouses.value[currentWarehouseIndex.value]?.name || '')
+const todayDate = computed(() => new Date().toLocaleDateString('zh-CN'))
 
 const dashboardStats = computed<DashboardStats | null>(() => {
   if (loading.value && stats.value.todayAttendanceCount === 0) return null
@@ -400,6 +435,16 @@ function handleLogout(): void {
 .section-title-wrapper { display: flex; align-items: center; }
 .section-icon { font-size: 36rpx; margin-right: 12rpx; }
 .section-title { font-size: 32rpx; font-weight: bold; color: #1F2937; }
+
+.loading-icon { font-size: 28rpx; margin-left: 12rpx; animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.section-info { display: flex; align-items: center; }
+.section-warehouse { font-size: 24rpx; color: #6B7280; }
+.section-divider { font-size: 24rpx; color: #D1D5DB; margin: 0 12rpx; }
+.section-date { font-size: 24rpx; color: #6B7280; }
+.warehouse-count { font-size: 24rpx; color: #9CA3AF; margin-left: 8rpx; }
+.sort-hint { font-size: 24rpx; color: #9CA3AF; }
 
 .profile-btn { display: flex; align-items: center; background-color: #EFF6FF; border-radius: 32rpx; padding: 12rpx 24rpx; }
 .profile-icon { font-size: 28rpx; margin-right: 8rpx; }

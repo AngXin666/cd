@@ -30,7 +30,10 @@ from schemas import (
     UserResponse,
     DriverInfoUpdate,
     UserWarehouseAssignRequest,
-    WarehouseResponse
+    WarehouseResponse,
+    DriverLicenseCreate,
+    DriverLicenseUpdate,
+    DriverLicenseResponse
 )
 from events import emit_user_update, emit_assignment_update
 
@@ -433,3 +436,177 @@ async def get_user_warehouses(
     # 获取用户的仓库列表
     warehouses = crud.get_user_warehouses(session, user_id)
     return warehouses
+
+
+# ==================== 司机证件 API ====================
+# 用于获取和更新司机的身份证和驾驶证信息
+# Requirements: 4.5, 4.6, 4.7 - 司机个人档案页面显示身份证号、驾驶证类型、驾驶证有效期
+
+
+@router.get("/{user_id}/license", response_model=DriverLicenseResponse)
+async def get_driver_license(
+    user_id: int,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    获取司机证件信息（管理权限可访问：车队长、调度、老板、超级管理员）
+    
+    返回指定用户的身份证和驾驶证信息，用于司机个人档案页面显示
+
+    Args:
+        user_id: 用户ID
+        current_user: 当前登录用户
+        session: 数据库会话
+
+    Returns:
+        DriverLicenseResponse: 司机证件信息，包含部分隐藏的身份证号
+
+    Raises:
+        HTTPException 404: 用户不存在或证件信息不存在
+        
+    Requirements: 4.5, 4.6, 4.7 - 获取司机证件信息用于个人档案页面显示
+    """
+    # 验证用户是否存在
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 权限控制：车队长只能查看其管辖仓库的司机
+    if current_user.role == UserRole.MANAGER:
+        check_manager_warehouse_access(current_user, user, session)
+    
+    # 获取司机证件信息
+    driver_license = crud.get_driver_license_by_user_id(session, user_id)
+    if not driver_license:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="司机证件信息不存在"
+        )
+    
+    # 使用工厂方法创建响应对象，自动计算部分隐藏的身份证号
+    return DriverLicenseResponse.from_driver_license(driver_license)
+
+
+@router.post("/{user_id}/license", response_model=DriverLicenseResponse)
+async def create_or_update_driver_license(
+    user_id: int,
+    request: DriverLicenseCreate,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    创建或更新司机证件信息（管理权限可访问：车队长、调度、老板、超级管理员）
+    
+    如果用户已有证件记录则更新，否则创建新记录（upsert 操作）
+    用于车辆录入时保存司机证件信息
+
+    Args:
+        user_id: 用户ID
+        request: 司机证件创建/更新请求
+        current_user: 当前登录用户
+        session: 数据库会话
+
+    Returns:
+        DriverLicenseResponse: 创建或更新后的司机证件信息
+
+    Raises:
+        HTTPException 404: 用户不存在
+        
+    Requirements: 4.5, 4.6, 4.7 - 保存司机证件信息
+    """
+    # 验证用户是否存在
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 权限控制：车队长只能操作其管辖仓库的司机
+    if current_user.role == UserRole.MANAGER:
+        check_manager_warehouse_access(current_user, user, session)
+    
+    # 创建或更新司机证件信息
+    driver_license = crud.create_or_update_driver_license(
+        session, user_id,
+        id_card_number=request.id_card_number,
+        id_card_name=request.id_card_name,
+        id_card_photo_front=request.id_card_photo_front,
+        id_card_photo_back=request.id_card_photo_back,
+        license_number=request.license_number,
+        license_class=request.license_class,
+        valid_from=request.valid_from,
+        valid_to=request.valid_to,
+        driving_license_photo=request.driving_license_photo
+    )
+    
+    # 使用工厂方法创建响应对象
+    return DriverLicenseResponse.from_driver_license(driver_license)
+
+
+@router.put("/{user_id}/license", response_model=DriverLicenseResponse)
+async def update_driver_license(
+    user_id: int,
+    request: DriverLicenseUpdate,
+    current_user: User = Depends(require_management),
+    session: Session = Depends(get_session)
+):
+    """
+    更新司机证件信息（管理权限可访问：车队长、调度、老板、超级管理员）
+    
+    只更新提供的字段，未提供的字段保持不变
+
+    Args:
+        user_id: 用户ID
+        request: 司机证件更新请求
+        current_user: 当前登录用户
+        session: 数据库会话
+
+    Returns:
+        DriverLicenseResponse: 更新后的司机证件信息
+
+    Raises:
+        HTTPException 404: 用户不存在或证件信息不存在
+        
+    Requirements: 4.5, 4.6, 4.7 - 更新司机证件信息
+    """
+    # 验证用户是否存在
+    user = crud.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 权限控制：车队长只能操作其管辖仓库的司机
+    if current_user.role == UserRole.MANAGER:
+        check_manager_warehouse_access(current_user, user, session)
+    
+    # 获取现有的证件信息
+    driver_license = crud.get_driver_license_by_user_id(session, user_id)
+    if not driver_license:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="司机证件信息不存在，请先创建"
+        )
+    
+    # 更新司机证件信息
+    updated_license = crud.update_driver_license(
+        session, driver_license,
+        id_card_number=request.id_card_number,
+        id_card_name=request.id_card_name,
+        id_card_photo_front=request.id_card_photo_front,
+        id_card_photo_back=request.id_card_photo_back,
+        license_number=request.license_number,
+        license_class=request.license_class,
+        valid_from=request.valid_from,
+        valid_to=request.valid_to,
+        driving_license_photo=request.driving_license_photo
+    )
+    
+    # 使用工厂方法创建响应对象
+    return DriverLicenseResponse.from_driver_license(updated_license)

@@ -3,7 +3,6 @@
     老板端 - 车辆管理页面
     功能：
     - 查看所有车辆列表
-    - 按仓库筛选
     - 按状态筛选（全部/使用中/待分配/审核中/已归还）
     - 搜索车牌号
     - 录入新车辆
@@ -25,22 +24,6 @@
       <view class="reminder-btn" @click="goToLeaseReminders">
         <text class="reminder-icon">💰</text>
       </view>
-    </view>
-
-    <!-- 仓库筛选 -->
-    <view v-if="warehouses.length > 0" class="warehouse-filter">
-      <text class="filter-label">仓库：</text>
-      <picker 
-        mode="selector" 
-        :range="warehouseOptions" 
-        range-key="name"
-        @change="onWarehouseChange"
-      >
-        <view class="picker-value">
-          <text>{{ currentWarehouseName }}</text>
-          <text class="picker-arrow">▼</text>
-        </view>
-      </picker>
     </view>
 
     <!-- 状态筛选标签 -->
@@ -132,6 +115,7 @@
               <text class="btn-icon">📋</text>
               <text class="btn-text">历史</text>
             </view>
+            <!-- 待分配状态：显示分配按钮和还车按钮 -->
             <view 
               v-if="!vehicle.user_id" 
               class="action-btn green" 
@@ -141,12 +125,21 @@
               <text class="btn-text">分配</text>
             </view>
             <view 
-              v-if="canReturnVehicle(vehicle)" 
+              v-if="!vehicle.user_id && canReturnVehicle(vehicle)" 
               class="action-btn orange" 
               @click="handleReturnVehicle(vehicle.id)"
             >
               <text class="btn-icon">🚗</text>
               <text class="btn-text">还车</text>
+            </view>
+            <!-- 使用中状态：显示回收按钮（功能同还车录入） -->
+            <view 
+              v-if="vehicle.user_id && canReturnVehicle(vehicle)" 
+              class="action-btn orange" 
+              @click="handleReturnVehicle(vehicle.id)"
+            >
+              <text class="btn-icon">🔄</text>
+              <text class="btn-text">回收</text>
             </view>
           </view>
         </view>
@@ -211,7 +204,7 @@
 <script setup lang="ts">
 /**
  * 老板端 - 车辆管理页面
- * 功能：查看所有车辆、按仓库/状态筛选、录入、分配、还车、查看历史
+ * 功能：查看所有车辆、按状态筛选、录入、分配、还车、查看历史
  * @module pages/boss/vehicles
  */
 
@@ -231,7 +224,7 @@ type FilterType = 'all' | 'active' | 'unassigned' | 'reviewing' | 'returned'
 /** 车辆列表 */
 const vehicles = ref<Vehicle[]>([])
 
-/** 仓库列表 */
+/** 仓库列表（用于分配弹窗和显示仓库名称） */
 const warehouses = ref<Warehouse[]>([])
 
 /** 加载状态 */
@@ -239,9 +232,6 @@ const loading = ref(false)
 
 /** 搜索关键词 */
 const searchKeyword = ref('')
-
-/** 当前仓库筛选ID */
-const currentWarehouseId = ref<number | null>(null)
 
 /** 当前状态筛选 */
 const activeFilter = ref<FilterType>('all')
@@ -254,18 +244,6 @@ const assignWarehouseId = ref<number | null>(null)
 const assignableDrivers = ref<User[]>([])
 
 // ==================== 计算属性 ====================
-
-/** 仓库选项（包含"全部"） */
-const warehouseOptions = computed(() => {
-  return [{ id: null, name: '全部仓库' }, ...warehouses.value]
-})
-
-/** 当前仓库名称 */
-const currentWarehouseName = computed(() => {
-  if (!currentWarehouseId.value) return '全部仓库'
-  const w = warehouses.value.find(w => w.id === currentWarehouseId.value)
-  return w?.name || '全部仓库'
-})
 
 /** 分配弹窗中选择的仓库名称 */
 const assignWarehouseName = computed(() => {
@@ -308,11 +286,6 @@ const filterTabs = computed(() => [
 /** 筛选后的车辆列表 */
 const filteredVehicles = computed(() => {
   let result = vehicles.value
-
-  // 按仓库筛选
-  if (currentWarehouseId.value) {
-    result = result.filter(v => v.warehouse_id === currentWarehouseId.value)
-  }
 
   // 按状态筛选
   if (activeFilter.value !== 'all') {
@@ -374,11 +347,7 @@ async function loadWarehouses(): Promise<void> {
 async function loadVehicles(): Promise<void> {
   loading.value = true
   try {
-    const params: Record<string, unknown> = { limit: 200 }
-    if (currentWarehouseId.value) {
-      params.warehouse_id = currentWarehouseId.value
-    }
-    vehicles.value = await getAllVehicles(params)
+    vehicles.value = await getAllVehicles({ limit: 200 })
   } catch (error) {
     console.error('加载车辆列表失败:', error)
     uni.showToast({ title: '加载失败', icon: 'none' })
@@ -416,17 +385,6 @@ function clearSearch(): void {
  */
 function handleFilterChange(filter: FilterType): void {
   activeFilter.value = filter
-}
-
-/**
- * 仓库筛选变化
- * @param e - 事件对象
- */
-function onWarehouseChange(e: { detail: { value: number } }): void {
-  const index = e.detail.value
-  const selected = warehouseOptions.value[index]
-  currentWarehouseId.value = selected?.id || null
-  loadVehicles()
 }
 
 /**
@@ -481,11 +439,12 @@ function getWarehouseName(warehouseId: number): string {
 }
 
 /**
- * 是否可以还车
+ * 是否可以还车/回收
  * @param vehicle - 车辆信息
- * @returns 是否可以还车
+ * @returns 是否可以还车/回收
  */
 function canReturnVehicle(vehicle: Vehicle): boolean {
+  // 车辆状态为使用中或已提车，且未还车，且审核通过
   return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
          !vehicle.return_time && 
          vehicle.review_status === 'approved'
@@ -517,7 +476,7 @@ function viewVehicleHistory(vehicleId: number): void {
 }
 
 /**
- * 还车
+ * 还车/回收
  * @param vehicleId - 车辆ID
  */
 function handleReturnVehicle(vehicleId: number): void {
@@ -621,27 +580,6 @@ async function confirmAssign(): Promise<void> {
 }
 
 .reminder-icon { font-size: 32rpx; }
-
-/* 仓库筛选 */
-.warehouse-filter {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  padding: 16rpx 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.filter-label { font-size: 26rpx; color: #666; margin-right: 16rpx; }
-
-.picker-value {
-  display: flex;
-  align-items: center;
-  padding: 8rpx 16rpx;
-  background: #f3f4f6;
-  border-radius: 8rpx;
-}
-
-.picker-arrow { font-size: 20rpx; color: #999; margin-left: 8rpx; }
 
 /* 状态筛选标签 */
 .filter-tabs {

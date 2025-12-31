@@ -564,7 +564,45 @@ class VehicleBase(BaseModel):
 class VehicleCreate(VehicleBase):
     """
     创建车辆请求模式
-    包含租赁相关字段
+    包含租赁相关字段、车辆照片、行驶证照片、提车照片和司机证件信息
+    
+    Attributes:
+        ownership_type: 所有权类型（company/personal/leased）
+        lessor_name: 出租方名称
+        lessor_contact: 出租方联系方式
+        lessee_name: 承租方名称
+        lessee_contact: 承租方联系方式
+        monthly_rent: 月租金（元）
+        lease_start_date: 租赁开始日期
+        lease_end_date: 租赁结束日期
+        rent_payment_day: 每月租金缴纳日（1-31）
+        left_front_photo: 左前照片URL
+        right_front_photo: 右前照片URL
+        left_rear_photo: 左后照片URL
+        right_rear_photo: 右后照片URL
+        dashboard_photo: 仪表盘照片URL
+        rear_door_photo: 后门照片URL
+        cargo_box_photo: 货箱照片URL
+        driving_license_main_photo: 行驶证主页照片URL
+        driving_license_sub_photo: 行驶证副页照片URL
+        driving_license_sub_back_photo: 行驶证副页背面照片URL
+        pickup_photos: 提车照片数组
+        registration_photos: 行驶证照片数组
+        damage_photos: 车损照片数组
+        pickup_time: 提车时间
+        
+        # 司机证件信息（可选，用于车辆录入时同时保存司机证件）
+        driver_id_card_number: 司机身份证号码
+        driver_id_card_name: 司机身份证姓名
+        driver_id_card_photo_front: 司机身份证正面照片URL
+        driver_id_card_photo_back: 司机身份证背面照片URL
+        driver_license_number: 司机驾驶证号码
+        driver_license_class: 司机驾驶证类型
+        driver_license_valid_from: 司机驾驶证有效期起始日期
+        driver_license_valid_to: 司机驾驶证有效期截止日期
+        driver_license_photo: 司机驾驶证照片URL
+        
+    Requirements: 10.4 - 在创建车辆时同时保存司机证件信息
     """
     ownership_type: Optional[str] = Field(default="company", description="所有权类型：company/personal/leased")
     # 租赁信息
@@ -576,6 +614,40 @@ class VehicleCreate(VehicleBase):
     lease_start_date: Optional[date] = Field(default=None, description="租赁开始日期")
     lease_end_date: Optional[date] = Field(default=None, description="租赁结束日期")
     rent_payment_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月租金缴纳日（1-31）")
+    
+    # 车辆照片（7张基本照片）
+    left_front_photo: Optional[str] = Field(default=None, max_length=500, description="左前照片URL")
+    right_front_photo: Optional[str] = Field(default=None, max_length=500, description="右前照片URL")
+    left_rear_photo: Optional[str] = Field(default=None, max_length=500, description="左后照片URL")
+    right_rear_photo: Optional[str] = Field(default=None, max_length=500, description="右后照片URL")
+    dashboard_photo: Optional[str] = Field(default=None, max_length=500, description="仪表盘照片URL")
+    rear_door_photo: Optional[str] = Field(default=None, max_length=500, description="后门照片URL")
+    cargo_box_photo: Optional[str] = Field(default=None, max_length=500, description="货箱照片URL")
+    
+    # 行驶证照片（3张）
+    driving_license_main_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证主页照片URL")
+    driving_license_sub_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页照片URL")
+    driving_license_sub_back_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页背面照片URL")
+    
+    # 照片数组
+    pickup_photos: Optional[List[str]] = Field(default=None, description="提车照片数组（7张车辆照片）")
+    registration_photos: Optional[List[str]] = Field(default=None, description="行驶证照片数组")
+    damage_photos: Optional[List[str]] = Field(default=None, description="车损照片数组")
+    
+    # 提车时间
+    pickup_time: Optional[datetime] = Field(default=None, description="提车时间")
+    
+    # 司机证件信息（可选，用于车辆录入时同时保存司机证件）
+    # Requirements: 10.4 - 在创建车辆时同时保存司机证件信息
+    driver_id_card_number: Optional[str] = Field(default=None, max_length=18, description="司机身份证号码")
+    driver_id_card_name: Optional[str] = Field(default=None, max_length=50, description="司机身份证姓名")
+    driver_id_card_photo_front: Optional[str] = Field(default=None, max_length=500, description="司机身份证正面照片URL")
+    driver_id_card_photo_back: Optional[str] = Field(default=None, max_length=500, description="司机身份证背面照片URL")
+    driver_license_number: Optional[str] = Field(default=None, max_length=18, description="司机驾驶证号码")
+    driver_license_class: Optional[str] = Field(default=None, max_length=10, description="司机驾驶证类型（如：C1、B2、A2等）")
+    driver_license_valid_from: Optional[date] = Field(default=None, description="司机驾驶证有效期起始日期")
+    driver_license_valid_to: Optional[date] = Field(default=None, description="司机驾驶证有效期截止日期")
+    driver_license_photo: Optional[str] = Field(default=None, max_length=500, description="司机驾驶证照片URL")
 
 
 class VehicleUpdate(BaseModel):
@@ -1494,6 +1566,20 @@ class VehicleCreateParams(BaseModel):
         lease_start_date: 租赁开始日期（可选）
         lease_end_date: 租赁结束日期（可选）
         rent_payment_day: 每月租金缴纳日（可选）
+        left_front_photo: 左前照片URL（可选）
+        right_front_photo: 右前照片URL（可选）
+        left_rear_photo: 左后照片URL（可选）
+        right_rear_photo: 右后照片URL（可选）
+        dashboard_photo: 仪表盘照片URL（可选）
+        rear_door_photo: 后门照片URL（可选）
+        cargo_box_photo: 货箱照片URL（可选）
+        driving_license_main_photo: 行驶证主页照片URL（可选）
+        driving_license_sub_photo: 行驶证副页照片URL（可选）
+        driving_license_sub_back_photo: 行驶证副页背面照片URL（可选）
+        pickup_photos: 提车照片数组（可选）
+        registration_photos: 行驶证照片数组（可选）
+        damage_photos: 车损照片数组（可选）
+        pickup_time: 提车时间（可选）
 
     Requirements: 4.2
     """
@@ -1516,6 +1602,28 @@ class VehicleCreateParams(BaseModel):
     lease_start_date: Optional[date] = Field(default=None, description="租赁开始日期")
     lease_end_date: Optional[date] = Field(default=None, description="租赁结束日期")
     rent_payment_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月租金缴纳日（1-31）")
+
+    # 车辆照片（7张基本照片）
+    left_front_photo: Optional[str] = Field(default=None, max_length=500, description="左前照片URL")
+    right_front_photo: Optional[str] = Field(default=None, max_length=500, description="右前照片URL")
+    left_rear_photo: Optional[str] = Field(default=None, max_length=500, description="左后照片URL")
+    right_rear_photo: Optional[str] = Field(default=None, max_length=500, description="右后照片URL")
+    dashboard_photo: Optional[str] = Field(default=None, max_length=500, description="仪表盘照片URL")
+    rear_door_photo: Optional[str] = Field(default=None, max_length=500, description="后门照片URL")
+    cargo_box_photo: Optional[str] = Field(default=None, max_length=500, description="货箱照片URL")
+
+    # 行驶证照片（3张）
+    driving_license_main_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证主页照片URL")
+    driving_license_sub_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页照片URL")
+    driving_license_sub_back_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页背面照片URL")
+
+    # 照片数组
+    pickup_photos: Optional[List[str]] = Field(default=None, description="提车照片数组（7张车辆照片）")
+    registration_photos: Optional[List[str]] = Field(default=None, description="行驶证照片数组")
+    damage_photos: Optional[List[str]] = Field(default=None, description="车损照片数组")
+
+    # 提车时间
+    pickup_time: Optional[datetime] = Field(default=None, description="提车时间")
 
     @classmethod
     def from_create_request(cls, request: "VehicleCreate", user_id: int) -> "VehicleCreateParams":
@@ -1543,5 +1651,255 @@ class VehicleCreateParams(BaseModel):
             monthly_rent=request.monthly_rent,
             lease_start_date=request.lease_start_date,
             lease_end_date=request.lease_end_date,
-            rent_payment_day=request.rent_payment_day
+            rent_payment_day=request.rent_payment_day,
+            # 车辆照片
+            left_front_photo=request.left_front_photo,
+            right_front_photo=request.right_front_photo,
+            left_rear_photo=request.left_rear_photo,
+            right_rear_photo=request.right_rear_photo,
+            dashboard_photo=request.dashboard_photo,
+            rear_door_photo=request.rear_door_photo,
+            cargo_box_photo=request.cargo_box_photo,
+            # 行驶证照片
+            driving_license_main_photo=request.driving_license_main_photo,
+            driving_license_sub_photo=request.driving_license_sub_photo,
+            driving_license_sub_back_photo=request.driving_license_sub_back_photo,
+            # 照片数组
+            pickup_photos=request.pickup_photos,
+            registration_photos=request.registration_photos,
+            damage_photos=request.damage_photos,
+            # 提车时间
+            pickup_time=request.pickup_time
+        )
+
+
+# ==================== 司机证件相关模式 ====================
+# 用于司机证件信息的创建、更新和响应
+# Requirements: 4.5, 4.6, 4.7 - 司机个人档案页面显示身份证号、驾驶证类型、驾驶证有效期
+
+
+class DriverLicenseBase(BaseModel):
+    """
+    司机证件基础模式
+    包含身份证和驾驶证的基本信息字段
+
+    Attributes:
+        # 身份证信息
+        id_card_number: 身份证号码（18位）
+        id_card_name: 身份证姓名
+        id_card_photo_front: 身份证正面照片URL
+        id_card_photo_back: 身份证背面照片URL
+        
+        # 驾驶证信息
+        license_number: 驾驶证号码
+        license_class: 驾驶证类型（如：C1、B2、A2等）
+        valid_from: 驾驶证有效期起始日期
+        valid_to: 驾驶证有效期截止日期
+        driving_license_photo: 驾驶证照片URL
+    """
+    # 身份证信息
+    id_card_number: Optional[str] = Field(
+        default=None, 
+        max_length=18, 
+        description="身份证号码（18位）"
+    )
+    id_card_name: Optional[str] = Field(
+        default=None, 
+        max_length=50, 
+        description="身份证姓名"
+    )
+    id_card_photo_front: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="身份证正面照片URL"
+    )
+    id_card_photo_back: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="身份证背面照片URL"
+    )
+    
+    # 驾驶证信息
+    license_number: Optional[str] = Field(
+        default=None, 
+        max_length=18, 
+        description="驾驶证号码"
+    )
+    license_class: Optional[str] = Field(
+        default=None, 
+        max_length=10, 
+        description="驾驶证类型（如：C1、B2、A2等）"
+    )
+    valid_from: Optional[date] = Field(
+        default=None, 
+        description="驾驶证有效期起始日期"
+    )
+    valid_to: Optional[date] = Field(
+        default=None, 
+        description="驾驶证有效期截止日期"
+    )
+    driving_license_photo: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="驾驶证照片URL"
+    )
+
+
+class DriverLicenseCreate(DriverLicenseBase):
+    """
+    创建司机证件请求模式
+    继承 DriverLicenseBase，用于创建新的司机证件记录
+    
+    注意：user_id 通过 URL 路径参数传递，不在请求体中
+    
+    Requirements: 4.5, 4.6, 4.7 - 支持保存身份证号、驾驶证类型、驾驶证有效期
+    """
+    pass
+
+
+class DriverLicenseUpdate(BaseModel):
+    """
+    更新司机证件请求模式
+    所有字段可选，只更新提供的字段
+
+    Attributes:
+        # 身份证信息
+        id_card_number: 身份证号码（可选）
+        id_card_name: 身份证姓名（可选）
+        id_card_photo_front: 身份证正面照片URL（可选）
+        id_card_photo_back: 身份证背面照片URL（可选）
+        
+        # 驾驶证信息
+        license_number: 驾驶证号码（可选）
+        license_class: 驾驶证类型（可选）
+        valid_from: 驾驶证有效期起始日期（可选）
+        valid_to: 驾驶证有效期截止日期（可选）
+        driving_license_photo: 驾驶证照片URL（可选）
+    """
+    # 身份证信息
+    id_card_number: Optional[str] = Field(
+        default=None, 
+        max_length=18, 
+        description="身份证号码"
+    )
+    id_card_name: Optional[str] = Field(
+        default=None, 
+        max_length=50, 
+        description="身份证姓名"
+    )
+    id_card_photo_front: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="身份证正面照片URL"
+    )
+    id_card_photo_back: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="身份证背面照片URL"
+    )
+    
+    # 驾驶证信息
+    license_number: Optional[str] = Field(
+        default=None, 
+        max_length=18, 
+        description="驾驶证号码"
+    )
+    license_class: Optional[str] = Field(
+        default=None, 
+        max_length=10, 
+        description="驾驶证类型"
+    )
+    valid_from: Optional[date] = Field(
+        default=None, 
+        description="驾驶证有效期起始日期"
+    )
+    valid_to: Optional[date] = Field(
+        default=None, 
+        description="驾驶证有效期截止日期"
+    )
+    driving_license_photo: Optional[str] = Field(
+        default=None, 
+        max_length=500, 
+        description="驾驶证照片URL"
+    )
+
+
+class DriverLicenseResponse(DriverLicenseBase):
+    """
+    司机证件响应模式
+    返回给前端的司机证件信息，包含完整的证件数据
+
+    Attributes:
+        id: 证件记录ID
+        user_id: 用户ID
+        # 继承自 DriverLicenseBase 的所有字段
+        id_card_number_masked: 部分隐藏的身份证号（如：110***********1234）
+        created_at: 创建时间
+        updated_at: 更新时间
+
+    Requirements: 4.5 - 显示身份证号（部分隐藏）
+    """
+    id: int = Field(..., description="证件记录ID")
+    user_id: int = Field(..., description="用户ID")
+    # 部分隐藏的身份证号，用于前端显示
+    id_card_number_masked: Optional[str] = Field(
+        default=None, 
+        description="部分隐藏的身份证号（如：110***********1234）"
+    )
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+
+    class Config:
+        """Pydantic 配置类"""
+        from_attributes = True
+
+    @classmethod
+    def from_driver_license(cls, license_obj: "DriverLicense") -> "DriverLicenseResponse":
+        """
+        从 DriverLicense 模型对象创建响应对象
+        
+        工厂方法，用于将数据库模型对象转换为 API 响应对象。
+        自动计算 id_card_number_masked 字段值。
+        
+        Args:
+            license_obj: DriverLicense 数据库模型对象
+            
+        Returns:
+            DriverLicenseResponse: API 响应对象，包含部分隐藏的身份证号
+            
+        Example:
+            >>> from models import DriverLicense
+            >>> license = DriverLicense(
+            ...     id=1,
+            ...     user_id=1,
+            ...     id_card_number="110101199001011234"
+            ... )
+            >>> response = DriverLicenseResponse.from_driver_license(license)
+            >>> print(response.id_card_number_masked)  # 输出: "110***********1234"
+        """
+        # 计算部分隐藏的身份证号
+        masked_id_card = None
+        if license_obj.id_card_number and len(license_obj.id_card_number) >= 6:
+            # 显示前3位和后4位，中间用*号替代
+            id_card = license_obj.id_card_number
+            masked_id_card = f"{id_card[:3]}{'*' * (len(id_card) - 7)}{id_card[-4:]}"
+        
+        return cls(
+            id=license_obj.id,
+            user_id=license_obj.user_id,
+            # 身份证信息
+            id_card_number=license_obj.id_card_number,
+            id_card_name=license_obj.id_card_name,
+            id_card_photo_front=license_obj.id_card_photo_front,
+            id_card_photo_back=license_obj.id_card_photo_back,
+            id_card_number_masked=masked_id_card,
+            # 驾驶证信息
+            license_number=license_obj.license_number,
+            license_class=license_obj.license_class,
+            valid_from=license_obj.valid_from,
+            valid_to=license_obj.valid_to,
+            driving_license_photo=license_obj.driving_license_photo,
+            # 时间戳
+            created_at=license_obj.created_at,
+            updated_at=license_obj.updated_at
         )

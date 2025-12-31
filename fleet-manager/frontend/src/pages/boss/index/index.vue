@@ -4,7 +4,7 @@
   UI 风格与主项目保持一致：蓝色主题、渐变背景、卡片式布局、数据仪表盘
   
   布局结构（与主项目对齐）：
-  1. 安全区域 + 离线提示
+  1. 安全区域
   2. 欢迎卡片 + 通知铃铛
   3. 实时通知栏
   4. 数据仪表盘 2x2
@@ -43,14 +43,7 @@
     <!-- 页面内容 -->
     <scroll-view scroll-y class="page-content" @scrolltolower="onScrollToLower">
       <view class="content-wrapper">
-        <!-- 离线模式提示 - Requirements 3.1, 3.2 -->
-        <view v-if="isOffline" class="offline-indicator">
-          <text class="offline-icon">📡</text>
-          <view class="offline-text-wrapper">
-            <text class="offline-title">离线模式</text>
-            <text class="offline-desc">部分数据可能不是最新的，请检查网络连接</text>
-          </view>
-        </view>
+
 
         <!-- 欢迎卡片 - 蓝色主题（与主项目一致）- Requirements 1.2 -->
         <view class="welcome-card">
@@ -184,10 +177,10 @@
                 <text class="feature-text">件数报表</text>
               </view>
 
-              <!-- 考勤管理 -->
-              <view class="feature-item red" @click="navigateTo('/pages/boss/approval/index')">
+              <!-- 考勤管理 - 跳转到考勤管理页面 Requirements 6.2 -->
+              <view class="feature-item red" @click="navigateTo('/pages/boss/attendance/index')">
                 <view class="feature-icon-wrapper">
-                  <text class="feature-icon">✅</text>
+                  <text class="feature-icon">📅</text>
                   <!-- 待审批数量徽章 -->
                   <view v-if="totalPendingCount > 0" class="badge">
                     <text class="badge-count">{{ totalPendingCount > 99 ? '99+' : totalPendingCount }}</text>
@@ -237,7 +230,7 @@
  * UI 风格与主项目保持一致：渐变背景、卡片式布局、数据仪表盘
  * 
  * 布局结构（与主项目对齐）：
- * 1. 安全区域 + 离线提示
+ * 1. 安全区域
  * 2. 欢迎卡片 + 通知铃铛
  * 3. 实时通知栏
  * 4. 数据仪表盘 2x2
@@ -304,9 +297,6 @@ const driverStatsLoading = ref(false)
 
 /** 加载超时状态 */
 const loadTimeout = ref(false)
-
-/** 离线模式状态 */
-const isOffline = ref(false)
 
 /** 超时计时器引用 */
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
@@ -507,7 +497,6 @@ function handleRetry(): void {
 async function loadData(): Promise<void> {
   loading.value = true
   loadTimeout.value = false
-  isOffline.value = false
   
   // 启动超时计时器
   startTimeoutTimer()
@@ -516,8 +505,8 @@ async function loadData(): Promise<void> {
     // 先加载仓库列表
     await loadWarehouses()
     
-    // 并行加载数据
-    await Promise.all([
+    // 并行加载数据（使用 Promise.allSettled 避免单个失败导致全部失败）
+    await Promise.allSettled([
       loadBasicStats(),
       loadAttendanceStats(),
       loadPieceWorkStats(),
@@ -525,13 +514,8 @@ async function loadData(): Promise<void> {
       loadUnreadCount(),
       loadDriverStats(),
     ])
-    
-    // 加载成功，清除离线状态
-    isOffline.value = false
   } catch (error) {
     console.error('加载数据失败:', error)
-    // 设置离线状态
-    isOffline.value = true
   } finally {
     loading.value = false
     clearTimeoutTimer()
@@ -906,40 +890,6 @@ function handleLogout(): void {
 .content-wrapper {
   padding: 32rpx;
   padding-bottom: 120rpx;
-}
-
-/* ==================== 离线提示 ==================== */
-.offline-indicator {
-  display: flex;
-  align-items: center;
-  background-color: #FEF3C7;
-  border: 2rpx solid #FCD34D;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  margin-bottom: 32rpx;
-}
-
-.offline-icon {
-  font-size: 40rpx;
-  margin-right: 16rpx;
-}
-
-.offline-text-wrapper {
-  flex: 1;
-}
-
-.offline-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #92400E;
-  display: block;
-  margin-bottom: 4rpx;
-}
-
-.offline-desc {
-  font-size: 24rpx;
-  color: #B45309;
-  display: block;
 }
 
 /* ==================== 欢迎卡片 ==================== */

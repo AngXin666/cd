@@ -1021,73 +1021,6 @@ export const startScheduler = () =>
 export const stopScheduler = () =>
   post<MessageResponse>('/scheduled-notifications/scheduler/stop');
 
-// ==================== 应用版本（热更新）API ====================
-
-import type {
-  AppVersion,
-  AppVersionCreate,
-  AppVersionUpdate,
-  AppVersionCheckRequest,
-  AppVersionCheckResponse,
-} from './types';
-
-/**
- * 获取应用版本列表
- * @param params - 查询参数
- * @returns 版本列表
- */
-export const getAppVersions = (params?: PaginationParams & { platform?: string; is_active?: boolean }) =>
-  get<AppVersion[]>('/app-versions', params);
-
-/**
- * 创建应用版本
- * @param data - 版本信息
- * @returns 创建的版本
- */
-export const createAppVersion = (data: AppVersionCreate) =>
-  post<AppVersion>('/app-versions', data);
-
-/**
- * 获取最新版本
- * @param platform - 平台类型
- * @returns 最新版本
- */
-export const getLatestAppVersion = (platform?: string) =>
-  get<AppVersion>('/app-versions/latest', { platform });
-
-/**
- * 检查更新
- * @param data - 检查更新请求
- * @returns 检查更新响应
- */
-export const checkAppUpdate = (data: AppVersionCheckRequest) =>
-  post<AppVersionCheckResponse>('/app-versions/check', data);
-
-/**
- * 获取版本详情
- * @param id - 版本ID
- * @returns 版本信息
- */
-export const getAppVersion = (id: number) =>
-  get<AppVersion>(`/app-versions/${id}`);
-
-/**
- * 更新版本信息
- * @param id - 版本ID
- * @param data - 更新数据
- * @returns 更新后的版本
- */
-export const updateAppVersion = (id: number, data: AppVersionUpdate) =>
-  put<AppVersion>(`/app-versions/${id}`, data);
-
-/**
- * 删除版本
- * @param id - 版本ID
- * @returns 消息响应
- */
-export const deleteAppVersion = (id: number) =>
-  del<MessageResponse>(`/app-versions/${id}`);
-
 // 导出 SSE 服务
 export { sseService, SSEConnectionState } from '@/utils/sse';
 export type { SSENotification, SSEHeartbeat, SSECallbacks } from '@/utils/sse';
@@ -1156,3 +1089,54 @@ export const updateRolePermissions = (role: UserRole, data: RolePermissionUpdate
  */
 export const resetRolePermissions = (role: UserRole) =>
   post<RolePermission>(`/permissions/${role}/reset`);
+
+// ==================== 司机证件 API ====================
+
+import type {
+  DriverLicenseResponse,
+  DriverLicenseCreate,
+  DriverLicenseUpdate,
+} from './types';
+
+/**
+ * 获取司机证件信息
+ * 返回指定用户的身份证和驾驶证信息，用于司机个人档案页面显示
+ * 
+ * @param userId - 用户ID
+ * @returns 司机证件信息，包含部分隐藏的身份证号
+ * @throws 404 - 用户不存在或证件信息不存在
+ * 
+ * Requirements: 4.5, 4.6, 4.7 - 获取司机证件信息用于个人档案页面显示
+ */
+export const getDriverLicense = (userId: number) =>
+  get<DriverLicenseResponse>(`/users/${userId}/license`);
+
+/**
+ * 创建或更新司机证件信息
+ * 如果用户已有证件记录则更新，否则创建新记录（upsert 操作）
+ * 用于车辆录入时保存司机证件信息
+ * 
+ * @param userId - 用户ID
+ * @param data - 司机证件创建请求
+ * @returns 创建或更新后的司机证件信息
+ * @throws 404 - 用户不存在
+ * 
+ * Requirements: 4.5, 4.6, 4.7 - 保存司机证件信息
+ */
+export const createDriverLicense = (userId: number, data: DriverLicenseCreate) =>
+  post<DriverLicenseResponse>(`/users/${userId}/license`, data);
+
+/**
+ * 更新司机证件信息
+ * 只更新提供的字段，未提供的字段保持不变
+ * 
+ * @param userId - 用户ID
+ * @param data - 司机证件更新请求
+ * @returns 更新后的司机证件信息
+ * @throws 404 - 用户不存在或证件信息不存在
+ * 
+ * Requirements: 4.5, 4.6, 4.7 - 更新司机证件信息
+ */
+export const updateDriverLicense = (userId: number, data: DriverLicenseUpdate) =>
+  put<DriverLicenseResponse>(`/users/${userId}/license`, data);
+

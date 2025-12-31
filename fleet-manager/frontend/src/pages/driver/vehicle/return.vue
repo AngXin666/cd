@@ -142,7 +142,7 @@ import type { Vehicle } from '@/api/types'
 import { useUserStore } from '@/store/user'
 import { saveDraft, getDraft, deleteDraft, type VehicleDraft } from '@/utils/draftUtils'
 import { uploadImage } from '@/utils/imageUpload'
-import { navigateBack } from '@/utils'
+import { navigateBack, formatDateTime } from '@/utils'
 // 集成草稿图片存储和提交失败恢复
 import { useDraftImage, generateDraftId } from '@/utils/draftImage'
 import { useSubmitRecovery, showSubmitFailedTip } from '@/utils/submitRecovery/useSubmitRecovery'
@@ -796,28 +796,6 @@ async function handleSubmit(): Promise<void> {
 }
 
 // ==================== 工具函数 ====================
-
-/**
- * 格式化日期时间
- * @param dateStr - 日期字符串
- * @returns 格式化后的日期时间
- */
-function formatDateTime(dateStr: string): string {
-  if (!dateStr) return '-'
-  
-  try {
-    const date = new Date(dateStr)
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return dateStr
-  }
-}
 </script>
 
 <style lang="scss" scoped>

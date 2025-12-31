@@ -120,6 +120,9 @@ export type {
   // 驾驶员证件相关
   DriverLicense,
   DriverLicenseInput,
+  DriverLicenseResponse,
+  DriverLicenseCreate,
+  DriverLicenseUpdate,
 } from '@/api/types';
 
 // 重新导出工具函数

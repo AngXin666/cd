@@ -7,21 +7,6 @@
 -->
 <template>
   <view class="dashboard">
-    <!-- 标题栏 -->
-    <view class="dashboard-header">
-      <view class="header-left">
-        <view class="header-icon">📊</view>
-        <text class="header-title">数据仪表盘</text>
-        <!-- 加载动画 - Requirements 5.4 -->
-        <view v-if="loading" class="loading-icon">⏳</view>
-      </view>
-      <view class="header-right">
-        <text v-if="warehouseName" class="warehouse-name">{{ warehouseName }}</text>
-        <text class="separator">|</text>
-        <text class="date-text">{{ today }}</text>
-      </view>
-    </view>
-    
     <!-- 统计卡片网格 - Requirements 5.1, 5.2 -->
     <view class="dashboard-content">
       <view v-if="stats" class="stats-grid">

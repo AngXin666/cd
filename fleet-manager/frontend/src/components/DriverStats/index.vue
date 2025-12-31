@@ -7,16 +7,6 @@
 -->
 <template>
   <view class="driver-stats">
-    <!-- 标题栏 -->
-    <view class="stats-header">
-      <view class="header-left">
-        <view class="header-icon">📊</view>
-        <text class="header-title">统计概览</text>
-        <view v-if="loading" class="loading-icon">⏳</view>
-      </view>
-      <text v-if="warehouseName" class="warehouse-name">{{ warehouseName }}</text>
-    </view>
-    
     <!-- 统计内容 - Requirements 6.1, 6.2 -->
     <view class="stats-content" @click="handleClick">
       <view v-if="stats" class="stats-card">

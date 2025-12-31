@@ -3,8 +3,81 @@
  * 提供日期计算和获取相关的工具函数
  * @module utils/date
  * 
- * Requirements: 2.3, 3.4
+ * Requirements: 2.3, 3.4, 3.5
  */
+
+/**
+ * 日期范围接口
+ * 用于表示一个日期范围的开始和结束日期
+ */
+export interface DateRange {
+  /** 开始日期，格式 'YYYY-MM-DD' */
+  startDate: string
+  /** 结束日期，格式 'YYYY-MM-DD' */
+  endDate: string
+}
+
+/**
+ * 获取今日日期范围
+ * 返回今日的开始和结束日期（同一天）
+ * 
+ * @returns 今日的日期范围
+ * 
+ * @example
+ * // 假设今天是 2024-12-25
+ * getTodayRange() // { startDate: '2024-12-25', endDate: '2024-12-25' }
+ * 
+ * Requirements: 3.5
+ */
+export function getTodayRange(): DateRange {
+  const today = getLocalDateString()
+  return {
+    startDate: today,
+    endDate: today
+  }
+}
+
+/**
+ * 获取本周日期范围（周一到今天）
+ * 返回本周一到今天的日期范围
+ * 
+ * @returns 本周的日期范围
+ * 
+ * @example
+ * // 假设今天是周三 2024-12-25
+ * getWeekRange() // { startDate: '2024-12-23', endDate: '2024-12-25' }
+ * 
+ * Requirements: 3.5
+ */
+export function getWeekRange(): DateRange {
+  const today = getLocalDateString()
+  const monday = getMondayDateString()
+  return {
+    startDate: monday,
+    endDate: today
+  }
+}
+
+/**
+ * 获取本月日期范围（本月1日到今天）
+ * 返回本月第一天到今天的日期范围
+ * 
+ * @returns 本月的日期范围
+ * 
+ * @example
+ * // 假设今天是 2024-12-25
+ * getMonthRange() // { startDate: '2024-12-01', endDate: '2024-12-25' }
+ * 
+ * Requirements: 3.5
+ */
+export function getMonthRange(): DateRange {
+  const today = getLocalDateString()
+  const firstDay = getFirstDayOfMonthString()
+  return {
+    startDate: firstDay,
+    endDate: today
+  }
+}
 
 /**
  * 获取今天的日期字符串

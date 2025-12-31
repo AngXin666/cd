@@ -23,15 +23,6 @@
   
   <!-- 多仓库切换器 - Requirements 4.1 -->
   <view v-else class="warehouse-switcher">
-    <view class="switcher-header">
-      <view class="header-left">
-        <view class="header-icon">🏠</view>
-        <text class="header-title">选择仓库</text>
-        <text class="header-count">({{ currentIndex + 1 }}/{{ warehouses.length }})</text>
-      </view>
-      <text class="header-hint">按数据量排序</text>
-    </view>
-    
     <view class="switcher-content">
       <swiper
         class="warehouse-swiper"

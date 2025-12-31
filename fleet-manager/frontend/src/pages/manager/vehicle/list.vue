@@ -188,7 +188,7 @@ import { getAllVehicles, getWarehouseUsers, assignVehicle } from '@/api'
 import type { Vehicle, User } from '@/api/types'
 import { VehicleStatus } from '@/api/types'
 import { useUserStore } from '@/store/user'
-import { navigateTo } from '@/utils'
+import { navigateTo, formatDateTime } from '@/utils'
 
 // ==================== 常量定义 ====================
 
@@ -357,20 +357,6 @@ function canReturnVehicle(vehicle: Vehicle): boolean {
   return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
          !vehicle.return_time && 
          vehicle.review_status === 'approved'
-}
-
-/**
- * 格式化日期时间
- */
-function formatDateTime(dateStr: string): string {
-  if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  return d.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 // ==================== 操作处理 ====================

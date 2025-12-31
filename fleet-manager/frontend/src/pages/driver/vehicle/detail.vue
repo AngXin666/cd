@@ -140,6 +140,97 @@
         <text class="entry-arrow">›</text>
       </view>
 
+      <!-- 行驶证照片卡片 Requirements: 12.2 -->
+      <view v-if="hasRegistrationPhotos" class="info-card">
+        <view class="card-header">
+          <text class="card-icon">📋</text>
+          <text class="card-title">行驶证照片</text>
+        </view>
+        <view class="photo-grid">
+          <!-- 行驶证主页 -->
+          <view v-if="vehicle.driving_license_main_photo" class="photo-item" @click="previewPhoto(vehicle.driving_license_main_photo, registrationPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.driving_license_main_photo)" mode="aspectFill" />
+            <text class="photo-label">主页</text>
+          </view>
+          <!-- 行驶证副页 -->
+          <view v-if="vehicle.driving_license_sub_photo" class="photo-item" @click="previewPhoto(vehicle.driving_license_sub_photo, registrationPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.driving_license_sub_photo)" mode="aspectFill" />
+            <text class="photo-label">副页</text>
+          </view>
+          <!-- 行驶证副页背页 -->
+          <view v-if="vehicle.driving_license_sub_back_photo" class="photo-item" @click="previewPhoto(vehicle.driving_license_sub_back_photo, registrationPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.driving_license_sub_back_photo)" mode="aspectFill" />
+            <text class="photo-label">背页</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 提车照片卡片 Requirements: 12.2 -->
+      <view v-if="hasPickupPhotos" class="info-card">
+        <view class="card-header">
+          <text class="card-icon">📷</text>
+          <text class="card-title">提车照片</text>
+          <text v-if="vehicle.pickup_time" class="card-subtitle">{{ formatDateTime(vehicle.pickup_time) }}</text>
+        </view>
+        <view class="photo-grid">
+          <!-- 左前45° -->
+          <view v-if="vehicle.left_front_photo" class="photo-item" @click="previewPhoto(vehicle.left_front_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.left_front_photo)" mode="aspectFill" />
+            <text class="photo-label">左前45°</text>
+          </view>
+          <!-- 右前45° -->
+          <view v-if="vehicle.right_front_photo" class="photo-item" @click="previewPhoto(vehicle.right_front_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.right_front_photo)" mode="aspectFill" />
+            <text class="photo-label">右前45°</text>
+          </view>
+          <!-- 左后45° -->
+          <view v-if="vehicle.left_rear_photo" class="photo-item" @click="previewPhoto(vehicle.left_rear_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.left_rear_photo)" mode="aspectFill" />
+            <text class="photo-label">左后45°</text>
+          </view>
+          <!-- 右后45° -->
+          <view v-if="vehicle.right_rear_photo" class="photo-item" @click="previewPhoto(vehicle.right_rear_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.right_rear_photo)" mode="aspectFill" />
+            <text class="photo-label">右后45°</text>
+          </view>
+          <!-- 仪表盘 -->
+          <view v-if="vehicle.dashboard_photo" class="photo-item" @click="previewPhoto(vehicle.dashboard_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.dashboard_photo)" mode="aspectFill" />
+            <text class="photo-label">仪表盘</text>
+          </view>
+          <!-- 后门 -->
+          <view v-if="vehicle.rear_door_photo" class="photo-item" @click="previewPhoto(vehicle.rear_door_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.rear_door_photo)" mode="aspectFill" />
+            <text class="photo-label">后门</text>
+          </view>
+          <!-- 货箱 -->
+          <view v-if="vehicle.cargo_box_photo" class="photo-item" @click="previewPhoto(vehicle.cargo_box_photo, pickupPhotoUrls)">
+            <image class="photo-image" :src="getFullImageUrl(vehicle.cargo_box_photo)" mode="aspectFill" />
+            <text class="photo-label">货箱</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 车损照片卡片 Requirements: 12.2 -->
+      <view v-if="hasDamagePhotos" class="info-card damage-card">
+        <view class="card-header">
+          <text class="card-icon">⚠️</text>
+          <text class="card-title">车损照片</text>
+          <text class="card-badge">{{ vehicle.damage_photos?.length || 0 }}张</text>
+        </view>
+        <view class="photo-grid">
+          <view 
+            v-for="(photo, index) in vehicle.damage_photos" 
+            :key="index" 
+            class="photo-item"
+            @click="previewPhoto(photo, damagePhotoUrls)"
+          >
+            <image class="photo-image" :src="getFullImageUrl(photo)" mode="aspectFill" />
+            <text class="photo-label">车损{{ index + 1 }}</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 操作按钮区域 -->
       <view class="action-section">
         <!-- 编辑车辆按钮 -->
@@ -191,7 +282,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getVehicle, getSupplementedPhotos } from '@/api'
 import type { Vehicle, VehicleDocument, SupplementedPhotosResponse } from '@/api/types'
-import { getVehicleStatusText, formatDateTime, navigateBack } from '@/utils'
+import { getVehicleStatusText, formatDateTime, navigateBack, getFullImageUrl, previewPhoto } from '@/utils'
 import { getImageCacheManager } from '@/utils/imageCache'
 import { usePagePreloader } from '@/utils/imagePreloader'
 import { PreloadPriority } from '@/utils/imagePreloader/types'
@@ -282,6 +373,94 @@ const vehiclePhotoUrls = computed((): string[] => {
   }
   
   return urls
+})
+
+/**
+ * 判断是否有行驶证照片
+ * Requirements: 12.2 - 显示行驶证照片
+ * @returns 是否有行驶证照片
+ */
+const hasRegistrationPhotos = computed((): boolean => {
+  if (!vehicle.value) return false
+  const v = vehicle.value
+  return !!(
+    v.driving_license_main_photo ||
+    v.driving_license_sub_photo ||
+    v.driving_license_sub_back_photo
+  )
+})
+
+/**
+ * 获取行驶证照片URL列表
+ * 用于图片预览时的图片列表
+ * @returns 行驶证照片URL数组
+ */
+const registrationPhotoUrls = computed((): string[] => {
+  if (!vehicle.value) return []
+  const v = vehicle.value
+  const urls: string[] = []
+  if (v.driving_license_main_photo) urls.push(getFullImageUrl(v.driving_license_main_photo))
+  if (v.driving_license_sub_photo) urls.push(getFullImageUrl(v.driving_license_sub_photo))
+  if (v.driving_license_sub_back_photo) urls.push(getFullImageUrl(v.driving_license_sub_back_photo))
+  return urls
+})
+
+/**
+ * 判断是否有提车照片
+ * Requirements: 12.2 - 显示提车照片（7张车辆照片）
+ * @returns 是否有提车照片
+ */
+const hasPickupPhotos = computed((): boolean => {
+  if (!vehicle.value) return false
+  const v = vehicle.value
+  return !!(
+    v.left_front_photo ||
+    v.right_front_photo ||
+    v.left_rear_photo ||
+    v.right_rear_photo ||
+    v.dashboard_photo ||
+    v.rear_door_photo ||
+    v.cargo_box_photo
+  )
+})
+
+/**
+ * 获取提车照片URL列表
+ * 用于图片预览时的图片列表
+ * @returns 提车照片URL数组
+ */
+const pickupPhotoUrls = computed((): string[] => {
+  if (!vehicle.value) return []
+  const v = vehicle.value
+  const urls: string[] = []
+  if (v.left_front_photo) urls.push(getFullImageUrl(v.left_front_photo))
+  if (v.right_front_photo) urls.push(getFullImageUrl(v.right_front_photo))
+  if (v.left_rear_photo) urls.push(getFullImageUrl(v.left_rear_photo))
+  if (v.right_rear_photo) urls.push(getFullImageUrl(v.right_rear_photo))
+  if (v.dashboard_photo) urls.push(getFullImageUrl(v.dashboard_photo))
+  if (v.rear_door_photo) urls.push(getFullImageUrl(v.rear_door_photo))
+  if (v.cargo_box_photo) urls.push(getFullImageUrl(v.cargo_box_photo))
+  return urls
+})
+
+/**
+ * 判断是否有车损照片
+ * Requirements: 12.2 - 显示车损照片（如有）
+ * @returns 是否有车损照片
+ */
+const hasDamagePhotos = computed((): boolean => {
+  if (!vehicle.value) return false
+  return !!(vehicle.value.damage_photos && vehicle.value.damage_photos.length > 0)
+})
+
+/**
+ * 获取车损照片URL列表
+ * 用于图片预览时的图片列表
+ * @returns 车损照片URL数组
+ */
+const damagePhotoUrls = computed((): string[] => {
+  if (!vehicle.value || !vehicle.value.damage_photos) return []
+  return vehicle.value.damage_photos.map(url => getFullImageUrl(url))
 })
 
 // ==================== 生命周期 ====================
@@ -920,5 +1099,60 @@ function goToSupplementPhotos(): void {
 .tips-text {
   font-size: 24rpx;
   color: #666666;
+}
+
+/* 照片网格 Requirements: 12.2 */
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.photo-item {
+  width: calc(33.33% - 12rpx);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.photo-image {
+  width: 100%;
+  height: 160rpx;
+  border-radius: 12rpx;
+  background-color: #f5f5f5;
+  object-fit: cover;
+}
+
+.photo-label {
+  font-size: 22rpx;
+  color: #666666;
+  margin-top: 8rpx;
+  text-align: center;
+}
+
+/* 卡片副标题 */
+.card-subtitle {
+  font-size: 24rpx;
+  color: #999999;
+  margin-left: auto;
+}
+
+/* 卡片徽章 */
+.card-badge {
+  font-size: 22rpx;
+  color: #ffffff;
+  background-color: #f59e0b;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-left: auto;
+}
+
+/* 车损照片卡片特殊样式 */
+.damage-card {
+  border: 2rpx solid #fef3c7;
+}
+
+.damage-card .card-header {
+  border-bottom-color: #fef3c7;
 }
 </style>

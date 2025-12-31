@@ -132,6 +132,8 @@ class User(SQLModel, table=True):
     )
     vehicles: List["Vehicle"] = Relationship(back_populates="user")
     notifications: List["Notification"] = Relationship(back_populates="user")
+    # 司机证件信息（一对一关系）
+    driver_license: Optional["DriverLicense"] = Relationship(back_populates="user")
 
 
 class Warehouse(SQLModel, table=True):
@@ -332,7 +334,7 @@ class LeaveApplication(SQLModel, table=True):
 class Vehicle(SQLModel, table=True):
     """
     车辆信息表
-    记录司机的车辆信息，包含租赁相关字段和还车/提车照片
+    记录司机的车辆信息，包含租赁相关字段、还车/提车照片和行驶证照片
 
     Attributes:
         id: 主键，自增
@@ -352,6 +354,17 @@ class Vehicle(SQLModel, table=True):
         lease_start_date: 租赁开始日期
         lease_end_date: 租赁结束日期
         rent_payment_day: 每月租金缴纳日（1-31）
+        left_front_photo: 左前照片URL
+        right_front_photo: 右前照片URL
+        left_rear_photo: 左后照片URL
+        right_rear_photo: 右后照片URL
+        dashboard_photo: 仪表盘照片URL
+        rear_door_photo: 后门照片URL
+        cargo_box_photo: 货箱照片URL
+        driving_license_main_photo: 行驶证主页照片URL
+        driving_license_sub_photo: 行驶证副页照片URL
+        driving_license_sub_back_photo: 行驶证副页背面照片URL
+        registration_photos: 行驶证照片JSON数组
         pickup_photos: 提车照片JSON数组
         pickup_time: 提车时间
         return_photos: 还车照片JSON数组
@@ -384,10 +397,28 @@ class Vehicle(SQLModel, table=True):
     lease_start_date: Optional[date] = Field(default=None)
     lease_end_date: Optional[date] = Field(default=None)
     rent_payment_day: Optional[int] = Field(default=None)  # 每月缴纳日（1-31）
-    # 新增：提车照片和时间
+    
+    # 车辆照片（7张基本照片）
+    left_front_photo: Optional[str] = Field(default=None, max_length=500, description="左前照片URL")
+    right_front_photo: Optional[str] = Field(default=None, max_length=500, description="右前照片URL")
+    left_rear_photo: Optional[str] = Field(default=None, max_length=500, description="左后照片URL")
+    right_rear_photo: Optional[str] = Field(default=None, max_length=500, description="右后照片URL")
+    dashboard_photo: Optional[str] = Field(default=None, max_length=500, description="仪表盘照片URL")
+    rear_door_photo: Optional[str] = Field(default=None, max_length=500, description="后门照片URL")
+    cargo_box_photo: Optional[str] = Field(default=None, max_length=500, description="货箱照片URL")
+    
+    # 行驶证照片（3张）
+    driving_license_main_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证主页照片URL")
+    driving_license_sub_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页照片URL")
+    driving_license_sub_back_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页背面照片URL")
+    
+    # 行驶证照片数组（JSON格式）
+    registration_photos: Optional[str] = Field(default=None, description="行驶证照片JSON数组")
+    
+    # 提车照片和时间
     pickup_photos: Optional[str] = Field(default=None, description="提车照片JSON数组")
     pickup_time: Optional[datetime] = Field(default=None, description="提车时间")
-    # 新增：还车照片和时间
+    # 还车照片和时间
     return_photos: Optional[str] = Field(default=None, description="还车照片JSON数组（7张）")
     damage_photos: Optional[str] = Field(default=None, description="车损照片JSON数组（最多9张）")
     return_time: Optional[datetime] = Field(default=None, description="还车时间")
@@ -636,3 +667,64 @@ class VehicleHistory(SQLModel, table=True):
 
     # 关联关系（可选，用于 ORM 查询）
     # 注意：这里不添加 back_populates 以避免循环引用问题
+
+
+# ==================== 司机证件信息相关 ====================
+
+class DriverLicense(SQLModel, table=True):
+    """
+    司机证件信息表
+    存储司机的身份证和驾驶证信息，与用户表一对一关联
+    
+    用于在司机个人档案页面显示证件信息，以及在车辆录入时保存司机证件
+
+    Attributes:
+        id: 主键，自增
+        user_id: 用户ID（外键，唯一，一对一关系）
+        
+        # 身份证信息
+        id_card_number: 身份证号码
+        id_card_name: 身份证姓名
+        id_card_photo_front: 身份证正面照片URL
+        id_card_photo_back: 身份证背面照片URL
+        
+        # 驾驶证信息
+        license_number: 驾驶证号码
+        license_class: 驾驶证类型（如：C1、B2、A2等）
+        valid_from: 驾驶证有效期起始日期
+        valid_to: 驾驶证有效期截止日期
+        driving_license_photo: 驾驶证照片URL
+        
+        # 时间戳
+        created_at: 创建时间
+        updated_at: 更新时间
+
+    Requirements: 4.5, 4.6, 4.7 - 司机个人档案页面显示身份证号、驾驶证类型、驾驶证有效期
+    """
+    __tablename__ = "driver_licenses"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    # 用户ID，唯一约束确保一对一关系
+    user_id: int = Field(foreign_key="users.id", unique=True, index=True, description="用户ID（一对一关系）")
+    
+    # 身份证信息
+    id_card_number: Optional[str] = Field(default=None, max_length=18, description="身份证号码")
+    id_card_name: Optional[str] = Field(default=None, max_length=50, description="身份证姓名")
+    id_card_photo_front: Optional[str] = Field(default=None, max_length=500, description="身份证正面照片URL")
+    id_card_photo_back: Optional[str] = Field(default=None, max_length=500, description="身份证背面照片URL")
+    
+    # 驾驶证信息
+    license_number: Optional[str] = Field(default=None, max_length=18, description="驾驶证号码")
+    license_class: Optional[str] = Field(default=None, max_length=10, description="驾驶证类型（如：C1、B2、A2等）")
+    valid_from: Optional[date] = Field(default=None, description="驾驶证有效期起始日期")
+    valid_to: Optional[date] = Field(default=None, description="驾驶证有效期截止日期")
+    driving_license_photo: Optional[str] = Field(default=None, max_length=500, description="驾驶证照片URL")
+    
+    # 时间戳
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    # 关联关系
+    user: Optional[User] = Relationship(back_populates="driver_license")
+
+

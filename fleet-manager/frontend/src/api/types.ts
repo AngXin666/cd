@@ -469,6 +469,38 @@ export interface PieceWorkStats {
   warehouse_type_display?: string;
 }
 
+/**
+ * 司机单仓库计件统计
+ * 用于车队长计件统计页面，显示司机在单个仓库的计件数据
+ * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
+ */
+export interface DriverWarehousePieceStats {
+  /** 仓库ID */
+  warehouseId: number;
+  /** 仓库名称 */
+  warehouseName: string;
+  /** 仓库类型 */
+  warehouseType: WarehouseType;
+  /** 预设单位（从仓库品类配置中读取） */
+  unit: string;
+  /** 今日数量 */
+  todayQuantity: number;
+  /** 本周数量 */
+  weekQuantity: number;
+  /** 本月数量 */
+  monthQuantity: number;
+}
+
+/**
+ * 司机计件统计映射类型
+ * key: 司机ID
+ * value: 该司机在各仓库的计件统计数组
+ * 
+ * 用于车队长计件统计页面，支持多仓库司机显示多行数据
+ * Requirements: 3.2, 3.3
+ */
+export type DriverPieceStatsMap = Map<number, DriverWarehousePieceStats[]>;
+
 // ==================== 请假相关类型 ====================
 
 /** 请假申请 */
@@ -764,75 +796,127 @@ export interface VehicleDocument {
 
 // ==================== 驾驶员证件相关类型 ====================
 
-/** 驾驶员证件信息 */
-export interface DriverLicense {
+/**
+ * 驾驶员证件信息响应类型
+ * 对应后端 DriverLicenseResponse
+ * 包含身份证和驾驶证的完整信息
+ * 
+ * Requirements: 4.5, 4.6, 4.7 - 司机个人档案页面显示证件信息
+ */
+export interface DriverLicenseResponse {
+  /** 证件记录ID */
   id: number;
   /** 司机用户ID */
-  driver_id: number;
-  /** 驾驶证号 */
-  license_number: string;
-  /** 身份证号码 */
+  user_id: number;
+  
+  // ==================== 身份证信息 ====================
+  /** 身份证号码（18位） */
   id_card_number?: string | null;
   /** 身份证姓名 */
   id_card_name?: string | null;
-  /** 身份证地址 */
-  id_card_address?: string | null;
-  /** 身份证出生日期 */
-  id_card_birth_date?: string | null;
-  /** 身份证正面照片 */
+  /** 身份证正面照片URL */
   id_card_photo_front?: string | null;
-  /** 身份证背面照片 */
+  /** 身份证背面照片URL */
   id_card_photo_back?: string | null;
-  /** 准驾车型 */
+  /** 部分隐藏的身份证号（如：110***********1234），用于前端显示 */
+  id_card_number_masked?: string | null;
+  
+  // ==================== 驾驶证信息 ====================
+  /** 驾驶证号码 */
+  license_number?: string | null;
+  /** 驾驶证类型（如：C1、B2、A2等） */
   license_class?: string | null;
-  /** 初次领证日期 */
-  first_issue_date?: string | null;
-  /** 有效期起始 */
+  /** 驾驶证有效期起始日期 */
   valid_from?: string | null;
-  /** 有效期截止 */
+  /** 驾驶证有效期截止日期 */
   valid_to?: string | null;
-  /** 发证机关 */
-  issue_authority?: string | null;
-  /** 驾驶证照片 */
+  /** 驾驶证照片URL */
   driving_license_photo?: string | null;
-  /** 状态 */
-  status: string;
+  
+  // ==================== 时间戳 ====================
+  /** 创建时间 */
   created_at: string;
+  /** 更新时间 */
   updated_at: string;
 }
 
-/** 创建/更新驾驶员证件请求 */
-export interface DriverLicenseInput {
-  /** 司机用户ID */
-  driver_id: number;
-  /** 驾驶证号 */
-  license_number: string;
-  /** 身份证号码 */
+/**
+ * 创建司机证件请求类型
+ * 对应后端 DriverLicenseCreate
+ * 用于创建新的司机证件记录
+ * 
+ * 注意：user_id 通过 URL 路径参数传递，不在请求体中
+ * 
+ * Requirements: 4.5, 4.6, 4.7 - 保存司机证件信息
+ */
+export interface DriverLicenseCreate {
+  // ==================== 身份证信息 ====================
+  /** 身份证号码（18位） */
   id_card_number?: string;
   /** 身份证姓名 */
   id_card_name?: string;
-  /** 身份证地址 */
-  id_card_address?: string;
-  /** 身份证出生日期 */
-  id_card_birth_date?: string;
-  /** 身份证正面照片 */
+  /** 身份证正面照片URL */
   id_card_photo_front?: string;
-  /** 身份证背面照片 */
+  /** 身份证背面照片URL */
   id_card_photo_back?: string;
-  /** 准驾车型 */
+  
+  // ==================== 驾驶证信息 ====================
+  /** 驾驶证号码 */
+  license_number?: string;
+  /** 驾驶证类型（如：C1、B2、A2等） */
   license_class?: string;
-  /** 初次领证日期 */
-  first_issue_date?: string;
-  /** 有效期起始 */
+  /** 驾驶证有效期起始日期 */
   valid_from?: string;
-  /** 有效期截止 */
+  /** 驾驶证有效期截止日期 */
   valid_to?: string;
-  /** 发证机关 */
-  issue_authority?: string;
-  /** 驾驶证照片 */
+  /** 驾驶证照片URL */
   driving_license_photo?: string;
-  /** 状态 */
-  status?: string;
+}
+
+/**
+ * 更新司机证件请求类型
+ * 对应后端 DriverLicenseUpdate
+ * 所有字段可选，只更新提供的字段
+ * 
+ * Requirements: 4.5, 4.6, 4.7 - 更新司机证件信息
+ */
+export interface DriverLicenseUpdate {
+  // ==================== 身份证信息 ====================
+  /** 身份证号码（18位） */
+  id_card_number?: string;
+  /** 身份证姓名 */
+  id_card_name?: string;
+  /** 身份证正面照片URL */
+  id_card_photo_front?: string;
+  /** 身份证背面照片URL */
+  id_card_photo_back?: string;
+  
+  // ==================== 驾驶证信息 ====================
+  /** 驾驶证号码 */
+  license_number?: string;
+  /** 驾驶证类型（如：C1、B2、A2等） */
+  license_class?: string;
+  /** 驾驶证有效期起始日期 */
+  valid_from?: string;
+  /** 驾驶证有效期截止日期 */
+  valid_to?: string;
+  /** 驾驶证照片URL */
+  driving_license_photo?: string;
+}
+
+/**
+ * 驾驶员证件信息（兼容旧版本）
+ * @deprecated 请使用 DriverLicenseResponse 代替
+ */
+export interface DriverLicense extends DriverLicenseResponse {}
+
+/**
+ * 创建/更新驾驶员证件请求（兼容旧版本）
+ * @deprecated 请使用 DriverLicenseCreate 或 DriverLicenseUpdate 代替
+ */
+export interface DriverLicenseInput extends DriverLicenseCreate {
+  /** 司机用户ID（兼容旧版本，新版本通过 URL 路径参数传递） */
+  driver_id?: number;
 }
 
 // ==================== 还车相关类型 ====================
@@ -1180,93 +1264,6 @@ export interface SchedulerStatusResponse {
 }
 
 
-// ==================== 应用版本（热更新）相关类型 ====================
-
-/** 更新类型枚举 */
-export enum UpdateType {
-  /** 可选更新 */
-  OPTIONAL = 'optional',
-  /** 推荐更新 */
-  RECOMMENDED = 'recommended',
-  /** 强制更新 */
-  REQUIRED = 'required',
-}
-
-/** 应用版本信息 */
-export interface AppVersion {
-  id: number;
-  version: string;
-  version_code: number;
-  update_type: UpdateType;
-  title: string;
-  description: string | null;
-  download_url: string | null;
-  file_size: number | null;
-  file_hash: string | null;
-  min_version: string | null;
-  platform: string;
-  is_active: boolean;
-  publish_time: string | null;
-  created_at: string;
-  updated_at: string;
-  creator_id: number | null;
-  creator_name: string | null;
-}
-
-/** 创建应用版本请求 */
-export interface AppVersionCreate {
-  version: string;
-  version_code: number;
-  update_type?: UpdateType;
-  title: string;
-  description?: string;
-  download_url?: string;
-  file_size?: number;
-  file_hash?: string;
-  min_version?: string;
-  platform?: string;
-  is_active?: boolean;
-  publish_time?: string;
-}
-
-/** 更新应用版本请求 */
-export interface AppVersionUpdate {
-  version?: string;
-  version_code?: number;
-  update_type?: UpdateType;
-  title?: string;
-  description?: string;
-  download_url?: string;
-  file_size?: number;
-  file_hash?: string;
-  min_version?: string;
-  platform?: string;
-  is_active?: boolean;
-  publish_time?: string;
-}
-
-/** 检查更新请求 */
-export interface AppVersionCheckRequest {
-  current_version: string;
-  current_version_code?: number;
-  platform?: string;
-}
-
-/** 检查更新响应 */
-export interface AppVersionCheckResponse {
-  has_update: boolean;
-  update_type: string | null;
-  latest_version: string | null;
-  latest_version_code: number | null;
-  title: string | null;
-  description: string | null;
-  download_url: string | null;
-  file_size: number | null;
-  file_hash: string | null;
-  is_force_update: boolean;
-}
-
-
 // ==================== 车辆历史相关类型 ====================
 
 /** 车辆历史操作类型枚举 */
@@ -1375,3 +1372,4 @@ export interface AllPermissionsResponse {
   /** 各角色的权限配置 */
   role_permissions: Record<string, string[]>;
 }
+

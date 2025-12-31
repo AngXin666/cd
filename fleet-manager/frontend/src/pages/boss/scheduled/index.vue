@@ -160,6 +160,7 @@ import {
   RepeatType,
   UserRole,
 } from '@/api/types'
+import { formatDateTime } from '@/utils'
 
 // 状态
 const loading = ref(false)
@@ -271,20 +272,11 @@ function getRepeatLabel(repeatType: RepeatType): string {
 }
 
 /**
- * 格式化日期时间
- */
-function formatDateTime(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-/**
  * 格式化下次执行时间
  */
 function formatNextExecution(dateStr: string | null | undefined): string {
   if (!dateStr) return '无'
-  return formatDateTime(dateStr)
+  return formatDateTime(dateStr) || '无'
 }
 
 /**

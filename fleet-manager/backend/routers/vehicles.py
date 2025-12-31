@@ -127,13 +127,14 @@ async def create_vehicle(
 ):
     """
     添加车辆（司机操作）
-    支持同时设置租赁信息
+    支持同时设置租赁信息和司机证件信息
     创建车辆后自动发送通知给管理员进行审核
 
     使用参数数据类封装多参数，简化函数调用。
+    如果请求中包含司机证件信息，会同时创建或更新司机证件记录。
 
     Args:
-        request: 车辆创建数据
+        request: 车辆创建数据（包含可选的司机证件信息）
         current_user: 当前登录用户
         session: 数据库会话
 
@@ -143,7 +144,7 @@ async def create_vehicle(
     Raises:
         HTTPException 400: 车牌号已存在
 
-    Requirements: 4.2
+    Requirements: 4.2, 10.4 - 在创建车辆时同时保存司机证件信息
     """
     from schemas import VehicleCreateParams
 
@@ -162,6 +163,10 @@ async def create_vehicle(
 
     # 创建车辆（使用参数数据类版本）
     vehicle = crud.create_vehicle_with_params(session, params)
+
+    # 如果请求中包含司机证件信息，同时创建或更新司机证件记录
+    # Requirements: 10.4 - 在创建车辆时同时保存司机证件信息
+    _save_driver_license_if_provided(session, current_user.id, request)
 
     # 发送通知给管理员进行车辆审核
     _send_vehicle_review_notification(session, current_user, request)
@@ -1085,6 +1090,61 @@ def _build_vehicle_response_list(
             user_name=user.name if user else None
         ))
     return result
+
+
+def _save_driver_license_if_provided(
+    session: Session,
+    user_id: int,
+    request: VehicleCreate
+) -> None:
+    """
+    如果请求中包含司机证件信息，则创建或更新司机证件记录
+    
+    这是一个辅助函数，用于在车辆录入时同时保存司机证件信息。
+    只有当请求中包含至少一个司机证件字段时才会执行保存操作。
+
+    Args:
+        session: 数据库会话
+        user_id: 用户ID（司机ID）
+        request: 车辆创建请求，可能包含司机证件信息
+        
+    Requirements: 10.4 - 在创建车辆时同时保存司机证件信息
+    """
+    # 检查是否有任何司机证件信息需要保存
+    has_driver_license_info = any([
+        request.driver_id_card_number,
+        request.driver_id_card_name,
+        request.driver_id_card_photo_front,
+        request.driver_id_card_photo_back,
+        request.driver_license_number,
+        request.driver_license_class,
+        request.driver_license_valid_from,
+        request.driver_license_valid_to,
+        request.driver_license_photo
+    ])
+    
+    if not has_driver_license_info:
+        # 没有司机证件信息，跳过保存
+        return
+    
+    try:
+        # 创建或更新司机证件信息
+        crud.create_or_update_driver_license(
+            session, user_id,
+            id_card_number=request.driver_id_card_number,
+            id_card_name=request.driver_id_card_name,
+            id_card_photo_front=request.driver_id_card_photo_front,
+            id_card_photo_back=request.driver_id_card_photo_back,
+            license_number=request.driver_license_number,
+            license_class=request.driver_license_class,
+            valid_from=request.driver_license_valid_from,
+            valid_to=request.driver_license_valid_to,
+            driving_license_photo=request.driver_license_photo
+        )
+    except Exception as e:
+        # 司机证件保存失败不影响车辆创建
+        # 记录错误日志，但不抛出异常
+        print(f"保存司机证件信息失败: {e}")
 
 
 def _send_vehicle_review_notification(

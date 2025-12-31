@@ -12,7 +12,7 @@ from models import (
     PieceWorkCategory, PieceWorkRecord, LeaveApplication,
     Vehicle, VehicleDocument, Notification, NotificationTemplate,
     ScheduledNotification, RepeatType, ScheduledNotificationStatus,
-    UserRole, LeaveStatus, VehicleStatus, WarehouseType
+    UserRole, LeaveStatus, VehicleStatus, WarehouseType, DriverLicense
 )
 # 从 common.py 导入密码哈希函数，解决循环导入问题
 from common import hash_password
@@ -1141,7 +1141,25 @@ def create_vehicle(
     monthly_rent: Optional[float] = None,
     lease_start_date: Optional[date] = None,
     lease_end_date: Optional[date] = None,
-    rent_payment_day: Optional[int] = None
+    rent_payment_day: Optional[int] = None,
+    # 车辆照片（7张基本照片）
+    left_front_photo: Optional[str] = None,
+    right_front_photo: Optional[str] = None,
+    left_rear_photo: Optional[str] = None,
+    right_rear_photo: Optional[str] = None,
+    dashboard_photo: Optional[str] = None,
+    rear_door_photo: Optional[str] = None,
+    cargo_box_photo: Optional[str] = None,
+    # 行驶证照片（3张）
+    driving_license_main_photo: Optional[str] = None,
+    driving_license_sub_photo: Optional[str] = None,
+    driving_license_sub_back_photo: Optional[str] = None,
+    # 照片数组
+    pickup_photos: Optional[List[str]] = None,
+    registration_photos: Optional[List[str]] = None,
+    damage_photos: Optional[List[str]] = None,
+    # 提车时间
+    pickup_time: Optional[datetime] = None
 ) -> Vehicle:
     """
     创建车辆
@@ -1162,10 +1180,31 @@ def create_vehicle(
         lease_start_date: 租赁开始日期（可选）
         lease_end_date: 租赁结束日期（可选）
         rent_payment_day: 每月租金缴纳日（可选）
+        left_front_photo: 左前照片URL（可选）
+        right_front_photo: 右前照片URL（可选）
+        left_rear_photo: 左后照片URL（可选）
+        right_rear_photo: 右后照片URL（可选）
+        dashboard_photo: 仪表盘照片URL（可选）
+        rear_door_photo: 后门照片URL（可选）
+        cargo_box_photo: 货箱照片URL（可选）
+        driving_license_main_photo: 行驶证主页照片URL（可选）
+        driving_license_sub_photo: 行驶证副页照片URL（可选）
+        driving_license_sub_back_photo: 行驶证副页背面照片URL（可选）
+        pickup_photos: 提车照片数组（可选）
+        registration_photos: 行驶证照片数组（可选）
+        damage_photos: 车损照片数组（可选）
+        pickup_time: 提车时间（可选）
 
     Returns:
         Vehicle: 创建的车辆对象
     """
+    import json
+    
+    # 将照片数组转换为 JSON 字符串
+    pickup_photos_json = json.dumps(pickup_photos) if pickup_photos else None
+    registration_photos_json = json.dumps(registration_photos) if registration_photos else None
+    damage_photos_json = json.dumps(damage_photos) if damage_photos else None
+    
     vehicle = Vehicle(
         user_id=user_id,
         license_plate=license_plate,
@@ -1181,7 +1220,25 @@ def create_vehicle(
         monthly_rent=monthly_rent,
         lease_start_date=lease_start_date,
         lease_end_date=lease_end_date,
-        rent_payment_day=rent_payment_day
+        rent_payment_day=rent_payment_day,
+        # 车辆照片
+        left_front_photo=left_front_photo,
+        right_front_photo=right_front_photo,
+        left_rear_photo=left_rear_photo,
+        right_rear_photo=right_rear_photo,
+        dashboard_photo=dashboard_photo,
+        rear_door_photo=rear_door_photo,
+        cargo_box_photo=cargo_box_photo,
+        # 行驶证照片
+        driving_license_main_photo=driving_license_main_photo,
+        driving_license_sub_photo=driving_license_sub_photo,
+        driving_license_sub_back_photo=driving_license_sub_back_photo,
+        # 照片数组（JSON格式）
+        pickup_photos=pickup_photos_json,
+        registration_photos=registration_photos_json,
+        damage_photos=damage_photos_json,
+        # 提车时间
+        pickup_time=pickup_time
     )
     session.add(vehicle)
     session.commit()
@@ -1222,7 +1279,25 @@ def create_vehicle_with_params(
         monthly_rent=params.monthly_rent,
         lease_start_date=params.lease_start_date,
         lease_end_date=params.lease_end_date,
-        rent_payment_day=params.rent_payment_day
+        rent_payment_day=params.rent_payment_day,
+        # 车辆照片
+        left_front_photo=params.left_front_photo,
+        right_front_photo=params.right_front_photo,
+        left_rear_photo=params.left_rear_photo,
+        right_rear_photo=params.right_rear_photo,
+        dashboard_photo=params.dashboard_photo,
+        rear_door_photo=params.rear_door_photo,
+        cargo_box_photo=params.cargo_box_photo,
+        # 行驶证照片
+        driving_license_main_photo=params.driving_license_main_photo,
+        driving_license_sub_photo=params.driving_license_sub_photo,
+        driving_license_sub_back_photo=params.driving_license_sub_back_photo,
+        # 照片数组
+        pickup_photos=params.pickup_photos,
+        registration_photos=params.registration_photos,
+        damage_photos=params.damage_photos,
+        # 提车时间
+        pickup_time=params.pickup_time
     )
 
 
@@ -3333,3 +3408,216 @@ def get_user_vehicle_history(
     ).order_by(VehicleHistory.action_time.desc()).offset(skip).limit(limit)
 
     return list(session.exec(statement).all())
+
+
+# ==================== 司机证件 CRUD ====================
+# 用于管理司机的身份证和驾驶证信息
+# Requirements: 4.5, 4.6, 4.7 - 司机个人档案页面显示身份证号、驾驶证类型、驾驶证有效期
+
+
+def get_driver_license_by_user_id(session: Session, user_id: int) -> Optional[DriverLicense]:
+    """
+    根据用户ID获取司机证件信息
+    
+    由于 user_id 是唯一的，每个用户最多只有一条证件记录
+
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+
+    Returns:
+        DriverLicense: 司机证件对象，不存在则返回 None
+        
+    Requirements: 4.5, 4.6, 4.7 - 获取司机证件信息用于个人档案页面显示
+    """
+    statement = select(DriverLicense).where(DriverLicense.user_id == user_id)
+    return session.exec(statement).first()
+
+
+def create_driver_license(
+    session: Session,
+    user_id: int,
+    id_card_number: Optional[str] = None,
+    id_card_name: Optional[str] = None,
+    id_card_photo_front: Optional[str] = None,
+    id_card_photo_back: Optional[str] = None,
+    license_number: Optional[str] = None,
+    license_class: Optional[str] = None,
+    valid_from: Optional[date] = None,
+    valid_to: Optional[date] = None,
+    driving_license_photo: Optional[str] = None
+) -> DriverLicense:
+    """
+    创建司机证件记录
+    
+    为指定用户创建新的证件记录，包含身份证和驾驶证信息
+
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+        id_card_number: 身份证号码（可选）
+        id_card_name: 身份证姓名（可选）
+        id_card_photo_front: 身份证正面照片URL（可选）
+        id_card_photo_back: 身份证背面照片URL（可选）
+        license_number: 驾驶证号码（可选）
+        license_class: 驾驶证类型（可选）
+        valid_from: 驾驶证有效期起始日期（可选）
+        valid_to: 驾驶证有效期截止日期（可选）
+        driving_license_photo: 驾驶证照片URL（可选）
+
+    Returns:
+        DriverLicense: 创建的司机证件对象
+        
+    Requirements: 4.5, 4.6, 4.7 - 保存司机证件信息
+    """
+    driver_license = DriverLicense(
+        user_id=user_id,
+        id_card_number=id_card_number,
+        id_card_name=id_card_name,
+        id_card_photo_front=id_card_photo_front,
+        id_card_photo_back=id_card_photo_back,
+        license_number=license_number,
+        license_class=license_class,
+        valid_from=valid_from,
+        valid_to=valid_to,
+        driving_license_photo=driving_license_photo
+    )
+    session.add(driver_license)
+    session.commit()
+    session.refresh(driver_license)
+    return driver_license
+
+
+def update_driver_license(
+    session: Session,
+    driver_license: DriverLicense,
+    id_card_number: Optional[str] = None,
+    id_card_name: Optional[str] = None,
+    id_card_photo_front: Optional[str] = None,
+    id_card_photo_back: Optional[str] = None,
+    license_number: Optional[str] = None,
+    license_class: Optional[str] = None,
+    valid_from: Optional[date] = None,
+    valid_to: Optional[date] = None,
+    driving_license_photo: Optional[str] = None
+) -> DriverLicense:
+    """
+    更新司机证件信息
+    
+    只更新提供的字段，未提供的字段保持不变
+
+    Args:
+        session: 数据库会话
+        driver_license: 要更新的司机证件对象
+        id_card_number: 身份证号码（可选）
+        id_card_name: 身份证姓名（可选）
+        id_card_photo_front: 身份证正面照片URL（可选）
+        id_card_photo_back: 身份证背面照片URL（可选）
+        license_number: 驾驶证号码（可选）
+        license_class: 驾驶证类型（可选）
+        valid_from: 驾驶证有效期起始日期（可选）
+        valid_to: 驾驶证有效期截止日期（可选）
+        driving_license_photo: 驾驶证照片URL（可选）
+
+    Returns:
+        DriverLicense: 更新后的司机证件对象
+        
+    Requirements: 4.5, 4.6, 4.7 - 更新司机证件信息
+    """
+    # 只更新提供的字段
+    if id_card_number is not None:
+        driver_license.id_card_number = id_card_number
+    if id_card_name is not None:
+        driver_license.id_card_name = id_card_name
+    if id_card_photo_front is not None:
+        driver_license.id_card_photo_front = id_card_photo_front
+    if id_card_photo_back is not None:
+        driver_license.id_card_photo_back = id_card_photo_back
+    if license_number is not None:
+        driver_license.license_number = license_number
+    if license_class is not None:
+        driver_license.license_class = license_class
+    if valid_from is not None:
+        driver_license.valid_from = valid_from
+    if valid_to is not None:
+        driver_license.valid_to = valid_to
+    if driving_license_photo is not None:
+        driver_license.driving_license_photo = driving_license_photo
+    
+    # 更新时间戳
+    driver_license.updated_at = datetime.now()
+    
+    session.add(driver_license)
+    session.commit()
+    session.refresh(driver_license)
+    return driver_license
+
+
+def create_or_update_driver_license(
+    session: Session,
+    user_id: int,
+    id_card_number: Optional[str] = None,
+    id_card_name: Optional[str] = None,
+    id_card_photo_front: Optional[str] = None,
+    id_card_photo_back: Optional[str] = None,
+    license_number: Optional[str] = None,
+    license_class: Optional[str] = None,
+    valid_from: Optional[date] = None,
+    valid_to: Optional[date] = None,
+    driving_license_photo: Optional[str] = None
+) -> DriverLicense:
+    """
+    创建或更新司机证件信息
+    
+    如果用户已有证件记录则更新，否则创建新记录
+    这是一个便捷方法，用于 POST API 的 upsert 操作
+
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+        id_card_number: 身份证号码（可选）
+        id_card_name: 身份证姓名（可选）
+        id_card_photo_front: 身份证正面照片URL（可选）
+        id_card_photo_back: 身份证背面照片URL（可选）
+        license_number: 驾驶证号码（可选）
+        license_class: 驾驶证类型（可选）
+        valid_from: 驾驶证有效期起始日期（可选）
+        valid_to: 驾驶证有效期截止日期（可选）
+        driving_license_photo: 驾驶证照片URL（可选）
+
+    Returns:
+        DriverLicense: 创建或更新后的司机证件对象
+        
+    Requirements: 4.5, 4.6, 4.7 - 创建或更新司机证件信息
+    """
+    # 检查是否已存在证件记录
+    existing = get_driver_license_by_user_id(session, user_id)
+    
+    if existing:
+        # 更新现有记录
+        return update_driver_license(
+            session, existing,
+            id_card_number=id_card_number,
+            id_card_name=id_card_name,
+            id_card_photo_front=id_card_photo_front,
+            id_card_photo_back=id_card_photo_back,
+            license_number=license_number,
+            license_class=license_class,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            driving_license_photo=driving_license_photo
+        )
+    else:
+        # 创建新记录
+        return create_driver_license(
+            session, user_id,
+            id_card_number=id_card_number,
+            id_card_name=id_card_name,
+            id_card_photo_front=id_card_photo_front,
+            id_card_photo_back=id_card_photo_back,
+            license_number=license_number,
+            license_class=license_class,
+            valid_from=valid_from,
+            valid_to=valid_to,
+            driving_license_photo=driving_license_photo
+        )
