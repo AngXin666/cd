@@ -27,7 +27,7 @@ def create_database_engine():
     """
     创建数据库引擎
     根据数据库类型（SQLite/PostgreSQL）配置不同的连接参数
-    
+
     Returns:
         Engine: SQLAlchemy 数据库引擎
     """
@@ -36,7 +36,7 @@ def create_database_engine():
     engine_kwargs = {
         "echo": settings.debug,  # 开发模式下打印 SQL
     }
-    
+
     if database_url.startswith("sqlite"):
         # SQLite 配置
         # check_same_thread=False 以支持多线程
@@ -46,7 +46,7 @@ def create_database_engine():
         # 确保数据目录存在
         os.makedirs("data", exist_ok=True)
         logger.info(f"使用 SQLite 数据库: {database_url}")
-        
+
     elif database_url.startswith("postgresql"):
         # PostgreSQL 配置
         # 使用连接池
@@ -56,11 +56,11 @@ def create_database_engine():
         engine_kwargs["pool_timeout"] = settings.db_pool_timeout
         engine_kwargs["pool_pre_ping"] = True  # 连接前检查连接是否有效
         logger.info(f"使用 PostgreSQL 数据库，连接池大小: {settings.db_pool_size}")
-    
+
     else:
         # 其他数据库（如 MySQL）
         logger.warning(f"未知数据库类型: {database_url}")
-    
+
     return create_engine(
         database_url,
         connect_args=connect_args,
@@ -76,7 +76,7 @@ def create_db_and_tables():
     """
     创建数据库和所有表
     在应用启动时调用
-    
+
     注意：
     - SQLite：自动创建数据库文件
     - PostgreSQL：需要先创建数据库
@@ -93,10 +93,10 @@ def get_session():
     """
     获取数据库会话
     用于 FastAPI 依赖注入
-    
+
     Yields:
         Session: 数据库会话对象
-    
+
     Example:
         @app.get("/users")
         def get_users(session: Session = Depends(get_session)):
@@ -110,7 +110,7 @@ def check_database_connection() -> bool:
     """
     检查数据库连接是否正常
     用于健康检查
-    
+
     Returns:
         bool: True 表示连接正常，False 表示连接失败
     """
@@ -122,3 +122,84 @@ def check_database_connection() -> bool:
     except Exception as e:
         logger.error(f"数据库连接检查失败: {e}")
         return False
+
+
+def migrate_warehouse_types():
+    """
+    数据迁移：为现有仓库设置默认的 warehouse_type 值
+    
+    此函数用于将现有仓库数据迁移到新的仓库类型系统。
+    所有没有设置 warehouse_type 的仓库将被设置为默认值 "piece"（计件类型）。
+    
+    此迁移是幂等的，可以安全地多次执行：
+    - 如果仓库已有 warehouse_type 值，则不会被修改
+    - 如果仓库的 warehouse_type 为 NULL 或空，则设置为 "piece"
+    
+    Returns:
+        int: 被迁移的仓库数量
+    
+    Example:
+        >>> count = migrate_warehouse_types()
+        >>> print(f"迁移了 {count} 个仓库")
+    
+    Requirements: 5.1 - 数据迁移
+    """
+    from sqlmodel import text
+    
+    try:
+        with Session(engine) as session:
+            # 使用原生 SQL 更新，确保兼容 SQLite 和 PostgreSQL
+            # 只更新 warehouse_type 为 NULL 或空字符串的记录
+            result = session.execute(
+                text("""
+                    UPDATE warehouses 
+                    SET warehouse_type = 'piece' 
+                    WHERE warehouse_type IS NULL 
+                       OR warehouse_type = ''
+                """)
+            )
+            
+            # 获取受影响的行数
+            migrated_count = result.rowcount
+            
+            # 提交事务
+            session.commit()
+            
+            if migrated_count > 0:
+                logger.info(f"仓库类型迁移完成：{migrated_count} 个仓库已设置为默认类型 'piece'")
+            else:
+                logger.info("仓库类型迁移：没有需要迁移的仓库")
+            
+            return migrated_count
+            
+    except Exception as e:
+        logger.error(f"仓库类型迁移失败: {e}")
+        raise
+
+
+def run_migrations():
+    """
+    运行所有数据库迁移
+    
+    此函数在应用启动时调用，执行所有必要的数据迁移。
+    所有迁移都是幂等的，可以安全地多次执行。
+    
+    当前包含的迁移：
+    1. migrate_warehouse_types - 为现有仓库设置默认类型
+    
+    Example:
+        >>> run_migrations()
+    
+    Requirements: 5.1 - 数据迁移
+    """
+    logger.info("开始执行数据库迁移...")
+    
+    try:
+        # 迁移 1: 仓库类型
+        migrate_warehouse_types()
+        
+        logger.info("所有数据库迁移执行完成")
+        
+    except Exception as e:
+        logger.error(f"数据库迁移执行失败: {e}")
+        raise

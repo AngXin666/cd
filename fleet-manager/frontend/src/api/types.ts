@@ -13,21 +13,19 @@ export enum UserRole {
   MANAGER = 'manager',
   /** 调度 */
   PEER_ADMIN = 'peer_admin',
-  /** 老板 */
+  /** 老板 - 系统最高权限角色 */
   BOSS = 'boss',
-  /** 超级管理员 */
-  SUPER_ADMIN = 'super_admin',
 }
 
 /**
  * 角色显示名称映射
+ * 注意：SUPER_ADMIN 角色已被移除，BOSS 现在是系统最高权限角色
  */
 export const ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
   [UserRole.DRIVER]: '司机',
   [UserRole.MANAGER]: '车队长',
   [UserRole.PEER_ADMIN]: '调度',
   [UserRole.BOSS]: '老板',
-  [UserRole.SUPER_ADMIN]: '超级管理员',
 }
 
 /**
@@ -40,21 +38,23 @@ export function getRoleDisplayName(role: UserRole): string {
 }
 
 /**
- * 检查是否为管理员角色（PEER_ADMIN、BOSS、SUPER_ADMIN）
+ * 检查是否为管理员角色（PEER_ADMIN、BOSS）
+ * 注意：SUPER_ADMIN 角色已被移除，BOSS 现在是系统最高权限角色
  * @param role 用户角色
  * @returns 是否为管理员角色
  */
 export function isAdminRole(role: UserRole): boolean {
-  return role === UserRole.PEER_ADMIN || role === UserRole.BOSS || role === UserRole.SUPER_ADMIN
+  return role === UserRole.PEER_ADMIN || role === UserRole.BOSS
 }
 
 /**
- * 检查是否具有管理权限（MANAGER、PEER_ADMIN、BOSS、SUPER_ADMIN）
+ * 检查是否具有管理权限（MANAGER、PEER_ADMIN、BOSS）
+ * 注意：SUPER_ADMIN 角色已被移除，BOSS 现在是系统最高权限角色
  * @param role 用户角色
  * @returns 是否具有管理权限
  */
 export function hasManagementPermission(role: UserRole): boolean {
-  return role === UserRole.MANAGER || role === UserRole.PEER_ADMIN || role === UserRole.BOSS || role === UserRole.SUPER_ADMIN
+  return role === UserRole.MANAGER || role === UserRole.PEER_ADMIN || role === UserRole.BOSS
 }
 
 /** 请假类型枚举 */
@@ -95,6 +95,74 @@ export enum DocumentType {
   REGISTRATION = 'registration',
   /** 保险单 */
   INSURANCE = 'insurance',
+}
+
+/**
+ * 仓库类型枚举
+ * 定义仓库的计量类型，决定该仓库使用的预设单位
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
+ */
+export enum WarehouseType {
+  /** 计件类型 - 预设单位：件 */
+  PIECE = 'piece',
+  /** 点位类型 - 预设单位：点 */
+  POINT = 'point',
+  /** 整车类型 - 预设单位：车 */
+  WHOLE = 'whole',
+  /** 距离类型 - 预设单位：公里 */
+  DISTANCE = 'distance',
+}
+
+/**
+ * 仓库类型显示名称映射
+ * 将仓库类型枚举值映射为中文显示名称
+ * Requirements: 1.1
+ */
+export const WAREHOUSE_TYPE_DISPLAY_NAMES: Record<WarehouseType, string> = {
+  [WarehouseType.PIECE]: '计件',
+  [WarehouseType.POINT]: '点位',
+  [WarehouseType.WHOLE]: '整车',
+  [WarehouseType.DISTANCE]: '距离',
+}
+
+/**
+ * 仓库类型预设单位映射
+ * 将仓库类型枚举值映射为对应的计量单位
+ * Requirements: 1.2, 1.3, 1.4, 1.5
+ */
+export const WAREHOUSE_TYPE_UNITS: Record<WarehouseType, string> = {
+  [WarehouseType.PIECE]: '件',
+  [WarehouseType.POINT]: '点',
+  [WarehouseType.WHOLE]: '车',
+  [WarehouseType.DISTANCE]: '公里',
+}
+
+/**
+ * 获取仓库类型的显示名称
+ * @param warehouseType 仓库类型枚举值或字符串
+ * @returns 仓库类型的中文显示名称，如果类型无效则返回 "未知"
+ * @example
+ * getWarehouseTypeDisplayName(WarehouseType.PIECE) // 返回 "计件"
+ * getWarehouseTypeDisplayName('point') // 返回 "点位"
+ * Requirements: 1.1
+ */
+export function getWarehouseTypeDisplayName(warehouseType: WarehouseType | string): string {
+  const type = warehouseType as WarehouseType
+  return WAREHOUSE_TYPE_DISPLAY_NAMES[type] || '未知'
+}
+
+/**
+ * 获取仓库类型的预设单位
+ * @param warehouseType 仓库类型枚举值或字符串
+ * @returns 仓库类型对应的预设单位，如果类型无效则返回默认值 "件"
+ * @example
+ * getWarehousePresetUnit(WarehouseType.PIECE) // 返回 "件"
+ * getWarehousePresetUnit('distance') // 返回 "公里"
+ * Requirements: 1.2, 1.3, 1.4, 1.5
+ */
+export function getWarehousePresetUnit(warehouseType: WarehouseType | string): string {
+  const type = warehouseType as WarehouseType
+  return WAREHOUSE_TYPE_UNITS[type] || '件'
 }
 
 // ==================== 认证相关类型 ====================
@@ -153,26 +221,54 @@ export interface UserUpdate {
 
 // ==================== 仓库相关类型 ====================
 
-/** 仓库信息 */
+/**
+ * 仓库信息接口
+ * 包含仓库的基本信息和类型配置
+ * Requirements: 1.1, 7.1
+ */
 export interface Warehouse {
+  /** 仓库ID */
   id: number;
+  /** 仓库名称 */
   name: string;
+  /** 仓库地址 */
   address: string | null;
+  /** 是否启用 */
   is_active: boolean;
+  /** 创建时间 */
   created_at: string;
+  /** 仓库类型（计件/点位/整车/距离） */
+  warehouse_type: WarehouseType;
+  /** 预设单位（根据仓库类型自动确定） */
+  preset_unit: string;
 }
 
-/** 创建仓库请求 */
+/**
+ * 创建仓库请求接口
+ * Requirements: 7.1
+ */
 export interface WarehouseCreate {
+  /** 仓库名称 */
   name: string;
+  /** 仓库地址（可选） */
   address?: string;
+  /** 仓库类型（可选，默认为 piece） */
+  warehouse_type?: WarehouseType;
 }
 
-/** 更新仓库请求 */
+/**
+ * 更新仓库请求接口
+ * Requirements: 7.1
+ */
 export interface WarehouseUpdate {
+  /** 仓库名称 */
   name?: string;
+  /** 仓库地址 */
   address?: string;
+  /** 是否启用 */
   is_active?: boolean;
+  /** 仓库类型 */
+  warehouse_type?: WarehouseType;
 }
 
 // ==================== 考勤相关类型 ====================
@@ -351,13 +447,26 @@ export interface PieceWorkRecordUpdate {
   amount?: number;
 }
 
-/** 计件统计 */
+/**
+ * 计件统计接口
+ * 包含计件工作的汇总统计信息
+ * Requirements: 6.1
+ */
 export interface PieceWorkStats {
+  /** 总数量 */
   total_quantity: number;
+  /** 总金额 */
   total_amount: number;
+  /** 记录数 */
   record_count: number;
   /** 司机数量（可选，某些统计接口返回） */
   driver_count?: number;
+  /** 计量单位（根据仓库类型确定） */
+  unit?: string;
+  /** 仓库类型 */
+  warehouse_type?: WarehouseType;
+  /** 仓库类型显示名称 */
+  warehouse_type_display?: string;
 }
 
 // ==================== 请假相关类型 ====================

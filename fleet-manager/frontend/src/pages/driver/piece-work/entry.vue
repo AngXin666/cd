@@ -65,9 +65,14 @@
           <view class="form-item">
             <text class="form-label">
               <text class="required">*</text> 品类
+              <text v-if="currentWarehousePresetUnit" class="unit-hint">
+                （单位：{{ currentWarehousePresetUnit }}）
+              </text>
             </text>
             <view v-if="loadingCategories" class="loading-text">加载中...</view>
-            <view v-else-if="categories.length === 0" class="empty-text">暂无品类</view>
+            <view v-else-if="categories.length === 0" class="empty-text">
+              暂无单位为「{{ currentWarehousePresetUnit || '件' }}」的品类
+            </view>
             <view v-else-if="categories.length === 1" class="form-readonly">
               <text class="readonly-value">{{ categories[0]?.name }}</text>
               <text class="readonly-hint">（该仓库仅此一个品类）</text>
@@ -296,6 +301,7 @@ import {
   updatePieceWorkRecord,
 } from '@/api'
 import type { Warehouse, PieceWorkCategory } from '@/api/types'
+import { getWarehousePresetUnit } from '@/api/types'
 import type { DriverType } from '@/api'
 import { useUserStore } from '@/store/user'
 import { 
@@ -395,6 +401,29 @@ const currentCategoryName = computed(() => categories.value[selectedCategoryInde
 
 /** 当前分类 */
 const currentCategory = computed(() => categories.value[selectedCategoryIndex.value] || null)
+
+/**
+ * 当前仓库的预设单位
+ * 根据仓库类型返回对应的计量单位
+ * @requirements 3.1 - 品类单位限制
+ */
+const currentWarehousePresetUnit = computed(() => {
+  const warehouse = currentWarehouse.value
+  if (!warehouse) return ''
+  
+  // 优先使用 warehouse_type 计算预设单位
+  if (warehouse.warehouse_type) {
+    return getWarehousePresetUnit(warehouse.warehouse_type)
+  }
+  
+  // 其次使用后端返回的 preset_unit 字段
+  if (warehouse.preset_unit) {
+    return warehouse.preset_unit
+  }
+  
+  // 默认返回 "件"
+  return '件'
+})
 
 /**
  * 司机类型显示标签
@@ -602,21 +631,57 @@ async function loadWarehouses(): Promise<void> {
 
 /**
  * 加载分类列表
+ * 根据仓库类型筛选匹配单位的品类
+ * 
  * @param warehouseId - 仓库 ID
+ * @requirements 3.1, 4.1 - 品类单位限制，仓库品类关联
  */
 async function loadCategories(warehouseId: number): Promise<void> {
   loadingCategories.value = true
   
   try {
-    const data = await getPieceWorkCategories(true)
+    // 获取当前仓库信息
+    const warehouse = warehouses.value.find(w => w.id === warehouseId)
+    
+    // 获取仓库的预设单位
+    // 如果仓库有 warehouse_type，则根据类型获取预设单位
+    // 否则使用仓库返回的 preset_unit 字段
+    let presetUnit: string | undefined
+    if (warehouse) {
+      if (warehouse.warehouse_type) {
+        presetUnit = getWarehousePresetUnit(warehouse.warehouse_type)
+      } else if (warehouse.preset_unit) {
+        presetUnit = warehouse.preset_unit
+      }
+    }
+    
+    console.log('[计件录入] loadCategories 仓库信息:', {
+      warehouseId,
+      warehouseName: warehouse?.name,
+      warehouseType: warehouse?.warehouse_type,
+      presetUnit,
+    })
+    
+    // 按单位筛选品类（如果有预设单位）
+    const data = await getPieceWorkCategories(true, presetUnit)
     
     console.log('[计件录入] loadCategories 获取到分类:', {
       count: data.length,
-      categories: data.map(c => ({ id: c.id, name: c.name, unit_price: c.unit_price })),
+      filterUnit: presetUnit,
+      categories: data.map(c => ({ id: c.id, name: c.name, unit: c.unit, unit_price: c.unit_price })),
     })
     
     categories.value = data
     selectedCategoryIndex.value = 0
+    
+    // 如果没有匹配的品类，显示提示
+    if (data.length === 0 && presetUnit) {
+      uni.showToast({
+        title: `暂无单位为「${presetUnit}」的品类`,
+        icon: 'none',
+        duration: 2000,
+      })
+    }
     
     // 加载单价配置
     if (data.length > 0) {
@@ -1127,6 +1192,13 @@ async function doSubmit(): Promise<void> {
 }
 
 .price-locked {
+  color: #3B82F6;
+  font-size: 22rpx;
+  margin-left: 8rpx;
+}
+
+/* 单位提示 - 显示仓库预设单位 */
+.unit-hint {
   color: #3B82F6;
   font-size: 22rpx;
   margin-left: 8rpx;

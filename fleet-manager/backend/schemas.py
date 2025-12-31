@@ -8,18 +8,17 @@ Pydantic 模式模块
 
 from datetime import datetime, date
 from typing import Optional, List
-from enum import Enum
 from pydantic import BaseModel, Field
 from models import (
-    UserRole, 
-    LeaveType, 
-    LeaveStatus, 
-    VehicleStatus, 
+    UserRole,
+    LeaveType,
+    LeaveStatus,
+    VehicleStatus,
     DocumentType,
     RepeatType,
     ScheduledNotificationStatus,
-    UpdateType,
-    VehicleHistoryActionType
+    VehicleHistoryActionType,
+    WarehouseType
 )
 
 
@@ -28,7 +27,7 @@ from models import (
 class LoginRequest(BaseModel):
     """
     登录请求模式
-    
+
     Attributes:
         username: 用户名
         password: 密码
@@ -40,7 +39,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     """
     Token 响应模式
-    
+
     Attributes:
         access_token: JWT 访问令牌
         token_type: 令牌类型，固定为 "bearer"
@@ -52,7 +51,7 @@ class TokenResponse(BaseModel):
 class PasswordChangeRequest(BaseModel):
     """
     修改密码请求模式
-    
+
     Attributes:
         old_password: 旧密码
         new_password: 新密码
@@ -111,7 +110,7 @@ class UserResponse(UserBase):
     """
     id: int = Field(..., description="用户ID")
     created_at: datetime = Field(..., description="创建时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -125,40 +124,217 @@ class UserDetailResponse(UserResponse):
 
 
 # ==================== 仓库相关模式 ====================
+# 仓库管理相关的请求和响应模式
+# 支持仓库类型分类功能（计件/点位/整车/距离）
+# Requirements: Requirement 1, 2, 7
+
 
 class WarehouseBase(BaseModel):
     """
     仓库基础模式
+    
+    定义仓库的基本信息字段，作为创建和响应模式的基类。
+    支持四种仓库类型，每种类型对应预设的计量单位。
+    
+    Attributes:
+        name: 仓库名称，必填，长度 1-100 字符
+        address: 仓库地址，可选，最大 255 字符
+        is_active: 是否启用，默认 True
+        warehouse_type: 仓库类型枚举值，默认为 PIECE（计件）
+            - PIECE: 计件类型，预设单位为"件"
+            - POINT: 点位类型，预设单位为"点"
+            - WHOLE: 整车类型，预设单位为"车"
+            - DISTANCE: 距离类型，预设单位为"公里"
+        
+    Requirements:
+        - Requirement 1.1: 支持四种仓库类型
+        - Requirement 1.2-1.5: 每种类型对应预设单位
+        - Requirement 1.6: 仓库类型字段默认值为 "piece"
+        
+    Example:
+        >>> warehouse = WarehouseBase(
+        ...     name="北京仓库",
+        ...     address="北京市朝阳区",
+        ...     warehouse_type=WarehouseType.PIECE
+        ... )
     """
+    # 仓库名称，必填字段
     name: str = Field(..., min_length=1, max_length=100, description="仓库名称")
+    # 仓库地址，可选字段
     address: Optional[str] = Field(default=None, max_length=255, description="仓库地址")
+    # 是否启用，默认启用
     is_active: bool = Field(default=True, description="是否启用")
+    # 仓库类型字段，默认为计件类型
+    # 支持四种类型：piece=计件, point=点位, whole=整车, distance=距离
+    # Requirements: 1.1-1.6 - 支持四种仓库类型，默认为 piece
+    warehouse_type: WarehouseType = Field(
+        default=WarehouseType.PIECE,
+        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离"
+    )
 
 
 class WarehouseCreate(WarehouseBase):
-    """创建仓库请求模式"""
+    """
+    创建仓库请求模式
+    
+    继承 WarehouseBase，用于创建新仓库时的请求数据验证。
+    支持设置仓库类型，默认为计件类型。
+    
+    继承字段:
+        name: 仓库名称（必填，1-100 字符）
+        address: 仓库地址（可选，最大 255 字符）
+        is_active: 是否启用（默认 True）
+        warehouse_type: 仓库类型（默认 WarehouseType.PIECE）
+        
+    Requirements: 
+        - Requirement 1.6: 仓库类型字段默认值为 "piece"
+        - Requirement 2.3: 创建新仓库时默认类型为"计件"
+        - Requirement 7.1: API 接口支持创建带类型的仓库
+        
+    Example:
+        >>> create_data = WarehouseCreate(
+        ...     name="上海仓库",
+        ...     address="上海市浦东新区",
+        ...     warehouse_type=WarehouseType.POINT
+        ... )
+    """
     pass
 
 
 class WarehouseUpdate(BaseModel):
     """
     更新仓库请求模式
-    所有字段可选
+    
+    用于更新仓库信息时的请求数据验证。
+    所有字段均为可选，只更新提供的字段。
+    支持更新仓库类型。
+    
+    Attributes:
+        name: 仓库名称（可选，最大 100 字符）
+        address: 仓库地址（可选，最大 255 字符）
+        is_active: 是否启用（可选）
+        warehouse_type: 仓库类型（可选），支持更新为以下值：
+            - piece: 计件类型
+            - point: 点位类型
+            - whole: 整车类型
+            - distance: 距离类型
+        
+    Requirements:
+        - Requirement 2.4: 更新仓库类型时验证并保存新类型
+        - Requirement 7.1: API 接口支持更新仓库类型
+        
+    Example:
+        >>> update_data = WarehouseUpdate(
+        ...     warehouse_type=WarehouseType.WHOLE
+        ... )
     """
+    # 仓库名称，可选更新
     name: Optional[str] = Field(default=None, max_length=100, description="仓库名称")
+    # 仓库地址，可选更新
     address: Optional[str] = Field(default=None, max_length=255, description="仓库地址")
+    # 是否启用，可选更新
     is_active: Optional[bool] = Field(default=None, description="是否启用")
+    # 仓库类型字段，支持更新仓库类型
+    # Requirements: 2.4, 7.1 - 支持更新仓库类型
+    warehouse_type: Optional[WarehouseType] = Field(
+        default=None,
+        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离"
+    )
 
 
 class WarehouseResponse(WarehouseBase):
     """
     仓库响应模式
-    """
-    id: int = Field(..., description="仓库ID")
-    created_at: datetime = Field(..., description="创建时间")
     
+    返回给前端的仓库信息，包含仓库类型和预设单位。
+    继承 WarehouseBase 的所有字段，并添加 id、created_at 和 preset_unit。
+    
+    Attributes:
+        id: 仓库ID，主键
+        name: 仓库名称（继承自 WarehouseBase）
+        address: 仓库地址（继承自 WarehouseBase）
+        is_active: 是否启用（继承自 WarehouseBase）
+        warehouse_type: 仓库类型（继承自 WarehouseBase）
+        preset_unit: 预设单位，根据仓库类型自动计算
+            - piece → "件"
+            - point → "点"
+            - whole → "车"
+            - distance → "公里"
+        created_at: 创建时间
+        
+    Requirements:
+        - Requirement 7.1: API 返回包含 warehouse_type 字段
+        - Requirement 7.2: API 返回包含 preset_unit 字段（基于仓库类型计算）
+        
+    Example:
+        >>> response = WarehouseResponse(
+        ...     id=1,
+        ...     name="北京仓库",
+        ...     warehouse_type=WarehouseType.PIECE,
+        ...     preset_unit="件",
+        ...     created_at=datetime.now()
+        ... )
+    """
+    # 仓库ID，主键
+    id: int = Field(..., description="仓库ID")
+    # 创建时间
+    created_at: datetime = Field(..., description="创建时间")
+    # 预设单位字段（计算字段）
+    # 根据 warehouse_type 自动计算：piece→件, point→点, whole→车, distance→公里
+    # Requirements: 7.2 - API 返回预设单位
+    preset_unit: str = Field(default="件", description="预设单位，根据仓库类型自动计算")
+
     class Config:
+        """Pydantic 配置类"""
+        # 允许从 ORM 模型属性创建
         from_attributes = True
+
+    @classmethod
+    def from_warehouse(cls, warehouse: "Warehouse") -> "WarehouseResponse":
+        """
+        从 Warehouse 模型对象创建响应对象
+        
+        工厂方法，用于将数据库模型对象转换为 API 响应对象。
+        自动根据仓库类型计算 preset_unit 字段值。
+        
+        Args:
+            warehouse: Warehouse 数据库模型对象，包含仓库的所有信息
+            
+        Returns:
+            WarehouseResponse: API 响应对象，包含计算后的 preset_unit
+            
+        Raises:
+            ImportError: 当无法导入 helpers 模块时抛出
+            
+        Example:
+            >>> from models import Warehouse, WarehouseType
+            >>> warehouse = Warehouse(
+            ...     id=1,
+            ...     name="测试仓库",
+            ...     warehouse_type=WarehouseType.PIECE
+            ... )
+            >>> response = WarehouseResponse.from_warehouse(warehouse)
+            >>> print(response.preset_unit)  # 输出: "件"
+            
+        Requirements: 
+            - Requirement 7.2: API 返回预设单位
+            
+        Note:
+            使用延迟导入避免循环依赖问题
+        """
+        # 延迟导入避免循环依赖
+        from helpers import get_warehouse_preset_unit
+        
+        # 创建响应对象，自动计算预设单位
+        return cls(
+            id=warehouse.id,
+            name=warehouse.name,
+            address=warehouse.address,
+            is_active=warehouse.is_active,
+            warehouse_type=warehouse.warehouse_type,
+            preset_unit=get_warehouse_preset_unit(warehouse.warehouse_type),
+            created_at=warehouse.created_at
+        )
 
 
 class WarehouseAssignRequest(BaseModel):
@@ -190,10 +366,10 @@ class AttendanceResponse(BaseModel):
     clock_out: Optional[datetime] = Field(default=None, description="下班打卡时间")
     work_hours: Optional[float] = Field(default=None, description="工作时长（小时）")
     created_at: datetime = Field(..., description="记录创建时间")
-    
+
     # 关联信息
     user_name: Optional[str] = Field(default=None, description="用户姓名")
-    
+
     class Config:
         from_attributes = True
 
@@ -249,7 +425,7 @@ class PieceWorkCategoryResponse(PieceWorkCategoryBase):
     """
     id: int = Field(..., description="分类ID")
     created_at: datetime = Field(..., description="创建时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -286,12 +462,12 @@ class PieceWorkRecordResponse(BaseModel):
     amount: float = Field(..., description="金额")
     remark: Optional[str] = Field(default=None, description="备注")
     created_at: datetime = Field(..., description="创建时间")
-    
+
     # 关联信息
     user_name: Optional[str] = Field(default=None, description="用户姓名")
     category_name: Optional[str] = Field(default=None, description="分类名称")
     warehouse_name: Optional[str] = Field(default=None, description="仓库名称")
-    
+
     class Config:
         from_attributes = True
 
@@ -299,10 +475,34 @@ class PieceWorkRecordResponse(BaseModel):
 class PieceWorkStatsResponse(BaseModel):
     """
     计件统计响应模式
+    
+    用于返回计件记录的统计数据，包括总数量、总金额、记录数和单位信息。
+    
+    Attributes:
+        total_quantity: 总数量
+        total_amount: 总金额
+        record_count: 记录数
+        unit: 计量单位（如 "件"、"点"、"车"、"公里"），根据仓库类型自动确定
+        warehouse_type: 仓库类型（可选，当按仓库筛选时返回）
+        warehouse_type_display: 仓库类型显示名称（可选）
+    
+    Requirements: 6.1 - 数据统计单位显示
     """
     total_quantity: int = Field(..., description="总数量")
     total_amount: float = Field(..., description="总金额")
     record_count: int = Field(..., description="记录数")
+    unit: Optional[str] = Field(
+        default="件",
+        description="计量单位，根据仓库类型自动确定（件/点/车/公里）"
+    )
+    warehouse_type: Optional[str] = Field(
+        default=None,
+        description="仓库类型（piece/point/whole/distance）"
+    )
+    warehouse_type_display: Optional[str] = Field(
+        default=None,
+        description="仓库类型显示名称（计件/点位/整车/距离）"
+    )
 
 
 # ==================== 请假相关模式 ====================
@@ -340,11 +540,11 @@ class LeaveApplicationResponse(BaseModel):
     approve_remark: Optional[str] = Field(default=None, description="审批备注")
     created_at: datetime = Field(..., description="申请时间")
     updated_at: datetime = Field(..., description="更新时间")
-    
+
     # 关联信息
     user_name: Optional[str] = Field(default=None, description="申请人姓名")
     approver_name: Optional[str] = Field(default=None, description="审批人姓名")
-    
+
     class Config:
         from_attributes = True
 
@@ -420,10 +620,10 @@ class VehicleResponse(VehicleBase):
     ownership_type: Optional[str] = Field(default=None, description="所有权类型")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    
+
     # 关联信息
     user_name: Optional[str] = Field(default=None, description="车主姓名")
-    
+
     class Config:
         from_attributes = True
 
@@ -448,7 +648,7 @@ class VehicleLeaseResponse(BaseModel):
     next_payment_date: Optional[date] = Field(default=None, description="下一个租金缴纳日期")
     days_until_payment: Optional[int] = Field(default=None, description="距离下次缴纳的天数")
     lease_status: Optional[str] = Field(default=None, description="租赁状态：active/expired/not_started")
-    
+
     class Config:
         from_attributes = True
 
@@ -468,7 +668,7 @@ class VehicleLeaseReminderResponse(BaseModel):
     monthly_rent: Optional[float] = Field(default=None, description="月租金（元）")
     next_payment_date: Optional[date] = Field(default=None, description="下一个租金缴纳日期")
     days_until_payment: int = Field(..., description="距离下次缴纳的天数")
-    
+
     class Config:
         from_attributes = True
 
@@ -502,7 +702,7 @@ class VehicleDocumentResponse(BaseModel):
     supplemented_photos: Optional[dict] = Field(default=None, description="补录照片元数据")
     created_at: datetime = Field(..., description="上传时间")
     updated_at: Optional[datetime] = Field(default=None, description="更新时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -513,7 +713,7 @@ class SupplementedPhotoMeta(BaseModel):
     """
     补录照片元数据模式
     存储单张补录照片的详细信息
-    
+
     Attributes:
         field: 照片字段名，如 "pickup_photos"
         index: 照片在数组中的索引
@@ -532,7 +732,7 @@ class SupplementPhotoRequest(BaseModel):
     """
     补录照片请求模式
     用于提交补录照片
-    
+
     Attributes:
         field: 照片字段名，如 "pickup_photos"、"return_photos" 等
         index: 照片在数组中的索引
@@ -547,14 +747,14 @@ class SupplementedPhotosResponse(BaseModel):
     """
     补录照片响应模式
     返回车辆的所有补录照片元数据
-    
+
     Attributes:
         vehicle_id: 车辆ID
         supplemented_photos: 补录照片元数据字典，键为 "{field}_{index}"
     """
     vehicle_id: int = Field(..., description="车辆ID")
     supplemented_photos: dict = Field(default={}, description="补录照片元数据，键为 '{field}_{index}'")
-    
+
     class Config:
         from_attributes = True
 
@@ -593,7 +793,7 @@ class NotificationResponse(BaseModel):
     sender_id: Optional[int] = Field(default=None, description="发送者ID")
     template_id: Optional[int] = Field(default=None, description="使用的模板ID")
     created_at: datetime = Field(..., description="发送时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -610,7 +810,7 @@ class UnreadCountResponse(BaseModel):
 class NotificationTemplateBase(BaseModel):
     """
     通知模板基础模式
-    
+
     Attributes:
         name: 模板名称，唯一标识
         title: 通知标题模板，支持变量如 {user_name}
@@ -655,7 +855,7 @@ class NotificationTemplateResponse(NotificationTemplateBase):
     id: int = Field(..., description="模板ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -698,7 +898,7 @@ VehicleDetailResponse.model_rebuild()
 class OCRDrivingLicenseRequest(BaseModel):
     """
     驾驶证识别请求模式
-    
+
     Attributes:
         image: 图片数据，支持 Base64 编码或图片 URL
     """
@@ -745,7 +945,7 @@ class OCRStatusResponse(BaseModel):
 class ScheduledNotificationBase(BaseModel):
     """
     定时通知基础模式
-    
+
     Attributes:
         name: 任务名称
         template_id: 模板ID（可选）
@@ -833,7 +1033,7 @@ class ScheduledNotificationResponse(BaseModel):
     creator_name: Optional[str] = Field(default=None, description="创建者姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -856,124 +1056,13 @@ class SchedulerStatusResponse(BaseModel):
     next_execution: Optional[datetime] = Field(default=None, description="下一个执行时间")
 
 
-# ==================== 应用版本（热更新）模式 ====================
-# 注意：UpdateType 枚举已从 models.py 导入，避免重复定义
-
-
-class AppVersionBase(BaseModel):
-    """
-    应用版本基础模式
-    
-    Attributes:
-        version: 版本号，如 "1.0.0"
-        version_code: 版本代码，整数
-        update_type: 更新类型
-        title: 更新标题
-        description: 更新说明
-        download_url: 更新包下载地址
-        file_size: 更新包大小（字节）
-        file_hash: 更新包哈希值
-        min_version: 最低支持版本
-        platform: 平台类型
-    """
-    version: str = Field(..., min_length=1, max_length=20, description="版本号，如 1.0.0")
-    version_code: int = Field(..., ge=1, description="版本代码，用于比较版本大小")
-    update_type: UpdateType = Field(default=UpdateType.OPTIONAL, description="更新类型")
-    title: str = Field(..., min_length=1, max_length=100, description="更新标题")
-    description: Optional[str] = Field(default=None, max_length=2000, description="更新说明")
-    download_url: Optional[str] = Field(default=None, max_length=500, description="更新包下载地址")
-    file_size: Optional[int] = Field(default=None, ge=0, description="更新包大小（字节）")
-    file_hash: Optional[str] = Field(default=None, max_length=64, description="更新包哈希值")
-    min_version: Optional[str] = Field(default=None, max_length=20, description="最低支持版本")
-    platform: str = Field(default="all", max_length=20, description="平台类型（android/ios/h5/all）")
-
-
-class AppVersionCreate(AppVersionBase):
-    """
-    创建应用版本请求模式
-    继承 AppVersionBase
-    """
-    is_active: bool = Field(default=True, description="是否启用")
-    publish_time: Optional[datetime] = Field(default=None, description="发布时间")
-
-
-class AppVersionUpdate(BaseModel):
-    """
-    更新应用版本请求模式
-    所有字段可选
-    """
-    version: Optional[str] = Field(default=None, max_length=20, description="版本号")
-    version_code: Optional[int] = Field(default=None, ge=1, description="版本代码")
-    update_type: Optional[UpdateType] = Field(default=None, description="更新类型")
-    title: Optional[str] = Field(default=None, max_length=100, description="更新标题")
-    description: Optional[str] = Field(default=None, max_length=2000, description="更新说明")
-    download_url: Optional[str] = Field(default=None, max_length=500, description="更新包下载地址")
-    file_size: Optional[int] = Field(default=None, ge=0, description="更新包大小（字节）")
-    file_hash: Optional[str] = Field(default=None, max_length=64, description="更新包哈希值")
-    min_version: Optional[str] = Field(default=None, max_length=20, description="最低支持版本")
-    platform: Optional[str] = Field(default=None, max_length=20, description="平台类型")
-    is_active: Optional[bool] = Field(default=None, description="是否启用")
-    publish_time: Optional[datetime] = Field(default=None, description="发布时间")
-
-
-class AppVersionResponse(BaseModel):
-    """
-    应用版本响应模式
-    """
-    id: int = Field(..., description="版本ID")
-    version: str = Field(..., description="版本号")
-    version_code: int = Field(..., description="版本代码")
-    update_type: str = Field(..., description="更新类型")
-    title: str = Field(..., description="更新标题")
-    description: Optional[str] = Field(default=None, description="更新说明")
-    download_url: Optional[str] = Field(default=None, description="更新包下载地址")
-    file_size: Optional[int] = Field(default=None, description="更新包大小（字节）")
-    file_hash: Optional[str] = Field(default=None, description="更新包哈希值")
-    min_version: Optional[str] = Field(default=None, description="最低支持版本")
-    platform: str = Field(..., description="平台类型")
-    is_active: bool = Field(..., description="是否启用")
-    publish_time: Optional[datetime] = Field(default=None, description="发布时间")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
-    creator_id: Optional[int] = Field(default=None, description="创建者ID")
-    creator_name: Optional[str] = Field(default=None, description="创建者姓名")
-    
-    class Config:
-        from_attributes = True
-
-
-class AppVersionCheckRequest(BaseModel):
-    """
-    检查更新请求模式
-    """
-    current_version: str = Field(..., min_length=1, max_length=20, description="当前版本号")
-    current_version_code: Optional[int] = Field(default=None, ge=0, description="当前版本代码")
-    platform: str = Field(default="all", max_length=20, description="平台类型")
-
-
-class AppVersionCheckResponse(BaseModel):
-    """
-    检查更新响应模式
-    """
-    has_update: bool = Field(..., description="是否有更新")
-    update_type: Optional[str] = Field(default=None, description="更新类型")
-    latest_version: Optional[str] = Field(default=None, description="最新版本号")
-    latest_version_code: Optional[int] = Field(default=None, description="最新版本代码")
-    title: Optional[str] = Field(default=None, description="更新标题")
-    description: Optional[str] = Field(default=None, description="更新说明")
-    download_url: Optional[str] = Field(default=None, description="下载地址")
-    file_size: Optional[int] = Field(default=None, description="文件大小")
-    file_hash: Optional[str] = Field(default=None, description="文件哈希")
-    is_force_update: bool = Field(default=False, description="是否强制更新")
-
-
 # ==================== 车辆还车/分配相关模式 ====================
 
 class VehicleReturnRequest(BaseModel):
     """
     还车请求模式
     用于司机提交还车信息和照片
-    
+
     Attributes:
         return_photos: 还车照片URL数组，必须包含7张照片
         damage_photos: 车损照片URL数组，无数量限制
@@ -981,22 +1070,22 @@ class VehicleReturnRequest(BaseModel):
         remark: 备注信息
     """
     return_photos: List[str] = Field(
-        ..., 
-        min_length=7, 
-        max_length=7, 
+        ...,
+        min_length=7,
+        max_length=7,
         description="还车照片URL（必须7张：左前、右前、左后、右后、仪表盘、后门、货箱）"
     )
     damage_photos: Optional[List[str]] = Field(
-        default=None, 
+        default=None,
         description="车损照片URL（无数量限制）"
     )
     return_time: Optional[datetime] = Field(
-        default=None, 
+        default=None,
         description="还车时间，不填则使用当前时间"
     )
     remark: Optional[str] = Field(
-        default=None, 
-        max_length=500, 
+        default=None,
+        max_length=500,
         description="备注"
     )
 
@@ -1005,7 +1094,7 @@ class VehicleAssignRequest(BaseModel):
     """
     分配车辆请求模式
     用于管理员将车辆分配给指定司机
-    
+
     Attributes:
         user_id: 目标司机ID
         warehouse_id: 仓库ID，可选
@@ -1018,7 +1107,7 @@ class ImageUploadResponse(BaseModel):
     """
     图片上传响应模式
     返回上传成功后的图片信息
-    
+
     Attributes:
         success: 是否上传成功
         url: 图片访问URL
@@ -1035,7 +1124,7 @@ class VehicleReturnResponse(BaseModel):
     """
     还车响应模式
     返回还车操作的结果
-    
+
     Attributes:
         id: 车辆ID
         license_plate: 车牌号
@@ -1050,7 +1139,7 @@ class VehicleReturnResponse(BaseModel):
     return_time: Optional[datetime] = Field(default=None, description="还车时间")
     return_photos: Optional[List[str]] = Field(default=None, description="还车照片URL列表")
     damage_photos: Optional[List[str]] = Field(default=None, description="车损照片URL列表")
-    
+
     class Config:
         from_attributes = True
 
@@ -1059,7 +1148,7 @@ class VehicleAssignResponse(BaseModel):
     """
     分配车辆响应模式
     返回分配操作的结果
-    
+
     Attributes:
         id: 车辆ID
         license_plate: 车牌号
@@ -1076,7 +1165,7 @@ class VehicleAssignResponse(BaseModel):
     warehouse_id: Optional[int] = Field(default=None, description="仓库ID")
     warehouse_name: Optional[str] = Field(default=None, description="仓库名称")
     status: VehicleStatus = Field(..., description="车辆状态")
-    
+
     class Config:
         from_attributes = True
 
@@ -1085,7 +1174,7 @@ class VehicleListResponse(BaseModel):
     """
     车辆列表响应模式
     用于返回车辆列表查询结果
-    
+
     Attributes:
         id: 车辆ID
         license_plate: 车牌号
@@ -1110,7 +1199,7 @@ class VehicleListResponse(BaseModel):
     warehouse_id: Optional[int] = Field(default=None, description="仓库ID")
     warehouse_name: Optional[str] = Field(default=None, description="仓库名称")
     created_at: datetime = Field(..., description="创建时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -1123,7 +1212,7 @@ class VehicleHistoryPhotos(BaseModel):
     """
     车辆历史照片模式
     按角度组织的7张基本照片
-    
+
     Attributes:
         left_front: 左前照片URL
         right_front: 右前照片URL
@@ -1146,7 +1235,7 @@ class VehicleHistoryResponse(BaseModel):
     """
     车辆历史记录响应模式
     返回单条车辆使用历史记录
-    
+
     Attributes:
         id: 记录ID
         vehicle_id: 车辆ID
@@ -1158,7 +1247,7 @@ class VehicleHistoryResponse(BaseModel):
         damage_photos: 车损照片数组
         remark: 备注
         created_at: 记录创建时间
-    
+
     Requirements: 15.1, 15.2, 15.3
     """
     id: int = Field(..., description="记录ID")
@@ -1171,7 +1260,7 @@ class VehicleHistoryResponse(BaseModel):
     damage_photos: Optional[List[str]] = Field(default=None, description="车损照片数组")
     remark: Optional[str] = Field(default=None, description="备注")
     created_at: datetime = Field(..., description="记录创建时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -1180,11 +1269,11 @@ class VehicleHistoryListResponse(BaseModel):
     """
     车辆历史列表响应模式
     返回分页的车辆历史记录列表
-    
+
     Attributes:
         total: 总记录数
         items: 历史记录列表
-    
+
     Requirements: 15.4
     """
     total: int = Field(..., description="总记录数")
@@ -1196,7 +1285,7 @@ class VehicleHistoryListResponse(BaseModel):
 class RolePermissionBase(BaseModel):
     """
     角色权限基础模式
-    
+
     Attributes:
         role: 用户角色
         permissions: 权限键列表
@@ -1208,7 +1297,7 @@ class RolePermissionBase(BaseModel):
 class RolePermissionUpdate(BaseModel):
     """
     更新角色权限请求模式
-    
+
     Attributes:
         permissions: 权限键列表
     """
@@ -1220,7 +1309,7 @@ class RolePermissionResponse(RolePermissionBase):
     角色权限响应模式
     """
     updated_at: Optional[datetime] = Field(default=None, description="更新时间")
-    
+
     class Config:
         from_attributes = True
 
@@ -1228,7 +1317,7 @@ class RolePermissionResponse(RolePermissionBase):
 class PermissionItem(BaseModel):
     """
     权限项模式
-    
+
     Attributes:
         key: 权限键
         name: 权限名称
@@ -1244,7 +1333,7 @@ class PermissionItem(BaseModel):
 class PermissionGroupResponse(BaseModel):
     """
     权限分组响应模式
-    
+
     Attributes:
         key: 分组键
         name: 分组名称
@@ -1260,10 +1349,199 @@ class PermissionGroupResponse(BaseModel):
 class AllPermissionsResponse(BaseModel):
     """
     所有权限响应模式
-    
+
     Attributes:
         groups: 权限分组列表
         role_permissions: 各角色的权限配置
     """
     groups: List[PermissionGroupResponse] = Field(..., description="权限分组列表")
     role_permissions: dict = Field(..., description="各角色的权限配置")
+
+
+# ==================== 内部参数数据类 ====================
+# 用于封装 CRUD 函数的多参数，减少函数签名复杂度
+# Requirements: 4.1, 4.2
+
+
+class ScheduledNotificationParams(BaseModel):
+    """
+    定时通知参数数据类
+    用于封装 create_scheduled_notification 和 update_scheduled_notification 的参数
+    减少函数参数数量，提高代码可读性
+
+    Attributes:
+        name: 任务名称
+        scheduled_time: 计划发送时间
+        template_id: 模板ID（可选）
+        title: 通知标题（不使用模板时）
+        content: 通知内容（不使用模板时）
+        variables: 模板变量值（可选）
+        target_user_ids: 目标用户ID列表（可选）
+        target_roles: 目标角色列表（可选）
+        repeat_type: 重复类型，默认为一次性
+        repeat_interval: 重复间隔，默认为1
+        repeat_end_date: 重复结束日期（可选）
+        weekdays: 每周重复的星期几（可选）
+        monthly_day: 每月重复的日期（可选）
+        creator_id: 创建者ID（可选）
+        status: 任务状态（仅用于更新）
+
+    Requirements: 4.1
+    """
+    # 必填字段
+    name: str = Field(..., description="任务名称")
+    scheduled_time: datetime = Field(..., description="计划发送时间")
+
+    # 通知内容（模板或自定义）
+    template_id: Optional[int] = Field(default=None, description="模板ID")
+    title: Optional[str] = Field(default=None, description="通知标题（不使用模板时）")
+    content: Optional[str] = Field(default=None, description="通知内容（不使用模板时）")
+    variables: Optional[dict] = Field(default=None, description="模板变量值")
+
+    # 目标用户
+    target_user_ids: Optional[List[int]] = Field(default=None, description="目标用户ID列表")
+    target_roles: Optional[List[str]] = Field(default=None, description="目标角色列表")
+
+    # 重复设置
+    repeat_type: RepeatType = Field(default=RepeatType.ONCE, description="重复类型")
+    repeat_interval: int = Field(default=1, ge=1, description="重复间隔")
+    repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
+    weekdays: Optional[List[int]] = Field(default=None, description="每周重复的星期几（1-7）")
+    monthly_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月重复的日期")
+
+    # 其他
+    creator_id: Optional[int] = Field(default=None, description="创建者ID")
+    status: Optional[ScheduledNotificationStatus] = Field(default=None, description="任务状态（仅用于更新）")
+
+    @classmethod
+    def from_create_request(cls, request: "ScheduledNotificationCreate", creator_id: Optional[int] = None) -> "ScheduledNotificationParams":
+        """
+        从创建请求构建参数对象
+
+        Args:
+            request: 创建请求对象
+            creator_id: 创建者ID
+
+        Returns:
+            ScheduledNotificationParams: 参数对象
+        """
+        return cls(
+            name=request.name,
+            scheduled_time=request.scheduled_time,
+            template_id=request.template_id,
+            title=request.title,
+            content=request.content,
+            variables=request.variables,
+            target_user_ids=request.target_user_ids,
+            target_roles=request.target_roles,
+            repeat_type=request.repeat_type,
+            repeat_interval=request.repeat_interval,
+            repeat_end_date=request.repeat_end_date,
+            weekdays=request.weekdays,
+            monthly_day=request.monthly_day,
+            creator_id=creator_id
+        )
+
+    @classmethod
+    def from_update_request(cls, request: "ScheduledNotificationUpdate", existing_name: str, existing_time: datetime) -> "ScheduledNotificationParams":
+        """
+        从更新请求构建参数对象
+
+        Args:
+            request: 更新请求对象
+            existing_name: 现有任务名称（用于填充必填字段）
+            existing_time: 现有计划时间（用于填充必填字段）
+
+        Returns:
+            ScheduledNotificationParams: 参数对象
+        """
+        return cls(
+            name=request.name or existing_name,
+            scheduled_time=request.scheduled_time or existing_time,
+            template_id=request.template_id,
+            title=request.title,
+            content=request.content,
+            variables=request.variables,
+            target_user_ids=request.target_user_ids,
+            target_roles=request.target_roles,
+            repeat_type=request.repeat_type or RepeatType.ONCE,
+            repeat_interval=request.repeat_interval or 1,
+            repeat_end_date=request.repeat_end_date,
+            weekdays=request.weekdays,
+            monthly_day=request.monthly_day,
+            status=request.status
+        )
+
+
+class VehicleCreateParams(BaseModel):
+    """
+    车辆创建参数数据类
+    用于封装 create_vehicle 的参数
+    减少函数参数数量，提高代码可读性
+
+    Attributes:
+        user_id: 车主ID
+        license_plate: 车牌号
+        brand: 品牌（可选）
+        model: 型号（可选）
+        color: 颜色（可选）
+        ownership_type: 所有权类型（可选，默认 company）
+        lessor_name: 出租方名称（可选）
+        lessor_contact: 出租方联系方式（可选）
+        lessee_name: 承租方名称（可选）
+        lessee_contact: 承租方联系方式（可选）
+        monthly_rent: 月租金（可选）
+        lease_start_date: 租赁开始日期（可选）
+        lease_end_date: 租赁结束日期（可选）
+        rent_payment_day: 每月租金缴纳日（可选）
+
+    Requirements: 4.2
+    """
+    # 必填字段
+    user_id: int = Field(..., description="车主ID")
+    license_plate: str = Field(..., min_length=1, max_length=20, description="车牌号")
+
+    # 基本信息
+    brand: Optional[str] = Field(default=None, max_length=50, description="品牌")
+    model: Optional[str] = Field(default=None, max_length=50, description="型号")
+    color: Optional[str] = Field(default=None, max_length=20, description="颜色")
+    ownership_type: str = Field(default="company", description="所有权类型：company/personal/leased")
+
+    # 租赁信息
+    lessor_name: Optional[str] = Field(default=None, max_length=100, description="出租方名称")
+    lessor_contact: Optional[str] = Field(default=None, max_length=50, description="出租方联系方式")
+    lessee_name: Optional[str] = Field(default=None, max_length=100, description="承租方名称")
+    lessee_contact: Optional[str] = Field(default=None, max_length=50, description="承租方联系方式")
+    monthly_rent: Optional[float] = Field(default=None, ge=0, description="月租金（元）")
+    lease_start_date: Optional[date] = Field(default=None, description="租赁开始日期")
+    lease_end_date: Optional[date] = Field(default=None, description="租赁结束日期")
+    rent_payment_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月租金缴纳日（1-31）")
+
+    @classmethod
+    def from_create_request(cls, request: "VehicleCreate", user_id: int) -> "VehicleCreateParams":
+        """
+        从创建请求构建参数对象
+
+        Args:
+            request: 创建请求对象
+            user_id: 车主ID
+
+        Returns:
+            VehicleCreateParams: 参数对象
+        """
+        return cls(
+            user_id=user_id,
+            license_plate=request.license_plate,
+            brand=request.brand,
+            model=request.model,
+            color=request.color,
+            ownership_type=request.ownership_type or "company",
+            lessor_name=request.lessor_name,
+            lessor_contact=request.lessor_contact,
+            lessee_name=request.lessee_name,
+            lessee_contact=request.lessee_contact,
+            monthly_rent=request.monthly_rent,
+            lease_start_date=request.lease_start_date,
+            lease_end_date=request.lease_end_date,
+            rent_payment_day=request.rent_payment_day
+        )

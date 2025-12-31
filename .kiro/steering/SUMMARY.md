@@ -104,8 +104,9 @@
 
 ### 第三步：遵循编码规范
 阅读 `coding-standards.md`，遵循项目编码规范：
-- TypeScript 规范
-- React/Taro 规范
+- TypeScript/JavaScript 规范
+- Vue 3 / UniApp 规范
+- Python / FastAPI 规范
 - 测试要求
 - 文档要求
 
@@ -195,9 +196,10 @@
 ## 🔗 相关资源
 
 - [Kiro Spec 工作流文档](https://docs.kiro.ai/specs)
+- [Vue 3 官方文档](https://vuejs.org/)
+- [UniApp 官方文档](https://uniapp.dcloud.net.cn/)
+- [FastAPI 官方文档](https://fastapi.tiangolo.com/)
 - [TypeScript 官方文档](https://www.typescriptlang.org/)
-- [React 官方文档](https://react.dev/)
-- [Taro 官方文档](https://taro-docs.jd.com/)
 
 ---
 

@@ -10,7 +10,7 @@ pytest 配置文件
 """
 
 import pytest
-from typing import Generator, Dict, Any
+from typing import Generator, Dict
 from sqlmodel import SQLModel, Session, create_engine
 from sqlalchemy.pool import StaticPool
 
@@ -35,12 +35,7 @@ from fastapi.testclient import TestClient
 from main import app
 from database import get_session
 from models import (
-    User, UserRole, Warehouse, WarehouseAssignment,
-    Attendance, PieceWorkCategory, PieceWorkRecord,
-    LeaveApplication, LeaveType, LeaveStatus,
-    Vehicle, VehicleStatus, VehicleDocument, DocumentType,
-    Notification, NotificationTemplate, ScheduledNotification,
-    AppVersion, UpdateType
+    User, UserRole, Warehouse
 )
 from auth import hash_password, create_access_token
 
@@ -57,7 +52,7 @@ def engine_fixture():
     """
     创建测试数据库引擎
     使用 SQLite 内存数据库，每次测试都是全新的数据库
-    
+
     Returns:
         Engine: SQLAlchemy 数据库引擎
     """
@@ -79,10 +74,10 @@ def session_fixture(engine) -> Generator[Session, None, None]:
     """
     创建测试数据库会话
     每个测试函数都会获得一个独立的会话
-    
+
     Args:
         engine: 数据库引擎夹具
-        
+
     Yields:
         Session: 数据库会话对象
     """
@@ -95,24 +90,24 @@ def client_fixture(session: Session) -> Generator[TestClient, None, None]:
     """
     创建测试客户端
     覆盖 FastAPI 的数据库依赖，使用测试数据库
-    
+
     Args:
         session: 测试数据库会话
-        
+
     Yields:
         TestClient: FastAPI 测试客户端
     """
     def get_session_override():
         """覆盖数据库会话依赖"""
         return session
-    
+
     # 覆盖依赖
     app.dependency_overrides[get_session] = get_session_override
-    
+
     # 创建测试客户端
     with TestClient(app) as client:
         yield client
-    
+
     # 清理依赖覆盖
     app.dependency_overrides.clear()
 
@@ -123,7 +118,7 @@ def client_fixture(session: Session) -> Generator[TestClient, None, None]:
 def test_password_fixture() -> str:
     """
     测试用密码
-    
+
     Returns:
         str: 测试密码明文
     """
@@ -134,10 +129,10 @@ def test_password_fixture() -> str:
 def test_password_hash_fixture(test_password: str) -> str:
     """
     测试用密码哈希
-    
+
     Args:
         test_password: 测试密码明文
-        
+
     Returns:
         str: 密码哈希值
     """
@@ -147,21 +142,24 @@ def test_password_hash_fixture(test_password: str) -> str:
 @pytest.fixture(name="super_admin_user")
 def super_admin_user_fixture(session: Session, test_password_hash: str) -> User:
     """
-    创建超级管理员用户
-    
+    创建老板用户（原超级管理员，现在老板是最高权限角色）
+    保留 super_admin_user 名称以保持测试兼容性
+
     Args:
         session: 数据库会话
         test_password_hash: 密码哈希
-        
+
     Returns:
-        User: 超级管理员用户对象
+        User: 老板用户对象（系统最高权限）
+
+    Requirements: 3.1 - 删除超级管理员后，老板成为最高权限角色
     """
     user = User(
         username="superadmin",
         password_hash=test_password_hash,
-        name="超级管理员",
+        name="系统管理员",
         phone="13800000000",
-        role=UserRole.SUPER_ADMIN,
+        role=UserRole.BOSS,  # 改为 BOSS 角色
         is_active=True
     )
     session.add(user)
@@ -174,11 +172,11 @@ def super_admin_user_fixture(session: Session, test_password_hash: str) -> User:
 def boss_user_fixture(session: Session, test_password_hash: str) -> User:
     """
     创建老板用户
-    
+
     Args:
         session: 数据库会话
         test_password_hash: 密码哈希
-        
+
     Returns:
         User: 老板用户对象
     """
@@ -200,11 +198,11 @@ def boss_user_fixture(session: Session, test_password_hash: str) -> User:
 def manager_user_fixture(session: Session, test_password_hash: str) -> User:
     """
     创建车队长用户
-    
+
     Args:
         session: 数据库会话
         test_password_hash: 密码哈希
-        
+
     Returns:
         User: 车队长用户对象
     """
@@ -226,11 +224,11 @@ def manager_user_fixture(session: Session, test_password_hash: str) -> User:
 def driver_user_fixture(session: Session, test_password_hash: str) -> User:
     """
     创建司机用户
-    
+
     Args:
         session: 数据库会话
         test_password_hash: 密码哈希
-        
+
     Returns:
         User: 司机用户对象
     """
@@ -252,11 +250,11 @@ def driver_user_fixture(session: Session, test_password_hash: str) -> User:
 def peer_admin_user_fixture(session: Session, test_password_hash: str) -> User:
     """
     创建调度用户
-    
+
     Args:
         session: 数据库会话
         test_password_hash: 密码哈希
-        
+
     Returns:
         User: 调度用户对象
     """
@@ -278,11 +276,11 @@ def peer_admin_user_fixture(session: Session, test_password_hash: str) -> User:
 def disabled_user_fixture(session: Session, test_password_hash: str) -> User:
     """
     创建禁用用户
-    
+
     Args:
         session: 数据库会话
         test_password_hash: 密码哈希
-        
+
     Returns:
         User: 禁用用户对象
     """
@@ -305,13 +303,16 @@ def disabled_user_fixture(session: Session, test_password_hash: str) -> User:
 @pytest.fixture(name="super_admin_token")
 def super_admin_token_fixture(super_admin_user: User) -> str:
     """
-    创建超级管理员 Token
-    
+    创建老板 Token（原超级管理员 Token）
+    保留 super_admin_token 名称以保持测试兼容性
+
     Args:
-        super_admin_user: 超级管理员用户
-        
+        super_admin_user: 老板用户（系统最高权限）
+
     Returns:
         str: JWT Token
+
+    Requirements: 3.1 - 删除超级管理员后，老板成为最高权限角色
     """
     return create_access_token(data={"sub": str(super_admin_user.id)})
 
@@ -320,10 +321,10 @@ def super_admin_token_fixture(super_admin_user: User) -> str:
 def boss_token_fixture(boss_user: User) -> str:
     """
     创建老板 Token
-    
+
     Args:
         boss_user: 老板用户
-        
+
     Returns:
         str: JWT Token
     """
@@ -334,10 +335,10 @@ def boss_token_fixture(boss_user: User) -> str:
 def manager_token_fixture(manager_user: User) -> str:
     """
     创建车队长 Token
-    
+
     Args:
         manager_user: 车队长用户
-        
+
     Returns:
         str: JWT Token
     """
@@ -348,10 +349,10 @@ def manager_token_fixture(manager_user: User) -> str:
 def driver_token_fixture(driver_user: User) -> str:
     """
     创建司机 Token
-    
+
     Args:
         driver_user: 司机用户
-        
+
     Returns:
         str: JWT Token
     """
@@ -362,10 +363,10 @@ def driver_token_fixture(driver_user: User) -> str:
 def peer_admin_token_fixture(peer_admin_user: User) -> str:
     """
     创建调度 Token
-    
+
     Args:
         peer_admin_user: 调度用户
-        
+
     Returns:
         str: JWT Token
     """
@@ -378,10 +379,10 @@ def peer_admin_token_fixture(peer_admin_user: User) -> str:
 def test_warehouse_fixture(session: Session) -> Warehouse:
     """
     创建测试仓库
-    
+
     Args:
         session: 数据库会话
-        
+
     Returns:
         Warehouse: 仓库对象
     """
@@ -400,10 +401,10 @@ def test_warehouse_fixture(session: Session) -> Warehouse:
 def test_warehouse_2_fixture(session: Session) -> Warehouse:
     """
     创建第二个测试仓库
-    
+
     Args:
         session: 数据库会话
-        
+
     Returns:
         Warehouse: 仓库对象
     """
@@ -423,10 +424,10 @@ def test_warehouse_2_fixture(session: Session) -> Warehouse:
 def get_auth_headers(token: str) -> Dict[str, str]:
     """
     获取认证请求头
-    
+
     Args:
         token: JWT Token
-        
+
     Returns:
         Dict[str, str]: 包含 Authorization 头的字典
     """

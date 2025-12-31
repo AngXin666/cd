@@ -31,6 +31,7 @@
 
     <view v-else class="stats-content">
       <!-- 计件统计卡片 -->
+      <!-- Requirements: 6.1 - 数据统计单位显示 -->
       <view class="stats-card piece-work">
         <view class="card-header">
           <text class="card-title">📊 计件统计</text>
@@ -43,7 +44,7 @@
             </view>
             <view class="stat-item">
               <text class="stat-value">{{ pieceWorkStats.total_quantity }}</text>
-              <text class="stat-label">总数量</text>
+              <text class="stat-label">总数量（{{ pieceWorkStats.unit || '件' }}）</text>
             </view>
             <view class="stat-item">
               <text class="stat-value highlight">¥{{ pieceWorkStats.total_amount.toFixed(2) }}</text>
@@ -148,7 +149,8 @@ const startDate = ref('')
 const endDate = ref('')
 
 // 计件统计
-const pieceWorkStats = reactive({ total_quantity: 0, total_amount: 0, record_count: 0 })
+// Requirements: 6.1 - 数据统计单位显示
+const pieceWorkStats = reactive({ total_quantity: 0, total_amount: 0, record_count: 0, unit: '件' })
 // 考勤统计
 const attendanceStats = reactive({ total_records: 0, total_hours: 0, avg_hours: 0 })
 // 请假统计

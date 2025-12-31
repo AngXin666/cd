@@ -11,8 +11,7 @@ from sqlmodel import Session
 
 # 导入测试工具
 from tests.helpers import (
-    get_auth_headers, assert_success_response, assert_error_response,
-    assert_forbidden
+    get_auth_headers
 )
 
 # 导入模型
@@ -28,7 +27,7 @@ from models import NotificationTemplate
 
 class TestNotificationTemplateCRUD:
     """通知模板 CRUD 测试"""
-    
+
     def test_create_template_success(
         self,
         client: TestClient,
@@ -36,7 +35,7 @@ class TestNotificationTemplateCRUD:
     ):
         """
         测试创建通知模板成功
-        
+
         验证：
         - 老板可以创建通知模板
         - 返回创建的模板信息
@@ -47,20 +46,20 @@ class TestNotificationTemplateCRUD:
             "content": "您好，{name}，这是一条测试通知。",
             "type": "system"
         }
-        
+
         response = client.post(
             "/api/notification-templates",
             json=template_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code in [200, 201]:
             data = response.json()
             assert data["name"] == template_data["name"]
             assert data["title"] == template_data["title"]
         else:
             pytest.skip("通知模板 API 未实现")
-    
+
     def test_get_template_list_success(
         self,
         client: TestClient,
@@ -68,7 +67,7 @@ class TestNotificationTemplateCRUD:
     ):
         """
         测试获取模板列表成功
-        
+
         验证：
         - 可以获取所有通知模板
         - 返回模板列表
@@ -77,13 +76,13 @@ class TestNotificationTemplateCRUD:
             "/api/notification-templates",
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             assert isinstance(data, list)
         else:
             pytest.skip("通知模板列表 API 未实现")
-    
+
     def test_update_template_success(
         self,
         client: TestClient,
@@ -92,7 +91,7 @@ class TestNotificationTemplateCRUD:
     ):
         """
         测试更新模板成功
-        
+
         验证：
         - 可以更新通知模板
         - 返回更新后的模板信息
@@ -106,25 +105,25 @@ class TestNotificationTemplateCRUD:
         session.add(template)
         session.commit()
         session.refresh(template)
-        
+
         # 更新模板
         update_data = {
             "title": "更新后的标题",
             "content": "更新后的内容"
         }
-        
+
         response = client.put(
             f"/api/notification-templates/{template.id}",
             json=update_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             assert data["title"] == update_data["title"]
         else:
             pytest.skip("通知模板更新 API 未实现")
-    
+
     def test_delete_template_success(
         self,
         client: TestClient,
@@ -133,7 +132,7 @@ class TestNotificationTemplateCRUD:
     ):
         """
         测试删除模板成功
-        
+
         验证：
         - 可以删除通知模板
         - 删除后无法查询到该模板
@@ -148,13 +147,13 @@ class TestNotificationTemplateCRUD:
         session.commit()
         session.refresh(template)
         template_id = template.id
-        
+
         # 删除模板
         response = client.delete(
             f"/api/notification-templates/{template_id}",
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code in [200, 204]:
             # 验证已删除
             get_response = client.get(
@@ -164,7 +163,7 @@ class TestNotificationTemplateCRUD:
             assert get_response.status_code == 404
         else:
             pytest.skip("通知模板删除 API 未实现")
-    
+
     def test_template_preview(
         self,
         client: TestClient,
@@ -173,7 +172,7 @@ class TestNotificationTemplateCRUD:
     ):
         """
         测试模板预览功能
-        
+
         验证：
         - 可以预览模板渲染效果
         - 变量被正确替换
@@ -187,18 +186,18 @@ class TestNotificationTemplateCRUD:
         session.add(template)
         session.commit()
         session.refresh(template)
-        
+
         # 预览模板
         preview_data = {
             "variables": {"name": "张三"}
         }
-        
+
         response = client.post(
             f"/api/notification-templates/{template.id}/preview",
             json=preview_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             # 验证变量被替换
@@ -211,7 +210,7 @@ class TestNotificationTemplateCRUD:
 
 class TestTemplatePermissions:
     """模板权限测试"""
-    
+
     def test_driver_cannot_create_template(
         self,
         client: TestClient,
@@ -219,7 +218,7 @@ class TestTemplatePermissions:
     ):
         """
         测试司机无法创建模板
-        
+
         验证：
         - 司机无法创建通知模板
         - 返回 403 状态码
@@ -229,16 +228,16 @@ class TestTemplatePermissions:
             "title": "测试",
             "content": "测试内容"
         }
-        
+
         response = client.post(
             "/api/notification-templates",
             json=template_data,
             headers=get_auth_headers(driver_token)
         )
-        
+
         # 应该返回 403 或 404
         assert response.status_code in [403, 404]
-    
+
     def test_driver_cannot_delete_template(
         self,
         client: TestClient,
@@ -247,7 +246,7 @@ class TestTemplatePermissions:
     ):
         """
         测试司机无法删除模板
-        
+
         验证：
         - 司机无法删除通知模板
         - 返回 403 状态码
@@ -261,15 +260,15 @@ class TestTemplatePermissions:
         session.add(template)
         session.commit()
         session.refresh(template)
-        
+
         response = client.delete(
             f"/api/notification-templates/{template.id}",
             headers=get_auth_headers(driver_token)
         )
-        
+
         # 应该返回 403 或 404
         assert response.status_code in [403, 404]
-    
+
     def test_manager_can_view_templates(
         self,
         client: TestClient,
@@ -277,7 +276,7 @@ class TestTemplatePermissions:
     ):
         """
         测试车队长可以查看模板
-        
+
         验证：
         - 车队长可以查看通知模板列表
         """
@@ -285,7 +284,7 @@ class TestTemplatePermissions:
             "/api/notification-templates",
             headers=get_auth_headers(manager_token)
         )
-        
+
         # 应该可以查看或返回 404（API 未实现）
         assert response.status_code in [200, 404]
 
@@ -294,7 +293,7 @@ class TestTemplatePermissions:
 
 class TestTemplateValidation:
     """模板验证测试"""
-    
+
     def test_create_template_empty_name(
         self,
         client: TestClient,
@@ -302,7 +301,7 @@ class TestTemplateValidation:
     ):
         """
         测试创建空名称模板失败
-        
+
         验证：
         - 模板名称不能为空
         - 返回验证错误
@@ -312,16 +311,16 @@ class TestTemplateValidation:
             "title": "测试标题",
             "content": "测试内容"
         }
-        
+
         response = client.post(
             "/api/notification-templates",
             json=template_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         # 应该返回验证错误
         assert response.status_code in [400, 404, 422]
-    
+
     def test_create_template_empty_content(
         self,
         client: TestClient,
@@ -329,7 +328,7 @@ class TestTemplateValidation:
     ):
         """
         测试创建空内容模板失败
-        
+
         验证：
         - 模板内容不能为空
         - 返回验证错误
@@ -339,16 +338,16 @@ class TestTemplateValidation:
             "title": "测试标题",
             "content": ""
         }
-        
+
         response = client.post(
             "/api/notification-templates",
             json=template_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         # 应该返回验证错误
         assert response.status_code in [400, 404, 422]
-    
+
     def test_create_duplicate_template_name(
         self,
         client: TestClient,
@@ -357,7 +356,7 @@ class TestTemplateValidation:
     ):
         """
         测试创建重复名称模板
-        
+
         验证：
         - 模板名称是否允许重复取决于业务需求
         """
@@ -369,20 +368,20 @@ class TestTemplateValidation:
         )
         session.add(template)
         session.commit()
-        
+
         # 尝试创建同名模板
         template_data = {
             "name": "重复名称测试",
             "title": "另一个标题",
             "content": "另一个内容"
         }
-        
+
         response = client.post(
             "/api/notification-templates",
             json=template_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         # 根据业务需求，可能允许或不允许重复
         # 这里只验证 API 正常响应
         assert response.status_code in [200, 201, 400, 404, 409]

@@ -6,6 +6,7 @@
   -->
   <view class="piece-work-page">
     <!-- 统计卡片 -->
+    <!-- Requirements: 6.1 - 数据统计单位显示 -->
     <view class="stats-card">
       <view class="stats-item">
         <text class="stats-value">{{ stats.record_count }}</text>
@@ -14,7 +15,7 @@
       <view class="stats-divider"></view>
       <view class="stats-item">
         <text class="stats-value">{{ stats.total_quantity }}</text>
-        <text class="stats-label">总数量</text>
+        <text class="stats-label">总数量（{{ stats.unit || '件' }}）</text>
       </view>
       <view class="stats-divider"></view>
       <view class="stats-item">
@@ -112,9 +113,12 @@ import { formatDate, navigateTo } from '@/utils'
 import { sseService } from '@/utils/sse'
 import type { PieceWorkUpdateEvent, PieceWorkRecordData } from '@/types/sse-events'
 
+/** 加载状态 */
 const loading = ref(false)
+/** 计件记录列表 */
 const records = ref<PieceWorkRecord[]>([])
-const stats = reactive<PieceWorkStats>({ total_quantity: 0, total_amount: 0, record_count: 0 })
+/** 统计数据（包含单位信息） - Requirements: 6.1 数据统计单位显示 */
+const stats = reactive<PieceWorkStats>({ total_quantity: 0, total_amount: 0, record_count: 0, unit: '件' })
 
 // 日期筛选
 const startDate = ref('')

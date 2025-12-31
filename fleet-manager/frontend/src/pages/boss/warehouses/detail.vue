@@ -41,6 +41,14 @@
           <text class="item-value">{{ warehouse.address || '未设置' }}</text>
         </view>
         <view class="info-item">
+          <text class="item-label">仓库类型</text>
+          <view class="type-display">
+            <text class="item-value type-value">{{ getWarehouseTypeName(warehouse.warehouse_type) }}</text>
+            <text class="type-unit">（预设单位：{{ getWarehousePresetUnit(warehouse.warehouse_type) }}）</text>
+            <text class="type-locked">🔒</text>
+          </view>
+        </view>
+        <view class="info-item">
           <text class="item-label">状态</text>
           <text :class="['item-value', warehouse.is_active ? 'active' : 'inactive']">
             {{ warehouse.is_active ? '启用中' : '已停用' }}
@@ -173,7 +181,7 @@ import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getWarehouse, updateWarehouse, deleteWarehouse, getWarehouseUsers, assignUsersToWarehouse, getUsers } from '@/api'
 import type { Warehouse, User } from '@/api/types'
-import { UserRole } from '@/api/types'
+import { UserRole, WAREHOUSE_TYPE_DISPLAY_NAMES, getWarehousePresetUnit, WarehouseType } from '@/api/types'
 import { formatDateTime, getRoleName } from '@/utils'
 
 const loading = ref(false)
@@ -185,6 +193,16 @@ const availableUsers = ref<User[]>([])
 const selectedUserIds = ref<number[]>([])
 const showModal = ref(false)
 const editForm = reactive({ name: '', address: '', is_active: true })
+
+/**
+ * 获取仓库类型的显示名称
+ * @param type - 仓库类型
+ * @returns 仓库类型的中文名称
+ */
+function getWarehouseTypeName(type: string | undefined): string {
+  if (!type) return '计件'
+  return WAREHOUSE_TYPE_DISPLAY_NAMES[type as WarehouseType] || '计件'
+}
 
 onLoad((options) => {
   if (options?.id) {
@@ -332,6 +350,10 @@ async function handleAssign(): Promise<void> {
 .info-item { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f5f5f5; &:last-child { border-bottom: none; } }
 .item-label { font-size: 28rpx; color: #666666; }
 .item-value { font-size: 28rpx; color: #333333; &.active { color: #52c41a; } &.inactive { color: #ff4d4f; } }
+.type-display { display: flex; align-items: center; gap: 8rpx; }
+.type-value { color: #1890ff; font-weight: 500; }
+.type-unit { font-size: 24rpx; color: #999999; }
+.type-locked { font-size: 24rpx; color: #faad14; }
 .form-item { margin-bottom: 24rpx; }
 .form-label { font-size: 28rpx; color: #666666; margin-bottom: 12rpx; display: block; }
 .form-input { width: 100%; height: 80rpx; padding: 0 24rpx; background-color: #f5f5f5; border-radius: 12rpx; font-size: 28rpx; color: #333333; }

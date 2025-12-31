@@ -1,6 +1,6 @@
 # 编码规范与标准
 
-## TypeScript 规范
+## TypeScript/JavaScript 规范
 
 ### 类型安全
 - 使用严格的 TypeScript 类型检查
@@ -30,7 +30,7 @@
 - **每个文件开头必须添加文件说明注释**
 - 说明文件的用途和主要功能
 
-示例：
+示例（TypeScript）：
 ```typescript
 /**
  * 用户管理服务
@@ -53,17 +53,35 @@ export async function getUserInfo(userId: string): Promise<User | null> {
   const user = await db.users.findById(userId);
   return user;
 }
+```
 
-/**
- * 格式化用户名称
- * @param firstName - 名
- * @param lastName - 姓
- * @returns 格式化后的完整姓名
- */
-function formatUserName(firstName: string, lastName: string): string {
-  // 中文姓名格式：姓+名
-  return `${lastName}${firstName}`;
-}
+示例（Python）：
+```python
+"""
+用户管理服务
+提供用户信息的增删改查功能
+"""
+
+async def get_user_info(user_id: str) -> User | None:
+    """
+    获取用户信息
+    
+    Args:
+        user_id: 用户ID
+        
+    Returns:
+        用户信息对象，如果用户不存在则返回 None
+        
+    Raises:
+        DatabaseError: 当数据库连接失败时抛出
+    """
+    # 验证用户ID格式
+    if not is_valid_user_id(user_id):
+        return None
+    
+    # 从数据库查询用户信息
+    user = await db.users.find_by_id(user_id)
+    return user
 ```
 
 #### 注释质量要求
@@ -72,44 +90,59 @@ function formatUserName(firstName: string, lastName: string): string {
 - 注释必须与代码同步更新
 - 使用中文注释（项目团队语言）
 
-## React/Taro 规范
+## Vue 3 / UniApp 规范
 
 ### 组件开发
-- 使用函数式组件和 Hooks
-- 组件文件使用 PascalCase 命名（如 `UserProfile.tsx`）
-- 自定义 Hooks 必须以 `use` 开头（如 `useAuth`）
+- 使用 Composition API（`<script setup>`）
+- 组件文件使用 PascalCase 命名（如 `UserProfile.vue`）
+- 自定义组合函数必须以 `use` 开头（如 `useAuth`）
 - 组件必须导出类型定义
 
 ### 状态管理
-- 优先使用 React Hooks 进行状态管理
-- 复杂状态使用 useReducer 或状态管理库
+- 使用 Pinia 进行状态管理
+- Store 文件放在 `store/` 目录
 - 避免不必要的状态提升
 
 ### 性能优化
-- 使用 React.memo 优化不必要的重渲染
-- 使用 useMemo 和 useCallback 优化计算和回调
-- 避免在渲染函数中创建新对象或函数
+- 使用 `computed` 优化计算属性
+- 使用 `watch` 和 `watchEffect` 监听变化
+- 避免在模板中进行复杂计算
+
+## Python / FastAPI 规范
+
+### 代码风格
+- 遵循 PEP 8 规范
+- 使用类型注解
+- 使用 async/await 处理异步操作
+
+### API 设计
+- 使用 RESTful 风格
+- 使用 Pydantic 进行数据验证
+- 使用 SQLModel 进行 ORM 操作
+
+### 文档字符串
+- 所有函数必须有 docstring
+- 使用 Google 风格的 docstring 格式
 
 ## 代码风格
 
 ### 格式化
-- 使用 2 空格缩进
-- 使用单引号而非双引号（字符串）
+- 使用 2 空格缩进（前端）
+- 使用 4 空格缩进（Python）
+- 使用单引号而非双引号（字符串，前端）
 - 每个文件末尾保留一个空行
-- 使用分号结束语句
-- 使用 Biome 进行代码格式化和 lint
 
 ### 命名约定
-- 变量和函数：camelCase（如 `getUserData`）
-- 类和组件：PascalCase（如 `UserProfile`）
-- 常量：UPPER_SNAKE_CASE（如 `MAX_RETRY_COUNT`）
-- 私有属性：以下划线开头（如 `_privateMethod`）
+- 变量和函数：camelCase（前端）/ snake_case（Python）
+- 类和组件：PascalCase
+- 常量：UPPER_SNAKE_CASE
+- 私有属性：以下划线开头
 
 ### 文件组织
 - 一个文件一个主要导出
 - 相关功能放在同一目录
-- 使用 index.ts 作为目录入口
-- 测试文件使用 `.test.ts` 或 `.test.tsx` 后缀
+- 使用 index.ts 作为目录入口（前端）
+- 测试文件使用 `.test.ts` 或 `test_*.py` 后缀
 
 ## 项目特定规范
 
@@ -118,20 +151,15 @@ function formatUserName(firstName: string, lastName: string): string {
 - 不要将 `.env` 文件提交到 git
 - 使用 `.env.template` 作为环境变量模板
 
-### 导航
-- 使用 Taro 的导航 API（`Taro.navigateTo`）
+### 导航（UniApp）
+- 使用 `uni.navigateTo` 进行页面跳转
 - 避免直接操作路由栈
 - 页面路径统一管理
 
 ### 认证
-- 使用项目的 `useAuth` Hook 进行认证
-- 使用 `AuthProvider` 包裹需要认证的组件
+- 使用 JWT Token 进行认证
+- 前端使用 Pinia store 管理用户状态
 - 统一处理认证失败的情况
-
-### 多租户
-- 所有数据库查询必须包含 `tenant_id` 过滤
-- 使用参数化查询防止 SQL 注入
-- 确保租户数据隔离
 
 ## 测试要求
 
@@ -142,7 +170,6 @@ function formatUserName(firstName: string, lastName: string): string {
 
 ### 单元测试
 - 核心业务逻辑必须有单元测试
-- 测试文件使用 `.test.ts` 或 `.test.tsx` 后缀
 - 测试覆盖率目标：核心模块 > 70%（不强求 100%）
 
 ### 测试原则
@@ -150,11 +177,6 @@ function formatUserName(firstName: string, lastName: string): string {
 - **独立性**：每个测试用例应该独立运行，不依赖其他测试
 - **可读性**：测试代码应该清晰表达测试意图，使用描述性的测试名称
 - **快速反馈**：测试应该快速运行，避免过度依赖外部服务
-
-### 测试工具
-- 使用 Vitest 作为测试框架
-- 使用 Testing Library 进行组件测试
-- 使用 Mock Service Worker (MSW) 模拟 API 请求（如需要）
 
 ## 代码质量
 
@@ -184,63 +206,16 @@ function formatUserName(firstName: string, lastName: string): string {
    - 评估删除后的功能影响
    - 确认是否影响用户可见功能
 
-3. **类型依赖检查**
-   - 检查类型接口是否被其他类型继承或引用
-   - 检查泛型参数中的使用
-   - 检查类型断言中的使用
-
 #### 删除后必须执行的验证（强制）
 
 1. **编译检查**
-   - 运行 `npx tsc --noEmit` 确保无编译错误
-   - 检查修改的文件无诊断错误
+   - 前端：确保无编译错误
+   - 后端：确保 Python 语法正确
 
 2. **功能测试**
    - 运行相关的单元测试
    - 如果涉及页面功能，必须进行本地 H5 测试
    - 验证相关功能正常工作
-
-3. **回归测试**
-   - 确认删除不影响其他功能
-   - 检查相关页面的正常运行
-
-#### 删除优化检查清单
-
-每次删除代码前必须确认：
-- [ ] 已使用 grep 搜索所有引用
-- [ ] 已分析所有调用点的上下文
-- [ ] 已评估删除后的功能影响
-- [ ] 已确认不影响用户可见功能
-- [ ] 已更新所有调用点（如需要）
-
-每次删除代码后必须确认：
-- [ ] TypeScript 编译通过
-- [ ] 相关单元测试通过
-- [ ] 本地功能测试通过（如涉及页面）
-- [ ] 无遗留的死代码引用
-
-#### 示例：删除函数的标准流程
-
-```bash
-# 1. 搜索所有引用
-grep -r "functionName" --include="*.ts" --include="*.tsx"
-
-# 2. 分析每个调用点
-# - 确认调用点的功能用途
-# - 确认删除后的替代方案
-
-# 3. 删除函数定义和所有调用
-
-# 4. 验证编译
-npx tsc --noEmit
-
-# 5. 运行测试
-npx vitest run
-
-# 6. 本地功能测试（如涉及页面）
-pnpm taro build --type h5
-npx serve dist -l 8080 -s
-```
 
 #### 违规后果
 - 未进行关联性扫描的删除视为不完整
@@ -248,7 +223,7 @@ npx serve dist -l 8080 -s
 - 导致功能回归的删除必须立即回滚
 
 ### 错误处理
-- 使用 try-catch 处理异步错误
+- 使用 try-catch/try-except 处理异常
 - 提供有意义的错误信息
 - 记录错误日志
 - 优雅降级，避免应用崩溃
@@ -270,31 +245,12 @@ npx serve dist -l 8080 -s
 - **每次提交前必须确认文档已更新**
 
 ### 必须更新的文档类型
-1. **代码注释**：逻辑变更时立即更新（已在上面强制要求）
+1. **代码注释**：逻辑变更时立即更新
 2. **API 文档**：接口变更时立即更新
 3. **README**：功能变更时立即更新
 4. **设计文档**：架构变更时立即更新
 5. **Spec 文档**：需求或设计变更时立即更新（`.kiro/specs/`）
 6. **变更日志**：重要变更必须记录
-
-### 代码文档
-- 所有代码必须有注释（已在上面强制要求）
-- 公共 API 必须有完整的 JSDoc 文档
-- 使用 JSDoc 格式编写文档
-
-### 项目文档
-- 代码变更同时更新相关文档（强制）
-- 保持 README 文档最新（强制）
-- 记录重要的设计决策（强制）
-
-### 文档更新检查清单
-每次代码提交前必须确认：
-- [ ] 所有代码注释已添加/更新
-- [ ] API 文档已更新（如有接口变更）
-- [ ] README 已更新（如有功能变更）
-- [ ] 设计文档已更新（如有架构变更）
-- [ ] Spec 文档已更新（如有需求变更）
-- [ ] 变更日志已记录（如有重要变更）
 
 ### 违规后果
 - 未同步更新文档的代码变更视为不完整

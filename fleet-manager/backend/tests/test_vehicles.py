@@ -5,7 +5,6 @@
 Requirements: Requirement 7 - 车辆管理
 """
 
-import pytest
 from datetime import date, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session
@@ -13,7 +12,7 @@ from sqlmodel import Session
 # 导入测试工具
 from tests.factories import UserFactory, WarehouseFactory, VehicleFactory
 from tests.helpers import (
-    get_auth_headers, assert_success_response, assert_error_response,
+    get_auth_headers, assert_success_response,
     assert_forbidden, assert_not_found, create_test_token
 )
 
@@ -22,7 +21,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import User, UserRole, VehicleStatus
+from models import User, VehicleStatus
 
 
 # ==================== 车辆添加测试 ====================
@@ -30,7 +29,7 @@ from models import User, UserRole, VehicleStatus
 
 class TestVehicleAdd:
     """车辆添加测试"""
-    
+
     def test_driver_add_vehicle_success(
         self,
         client: TestClient,
@@ -40,7 +39,7 @@ class TestVehicleAdd:
     ):
         """
         测试司机添加车辆成功
-        
+
         验证：
         - 司机可以添加车辆
         - 车辆初始状态为 reviewing
@@ -48,7 +47,7 @@ class TestVehicleAdd:
         # 创建仓库并分配给司机
         warehouse = WarehouseFactory.create(session, name="司机添加车辆仓库")
         WarehouseFactory.assign_user(session, driver_user, warehouse)
-        
+
         response = client.post(
             "/api/vehicles",
             json={
@@ -61,13 +60,13 @@ class TestVehicleAdd:
             },
             headers=get_auth_headers(driver_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["license_plate"] == "川A88888"
         assert data["status"] == "reviewing"
         assert data["user_id"] == driver_user.id
-    
+
     def test_vehicle_initial_status_reviewing(
         self,
         client: TestClient,
@@ -75,16 +74,16 @@ class TestVehicleAdd:
     ):
         """
         测试车辆初始状态为审核中
-        
+
         验证：
         - 新添加的车辆状态为 reviewing
         """
         user = UserFactory.create_driver(session, username="initial_status_user")
         warehouse = WarehouseFactory.create(session, name="初始状态测试仓库")
         WarehouseFactory.assign_user(session, user, warehouse)
-        
+
         token = create_test_token(user.id)
-        
+
         response = client.post(
             "/api/vehicles",
             json={
@@ -97,15 +96,15 @@ class TestVehicleAdd:
             },
             headers=get_auth_headers(token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["status"] == "reviewing"
-    
+
     def test_add_vehicle_without_auth(self, client: TestClient):
         """
         测试未认证无法添加车辆
-        
+
         验证：
         - 不提供 Token 无法添加车辆
         """
@@ -118,7 +117,7 @@ class TestVehicleAdd:
                 "color": "银色"
             }
         )
-        
+
         assert response.status_code in [401, 403]
 
 
@@ -127,7 +126,7 @@ class TestVehicleAdd:
 
 class TestVehicleReview:
     """车辆审核测试"""
-    
+
     def test_boss_approve_vehicle_success(
         self,
         client: TestClient,
@@ -136,7 +135,7 @@ class TestVehicleReview:
     ):
         """
         测试老板审核通过成功
-        
+
         验证：
         - 老板可以审核通过车辆
         - 状态变更为 active
@@ -147,7 +146,7 @@ class TestVehicleReview:
             license_plate="川D33333",
             status=VehicleStatus.REVIEWING
         )
-        
+
         response = client.put(
             f"/api/vehicles/{vehicle.id}/review",
             json={
@@ -156,11 +155,11 @@ class TestVehicleReview:
             },
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["status"] == "active"
-    
+
     def test_boss_reject_vehicle_success(
         self,
         client: TestClient,
@@ -169,7 +168,7 @@ class TestVehicleReview:
     ):
         """
         测试老板审核拒绝成功
-        
+
         验证：
         - 老板可以拒绝车辆审核
         - 状态变更为 rejected
@@ -180,7 +179,7 @@ class TestVehicleReview:
             license_plate="川E44444",
             status=VehicleStatus.REVIEWING
         )
-        
+
         response = client.put(
             f"/api/vehicles/{vehicle.id}/review",
             json={
@@ -189,11 +188,11 @@ class TestVehicleReview:
             },
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["status"] == "rejected"
-    
+
     def test_super_admin_can_review_vehicle(
         self,
         client: TestClient,
@@ -202,7 +201,7 @@ class TestVehicleReview:
     ):
         """
         测试超级管理员可以审核车辆
-        
+
         验证：
         - 超级管理员可以审核车辆
         """
@@ -212,7 +211,7 @@ class TestVehicleReview:
             license_plate="川F55555",
             status=VehicleStatus.REVIEWING
         )
-        
+
         response = client.put(
             f"/api/vehicles/{vehicle.id}/review",
             json={
@@ -220,10 +219,10 @@ class TestVehicleReview:
             },
             headers=get_auth_headers(super_admin_token)
         )
-        
+
         data = assert_success_response(response, 200)
         assert data["status"] == "active"
-    
+
     def test_driver_cannot_review_vehicle(
         self,
         client: TestClient,
@@ -232,7 +231,7 @@ class TestVehicleReview:
     ):
         """
         测试司机无权审核车辆
-        
+
         验证：
         - 司机角色无法审核车辆
         """
@@ -242,7 +241,7 @@ class TestVehicleReview:
             license_plate="川G66666",
             status=VehicleStatus.REVIEWING
         )
-        
+
         response = client.put(
             f"/api/vehicles/{vehicle.id}/review",
             json={
@@ -250,9 +249,9 @@ class TestVehicleReview:
             },
             headers=get_auth_headers(driver_token)
         )
-        
+
         assert_forbidden(response)
-    
+
     def test_review_nonexistent_vehicle(
         self,
         client: TestClient,
@@ -260,7 +259,7 @@ class TestVehicleReview:
     ):
         """
         测试审核不存在的车辆
-        
+
         验证：
         - 返回 404 错误
         """
@@ -271,7 +270,7 @@ class TestVehicleReview:
             },
             headers=get_auth_headers(boss_token)
         )
-        
+
         assert_not_found(response)
 
 
@@ -280,7 +279,7 @@ class TestVehicleReview:
 
 class TestVehicleReturnAndDocuments:
     """车辆还车和证件测试"""
-    
+
     def test_return_vehicle_success(
         self,
         client: TestClient,
@@ -289,7 +288,7 @@ class TestVehicleReturnAndDocuments:
     ):
         """
         测试还车操作成功
-        
+
         验证：
         - 可以执行还车操作
         - 状态变更为 returned
@@ -300,7 +299,7 @@ class TestVehicleReturnAndDocuments:
             license_plate="川H77777",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.post(
             f"/api/vehicles/{vehicle.id}/return",
             json={
@@ -309,11 +308,11 @@ class TestVehicleReturnAndDocuments:
             },
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["status"] == "returned"
-    
+
     def test_upload_vehicle_document_success(
         self,
         client: TestClient,
@@ -323,7 +322,7 @@ class TestVehicleReturnAndDocuments:
     ):
         """
         测试上传证件成功
-        
+
         验证：
         - 可以上传车辆证件
         """
@@ -332,7 +331,7 @@ class TestVehicleReturnAndDocuments:
             license_plate="川J88888",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.post(
             f"/api/vehicles/{vehicle.id}/documents",
             json={
@@ -342,11 +341,11 @@ class TestVehicleReturnAndDocuments:
             },
             headers=get_auth_headers(driver_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["doc_type"] == "license"
-    
+
     def test_supplement_photo_success(
         self,
         client: TestClient,
@@ -356,7 +355,7 @@ class TestVehicleReturnAndDocuments:
     ):
         """
         测试补录照片成功
-        
+
         验证：
         - 可以补录车辆照片
         """
@@ -365,7 +364,7 @@ class TestVehicleReturnAndDocuments:
             license_plate="川K99999",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.post(
             f"/api/vehicles/{vehicle.id}/supplement-photos",
             json={
@@ -374,9 +373,9 @@ class TestVehicleReturnAndDocuments:
             },
             headers=get_auth_headers(driver_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         # 验证照片已添加
         assert "supplemented_photos" in data or "message" in data
 
@@ -386,7 +385,7 @@ class TestVehicleReturnAndDocuments:
 
 class TestVehiclePermissions:
     """车辆权限测试"""
-    
+
     def test_driver_cannot_access_others_vehicle(
         self,
         client: TestClient,
@@ -396,7 +395,7 @@ class TestVehiclePermissions:
     ):
         """
         测试司机无法访问他人车辆
-        
+
         验证：
         - 司机只能访问自己的车辆
         """
@@ -407,15 +406,15 @@ class TestVehiclePermissions:
             license_plate="川L11111",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.get(
             f"/api/vehicles/{vehicle.id}",
             headers=get_auth_headers(driver_token)
         )
-        
+
         # 应该返回 403 或 404
         assert response.status_code in [403, 404]
-    
+
     def test_driver_can_access_own_vehicle(
         self,
         client: TestClient,
@@ -425,7 +424,7 @@ class TestVehiclePermissions:
     ):
         """
         测试司机可以访问自己的车辆
-        
+
         验证：
         - 司机可以查看自己的车辆详情
         """
@@ -434,17 +433,17 @@ class TestVehiclePermissions:
             license_plate="川M22222",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.get(
             f"/api/vehicles/{vehicle.id}",
             headers=get_auth_headers(driver_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["id"] == vehicle.id
         assert data["user_id"] == driver_user.id
-    
+
     def test_boss_can_access_all_vehicles(
         self,
         client: TestClient,
@@ -453,7 +452,7 @@ class TestVehiclePermissions:
     ):
         """
         测试老板可以访问所有车辆
-        
+
         验证：
         - 老板可以查看任何车辆
         """
@@ -463,12 +462,12 @@ class TestVehiclePermissions:
             license_plate="川N33333",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.get(
             f"/api/vehicles/{vehicle.id}",
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
         assert data["id"] == vehicle.id
 
@@ -477,7 +476,7 @@ class TestVehiclePermissions:
 
 class TestVehicleHistory:
     """车辆历史记录测试"""
-    
+
     def test_get_vehicle_history(
         self,
         client: TestClient,
@@ -486,7 +485,7 @@ class TestVehicleHistory:
     ):
         """
         测试查询车辆使用历史
-        
+
         验证：
         - 可以查询车辆的使用历史记录
         """
@@ -496,14 +495,14 @@ class TestVehicleHistory:
             license_plate="川P44444",
             status=VehicleStatus.ACTIVE
         )
-        
+
         response = client.get(
             f"/api/vehicles/{vehicle.id}/history",
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         # 应该返回历史记录列表
         assert isinstance(data, (list, dict))
 
@@ -512,7 +511,7 @@ class TestVehicleHistory:
 
 class TestVehicleList:
     """车辆列表查询测试"""
-    
+
     def test_get_vehicles_list(
         self,
         client: TestClient,
@@ -521,7 +520,7 @@ class TestVehicleList:
     ):
         """
         测试获取车辆列表
-        
+
         验证：
         - 可以获取车辆列表
         """
@@ -533,17 +532,17 @@ class TestVehicleList:
                 license_plate=f"川Q{i}0000",
                 status=VehicleStatus.ACTIVE
             )
-        
+
         response = client.get(
             "/api/vehicles",
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert isinstance(data, list)
         assert len(data) >= 3
-    
+
     def test_filter_vehicles_by_status(
         self,
         client: TestClient,
@@ -552,12 +551,12 @@ class TestVehicleList:
     ):
         """
         测试按状态筛选车辆
-        
+
         验证：
         - 可以按车辆状态筛选
         """
         user = UserFactory.create_driver(session, username="status_filter_vehicle_user")
-        
+
         VehicleFactory.create(
             session, user,
             license_plate="川R11111",
@@ -568,17 +567,17 @@ class TestVehicleList:
             license_plate="川R22222",
             status=VehicleStatus.REVIEWING
         )
-        
+
         response = client.get(
             "/api/vehicles?status=active",
             headers=get_auth_headers(boss_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         for vehicle in data:
             assert vehicle["status"] == "active"
-    
+
     def test_driver_can_only_see_own_vehicles(
         self,
         client: TestClient,
@@ -586,25 +585,25 @@ class TestVehicleList:
     ):
         """
         测试司机只能查看自己的车辆
-        
+
         验证：
         - 司机查询时自动过滤为自己的车辆
         """
         user1 = UserFactory.create_driver(session, username="own_vehicle_1")
         user2 = UserFactory.create_driver(session, username="own_vehicle_2")
-        
+
         VehicleFactory.create(session, user1, license_plate="川S11111")
         VehicleFactory.create(session, user2, license_plate="川S22222")
-        
+
         token1 = create_test_token(user1.id)
-        
+
         response = client.get(
             "/api/vehicles",
             headers=get_auth_headers(token1)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         # 所有车辆都应该是 user1 的
         for vehicle in data:
             assert vehicle["user_id"] == user1.id
@@ -614,7 +613,7 @@ class TestVehicleList:
 
 class TestVehicleUpdate:
     """车辆更新测试"""
-    
+
     def test_update_vehicle_info_success(
         self,
         client: TestClient,
@@ -624,7 +623,7 @@ class TestVehicleUpdate:
     ):
         """
         测试更新车辆信息成功
-        
+
         验证：
         - 车主可以更新车辆信息
         """
@@ -633,7 +632,7 @@ class TestVehicleUpdate:
             license_plate="川T11111",
             color="白色"
         )
-        
+
         response = client.put(
             f"/api/vehicles/{vehicle.id}",
             json={
@@ -641,11 +640,11 @@ class TestVehicleUpdate:
             },
             headers=get_auth_headers(driver_token)
         )
-        
+
         data = assert_success_response(response, 200)
-        
+
         assert data["color"] == "黑色"
-    
+
     def test_update_nonexistent_vehicle(
         self,
         client: TestClient,
@@ -653,7 +652,7 @@ class TestVehicleUpdate:
     ):
         """
         测试更新不存在的车辆
-        
+
         验证：
         - 返回 404 错误
         """
@@ -664,7 +663,7 @@ class TestVehicleUpdate:
             },
             headers=get_auth_headers(driver_token)
         )
-        
+
         assert_not_found(response)
 
 
@@ -672,7 +671,7 @@ class TestVehicleUpdate:
 
 class TestVehicleDelete:
     """车辆删除测试"""
-    
+
     def test_delete_vehicle_success(
         self,
         client: TestClient,
@@ -681,7 +680,7 @@ class TestVehicleDelete:
     ):
         """
         测试删除车辆成功
-        
+
         验证：
         - 管理员可以删除车辆
         """
@@ -691,15 +690,15 @@ class TestVehicleDelete:
             license_plate="川U11111"
         )
         vehicle_id = vehicle.id
-        
+
         response = client.delete(
             f"/api/vehicles/{vehicle_id}",
             headers=get_auth_headers(super_admin_token)
         )
-        
+
         data = assert_success_response(response, 200)
         assert "删除" in data.get("message", "") or "成功" in data.get("message", "")
-    
+
     def test_driver_cannot_delete_vehicle(
         self,
         client: TestClient,
@@ -709,7 +708,7 @@ class TestVehicleDelete:
     ):
         """
         测试司机无权删除车辆
-        
+
         验证：
         - 司机角色无法删除车辆
         """
@@ -717,10 +716,10 @@ class TestVehicleDelete:
             session, driver_user,
             license_plate="川V11111"
         )
-        
+
         response = client.delete(
             f"/api/vehicles/{vehicle.id}",
             headers=get_auth_headers(driver_token)
         )
-        
+
         assert_forbidden(response)

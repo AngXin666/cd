@@ -105,7 +105,7 @@
     <!-- 底部提示 -->
     <view class="footer-tips">
       <text class="tips-icon">💡</text>
-      <text class="tips-text">提示：老板和超级管理员拥有所有权限，无法修改</text>
+      <text class="tips-text">提示：老板拥有所有权限，无法修改</text>
     </view>
   </view>
 </template>
@@ -189,14 +189,8 @@ const ROLE_LIST: RoleConfig[] = [
   {
     value: UserRole.BOSS,
     label: '老板',
-    description: '拥有所有管理权限',
+    description: '系统最高权限，拥有所有管理权限',
     icon: '👔',
-  },
-  {
-    value: UserRole.SUPER_ADMIN,
-    label: '超级管理员',
-    description: '系统最高权限',
-    icon: '🔐',
   },
 ]
 
@@ -348,15 +342,15 @@ function hasPermission(role: UserRole, permissionKey: string): boolean {
 
 /**
  * 检查是否可以编辑权限
- * 老板和超级管理员的权限不可编辑
+ * 老板的权限不可编辑（老板是系统最高权限角色）
  * 
  * @param role - 角色值
  * @param permissionKey - 权限键
  * @returns 是否可编辑
  */
 function canEditPermission(role: UserRole, permissionKey: string): boolean {
-  // 老板和超级管理员拥有所有权限，不可编辑
-  if (role === UserRole.BOSS || role === UserRole.SUPER_ADMIN) {
+  // 老板拥有所有权限，不可编辑
+  if (role === UserRole.BOSS) {
     return false
   }
   return true
@@ -374,7 +368,7 @@ function togglePermission(permissionKey: string, event: any): void {
   const role = selectedRole.value
   const checked = event.detail.value
   
-  // 不允许编辑老板和超级管理员的权限
+  // 不允许编辑老板的权限
   if (!canEditPermission(role, permissionKey)) {
     uni.showToast({
       title: '该角色权限不可修改',
@@ -540,10 +534,6 @@ function cancelChanges(): void {
   
   &.boss {
     background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);
-  }
-  
-  &.super_admin {
-    background: linear-gradient(135deg, #f5222d 0%, #ff4d4f 100%);
   }
 }
 

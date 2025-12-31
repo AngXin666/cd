@@ -18,8 +18,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auth import create_access_token, hash_password
-from models import User, UserRole
+from auth import create_access_token
 
 
 # ==================== Token 辅助函数 ====================
@@ -30,30 +29,30 @@ def create_test_token(
 ) -> str:
     """
     创建测试用 JWT Token
-    
+
     Args:
         user_id: 用户ID
         expires_minutes: 过期时间（分钟），默认使用配置值
-        
+
     Returns:
         str: JWT Token
     """
     data = {"sub": str(user_id)}
-    
+
     if expires_minutes is not None:
         expires_delta = timedelta(minutes=expires_minutes)
         return create_access_token(data=data, expires_delta=expires_delta)
-    
+
     return create_access_token(data=data)
 
 
 def create_expired_token(user_id: int) -> str:
     """
     创建已过期的 Token
-    
+
     Args:
         user_id: 用户ID
-        
+
     Returns:
         str: 已过期的 JWT Token
     """
@@ -64,7 +63,7 @@ def create_expired_token(user_id: int) -> str:
 def create_invalid_token() -> str:
     """
     创建无效的 Token
-    
+
     Returns:
         str: 无效的 Token 字符串
     """
@@ -76,10 +75,10 @@ def create_invalid_token() -> str:
 def get_auth_headers(token: str) -> Dict[str, str]:
     """
     获取认证请求头
-    
+
     Args:
         token: JWT Token
-        
+
     Returns:
         Dict[str, str]: 包含 Authorization 头的字典
     """
@@ -89,7 +88,7 @@ def get_auth_headers(token: str) -> Dict[str, str]:
 def get_json_headers() -> Dict[str, str]:
     """
     获取 JSON 请求头
-    
+
     Returns:
         Dict[str, str]: 包含 Content-Type 头的字典
     """
@@ -99,10 +98,10 @@ def get_json_headers() -> Dict[str, str]:
 def get_auth_json_headers(token: str) -> Dict[str, str]:
     """
     获取认证和 JSON 请求头
-    
+
     Args:
         token: JWT Token
-        
+
     Returns:
         Dict[str, str]: 包含 Authorization 和 Content-Type 头的字典
     """
@@ -117,14 +116,14 @@ def get_auth_json_headers(token: str) -> Dict[str, str]:
 def assert_success_response(response, expected_status = 200) -> Dict[str, Any]:
     """
     断言成功响应
-    
+
     Args:
         response: HTTP 响应对象
         expected_status: 期望的状态码，可以是单个整数或整数列表，默认 200
-        
+
     Returns:
         Dict[str, Any]: 响应 JSON 数据
-        
+
     Raises:
         AssertionError: 状态码不匹配时
     """
@@ -145,23 +144,23 @@ def assert_error_response(
 ) -> Dict[str, Any]:
     """
     断言错误响应
-    
+
     Args:
         response: HTTP 响应对象
         expected_status: 期望的状态码
         expected_detail: 期望的错误详情（可选）
-        
+
     Returns:
         Dict[str, Any]: 响应 JSON 数据
-        
+
     Raises:
         AssertionError: 状态码或错误详情不匹配时
     """
     assert response.status_code == expected_status, \
         f"期望状态码 {expected_status}，实际 {response.status_code}，响应: {response.text}"
-    
+
     data = response.json()
-    
+
     if expected_detail:
         assert "detail" in data, f"响应中缺少 detail 字段: {data}"
         # detail 可能是字符串或字典
@@ -171,17 +170,17 @@ def assert_error_response(
         elif isinstance(data["detail"], dict):
             assert expected_detail in str(data["detail"]), \
                 f"期望错误详情包含 '{expected_detail}'，实际: {data['detail']}"
-    
+
     return data
 
 
 def assert_unauthorized(response) -> Dict[str, Any]:
     """
     断言未授权响应（401）
-    
+
     Args:
         response: HTTP 响应对象
-        
+
     Returns:
         Dict[str, Any]: 响应 JSON 数据
     """
@@ -191,10 +190,10 @@ def assert_unauthorized(response) -> Dict[str, Any]:
 def assert_forbidden(response) -> Dict[str, Any]:
     """
     断言禁止访问响应（403）
-    
+
     Args:
         response: HTTP 响应对象
-        
+
     Returns:
         Dict[str, Any]: 响应 JSON 数据
     """
@@ -204,10 +203,10 @@ def assert_forbidden(response) -> Dict[str, Any]:
 def assert_not_found(response) -> Dict[str, Any]:
     """
     断言资源不存在响应（404）
-    
+
     Args:
         response: HTTP 响应对象
-        
+
     Returns:
         Dict[str, Any]: 响应 JSON 数据
     """
@@ -217,10 +216,10 @@ def assert_not_found(response) -> Dict[str, Any]:
 def assert_validation_error(response) -> Dict[str, Any]:
     """
     断言验证错误响应（422）
-    
+
     Args:
         response: HTTP 响应对象
-        
+
     Returns:
         Dict[str, Any]: 响应 JSON 数据
     """
@@ -238,7 +237,7 @@ def assert_user_data(
 ) -> None:
     """
     断言用户数据
-    
+
     Args:
         data: 用户数据字典
         expected_username: 期望的用户名
@@ -249,15 +248,15 @@ def assert_user_data(
     if expected_username is not None:
         assert data.get("username") == expected_username, \
             f"期望用户名 '{expected_username}'，实际 '{data.get('username')}'"
-    
+
     if expected_name is not None:
         assert data.get("name") == expected_name, \
             f"期望姓名 '{expected_name}'，实际 '{data.get('name')}'"
-    
+
     if expected_role is not None:
         assert data.get("role") == expected_role, \
             f"期望角色 '{expected_role}'，实际 '{data.get('role')}'"
-    
+
     if expected_is_active is not None:
         assert data.get("is_active") == expected_is_active, \
             f"期望启用状态 {expected_is_active}，实际 {data.get('is_active')}"
@@ -271,7 +270,7 @@ def assert_list_response(
 ) -> None:
     """
     断言列表响应
-    
+
     Args:
         data: 列表数据
         min_count: 最小数量
@@ -299,12 +298,12 @@ def login_user(
 ) -> Optional[str]:
     """
     登录用户并返回 Token
-    
+
     Args:
         client: 测试客户端
         username: 用户名
         password: 密码
-        
+
     Returns:
         str: JWT Token，登录失败返回 None
     """
@@ -312,11 +311,11 @@ def login_user(
         "/api/auth/login",
         json={"username": username, "password": password}
     )
-    
+
     if response.status_code == 200:
         data = response.json()
         return data.get("access_token")
-    
+
     return None
 
 
@@ -326,11 +325,11 @@ def get_current_user(
 ) -> Optional[Dict[str, Any]]:
     """
     获取当前用户信息
-    
+
     Args:
         client: 测试客户端
         token: JWT Token
-        
+
     Returns:
         Dict[str, Any]: 用户信息，失败返回 None
     """
@@ -338,10 +337,10 @@ def get_current_user(
         "/api/auth/me",
         headers=get_auth_headers(token)
     )
-    
+
     if response.status_code == 200:
         return response.json()
-    
+
     return None
 
 
@@ -355,18 +354,18 @@ def test_endpoint_requires_auth(
 ) -> bool:
     """
     测试端点是否需要认证
-    
+
     Args:
         client: 测试客户端
         method: HTTP 方法（GET, POST, PUT, DELETE）
         url: 端点 URL
         json_data: 请求数据（可选）
-        
+
     Returns:
         bool: 是否需要认证（返回 401 表示需要）
     """
     method = method.upper()
-    
+
     if method == "GET":
         response = client.get(url)
     elif method == "POST":
@@ -377,7 +376,7 @@ def test_endpoint_requires_auth(
         response = client.delete(url)
     else:
         raise ValueError(f"不支持的 HTTP 方法: {method}")
-    
+
     return response.status_code == 401 or response.status_code == 403
 
 
@@ -390,20 +389,20 @@ def test_endpoint_requires_role(
 ) -> bool:
     """
     测试端点是否需要特定角色
-    
+
     Args:
         client: 测试客户端
         method: HTTP 方法
         url: 端点 URL
         token: JWT Token
         json_data: 请求数据（可选）
-        
+
     Returns:
         bool: 是否被拒绝访问（返回 403 表示权限不足）
     """
     method = method.upper()
     headers = get_auth_headers(token)
-    
+
     if method == "GET":
         response = client.get(url, headers=headers)
     elif method == "POST":
@@ -414,5 +413,5 @@ def test_endpoint_requires_role(
         response = client.delete(url, headers=headers)
     else:
         raise ValueError(f"不支持的 HTTP 方法: {method}")
-    
+
     return response.status_code == 403

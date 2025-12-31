@@ -38,6 +38,7 @@
     </view>
 
     <!-- 统计卡片（含完成率） -->
+    <!-- Requirements: 6.1 - 数据统计单位显示 -->
     <view class="stats-card">
       <view class="stats-item">
         <text class="stats-value">{{ stats.record_count }}</text>
@@ -45,7 +46,7 @@
       </view>
       <view class="stats-item">
         <text class="stats-value">{{ stats.total_quantity }}</text>
-        <text class="stats-label">总数量</text>
+        <text class="stats-label">总数量（{{ stats.unit || '件' }}）</text>
       </view>
       <view class="stats-item">
         <text class="stats-value highlight">¥{{ formatMoney(stats.total_amount) }}</text>
@@ -274,11 +275,12 @@ const selectedDate = ref(getToday())
 /** 计件记录 */
 const records = ref<PieceWorkRecord[]>([])
 
-/** 统计数据 */
+/** 统计数据（包含单位信息） - Requirements: 6.1 数据统计单位显示 */
 const stats = ref<PieceWorkStats>({
   total_quantity: 0,
   total_amount: 0,
   record_count: 0,
+  unit: '件',
 })
 
 /** 是否显示编辑弹窗 */

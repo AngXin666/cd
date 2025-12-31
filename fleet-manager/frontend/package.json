@@ -16,12 +16,13 @@
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4010520240507001",
+    "@dcloudio/uni-app-plus": "3.0.0-4010520240507001",
     "@dcloudio/uni-components": "3.0.0-4010520240507001",
     "@dcloudio/uni-h5": "3.0.0-4010520240507001",
     "@dcloudio/uni-mp-weixin": "3.0.0-4010520240507001",
-    "@dcloudio/uni-app-plus": "3.0.0-4010520240507001",
-    "vue": "^3.4.21",
-    "pinia": "^2.1.7"
+    "@rollup/rollup-darwin-x64": "^4.54.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@dcloudio/types": "^3.4.8",
@@ -30,13 +31,14 @@
     "@dcloudio/uni-stacktracey": "3.0.0-4010520240507001",
     "@dcloudio/vite-plugin-uni": "3.0.0-4010520240507001",
     "@types/node": "^20.12.7",
+    "@vitest/coverage-v8": "^2.1.0",
     "@vue/tsconfig": "^0.5.1",
     "fast-check": "^3.22.0",
-    "vitest": "^2.1.0",
-    "@vitest/coverage-v8": "^2.1.0",
     "sass": "^1.75.0",
+    "serve": "^14.2.5",
     "typescript": "^5.4.5",
     "vite": "^5.2.10",
+    "vitest": "^2.1.0",
     "vue-tsc": "^2.0.14"
   }
 }

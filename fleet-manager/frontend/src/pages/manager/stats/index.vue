@@ -148,12 +148,12 @@
 
     <template v-else>
       <!-- 统计卡片 -->
-      <!-- Requirements: 3.6 -->
+      <!-- Requirements: 3.6, 6.1 - 数据统计单位显示 -->
       <view class="stats-card">
         <view class="stats-grid">
           <view class="stats-item">
             <text class="stats-value">{{ totalStats.total_quantity }}</text>
-            <text class="stats-label">总件数</text>
+            <text class="stats-label">总{{ getUnitLabel() }}</text>
           </view>
           <view class="stats-item">
             <text class="stats-value highlight">¥{{ formatMoney(totalStats.total_amount) }}</text>
@@ -163,20 +163,20 @@
       </view>
 
       <!-- 品类统计卡片 -->
-      <!-- Requirements: 3.7 -->
+      <!-- Requirements: 3.7, 6.1 - 数据统计单位显示 -->
       <view v-if="categoryStats.length > 0" class="category-stats-card">
         <view class="card-header">
           <text class="card-title">📊 品类统计</text>
         </view>
         <view class="category-list">
           <view 
-            v-for="category in categoryStats" 
-            :key="category.name"
+            v-for="(category, index) in categoryStats" 
+            :key="index"
             class="category-item"
           >
             <view class="category-info">
               <text class="category-name">{{ category.name }}</text>
-              <text class="category-quantity">{{ category.quantity }} 件</text>
+              <text class="category-quantity">{{ category.quantity }} {{ category.unit }}</text>
             </view>
             <text class="category-amount">¥{{ formatMoney(category.amount) }}</text>
           </view>
@@ -217,7 +217,7 @@
                 <text class="tag warehouse-tag">{{ record.warehouse_name || '未指定仓库' }}</text>
                 <text class="tag category-tag">{{ record.category_name }}</text>
               </view>
-              <text class="record-quantity">{{ record.quantity }} 件</text>
+              <text class="record-quantity">{{ record.quantity }} {{ getRecordUnit(record) }}</text>
             </view>
           </view>
         </view>
@@ -258,7 +258,7 @@ import {
   getWarehouseUsers,
 } from '@/api'
 import type { PieceWorkRecord, Warehouse, User } from '@/api/types'
-import { UserRole } from '@/api/types'
+import { UserRole, getWarehousePresetUnit, WarehouseType } from '@/api/types'
 import { formatMoney } from '@/utils'
 import { 
   getLocalDateString, 
@@ -297,6 +297,8 @@ interface CategoryStat {
   name: string
   quantity: number
   amount: number
+  /** 单位（根据仓库类型确定） - Requirements: 6.1 */
+  unit: string
 }
 
 // ==================== Store ====================
@@ -449,23 +451,59 @@ const totalStats = computed(() => {
 
 /**
  * 按品类分组的统计数据
- * Requirements: 3.7
+ * Requirements: 3.7, 6.1 - 多仓库汇总按类型分组显示单位
+ * 
+ * 当选择特定仓库时，所有品类使用该仓库的预设单位
+ * 当选择"所有仓库"时，按品类+仓库类型分组，每组显示对应单位
  */
 const categoryStats = computed<CategoryStat[]>(() => {
+  // 如果选择了特定仓库，按品类名称分组
+  if (selectedWarehouseId.value !== null) {
+    const categoryMap = new Map<string, CategoryStat>()
+    const unit = getUnitLabel()
+    
+    filteredRecords.value.forEach(record => {
+      const categoryName = record.category_name || '未分类'
+      const existing = categoryMap.get(categoryName)
+      
+      if (existing) {
+        existing.quantity += record.quantity
+        existing.amount += record.amount
+      } else {
+        categoryMap.set(categoryName, {
+          name: categoryName,
+          quantity: record.quantity,
+          amount: record.amount,
+          unit: unit,
+        })
+      }
+    })
+    
+    // 按金额降序排序
+    return Array.from(categoryMap.values())
+      .sort((a, b) => b.amount - a.amount)
+  }
+  
+  // 选择"所有仓库"时，按品类+仓库类型分组
+  // Requirements: 6.1 - 多仓库汇总按类型分组显示单位
   const categoryMap = new Map<string, CategoryStat>()
   
   filteredRecords.value.forEach(record => {
     const categoryName = record.category_name || '未分类'
-    const existing = categoryMap.get(categoryName)
+    const unit = getRecordUnit(record)
+    // 使用品类名称+单位作为唯一键，实现按类型分组
+    const key = `${categoryName}_${unit}`
+    const existing = categoryMap.get(key)
     
     if (existing) {
       existing.quantity += record.quantity
       existing.amount += record.amount
     } else {
-      categoryMap.set(categoryName, {
+      categoryMap.set(key, {
         name: categoryName,
         quantity: record.quantity,
         amount: record.amount,
+        unit: unit,
       })
     }
   })
@@ -516,9 +554,9 @@ async function loadWarehouses(): Promise<void> {
     const currentUser = userStore.user
     const userRole = currentUser?.role
     
-    // 老板和超级管理员可以看到所有仓库
+    // 老板可以看到所有仓库（老板是系统最高权限角色）
     // Requirements: 3.9
-    if (userRole === UserRole.BOSS || userRole === UserRole.SUPER_ADMIN) {
+    if (userRole === UserRole.BOSS) {
       const data = await getWarehouses({ is_active: true })
       warehouses.value = data
     } 
@@ -713,6 +751,49 @@ function onToggleSortOrder(): void {
     ...sortConfig.value,
     order: toggleSortOrder(sortConfig.value.order),
   }
+}
+
+// ==================== 单位显示相关方法 ====================
+// Requirements: 6.1 - 数据统计单位显示
+
+/**
+ * 获取当前选中仓库的预设单位标签
+ * 如果选择了特定仓库，返回该仓库的预设单位
+ * 如果选择"所有仓库"，返回默认单位"件"
+ * 
+ * @returns 单位标签字符串
+ * Requirements: 6.1 - 单仓库统计显示该仓库的预设单位
+ */
+function getUnitLabel(): string {
+  // 如果选择了特定仓库
+  if (selectedWarehouseId.value !== null) {
+    const warehouse = warehouses.value.find(w => w.id === selectedWarehouseId.value)
+    if (warehouse && warehouse.warehouse_type) {
+      return getWarehousePresetUnit(warehouse.warehouse_type)
+    }
+  }
+  // 默认返回"件"
+  return '件'
+}
+
+/**
+ * 获取单条记录的单位
+ * 根据记录所属仓库的类型返回对应单位
+ * 
+ * @param record - 计件记录
+ * @returns 单位字符串
+ * Requirements: 6.1 - 数据统计单位显示
+ */
+function getRecordUnit(record: PieceWorkRecord): string {
+  // 如果记录有仓库ID，查找仓库获取单位
+  if (record.warehouse_id) {
+    const warehouse = warehouses.value.find(w => w.id === record.warehouse_id)
+    if (warehouse && warehouse.warehouse_type) {
+      return getWarehousePresetUnit(warehouse.warehouse_type)
+    }
+  }
+  // 默认返回"件"
+  return '件'
 }
 </script>
 

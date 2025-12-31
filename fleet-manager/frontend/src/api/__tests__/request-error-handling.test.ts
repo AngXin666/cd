@@ -23,7 +23,7 @@ const PermissionErrorCode = {
   RESOURCE_NOT_OWNED: 'resource_not_owned',
   /** 无权访问该仓库 */
   WAREHOUSE_NOT_ACCESSIBLE: 'warehouse_not_accessible',
-  /** 需要超级管理员权限 */
+  /** 需要老板权限 */
   HIGH_ROLE_OPERATION: 'high_role_operation',
 } as const
 
@@ -589,14 +589,14 @@ describe('403 错误处理示例测试', () => {
       const response: ErrorResponseNew = {
         detail: {
           error_code: 'high_role_operation',
-          message: '只有超级管理员可以执行此操作'
+          message: '只有老板可以执行此操作'
         }
       }
       
       const result = parse403Error(response)
       
       expect(result.errorCode).toBe('high_role_operation')
-      expect(result.errorMessage).toBe('只有超级管理员可以执行此操作')
+      expect(result.errorMessage).toBe('只有老板可以执行此操作')
       expect(result.shouldLogout).toBe(false)
       expect(result.shouldShowToast).toBe(true)
     })

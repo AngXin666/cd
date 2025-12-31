@@ -96,7 +96,7 @@ export interface WarehouseAssignment {
  * 根据用户角色过滤仓库列表
  * 
  * Requirements: 3.9, 3.10 - 角色权限过滤
- * - 老板和超级管理员可以看到所有仓库
+ * - 老板可以看到所有仓库（老板是系统最高权限角色）
  * - 车队长只能看到管辖的仓库
  * - 调度员可以看到所有仓库
  * - 司机只能看到分配给自己的仓库
@@ -122,11 +122,10 @@ export function filterWarehousesByRole(
   user: User,
   assignments: WarehouseAssignment[]
 ): Warehouse[] {
-  // 老板、超级管理员、调度员可以看到所有仓库
+  // 老板、调度员可以看到所有仓库
   // Requirements: 3.9
   if (
     user.role === UserRole.BOSS ||
-    user.role === UserRole.SUPER_ADMIN ||
     user.role === UserRole.PEER_ADMIN
   ) {
     return warehouses
@@ -182,10 +181,9 @@ export function canAccessWarehouse(
   user: User,
   assignments: WarehouseAssignment[]
 ): boolean {
-  // 老板、超级管理员、调度员可以访问所有仓库
+  // 老板、调度员可以访问所有仓库（老板是系统最高权限角色）
   if (
     user.role === UserRole.BOSS ||
-    user.role === UserRole.SUPER_ADMIN ||
     user.role === UserRole.PEER_ADMIN
   ) {
     return true

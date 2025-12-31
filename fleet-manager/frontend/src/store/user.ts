@@ -90,26 +90,24 @@ export const useUserStore = defineStore('user', () => {
   
   /**
    * 是否是老板
+   * 注意：SUPER_ADMIN 角色已被移除，BOSS 现在是系统最高权限角色
    */
   const isBoss = computed(() => role.value === UserRole.BOSS);
   
   /**
-   * 是否是超级管理员
-   */
-  const isSuperAdmin = computed(() => role.value === UserRole.SUPER_ADMIN);
-  
-  /**
-   * 是否是管理员角色（调度、老板、超级管理员）
+   * 是否是管理员角色（调度、老板）
+   * 注意：SUPER_ADMIN 角色已被移除
    */
   const isAdmin = computed(() => 
-    isPeerAdmin.value || isBoss.value || isSuperAdmin.value
+    isPeerAdmin.value || isBoss.value
   );
   
   /**
-   * 是否有管理权限（车队长、调度、老板、超级管理员）
+   * 是否有管理权限（车队长、调度、老板）
+   * 注意：SUPER_ADMIN 角色已被移除
    */
   const hasManagerAccess = computed(() => 
-    isManager.value || isPeerAdmin.value || isBoss.value || isSuperAdmin.value
+    isManager.value || isPeerAdmin.value || isBoss.value
   );
   
   /**
@@ -132,8 +130,8 @@ export const useUserStore = defineStore('user', () => {
    * @returns 是否拥有该权限
    */
   const hasPermission = computed(() => (permissionKey: string): boolean => {
-    // 老板和超级管理员拥有所有权限
-    if (isBoss.value || isSuperAdmin.value) {
+    // 老板拥有所有权限（老板是系统最高权限角色）
+    if (isBoss.value) {
       return true;
     }
     return permissions.value.includes(permissionKey);
@@ -146,8 +144,8 @@ export const useUserStore = defineStore('user', () => {
    * @returns 是否拥有任意一个权限
    */
   const hasAnyPermission = computed(() => (permissionKeys: string[]): boolean => {
-    // 老板和超级管理员拥有所有权限
-    if (isBoss.value || isSuperAdmin.value) {
+    // 老板拥有所有权限（老板是系统最高权限角色）
+    if (isBoss.value) {
       return true;
     }
     return permissionKeys.some(key => permissions.value.includes(key));
@@ -160,8 +158,8 @@ export const useUserStore = defineStore('user', () => {
    * @returns 是否拥有所有权限
    */
   const hasAllPermissions = computed(() => (permissionKeys: string[]): boolean => {
-    // 老板和超级管理员拥有所有权限
-    if (isBoss.value || isSuperAdmin.value) {
+    // 老板拥有所有权限（老板是系统最高权限角色）
+    if (isBoss.value) {
       return true;
     }
     return permissionKeys.every(key => permissions.value.includes(key));
@@ -555,7 +553,6 @@ export const useUserStore = defineStore('user', () => {
     isManager,
     isPeerAdmin,
     isBoss,
-    isSuperAdmin,
     isAdmin,
     hasManagerAccess,
     displayName,

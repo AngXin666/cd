@@ -49,8 +49,9 @@ const PIECE_WORK_STATUSES = ['submitted', 'approved', 'rejected'] as const
 
 /**
  * 用户角色枚举
+ * 注意：super_admin 角色已被移除
  */
-const USER_ROLES = ['driver', 'manager', 'dispatcher', 'boss', 'super_admin'] as const
+const USER_ROLES = ['driver', 'manager', 'dispatcher', 'boss'] as const
 
 /**
  * 事件动作类型

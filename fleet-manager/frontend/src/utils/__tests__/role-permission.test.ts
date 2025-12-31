@@ -30,13 +30,13 @@ const userIdArb = fc.integer({ min: 1, max: 1000 })
 
 /**
  * 生成用户角色的 Arbitrary
+ * 注意：SUPER_ADMIN 角色已被移除
  */
 const userRoleArb = fc.constantFrom(
   UserRole.DRIVER,
   UserRole.MANAGER,
   UserRole.PEER_ADMIN,
-  UserRole.BOSS,
-  UserRole.SUPER_ADMIN
+  UserRole.BOSS
 )
 
 /**
@@ -187,24 +187,6 @@ describe('角色权限过滤属性测试', () => {
             const filtered = filterWarehousesByRole(warehouses, boss, assignments)
             
             // 验证：老板能看到所有仓库
-            return filtered.length === warehouses.length
-          }
-        ),
-        { numRuns: 100 }
-      )
-    })
-
-    it('超级管理员可以看到所有仓库', () => {
-      fc.assert(
-        fc.property(
-          warehouseListArb(1, 10),
-          userArb(fc.constant(UserRole.SUPER_ADMIN)),
-          (warehouses, superAdmin) => {
-            const assignments: WarehouseAssignment[] = []
-            
-            const filtered = filterWarehousesByRole(warehouses, superAdmin, assignments)
-            
-            // 验证：超级管理员能看到所有仓库
             return filtered.length === warehouses.length
           }
         ),
@@ -380,19 +362,6 @@ describe('角色权限过滤属性测试', () => {
           userArb(fc.constant(UserRole.BOSS)),
           (warehouseId, boss) => {
             return canAccessWarehouse(warehouseId, boss, [])
-          }
-        ),
-        { numRuns: 100 }
-      )
-    })
-
-    it('超级管理员可以访问任何仓库', () => {
-      fc.assert(
-        fc.property(
-          warehouseIdArb,
-          userArb(fc.constant(UserRole.SUPER_ADMIN)),
-          (warehouseId, superAdmin) => {
-            return canAccessWarehouse(warehouseId, superAdmin, [])
           }
         ),
         { numRuns: 100 }

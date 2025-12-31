@@ -743,7 +743,6 @@ function getUserDetail(userId: number): UserDetailInfo | undefined {
 function getRoleClass(role: string): string {
   switch (role) {
     case UserRole.BOSS:
-    case UserRole.SUPER_ADMIN:
       return 'boss'
     case UserRole.MANAGER:
       return 'manager'

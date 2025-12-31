@@ -213,7 +213,7 @@ export interface PermissionUpdateEvent {
 export interface UserStatusData {
   /** 用户ID */
   id: number
-  /** 用户角色：driver-司机, manager-车队长, dispatcher-调度, boss-老板, super_admin-超级管理员 */
+  /** 用户角色：driver-司机, manager-车队长, dispatcher-调度, boss-老板 */
   role: string
   /** 用户是否启用 */
   is_active: boolean

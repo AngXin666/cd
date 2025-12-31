@@ -67,11 +67,19 @@
           <view class="warehouse-detail">
             <view class="warehouse-name-row">
               <text class="warehouse-name">{{ warehouse.name }}</text>
+              <!-- 仓库类型标签 Requirements: 2.1 -->
+              <view class="type-tag">
+                <text class="type-text">{{ getWarehouseTypeDisplayName(warehouse.warehouse_type) }}</text>
+              </view>
               <view v-if="!warehouse.is_active" class="status-tag inactive">
                 <text class="status-text">已停用</text>
               </view>
             </view>
-            <text class="warehouse-address">{{ warehouse.address || '未设置地址' }}</text>
+            <view class="warehouse-meta">
+              <text class="warehouse-address">{{ warehouse.address || '未设置地址' }}</text>
+              <!-- 预设单位显示 Requirements: 2.2 -->
+              <text class="warehouse-unit">单位：{{ warehouse.preset_unit || getWarehousePresetUnit(warehouse.warehouse_type) }}</text>
+            </view>
             <text class="warehouse-time">创建于 {{ formatDate(warehouse.created_at) }}</text>
           </view>
         </view>
@@ -118,6 +126,26 @@
               placeholder="请输入仓库地址（选填）"
             />
           </view>
+          
+          <!-- 仓库类型选择器 Requirements: 2.1 -->
+          <view class="form-item">
+            <text class="form-label required">仓库类型</text>
+            <view class="type-selector">
+              <view
+                v-for="option in WAREHOUSE_TYPE_OPTIONS"
+                :key="option.value"
+                :class="['type-option', { active: createForm.warehouse_type === option.value }]"
+                @click="createForm.warehouse_type = option.value"
+              >
+                <text class="type-label">{{ option.label }}</text>
+              </view>
+            </view>
+            <!-- 预设单位提示 Requirements: 2.2 -->
+            <view class="preset-unit-hint">
+              <text class="hint-label">预设单位：</text>
+              <text class="hint-value">{{ currentPresetUnit }}</text>
+            </view>
+          </view>
         </view>
         
         <view class="modal-footer">
@@ -144,7 +172,27 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getWarehouses, createWarehouse } from '@/api'
 import type { Warehouse } from '@/api/types'
+import { 
+  WarehouseType, 
+  WAREHOUSE_TYPE_DISPLAY_NAMES, 
+  getWarehouseTypeDisplayName,
+  getWarehousePresetUnit 
+} from '@/api/types'
 import { formatDate } from '@/utils'
+
+// ==================== 常量定义 ====================
+
+/**
+ * 仓库类型选项列表
+ * 用于创建弹窗中的类型选择器
+ * Requirements: 2.1
+ */
+const WAREHOUSE_TYPE_OPTIONS = [
+  { value: WarehouseType.PIECE, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.PIECE] },
+  { value: WarehouseType.POINT, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.POINT] },
+  { value: WarehouseType.WHOLE, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.WHOLE] },
+  { value: WarehouseType.DISTANCE, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.DISTANCE] },
+]
 
 // ==================== 状态 ====================
 
@@ -167,6 +215,17 @@ const showModal = ref(false)
 const createForm = reactive({
   name: '',
   address: '',
+  /** 仓库类型，默认为计件类型 */
+  warehouse_type: WarehouseType.PIECE as WarehouseType,
+})
+
+/**
+ * 当前选中仓库类型的预设单位
+ * 根据仓库类型自动计算
+ * Requirements: 2.2
+ */
+const currentPresetUnit = computed(() => {
+  return getWarehousePresetUnit(createForm.warehouse_type)
 })
 
 // ==================== 计算属性 ====================
@@ -268,10 +327,13 @@ function handleFilterChange(filter: 'all' | 'active' | 'inactive'): void {
 
 /**
  * 显示创建弹窗
+ * 重置表单数据，默认选择计件类型
+ * Requirements: 2.3
  */
 function showCreateModal(): void {
   createForm.name = ''
   createForm.address = ''
+  createForm.warehouse_type = WarehouseType.PIECE
   showModal.value = true
 }
 
@@ -284,6 +346,8 @@ function closeModal(): void {
 
 /**
  * 创建仓库
+ * 提交仓库名称、地址和类型
+ * Requirements: 2.5
  */
 async function handleCreate(): Promise<void> {
   // 表单验证
@@ -301,6 +365,7 @@ async function handleCreate(): Promise<void> {
     await createWarehouse({
       name: createForm.name.trim(),
       address: createForm.address.trim() || undefined,
+      warehouse_type: createForm.warehouse_type,
     })
     
     uni.hideLoading()
@@ -532,6 +597,19 @@ function viewWarehouseDetail(warehouseId: number): void {
   margin-right: 12rpx;
 }
 
+/* 仓库类型标签样式 Requirements: 2.1 */
+.type-tag {
+  padding: 4rpx 12rpx;
+  background-color: #e6f7ff;
+  border-radius: 8rpx;
+  margin-right: 8rpx;
+  
+  .type-text {
+    font-size: 22rpx;
+    color: #1890ff;
+  }
+}
+
 .status-tag.inactive {
   padding: 4rpx 12rpx;
   background-color: #fff1f0;
@@ -543,11 +621,26 @@ function viewWarehouseDetail(warehouseId: number): void {
   }
 }
 
+/* 仓库元信息样式 */
+.warehouse-meta {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 4rpx;
+}
+
 .warehouse-address {
   font-size: 26rpx;
   color: #666666;
-  margin-bottom: 4rpx;
-  display: block;
+}
+
+/* 预设单位显示样式 Requirements: 2.2 */
+.warehouse-unit {
+  font-size: 24rpx;
+  color: #1890ff;
+  background-color: #f0f9ff;
+  padding: 2rpx 8rpx;
+  border-radius: 4rpx;
 }
 
 .warehouse-time {
@@ -649,6 +742,64 @@ function viewWarehouseDetail(warehouseId: number): void {
   border-radius: 12rpx;
   font-size: 28rpx;
   color: #333333;
+}
+
+/* 仓库类型选择器样式 Requirements: 2.1 */
+.type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.type-option {
+  flex: 1;
+  min-width: calc(50% - 6rpx);
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.3s;
+  
+  &.active {
+    border-color: #1890ff;
+    background-color: #e6f7ff;
+    
+    .type-label {
+      color: #1890ff;
+      font-weight: 500;
+    }
+  }
+}
+
+.type-label {
+  font-size: 26rpx;
+  color: #666666;
+}
+
+/* 预设单位提示样式 Requirements: 2.2 */
+.preset-unit-hint {
+  display: flex;
+  align-items: center;
+  margin-top: 12rpx;
+  padding: 12rpx 16rpx;
+  background-color: #f0f9ff;
+  border-radius: 8rpx;
+  border-left: 4rpx solid #1890ff;
+}
+
+.hint-label {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.hint-value {
+  font-size: 26rpx;
+  color: #1890ff;
+  font-weight: 500;
+  margin-left: 8rpx;
 }
 
 .modal-footer {

@@ -13,7 +13,7 @@
 """
 
 from datetime import datetime, date, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict
 from sqlmodel import Session
 import json
 import random
@@ -28,10 +28,9 @@ from models import (
     User, UserRole, Warehouse, WarehouseAssignment,
     Attendance, PieceWorkCategory, PieceWorkRecord,
     LeaveApplication, LeaveType, LeaveStatus,
-    Vehicle, VehicleStatus, VehicleDocument, DocumentType,
+    Vehicle, VehicleStatus,
     Notification, NotificationTemplate, ScheduledNotification,
-    RepeatType, ScheduledNotificationStatus,
-    AppVersion, UpdateType, VehicleHistory, VehicleHistoryActionType
+    RepeatType, ScheduledNotificationStatus
 )
 from auth import hash_password
 
@@ -41,10 +40,10 @@ from auth import hash_password
 def random_string(length: int = 8) -> str:
     """
     生成随机字符串
-    
+
     Args:
         length: 字符串长度
-        
+
     Returns:
         str: 随机字符串
     """
@@ -54,7 +53,7 @@ def random_string(length: int = 8) -> str:
 def random_phone() -> str:
     """
     生成随机手机号
-    
+
     Returns:
         str: 随机手机号（138开头）
     """
@@ -64,7 +63,7 @@ def random_phone() -> str:
 def random_license_plate() -> str:
     """
     生成随机车牌号
-    
+
     Returns:
         str: 随机车牌号（如：川A12345）
     """
@@ -83,10 +82,10 @@ class UserFactory:
     用户数据工厂
     用于创建各种角色的测试用户
     """
-    
+
     # 默认测试密码
     DEFAULT_PASSWORD = "test123456"
-    
+
     @classmethod
     def create(
         cls,
@@ -100,7 +99,7 @@ class UserFactory:
     ) -> User:
         """
         创建用户
-        
+
         Args:
             session: 数据库会话
             username: 用户名，默认随机生成
@@ -109,7 +108,7 @@ class UserFactory:
             phone: 手机号，默认随机生成
             role: 角色，默认司机
             is_active: 是否启用，默认启用
-            
+
         Returns:
             User: 创建的用户对象
         """
@@ -125,35 +124,40 @@ class UserFactory:
         session.commit()
         session.refresh(user)
         return user
-    
+
     @classmethod
     def create_driver(cls, session: Session, **kwargs) -> User:
         """创建司机用户"""
         kwargs.setdefault('role', UserRole.DRIVER)
         return cls.create(session, **kwargs)
-    
+
     @classmethod
     def create_manager(cls, session: Session, **kwargs) -> User:
         """创建车队长用户"""
         kwargs.setdefault('role', UserRole.MANAGER)
         return cls.create(session, **kwargs)
-    
+
     @classmethod
     def create_peer_admin(cls, session: Session, **kwargs) -> User:
         """创建调度用户"""
         kwargs.setdefault('role', UserRole.PEER_ADMIN)
         return cls.create(session, **kwargs)
-    
+
     @classmethod
     def create_boss(cls, session: Session, **kwargs) -> User:
         """创建老板用户"""
         kwargs.setdefault('role', UserRole.BOSS)
         return cls.create(session, **kwargs)
-    
+
     @classmethod
     def create_super_admin(cls, session: Session, **kwargs) -> User:
-        """创建超级管理员用户"""
-        kwargs.setdefault('role', UserRole.SUPER_ADMIN)
+        """
+        创建超级管理员用户（已废弃，使用 BOSS 角色代替）
+        
+        注意：SUPER_ADMIN 角色已被移除，此方法现在创建 BOSS 角色用户
+        保留此方法是为了向后兼容现有测试代码
+        """
+        kwargs.setdefault('role', UserRole.BOSS)
         return cls.create(session, **kwargs)
 
 
@@ -164,7 +168,7 @@ class WarehouseFactory:
     仓库数据工厂
     用于创建测试仓库
     """
-    
+
     @classmethod
     def create(
         cls,
@@ -175,13 +179,13 @@ class WarehouseFactory:
     ) -> Warehouse:
         """
         创建仓库
-        
+
         Args:
             session: 数据库会话
             name: 仓库名称，默认随机生成
             address: 仓库地址，默认随机生成
             is_active: 是否启用，默认启用
-            
+
         Returns:
             Warehouse: 创建的仓库对象
         """
@@ -194,7 +198,7 @@ class WarehouseFactory:
         session.commit()
         session.refresh(warehouse)
         return warehouse
-    
+
     @classmethod
     def assign_user(
         cls,
@@ -204,12 +208,12 @@ class WarehouseFactory:
     ) -> WarehouseAssignment:
         """
         将用户分配到仓库
-        
+
         Args:
             session: 数据库会话
             user: 用户对象
             warehouse: 仓库对象
-            
+
         Returns:
             WarehouseAssignment: 分配记录
         """
@@ -230,7 +234,7 @@ class VehicleFactory:
     车辆数据工厂
     用于创建测试车辆
     """
-    
+
     @classmethod
     def create(
         cls,
@@ -246,7 +250,7 @@ class VehicleFactory:
     ) -> Vehicle:
         """
         创建车辆
-        
+
         Args:
             session: 数据库会话
             user: 车主用户
@@ -257,13 +261,13 @@ class VehicleFactory:
             color: 颜色，默认随机
             status: 状态，默认审核中
             ownership_type: 所有权类型，默认公司车辆
-            
+
         Returns:
             Vehicle: 创建的车辆对象
         """
         brands = ['丰田', '本田', '大众', '比亚迪', '特斯拉']
         colors = ['白色', '黑色', '银色', '红色', '蓝色']
-        
+
         vehicle = Vehicle(
             user_id=user.id,
             warehouse_id=warehouse.id if warehouse else None,
@@ -278,7 +282,7 @@ class VehicleFactory:
         session.commit()
         session.refresh(vehicle)
         return vehicle
-    
+
     @classmethod
     def create_with_lease(
         cls,
@@ -290,14 +294,14 @@ class VehicleFactory:
     ) -> Vehicle:
         """
         创建带租赁信息的车辆
-        
+
         Args:
             session: 数据库会话
             user: 车主用户
             warehouse: 所属仓库
             monthly_rent: 月租金
             lease_days: 租赁天数
-            
+
         Returns:
             Vehicle: 创建的车辆对象
         """
@@ -306,7 +310,7 @@ class VehicleFactory:
             status=VehicleStatus.ACTIVE,
             ownership_type="leased"
         )
-        
+
         # 更新租赁信息
         vehicle.lessor_name = "测试出租方"
         vehicle.lessor_contact = random_phone()
@@ -316,7 +320,7 @@ class VehicleFactory:
         vehicle.lease_start_date = date.today()
         vehicle.lease_end_date = date.today() + timedelta(days=lease_days)
         vehicle.rent_payment_day = 1
-        
+
         session.add(vehicle)
         session.commit()
         session.refresh(vehicle)
@@ -330,7 +334,7 @@ class AttendanceFactory:
     考勤数据工厂
     用于创建测试考勤记录
     """
-    
+
     @classmethod
     def create(
         cls,
@@ -342,25 +346,25 @@ class AttendanceFactory:
     ) -> Attendance:
         """
         创建考勤记录
-        
+
         Args:
             session: 数据库会话
             user: 用户对象
             work_date: 工作日期，默认今天
             clock_in: 上班打卡时间
             clock_out: 下班打卡时间
-            
+
         Returns:
             Attendance: 创建的考勤记录
         """
         work_date = work_date or date.today()
-        
+
         # 计算工时
         work_hours = None
         if clock_in and clock_out:
             delta = clock_out - clock_in
             work_hours = delta.total_seconds() / 3600
-        
+
         attendance = Attendance(
             user_id=user.id,
             work_date=work_date,
@@ -372,7 +376,7 @@ class AttendanceFactory:
         session.commit()
         session.refresh(attendance)
         return attendance
-    
+
     @classmethod
     def create_full_day(
         cls,
@@ -382,19 +386,19 @@ class AttendanceFactory:
     ) -> Attendance:
         """
         创建完整的一天考勤记录（上下班都打卡）
-        
+
         Args:
             session: 数据库会话
             user: 用户对象
             work_date: 工作日期
-            
+
         Returns:
             Attendance: 创建的考勤记录
         """
         work_date = work_date or date.today()
         clock_in = datetime.combine(work_date, datetime.min.time().replace(hour=8))
         clock_out = datetime.combine(work_date, datetime.min.time().replace(hour=18))
-        
+
         return cls.create(session, user, work_date, clock_in, clock_out)
 
 
@@ -405,7 +409,7 @@ class PieceWorkFactory:
     计件数据工厂
     用于创建测试计件分类和记录
     """
-    
+
     @classmethod
     def create_category(
         cls,
@@ -419,7 +423,7 @@ class PieceWorkFactory:
     ) -> PieceWorkCategory:
         """
         创建计件分类
-        
+
         Args:
             session: 数据库会话
             name: 分类名称
@@ -428,7 +432,7 @@ class PieceWorkFactory:
             sorting_price: 分拣单价
             unit: 计量单位
             is_active: 是否启用
-            
+
         Returns:
             PieceWorkCategory: 创建的分类对象
         """
@@ -444,7 +448,7 @@ class PieceWorkFactory:
         session.commit()
         session.refresh(category)
         return category
-    
+
     @classmethod
     def create_record(
         cls,
@@ -457,7 +461,7 @@ class PieceWorkFactory:
     ) -> PieceWorkRecord:
         """
         创建计件记录
-        
+
         Args:
             session: 数据库会话
             user: 用户对象
@@ -465,13 +469,13 @@ class PieceWorkFactory:
             warehouse: 仓库（可选）
             work_date: 工作日期
             quantity: 数量
-            
+
         Returns:
             PieceWorkRecord: 创建的计件记录
         """
         work_date = work_date or date.today()
         amount = quantity * category.unit_price
-        
+
         record = PieceWorkRecord(
             user_id=user.id,
             category_id=category.id,
@@ -493,7 +497,7 @@ class LeaveFactory:
     请假数据工厂
     用于创建测试请假申请
     """
-    
+
     @classmethod
     def create(
         cls,
@@ -507,7 +511,7 @@ class LeaveFactory:
     ) -> LeaveApplication:
         """
         创建请假申请
-        
+
         Args:
             session: 数据库会话
             user: 申请人
@@ -516,13 +520,13 @@ class LeaveFactory:
             end_date: 结束日期
             reason: 请假原因
             status: 审批状态
-            
+
         Returns:
             LeaveApplication: 创建的请假申请
         """
         start_date = start_date or date.today() + timedelta(days=1)
         end_date = end_date or start_date + timedelta(days=1)
-        
+
         leave = LeaveApplication(
             user_id=user.id,
             leave_type=leave_type,
@@ -535,7 +539,7 @@ class LeaveFactory:
         session.commit()
         session.refresh(leave)
         return leave
-    
+
     @classmethod
     def create_resign(cls, session: Session, user: User, **kwargs) -> LeaveApplication:
         """创建离职申请"""
@@ -551,7 +555,7 @@ class NotificationFactory:
     通知数据工厂
     用于创建测试通知
     """
-    
+
     @classmethod
     def create(
         cls,
@@ -564,7 +568,7 @@ class NotificationFactory:
     ) -> Notification:
         """
         创建通知
-        
+
         Args:
             session: 数据库会话
             user: 接收用户
@@ -572,7 +576,7 @@ class NotificationFactory:
             content: 通知内容
             is_read: 是否已读
             sender_id: 发送者ID
-            
+
         Returns:
             Notification: 创建的通知对象
         """
@@ -587,7 +591,7 @@ class NotificationFactory:
         session.commit()
         session.refresh(notification)
         return notification
-    
+
     @classmethod
     def create_template(
         cls,
@@ -601,7 +605,7 @@ class NotificationFactory:
     ) -> NotificationTemplate:
         """
         创建通知模板
-        
+
         Args:
             session: 数据库会话
             name: 模板名称
@@ -610,7 +614,7 @@ class NotificationFactory:
             variables: 变量说明
             category: 分类
             is_active: 是否启用
-            
+
         Returns:
             NotificationTemplate: 创建的模板对象
         """
@@ -637,7 +641,7 @@ class ScheduledNotificationFactory:
     定时通知数据工厂
     用于创建测试定时通知
     """
-    
+
     @classmethod
     def create(
         cls,
@@ -654,7 +658,7 @@ class ScheduledNotificationFactory:
     ) -> ScheduledNotification:
         """
         创建定时通知
-        
+
         Args:
             session: 数据库会话
             name: 任务名称，默认随机生成
@@ -666,14 +670,14 @@ class ScheduledNotificationFactory:
             target_user_ids: 目标用户ID列表（JSON格式）
             target_roles: 目标角色列表（JSON格式）
             creator_id: 创建者ID
-            
+
         Returns:
             ScheduledNotification: 创建的定时通知对象
         """
         # 默认发送时间为1小时后
         if scheduled_time is None:
             scheduled_time = datetime.now() + timedelta(hours=1)
-        
+
         notification = ScheduledNotification(
             name=name or f"定时通知_{random_string(6)}",
             title=title or f"测试通知_{random_string(4)}",
@@ -690,7 +694,7 @@ class ScheduledNotificationFactory:
         session.commit()
         session.refresh(notification)
         return notification
-    
+
     @classmethod
     def create_daily(
         cls,
@@ -702,7 +706,7 @@ class ScheduledNotificationFactory:
         kwargs.setdefault('repeat_type', RepeatType.DAILY)
         kwargs.setdefault('name', name or f"每日通知_{random_string(4)}")
         return cls.create(session, **kwargs)
-    
+
     @classmethod
     def create_weekly(
         cls,
@@ -720,64 +724,3 @@ class ScheduledNotificationFactory:
         session.commit()
         session.refresh(notification)
         return notification
-
-
-# ==================== 版本工厂 ====================
-
-class VersionFactory:
-    """
-    版本数据工厂
-    用于创建测试版本
-    """
-    
-    @classmethod
-    def create(
-        cls,
-        session: Session,
-        version: Optional[str] = None,
-        version_code: Optional[int] = None,
-        update_type: UpdateType = UpdateType.OPTIONAL,
-        title: str = "版本更新",
-        description: Optional[str] = None,
-        is_active: bool = True
-    ) -> AppVersion:
-        """
-        创建应用版本
-        
-        Args:
-            session: 数据库会话
-            version: 版本号
-            version_code: 版本代码
-            update_type: 更新类型
-            title: 更新标题
-            description: 更新说明
-            is_active: 是否启用
-            
-        Returns:
-            AppVersion: 创建的版本对象
-        """
-        # 生成随机版本号
-        if not version:
-            major = random.randint(1, 9)
-            minor = random.randint(0, 9)
-            patch = random.randint(0, 99)
-            version = f"{major}.{minor}.{patch}"
-        
-        # 计算版本代码
-        if not version_code:
-            parts = version.split('.')
-            version_code = int(parts[0]) * 10000 + int(parts[1]) * 100 + int(parts[2])
-        
-        app_version = AppVersion(
-            version=version,
-            version_code=version_code,
-            update_type=update_type,
-            title=title,
-            description=description or f"版本 {version} 更新说明",
-            is_active=is_active,
-            publish_time=datetime.now()
-        )
-        session.add(app_version)
-        session.commit()
-        session.refresh(app_version)
-        return app_version

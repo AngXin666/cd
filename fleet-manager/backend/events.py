@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 class SSEEventType(str, Enum):
     """
     SSE 事件类型枚举
-    
+
     定义系统支持的所有 SSE 事件类型
     Requirements: 1.3 - 新增事件类型定义
     """
@@ -44,7 +44,7 @@ class SSEEvent:
     target_user_ids: List[int]
     data: Dict[str, Any]
     created_at: datetime = field(default_factory=datetime.now)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """将事件转换为字典格式"""
         return {
@@ -192,16 +192,16 @@ def emit_piece_work_update(
 ) -> None:
     """
     触发计件更新事件
-    
+
     当计件记录发生变化（如司机提交新记录、车队长审批/修改记录）时，
     向相关用户推送包含完整计件数据的 piece_work_update 事件。
-    
+
     目标用户包括：
     - 司机（user_id）：接收自己计件记录的审批结果
     - 对应仓库的车队长：接收新的计件记录通知
-    
+
     Requirements: 4.1, 4.2, 4.3 - 计件记录实时数据同步
-    
+
     Args:
         record_id: 计件记录ID
         user_id: 司机ID
@@ -217,7 +217,7 @@ def emit_piece_work_update(
         created_at: 创建时间（ISO格式字符串）
         target_user_ids: 目标用户ID列表（司机 + 对应仓库车队长）
         action: 操作类型，默认为 "create"，可选值：create/update
-        
+
     Example:
         >>> emit_piece_work_update(
         ...     record_id=1,
@@ -253,20 +253,20 @@ def emit_piece_work_update(
         "created_at": created_at,
         "status": "submitted"
     }
-    
+
     # 构建事件负载
     event_data = {
         "action": action,
         "record": record_data
     }
-    
+
     # 创建 SSE 事件
     event = SSEEvent(
         event_type=SSEEventType.PIECE_WORK_UPDATE,
         target_user_ids=target_user_ids,
         data=event_data
     )
-    
+
     # 推送事件到队列
     push_event(event)
 
@@ -278,14 +278,14 @@ def emit_assignment_update(
 ) -> None:
     """
     触发仓库分配更新事件
-    
+
     当管理员修改用户的仓库分配时，向该用户推送包含完整仓库列表的
     assignment_update 事件，让用户无需手动刷新即可看到最新的仓库分配。
-    
+
     目标用户：被分配仓库的用户（司机或车队长）
-    
+
     Requirements: 5.1, 5.2, 5.3 - 仓库分配实时数据同步
-    
+
     Args:
         user_id: 被分配仓库的用户ID
         warehouses: 完整的仓库对象列表，每个仓库包含：
@@ -293,7 +293,7 @@ def emit_assignment_update(
             - name: 仓库名称
             - address: 仓库地址（可选）
         assignment_type: 分配类型，"driver" 表示司机分配，"manager" 表示车队长分配
-        
+
     Example:
         >>> emit_assignment_update(
         ...     user_id=10,
@@ -311,14 +311,14 @@ def emit_assignment_update(
         "assignment_type": assignment_type,
         "warehouses": warehouses
     }
-    
+
     # 创建 SSE 事件
     event = SSEEvent(
         event_type=SSEEventType.ASSIGNMENT_UPDATE,
         target_user_ids=[user_id],
         data=event_data
     )
-    
+
     # 推送事件到队列
     push_event(event)
 
@@ -329,19 +329,19 @@ def emit_permission_update(
 ) -> None:
     """
     触发权限更新事件
-    
+
     当老板修改用户角色的权限配置时，向该角色的所有用户推送包含完整权限数据的
     permission_update 事件，让用户无需手动刷新即可看到最新的权限状态。
-    
+
     目标用户：被修改权限的用户（车队长或调度）
-    
+
     Requirements: 6.1, 6.2 - 权限变更实时数据同步
-    
+
     Args:
         user_id: 被修改权限的用户ID
         permissions: 完整的权限键列表，包含该用户拥有的所有权限
             例如：["attendance.clock", "attendance.view_own", "piece_work.entry", ...]
-        
+
     Example:
         >>> emit_permission_update(
         ...     user_id=10,
@@ -361,14 +361,14 @@ def emit_permission_update(
         "user_id": user_id,
         "permissions": permissions
     }
-    
+
     # 创建 SSE 事件
     event = SSEEvent(
         event_type=SSEEventType.PERMISSION_UPDATE,
         target_user_ids=[user_id],
         data=event_data
     )
-    
+
     # 推送事件到队列
     push_event(event)
 
@@ -382,23 +382,23 @@ def emit_user_update(
 ) -> None:
     """
     触发用户状态更新事件
-    
+
     当管理员修改用户的角色或状态（启用/禁用）时，向该用户推送 user_update 事件，
     让用户及时了解账号状态变更。如果账号被禁用，前端应强制登出用户。
-    
+
     目标用户：被修改状态的用户
-    
+
     Requirements: 7.1, 7.2 - 用户状态实时通知
-    
+
     Args:
         user_id: 被修改状态的用户ID
-        role: 用户角色（driver/manager/dispatcher/boss/super_admin）
+        role: 用户角色（driver/manager/peer_admin/boss）
         is_active: 用户是否启用
         updated_at: 更新时间（ISO格式字符串）
         action: 操作类型，默认为 "update"，可选值：
             - "update": 用户信息更新（角色变更等）
             - "disable": 用户被禁用
-        
+
     Example:
         >>> emit_user_update(
         ...     user_id=10,
@@ -407,7 +407,7 @@ def emit_user_update(
         ...     updated_at="2025-12-27T10:00:00",
         ...     action="update"
         ... )
-        
+
         >>> # 用户被禁用时
         >>> emit_user_update(
         ...     user_id=10,
@@ -425,19 +425,19 @@ def emit_user_update(
         "is_active": is_active,
         "updated_at": updated_at
     }
-    
+
     # 构建事件负载
     event_data = {
         "action": action,
         "user": user_data
     }
-    
+
     # 创建 SSE 事件
     event = SSEEvent(
         event_type=SSEEventType.USER_UPDATE,
         target_user_ids=[user_id],
         data=event_data
     )
-    
+
     # 推送事件到队列
     push_event(event)

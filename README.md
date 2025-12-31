@@ -42,7 +42,6 @@ npm run dev:mp-weixin  # 微信小程序开发模式
 
 | 角色 | 账号 | 密码 |
 |------|------|------|
-| 超级管理员 | superadmin | super123 |
 | 老板 | boss | boss123 |
 | 调度 | dispatcher | dispatch123 |
 | 车队长 | manager | manager123 |

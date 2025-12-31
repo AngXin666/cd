@@ -349,11 +349,16 @@ export async function checkUserOnLeave(): Promise<LeaveCheckResult> {
 
 /**
  * 获取计件分类列表
- * @param isActive - 是否只获取启用的分类
+ * 支持按启用状态和单位筛选
+ * 
+ * @param isActive - 是否只获取启用的分类（可选）
+ * @param unit - 按计量单位筛选（可选），如 "件"、"点"、"车"、"公里"
  * @returns 分类列表
+ * 
+ * Requirements: 7.4 - 支持按单位筛选品类
  */
-export const getPieceWorkCategories = (isActive?: boolean) =>
-  get<PieceWorkCategory[]>('/piece-work/categories', { is_active: isActive });
+export const getPieceWorkCategories = (isActive?: boolean, unit?: string) =>
+  get<PieceWorkCategory[]>('/piece-work/categories', { is_active: isActive, unit });
 
 /**
  * 创建计件分类

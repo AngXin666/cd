@@ -8,7 +8,7 @@
 
 ### `SUMMARY.md` 📋 **推荐首先阅读**
 **规则总结** - 快速了解所有规则：
-- 两大强制规则概览
+- 强制规则概览
 - 规则文件结构
 - 快速开始指南
 - 提交前检查清单
@@ -46,8 +46,9 @@
 
 ### `coding-standards.md`
 **编码规范** - 定义了代码编写的标准：
-- TypeScript 规范
-- React/Taro 规范
+- TypeScript/JavaScript 规范
+- Vue 3 / UniApp 规范
+- Python / FastAPI 规范
 - 代码风格
 - 测试要求
 - 文档要求
@@ -56,7 +57,7 @@
 
 ### `project-context.md`
 **项目上下文** - 提供项目的背景信息：
-- 技术栈
+- 技术栈（UniApp + Vue3 + FastAPI）
 - 项目结构
 - 核心功能模块
 - 重要约定
@@ -67,8 +68,7 @@
 ### `deployment-rules.md` 🚀 **重要**
 **部署与测试规则** - 定义测试和部署的默认行为：
 - 默认进行本地测试
-- 只有明确要求时才执行热更新
-- 只有明确要求时才构建 APK
+- 只有明确要求时才执行部署
 - 本地测试流程和命令
 
 **适用场景**：所有测试、调试、部署相关活动
@@ -87,7 +87,7 @@
 ```markdown
 ---
 inclusion: fileMatch
-fileMatchPattern: 'src/components/**/*.tsx'
+fileMatchPattern: 'fleet-manager/frontend/**/*.vue'
 ---
 ```
 
@@ -114,7 +114,7 @@ inclusion: manual
 ## ⚠️ 强制要求（必须遵守）
 
 ### 1. 所有代码必须有注释
-- **所有函数都必须添加 JSDoc 注释**
+- **所有函数都必须添加注释**（JSDoc/docstring）
 - **所有文件开头必须添加文件说明**
 - **所有复杂逻辑必须添加行内注释**
 - **即使是简单函数也必须注释**
@@ -132,7 +132,7 @@ inclusion: manual
 ### 开始新任务时
 1. 阅读 `workflow-guide.md` 选择合适的工作流
 2. **大多数情况下使用 Kiro Spec 工作流**（`.kiro/specs/`）
-3. 只有复杂任务或重构才使用 6A 工作流（`docs/`）
+3. 只有复杂任务或重构才使用 6A 工作流（`fleet-manager/docs/`）
 
 ### 编写代码时
 1. 遵循 `coding-standards.md` 中的规范
@@ -147,20 +147,6 @@ inclusion: manual
 1. 直接编辑对应的 `.md` 文件
 2. 确保格式正确（Markdown 格式）
 3. 如果添加新规则文件，更新此 README
-
-## 与旧规则的关系
-
-### 已迁移的规则
-- `.qoder/rules/6A工作流项目规则.md` → `.kiro/steering/project-workflow.md`
-
-### 保留的规则
-以下 YAML 规则文件保留在 `rules/` 目录，用于代码分析：
-- `authProvider.yml` - 检测 AuthProvider 组件使用
-- `navigateTo.yml` - 检测导航函数使用
-- `tabbar-list.yml` - 检测 TabBar 配置
-- `useAuth.yml` - 检测 useAuth Hook 使用
-
-这些 YAML 规则用于静态代码分析，不需要迁移到 Steering 系统。
 
 ## 注意事项
 

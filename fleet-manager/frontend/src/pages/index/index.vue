@@ -151,12 +151,7 @@ function redirectByRole(role: string): void {
       
     case UserRole.BOSS:
     case UserRole.PEER_ADMIN:
-      // 老板/调度 → 管理后台
-      redirectTo('/pages/boss/index/index')
-      break
-      
-    case UserRole.SUPER_ADMIN:
-      // 超级管理员 → 管理后台
+      // 老板/调度 → 管理后台（老板是系统最高权限角色）
       redirectTo('/pages/boss/index/index')
       break
       

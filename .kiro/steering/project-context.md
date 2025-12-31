@@ -6,18 +6,29 @@ inclusion: always
 
 ## 项目概述
 
-这是一个基于 Taro 框架的多端应用项目（支持 H5、小程序、Android），用于车队管理系统。
+这是一个基于 UniApp + Vue3 + FastAPI 的车队管理系统。
+
+> **主项目目录**：`fleet-manager/`
 
 ## 技术栈
 
 ### 前端框架
-- **Taro 3.x**：多端统一开发框架
-- **React 18**：UI 库
+- **UniApp**：多端统一开发框架（支持 H5、微信小程序）
+- **Vue 3**：UI 框架
 - **TypeScript**：类型安全的 JavaScript 超集
+- **Pinia**：状态管理
 
-### 状态管理与数据
-- **React Hooks**：状态管理
-- **Supabase**：后端服务（数据库、认证、存储）
+### 后端框架
+- **FastAPI**：Python 高性能 Web 框架
+- **SQLModel**：ORM 框架
+- **SQLite**：开发环境数据库
+- **PostgreSQL**：生产环境数据库
+
+### 认证
+- **JWT Token**：用户认证
+
+### 实时通信
+- **SSE (Server-Sent Events)**：实时通知
 
 ### 样式
 - **SCSS**：CSS 预处理器
@@ -25,124 +36,145 @@ inclusion: always
 
 ### 构建与工具
 - **Vite**：构建工具
-- **Biome**：代码格式化和 lint
-- **Vitest**：测试框架
+- **Docker**：容器化部署
 
 ## 项目结构
 
 ```
 .
-├── src/
-│   ├── components/     # 公共组件
-│   ├── pages/          # 页面组件
-│   ├── services/       # API 服务
-│   ├── hooks/          # 自定义 Hooks
-│   ├── utils/          # 工具函数
-│   ├── types/          # TypeScript 类型定义
-│   ├── app.tsx         # 应用入口
-│   └── app.config.ts   # 应用配置
-├── config/             # 配置文件
-├── scripts/            # 构建和部署脚本
-├── docs/               # 项目文档
-├── .kiro/              # Kiro 配置和规范
-│   ├── specs/          # 功能规范
-│   └── steering/       # 编码规范
-└── supabase/           # Supabase 配置和迁移
+├── fleet-manager/          # 主项目目录
+│   ├── backend/            # FastAPI 后端
+│   │   ├── main.py         # 应用入口 + 路由
+│   │   ├── models.py       # 数据库模型
+│   │   ├── schemas.py      # 请求/响应模型
+│   │   ├── auth.py         # JWT 认证
+│   │   ├── database.py     # 数据库连接
+│   │   ├── crud.py         # CRUD 操作
+│   │   ├── config.py       # 配置管理
+│   │   └── routers/        # API 路由模块
+│   ├── frontend/           # UniApp + Vue3 前端
+│   │   ├── src/
+│   │   │   ├── pages/      # 页面组件
+│   │   │   ├── components/ # 公共组件
+│   │   │   ├── api/        # API 请求
+│   │   │   ├── store/      # Pinia 状态管理
+│   │   │   └── utils/      # 工具函数
+│   │   └── nginx.conf      # Nginx 配置
+│   ├── nginx/              # Nginx 配置（生产环境）
+│   ├── scripts/            # 部署脚本
+│   ├── docs/               # 项目文档
+│   ├── docker-compose.yml  # Docker 基础配置
+│   └── docker-compose.prod.yml # Docker 生产环境配置
+├── .kiro/                  # Kiro 配置和规范
+│   ├── specs/              # 功能规范
+│   └── steering/           # 编码规范
+└── README.md               # 项目说明
 ```
 
 ## 核心功能模块
 
 ### 认证系统
-- 使用 `useAuth` Hook 进行认证
-- 使用 `AuthProvider` 包裹需要认证的组件
-- 支持多租户隔离
-
-### 导航系统
-- 使用 `Taro.navigateTo` 进行页面跳转
-- TabBar 配置在 `app.config.ts` 中
-- 支持不同角色的页面访问控制
+- 使用 JWT Token 进行认证
+- 后端 `auth.py` 处理认证逻辑
+- 前端使用 Pinia store 管理用户状态
 
 ### 角色系统
-- **司机 (driver)**：基础用户角色
-- **管理员 (manager)**：车队管理员
-- **超级管理员 (super-admin)**：系统管理员
+- **老板 (boss)**：系统最高权限，全局管理、用户管理、仓库管理
+- **调度 (dispatcher)**：协助管理
+- **车队长 (manager)**：司机管理、审批、统计
+- **司机 (driver)**：打卡、计件、请假、车辆管理
+
+### 核心功能
+- ✅ 用户认证（JWT）
+- ✅ 考勤打卡
+- ✅ 计件录入
+- ✅ 请假审批
+- ✅ 车辆管理
+- ✅ 车辆租赁管理
+- ✅ 补录照片功能
+- ✅ 实时通知（SSE）
+- ✅ 通知模板管理
+- ✅ 定时通知功能
+- ✅ 统计报表
+- ✅ OCR 驾驶证识别
+- ✅ 热更新版本管理
 
 ## 重要约定
 
-### 多租户
-- 所有数据库操作必须包含 `tenant_id` 过滤
-- 确保租户数据完全隔离
-- 使用 Supabase RLS (Row Level Security) 策略
-
 ### 环境配置
-- 开发环境：`.env.development`
-- 生产环境：`.env.production`
-- 测试环境：`.env.test`
-- 模板文件：`.env.template`
+- 环境变量模板：`fleet-manager/.env.template`
+- 后端环境变量：`fleet-manager/backend/.env`
+- 前端环境变量：`fleet-manager/frontend/.env`
 
-### 代码规范工具
-- 使用 Biome 进行代码格式化
-- 配置文件：`biome.json`
-- 运行检查：`npm run lint`
+### 数据库
+- 开发环境使用 SQLite
+- 生产环境使用 PostgreSQL
+- 使用 SQLModel 进行 ORM 操作
 
 ## 部署流程
 
-### H5 部署
-- 构建命令：`npm run build:h5`
-- 部署到 Supabase Storage
-- 使用脚本：`scripts/quick-deploy-h5.js`
+### Docker 一键部署（推荐）
 
-### Android 部署
-- 构建命令：`npm run build:android`
-- 使用 Capacitor 打包
-- 输出 APK 文件
+```bash
+cd fleet-manager
 
-### APK 构建流程（强制）
-当需要构建 APK 时，必须按以下步骤执行：
-1. 构建 H5：`npm run build:h5`
-2. 同步到 Android：`npx cap sync android`
-3. 构建 APK：在 `android` 目录下执行 `.\gradlew assembleDebug`
-4. **构建完成后必须自动打开 APK 所在文件夹**：
-   ```powershell
-   explorer.exe "C:\Users\Administrator\Desktop\cdgj\android\app\build\outputs\apk\debug"
-   ```
-- APK 输出位置：`android\app\build\outputs\apk\debug\app-debug.apk`
+# 配置环境变量
+cp .env.template .env
+
+# 启动所有服务
+docker-compose up -d
+```
+
+服务地址：
+- 前端：http://localhost
+- 后端 API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
+
+### 本地开发
+
+#### 启动后端
+```bash
+cd fleet-manager/backend
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+python main.py
+```
+
+#### 启动前端
+```bash
+cd fleet-manager/frontend
+npm install
+npm run dev:h5
+```
 
 ## 开发工作流
 
 ### 启动开发服务器
 ```bash
-# H5 开发
+# 后端（在 fleet-manager/backend 目录）
+python main.py
+
+# 前端 H5 开发（在 fleet-manager/frontend 目录）
 npm run dev:h5
 
-# 微信小程序开发
-npm run dev:weapp
+# 前端微信小程序开发
+npm run dev:mp-weixin
 ```
 
-### 运行测试
-```bash
-npm run test
-```
+### API 文档
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-### 代码检查
-```bash
-npm run lint
-```
+## 测试账号
 
-## 常用组件和 Hooks
-
-### 认证相关
-- `useAuth()`：获取当前用户认证状态
-- `AuthProvider`：认证上下文提供者
-
-### 导航相关
-- `Taro.navigateTo()`：跳转到新页面
-- `Taro.redirectTo()`：重定向到新页面
-- `Taro.switchTab()`：切换 TabBar 页面
-
-### UI 组件
-- `TopNavBar`：顶部导航栏
-- `SafeAreaTop`：安全区域顶部占位
+| 角色 | 账号 | 密码 |
+|------|------|------|
+| 老板 | admin | admin123 |
+| 调度 | dispatcher | dispatch123 |
+| 车队长 | manager | manager123 |
+| 司机 | driver | driver123 |
 
 ## 数据库约定
 
@@ -151,29 +183,18 @@ npm run lint
 - 复数形式（如 `users`, `vehicles`）
 
 ### 字段约定
-- `id`：主键，UUID 类型
+- `id`：主键，整数自增
 - `created_at`：创建时间
 - `updated_at`：更新时间
-- `tenant_id`：租户 ID（多租户必需）
-
-### RLS 策略
-- 所有表必须启用 RLS
-- 基于 `tenant_id` 进行数据隔离
-- 基于用户角色进行权限控制
 
 ## 注意事项
 
-### 性能优化
-- 使用 React.memo 优化组件渲染
-- 使用 useMemo 和 useCallback 优化计算
-- 图片使用懒加载
-
 ### 安全性
 - 敏感信息存储在 .env 文件
-- 不要在客户端暴露 API 密钥
-- 使用参数化查询防止 SQL 注入
+- JWT_SECRET 必须设置强随机字符串
+- 不要将 .env 文件提交到 git
 
 ### 兼容性
-- 确保代码在 H5、小程序、Android 平台都能正常运行
-- 使用 Taro 提供的跨平台 API
+- 确保代码在 H5、微信小程序平台都能正常运行
+- 使用 UniApp 提供的跨平台 API
 - 注意不同平台的样式差异

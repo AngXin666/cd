@@ -18,14 +18,12 @@ class UserRole(str, Enum):
     - DRIVER: 司机，负责打卡、计件、请假、车辆管理
     - MANAGER: 车队长，负责司机管理、审批、统计
     - PEER_ADMIN: 调度，负责协助管理，拥有与老板类似的管理权限
-    - BOSS: 老板，负责全局管理、用户管理、仓库管理
-    - SUPER_ADMIN: 超级管理员，拥有系统最高权限，可管理所有功能
+    - BOSS: 老板，负责全局管理、用户管理、仓库管理，拥有系统最高权限
     """
     DRIVER = "driver"
     MANAGER = "manager"
     PEER_ADMIN = "peer_admin"
     BOSS = "boss"
-    SUPER_ADMIN = "super_admin"
 
 
 class LeaveType(str, Enum):
@@ -76,13 +74,31 @@ class DocumentType(str, Enum):
     INSURANCE = "insurance"
 
 
+class WarehouseType(str, Enum):
+    """
+    仓库类型枚举
+    定义仓库的业务分类，每种类型对应预设的计量单位
+    
+    - PIECE: 计件类型，预设单位为"件"
+    - POINT: 点位类型，预设单位为"点"
+    - WHOLE: 整车类型，预设单位为"车"
+    - DISTANCE: 距离类型，预设单位为"公里"
+    
+    Requirements: 1.1 - 支持四种仓库类型
+    """
+    PIECE = "piece"      # 计件 → 件
+    POINT = "point"      # 点位 → 点
+    WHOLE = "whole"      # 整车 → 车
+    DISTANCE = "distance"  # 距离 → 公里
+
+
 # ==================== 数据库模型定义 ====================
 
 class User(SQLModel, table=True):
     """
     用户表
     存储系统所有用户信息，包括司机、车队长、老板
-    
+
     Attributes:
         id: 主键，自增
         username: 用户名，唯一，用于登录
@@ -95,7 +111,7 @@ class User(SQLModel, table=True):
         updated_at: 更新时间
     """
     __tablename__ = "users"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True, max_length=50)
     password_hash: str = Field(max_length=255)
@@ -105,7 +121,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     warehouse_assignments: List["WarehouseAssignment"] = Relationship(back_populates="user")
     attendance_records: List["Attendance"] = Relationship(back_populates="user")
@@ -123,21 +139,33 @@ class Warehouse(SQLModel, table=True):
     仓库表
     存储仓库/工作地点信息
     
+    新增字段:
+        warehouse_type: 仓库类型（计件/点位/整车/距离），默认为计件
+
     Attributes:
         id: 主键，自增
         name: 仓库名称
         address: 仓库地址
+        warehouse_type: 仓库类型，定义仓库的业务分类
         is_active: 是否启用
         created_at: 创建时间
+        
+    Requirements: 1.6 - 仓库类型作为必填字段，默认值为 "piece"
     """
     __tablename__ = "warehouses"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, index=True)
     address: Optional[str] = Field(default=None, max_length=255)
+    # 新增：仓库类型字段，默认为计件类型
+    # Requirements: 1.1-1.6 - 支持四种仓库类型，默认为 piece
+    warehouse_type: WarehouseType = Field(
+        default=WarehouseType.PIECE,
+        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离"
+    )
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     assignments: List["WarehouseAssignment"] = Relationship(back_populates="warehouse")
     piece_work_records: List["PieceWorkRecord"] = Relationship(back_populates="warehouse")
@@ -149,7 +177,7 @@ class WarehouseAssignment(SQLModel, table=True):
     """
     用户-仓库关联表
     记录用户分配到哪个仓库工作
-    
+
     Attributes:
         id: 主键，自增
         user_id: 用户ID（外键）
@@ -157,12 +185,12 @@ class WarehouseAssignment(SQLModel, table=True):
         created_at: 分配时间
     """
     __tablename__ = "warehouse_assignments"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     warehouse_id: int = Field(foreign_key="warehouses.id", index=True)
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     user: Optional[User] = Relationship(back_populates="warehouse_assignments")
     warehouse: Optional[Warehouse] = Relationship(back_populates="assignments")
@@ -172,7 +200,7 @@ class Attendance(SQLModel, table=True):
     """
     考勤记录表
     记录司机的上班/下班打卡信息
-    
+
     Attributes:
         id: 主键，自增
         user_id: 用户ID（外键）
@@ -183,7 +211,7 @@ class Attendance(SQLModel, table=True):
         created_at: 记录创建时间
     """
     __tablename__ = "attendance"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     work_date: date = Field(index=True)
@@ -191,7 +219,7 @@ class Attendance(SQLModel, table=True):
     clock_out: Optional[datetime] = Field(default=None)
     work_hours: Optional[float] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     user: Optional[User] = Relationship(back_populates="attendance_records")
 
@@ -200,7 +228,7 @@ class PieceWorkCategory(SQLModel, table=True):
     """
     计件分类表
     定义计件工作的分类和单价
-    
+
     Attributes:
         id: 主键，自增
         name: 分类名称
@@ -210,11 +238,11 @@ class PieceWorkCategory(SQLModel, table=True):
         unit: 计量单位（如：件、箱、趟）
         is_active: 是否启用
         created_at: 创建时间
-    
+
     Requirements: 3.1 - 支持多种单价配置
     """
     __tablename__ = "piece_work_categories"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, index=True)
     unit_price: float = Field(default=0.0, description="基础单价（元/件）")
@@ -223,7 +251,7 @@ class PieceWorkCategory(SQLModel, table=True):
     unit: str = Field(default="件", max_length=20)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     records: List["PieceWorkRecord"] = Relationship(back_populates="category")
 
@@ -232,7 +260,7 @@ class PieceWorkRecord(SQLModel, table=True):
     """
     计件记录表
     记录司机的计件工作详情
-    
+
     Attributes:
         id: 主键，自增
         user_id: 用户ID（外键）
@@ -245,7 +273,7 @@ class PieceWorkRecord(SQLModel, table=True):
         created_at: 记录创建时间
     """
     __tablename__ = "piece_work_records"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     category_id: int = Field(foreign_key="piece_work_categories.id", index=True)
@@ -255,7 +283,7 @@ class PieceWorkRecord(SQLModel, table=True):
     amount: float = Field(default=0.0)
     remark: Optional[str] = Field(default=None, max_length=255)
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     user: Optional[User] = Relationship(back_populates="piece_work_records")
     category: Optional[PieceWorkCategory] = Relationship(back_populates="records")
@@ -266,7 +294,7 @@ class LeaveApplication(SQLModel, table=True):
     """
     请假/离职申请表
     记录司机的请假和离职申请
-    
+
     Attributes:
         id: 主键，自增
         user_id: 申请人ID（外键）
@@ -281,7 +309,7 @@ class LeaveApplication(SQLModel, table=True):
         updated_at: 更新时间
     """
     __tablename__ = "leave_applications"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     leave_type: LeaveType = Field(default=LeaveType.LEAVE)
@@ -293,7 +321,7 @@ class LeaveApplication(SQLModel, table=True):
     approve_remark: Optional[str] = Field(default=None, max_length=255)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     user: Optional[User] = Relationship(
         back_populates="leave_applications",
@@ -305,7 +333,7 @@ class Vehicle(SQLModel, table=True):
     """
     车辆信息表
     记录司机的车辆信息，包含租赁相关字段和还车/提车照片
-    
+
     Attributes:
         id: 主键，自增
         user_id: 车主ID（外键）
@@ -333,7 +361,7 @@ class Vehicle(SQLModel, table=True):
         updated_at: 更新时间
     """
     __tablename__ = "vehicles"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     # 新增：所属仓库ID（外键关联仓库）
@@ -366,7 +394,7 @@ class Vehicle(SQLModel, table=True):
     # 时间戳
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     user: Optional[User] = Relationship(back_populates="vehicles")
     documents: List["VehicleDocument"] = Relationship(back_populates="vehicle")
@@ -377,7 +405,7 @@ class VehicleDocument(SQLModel, table=True):
     """
     车辆证件表
     存储车辆相关证件信息（驾驶证、行驶证、保险等）
-    
+
     Attributes:
         id: 主键，自增
         vehicle_id: 车辆ID（外键）
@@ -389,7 +417,7 @@ class VehicleDocument(SQLModel, table=True):
         updated_at: 更新时间
     """
     __tablename__ = "vehicle_documents"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     vehicle_id: int = Field(foreign_key="vehicles.id", index=True)
     doc_type: DocumentType
@@ -399,7 +427,7 @@ class VehicleDocument(SQLModel, table=True):
     supplemented_photos: Optional[str] = Field(default=None, description="补录照片元数据（JSON格式）")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     vehicle: Optional[Vehicle] = Relationship(back_populates="documents")
 
@@ -408,7 +436,7 @@ class Notification(SQLModel, table=True):
     """
     通知消息表
     存储系统通知和消息
-    
+
     Attributes:
         id: 主键，自增
         user_id: 接收用户ID（外键）
@@ -420,7 +448,7 @@ class Notification(SQLModel, table=True):
         created_at: 发送时间
     """
     __tablename__ = "notifications"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     title: str = Field(max_length=100)
@@ -429,7 +457,7 @@ class Notification(SQLModel, table=True):
     sender_id: Optional[int] = Field(default=None)
     template_id: Optional[int] = Field(default=None, foreign_key="notification_templates.id")
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     user: Optional[User] = Relationship(back_populates="notifications")
     template: Optional["NotificationTemplate"] = Relationship(back_populates="notifications")
@@ -439,7 +467,7 @@ class NotificationTemplate(SQLModel, table=True):
     """
     通知模板表
     存储可复用的通知模板，支持变量替换
-    
+
     Attributes:
         id: 主键，自增
         name: 模板名称，唯一标识
@@ -452,7 +480,7 @@ class NotificationTemplate(SQLModel, table=True):
         updated_at: 更新时间
     """
     __tablename__ = "notification_templates"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True, max_length=50, description="模板名称")
     title: str = Field(max_length=100, description="通知标题模板")
@@ -462,7 +490,7 @@ class NotificationTemplate(SQLModel, table=True):
     is_active: bool = Field(default=True, description="是否启用")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     notifications: List["Notification"] = Relationship(back_populates="template")
     scheduled_notifications: List["ScheduledNotification"] = Relationship(back_populates="template")
@@ -502,7 +530,7 @@ class ScheduledNotification(SQLModel, table=True):
     """
     定时通知表
     存储定时发送的通知任务，支持一次性和重复发送
-    
+
     Attributes:
         id: 主键，自增
         name: 任务名称，用于标识和管理
@@ -527,20 +555,20 @@ class ScheduledNotification(SQLModel, table=True):
         updated_at: 更新时间
     """
     __tablename__ = "scheduled_notifications"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, index=True, description="任务名称")
-    
+
     # 通知内容（可以使用模板或直接指定）
     template_id: Optional[int] = Field(default=None, foreign_key="notification_templates.id", description="模板ID")
     title: Optional[str] = Field(default=None, max_length=100, description="通知标题（不使用模板时）")
     content: Optional[str] = Field(default=None, max_length=2000, description="通知内容（不使用模板时）")
     variables: Optional[str] = Field(default=None, description="模板变量值（JSON格式）")
-    
+
     # 目标用户
     target_user_ids: Optional[str] = Field(default=None, description="目标用户ID列表（JSON格式）")
     target_roles: Optional[str] = Field(default=None, description="目标角色列表（JSON格式）")
-    
+
     # 定时规则
     scheduled_time: datetime = Field(description="计划发送时间（首次发送时间）")
     repeat_type: RepeatType = Field(default=RepeatType.ONCE, description="重复类型")
@@ -548,75 +576,20 @@ class ScheduledNotification(SQLModel, table=True):
     repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
     weekdays: Optional[str] = Field(default=None, description="每周重复的星期几（JSON格式，1-7）")
     monthly_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月重复的日期")
-    
+
     # 状态和执行信息
     status: ScheduledNotificationStatus = Field(default=ScheduledNotificationStatus.PENDING, index=True)
     last_executed_at: Optional[datetime] = Field(default=None, description="上次执行时间")
     next_execute_at: Optional[datetime] = Field(default=None, index=True, description="下次执行时间")
     execution_count: int = Field(default=0, description="已执行次数")
-    
+
     # 创建者和时间戳
     creator_id: Optional[int] = Field(default=None, foreign_key="users.id", description="创建者ID")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系
     template: Optional["NotificationTemplate"] = Relationship(back_populates="scheduled_notifications")
-
-
-class UpdateType(str, Enum):
-    """
-    更新类型枚举
-    - OPTIONAL: 可选更新，用户可以选择跳过
-    - RECOMMENDED: 推荐更新，提示用户更新但可跳过
-    - REQUIRED: 强制更新，必须更新才能使用
-    """
-    OPTIONAL = "optional"
-    RECOMMENDED = "recommended"
-    REQUIRED = "required"
-
-
-class AppVersion(SQLModel, table=True):
-    """
-    应用版本表
-    存储应用版本信息，用于热更新检测和管理
-    
-    Attributes:
-        id: 主键，自增
-        version: 版本号，如 "1.0.0"，唯一
-        version_code: 版本代码，整数，用于比较版本大小
-        update_type: 更新类型（可选/推荐/强制）
-        title: 更新标题
-        description: 更新说明
-        download_url: 更新包下载地址
-        file_size: 更新包大小（字节）
-        file_hash: 更新包哈希值（用于校验）
-        min_version: 最低支持版本（低于此版本必须更新）
-        platform: 平台类型（android/ios/h5/all）
-        is_active: 是否启用
-        publish_time: 发布时间
-        created_at: 创建时间
-        updated_at: 更新时间
-        creator_id: 创建者ID
-    """
-    __tablename__ = "app_versions"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    version: str = Field(unique=True, index=True, max_length=20, description="版本号，如 1.0.0")
-    version_code: int = Field(index=True, description="版本代码，用于比较版本大小")
-    update_type: UpdateType = Field(default=UpdateType.OPTIONAL, description="更新类型")
-    title: str = Field(max_length=100, description="更新标题")
-    description: Optional[str] = Field(default=None, max_length=2000, description="更新说明")
-    download_url: Optional[str] = Field(default=None, max_length=500, description="更新包下载地址")
-    file_size: Optional[int] = Field(default=None, description="更新包大小（字节）")
-    file_hash: Optional[str] = Field(default=None, max_length=64, description="更新包哈希值")
-    min_version: Optional[str] = Field(default=None, max_length=20, description="最低支持版本")
-    platform: str = Field(default="all", max_length=20, description="平台类型（android/ios/h5/all）")
-    is_active: bool = Field(default=True, description="是否启用")
-    publish_time: Optional[datetime] = Field(default=None, description="发布时间")
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-    creator_id: Optional[int] = Field(default=None, foreign_key="users.id", description="创建者ID")
 
 
 # ==================== 车辆历史记录相关 ====================
@@ -635,7 +608,7 @@ class VehicleHistory(SQLModel, table=True):
     """
     车辆使用历史表
     记录车辆的每次提车和还车操作，包含照片、时间、司机信息
-    
+
     Attributes:
         id: 主键，自增
         vehicle_id: 车辆ID（外键）
@@ -646,11 +619,11 @@ class VehicleHistory(SQLModel, table=True):
         damage_photos: 车损照片JSON数组
         remark: 备注
         created_at: 记录创建时间
-    
+
     Requirements: 15.2, 15.3
     """
     __tablename__ = "vehicle_history"
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     vehicle_id: int = Field(foreign_key="vehicles.id", index=True, description="车辆ID")
     user_id: int = Field(foreign_key="users.id", index=True, description="司机ID")
@@ -660,6 +633,6 @@ class VehicleHistory(SQLModel, table=True):
     damage_photos: Optional[str] = Field(default=None, description="车损照片JSON数组")
     remark: Optional[str] = Field(default=None, max_length=500, description="备注")
     created_at: datetime = Field(default_factory=datetime.now)
-    
+
     # 关联关系（可选，用于 ORM 查询）
     # 注意：这里不添加 back_populates 以避免循环引用问题

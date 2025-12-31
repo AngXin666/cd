@@ -12,8 +12,7 @@ from sqlmodel import Session
 
 # 导入测试工具
 from tests.helpers import (
-    get_auth_headers, assert_success_response, assert_error_response,
-    assert_forbidden
+    get_auth_headers
 )
 
 # 导入模型
@@ -29,7 +28,7 @@ from models import ScheduledNotification
 
 class TestScheduledNotificationCreate:
     """定时通知创建测试"""
-    
+
     def test_create_one_time_notification(
         self,
         client: TestClient,
@@ -37,34 +36,37 @@ class TestScheduledNotificationCreate:
     ):
         """
         测试创建一次性定时通知
-        
+
         验证：
         - 可以创建一次性定时通知
         - 通知在指定时间发送
+
+        Requirements: 8.2
         """
         # 设置发送时间为 1 小时后
-        send_time = (datetime.now() + timedelta(hours=1)).isoformat()
-        
+        scheduled_time = (datetime.now() + timedelta(hours=1)).isoformat()
+
         notification_data = {
+            "name": "一次性测试通知",
             "title": "一次性通知",
             "content": "这是一条一次性定时通知",
-            "send_at": send_time,
+            "scheduled_time": scheduled_time,
             "repeat_type": "once",
-            "target_users": []  # 发送给所有用户
+            "target_roles": ["driver"]  # 发送给所有司机
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(boss_token)
         )
-        
-        if response.status_code in [200, 201]:
-            data = response.json()
-            assert data["repeat_type"] == "once"
-        else:
-            pytest.skip("定时通知 API 未实现")
-    
+
+        # API 应该返回 200 或 201
+        assert response.status_code in [200, 201], f"创建失败: {response.text}"
+        data = response.json()
+        assert data["repeat_type"] == "once"
+        assert data["name"] == "一次性测试通知"
+
     def test_create_daily_notification(
         self,
         client: TestClient,
@@ -72,31 +74,39 @@ class TestScheduledNotificationCreate:
     ):
         """
         测试创建每日重复通知
-        
+
         验证：
         - 可以创建每日重复的定时通知
         - 通知每天在指定时间发送
+
+        Requirements: 8.2
         """
+        # 设置发送时间为明天上午 9 点
+        scheduled_time = (datetime.now() + timedelta(days=1)).replace(
+            hour=9, minute=0, second=0, microsecond=0
+        ).isoformat()
+
         notification_data = {
+            "name": "每日测试提醒",
             "title": "每日提醒",
             "content": "这是每日定时提醒",
-            "send_time": "09:00",
+            "scheduled_time": scheduled_time,
             "repeat_type": "daily",
-            "target_users": []
+            "target_roles": ["driver"]  # 发送给所有司机
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(boss_token)
         )
-        
-        if response.status_code in [200, 201]:
-            data = response.json()
-            assert data["repeat_type"] == "daily"
-        else:
-            pytest.skip("每日定时通知 API 未实现")
-    
+
+        # API 应该返回 200 或 201
+        assert response.status_code in [200, 201], f"创建失败: {response.text}"
+        data = response.json()
+        assert data["repeat_type"] == "daily"
+        assert data["name"] == "每日测试提醒"
+
     def test_create_weekly_notification(
         self,
         client: TestClient,
@@ -104,32 +114,40 @@ class TestScheduledNotificationCreate:
     ):
         """
         测试创建每周重复通知
-        
+
         验证：
         - 可以创建每周重复的定时通知
         - 通知在指定的星期几发送
+
+        Requirements: 8.2
         """
+        # 设置发送时间为明天上午 10 点
+        scheduled_time = (datetime.now() + timedelta(days=1)).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ).isoformat()
+
         notification_data = {
+            "name": "每周测试提醒",
             "title": "每周提醒",
             "content": "这是每周定时提醒",
-            "send_time": "10:00",
+            "scheduled_time": scheduled_time,
             "repeat_type": "weekly",
             "weekdays": [1, 3, 5],  # 周一、周三、周五
-            "target_users": []
+            "target_roles": ["driver"]  # 发送给所有司机
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(boss_token)
         )
-        
-        if response.status_code in [200, 201]:
-            data = response.json()
-            assert data["repeat_type"] == "weekly"
-        else:
-            pytest.skip("每周定时通知 API 未实现")
-    
+
+        # API 应该返回 200 或 201
+        assert response.status_code in [200, 201], f"创建失败: {response.text}"
+        data = response.json()
+        assert data["repeat_type"] == "weekly"
+        assert data["name"] == "每周测试提醒"
+
     def test_driver_cannot_create_scheduled_notification(
         self,
         client: TestClient,
@@ -137,7 +155,7 @@ class TestScheduledNotificationCreate:
     ):
         """
         测试司机无法创建定时通知
-        
+
         验证：
         - 司机无法创建定时通知
         - 返回 403 状态码
@@ -147,13 +165,13 @@ class TestScheduledNotificationCreate:
             "content": "测试内容",
             "repeat_type": "once"
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(driver_token)
         )
-        
+
         # 应该返回 403 或 404
         assert response.status_code in [403, 404]
 
@@ -163,7 +181,7 @@ class TestScheduledNotificationCreate:
 
 class TestScheduledNotificationManagement:
     """定时通知管理测试"""
-    
+
     def test_cancel_scheduled_notification(
         self,
         client: TestClient,
@@ -172,14 +190,14 @@ class TestScheduledNotificationManagement:
     ):
         """
         测试取消定时通知成功
-        
+
         验证：
         - 可以取消已创建的定时通知
         - 取消后通知不再发送
         """
         from datetime import datetime, timedelta
         from models import RepeatType, ScheduledNotificationStatus
-        
+
         # 先创建定时通知（包含必填字段 name 和 scheduled_time）
         scheduled_time = datetime.now() + timedelta(hours=1)
         notification = ScheduledNotification(
@@ -193,13 +211,13 @@ class TestScheduledNotificationManagement:
         session.add(notification)
         session.commit()
         session.refresh(notification)
-        
+
         # 取消通知
         response = client.delete(
             f"/api/scheduled-notifications/{notification.id}",
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code in [200, 204]:
             # 验证已取消
             get_response = client.get(
@@ -210,7 +228,7 @@ class TestScheduledNotificationManagement:
             assert get_response.status_code in [200, 404]
         else:
             pytest.skip("取消定时通知 API 未实现")
-    
+
     def test_query_scheduler_status(
         self,
         client: TestClient,
@@ -218,23 +236,26 @@ class TestScheduledNotificationManagement:
     ):
         """
         测试查询调度器状态
-        
+
         验证：
         - 可以查询调度器运行状态
         - 返回调度器信息
+
+        Requirements: 8.3
         """
         response = client.get(
-            "/api/scheduled-notifications/status",
+            "/api/scheduled-notifications/scheduler/status",
             headers=get_auth_headers(boss_token)
         )
-        
-        if response.status_code == 200:
-            data = response.json()
-            # 验证返回了状态信息
-            assert "status" in data or "is_running" in data or isinstance(data, dict)
-        else:
-            pytest.skip("调度器状态 API 未实现")
-    
+
+        # API 应该返回 200
+        assert response.status_code == 200, f"查询失败: {response.text}"
+        data = response.json()
+        # 验证返回了状态信息
+        assert "is_running" in data
+        assert "pending_tasks" in data
+        assert "active_tasks" in data
+
     def test_list_scheduled_notifications(
         self,
         client: TestClient,
@@ -243,14 +264,14 @@ class TestScheduledNotificationManagement:
     ):
         """
         测试获取定时通知列表
-        
+
         验证：
         - 可以获取所有定时通知
         - 返回通知列表
         """
         from datetime import datetime, timedelta
         from models import RepeatType, ScheduledNotificationStatus
-        
+
         # 创建一些测试通知（包含必填字段 name 和 scheduled_time）
         scheduled_time = datetime.now() + timedelta(hours=1)
         for i in range(3):
@@ -264,19 +285,19 @@ class TestScheduledNotificationManagement:
             )
             session.add(notification)
         session.commit()
-        
+
         response = client.get(
             "/api/scheduled-notifications",
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             assert isinstance(data, list)
             assert len(data) >= 3
         else:
             pytest.skip("定时通知列表 API 未实现")
-    
+
     def test_update_scheduled_notification(
         self,
         client: TestClient,
@@ -285,14 +306,14 @@ class TestScheduledNotificationManagement:
     ):
         """
         测试更新定时通知
-        
+
         验证：
         - 可以更新定时通知的内容
         - 返回更新后的通知信息
         """
         from datetime import datetime, timedelta
         from models import RepeatType, ScheduledNotificationStatus
-        
+
         # 先创建定时通知（包含必填字段 name 和 scheduled_time）
         scheduled_time = datetime.now() + timedelta(hours=1)
         notification = ScheduledNotification(
@@ -306,25 +327,25 @@ class TestScheduledNotificationManagement:
         session.add(notification)
         session.commit()
         session.refresh(notification)
-        
+
         # 更新通知
         update_data = {
             "title": "更新后的标题",
             "content": "更新后的内容"
         }
-        
+
         response = client.put(
             f"/api/scheduled-notifications/{notification.id}",
             json=update_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             assert data["title"] == update_data["title"]
         else:
             pytest.skip("更新定时通知 API 未实现")
-    
+
     def test_pause_scheduled_notification(
         self,
         client: TestClient,
@@ -333,16 +354,16 @@ class TestScheduledNotificationManagement:
     ):
         """
         测试暂停定时通知
-        
+
         验证：
         - 可以暂停定时通知
         - 根据当前 API 实现，暂停可能通过 is_active 或 status 字段控制
-        
+
         注意：当前 API 实现可能不支持通过 is_active 字段暂停通知
         """
         from datetime import datetime, timedelta
         from models import RepeatType, ScheduledNotificationStatus
-        
+
         # 先创建定时通知（包含必填字段 name 和 scheduled_time）
         scheduled_time = datetime.now() + timedelta(hours=1)
         notification = ScheduledNotification(
@@ -356,14 +377,14 @@ class TestScheduledNotificationManagement:
         session.add(notification)
         session.commit()
         session.refresh(notification)
-        
+
         # 暂停通知
         response = client.put(
             f"/api/scheduled-notifications/{notification.id}",
             json={"is_active": False},
             headers=get_auth_headers(boss_token)
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             # 根据当前 API 实现，暂停可能不会立即生效
@@ -377,7 +398,7 @@ class TestScheduledNotificationManagement:
 
 class TestScheduledNotificationValidation:
     """定时通知验证测试"""
-    
+
     def test_create_notification_past_time(
         self,
         client: TestClient,
@@ -385,30 +406,30 @@ class TestScheduledNotificationValidation:
     ):
         """
         测试创建过去时间的通知
-        
+
         验证：
         - 不能创建发送时间在过去的通知
         - 返回验证错误
         """
         # 设置发送时间为 1 小时前
         past_time = (datetime.now() - timedelta(hours=1)).isoformat()
-        
+
         notification_data = {
             "title": "过去时间的通知",
             "content": "测试内容",
             "send_at": past_time,
             "repeat_type": "once"
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         # 应该返回验证错误
         assert response.status_code in [400, 404, 422]
-    
+
     def test_create_notification_empty_title(
         self,
         client: TestClient,
@@ -416,7 +437,7 @@ class TestScheduledNotificationValidation:
     ):
         """
         测试创建空标题的通知
-        
+
         验证：
         - 通知标题不能为空
         - 返回验证错误
@@ -426,16 +447,16 @@ class TestScheduledNotificationValidation:
             "content": "测试内容",
             "repeat_type": "once"
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         # 应该返回验证错误
         assert response.status_code in [400, 404, 422]
-    
+
     def test_create_notification_invalid_repeat_type(
         self,
         client: TestClient,
@@ -443,7 +464,7 @@ class TestScheduledNotificationValidation:
     ):
         """
         测试创建无效重复类型的通知
-        
+
         验证：
         - 重复类型必须是有效值
         - 返回验证错误
@@ -453,12 +474,12 @@ class TestScheduledNotificationValidation:
             "content": "测试内容",
             "repeat_type": "invalid_type"
         }
-        
+
         response = client.post(
             "/api/scheduled-notifications",
             json=notification_data,
             headers=get_auth_headers(boss_token)
         )
-        
+
         # 应该返回验证错误
         assert response.status_code in [400, 404, 422]

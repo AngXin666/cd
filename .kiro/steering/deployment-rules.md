@@ -1,6 +1,6 @@
 # 部署与测试规则
 
-> **核心原则**：默认进行本地测试，只有在用户明确要求时才进行热更新或构建 APK。
+> **核心原则**：默认进行本地测试，只有在用户明确要求时才进行部署。
 
 ## 🚨 强制规则：本地测试优先
 
@@ -8,106 +8,73 @@
 
 当用户要求测试、调试或验证功能时，**默认执行本地测试流程**：
 
-1. **构建 H5**：`pnpm taro build --type h5`
-2. **启动本地服务器**：`npx serve dist -l 8080 -s`
-3. **在浏览器中测试**：访问 `http://localhost:8080`
+1. **启动后端**：在 `fleet-manager/backend` 目录启动 FastAPI
+2. **构建前端 H5**：`npm run build:h5`
+3. **启动本地服务器**：`npx serve dist/build/h5 -l 8080 -s`
+4. **在浏览器中测试**：访问 `http://localhost:8080`
 
 ### 触发条件
 
 | 用户请求 | 执行操作 |
 |---------|---------|
 | "测试"、"调试"、"验证" | 本地测试（默认） |
-| "热更新"、"部署到线上"、"发布" | 热更新部署 |
-| "构建APK"、"打包APK"、"生成APK" | APK 构建流程 |
+| "部署到线上"、"发布" | Docker 部署 |
 
 ## 本地测试流程
 
-### 步骤 1：构建 H5
+### 步骤 1：启动后端（在 fleet-manager/backend 目录）
 ```bash
-pnpm taro build --type h5
+# Windows
+venv\Scripts\activate
+python main.py
+
+# Linux/Mac
+source venv/bin/activate
+python main.py
 ```
 
-### 步骤 2：启动本地服务器
+后端 API 文档：http://localhost:8000/docs
+
+### 步骤 2：构建前端 H5（在 fleet-manager/frontend 目录）
 ```bash
-npx serve dist -l 8080 -s
+npm run build:h5
 ```
 
-**注意**：必须使用端口 8080，因为 Supabase CORS 已配置该端口。
+### 步骤 3：启动本地服务器
+```bash
+npx serve dist/build/h5 -l 8080 -s
+```
 
-### 步骤 3：测试验证
+### 步骤 4：测试验证
 - 浏览器访问：`http://localhost:8080`
-- 局域网访问：`http://192.168.1.25:8080`（用于手机测试）
+- 后端 API：`http://localhost:8000`
+- API 文档：`http://localhost:8000/docs`
 
-### 预期的正常日志
-以下日志是正常的，不需要处理：
-- `LiveUpdate初始化失败: Not implemented on web` - 浏览器环境预期行为
-- `app_versions` 表 404 错误 - 该表不存在是正常的
-- `f.showToast is not a function` - Taro API 在 H5 的兼容性问题
-
-## 热更新部署流程
+## Docker 部署流程
 
 **仅在用户明确要求时执行**，关键词：
-- "热更新"
 - "部署到线上"
 - "发布到生产"
-- "更新线上版本"
-- "部署"
+- "Docker 部署"
 
-### 执行步骤
-1. 构建 H5：`pnpm taro build --type h5`
-2. 部署到 Supabase Storage：`node scripts/quick-deploy-h5.js`
-3. **部署完成后必须更新本地 package.json 版本号**（强制）
-
-### 🚨 版本号同步规则（强制）
-
-> **硬性规则**：部署完成后必须将本地 package.json 版本号更新为部署的版本号！
-
-#### 版本号来源
-- 部署脚本会自动从数据库读取最新版本并递增
-- 部署完成后，脚本会输出新版本号
-
-#### 同步要求
-- **部署完成后必须立即更新 `package.json` 中的 `version` 字段**
-- **版本号必须与数据库中的最新版本保持一致**
-- **不允许本地版本号落后于数据库版本**
-
-#### 示例
+### 执行步骤（在 fleet-manager 目录）
 ```bash
-# 部署脚本输出
-版本: 1.3.7
-...
-部署完成！
+# 配置环境变量
+cp .env.template .env
+# 编辑 .env 设置必要配置
 
-# 必须更新 package.json
-{
-  "version": "1.3.7",  // 更新为部署的版本号
-  ...
-}
+# 启动所有服务
+docker-compose up -d
+
+# 生产环境
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-#### 违规后果
-- 版本号不同步会导致下次部署版本混乱
-- 必须在部署完成后立即同步版本号
-
-## APK 构建流程
-
-**仅在用户明确要求时执行**，关键词：
-- "构建APK"
-- "打包APK"
-- "生成APK"
-- "编译Android"
-
-### 执行步骤
-1. 构建 H5：`pnpm taro build --type h5`
-2. 同步到 Android：`npx cap sync android`
-3. 构建 APK：在 `android` 目录下执行 `.\gradlew assembleDebug`
-4. **构建完成后必须自动打开 APK 所在文件夹**：
-   ```powershell
-   explorer.exe "C:\Users\Administrator\Desktop\cdgj\android\app\build\outputs\apk\debug"
-   ```
-
-### APK 输出位置
-`android\app\build\outputs\apk\debug\app-debug.apk`
+### 服务地址
+- 前端：http://localhost
+- 后端 API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
+- 数据库：localhost:5432
 
 ## 决策流程图
 
@@ -116,17 +83,10 @@ npx serve dist -l 8080 -s
     │
     ▼
 ┌─────────────────────────────────────┐
-│ 是否包含"热更新"/"部署"/"发布"关键词？ │
+│ 是否包含"部署"/"发布"/"Docker"关键词？│
 └─────────────────────────────────────┘
     │
-    ├── 是 ──▶ 执行热更新部署流程
-    │
-    ▼
-┌─────────────────────────────────────┐
-│ 是否包含"APK"/"打包"/"Android"关键词？│
-└─────────────────────────────────────┘
-    │
-    ├── 是 ──▶ 执行 APK 构建流程
+    ├── 是 ──▶ 执行 Docker 部署流程
     │
     ▼
 默认执行本地测试流程
@@ -135,8 +95,7 @@ npx serve dist -l 8080 -s
 ## 注意事项
 
 ### 不要自动执行的操作
-- ❌ 不要在用户未明确要求时执行热更新
-- ❌ 不要在用户未明确要求时构建 APK
+- ❌ 不要在用户未明确要求时执行部署
 - ❌ 不要跳过本地测试直接部署
 
 ### 必须确认的情况
@@ -148,59 +107,6 @@ npx serve dist -l 8080 -s
 - 可以使用浏览器开发者工具调试
 - 不影响线上用户
 - 节省部署时间和资源
-
-## 🚨 Playwright E2E 测试规则（强制）
-
-> **硬性规则**：所有 Playwright E2E 测试必须使用 H5 headed 模式运行！
-
-### 强制要求
-
-当运行 Playwright 测试时，**必须使用 headed 模式**：
-
-```bash
-# ✅ 正确：使用 headed 模式
-npx playwright test --headed
-
-# ❌ 错误：使用 headless 模式（默认）
-npx playwright test
-```
-
-### 测试前置条件
-
-1. **确保本地服务器已启动**：
-   ```bash
-   npx serve dist -l 8080 -s
-   ```
-
-2. **确保 H5 已构建**：
-   ```bash
-   pnpm taro build --type h5
-   ```
-
-### Playwright 配置要求
-
-在 `playwright.config.ts` 中配置：
-```typescript
-export default defineConfig({
-  use: {
-    // 强制使用 headed 模式
-    headless: false,
-    // 基础 URL 指向本地 H5 服务
-    baseURL: 'http://localhost:8080',
-  },
-});
-```
-
-### 为什么必须使用 headed 模式
-
-- **可视化调试**：可以直观看到测试执行过程
-- **问题定位**：更容易发现 UI 渲染问题
-- **Taro H5 兼容性**：某些 Taro 组件在 headless 模式下行为可能不一致
-- **真实用户体验**：headed 模式更接近真实用户使用场景
-
-### 违规后果
-- 使用 headless 模式运行的测试结果不可信
-- 必须使用 headed 模式重新运行测试
 
 ## 🚨 本地测试自主准备规则（强制）
 
@@ -229,8 +135,7 @@ export default defineConfig({
     ▼
 ┌─────────────────────────────────────┐
 │ 2. 构建前端 H5                       │
-│    - npm run build:h5 (UniApp)      │
-│    - pnpm taro build --type h5 (Taro)│
+│    - npm run build:h5               │
 └─────────────────────────────────────┘
     │
     ▼
@@ -254,8 +159,13 @@ export default defineConfig({
 
 #### 后端启动（在 fleet-manager/backend 目录）
 ```bash
-# 激活虚拟环境并启动
-venv\Scripts\activate ; python -m uvicorn main:app --host 0.0.0.0 --port 8000
+# Windows
+venv\Scripts\activate
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Linux/Mac
+source venv/bin/activate
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 #### 前端构建和启动（在 fleet-manager/frontend 目录）

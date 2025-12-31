@@ -215,24 +215,12 @@
       }
     },
     {
-      "path": "pages/boss/warehouses/edit",
-      "style": {
-        "navigationBarTitleText": "编辑仓库",
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/boss/vehicles/index",
       "style": {
         "navigationBarTitleText": "车辆管理"
       }
     },
-    {
-      "path": "pages/boss/vehicle/list",
-      "style": {
-        "navigationBarTitleText": "车辆管理（新）"
-      }
-    },
+
     {
       "path": "pages/boss/vehicles/review",
       "style": {
@@ -298,13 +286,7 @@
         "navigationBarTitleText": "统计报表"
       }
     },
-    {
-      "path": "pages/boss/staff/index",
-      "style": {
-        "navigationBarTitleText": "员工管理",
-        "navigationStyle": "custom"
-      }
-    },
+
     {
       "path": "pages/boss/permissions/index",
       "style": {
