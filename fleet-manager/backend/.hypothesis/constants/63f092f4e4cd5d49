@@ -1,4 +1,0 @@
-# file: /Users/angxin/Desktop/cdgj/fleet-manager/backend/auth.py
-# hypothesis_version: 6.148.8
-
-['Bearer', 'WWW-Authenticate', 'error_code', 'exp', 'high_role_operation', 'message', 'resource_not_owned', 'role_insufficient', 'sub', 'user_disabled', 'user_id', '司机', '操作', '无效的认证凭据', '无权操作该司机，该司机不属于您管理的仓库', '未知角色', '权限不足，无法执行此操作', '用户已被禁用', '老板', '调度', '超级管理员', '车辆', '车队长', '车队长只能操作司机']

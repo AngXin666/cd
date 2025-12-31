@@ -1,4 +1,0 @@
-# file: C:\Users\Administrator\Desktop\cdgj\fleet-manager\backend\config.py
-# hypothesis_version: 6.148.8
-
-[1440, 8000, '*', ',', '.env', '0.0.0.0', 'DATABASE_URL', 'HS256', 'dev-secret-key', 'postgresql', 'utf-8']

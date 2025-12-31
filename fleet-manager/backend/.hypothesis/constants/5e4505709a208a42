@@ -1,4 +1,0 @@
-# file: C:\Users\Administrator\Desktop\cdgj\fleet-manager\backend\database.py
-# hypothesis_version: 6.148.8
-
-['SELECT 1', 'check_same_thread', 'data', 'echo', 'max_overflow', 'pool_pre_ping', 'pool_size', 'pool_timeout', 'poolclass', 'postgresql', 'sqlite', '数据库表创建成功']

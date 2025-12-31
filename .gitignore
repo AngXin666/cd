@@ -5,6 +5,17 @@ deploy_versions/
 node_modules/
 .swc
 
+# Python virtual environments
+venv/
+venv_mac/
+venv_win/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.hypothesis/
+
 # Logs
 logs
 *.log
