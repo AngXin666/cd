@@ -198,6 +198,8 @@ export interface User {
   created_at: string;
   /** 所属仓库ID */
   warehouse_id?: number | null;
+  /** 是否已实名认证 */
+  is_verified?: boolean;
 }
 
 /** 创建用户请求 */

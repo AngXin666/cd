@@ -110,6 +110,7 @@ class UserResponse(UserBase):
     """
     id: int = Field(..., description="用户ID")
     created_at: datetime = Field(..., description="创建时间")
+    is_verified: bool = Field(default=False, description="是否已实名认证（司机有身份证号码即为已实名）")
 
     class Config:
         from_attributes = True

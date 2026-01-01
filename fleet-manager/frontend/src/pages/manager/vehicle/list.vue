@@ -188,7 +188,7 @@ import { getAllVehicles, getWarehouseUsers, assignVehicle } from '@/api'
 import type { Vehicle, User } from '@/api/types'
 import { VehicleStatus } from '@/api/types'
 import { useUserStore } from '@/store/user'
-import { navigateTo, formatDateTime } from '@/utils'
+import { navigateTo, formatDateTime, isActiveVehicle, canReturnVehicle } from '@/utils'
 
 // ==================== 常量定义 ====================
 
@@ -231,8 +231,8 @@ const filteredVehicles = computed(() => {
   return vehicles.value.filter(v => {
     switch (currentFilter.value) {
       case 'active':
-        // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
-        return (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && !v.return_time
+        // 使用共享工具函数判断车辆是否处于活跃使用状态
+        return isActiveVehicle(v)
       case 'unassigned':
         return !v.user_id
       case 'returned':
@@ -347,16 +347,6 @@ function getStatusBadge(vehicle: Vehicle): { text: string; colorClass: string } 
 function getDriverName(userId: number): string {
   const driver = drivers.value.find(d => d.id === userId)
   return driver?.name || driver?.phone || '未知司机'
-}
-
-/**
- * 是否可以还车
- */
-function canReturnVehicle(vehicle: Vehicle): boolean {
-  // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
-  return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
-         !vehicle.return_time && 
-         vehicle.review_status === 'approved'
 }
 
 // ==================== 操作处理 ====================

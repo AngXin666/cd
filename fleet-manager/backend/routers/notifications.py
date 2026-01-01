@@ -440,19 +440,19 @@ async def get_notification_templates(
     is_active: Optional[bool] = Query(None, description="按启用状态筛选"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_management),
     session: Session = Depends(get_session)
 ):
     """
     获取通知模板列表
-    所有登录用户可访问，用于选择模板发送通知
+    管理权限可访问（车队长、调度、老板）
 
     Args:
         category: 按分类筛选（可选）
         is_active: 按启用状态筛选（可选）
         skip: 跳过记录数
         limit: 返回记录数
-        current_user: 当前登录用户
+        current_user: 当前登录用户（需要管理权限）
         session: 数据库会话
 
     Returns:

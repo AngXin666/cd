@@ -11,7 +11,7 @@ from sqlmodel import Session, select as sql_select
 
 from database import get_session
 from models import (
-    User, UserRole, Vehicle, VehicleStatus, VehicleDocument, VehicleHistory
+    User, UserRole, Vehicle, VehicleStatus, VehicleDocument, VehicleHistory, is_role
 )
 from auth import (
     get_current_user, require_admin, require_management,
@@ -63,7 +63,7 @@ async def get_vehicles(
         List[VehicleResponse]: 车辆列表
     """
     # 权限控制：司机只能查看自己的车辆
-    if current_user.role == UserRole.DRIVER:
+    if is_role(current_user.role, UserRole.DRIVER):
         user_id = current_user.id
 
     vehicles = crud.get_vehicles(

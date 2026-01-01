@@ -1,8 +1,9 @@
-﻿<template>
+<template>
   <!-- 
-    老板端 - 待审批页面
+    车队长端 - 待审批页面
     功能：整合请假、离职、车辆审批功能
     3个标签页：请假、离职、车辆审批
+    只显示管辖仓库的司机申请
   -->
   <view class="approval-page">
     <!-- 标签页切换 -->
@@ -263,15 +264,16 @@
 
 <script setup lang="ts">
 /**
- * 老板端 - 待审批页面
+ * 车队长端 - 待审批页面
  * 功能：整合请假、离职、车辆审批功能
  * 3个标签页：请假、离职、车辆审批
+ * 只显示管辖仓库的司机申请
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getLeaveApplications, approveLeaveApplication, getVehicles, updateVehicle } from '@/api'
 import type { LeaveApplication, Vehicle } from '@/api/types'
-import { LeaveStatus, LeaveType, VehicleStatus } from '@/api/types'
+import { LeaveStatus, LeaveType } from '@/api/types'
 import { formatDate, formatDateTime } from '@/utils'
 import { sseService } from '@/utils/sse'
 import type { LeaveUpdateEvent, LeaveData } from '@/types/sse-events'
@@ -295,73 +297,87 @@ const vehicleFilter = ref<VehicleFilterType>('pending_review')
 
 // ==================== 计算属性 ====================
 
-/** 请假申请（类型为 leave） */
-const leaveApplications = computed(() => 
+/**
+ * 请假申请列表（按类型分类）
+ * 后端已经根据车队长权限过滤，只返回管辖仓库内司机的申请
+ * 前端不需要再做二次过滤
+ */
+const managedLeaveApplications = computed(() => 
   applications.value.filter(a => a.leave_type === LeaveType.LEAVE)
 )
 
-/** 离职申请（类型为 resign） */
-const resignApplications = computed(() => 
+/**
+ * 离职申请列表（按类型分类）
+ * 后端已经根据车队长权限过滤，只返回管辖仓库内司机的申请
+ * 前端不需要再做二次过滤
+ */
+const managedResignApplications = computed(() => 
   applications.value.filter(a => a.leave_type === LeaveType.RESIGN)
 )
 
+/**
+ * 车辆列表
+ * 后端已经根据车队长权限过滤
+ */
+const managedVehicles = computed(() => vehicles.value)
+
 /** 待审批请假数量 */
 const leaveCount = computed(() => 
-  leaveApplications.value.filter(a => a.status === LeaveStatus.PENDING).length
+  managedLeaveApplications.value.filter(a => a.status === LeaveStatus.PENDING).length
 )
 
 /** 待审批离职数量 */
 const resignCount = computed(() => 
-  resignApplications.value.filter(a => a.status === LeaveStatus.PENDING).length
+  managedResignApplications.value.filter(a => a.status === LeaveStatus.PENDING).length
 )
 
 /** 待审批车辆数量 */
 const vehicleCount = computed(() => 
-  vehicles.value.filter(v => v.review_status === 'pending_review').length
+  managedVehicles.value.filter(v => v.review_status === 'pending_review').length
 )
 
 /** 请假筛选标签 */
 const leaveFilterTabs = computed(() => [
-  { label: '待审批', value: 'pending' as const, count: leaveApplications.value.filter(a => a.status === LeaveStatus.PENDING).length },
-  { label: '已批准', value: 'approved' as const, count: leaveApplications.value.filter(a => a.status === LeaveStatus.APPROVED).length },
-  { label: '已拒绝', value: 'rejected' as const, count: leaveApplications.value.filter(a => a.status === LeaveStatus.REJECTED).length },
-  { label: '全部', value: 'all' as const, count: leaveApplications.value.length },
+  { label: '待审批', value: 'pending' as const, count: managedLeaveApplications.value.filter(a => a.status === LeaveStatus.PENDING).length },
+  { label: '已批准', value: 'approved' as const, count: managedLeaveApplications.value.filter(a => a.status === LeaveStatus.APPROVED).length },
+  { label: '已拒绝', value: 'rejected' as const, count: managedLeaveApplications.value.filter(a => a.status === LeaveStatus.REJECTED).length },
+  { label: '全部', value: 'all' as const, count: managedLeaveApplications.value.length },
 ])
 
 /** 离职筛选标签 */
 const resignFilterTabs = computed(() => [
-  { label: '待审批', value: 'pending' as const, count: resignApplications.value.filter(a => a.status === LeaveStatus.PENDING).length },
-  { label: '已批准', value: 'approved' as const, count: resignApplications.value.filter(a => a.status === LeaveStatus.APPROVED).length },
-  { label: '已拒绝', value: 'rejected' as const, count: resignApplications.value.filter(a => a.status === LeaveStatus.REJECTED).length },
-  { label: '全部', value: 'all' as const, count: resignApplications.value.length },
+  { label: '待审批', value: 'pending' as const, count: managedResignApplications.value.filter(a => a.status === LeaveStatus.PENDING).length },
+  { label: '已批准', value: 'approved' as const, count: managedResignApplications.value.filter(a => a.status === LeaveStatus.APPROVED).length },
+  { label: '已拒绝', value: 'rejected' as const, count: managedResignApplications.value.filter(a => a.status === LeaveStatus.REJECTED).length },
+  { label: '全部', value: 'all' as const, count: managedResignApplications.value.length },
 ])
 
 /** 车辆筛选标签 */
 const vehicleFilterTabs = computed(() => [
-  { label: '待审核', value: 'pending_review' as const, count: vehicles.value.filter(v => v.review_status === 'pending_review').length },
-  { label: '需补充', value: 'need_supplement' as const, count: vehicles.value.filter(v => v.review_status === 'need_supplement').length },
-  { label: '已通过', value: 'approved' as const, count: vehicles.value.filter(v => v.review_status === 'approved').length },
-  { label: '全部', value: 'all' as const, count: vehicles.value.length },
+  { label: '待审核', value: 'pending_review' as const, count: managedVehicles.value.filter(v => v.review_status === 'pending_review').length },
+  { label: '需补充', value: 'need_supplement' as const, count: managedVehicles.value.filter(v => v.review_status === 'need_supplement').length },
+  { label: '已通过', value: 'approved' as const, count: managedVehicles.value.filter(v => v.review_status === 'approved').length },
+  { label: '全部', value: 'all' as const, count: managedVehicles.value.length },
 ])
 
 /** 筛选后的请假申请 */
 const filteredLeaveApplications = computed(() => {
-  if (leaveFilter.value === 'all') return leaveApplications.value
+  if (leaveFilter.value === 'all') return managedLeaveApplications.value
   const statusMap: Record<string, LeaveStatus> = { pending: LeaveStatus.PENDING, approved: LeaveStatus.APPROVED, rejected: LeaveStatus.REJECTED }
-  return leaveApplications.value.filter(a => a.status === statusMap[leaveFilter.value])
+  return managedLeaveApplications.value.filter(a => a.status === statusMap[leaveFilter.value])
 })
 
 /** 筛选后的离职申请 */
 const filteredResignApplications = computed(() => {
-  if (resignFilter.value === 'all') return resignApplications.value
+  if (resignFilter.value === 'all') return managedResignApplications.value
   const statusMap: Record<string, LeaveStatus> = { pending: LeaveStatus.PENDING, approved: LeaveStatus.APPROVED, rejected: LeaveStatus.REJECTED }
-  return resignApplications.value.filter(a => a.status === statusMap[resignFilter.value])
+  return managedResignApplications.value.filter(a => a.status === statusMap[resignFilter.value])
 })
 
 /** 筛选后的车辆 */
 const filteredVehicles = computed(() => {
-  if (vehicleFilter.value === 'all') return vehicles.value
-  return vehicles.value.filter(v => v.review_status === vehicleFilter.value)
+  if (vehicleFilter.value === 'all') return managedVehicles.value
+  return managedVehicles.value.filter(v => v.review_status === vehicleFilter.value)
 })
 
 // ==================== 生命周期 ====================
@@ -439,7 +455,6 @@ async function loadVehicles(): Promise<void> {
   loadingVehicles.value = true
   try {
     const data = await getVehicles()
-    // 只显示有审核状态的车辆
     vehicles.value = data.filter(v => v.review_status)
   } catch (error) {
     console.error('加载车辆列表失败:', error)
@@ -453,11 +468,11 @@ function handleTabChange(tab: TabType): void {
 }
 
 function handleCardClick(application: LeaveApplication): void {
-  uni.navigateTo({ url: `/pages/boss/approval/leave-detail?id=${application.id}` })
+  uni.navigateTo({ url: `/pages/manager/approval/leave-detail?id=${application.id}` })
 }
 
 function handleVehicleClick(vehicle: Vehicle): void {
-  uni.navigateTo({ url: `/pages/boss/vehicles/detail?id=${vehicle.id}` })
+  uni.navigateTo({ url: `/pages/manager/vehicle/detail?id=${vehicle.id}` })
 }
 
 function getStatusName(status: LeaveStatus): string {

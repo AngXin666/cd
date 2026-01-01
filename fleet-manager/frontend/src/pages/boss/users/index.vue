@@ -59,12 +59,12 @@
       </view>
     </view>
 
-    <!-- 仓库切换器（多仓库时显示） -->
-    <view v-if="warehouses.length > 1" class="warehouse-switcher">
+    <!-- 仓库切换器（仅司机管理标签页显示，多仓库时显示，包含未分配选项） -->
+    <view v-if="activeTab === 'DRIVER' && showWarehouseSwitcher" class="warehouse-switcher">
       <view class="warehouse-header">
         <text class="warehouse-label">🏭 选择仓库</text>
-        <text class="warehouse-indicator">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
-        <text class="warehouse-count">{{ filteredUsers.length }} 名{{ activeTab === 'DRIVER' ? '司机' : '管理员' }}</text>
+        <text class="warehouse-indicator">({{ currentWarehouseIndex + 1 }}/{{ warehouseOptions.length }})</text>
+        <text class="warehouse-count">{{ filteredUsers.length }} 名司机</text>
       </view>
       <swiper
         class="warehouse-swiper"
@@ -74,11 +74,11 @@
         indicator-active-color="#1890ff"
         @change="handleWarehouseChange"
       >
-        <swiper-item v-for="warehouse in warehouses" :key="warehouse.id">
+        <swiper-item v-for="option in warehouseOptions" :key="option.id">
           <view class="warehouse-item">
-            <text class="warehouse-icon">🏭</text>
-            <text class="warehouse-name">{{ warehouse.name }}</text>
-            <text class="warehouse-user-count">({{ getWarehouseUserCount(warehouse.id) }}人)</text>
+            <text class="warehouse-icon">{{ option.id === -1 ? '📋' : '🏭' }}</text>
+            <text class="warehouse-name">{{ option.name }}</text>
+            <text class="warehouse-user-count">({{ getWarehouseUserCount(option.id) }}人)</text>
           </view>
         </swiper-item>
       </swiper>
@@ -207,13 +207,6 @@
     <view v-else-if="filteredUsers.length === 0" class="empty-container">
       <text class="empty-icon">👥</text>
       <text class="empty-text">暂无{{ activeTab === 'DRIVER' ? '司机' : '管理员' }}数据</text>
-      <view class="debug-info">
-        <text class="debug-title">调试信息：</text>
-        <text class="debug-item">当前标签: {{ activeTab === 'DRIVER' ? '司机管理' : '管理员管理' }}</text>
-        <text class="debug-item">总用户数: {{ users.length }}</text>
-        <text class="debug-item">过滤后用户数: {{ filteredUsers.length }}</text>
-        <text class="debug-item">搜索关键词: {{ searchKeyword || '无' }}</text>
-      </view>
     </view>
 
     <!-- 用户列表 -->
@@ -246,6 +239,13 @@
             </view>
             <text class="user-phone">{{ user.phone || '未设置手机号' }}</text>
           </view>
+        </view>
+
+        <!-- 管理员分配的仓库信息（非司机且非老板显示） -->
+        <view v-if="user.role !== 'driver' && user.role !== 'boss'" class="admin-warehouse-info">
+          <text class="warehouse-icon">🏭</text>
+          <text class="warehouse-label">分配仓库：</text>
+          <text class="warehouse-names">{{ getUserWarehouseNames(user.id) || '未分配' }}</text>
         </view>
 
         <!-- 司机详细信息 -->
@@ -350,11 +350,11 @@
           </template>
           <!-- 管理员操作按钮 -->
           <template v-else>
-            <view v-if="user.role === 'manager'" class="action-btn warehouse-btn" @click="handleWarehouseAssign(user)">
+            <view v-if="user.role === 'manager' || user.role === 'peer_admin'" class="action-btn warehouse-btn" @click="handleWarehouseAssign(user)">
               <text class="btn-icon">🏭</text>
               <text class="btn-text">仓库分配</text>
             </view>
-            <view :class="['action-btn', 'permission-btn', { 'full-width': user.role !== 'manager' }]" @click="handleConfigPermission(user)">
+            <view :class="['action-btn', 'permission-btn', { 'full-width': user.role !== 'manager' && user.role !== 'peer_admin' }]" @click="handleConfigPermission(user)">
               <text class="btn-icon">🛡️</text>
               <text class="btn-text">权限</text>
             </view>
@@ -415,11 +415,17 @@
 
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getUsers, getWarehouses, createUser, updateUser, assignUserWarehouses, getVehicles } from '@/api'
+import { getUsers, getWarehouses, createUser, updateUser, assignUserWarehouses, getVehicles, getUserWarehouses } from '@/api'
 import type { User, Warehouse, Vehicle } from '@/api/types'
 import { UserRole } from '@/api/types'
-import { getRoleName } from '@/utils'
+import { getRoleName, getValidVehicles } from '@/utils'
 import { matchWithPinyin } from '@/utils/pinyin'
+import {
+  filterWarehousesWithDrivers,
+  shouldShowWarehouseSwitcher,
+  getWarehouseDriverCount as getWarehouseDriverCountUtil,
+  getUnassignedUserCount as getUnassignedUserCountUtil,
+} from '@/utils/warehouse'
 
 // ==================== 类型定义 ====================
 
@@ -524,6 +530,79 @@ const tabs = [
 // ==================== 计算属性 ====================
 
 /**
+ * 当前角色过滤器
+ * 根据当前标签页返回对应的角色
+ */
+const currentRoleFilter = computed(() => {
+  return activeTab.value === 'DRIVER' ? UserRole.DRIVER : undefined
+})
+
+/**
+ * 有司机的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithDrivers = computed(() => {
+  return filterWarehousesWithDrivers({
+    warehouses: warehouses.value,
+    userWarehouseIdsMap: userWarehouseIdsMap.value,
+    users: users.value,
+    roleFilter: currentRoleFilter.value,
+  })
+})
+
+/**
+ * 仓库选项列表（包含"未分配"选项）
+ * 只显示有司机的仓库，并在末尾添加"未分配"选项
+ */
+const warehouseOptions = computed(() => {
+  if (warehouses.value.length === 0) return []
+  
+  // 使用过滤后的仓库列表
+  const validWarehouses = warehousesWithDrivers.value
+  
+  // 计算未分配仓库的用户数量
+  const unassignedCount = getUnassignedUserCount()
+  
+  // 构建选项列表
+  const options = [...validWarehouses]
+  
+  // 如果有未分配的用户，添加"未分配"选项
+  if (unassignedCount > 0) {
+    options.push({
+      id: -1,
+      name: '未分配',
+      address: null,
+      is_active: true,
+      created_at: '',
+      warehouse_type: 'piece' as any,
+      preset_unit: '件',
+    })
+  }
+  
+  return options
+})
+
+/**
+ * 是否显示仓库切换器
+ * 使用统一的工具函数判断
+ */
+const showWarehouseSwitcher = computed(() => {
+  return shouldShowWarehouseSwitcher(warehouseOptions.value)
+})
+
+/**
+ * 获取未分配仓库的用户数量
+ * 使用统一的工具函数
+ */
+function getUnassignedUserCount(): number {
+  return getUnassignedUserCountUtil({
+    userWarehouseIdsMap: userWarehouseIdsMap.value,
+    users: users.value,
+    roleFilter: currentRoleFilter.value,
+  })
+}
+
+/**
  * 筛选后的用户列表
  * 根据标签页、仓库、搜索关键词进行筛选
  */
@@ -542,18 +621,26 @@ const filteredUsers = computed(() => {
     )
   }
 
-  // 2. 按仓库筛选（多仓库时）
-  if (warehouses.value.length > 1 && warehouses.value[currentWarehouseIndex.value]) {
-    const currentWarehouseId = warehouses.value[currentWarehouseIndex.value].id
+  // 2. 按仓库筛选（显示切换器时）
+  if (showWarehouseSwitcher.value && warehouseOptions.value[currentWarehouseIndex.value]) {
+    const currentOption = warehouseOptions.value[currentWarehouseIndex.value]
+    const currentWarehouseId = currentOption.id
+    
     result = result.filter(u => {
       // 老板和调度不受仓库筛选限制
       if (u.role === UserRole.BOSS || u.role === UserRole.PEER_ADMIN) {
         return true
       }
-      // 检查用户是否分配到当前仓库
+      
       const userWarehouseIds = userWarehouseIdsMap.value.get(u.id) || []
-      // 包含分配到该仓库的用户，以及未分配任何仓库的用户（新用户）
-      return userWarehouseIds.includes(currentWarehouseId) || userWarehouseIds.length === 0
+      
+      // 如果选择的是"未分配"（id === -1），只显示未分配仓库的用户
+      if (currentWarehouseId === -1) {
+        return userWarehouseIds.length === 0
+      }
+      
+      // 否则只显示分配到该仓库的用户
+      return userWarehouseIds.includes(currentWarehouseId)
     })
   }
 
@@ -615,6 +702,7 @@ async function loadData(): Promise<void> {
 /**
  * 加载用户详细信息
  * 包括车辆信息、仓库分配等
+ * 使用 getUserWarehouses API 获取用户分配的仓库列表
  */
 async function loadUserDetails(): Promise<void> {
   const detailsMap = new Map<number, UserDetailInfo>()
@@ -624,13 +712,13 @@ async function loadUserDetails(): Promise<void> {
   const allVehicles = await getVehicles()
 
   for (const user of users.value) {
-    // 计算用户的车辆信息
-    const userVehicles = allVehicles.filter(v => v.user_id === user.id)
+    // 获取用户的有效车辆（使用共享工具函数）
+    const validVehicles = getValidVehicles(allVehicles, user.id)
     
     // 构建详细信息
     const detail: UserDetailInfo = {
-      vehicleCount: userVehicles.length,
-      plateNumbers: userVehicles.map(v => v.license_plate),
+      vehicleCount: validVehicles.length,
+      plateNumbers: validVehicles.map(v => v.license_plate),
       // 其他信息需要从后端获取，这里先设置为 null
       age: null,
       drivingYears: null,
@@ -643,10 +731,12 @@ async function loadUserDetails(): Promise<void> {
     
     detailsMap.set(user.id, detail)
 
-    // 记录用户的仓库分配
-    if (user.warehouse_id) {
-      warehouseIdsMap.set(user.id, [user.warehouse_id])
-    } else {
+    // 从后端获取用户分配的仓库列表（多对多关系）
+    try {
+      const userWarehouses = await getUserWarehouses(user.id)
+      warehouseIdsMap.set(user.id, userWarehouses.map(w => w.id))
+    } catch (error) {
+      console.error(`获取用户 ${user.id} 的仓库分配失败:`, error)
       warehouseIdsMap.set(user.id, [])
     }
   }
@@ -707,21 +797,21 @@ function handleWarehouseChange(e: { detail: { current: number } }): void {
 
 /**
  * 获取仓库的用户数量
- * @param warehouseId - 仓库ID
+ * 使用统一的工具函数
+ * @param warehouseId - 仓库ID（-1 表示未分配）
  * @returns 用户数量
  */
 function getWarehouseUserCount(warehouseId: number): number {
-  return users.value.filter(u => {
-    // 根据当前标签页过滤角色
-    if (activeTab.value === 'DRIVER') {
-      if (u.role !== UserRole.DRIVER) return false
-    } else {
-      if (u.role !== UserRole.MANAGER && u.role !== UserRole.PEER_ADMIN && u.role !== UserRole.BOSS) return false
-    }
-    // 检查仓库分配
-    const userWarehouseIds = userWarehouseIdsMap.value.get(u.id) || []
-    return userWarehouseIds.includes(warehouseId)
-  }).length
+  // 如果是"未分配"选项
+  if (warehouseId === -1) {
+    return getUnassignedUserCount()
+  }
+  
+  return getWarehouseDriverCountUtil(warehouseId, {
+    userWarehouseIdsMap: userWarehouseIdsMap.value,
+    users: users.value,
+    roleFilter: currentRoleFilter.value,
+  })
 }
 
 // ==================== 用户信息方法 ====================
@@ -733,6 +823,22 @@ function getWarehouseUserCount(warehouseId: number): number {
  */
 function getUserDetail(userId: number): UserDetailInfo | undefined {
   return userDetails.value.get(userId)
+}
+
+/**
+ * 获取用户分配的仓库名称
+ * @param userId - 用户ID
+ * @returns 仓库名称，多个用顿号分隔
+ */
+function getUserWarehouseNames(userId: number): string {
+  const warehouseIds = userWarehouseIdsMap.value.get(userId) || []
+  if (warehouseIds.length === 0) return ''
+  
+  const names = warehouseIds
+    .map(id => warehouses.value.find(w => w.id === id)?.name)
+    .filter(Boolean)
+  
+  return names.join('、')
 }
 
 /**
@@ -760,14 +866,7 @@ function getRoleClass(role: string): string {
  * @returns 是否已实名
  */
 function isUserVerified(user: User): boolean {
-  if (user.role === UserRole.DRIVER) {
-    // 司机：检查是否有身份证信息
-    const detail = getUserDetail(user.id)
-    return !!(detail?.idCardNumber)
-  } else {
-    // 管理员：检查是否有姓名和手机号
-    return !!(user.name && user.phone)
-  }
+  return user.is_verified === true
 }
 
 /**
@@ -1549,29 +1648,6 @@ async function handleSaveWarehouseAssignment(userId: number): Promise<void> {
 .empty-text {
   font-size: 28rpx;
   color: #6b7280;
-  margin-bottom: 24rpx;
-}
-
-.debug-info {
-  background-color: #f5f5f5;
-  border-radius: 12rpx;
-  padding: 20rpx;
-  width: 80%;
-}
-
-.debug-title {
-  display: block;
-  font-size: 24rpx;
-  font-weight: bold;
-  color: #374151;
-  margin-bottom: 12rpx;
-}
-
-.debug-item {
-  display: block;
-  font-size: 22rpx;
-  color: #6b7280;
-  margin-bottom: 8rpx;
 }
 
 /* 用户列表 */
@@ -1741,6 +1817,33 @@ async function handleSaveWarehouseAssignment(userId: number): Promise<void> {
 .user-phone {
   font-size: 26rpx;
   color: #6b7280;
+}
+
+/* 管理员分配的仓库信息 */
+.admin-warehouse-info {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background-color: #f0fdf4;
+  border-top: 1rpx solid #dcfce7;
+  
+  .warehouse-icon {
+    font-size: 28rpx;
+    margin-right: 8rpx;
+  }
+  
+  .warehouse-label {
+    font-size: 24rpx;
+    color: #6b7280;
+    margin-right: 8rpx;
+  }
+  
+  .warehouse-names {
+    font-size: 26rpx;
+    font-weight: 500;
+    color: #16a34a;
+    flex: 1;
+  }
 }
 
 /* 用户详细信息 */

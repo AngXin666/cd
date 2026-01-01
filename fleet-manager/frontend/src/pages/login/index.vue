@@ -146,6 +146,26 @@
           </button>
         </view>
       </view>
+
+      <!-- 快捷登录区域（测试用） -->
+      <view class="quick-login-section">
+        <view class="quick-login-title">
+          <text class="title-text">🚀 快捷登录</text>
+        </view>
+        <view class="quick-login-grid">
+          <button
+            v-for="account in quickLoginAccounts"
+            :key="account.username"
+            class="quick-login-btn"
+            :class="account.roleClass"
+            :disabled="loading"
+            @click="handleQuickLogin(account.username, account.password)"
+          >
+            <text class="role-icon">{{ account.icon }}</text>
+            <text class="role-name">{{ account.label }}</text>
+          </button>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -210,6 +230,22 @@ const userStore = useUserStore()
  * 当前背景图片
  */
 const currentBgImage = computed(() => BG_IMAGES[bgIndex.value])
+
+// ==================== 快捷登录配置 ====================
+
+/**
+ * 快捷登录账号列表
+ * 包含老板、调度、车队长和3个司机账号
+ * 密码来自 crud.py init_default_data 函数
+ */
+const quickLoginAccounts = [
+  { username: 'admin', password: 'admin123', label: '老板', icon: '👔', roleClass: 'role-boss' },
+  { username: 'dispatcher', password: 'dispatch123', label: '调度', icon: '📋', roleClass: 'role-dispatcher' },
+  { username: 'manager', password: 'manager123', label: '车队长', icon: '🚛', roleClass: 'role-manager' },
+  { username: 'driver', password: 'driver123', label: '司机1', icon: '🚗', roleClass: 'role-driver' },
+  { username: 'user_j8vj9b', password: 'driver123', label: '司机2', icon: '🚙', roleClass: 'role-driver' },
+  { username: 'user_mck0g2', password: 'driver123', label: '司机3', icon: '🚕', roleClass: 'role-driver' },
+]
 
 // ==================== 生命周期 ====================
 
@@ -427,6 +463,21 @@ async function handleOtpLogin(): Promise<void> {
     loading.value = false
   }
 }
+
+/**
+ * 快捷登录
+ * @param username - 账号
+ * @param password - 密码
+ */
+async function handleQuickLogin(username: string, password: string): Promise<void> {
+  // 填充表单
+  formData.value.account = username
+  formData.value.password = password
+  loginType.value = 'password'
+  
+  // 执行登录
+  await handlePasswordLogin()
+}
 </script>
 
 <style lang="scss" scoped>
@@ -596,5 +647,81 @@ async function handleOtpLogin(): Promise<void> {
   &.active.disabled {
     background-color: rgba(147, 197, 253, 0.8);
   }
+}
+
+/* 快捷登录区域 */
+.quick-login-section {
+  width: 100%;
+  max-width: 800rpx;
+  margin-top: 32rpx;
+}
+
+.quick-login-title {
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.title-text {
+  font-size: 28rpx;
+  color: #ffffff;
+  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
+}
+
+/* 快捷登录按钮网格 - 3列布局 */
+.quick-login-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+/* 快捷登录按钮 */
+.quick-login-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 120rpx;
+  border-radius: 16rpx;
+  border: none;
+  padding: 12rpx 8rpx;
+  
+  /* 老板 - 金色 */
+  &.role-boss {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.85), rgba(217, 119, 6, 0.85));
+    color: #ffffff;
+  }
+  
+  /* 调度 - 紫色 */
+  &.role-dispatcher {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.85), rgba(109, 40, 217, 0.85));
+    color: #ffffff;
+  }
+  
+  /* 车队长 - 蓝色 */
+  &.role-manager {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(37, 99, 235, 0.85));
+    color: #ffffff;
+  }
+  
+  /* 司机 - 绿色 */
+  &.role-driver {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.85), rgba(22, 163, 74, 0.85));
+    color: #ffffff;
+  }
+  
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+}
+
+.role-icon {
+  font-size: 36rpx;
+  margin-bottom: 4rpx;
+}
+
+.role-name {
+  font-size: 24rpx;
+  font-weight: 500;
 }
 </style>

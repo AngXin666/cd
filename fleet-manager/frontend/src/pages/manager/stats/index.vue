@@ -280,6 +280,10 @@ import {
   type SortField,
   type SortOption,
 } from '@/utils/sort'
+import {
+  filterWarehousesWithData,
+  createWarehouseDataMap,
+} from '@/utils/warehouse'
 
 // ==================== 类型定义 ====================
 
@@ -316,6 +320,9 @@ const records = ref<PieceWorkRecord[]>([])
 /** 仓库列表 */
 const warehouses = ref<Warehouse[]>([])
 
+/** 仓库数据映射（warehouseId -> hasData） */
+const warehouseDataMap = ref<Map<number, boolean>>(new Map())
+
 /** 司机列表 */
 const drivers = ref<User[]>([])
 
@@ -347,13 +354,25 @@ const sortOptions = DEFAULT_SORT_OPTIONS
 // ==================== 计算属性 ====================
 
 /**
+ * 有数据的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithData = computed(() => {
+  return filterWarehousesWithData({
+    warehouses: warehouses.value,
+    warehouseDataMap: warehouseDataMap.value,
+  })
+})
+
+/**
  * 仓库选项列表（包含"所有仓库"选项）
+ * 只显示有数据的仓库
  * Requirements: 3.1
  */
 const warehouseOptions = computed<WarehouseOption[]>(() => {
   return [
     { id: null, name: '所有仓库' },
-    ...warehouses.value.map(w => ({ id: w.id, name: w.name })),
+    ...warehousesWithData.value.map(w => ({ id: w.id, name: w.name })),
   ]
 })
 
@@ -547,6 +566,7 @@ onShow(() => {
 
 /**
  * 加载仓库列表
+ * 同时获取每个仓库的计件数据，用于过滤有数据的仓库
  * Requirements: 3.9, 3.10 - 根据用户角色加载仓库列表
  */
 async function loadWarehouses(): Promise<void> {
@@ -554,30 +574,59 @@ async function loadWarehouses(): Promise<void> {
     const currentUser = userStore.user
     const userRole = currentUser?.role
     
+    let data: Warehouse[] = []
+    
     // 老板可以看到所有仓库（老板是系统最高权限角色）
     // Requirements: 3.9
     if (userRole === UserRole.BOSS) {
-      const data = await getWarehouses({ is_active: true })
-      warehouses.value = data
+      data = await getWarehouses({ is_active: true })
     } 
     // 车队长只能看到管辖的仓库
     // Requirements: 3.10
     else if (userRole === UserRole.MANAGER && currentUser?.id) {
       // 获取车队长管辖的仓库
       // 这里假设后端会根据用户角色返回对应的仓库
-      const data = await getWarehouses({ is_active: true })
-      warehouses.value = data
+      data = await getWarehouses({ is_active: true })
     }
     // 调度员可以看到所有仓库
     else if (userRole === UserRole.PEER_ADMIN) {
-      const data = await getWarehouses({ is_active: true })
-      warehouses.value = data
+      data = await getWarehouses({ is_active: true })
     }
     else {
       // 其他角色获取所有仓库
-      const data = await getWarehouses({ is_active: true })
-      warehouses.value = data
+      data = await getWarehouses({ is_active: true })
     }
+    
+    warehouses.value = data
+    
+    // 获取本月第一天（用于统计本月数据）
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthStartStr = monthStart.toISOString().split('T')[0]
+    const todayStr = now.toISOString().split('T')[0]
+    
+    // 并行获取每个仓库的计件数据
+    const warehouseStatsPromises = data.map(async (warehouse) => {
+      try {
+        const records = await getPieceWorkRecords({
+          warehouse_id: warehouse.id,
+          start_date: monthStartStr,
+          end_date: todayStr,
+          limit: 1,
+        })
+        return {
+          warehouseId: warehouse.id,
+          hasData: records.length > 0,
+        }
+      } catch {
+        return { warehouseId: warehouse.id, hasData: false }
+      }
+    })
+    
+    const warehouseStatsResults = await Promise.all(warehouseStatsPromises)
+    
+    // 创建仓库数据映射
+    warehouseDataMap.value = createWarehouseDataMap(warehouseStatsResults)
   } catch (error) {
     console.error('加载仓库列表失败:', error)
   }

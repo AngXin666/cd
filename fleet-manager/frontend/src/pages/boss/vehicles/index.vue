@@ -213,6 +213,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getAllVehicles, getWarehouses, getWarehouseUsers, assignVehicle } from '@/api'
 import type { Vehicle, User, Warehouse } from '@/api/types'
 import { VehicleStatus } from '@/api/types'
+import { isActiveVehicle, canReturnVehicle } from '@/utils'
 
 // ==================== 类型定义 ====================
 
@@ -254,9 +255,7 @@ const assignWarehouseName = computed(() => {
 
 /** 使用中数量 */
 const activeCount = computed(() => 
-  vehicles.value.filter(v => 
-    (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && !v.return_time
-  ).length
+  vehicles.value.filter(v => isActiveVehicle(v)).length
 )
 
 /** 待分配数量 */
@@ -292,7 +291,8 @@ const filteredVehicles = computed(() => {
     result = result.filter(v => {
       switch (activeFilter.value) {
         case 'active':
-          return (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && !v.return_time
+          // 使用共享工具函数判断车辆是否处于活跃使用状态
+          return isActiveVehicle(v)
         case 'unassigned':
           return !v.user_id
         case 'reviewing':
@@ -436,18 +436,6 @@ function getStatusBadgeText(vehicle: Vehicle): string {
 function getWarehouseName(warehouseId: number): string {
   const w = warehouses.value.find(w => w.id === warehouseId)
   return w?.name || '未知仓库'
-}
-
-/**
- * 是否可以还车/回收
- * @param vehicle - 车辆信息
- * @returns 是否可以还车/回收
- */
-function canReturnVehicle(vehicle: Vehicle): boolean {
-  // 车辆状态为使用中或已提车，且未还车，且审核通过
-  return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
-         !vehicle.return_time && 
-         vehicle.review_status === 'approved'
 }
 
 // ==================== 操作处理 ====================

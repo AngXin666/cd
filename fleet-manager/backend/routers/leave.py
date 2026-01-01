@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from database import get_session
-from models import User, UserRole, LeaveStatus, LeaveApplication
+from models import User, UserRole, LeaveStatus, LeaveApplication, is_role
 from auth import get_current_user, require_management, check_resource_ownership
 from schemas import (
     LeaveApplicationCreate, LeaveApproveRequest, LeaveApplicationResponse
@@ -35,7 +35,9 @@ async def get_leave_applications(
 ):
     """
     获取请假申请列表
-    司机只能查看自己的申请，车队长和老板可以查看所有
+    - 司机只能查看自己的申请
+    - 车队长只能查看其管辖仓库内司机的申请
+    - 老板/调度可以查看所有申请
 
     Args:
         user_id: 按用户ID过滤（可选）
@@ -49,7 +51,7 @@ async def get_leave_applications(
         List[LeaveApplicationResponse]: 请假申请列表
     """
     # 权限控制：司机只能查看自己的申请
-    if current_user.role == UserRole.DRIVER:
+    if is_role(current_user.role, UserRole.DRIVER):
         user_id = current_user.id
 
     applications = crud.get_leave_applications(
@@ -59,6 +61,23 @@ async def get_leave_applications(
         skip=skip,
         limit=limit
     )
+
+    # 车队长权限过滤：只能看到其管辖仓库内司机的申请
+    if is_role(current_user.role, UserRole.MANAGER):
+        # 获取车队长管辖的仓库
+        manager_warehouses = crud.get_user_warehouses(session, current_user.id)
+        manager_warehouse_ids = set(w.id for w in manager_warehouses)
+        
+        # 获取这些仓库内的所有司机ID
+        managed_driver_ids = set()
+        for warehouse_id in manager_warehouse_ids:
+            warehouse_users = crud.get_warehouse_users(session, warehouse_id)
+            for user in warehouse_users:
+                if is_role(user.role, UserRole.DRIVER):
+                    managed_driver_ids.add(user.id)
+        
+        # 过滤只保留管辖范围内司机的申请
+        applications = [app for app in applications if app.user_id in managed_driver_ids]
 
     # 构建响应（添加关联信息）
     result = []
@@ -339,7 +358,7 @@ def _emit_leave_update_event(session: Session, updated: LeaveApplication) -> Non
         warehouse_users = crud.get_warehouse_users(session, warehouse.id)
         for warehouse_user in warehouse_users:
             # 只添加车队长角色的用户
-            if warehouse_user.role == UserRole.MANAGER and warehouse_user.id not in target_user_ids:
+            if is_role(warehouse_user.role, UserRole.MANAGER) and warehouse_user.id not in target_user_ids:
                 target_user_ids.append(warehouse_user.id)
 
     # 触发请假更新事件

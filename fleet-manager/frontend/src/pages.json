@@ -128,6 +128,12 @@
       }
     },
     {
+      "path": "pages/manager/approval/index",
+      "style": {
+        "navigationBarTitleText": "待审批"
+      }
+    },
+    {
       "path": "pages/manager/approval/list",
       "style": {
         "navigationBarTitleText": "请假审批"
@@ -298,20 +304,6 @@
       "path": "pages/boss/permissions/index",
       "style": {
         "navigationBarTitleText": "权限配置",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/boss/assignments/driver",
-      "style": {
-        "navigationBarTitleText": "司机仓库分配",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/boss/assignments/manager",
-      "style": {
-        "navigationBarTitleText": "车队长仓库分配",
         "navigationStyle": "custom"
       }
     },

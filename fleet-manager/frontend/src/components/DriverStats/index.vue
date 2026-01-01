@@ -25,24 +25,24 @@
             <text class="item-value blue-text">{{ stats.totalDrivers }}</text>
           </view>
           
-          <!-- 在线司机 -->
+          <!-- 已打卡司机 -->
           <view class="stat-item green">
             <view class="item-icon">✅</view>
-            <text class="item-label">在线</text>
+            <text class="item-label">已打卡</text>
             <text class="item-value green-text">{{ stats.onlineDrivers }}</text>
           </view>
           
-          <!-- 已计件司机 -->
+          <!-- 已计数司机 -->
           <view class="stat-item orange">
             <view class="item-icon">⏰</view>
-            <text class="item-label">已计件</text>
+            <text class="item-label">已计数</text>
             <text class="item-value orange-text">{{ stats.busyDrivers }}</text>
           </view>
           
-          <!-- 未计件司机 -->
+          <!-- 未计数司机 -->
           <view class="stat-item purple">
             <view class="item-icon">❌</view>
-            <text class="item-label">未计件</text>
+            <text class="item-label">未计数</text>
             <text class="item-value purple-text">{{ stats.idleDrivers }}</text>
           </view>
         </view>

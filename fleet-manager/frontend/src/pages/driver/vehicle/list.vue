@@ -236,7 +236,7 @@ import { onShow, onLoad } from '@dcloudio/uni-app'
 import { getVehicles, deleteVehicle } from '@/api'
 import type { Vehicle } from '@/api/types'
 import { VehicleStatus } from '@/api/types'
-import { navigateTo, formatDateTime } from '@/utils'
+import { navigateTo, formatDateTime, canReturnVehicle, isActiveVehicle } from '@/utils'
 import CachedImage from '@/components/CachedImage/index.vue'
 import { useImagePreloader } from '@/utils/imagePreloader/useImagePreloader'
 import { getImageCacheManager } from '@/utils/imageCache'
@@ -289,12 +289,8 @@ const cachedImageUrls = ref<Map<number, string>>(new Map())
 const shouldShowAddButton = computed(() => {
   // 如果没有车辆，显示按钮
   if (vehicles.value.length === 0) return true
-  // 如果有任何车辆处于"已提车未还车"状态，隐藏按钮
-  const hasPickedUpVehicle = vehicles.value.some(
-    v => (v.status === VehicleStatus.ACTIVE || v.status === VehicleStatus.PICKED_UP) && 
-         v.review_status === 'approved' && 
-         !v.return_time
-  )
+  // 如果有任何车辆处于"已提车未还车"状态，隐藏按钮（使用共享工具函数）
+  const hasPickedUpVehicle = vehicles.value.some(v => canReturnVehicle(v))
   return !hasPickedUpVehicle
 })
 
@@ -650,14 +646,6 @@ function getVehicleStatusBadge(vehicle: Vehicle): { text: string; colorClass: st
   }
   // 默认状态（录入中）
   return { text: '录入中', colorClass: 'badge-gray', icon: '📝' }
-}
-
-/** 是否可以还车 */
-function canReturnVehicle(vehicle: Vehicle): boolean {
-  // 使用枚举值比较，包括 ACTIVE 和 PICKED_UP 状态
-  return (vehicle.status === VehicleStatus.ACTIVE || vehicle.status === VehicleStatus.PICKED_UP) && 
-         !vehicle.return_time && 
-         vehicle.review_status === 'approved'
 }
 
 /** 照片加载失败处理 */

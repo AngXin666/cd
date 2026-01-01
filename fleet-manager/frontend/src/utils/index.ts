@@ -6,6 +6,8 @@
 // 导出子模块
 export * from './storage'
 export * from './imageCache'
+export * from './vehicle'
+export * from './warehouse'
 // 注意：draftImage 和 draftStorage 有重复导出，只导出 draftImage
 export * from './draftImage'
 // draftStorage 的类型与 draftImage 冲突，使用命名导出避免冲突

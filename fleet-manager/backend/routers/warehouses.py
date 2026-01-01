@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from database import get_session
-from models import User, UserRole, VehicleStatus, WarehouseType
+from models import User, UserRole, VehicleStatus, WarehouseType, is_role
 from auth import (
     get_current_user,
     require_admin,
@@ -57,39 +57,47 @@ async def get_warehouses(
     session: Session = Depends(get_session)
 ):
     """
-    获取仓库列表（所有登录用户可访问）
+    获取仓库列表
     
-    返回仓库列表，包含仓库类型和预设单位信息。
-    支持按激活状态和仓库类型筛选。
+    根据用户角色返回不同的仓库列表：
+    - 老板/调度：返回所有仓库
+    - 车队长/司机：只返回被分配的仓库
 
     Args:
         is_active: 按激活状态过滤（可选）
         warehouse_type: 按仓库类型筛选（可选）
-            - piece: 计件类型，预设单位为"件"
-            - point: 点位类型，预设单位为"点"
-            - whole: 整车类型，预设单位为"车"
-            - distance: 距离类型，预设单位为"公里"
         skip: 跳过记录数，默认0
         limit: 返回记录数上限，默认100，最大1000
         current_user: 当前登录用户
         session: 数据库会话
 
     Returns:
-        List[WarehouseResponse]: 仓库列表，包含 warehouse_type 和 preset_unit
-        
-    Requirements:
-        - Requirement 7.1: API 返回包含 warehouse_type 字段
-        - Requirement 7.2: API 返回包含 preset_unit 字段
-        - Requirement 7.3: 支持按 warehouse_type 筛选仓库
+        List[WarehouseResponse]: 仓库列表
     """
-    # 获取仓库列表，支持按类型筛选
-    warehouses = crud.get_warehouses(
-        session, 
-        is_active=is_active, 
-        warehouse_type=warehouse_type,
-        skip=skip, 
-        limit=limit
-    )
+    # 老板和调度可以看到所有仓库
+    if current_user.role in [UserRole.BOSS, UserRole.PEER_ADMIN]:
+        warehouses = crud.get_warehouses(
+            session, 
+            is_active=is_active, 
+            warehouse_type=warehouse_type,
+            skip=skip, 
+            limit=limit
+        )
+    else:
+        # 车队长和司机只能看到被分配的仓库
+        user_warehouses = crud.get_user_warehouses(session, current_user.id)
+        
+        # 应用过滤条件
+        warehouses = []
+        for w in user_warehouses:
+            if is_active is not None and w.is_active != is_active:
+                continue
+            if warehouse_type is not None and w.warehouse_type != warehouse_type:
+                continue
+            warehouses.append(w)
+        
+        # 应用分页
+        warehouses = warehouses[skip:skip + limit]
     
     # 使用 from_warehouse 方法转换，自动计算 preset_unit
     # Requirements: 7.1, 7.2 - 返回包含 warehouse_type 和 preset_unit
@@ -314,7 +322,7 @@ async def assign_users_to_warehouse(
             ]
 
             # 确定分配类型（根据用户角色）
-            assignment_type = "manager" if assigned_user.role == UserRole.MANAGER else "driver"
+            assignment_type = "manager" if is_role(assigned_user.role, UserRole.MANAGER) else "driver"
 
             # 触发仓库分配更新事件
             emit_assignment_update(
@@ -395,7 +403,7 @@ async def get_warehouse_vehicles(
         )
 
     # 权限检查：司机只能访问自己分配的仓库 (Requirement 4.5)
-    if current_user.role == UserRole.DRIVER:
+    if is_role(current_user.role, UserRole.DRIVER):
         # 获取用户分配的仓库列表
         user_warehouses = crud.get_user_warehouses(session, current_user.id)
         user_warehouse_ids = [w.id for w in user_warehouses]

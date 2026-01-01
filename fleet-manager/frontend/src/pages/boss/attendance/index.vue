@@ -128,15 +128,6 @@
         <text class="tab-icon">📊</text>
         <text class="tab-label">计件统计</text>
       </view>
-      <view
-        v-if="hasPendingApplications"
-        :class="['tab-item', { active: activeTab === 'APPROVAL' }]"
-        @click="handleTabChange('APPROVAL')"
-      >
-        <text class="tab-icon">✅</text>
-        <text class="tab-label">请假审批</text>
-        <view v-if="pendingCount > 0" class="badge">{{ pendingCount }}</view>
-      </view>
     </view>
 
     <!-- 考勤记录标签页 -->
@@ -164,10 +155,10 @@
       </view>
 
       <!-- 仓库切换器（多仓库时显示） -->
-      <view v-if="warehouses.length > 1" class="warehouse-switcher">
+      <view v-if="showWarehouseSwitcher" class="warehouse-switcher">
         <view class="warehouse-header">
           <text class="warehouse-label">🏭 选择仓库</text>
-          <text class="warehouse-indicator">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
+          <text class="warehouse-indicator">({{ currentWarehouseIndex + 1 }}/{{ warehousesWithDataOrDrivers.length }})</text>
           <text class="warehouse-count">{{ filteredDrivers.length }} 名司机</text>
         </view>
         <swiper
@@ -178,7 +169,7 @@
           indicator-active-color="#1890ff"
           @change="handleWarehouseChange"
         >
-          <swiper-item v-for="warehouse in warehouses" :key="warehouse.id">
+          <swiper-item v-for="warehouse in warehousesWithDataOrDrivers" :key="warehouse.id">
             <view class="warehouse-item">
               <text class="warehouse-icon">🏭</text>
               <text class="warehouse-name">{{ warehouse.name }}</text>
@@ -321,10 +312,10 @@
       </view>
 
       <!-- 仓库切换器（多仓库时显示）Requirements: 4.1, 4.2, 4.3, 4.4 -->
-      <view v-if="warehouses.length > 1" class="warehouse-switcher">
+      <view v-if="showWarehouseSwitcher" class="warehouse-switcher">
         <view class="warehouse-header">
           <text class="warehouse-label">🏭 选择仓库</text>
-          <text class="warehouse-indicator">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
+          <text class="warehouse-indicator">({{ currentWarehouseIndex + 1 }}/{{ warehousesWithDataOrDrivers.length }})</text>
           <text class="warehouse-count">{{ filteredDrivers.length }} 名司机</text>
         </view>
         <swiper
@@ -335,7 +326,7 @@
           indicator-active-color="#1890ff"
           @change="handleWarehouseChange"
         >
-          <swiper-item v-for="warehouse in warehouses" :key="warehouse.id">
+          <swiper-item v-for="warehouse in warehousesWithDataOrDrivers" :key="warehouse.id">
             <view class="warehouse-item">
               <text class="warehouse-icon">🏭</text>
               <text class="warehouse-name">{{ warehouse.name }}</text>
@@ -498,93 +489,13 @@
         </text>
       </view>
     </view>
-
-    <!-- 请假审批标签页 -->
-    <view v-if="activeTab === 'APPROVAL'" class="approval-tab">
-      <!-- 筛选标签 -->
-      <view class="filter-tabs">
-        <view
-          v-for="tab in filterTabs"
-          :key="tab.value"
-          :class="['filter-tab', { active: activeFilter === tab.value }]"
-          @click="handleFilterChange(tab.value)"
-        >
-          <text class="tab-text">{{ tab.label }}</text>
-          <text v-if="tab.count !== undefined" class="tab-count">{{ tab.count }}</text>
-        </view>
-      </view>
-
-      <!-- 加载状态 -->
-      <view v-if="loadingApplications" class="loading-container">
-        <text class="loading-text">加载中...</text>
-      </view>
-
-      <!-- 空状态 -->
-      <view v-else-if="filteredApplications.length === 0" class="empty-container">
-        <text class="empty-icon">📋</text>
-        <text class="empty-text">{{ getEmptyText() }}</text>
-      </view>
-
-      <!-- 申请列表 -->
-      <view v-else class="application-list">
-        <view
-          v-for="application in filteredApplications"
-          :key="application.id"
-          class="application-card"
-          @click="handleCardClick(application)"
-        >
-          <!-- 申请人信息 -->
-          <view class="applicant-info">
-            <view class="applicant-avatar">
-              <text class="avatar-text">{{ (application.user_name || '用户').charAt(0) }}</text>
-            </view>
-            <view class="applicant-detail">
-              <view class="applicant-name-row">
-                <text class="applicant-name">{{ application.user_name || '未知用户' }}</text>
-                <view :class="['type-tag', application.leave_type]">
-                  <text class="type-text">{{ getLeaveTypeName(application.leave_type) }}</text>
-                </view>
-              </view>
-              <text class="apply-time">申请时间：{{ formatDateTime(application.created_at) }}</text>
-            </view>
-          </view>
-
-          <!-- 请假信息 -->
-          <view class="leave-info">
-            <view class="date-range">
-              <text class="date-label">请假时间</text>
-              <text class="date-value">{{ formatDate(application.start_date) }} 至 {{ formatDate(application.end_date) }}</text>
-            </view>
-            <view v-if="application.reason" class="reason">
-              <text class="reason-label">请假原因</text>
-              <text class="reason-value">{{ application.reason }}</text>
-            </view>
-          </view>
-
-          <!-- 状态和操作 -->
-          <view class="card-footer">
-            <view :class="['status-tag', application.status]">
-              <text class="status-text">{{ getStatusName(application.status) }}</text>
-            </view>
-            <view v-if="application.status === 'pending'" class="quick-actions">
-              <view class="action-btn reject" @click.stop="handleQuickReject(application)">
-                <text class="btn-text">拒绝</text>
-              </view>
-              <view class="action-btn approve" @click.stop="handleQuickApprove(application)">
-                <text class="btn-text">同意</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 /**
- * 老板端 - 考勤管理页面
- * 功能：整合考勤记录查看和请假审批功能
+ * 老板端 - 数据统计页面
+ * 功能：考勤记录查看和计件统计
  * 
  * @module pages/boss/attendance
  * @requirements 1.1-1.5, 2.1-2.12, 3.1-3.4, 4.1-4.6
@@ -598,7 +509,8 @@ import {
   getAttendanceRecords, 
   getLeaveApplications, 
   approveLeaveApplication,
-  getPieceWorkRecords
+  getPieceWorkRecords,
+  getPieceWorkStats,
 } from '@/api'
 import type { User, Warehouse, Attendance, LeaveApplication, DriverWarehousePieceStats, PieceWorkRecord } from '@/api/types'
 import { UserRole, LeaveStatus, LeaveType, WarehouseType } from '@/api/types'
@@ -607,6 +519,12 @@ import { formatDate, formatDateTime, formatHireDate } from '@/utils'
 import { getTodayRange, getWeekRange, getMonthRange } from '@/utils/date'
 import { sseService } from '@/utils/sse'
 import type { LeaveUpdateEvent, LeaveData } from '@/types/sse-events'
+import {
+  filterWarehousesWithDataOrDrivers,
+  shouldShowWarehouseSwitcher,
+  createWarehouseDataMap,
+  getWarehouseDriverCount as getWarehouseDriverCountUtil,
+} from '@/utils/warehouse'
 
 // ==================== 类型定义 ====================
 
@@ -639,6 +557,9 @@ const drivers = ref<User[]>([])
 
 /** 仓库列表 */
 const warehouses = ref<Warehouse[]>([])
+
+/** 仓库数据映射（warehouseId -> hasData） */
+const warehouseDataMap = ref<Map<number, boolean>>(new Map())
 
 /** 考勤记录 */
 const attendanceRecords = ref<Attendance[]>([])
@@ -839,6 +760,28 @@ const filterTabs = computed(() => [
 ])
 
 /**
+ * 有数据或有司机的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithDataOrDrivers = computed(() => {
+  return filterWarehousesWithDataOrDrivers({
+    warehouses: warehouses.value,
+    warehouseDataMap: warehouseDataMap.value,
+    userWarehouseIdsMap: userWarehouseIdsMap.value,
+    users: drivers.value,
+    roleFilter: UserRole.DRIVER,
+  })
+})
+
+/**
+ * 是否显示仓库切换器
+ * 使用统一的工具函数判断
+ */
+const showWarehouseSwitcher = computed(() => {
+  return shouldShowWarehouseSwitcher(warehousesWithDataOrDrivers.value)
+})
+
+/**
  * 筛选后的司机列表
  * 根据仓库、搜索关键词进行筛选
  * Requirements: 2.3, 2.4, 3.2, 3.3
@@ -846,9 +789,9 @@ const filterTabs = computed(() => [
 const filteredDrivers = computed(() => {
   let result = drivers.value
 
-  // 1. 按仓库筛选（多仓库时）
-  if (warehouses.value.length > 1 && warehouses.value[currentWarehouseIndex.value]) {
-    const currentWarehouseId = warehouses.value[currentWarehouseIndex.value].id
+  // 1. 按仓库筛选（显示切换器时）
+  if (showWarehouseSwitcher.value && warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]) {
+    const currentWarehouseId = warehousesWithDataOrDrivers.value[currentWarehouseIndex.value].id
     result = result.filter(u => {
       const userWarehouseIds = userWarehouseIdsMap.value.get(u.id) || []
       // 包含分配到该仓库的用户，以及未分配任何仓库的用户（新用户）
@@ -1310,12 +1253,11 @@ function getDriverPieceStats(driverId: number): DriverWarehousePieceStats[] {
 
 /**
  * 判断司机是否已实名
- * Requirements: 2.7 - 显示已实名标签
  * @param driver - 司机信息
  * @returns 是否已实名
  */
 function isDriverVerified(driver: User): boolean {
-  return !!(driver.name && driver.phone)
+  return driver.is_verified === true
 }
 
 /**

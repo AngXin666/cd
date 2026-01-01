@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from database import get_session
-from models import User, UserRole
+from models import User, UserRole, is_role
 from auth import (
     get_current_user,
     require_admin,
@@ -298,7 +298,7 @@ async def update_driver_info(
         )
 
     # 权限控制：车队长使用统一的仓库权限检查
-    if current_user.role == UserRole.MANAGER:
+    if is_role(current_user.role, UserRole.MANAGER):
         check_manager_warehouse_access(current_user, user, session)
 
     # 更新用户信息（只更新姓名和手机号）
@@ -345,9 +345,9 @@ async def assign_warehouses_to_user(
         )
 
     # 权限控制：车队长只能给司机分配仓库
-    if current_user.role == UserRole.MANAGER:
+    if is_role(current_user.role, UserRole.MANAGER):
         # 检查目标用户是否是司机
-        if user.role != UserRole.DRIVER:
+        if not is_role(user.role, UserRole.DRIVER):
             raise PermissionError(
                 error_code=PermissionErrorCode.ROLE_INSUFFICIENT,
                 message="车队长只能给司机分配仓库"
@@ -392,7 +392,7 @@ async def assign_warehouses_to_user(
     ]
 
     # 确定分配类型（根据用户角色）
-    assignment_type = "manager" if user.role == UserRole.MANAGER else "driver"
+    assignment_type = "manager" if is_role(user.role, UserRole.MANAGER) else "driver"
 
     # 触发仓库分配更新事件
     emit_assignment_update(
@@ -446,11 +446,16 @@ async def get_user_warehouses(
 @router.get("/{user_id}/license", response_model=DriverLicenseResponse)
 async def get_driver_license(
     user_id: int,
-    current_user: User = Depends(require_management),
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     """
-    获取司机证件信息（管理权限可访问：车队长、调度、老板、超级管理员）
+    获取司机证件信息
+    
+    权限规则：
+    - 司机只能查看自己的证件
+    - 管理角色（车队长、调度、老板）可以查看任何司机的证件
+    - 车队长只能查看其管辖仓库的司机证件
     
     返回指定用户的身份证和驾驶证信息，用于司机个人档案页面显示
 
@@ -464,6 +469,7 @@ async def get_driver_license(
 
     Raises:
         HTTPException 404: 用户不存在或证件信息不存在
+        HTTPException 403: 无权查看该用户的证件
         
     Requirements: 4.5, 4.6, 4.7 - 获取司机证件信息用于个人档案页面显示
     """
@@ -475,9 +481,18 @@ async def get_driver_license(
             detail="用户不存在"
         )
     
-    # 权限控制：车队长只能查看其管辖仓库的司机
-    if current_user.role == UserRole.MANAGER:
+    # 权限控制
+    if is_role(current_user.role, UserRole.DRIVER):
+        # 司机只能查看自己的证件
+        if current_user.id != user_id:
+            raise PermissionError(
+                error_code=PermissionErrorCode.RESOURCE_NOT_OWNED,
+                message="无权查看其他用户的证件信息"
+            )
+    elif is_role(current_user.role, UserRole.MANAGER):
+        # 车队长只能查看其管辖仓库的司机
         check_manager_warehouse_access(current_user, user, session)
+    # 老板和调度可以查看任何人的证件
     
     # 获取司机证件信息
     driver_license = crud.get_driver_license_by_user_id(session, user_id)
@@ -527,7 +542,7 @@ async def create_or_update_driver_license(
         )
     
     # 权限控制：车队长只能操作其管辖仓库的司机
-    if current_user.role == UserRole.MANAGER:
+    if is_role(current_user.role, UserRole.MANAGER):
         check_manager_warehouse_access(current_user, user, session)
     
     # 创建或更新司机证件信息
@@ -583,7 +598,7 @@ async def update_driver_license(
         )
     
     # 权限控制：车队长只能操作其管辖仓库的司机
-    if current_user.role == UserRole.MANAGER:
+    if is_role(current_user.role, UserRole.MANAGER):
         check_manager_warehouse_access(current_user, user, session)
     
     # 获取现有的证件信息

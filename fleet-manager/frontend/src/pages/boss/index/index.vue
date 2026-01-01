@@ -83,17 +83,17 @@
         </view>
 
         <!-- 仓库切换器 - Requirements 4.1, 4.2, 5.4 -->
-        <view v-if="warehouses.length > 0" class="section">
+        <view v-if="showWarehouseSwitcher" class="section">
           <view class="section-header">
             <view class="section-title-wrapper">
               <text class="section-icon">🏭</text>
               <text class="section-title">选择仓库</text>
-              <text class="warehouse-count">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
+              <text class="warehouse-count">({{ currentWarehouseIndex + 1 }}/{{ warehousesWithDataOrDrivers.length }})</text>
             </view>
             <text class="sort-hint">按数据量排序</text>
           </view>
           <WarehouseSwitcher
-            :warehouses="warehouses"
+            :warehouses="warehousesWithDataOrDrivers"
             :current-index="currentWarehouseIndex"
             @change="handleWarehouseChange"
             @assignment-update="handleAssignmentUpdate"
@@ -171,22 +171,28 @@
 
           <view class="feature-card">
             <view class="feature-grid-2x2">
-              <!-- 件数报表 -->
-              <view class="feature-item orange" @click="navigateTo('/pages/boss/stats/index')">
-                <text class="feature-icon">📈</text>
-                <text class="feature-text">件数报表</text>
-              </view>
-
-              <!-- 考勤管理 - 跳转到考勤管理页面 Requirements 6.2 -->
-              <view class="feature-item red" @click="navigateTo('/pages/boss/attendance/index')">
+              <!-- 待审批 -->
+              <view class="feature-item orange" @click="navigateTo('/pages/boss/approval/index')">
                 <view class="feature-icon-wrapper">
-                  <text class="feature-icon">📅</text>
+                  <text class="feature-icon">📋</text>
                   <!-- 待审批数量徽章 -->
                   <view v-if="totalPendingCount > 0" class="badge">
                     <text class="badge-count">{{ totalPendingCount > 99 ? '99+' : totalPendingCount }}</text>
                   </view>
                 </view>
-                <text class="feature-text">考勤管理</text>
+                <text class="feature-text">待审批</text>
+              </view>
+
+              <!-- 数据统计 - 跳转到数据统计页面 Requirements 6.2 -->
+              <view class="feature-item red" @click="navigateTo('/pages/boss/attendance/index')">
+                <view class="feature-icon-wrapper">
+                  <text class="feature-icon">📊</text>
+                  <!-- 待审批数量徽章 -->
+                  <view v-if="totalPendingCount > 0" class="badge">
+                    <text class="badge-count">{{ totalPendingCount > 99 ? '99+' : totalPendingCount }}</text>
+                  </view>
+                </view>
+                <text class="feature-text">数据统计</text>
               </view>
 
               <!-- 通知中心 -->
@@ -250,10 +256,12 @@ import {
   getVehicles,
   getLeaveApplications, 
   getPieceWorkStats,
+  getPieceWorkRecords,
   getAttendanceRecords,
   getUnreadCount,
+  getWarehouseUsers,
 } from '@/api'
-import { LeaveStatus, VehicleStatus } from '@/api/types'
+import { LeaveStatus, VehicleStatus, UserRole } from '@/api/types'
 import NotificationBell from '@/components/NotificationBell/index.vue'
 import RealNotificationBar from '@/components/RealNotificationBar/index.vue'
 import WarehouseSwitcher from '@/components/WarehouseSwitcher/index.vue'
@@ -263,6 +271,11 @@ import type { Warehouse } from '@/components/WarehouseSwitcher/types'
 import type { AssignmentUpdateEvent } from '@/types/sse-events'
 import type { DashboardStats, CardType } from '@/components/Dashboard/types'
 import type { DriverStatsData } from '@/components/DriverStats/types'
+import {
+  filterWarehousesWithDataOrDrivers,
+  shouldShowWarehouseSwitcher,
+  createWarehouseDataMap,
+} from '@/utils/warehouse'
 
 // ==================== 常量 ====================
 
@@ -288,6 +301,12 @@ const warehouses = ref<Warehouse[]>([])
 
 /** 当前选中的仓库索引 */
 const currentWarehouseIndex = ref(0)
+
+/** 仓库数据映射（warehouseId -> hasData） */
+const warehouseDataMap = ref<Map<number, boolean>>(new Map())
+
+/** 仓库司机数量映射（warehouseId -> driverCount） */
+const warehouseDriverCountMap = ref<Map<number, number>>(new Map())
 
 /** 加载状态 */
 const loading = ref(false)
@@ -360,6 +379,36 @@ const todayDate = computed(() => {
 })
 
 /**
+ * 有数据或有司机的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithDataOrDrivers = computed(() => {
+  // 将 Warehouse 类型转换为工具函数需要的类型
+  const warehouseList = warehouses.value.map(w => ({
+    id: parseInt(w.id),
+    name: w.name,
+    address: null,
+    is_active: true,
+    created_at: '',
+    warehouse_type: 'NORMAL' as const,
+    preset_unit: '',
+  }))
+  return filterWarehousesWithDataOrDrivers({
+    warehouses: warehouseList,
+    warehouseDataMap: warehouseDataMap.value,
+    warehouseDriverCountMap: warehouseDriverCountMap.value,
+  }).map(w => ({ id: String(w.id), name: w.name }))
+})
+
+/**
+ * 是否显示仓库切换器
+ * 使用统一的工具函数判断
+ */
+const showWarehouseSwitcher = computed(() => {
+  return shouldShowWarehouseSwitcher(warehousesWithDataOrDrivers.value)
+})
+
+/**
  * 待审批总数（请假 + 车辆审核）
  */
 const totalPendingCount = computed(() => {
@@ -370,14 +419,14 @@ const totalPendingCount = computed(() => {
  * 当前选中的仓库名称
  */
 const currentWarehouseName = computed(() => {
-  return warehouses.value[currentWarehouseIndex.value]?.name || ''
+  return warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.name || ''
 })
 
 /**
  * 当前选中的仓库ID
  */
 const currentWarehouseId = computed(() => {
-  return warehouses.value[currentWarehouseIndex.value]?.id || ''
+  return warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.id || ''
 })
 
 /**
@@ -524,12 +573,59 @@ async function loadData(): Promise<void> {
 
 /**
  * 加载仓库列表
+ * 同时获取每个仓库的计件数据和司机数量，用于过滤有数据或有司机的仓库
  */
 async function loadWarehouses(): Promise<void> {
   try {
     const data = await getWarehouses()
     // 将 API 返回的 number 类型 id 转换为 string 类型，以匹配组件类型定义
     warehouses.value = data.map(w => ({ id: String(w.id), name: w.name }))
+    
+    // 获取本月第一天（用于统计本月数据）
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthStartStr = monthStart.toISOString().split('T')[0]
+    const todayStr = now.toISOString().split('T')[0]
+    
+    // 并行获取每个仓库的计件数据和司机数量
+    const warehouseInfoPromises = data.map(async (warehouse) => {
+      try {
+        const [stats, users] = await Promise.all([
+          getPieceWorkStats({
+            warehouse_id: warehouse.id,
+            start_date: monthStartStr,
+            end_date: todayStr,
+          }),
+          getWarehouseUsers(warehouse.id),
+        ])
+        // 统计司机数量
+        const driverCount = users.filter(u => u.role === UserRole.DRIVER).length
+        return {
+          warehouseId: warehouse.id,
+          hasData: (stats.total_quantity || 0) > 0,
+          driverCount,
+        }
+      } catch {
+        return { warehouseId: warehouse.id, hasData: false, driverCount: 0 }
+      }
+    })
+    
+    const warehouseInfoResults = await Promise.all(warehouseInfoPromises)
+    
+    // 创建仓库数据映射
+    warehouseDataMap.value = createWarehouseDataMap(
+      warehouseInfoResults.map(r => ({
+        warehouseId: r.warehouseId,
+        hasData: r.hasData,
+      }))
+    )
+    
+    // 创建仓库司机数量映射
+    const driverCountMap = new Map<number, number>()
+    warehouseInfoResults.forEach(r => {
+      driverCountMap.set(r.warehouseId, r.driverCount)
+    })
+    warehouseDriverCountMap.value = driverCountMap
   } catch (error) {
     console.error('加载仓库列表失败:', error)
     warehouses.value = []
@@ -669,7 +765,7 @@ async function loadDriverStats(): Promise<void> {
     
     // 获取所有用户（司机）
     const users = await getUsers()
-    const drivers = users.filter(u => u.role === 'DRIVER')
+    const drivers = users.filter(u => u.role === UserRole.DRIVER)
     
     // 获取今日考勤记录
     const attendanceRecords = await getAttendanceRecords({
@@ -679,24 +775,28 @@ async function loadDriverStats(): Promise<void> {
     })
     
     // 获取今日计件记录
-    const pieceWorkStats = await getPieceWorkStats({
+    const pieceWorkRecords = await getPieceWorkRecords({
       start_date: todayStr,
       end_date: todayStr,
+      limit: 1000,
     })
     
-    // 统计在线司机（今日有打卡记录的）
+    // 统计已打卡司机（今日有打卡记录的）
     const onlineDriverIds = new Set(attendanceRecords.map(r => r.user_id))
     
-    // 统计已计件司机（今日有计件记录的）
-    // 注意：这里简化处理，实际可能需要更精确的统计
-    const busyDriverCount = pieceWorkStats.total_quantity > 0 ? onlineDriverIds.size : 0
+    // 统计已计数司机（今日有计件记录的）
+    const busyDriverIds = new Set(pieceWorkRecords.map(r => r.user_id))
+    const busyDriverCount = busyDriverIds.size
+    
+    // 未计数司机 = 已打卡司机 - 已计数司机
+    const idleDriverCount = Math.max(0, onlineDriverIds.size - busyDriverCount)
     
     // 更新司机统计数据
     driverStats.value = {
       totalDrivers: drivers.length,
       onlineDrivers: onlineDriverIds.size,
       busyDrivers: busyDriverCount,
-      idleDrivers: Math.max(0, onlineDriverIds.size - busyDriverCount),
+      idleDrivers: idleDriverCount,
     }
   } catch (error) {
     console.error('加载司机统计失败:', error)
@@ -765,8 +865,8 @@ function handleAssignmentUpdate(data: AssignmentUpdateEvent): void {
   }))
   
   // 如果当前选中的仓库索引超出范围，重置为 0
-  if (currentWarehouseIndex.value >= warehouses.value.length) {
-    currentWarehouseIndex.value = Math.max(0, warehouses.value.length - 1)
+  if (currentWarehouseIndex.value >= warehousesWithDataOrDrivers.value.length) {
+    currentWarehouseIndex.value = Math.max(0, warehousesWithDataOrDrivers.value.length - 1)
   }
   
   // 重新加载数据以更新统计信息

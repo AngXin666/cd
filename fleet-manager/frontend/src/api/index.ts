@@ -181,32 +181,24 @@ export const getWarehouseUsers = (warehouseId: number) =>
   get<User[]>(`/warehouses/${warehouseId}/users`);
 
 /**
+ * 获取用户分配的仓库列表
+ * @param userId - 用户ID
+ * @returns 仓库列表
+ */
+export const getUserWarehouses = (userId: number) =>
+  get<Warehouse[]>(`/users/${userId}/warehouses`);
+
+/**
  * 为用户分配仓库
- * 通过更新用户的 warehouse_id 字段实现仓库分配
+ * 调用后端 POST /users/{userId}/warehouses 接口
  * 
  * @param userId - 用户ID
- * @param warehouseIds - 仓库ID列表（当前只支持单仓库，取第一个）
+ * @param warehouseIds - 仓库ID列表
  * @returns 消息响应
  * @requirements 1.5 - 仓库分配功能
- * 
- * @description
- * 当前后端用户模型只支持单仓库分配（warehouse_id 字段），
- * 此函数通过更新用户信息实现仓库分配。
- * 如果传入多个仓库ID，只使用第一个。
- * 如果传入空数组，则清除用户的仓库分配。
  */
-export async function assignUserWarehouses(
-  userId: number,
-  warehouseIds: number[]
-): Promise<MessageResponse> {
-  // 当前后端只支持单仓库分配，取第一个仓库ID
-  const warehouseId = warehouseIds.length > 0 ? warehouseIds[0] : null;
-  
-  // 通过更新用户信息实现仓库分配
-  await updateUser(userId, { warehouse_id: warehouseId });
-  
-  return { message: '仓库分配成功' };
-}
+export const assignUserWarehouses = (userId: number, warehouseIds: number[]) =>
+  post<MessageResponse>(`/users/${userId}/warehouses`, { warehouse_ids: warehouseIds });
 
 // ==================== 考勤 API ====================
 

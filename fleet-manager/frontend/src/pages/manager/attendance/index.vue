@@ -15,10 +15,100 @@
     @requirements 2.3 - 车队长用户只显示其管辖仓库的司机
   -->
   <view class="attendance-page">
-    <!-- 页面标题区 -->
-    <view class="page-header">
-      <text class="header-title">考勤管理</text>
-      <text class="header-subtitle">查看司机考勤记录和处理请假审批</text>
+    <!-- 数据驾驶舱 - 圆形指标风格 -->
+    <view class="dashboard-panel">
+      <!-- 标题行 -->
+      <view class="dashboard-title-row">
+        <text class="dashboard-title">数据概览</text>
+        <text class="dashboard-date">{{ currentDateStr }}</text>
+      </view>
+      
+      <!-- 圆形指标网格 -->
+      <view class="circle-metrics">
+        <!-- 第一行：3个指标 -->
+        <view class="circle-row">
+          <view 
+            class="circle-metric" 
+            :class="{ active: activeMetric === 'total' }"
+            @click="handleMetricClick('total')"
+          >
+            <view class="circle-ring total">
+              <view class="circle-inner">
+                <text class="circle-value">{{ totalDrivers }}</text>
+              </view>
+            </view>
+            <text class="circle-label">司机总数</text>
+          </view>
+          
+          <view 
+            class="circle-metric" 
+            :class="{ active: activeMetric === 'attendance' }"
+            @click="handleMetricClick('attendance')"
+          >
+            <view class="circle-ring attendance">
+              <view class="circle-inner">
+                <text class="circle-value">{{ todayAttendance }}</text>
+              </view>
+            </view>
+            <text class="circle-label">今日出勤</text>
+          </view>
+          
+          <view 
+            class="circle-metric" 
+            :class="{ active: activeMetric === 'recorded' }"
+            @click="handleMetricClick('recorded')"
+          >
+            <view class="circle-ring recorded">
+              <view class="circle-inner">
+                <text class="circle-value">{{ todayRecordedCount }}</text>
+              </view>
+            </view>
+            <text class="circle-label">已录入</text>
+          </view>
+        </view>
+        
+        <!-- 第二行：3个指标 -->
+        <view class="circle-row">
+          <view 
+            class="circle-metric" 
+            :class="{ active: activeMetric === 'unrecorded' }"
+            @click="handleMetricClick('unrecorded')"
+          >
+            <view class="circle-ring unrecorded">
+              <view class="circle-inner">
+                <text class="circle-value">{{ todayUnrecordedCount }}</text>
+              </view>
+            </view>
+            <text class="circle-label">未录入</text>
+          </view>
+          
+          <view 
+            class="circle-metric" 
+            :class="{ active: activeMetric === 'week' }"
+            @click="handleMetricClick('week')"
+          >
+            <view class="circle-ring week">
+              <view class="circle-inner">
+                <text class="circle-value">{{ weekPieceTotal }}</text>
+              </view>
+            </view>
+            <text class="circle-label">本周录入</text>
+          </view>
+          
+          <view 
+            class="circle-metric" 
+            :class="{ active: activeMetric === 'month' }"
+            @click="handleMetricClick('month')"
+          >
+            <view class="circle-ring month">
+              <view class="circle-inner">
+                <text class="circle-value">{{ monthPieceTotal }}</text>
+              </view>
+            </view>
+            <text class="circle-label">本月录入</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 标签页切换 -->
@@ -37,15 +127,6 @@
       >
         <text class="tab-icon">📊</text>
         <text class="tab-label">计件统计</text>
-      </view>
-      <view
-        v-if="hasPendingApplications"
-        :class="['tab-item', { active: activeTab === 'APPROVAL' }]"
-        @click="handleTabChange('APPROVAL')"
-      >
-        <text class="tab-icon">✅</text>
-        <text class="tab-label">请假审批</text>
-        <view v-if="pendingCount > 0" class="badge">{{ pendingCount }}</view>
       </view>
     </view>
 
@@ -363,85 +444,6 @@
       </view>
     </view>
 
-    <!-- 请假审批标签页 -->
-    <view v-if="activeTab === 'APPROVAL'" class="approval-tab">
-      <!-- 筛选标签 -->
-      <view class="filter-tabs">
-        <view
-          v-for="tab in filterTabs"
-          :key="tab.value"
-          :class="['filter-tab', { active: activeFilter === tab.value }]"
-          @click="handleFilterChange(tab.value)"
-        >
-          <text class="tab-text">{{ tab.label }}</text>
-          <text v-if="tab.count !== undefined" class="tab-count">{{ tab.count }}</text>
-        </view>
-      </view>
-
-      <!-- 加载状态 -->
-      <view v-if="loadingApplications" class="loading-container">
-        <text class="loading-text">加载中...</text>
-      </view>
-
-      <!-- 空状态 -->
-      <view v-else-if="filteredApplications.length === 0" class="empty-container">
-        <text class="empty-icon">📋</text>
-        <text class="empty-text">{{ getEmptyText() }}</text>
-      </view>
-
-      <!-- 申请列表 -->
-      <view v-else class="application-list">
-        <view
-          v-for="application in filteredApplications"
-          :key="application.id"
-          class="application-card"
-          @click="handleCardClick(application)"
-        >
-          <!-- 申请人信息 -->
-          <view class="applicant-info">
-            <view class="applicant-avatar">
-              <text class="avatar-text">{{ (application.user_name || '用户').charAt(0) }}</text>
-            </view>
-            <view class="applicant-detail">
-              <view class="applicant-name-row">
-                <text class="applicant-name">{{ application.user_name || '未知用户' }}</text>
-                <view :class="['type-tag', application.leave_type]">
-                  <text class="type-text">{{ getLeaveTypeName(application.leave_type) }}</text>
-                </view>
-              </view>
-              <text class="apply-time">申请时间：{{ formatDateTime(application.created_at) }}</text>
-            </view>
-          </view>
-
-          <!-- 请假信息 -->
-          <view class="leave-info">
-            <view class="date-range">
-              <text class="date-label">请假时间</text>
-              <text class="date-value">{{ formatDate(application.start_date) }} 至 {{ formatDate(application.end_date) }}</text>
-            </view>
-            <view v-if="application.reason" class="reason">
-              <text class="reason-label">请假原因</text>
-              <text class="reason-value">{{ application.reason }}</text>
-            </view>
-          </view>
-
-          <!-- 状态和操作 -->
-          <view class="card-footer">
-            <view :class="['status-tag', application.status]">
-              <text class="status-text">{{ getStatusName(application.status) }}</text>
-            </view>
-            <view v-if="application.status === 'pending'" class="quick-actions">
-              <view class="action-btn reject" @click.stop="handleQuickReject(application)">
-                <text class="btn-text">拒绝</text>
-              </view>
-              <view class="action-btn approve" @click.stop="handleQuickApprove(application)">
-                <text class="btn-text">同意</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -547,6 +549,110 @@ const showSearch = ref(false)
 
 /** 请假审批筛选 */
 const activeFilter = ref<FilterType>('pending')
+
+/** 当前选中的指标 */
+const activeMetric = ref<string>('')
+
+// ==================== 数据驾驶舱计算属性 ====================
+
+/** 当前日期字符串 */
+const currentDateStr = computed(() => {
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+  return `${month}月${day}日 周${weekDays[now.getDay()]}`
+})
+
+/** 司机总数 */
+const totalDrivers = computed(() => filteredDrivers.value.length)
+
+/** 今日出勤人数 */
+const todayAttendance = computed(() => {
+  const today = new Date().toISOString().split('T')[0]
+  const driverIds = new Set(filteredDrivers.value.map(d => d.id))
+  const todayRecords = attendanceRecords.value.filter(r => 
+    r.date === today && r.clock_in && driverIds.has(r.user_id)
+  )
+  return new Set(todayRecords.map(r => r.user_id)).size
+})
+
+/** 今日已录入计件的司机数 */
+const todayRecordedCount = computed(() => {
+  let count = 0
+  const driverIds = new Set(filteredDrivers.value.map(d => d.id))
+  driverPieceStatsMap.value.forEach((stats, driverId) => {
+    if (!driverIds.has(driverId)) return
+    const hasTodayRecord = stats.some(stat => stat.todayQuantity > 0)
+    if (hasTodayRecord) count++
+  })
+  return count
+})
+
+/** 今日未录入计件的司机数 */
+const todayUnrecordedCount = computed(() => {
+  return totalDrivers.value - todayRecordedCount.value
+})
+
+/** 本周计件总数 */
+const weekPieceTotal = computed(() => {
+  let total = 0
+  const driverIds = new Set(filteredDrivers.value.map(d => d.id))
+  driverPieceStatsMap.value.forEach((stats, driverId) => {
+    if (!driverIds.has(driverId)) return
+    stats.forEach(stat => {
+      total += stat.weekQuantity
+    })
+  })
+  return total
+})
+
+/** 本月计件总数 */
+const monthPieceTotal = computed(() => {
+  let total = 0
+  const driverIds = new Set(filteredDrivers.value.map(d => d.id))
+  driverPieceStatsMap.value.forEach((stats, driverId) => {
+    if (!driverIds.has(driverId)) return
+    stats.forEach(stat => {
+      total += stat.monthQuantity
+    })
+  })
+  return total
+})
+
+/**
+ * 处理指标点击
+ * @param metric - 指标类型
+ */
+function handleMetricClick(metric: string): void {
+  activeMetric.value = activeMetric.value === metric ? '' : metric
+  
+  switch (metric) {
+    case 'total':
+      uni.showToast({ title: `共 ${totalDrivers.value} 名司机`, icon: 'none' })
+      break
+    case 'attendance':
+      activeTab.value = 'ATTENDANCE'
+      uni.showToast({ title: `今日 ${todayAttendance.value} 人出勤`, icon: 'none' })
+      break
+    case 'recorded':
+      activeTab.value = 'PIECE_WORK'
+      uni.showToast({ title: `${todayRecordedCount.value} 人已录入`, icon: 'none' })
+      break
+    case 'unrecorded':
+      activeTab.value = 'PIECE_WORK'
+      uni.showToast({ title: `${todayUnrecordedCount.value} 人未录入`, icon: 'none' })
+      break
+    case 'week':
+      activeTab.value = 'PIECE_WORK'
+      uni.showToast({ title: `本周共录入 ${weekPieceTotal.value} 件`, icon: 'none' })
+      break
+    case 'month':
+      activeTab.value = 'PIECE_WORK'
+      uni.showToast({ title: `本月共录入 ${monthPieceTotal.value} 件`, icon: 'none' })
+      break
+  }
+}
 
 // ==================== 计算属性 ====================
 
@@ -1067,7 +1173,7 @@ function getDriverPieceStats(driverId: number): DriverWarehousePieceStats[] {
  * @returns 是否已实名
  */
 function isDriverVerified(driver: User): boolean {
-  return !!(driver.name && driver.phone)
+  return driver.is_verified === true
 }
 
 /**
@@ -1259,28 +1365,159 @@ async function doApprove(id: number, status: LeaveStatus): Promise<void> {
   box-sizing: border-box;
 }
 
-/* 页面标题区 */
-.page-header {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+/* ==================== 圆形指标数据驾驶舱 ==================== */
+
+.dashboard-panel {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1d4ed8 100%);
   border-radius: 16rpx;
-  padding: 48rpx 32rpx;
+  padding: 24rpx;
   margin-bottom: 24rpx;
   box-shadow: 0 8rpx 24rpx rgba(30, 58, 138, 0.3);
 }
 
-.header-title {
-  display: block;
+.dashboard-title-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.dashboard-title {
   font-size: 40rpx;
   font-weight: bold;
   color: #ffffff;
-  margin-bottom: 12rpx;
+  letter-spacing: 8rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
 }
 
-.header-subtitle {
-  display: block;
-  font-size: 26rpx;
+.dashboard-date {
+  font-size: 24rpx;
   color: rgba(255, 255, 255, 0.8);
+  margin-top: 8rpx;
 }
+
+/* 圆形指标网格 */
+.circle-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.circle-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+/* 单个圆形指标 */
+.circle-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.circle-metric:active {
+  transform: scale(0.95);
+}
+
+.circle-metric.active .circle-ring {
+  transform: scale(1.05);
+}
+
+/* 圆环容器 */
+.circle-ring {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* 不同类型的圆环颜色 */
+.circle-ring.total {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.4);
+}
+
+.circle-ring.attendance {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4rpx 16rpx rgba(16, 185, 129, 0.4);
+}
+
+.circle-ring.recorded {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  box-shadow: 0 4rpx 16rpx rgba(139, 92, 246, 0.4);
+}
+
+.circle-ring.unrecorded {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4rpx 16rpx rgba(245, 158, 11, 0.4);
+}
+
+.circle-ring.week {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  box-shadow: 0 4rpx 16rpx rgba(6, 182, 212, 0.4);
+}
+
+.circle-ring.month {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  box-shadow: 0 4rpx 16rpx rgba(236, 72, 153, 0.4);
+}
+
+/* 选中状态增强 */
+.circle-metric.active .circle-ring.total {
+  box-shadow: 0 6rpx 24rpx rgba(59, 130, 246, 0.6);
+}
+
+.circle-metric.active .circle-ring.attendance {
+  box-shadow: 0 6rpx 24rpx rgba(16, 185, 129, 0.6);
+}
+
+.circle-metric.active .circle-ring.recorded {
+  box-shadow: 0 6rpx 24rpx rgba(139, 92, 246, 0.6);
+}
+
+.circle-metric.active .circle-ring.unrecorded {
+  box-shadow: 0 6rpx 24rpx rgba(245, 158, 11, 0.6);
+}
+
+.circle-metric.active .circle-ring.week {
+  box-shadow: 0 6rpx 24rpx rgba(6, 182, 212, 0.6);
+}
+
+.circle-metric.active .circle-ring.month {
+  box-shadow: 0 6rpx 24rpx rgba(236, 72, 153, 0.6);
+}
+
+/* 内圆 */
+.circle-inner {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circle-value {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.circle-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 10rpx;
+}
+
+/* ==================== 原有样式 ==================== */
 
 /* 标签页切换 */
 .tab-switcher {
@@ -1613,40 +1850,45 @@ async function doApprove(id: number, status: LeaveStatus): Promise<void> {
   margin: 0 12rpx;
 }
 
-/* 考勤统计 */
+/* 考勤统计 - 独立卡片布局 */
 .attendance-stats {
   display: flex;
-  padding: 20rpx 24rpx;
-  background-color: #f9fafb;
-  border-top: 1rpx solid #f3f4f6;
-  border-bottom: 1rpx solid #f3f4f6;
+  padding: 16rpx 20rpx;
+  gap: 16rpx;
 }
 
 .stat-item {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 16rpx 12rpx;
+  background-color: #f8fafc;
+  border-radius: 12rpx;
+  border: 1rpx solid #e2e8f0;
 }
 
 .stat-icon {
   font-size: 28rpx;
-  margin-right: 8rpx;
+  margin-bottom: 6rpx;
 }
 
 .stat-content {
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 
 .stat-label {
   font-size: 22rpx;
-  color: #6b7280;
+  color: #64748b;
+  margin-bottom: 4rpx;
 }
 
 .stat-value {
-  font-size: 26rpx;
-  font-weight: bold;
+  font-size: 30rpx;
+  font-weight: 600;
   color: #16a34a;
   
   &.late {
@@ -1749,43 +1991,28 @@ async function doApprove(id: number, status: LeaveStatus): Promise<void> {
 }
 
 /**
- * 计件统计区域
- * 替代考勤统计区域，按仓库分组显示计件数据
+ * 计件统计区域 - 独立卡片布局
  * Requirements: 3.1, 3.2, 3.3, 3.4
  */
 .piece-work-stats {
-  padding: 16rpx 24rpx;
-  background-color: #f9fafb;
-  border-top: 1rpx solid #f3f4f6;
-  border-bottom: 1rpx solid #f3f4f6;
+  padding: 16rpx 20rpx;
 }
 
 /**
  * 计件统计行 - 每个仓库一行
- * 支持单仓库和多仓库司机显示
  * Requirements: 3.2, 3.3
  */
 .piece-work-row {
   display: flex;
-  align-items: center;
-  padding: 12rpx 0;
+  flex-direction: column;
+  margin-bottom: 16rpx;
   
-  /* 多行时添加分隔线 */
-  &:not(:last-child) {
-    border-bottom: 1rpx dashed #e5e7eb;
-    margin-bottom: 12rpx;
-    padding-bottom: 12rpx;
-  }
-  
-  /* 首行添加顶部间距（多行时） */
-  &:first-child:not(:last-child) {
-    padding-top: 4rpx;
+  &:last-child {
+    margin-bottom: 0;
   }
   
   /* 无数据时居中显示 */
   &.empty-row {
-    justify-content: center;
-    
     .piece-stats-items {
       flex: none;
     }
@@ -1794,69 +2021,54 @@ async function doApprove(id: number, status: LeaveStatus): Promise<void> {
 
 /**
  * 仓库名称标签
- * 用于区分不同仓库的计件数据
  * Requirements: 3.4
  */
 .warehouse-tag {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  margin-right: 16rpx;
-  min-width: 120rpx;
-  max-width: 180rpx;
-  text-align: center;
-  flex-shrink: 0;
-  box-shadow: 0 2rpx 4rpx rgba(30, 64, 175, 0.1);
+  margin-bottom: 12rpx;
+  padding-left: 4rpx;
 }
 
 .warehouse-tag-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 500;
   color: #1e40af;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
 }
 
 /**
- * 计件统计项容器
- * 水平排列今日/本周/本月统计
+ * 计件统计项容器 - 独立卡片布局
  */
 .piece-stats-items {
   flex: 1;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
+  gap: 12rpx;
 }
 
 /**
- * 单个计件统计项
- * 垂直排列标签和数值
+ * 单个计件统计项 - 独立卡片
  */
 .piece-stat-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 80rpx;
+  padding: 12rpx 8rpx;
+  background-color: #f8fafc;
+  border-radius: 10rpx;
+  border: 1rpx solid #e2e8f0;
 }
 
 .piece-stat-label {
   font-size: 22rpx;
-  color: #6b7280;
+  color: #64748b;
   margin-bottom: 4rpx;
 }
 
 /**
  * 计件统计数值
- * 不同时间段使用不同颜色区分
- * - 今日: 绿色 (#16a34a)
- * - 本周: 蓝色 (#2563eb)
- * - 本月: 紫色 (#7c3aed)
  */
 .piece-stat-value {
-  font-size: 26rpx;
-  font-weight: bold;
+  font-size: 28rpx;
+  font-weight: 600;
   color: #16a34a;
   
   &.week {

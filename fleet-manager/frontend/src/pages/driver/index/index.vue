@@ -194,12 +194,12 @@
         </view>
 
         <!-- 仓库切换器（多仓库时显示）- 与主项目对齐 -->
-        <view v-if="warehouses.length > 1" class="section">
+        <view v-if="showWarehouseSwitcher" class="section">
           <view class="section-header">
             <view class="section-title-wrapper">
               <text class="section-icon">🏭</text>
               <text class="section-title">选择仓库</text>
-              <text class="warehouse-count">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
+              <text class="warehouse-count">({{ currentWarehouseIndex + 1 }}/{{ warehousesWithData.length }})</text>
             </view>
             <text class="section-hint">按数据量排序</text>
           </view>
@@ -213,7 +213,7 @@
               indicator-active-color="#1E3A8A"
               @change="handleWarehouseChange"
             >
-              <swiper-item v-for="warehouse in warehouses" :key="warehouse.id">
+              <swiper-item v-for="warehouse in warehousesWithData" :key="warehouse.id">
                 <view class="warehouse-swiper-item">
                   <text class="warehouse-swiper-icon">🏭</text>
                   <text class="warehouse-swiper-name">{{ warehouse.name }}</text>
@@ -390,6 +390,11 @@ import {
 } from '@/api'
 import type { TodayAttendance, LeaveApplication, Warehouse } from '@/api/types'
 import { LeaveStatus } from '@/api/types'
+import {
+  filterWarehousesWithData,
+  shouldShowWarehouseSwitcher,
+  createWarehouseDataMap,
+} from '@/utils/warehouse'
 
 // ==================== Store ====================
 
@@ -423,7 +428,10 @@ const stats = ref({
 })
 
 /** 司机分配的仓库列表 */
-const warehouses = ref<any[]>([])
+const warehouses = ref<Warehouse[]>([])
+
+/** 仓库数据映射（warehouseId -> hasData） */
+const warehouseDataMap = ref<Map<number, boolean>>(new Map())
 
 /** 当前选中的仓库索引（用于 Swiper 切换） */
 const currentWarehouseIndex = ref(0)
@@ -432,6 +440,25 @@ const currentWarehouseIndex = ref(0)
 const loadingWarehouses = ref(false)
 
 // ==================== 计算属性 ====================
+
+/**
+ * 有数据的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithData = computed(() => {
+  return filterWarehousesWithData({
+    warehouses: warehouses.value,
+    warehouseDataMap: warehouseDataMap.value,
+  })
+})
+
+/**
+ * 是否显示仓库切换器
+ * 使用统一的工具函数判断
+ */
+const showWarehouseSwitcher = computed(() => {
+  return shouldShowWarehouseSwitcher(warehousesWithData.value)
+})
 
 /**
  * 显示名称
@@ -556,6 +583,7 @@ async function loadStats(): Promise<void> {
 /**
  * 加载司机分配的仓库列表
  * 用于仓库切换器和所属仓库卡片
+ * 同时获取每个仓库的计件数据，用于过滤有数据的仓库
  */
 async function loadWarehouses(): Promise<void> {
   loadingWarehouses.value = true
@@ -566,9 +594,44 @@ async function loadWarehouses(): Promise<void> {
     // 如果后端没有过滤，前端需要根据用户分配关系过滤
     const data = await getWarehouses({ is_active: true })
     warehouses.value = data || []
+    
+    // 获取本月第一天（用于统计本月数据）
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthStartStr = monthStart.toISOString().split('T')[0]
+    const todayStr = now.toISOString().split('T')[0]
+    
+    // 并行获取每个仓库的计件数据
+    const warehouseStatsPromises = warehouses.value.map(async (warehouse) => {
+      try {
+        const stats = await getPieceWorkStats({
+          warehouse_id: warehouse.id,
+          start_date: monthStartStr,
+          end_date: todayStr,
+        })
+        // 有数据 = 本月有计件记录
+        return {
+          warehouseId: warehouse.id,
+          hasData: (stats.total_quantity || 0) > 0,
+        }
+      } catch {
+        return { warehouseId: warehouse.id, hasData: false }
+      }
+    })
+    
+    const warehouseStatsResults = await Promise.all(warehouseStatsPromises)
+    
+    // 创建仓库数据映射
+    warehouseDataMap.value = createWarehouseDataMap(
+      warehouseStatsResults.map(r => ({
+        warehouseId: r.warehouseId,
+        hasData: r.hasData,
+      }))
+    )
   } catch (error) {
     console.error('加载仓库列表失败:', error)
     warehouses.value = []
+    warehouseDataMap.value = new Map()
   } finally {
     loadingWarehouses.value = false
   }

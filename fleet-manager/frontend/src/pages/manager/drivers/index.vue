@@ -54,11 +54,11 @@
         </view>
 
         <!-- 仓库切换器 (Swiper) - Requirements 1 -->
-        <view v-if="warehouses.length > 1" class="warehouse-switcher">
+        <view v-if="showWarehouseSwitcher" class="warehouse-switcher">
           <view class="switcher-header">
             <text class="switcher-icon">🏭</text>
             <text class="switcher-title">选择仓库</text>
-            <text class="switcher-index">({{ currentWarehouseIndex + 1 }}/{{ warehouses.length }})</text>
+            <text class="switcher-index">({{ currentWarehouseIndex + 1 }}/{{ warehousesWithDrivers.length }})</text>
             <text class="driver-count-label">{{ filteredDrivers.length }} 名司机</text>
           </view>
           <swiper
@@ -69,7 +69,7 @@
             indicator-active-color="#1E3A8A"
             @change="handleWarehouseChange"
           >
-            <swiper-item v-for="warehouse in warehouses" :key="warehouse.id">
+            <swiper-item v-for="warehouse in warehousesWithDrivers" :key="warehouse.id">
               <view class="swiper-slide">
                 <text class="warehouse-icon">🏭</text>
                 <text class="warehouse-name">{{ warehouse.name }}</text>
@@ -377,10 +377,16 @@ import {
   assignUserWarehouses,
   getUser,
   updateUser,
+  getVehicles,
 } from '@/api'
-import type { User, Warehouse } from '@/api/types'
+import type { User, Warehouse, Vehicle } from '@/api/types'
 import { UserRole } from '@/api/types'
-import { formatDate } from '@/utils'
+import { formatDate, getValidVehicles } from '@/utils'
+import {
+  filterWarehousesWithDrivers,
+  shouldShowWarehouseSwitcher,
+  getWarehouseDriverCount as getWarehouseDriverCountUtil,
+} from '@/utils/warehouse'
 
 // ==================== 类型定义 ====================
 
@@ -475,6 +481,27 @@ const managerPermissionsEnabled = ref(true)
 // ==================== 计算属性 ====================
 
 /**
+ * 有司机的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithDrivers = computed(() => {
+  return filterWarehousesWithDrivers({
+    warehouses: warehouses.value,
+    userWarehouseIdsMap: driverWarehouseMap.value,
+    users: drivers.value,
+    roleFilter: UserRole.DRIVER,
+  })
+})
+
+/**
+ * 是否显示仓库切换器
+ * 使用统一的工具函数判断
+ */
+const showWarehouseSwitcher = computed(() => {
+  return shouldShowWarehouseSwitcher(warehousesWithDrivers.value)
+})
+
+/**
  * 筛选后的司机列表
  * 支持仓库筛选和搜索
  * @requirements 1, 10 - 仓库筛选和搜索功能
@@ -482,9 +509,9 @@ const managerPermissionsEnabled = ref(true)
 const filteredDrivers = computed(() => {
   let result = drivers.value
 
-  // 按仓库筛选（多仓库时）
-  if (warehouses.value.length > 1 && warehouses.value[currentWarehouseIndex.value]) {
-    const currentWarehouseId = warehouses.value[currentWarehouseIndex.value].id
+  // 按仓库筛选（显示切换器时）
+  if (showWarehouseSwitcher.value && warehousesWithDrivers.value[currentWarehouseIndex.value]) {
+    const currentWarehouseId = warehousesWithDrivers.value[currentWarehouseIndex.value].id
     result = result.filter((driver) => {
       const driverWarehouses = driverWarehouseMap.value.get(driver.id) || []
       return driverWarehouses.includes(currentWarehouseId)
@@ -519,14 +546,16 @@ onShow(() => {
 
 /**
  * 获取仓库的司机数量
+ * 使用统一的工具函数
  * @param warehouseId - 仓库ID
  * @returns 该仓库的司机数量
  */
 function getWarehouseDriverCount(warehouseId: number): number {
-  return drivers.value.filter((driver) => {
-    const driverWarehouses = driverWarehouseMap.value.get(driver.id) || []
-    return driverWarehouses.includes(warehouseId)
-  }).length
+  return getWarehouseDriverCountUtil(warehouseId, {
+    userWarehouseIdsMap: driverWarehouseMap.value,
+    users: drivers.value,
+    roleFilter: UserRole.DRIVER,
+  })
 }
 
 /**
@@ -595,7 +624,10 @@ async function loadData(): Promise<void> {
     const warehousesData = await getWarehouses({ is_active: true })
     warehouses.value = warehousesData
 
-    // 2. 为每个仓库获取司机列表
+    // 2. 获取所有车辆信息（用于统计司机车辆数量）
+    const allVehicles = await getVehicles()
+
+    // 3. 为每个仓库获取司机列表
     const newDriverWarehouseMap = new Map<number, number[]>()
     const allDriversMap = new Map<number, DriverWithDetails>()
 
@@ -616,7 +648,7 @@ async function loadData(): Promise<void> {
             allDriversMap.set(driver.id, {
               ...driver,
               warehouse_id: warehouse.id,
-              detail: createMockDriverDetail(driver),
+              detail: createDriverDetail(driver, allVehicles),
             })
           }
         })
@@ -629,7 +661,7 @@ async function loadData(): Promise<void> {
 
     await Promise.all(warehouseUsersPromises)
 
-    // 3. 更新状态
+    // 4. 更新状态
     driverWarehouseMap.value = newDriverWarehouseMap
     drivers.value = Array.from(allDriversMap.values())
   } catch (error) {
@@ -644,24 +676,28 @@ async function loadData(): Promise<void> {
 }
 
 /**
- * 创建模拟的司机详细信息
- * 注意：实际项目中应从后端 API 获取
+ * 创建司机详细信息
+ * 统计司机的有效车辆数量（必须有有效车牌且状态为 ACTIVE 或 PICKED_UP）
  * @param driver - 司机基本信息
+ * @param allVehicles - 所有车辆列表
  * @returns 司机详细信息
  */
-function createMockDriverDetail(driver: User): DriverDetailInfo {
+function createDriverDetail(driver: User, allVehicles: Vehicle[]): DriverDetailInfo {
   // 计算在职天数
   const createdAt = driver.created_at ? new Date(driver.created_at) : null
   const workDays = createdAt
     ? Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
     : null
 
+  // 获取司机的有效车辆（使用共享工具函数）
+  const validVehicles = getValidVehicles(allVehicles, driver.id)
+
   return {
     age: null,
     drivingYears: null,
     licenseClass: null,
-    vehicleCount: 0,
-    plateNumbers: [],
+    vehicleCount: validVehicles.length,
+    plateNumbers: validVehicles.map(v => v.license_plate),
     joinDate: createdAt ? formatDate(driver.created_at) : null,
     workDays,
     idCardNumber: null,
@@ -673,11 +709,9 @@ function createMockDriverDetail(driver: User): DriverDetailInfo {
  * 判断司机是否已实名
  * @param driver - 司机信息
  * @returns 是否已实名
- * @requirements 4 - 实名认证标签
  */
 function isDriverVerified(driver: DriverWithDetails): boolean {
-  // 检查是否有身份证信息
-  return !!(driver.detail?.idCardNumber)
+  return driver.is_verified === true
 }
 
 /**

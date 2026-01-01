@@ -1303,8 +1303,9 @@ def get_piece_work_target_user_ids(
     if record.warehouse_id:
         warehouse_users = crud.get_warehouse_users(session, record.warehouse_id)
         for warehouse_user in warehouse_users:
-            # 只添加车队长角色的用户
-            if warehouse_user.role == UserRole.MANAGER and warehouse_user.id not in target_user_ids:
+            # 只添加车队长角色的用户（使用 normalize_role 进行大小写不敏感比较）
+            from models import normalize_role
+            if normalize_role(warehouse_user.role) == "manager" and warehouse_user.id not in target_user_ids:
                 target_user_ids.append(warehouse_user.id)
 
     return target_user_ids
@@ -1379,10 +1380,11 @@ def validate_role_permissions_update(
     Requirements: 2.5, 3.1 - 删除超级管理员后，老板成为最高权限角色
     """
     # 延迟导入避免循环依赖
-    from models import UserRole
+    from models import UserRole, normalize_role
 
     # 老板的权限不可修改（老板是系统最高权限角色）
-    if role == UserRole.BOSS:
+    # 使用 normalize_role 进行大小写不敏感比较
+    if normalize_role(role) == "boss":
         raise HTTPException(
             status_code=400,
             detail="老板的权限不可修改"

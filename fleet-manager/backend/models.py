@@ -8,6 +8,7 @@ from datetime import datetime, date
 from enum import Enum
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, String
 
 
 # ==================== 枚举类型定义 ====================
@@ -19,11 +20,64 @@ class UserRole(str, Enum):
     - MANAGER: 车队长，负责司机管理、审批、统计
     - PEER_ADMIN: 调度，负责协助管理，拥有与老板类似的管理权限
     - BOSS: 老板，负责全局管理、用户管理、仓库管理，拥有系统最高权限
+    
+    注意：枚举值统一使用小写，数据库存储也使用小写
     """
     DRIVER = "driver"
     MANAGER = "manager"
     PEER_ADMIN = "peer_admin"
     BOSS = "boss"
+    
+    @classmethod
+    def _missing_(cls, value):
+        """
+        处理大小写不敏感的枚举值匹配
+        当传入的值不完全匹配时，尝试转换为小写后匹配
+        """
+        if isinstance(value, str):
+            # 尝试小写匹配
+            lower_value = value.lower()
+            for member in cls:
+                if member.value == lower_value:
+                    return member
+        return None
+
+
+def normalize_role(role) -> str:
+    """
+    规范化角色值为小写字符串
+    支持 UserRole 枚举、字符串（大小写不敏感）
+    
+    Args:
+        role: 角色值，可以是 UserRole 枚举或字符串
+        
+    Returns:
+        小写的角色字符串
+    """
+    if isinstance(role, UserRole):
+        return role.value
+    if isinstance(role, str):
+        return role.lower()
+    return str(role).lower()
+
+
+def is_role(user_role, target_role) -> bool:
+    """
+    检查用户角色是否匹配目标角色（大小写不敏感）
+    
+    Args:
+        user_role: 用户的角色值（可以是字符串或 UserRole 枚举）
+        target_role: 目标角色（可以是字符串或 UserRole 枚举）
+        
+    Returns:
+        是否匹配
+        
+    Example:
+        >>> is_role("DRIVER", UserRole.DRIVER)  # True
+        >>> is_role("driver", "DRIVER")  # True
+        >>> is_role(UserRole.BOSS, "boss")  # True
+    """
+    return normalize_role(user_role) == normalize_role(target_role)
 
 
 class LeaveType(str, Enum):
@@ -117,7 +171,8 @@ class User(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     name: str = Field(max_length=50)
     phone: Optional[str] = Field(default=None, max_length=20)
-    role: UserRole = Field(default=UserRole.DRIVER)
+    # 使用字符串类型存储角色，支持大小写不敏感
+    role: str = Field(default="driver", sa_column=Column(String(20)))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -134,6 +189,14 @@ class User(SQLModel, table=True):
     notifications: List["Notification"] = Relationship(back_populates="user")
     # 司机证件信息（一对一关系）
     driver_license: Optional["DriverLicense"] = Relationship(back_populates="user")
+
+    @property
+    def is_verified(self) -> bool:
+        """是否已实名：司机需要有身份证号码，其他角色默认已实名"""
+        # 使用 normalize_role 进行大小写不敏感比较
+        if normalize_role(self.role) != "driver":
+            return True
+        return bool(self.driver_license and self.driver_license.id_card_number)
 
 
 class Warehouse(SQLModel, table=True):

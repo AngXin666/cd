@@ -409,6 +409,10 @@ import {
 } from '@/api'
 import type { PieceWorkRecord, PieceWorkStats, Warehouse } from '@/api/types'
 import { formatMoney, navigateTo } from '@/utils'
+import {
+  filterWarehousesWithData,
+  createWarehouseDataMap,
+} from '@/utils/warehouse'
 import { 
   getLocalDateString, 
   getMondayDateString, 
@@ -473,6 +477,9 @@ const quickFilter = ref<QuickFilterType>('month')
 /** 仓库列表 */
 const warehouses = ref<Warehouse[]>([])
 
+/** 仓库数据映射（warehouseId -> hasData） */
+const warehouseDataMap = ref<Map<number, boolean>>(new Map())
+
 /** 选中的仓库 ID（null 表示全部仓库） */
 const selectedWarehouseId = ref<number | null>(null)
 
@@ -503,12 +510,24 @@ const rangeParam = ref('')
 // ==================== 计算属性 ====================
 
 /**
+ * 有数据的仓库列表
+ * 使用统一的工具函数过滤
+ */
+const warehousesWithData = computed(() => {
+  return filterWarehousesWithData({
+    warehouses: warehouses.value,
+    warehouseDataMap: warehouseDataMap.value,
+  })
+})
+
+/**
  * 仓库选项列表（包含"全部仓库"选项）
+ * 只显示有数据的仓库
  */
 const warehouseOptions = computed<WarehouseOption[]>(() => {
   return [
     { id: null, name: '全部仓库' },
-    ...warehouses.value.map(w => ({ id: w.id, name: w.name })),
+    ...warehousesWithData.value.map(w => ({ id: w.id, name: w.name })),
   ]
 })
 
@@ -618,11 +637,40 @@ onShow(() => {
 
 /**
  * 加载仓库列表
+ * 同时获取每个仓库的计件数据，用于过滤有数据的仓库
  */
 async function loadWarehouses(): Promise<void> {
   try {
     const data = await getWarehouses({ is_active: true })
     warehouses.value = data
+    
+    // 获取本月第一天（用于统计本月数据）
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthStartStr = monthStart.toISOString().split('T')[0]
+    const todayStr = now.toISOString().split('T')[0]
+    
+    // 并行获取每个仓库的计件数据
+    const warehouseStatsPromises = data.map(async (warehouse) => {
+      try {
+        const stats = await getPieceWorkStats({
+          warehouse_id: warehouse.id,
+          start_date: monthStartStr,
+          end_date: todayStr,
+        })
+        return {
+          warehouseId: warehouse.id,
+          hasData: (stats.total_quantity || 0) > 0,
+        }
+      } catch {
+        return { warehouseId: warehouse.id, hasData: false }
+      }
+    })
+    
+    const warehouseStatsResults = await Promise.all(warehouseStatsPromises)
+    
+    // 创建仓库数据映射
+    warehouseDataMap.value = createWarehouseDataMap(warehouseStatsResults)
   } catch (error) {
     console.error('加载仓库列表失败:', error)
   }

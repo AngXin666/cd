@@ -12,10 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from database import get_session
-from models import User, UserRole
+from models import User, UserRole, is_role
 from auth import (
     get_current_user,
     require_management,
+    require_admin,
     check_resource_ownership
 )
 import crud
@@ -76,16 +77,16 @@ async def get_piece_work_categories(
 @router.post("/categories", response_model=PieceWorkCategoryResponse)
 async def create_piece_work_category(
     request: PieceWorkCategoryCreate,
-    current_user: User = Depends(require_management),
+    current_user: User = Depends(require_admin),
     session: Session = Depends(get_session)
 ):
     """
-    创建计件分类（管理权限可访问：车队长、调度、老板、超级管理员）
+    创建计件分类（老板、调度可访问）
     支持基础单价、上楼单价、分拣单价配置
 
     Args:
         request: 计件分类创建请求
-        current_user: 当前登录用户（需要管理权限）
+        current_user: 当前登录用户（需要管理员权限）
         session: 数据库会话
 
     Returns:
@@ -108,17 +109,17 @@ async def create_piece_work_category(
 async def update_piece_work_category(
     category_id: int,
     request: PieceWorkCategoryUpdate,
-    current_user: User = Depends(require_management),
+    current_user: User = Depends(require_admin),
     session: Session = Depends(get_session)
 ):
     """
-    更新计件分类（管理权限可访问：车队长、调度、老板、超级管理员）
+    更新计件分类（老板、调度可访问）
     支持更新基础单价、上楼单价、分拣单价
 
     Args:
         category_id: 分类ID
         request: 计件分类更新请求
-        current_user: 当前登录用户（需要管理权限）
+        current_user: 当前登录用户（需要管理员权限）
         session: 数据库会话
 
     Returns:
@@ -151,16 +152,16 @@ async def update_piece_work_category(
 @router.delete("/categories/{category_id}", response_model=MessageResponse)
 async def delete_piece_work_category(
     category_id: int,
-    current_user: User = Depends(require_management),
+    current_user: User = Depends(require_admin),
     session: Session = Depends(get_session)
 ):
     """
-    删除计件分类（管理权限可访问：车队长、调度、老板、超级管理员）
+    删除计件分类（老板、调度可访问）
     如果品类已有计件记录，则不允许删除
 
     Args:
         category_id: 分类ID
-        current_user: 当前登录用户（需要管理权限）
+        current_user: 当前登录用户（需要管理员权限）
         session: 数据库会话
 
     Returns:
@@ -220,7 +221,7 @@ async def get_piece_work_records(
         List[PieceWorkRecordResponse]: 计件记录列表
     """
     # 权限控制：司机只能查看自己的记录
-    if current_user.role == UserRole.DRIVER:
+    if is_role(current_user.role, UserRole.DRIVER):
         user_id = current_user.id
 
     records = crud.get_piece_work_records(
@@ -332,7 +333,7 @@ async def create_piece_work_record(
         warehouse_users = crud.get_warehouse_users(session, request.warehouse_id)
         for warehouse_user in warehouse_users:
             # 只添加车队长角色的用户
-            if warehouse_user.role == UserRole.MANAGER and warehouse_user.id not in target_user_ids:
+            if is_role(warehouse_user.role, UserRole.MANAGER) and warehouse_user.id not in target_user_ids:
                 target_user_ids.append(warehouse_user.id)
 
     # 触发计件更新事件
@@ -406,7 +407,7 @@ async def get_piece_work_stats(
     Requirements: 6.1 - 数据统计单位显示
     """
     # 权限控制：司机只能查看自己的统计
-    if current_user.role == UserRole.DRIVER:
+    if is_role(current_user.role, UserRole.DRIVER):
         user_id = current_user.id
 
     # 调用 CRUD 函数获取统计数据

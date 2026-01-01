@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from database import get_session
-from models import User, UserRole
+from models import User, UserRole, is_role
 from auth import get_current_user
 import crud
 from schemas import (
@@ -172,12 +172,12 @@ async def get_attendance_records(
     user_ids_filter = None
 
     # 权限控制：司机只能查看自己的记录
-    if current_user.role == UserRole.DRIVER:
+    if is_role(current_user.role, UserRole.DRIVER):
         user_id = current_user.id
         # 司机忽略 warehouse_id 参数
 
     # 权限控制：车队长只能查看自己管理仓库的司机
-    elif current_user.role == UserRole.MANAGER:
+    elif is_role(current_user.role, UserRole.MANAGER):
         # 获取车队长管理的仓库
         manager_warehouses = crud.get_user_warehouses(session, current_user.id)
         manager_warehouse_ids = [w.id for w in manager_warehouses]
