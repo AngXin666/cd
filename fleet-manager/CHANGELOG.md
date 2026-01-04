@@ -5,6 +5,47 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-01-05
+
+### 🎉 动态计量单位功能
+
+本版本新增自定义仓库类型支持，允许老板创建自定义单位的仓库。
+
+### 新增功能
+
+#### 自定义仓库类型 (CUSTOM)
+- 新增 `custom` 仓库类型枚举值
+- 支持老板在创建仓库时设置自定义单位名称
+- 计件录入页面自动显示自定义单位
+
+#### 仓库类型系统增强
+| 类型 | 代码 | 预设单位 |
+|------|------|----------|
+| 计件 | `piece` | 件 |
+| 点位 | `point` | 点 |
+| 整车 | `whole` | 车 |
+| 距离 | `distance` | 公里 |
+| 自定义 | `custom` | (老板设置) |
+
+### 后端变更
+- `models.py`: Warehouse 模型新增 `custom_unit` 字段
+- `enums.py`: WarehouseType 枚举新增 `CUSTOM` 值
+- `helpers.py`: `get_warehouse_unit()` 函数支持 custom 类型
+- `schemas.py`: 仓库创建/更新 schema 支持 custom_unit
+- `routers/warehouses.py`: custom 类型验证（custom_unit 必填）
+
+### 前端变更
+- `api/types.ts`: WarehouseType 枚举新增 CUSTOM
+- `api/types.ts`: Warehouse 接口新增 custom_unit 字段
+- `api/types.ts`: `getWarehouseUnit()` 函数支持 custom 类型
+- `pages/boss/warehouses/detail.vue`: 仓库创建页面支持自定义类型
+
+### 测试
+- 后端 50 个仓库类型测试全部通过
+- 前端构建成功
+
+---
+
 ## [1.1.0] - 2025-12-26
 
 ### 🎉 车队长端功能对齐完成

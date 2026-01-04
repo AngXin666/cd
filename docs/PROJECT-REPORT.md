@@ -1,7 +1,7 @@
 # 车队管家项目详细报告
 
-> **生成日期**: 2024-12-30  
-> **项目版本**: v1.0.0  
+> **生成日期**: 2026-01-05  
+> **项目版本**: v1.2.0  
 > **状态**: ✅ 生产就绪
 
 ## 一、项目概述
@@ -221,6 +221,7 @@ class User:
 | 点位 | `point` | 点 |
 | 整车 | `whole` | 车 |
 | 距离 | `distance` | 公里 |
+| 自定义 | `custom` | (老板设置) |
 
 ### 4.4 考勤打卡模块 (attendance)
 
@@ -441,6 +442,7 @@ class WarehouseType(str, Enum):
     POINT = "point"      # 点位 → 点
     WHOLE = "whole"      # 整车 → 车
     DISTANCE = "distance"  # 距离 → 公里
+    CUSTOM = "custom"    # 自定义 → (老板设置)
 
 # 请假类型
 class LeaveType(str, Enum):
@@ -635,7 +637,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 - ✅ 角色权限系统
 - ✅ 用户管理
 - ✅ 仓库管理
-- ✅ 仓库类型分类（计件/点位/整车/距离）
+- ✅ 仓库类型分类（计件/点位/整车/距离/自定义）
 - ✅ 考勤打卡
 - ✅ 计件录入
 - ✅ 请假审批
