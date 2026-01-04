@@ -14,23 +14,17 @@
     <!-- 页面内容 -->
     <scroll-view scroll-y class="page-content" @scrolltolower="onScrollToLower">
       <view class="content-wrapper">
-        <!-- 欢迎卡片 -->
-        <view class="welcome-card">
-          <view class="welcome-content">
-            <view class="welcome-text">
-              <text class="welcome-title">司机工作台</text>
-              <text class="welcome-subtitle">欢迎回来，{{ displayName }}</text>
-            </view>
-            <!-- 请假状态提示 -->
-            <view v-if="onLeave" class="leave-badge">
-              <text class="leave-icon">🏖️</text>
-              <view class="leave-info">
-                <text class="leave-title">今天您休息</text>
-                <text class="leave-desc">无需打卡</text>
-              </view>
+        <!-- 欢迎卡片 - 使用共享组件 -->
+        <WelcomeCard title="司机工作台" :subtitle="'欢迎回来，' + displayName">
+          <!-- 请假状态提示 -->
+          <view v-if="onLeave" class="leave-badge">
+            <text class="leave-icon">🏖️</text>
+            <view class="leave-info">
+              <text class="leave-title">今天您休息</text>
+              <text class="leave-desc">无需打卡</text>
             </view>
           </view>
-        </view>
+        </WelcomeCard>
 
         <!-- 今日打卡状态卡片 - Requirements 4.1, 4.2, 4.3 -->
         <view class="section">
@@ -52,7 +46,7 @@
                   <text class="badge-text">已打卡</text>
                 </view>
               </view>
-              
+
               <view class="attendance-details">
                 <!-- 上班打卡信息 -->
                 <view class="detail-item">
@@ -61,7 +55,7 @@
                   </view>
                   <view class="detail-content">
                     <text class="detail-label">上班打卡</text>
-                    <text class="detail-value">{{ formatTime(todayAttendance.clock_in_time) }}</text>
+                    <text class="detail-value">{{ formatTime(todayAttendance.clock_in_time, '--:--') }}</text>
                   </view>
                 </view>
                 
@@ -83,7 +77,7 @@
                   </view>
                   <view class="detail-content">
                     <text class="detail-label">下班打卡</text>
-                    <text class="detail-value">{{ formatTime(todayAttendance.clock_out_time) }}</text>
+                    <text class="detail-value">{{ formatTime(todayAttendance.clock_out_time, '--:--') }}</text>
                   </view>
                 </view>
                 
@@ -107,7 +101,7 @@
                 </view>
               </view>
             </view>
-            
+
             <!-- 未打卡状态 -->
             <view v-else class="attendance-status not-clocked">
               <view class="not-clocked-content">
@@ -142,12 +136,12 @@
 
           <view class="dashboard-card">
             <view class="dashboard-grid">
-              <!-- 今天件数 -->
+              <!-- 今天数量 -->
               <view class="dashboard-item blue" @click="navigateToPieceWorkList('today')">
                 <text class="dashboard-icon">📦</text>
-                <text class="dashboard-label">今天件数</text>
+                <text class="dashboard-label">今天{{ currentUnit }}数</text>
                 <text class="dashboard-value">{{ stats.todayPieceCount }}</text>
-                <text class="dashboard-unit">件</text>
+                <text class="dashboard-unit">{{ currentUnit }}</text>
               </view>
 
               <!-- 今天收入 -->
@@ -158,12 +152,12 @@
                 <text class="dashboard-unit">元</text>
               </view>
 
-              <!-- 本月件数 -->
+              <!-- 本月数量 -->
               <view class="dashboard-item purple" @click="navigateToPieceWorkList('month')">
                 <text class="dashboard-icon">📅</text>
-                <text class="dashboard-label">本月件数</text>
+                <text class="dashboard-label">本月{{ currentUnit }}数</text>
                 <text class="dashboard-value">{{ stats.monthPieceCount }}</text>
-                <text class="dashboard-unit">件</text>
+                <text class="dashboard-unit">{{ currentUnit }}</text>
               </view>
 
               <!-- 本月收入 -->
@@ -223,7 +217,8 @@
           </view>
         </view>
 
-        <!-- 快捷功能入口 - Requirements 4.7 -->
+
+        <!-- 快捷功能入口 - 使用共享组件 QuickActions -->
         <view class="section">
           <view class="section-header">
             <view class="section-title-wrapper">
@@ -237,77 +232,11 @@
             </view>
           </view>
 
-          <view class="quick-actions-card">
-            <view class="quick-actions-grid">
-              <!-- 计件录入 -->
-              <view class="action-item blue" @click="navigateTo('/pages/driver/piece-work/entry')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📝</text>
-                </view>
-                <text class="action-text">计件录入</text>
-              </view>
-
-              <!-- 计件记录 -->
-              <view class="action-item green" @click="navigateTo('/pages/driver/piece-work/list')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📋</text>
-                </view>
-                <text class="action-text">计件记录</text>
-              </view>
-
-              <!-- 考勤打卡 -->
-              <view class="action-item orange" @click="navigateTo('/pages/driver/clock/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">🕐</text>
-                </view>
-                <text class="action-text">考勤打卡</text>
-              </view>
-
-              <!-- 请假申请 -->
-              <view class="action-item purple" @click="navigateTo('/pages/driver/leave/apply')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📅</text>
-                </view>
-                <text class="action-text">请假申请</text>
-              </view>
-
-              <!-- 考勤记录 -->
-              <view class="action-item teal" @click="navigateTo('/pages/driver/attendance/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📊</text>
-                </view>
-                <text class="action-text">考勤记录</text>
-              </view>
-
-              <!-- 请假记录 -->
-              <view class="action-item pink" @click="navigateTo('/pages/driver/leave/list')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">🏖️</text>
-                </view>
-                <text class="action-text">请假记录</text>
-              </view>
-
-              <!-- 车辆管理 -->
-              <view class="action-item cyan" @click="navigateTo('/pages/driver/vehicle/list')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">🚗</text>
-                </view>
-                <text class="action-text">车辆管理</text>
-              </view>
-
-              <!-- 通知消息 -->
-              <view class="action-item red" @click="navigateTo('/pages/notifications/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">🔔</text>
-                  <!-- 未读消息数量徽章 -->
-                  <view v-if="unreadCount > 0" class="unread-badge">
-                    <text class="unread-count">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
-                  </view>
-                </view>
-                <text class="action-text">通知消息</text>
-              </view>
-            </view>
-          </view>
+          <QuickActions
+            :actions="quickActions"
+            :columns="3"
+            @click="handleQuickActionClick"
+          />
         </view>
 
         <!-- 所属仓库卡片 - 与主项目对齐 -->
@@ -348,12 +277,9 @@
           </view>
         </view>
 
-        <!-- 退出登录 -->
+        <!-- 退出登录 - 使用共享组件 -->
         <view class="section">
-          <view class="logout-card" @click="handleLogout">
-            <text class="logout-icon">🚪</text>
-            <text class="logout-text">退出登录</text>
-          </view>
+          <LogoutCard />
         </view>
       </view>
     </scroll-view>
@@ -380,6 +306,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
+import { WelcomeCard, LogoutCard, QuickActions } from '@/components'
+import type { QuickActionItem } from '@/components/QuickActions/types'
 import { 
   getPieceWorkStats, 
   getTodayAttendance, 
@@ -389,12 +317,13 @@ import {
   getAttendanceRecords,
 } from '@/api'
 import type { TodayAttendance, LeaveApplication, Warehouse } from '@/api/types'
-import { LeaveStatus } from '@/api/types'
+import { LeaveStatus, getWarehousePresetUnit } from '@/api/types'
 import {
   filterWarehousesWithData,
   shouldShowWarehouseSwitcher,
-  createWarehouseDataMap,
 } from '@/utils/warehouse'
+import { getLocalDateString, getMonthStartStr } from '@/utils/date'
+import { formatTime } from '@/utils/dateFormat'
 
 // ==================== Store ====================
 
@@ -417,6 +346,7 @@ const todayAttendance = ref<(TodayAttendance & { warehouse_name?: string }) | nu
 /** 未读通知数量 */
 const unreadCount = ref(0)
 
+
 /** 统计数据 - 扩展为6个统计项，与主项目对齐 */
 const stats = ref({
   todayPieceCount: 0,
@@ -433,6 +363,9 @@ const warehouses = ref<Warehouse[]>([])
 /** 仓库数据映射（warehouseId -> hasData） */
 const warehouseDataMap = ref<Map<number, boolean>>(new Map())
 
+/** 仓库今日件数映射（warehouseId -> todayPieceCount），用于排序 */
+const warehouseTodayPieceCountMap = ref<Map<number, number>>(new Map())
+
 /** 当前选中的仓库索引（用于 Swiper 切换） */
 const currentWarehouseIndex = ref(0)
 
@@ -442,15 +375,31 @@ const loadingWarehouses = ref(false)
 // ==================== 计算属性 ====================
 
 /**
+ * 快捷功能列表
+ * 定义司机端的快捷功能入口
+ */
+const quickActions = computed<QuickActionItem[]>(() => [
+  { key: 'piece-work', icon: '📝', text: '计件录入', color: 'blue' },
+  { key: 'clock', icon: '🕐', text: '考勤打卡', color: 'orange' },
+  { key: 'leave', icon: '📅', text: '请假申请', color: 'purple' },
+  { key: 'stats', icon: '📊', text: '数据统计', color: 'teal' },
+  { key: 'vehicle', icon: '🚗', text: '车辆管理', color: 'cyan' },
+  { key: 'notifications', icon: '🔔', text: '通知消息', color: 'red', badge: unreadCount.value },
+])
+
+/**
  * 有数据的仓库列表
- * 使用统一的工具函数过滤
+ * 使用统一的工具函数过滤，按今日件数排序（从多到少）
  */
 const warehousesWithData = computed(() => {
   return filterWarehousesWithData({
     warehouses: warehouses.value,
     warehouseDataMap: warehouseDataMap.value,
+    warehouseTodayPieceCountMap: warehouseTodayPieceCountMap.value,
+    sortBy: 'todayPieceCount',
   })
 })
+
 
 /**
  * 是否显示仓库切换器
@@ -479,6 +428,22 @@ const today = computed(() => {
   return `${year}年${month}月${day}日 ${weekdays[now.getDay()]}`
 })
 
+/**
+ * 当前选中仓库的计量单位
+ * 根据仓库类型返回对应的单位（件/点/车/公里）
+ */
+const currentUnit = computed(() => {
+  const currentWarehouse = warehousesWithData.value[currentWarehouseIndex.value]
+  if (currentWarehouse?.warehouse_type) {
+    return getWarehousePresetUnit(currentWarehouse.warehouse_type)
+  }
+  // 如果没有选中仓库或仓库没有类型，尝试从第一个仓库获取
+  if (warehouses.value.length > 0 && warehouses.value[0].warehouse_type) {
+    return getWarehousePresetUnit(warehouses.value[0].warehouse_type)
+  }
+  return '件' // 默认单位
+})
+
 // ==================== 生命周期 ====================
 
 onMounted(() => {
@@ -489,6 +454,7 @@ onShow(() => {
   // 页面显示时刷新数据
   loadData()
 })
+
 
 // ==================== 方法 ====================
 
@@ -531,34 +497,40 @@ async function loadAttendance(): Promise<void> {
 
 /**
  * 加载计件统计数据
+ * 根据当前选中的仓库过滤数据
  * @requirements 4.4, 4.5
  */
 async function loadStats(): Promise<void> {
   loadingStats.value = true
   
   try {
-    // 获取今日日期字符串
-    const todayStr = new Date().toISOString().split('T')[0]
+    // 获取今日日期字符串（使用本地时间）
+    const todayStr = getLocalDateString()
     
-    // 获取本月第一天
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthStartStr = monthStart.toISOString().split('T')[0]
+    // 获取本月第一天（使用共享工具函数）
+    const monthStartStr = getMonthStartStr()
     
-    // 并行获取今日和本月统计、考勤记录
+    // 获取当前选中的仓库ID
+    const currentWarehouse = warehousesWithData.value[currentWarehouseIndex.value]
+    const warehouseId = currentWarehouse ? currentWarehouse.id : undefined
+    
+    // 并行获取今日和本月统计、考勤记录（按仓库过滤）
     const [todayStats, monthStats, attendanceRecords] = await Promise.all([
       getPieceWorkStats({
         start_date: todayStr,
         end_date: todayStr,
+        warehouse_id: warehouseId,
       }),
       getPieceWorkStats({
         start_date: monthStartStr,
         end_date: todayStr,
+        warehouse_id: warehouseId,
       }),
-      // 获取本月考勤记录用于计算出勤天数
+      // 获取本月考勤记录用于计算出勤天数（按仓库过滤）
       getAttendanceRecords({
         start_date: monthStartStr,
         end_date: todayStr,
+        warehouse_id: warehouseId,
       }),
     ])
     
@@ -580,6 +552,7 @@ async function loadStats(): Promise<void> {
   }
 }
 
+
 /**
  * 加载司机分配的仓库列表
  * 用于仓库切换器和所属仓库卡片
@@ -590,44 +563,52 @@ async function loadWarehouses(): Promise<void> {
   
   try {
     // 获取所有启用的仓库
-    // 注意：后端应该根据当前用户角色返回对应的仓库
-    // 如果后端没有过滤，前端需要根据用户分配关系过滤
     const data = await getWarehouses({ is_active: true })
     warehouses.value = data || []
     
-    // 获取本月第一天（用于统计本月数据）
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthStartStr = monthStart.toISOString().split('T')[0]
-    const todayStr = now.toISOString().split('T')[0]
+    // 获取本月第一天（使用共享工具函数）
+    const monthStartStr = getMonthStartStr()
+    const todayStr = getLocalDateString()
     
     // 并行获取每个仓库的计件数据
     const warehouseStatsPromises = warehouses.value.map(async (warehouse) => {
       try {
-        const stats = await getPieceWorkStats({
+        // 获取本月统计（用于判断是否有数据）
+        const monthStats = await getPieceWorkStats({
           warehouse_id: warehouse.id,
           start_date: monthStartStr,
+          end_date: todayStr,
+        })
+        // 获取今日统计（用于排序）
+        const todayStats = await getPieceWorkStats({
+          warehouse_id: warehouse.id,
+          start_date: todayStr,
           end_date: todayStr,
         })
         // 有数据 = 本月有计件记录
         return {
           warehouseId: warehouse.id,
-          hasData: (stats.total_quantity || 0) > 0,
+          hasData: (monthStats.total_quantity || 0) > 0,
+          todayPieceCount: todayStats.total_quantity || 0,
         }
       } catch {
-        return { warehouseId: warehouse.id, hasData: false }
+        return { warehouseId: warehouse.id, hasData: false, todayPieceCount: 0 }
       }
     })
     
     const warehouseStatsResults = await Promise.all(warehouseStatsPromises)
     
     // 创建仓库数据映射
-    warehouseDataMap.value = createWarehouseDataMap(
-      warehouseStatsResults.map(r => ({
-        warehouseId: r.warehouseId,
-        hasData: r.hasData,
-      }))
-    )
+    const dataMap = new Map<number, boolean>()
+    const todayPieceCountMap = new Map<number, number>()
+    for (const result of warehouseStatsResults) {
+      if (result.hasData) {
+        dataMap.set(result.warehouseId, true)
+      }
+      todayPieceCountMap.set(result.warehouseId, result.todayPieceCount)
+    }
+    warehouseDataMap.value = dataMap
+    warehouseTodayPieceCountMap.value = todayPieceCountMap
   } catch (error) {
     console.error('加载仓库列表失败:', error)
     warehouses.value = []
@@ -637,19 +618,18 @@ async function loadWarehouses(): Promise<void> {
   }
 }
 
+
 /**
  * 加载请假状态
  * 检查用户今天是否在请假中，并计算本月请假天数
  */
 async function loadLeaveStatus(): Promise<void> {
   try {
-    // 获取今日日期
-    const todayStr = new Date().toISOString().split('T')[0]
+    // 获取今日日期（使用本地时间）
+    const todayStr = getLocalDateString()
     
-    // 获取本月第一天
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthStartStr = monthStart.toISOString().split('T')[0]
+    // 获取本月第一天（使用共享工具函数）
+    const monthStartStr = getMonthStartStr()
     
     // 获取已批准的请假申请
     const applications = await getLeaveApplications({
@@ -704,19 +684,6 @@ async function loadUnreadCount(): Promise<void> {
 }
 
 /**
- * 格式化时间显示
- * @param timeStr - ISO 时间字符串
- * @returns 格式化后的时间 HH:mm
- */
-function formatTime(timeStr: string | null): string {
-  if (!timeStr) return '--:--'
-  const date = new Date(timeStr)
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${hours}:${minutes}`
-}
-
-/**
  * 格式化工作时长
  * @param hours - 工作小时数
  * @returns 格式化后的时长
@@ -728,6 +695,7 @@ function formatWorkHours(hours: number | null): string {
   if (m === 0) return `${h}小时`
   return `${h}小时${m}分钟`
 }
+
 
 /**
  * 页面跳转
@@ -755,6 +723,26 @@ function navigateTo(url: string): void {
 }
 
 /**
+ * 处理快捷功能点击
+ * @param key - 功能项唯一标识
+ */
+function handleQuickActionClick(key: string): void {
+  const routes: Record<string, string> = {
+    'piece-work': '/pages/driver/piece-work/entry',
+    'clock': '/pages/driver/clock/index',
+    'leave': '/pages/driver/leave/apply',
+    'stats': '/pages/driver/stats/index',
+    'vehicle': '/pages/driver/vehicle/list',
+    'notifications': '/pages/notifications/index',
+  }
+  
+  const url = routes[key]
+  if (url) {
+    navigateTo(url)
+  }
+}
+
+/**
  * 跳转到计件记录页面（带日期范围参数）
  * @param range - 日期范围类型 ('today' | 'month')
  * @requirements 4.6
@@ -774,10 +762,13 @@ function onScrollToLower(): void {
 
 /**
  * 处理仓库切换（Swiper 滑动）
+ * 切换仓库后重新加载统计数据
  * @param e - Swiper 事件
  */
 function handleWarehouseChange(e: any): void {
   currentWarehouseIndex.value = e.detail.current
+  // 切换仓库后重新加载统计数据
+  loadStats()
 }
 
 /**
@@ -787,22 +778,6 @@ function handleWarehouseChange(e: any): void {
 function navigateToWarehouseStats(warehouseId: number): void {
   uni.navigateTo({ 
     url: `/pages/driver/warehouse-stats/index?warehouseId=${warehouseId}` 
-  })
-}
-
-/**
- * 退出登录
- */
-function handleLogout(): void {
-  uni.showModal({
-    title: '退出登录',
-    content: '确定要退出登录吗？',
-    success: (res) => {
-      if (res.confirm) {
-        userStore.logout()
-        uni.reLaunch({ url: '/pages/login/index' })
-      }
-    }
   })
 }
 </script>
@@ -828,38 +803,6 @@ function handleLogout(): void {
 .content-wrapper {
   padding: 32rpx;
   padding-bottom: 120rpx;
-}
-
-/* 欢迎卡片 */
-.welcome-card {
-  background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
-  border-radius: 24rpx;
-  padding: 48rpx;
-  margin-bottom: 32rpx;
-  box-shadow: 0 8rpx 32rpx rgba(30, 58, 138, 0.3);
-}
-
-.welcome-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.welcome-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.welcome-title {
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #ffffff;
-  margin-bottom: 8rpx;
-}
-
-.welcome-subtitle {
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.8);
 }
 
 /* 请假状态徽章 */
@@ -935,6 +878,7 @@ function handleLogout(): void {
   font-size: 24rpx;
   color: #6B7280;
 }
+
 
 /* 个人中心按钮 */
 .profile-btn {
@@ -1056,6 +1000,7 @@ function handleLogout(): void {
   }
 }
 
+
 .attendance-action {
   margin-top: 24rpx;
 }
@@ -1142,19 +1087,6 @@ function handleLogout(): void {
   color: #ffffff;
 }
 
-/* 统计卡片 - 旧样式保留兼容 */
-.stats-card {
-  background-color: #ffffff;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
-}
 
 /* 数据仪表盘 - 6个统计卡片 */
 .dashboard-card {
@@ -1259,6 +1191,7 @@ function handleLogout(): void {
   font-weight: bold;
   color: #1E3A8A;
 }
+
 
 /* 所属仓库卡片 */
 .warehouses-card {
@@ -1367,198 +1300,5 @@ function handleLogout(): void {
 .empty-desc {
   font-size: 24rpx;
   color: #D1D5DB;
-}
-
-.stat-block {
-  border-radius: 20rpx;
-  padding: 24rpx;
-  transition: transform 0.2s;
-  
-  &:active {
-    transform: scale(0.98);
-  }
-  
-  &.today {
-    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-    border: 2rpx solid #BFDBFE;
-  }
-  
-  &.month {
-    background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
-    border: 2rpx solid #BBF7D0;
-  }
-}
-
-.stat-block-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-
-.stat-block-icon {
-  font-size: 32rpx;
-  margin-right: 8rpx;
-}
-
-.stat-block-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #374151;
-}
-
-.stat-block-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  margin-bottom: 16rpx;
-}
-
-.stat-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.stat-label {
-  font-size: 24rpx;
-  color: #6B7280;
-}
-
-.stat-value-wrapper {
-  display: flex;
-  align-items: baseline;
-}
-
-.stat-value {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #1F2937;
-  
-  &.money {
-    color: #059669;
-  }
-}
-
-.stat-unit {
-  font-size: 22rpx;
-  color: #9CA3AF;
-  margin-left: 4rpx;
-}
-
-.stat-block-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-top: 12rpx;
-  border-top: 1rpx solid rgba(0, 0, 0, 0.05);
-}
-
-.footer-text {
-  font-size: 22rpx;
-  color: #9CA3AF;
-}
-
-.footer-arrow {
-  font-size: 28rpx;
-  color: #9CA3AF;
-  margin-left: 4rpx;
-}
-
-/* 快捷功能卡片 */
-.quick-actions-card {
-  background-color: #ffffff;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-}
-
-.quick-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20rpx;
-}
-
-.action-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20rpx 12rpx;
-  border-radius: 16rpx;
-  transition: transform 0.2s;
-  
-  &:active {
-    transform: scale(0.95);
-  }
-  
-  &.blue { background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); }
-  &.green { background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); }
-  &.orange { background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); }
-  &.purple { background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%); }
-  &.teal { background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%); }
-  &.pink { background: linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%); }
-  &.cyan { background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); }
-  &.red { background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%); }
-}
-
-.action-icon-wrapper {
-  position: relative;
-  margin-bottom: 8rpx;
-}
-
-.action-icon {
-  font-size: 48rpx;
-}
-
-.unread-badge {
-  position: absolute;
-  top: -8rpx;
-  right: -12rpx;
-  min-width: 32rpx;
-  height: 32rpx;
-  background-color: #EF4444;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8rpx;
-}
-
-.unread-count {
-  font-size: 20rpx;
-  font-weight: bold;
-  color: #ffffff;
-}
-
-.action-text {
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #374151;
-  text-align: center;
-}
-
-/* 退出登录卡片 */
-.logout-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-  border-radius: 24rpx;
-  padding: 32rpx;
-  box-shadow: 0 4rpx 16rpx rgba(239, 68, 68, 0.3);
-  
-  &:active {
-    opacity: 0.9;
-  }
-}
-
-.logout-icon {
-  font-size: 40rpx;
-  margin-right: 12rpx;
-}
-
-.logout-text {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #ffffff;
 }
 </style>

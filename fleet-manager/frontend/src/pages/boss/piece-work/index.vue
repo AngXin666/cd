@@ -110,6 +110,7 @@ import { onShow, onHide } from '@dcloudio/uni-app'
 import { getPieceWorkRecords, getPieceWorkStats } from '@/api'
 import type { PieceWorkRecord, PieceWorkStats } from '@/api/types'
 import { formatDate, navigateTo } from '@/utils'
+import { getLocalDateString } from '@/utils/date'
 import { sseService } from '@/utils/sse'
 import type { PieceWorkUpdateEvent, PieceWorkRecordData } from '@/types/sse-events'
 
@@ -128,8 +129,8 @@ onMounted(() => {
   // 默认显示本月数据
   const now = new Date()
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-  startDate.value = formatDateStr(firstDay)
-  endDate.value = formatDateStr(now)
+  startDate.value = getLocalDateString(firstDay)
+  endDate.value = getLocalDateString(now)
   loadData()
   // 注册 SSE 回调
   registerSSECallbacks()
@@ -154,18 +155,6 @@ onHide(() => {
 onUnmounted(() => {
   unregisterSSECallbacks()
 })
-
-/**
- * 格式化日期为字符串
- * @param date - 日期对象
- * @returns 格式化后的日期字符串
- */
-function formatDateStr(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 /**
  * 加载数据

@@ -18,12 +18,12 @@
           <text class="card-unit">人</text>
         </view>
         
-        <!-- 今天总件数 - Requirements 5.3 -->
+        <!-- 今天总数量 - Requirements 5.3 -->
         <view class="stat-card green" @click="handleCardClick('todayPiece')">
           <view class="card-icon">📦</view>
-          <text class="card-label">今天总件数</text>
+          <text class="card-label">今天总{{ displayUnit }}数</text>
           <text class="card-value green-text">{{ stats.todayPieceCount }}</text>
-          <text class="card-unit">件</text>
+          <text class="card-unit">{{ displayUnit }}</text>
         </view>
         
         <!-- 待审批 - Requirements 5.3 -->
@@ -34,12 +34,12 @@
           <text class="card-unit">条</text>
         </view>
         
-        <!-- 本月完成件数 - Requirements 5.3 -->
+        <!-- 本月完成数量 - Requirements 5.3 -->
         <view class="stat-card purple" @click="handleCardClick('monthlyPiece')">
           <view class="card-icon">📈</view>
-          <text class="card-label">本月完成件数</text>
+          <text class="card-label">本月完成{{ displayUnit }}数</text>
           <text class="card-value purple-text">{{ stats.monthlyPieceCount }}</text>
-          <text class="card-unit">件</text>
+          <text class="card-unit">{{ displayUnit }}</text>
         </view>
       </view>
       
@@ -58,7 +58,7 @@
  * @description 2x2 网格布局显示统计数据
  * 
  * @requirements 5.1 - 使用 2x2 网格布局显示四个统计卡片
- * @requirements 5.2 - 包含今天出勤、今天总件数、待审批、本月完成件数四项数据
+ * @requirements 5.2 - 包含今天出勤、今天总数量、待审批、本月完成数量四项数据
  * @requirements 5.3 - 点击统计卡片跳转到对应的详情页面
  * @requirements 5.4 - 数据加载中时显示加载动画
  */
@@ -97,6 +97,14 @@ const emit = defineEmits<{
  */
 const today = computed(() => {
   return new Date().toLocaleDateString('zh-CN')
+})
+
+/**
+ * 显示的计量单位
+ * 优先使用 stats 中的 unit，否则默认为 "件"
+ */
+const displayUnit = computed(() => {
+  return props.stats?.unit || '件'
 })
 
 // ==================== 方法 ====================

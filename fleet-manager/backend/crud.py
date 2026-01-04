@@ -1,7 +1,7 @@
 """
 CRUD 操作模块
 实现数据库的增删改查操作
-包含用户、仓库、考勤、计件、请假、车辆、通知、定时通知等模块的 CRUD
+包含用户、仓库、考勤、计件、请假、车辆、通知等模块的 CRUD
 """
 
 from datetime import datetime, date
@@ -10,14 +10,13 @@ from sqlmodel import Session, select, func
 from models import (
     User, Warehouse, WarehouseAssignment, Attendance,
     PieceWorkCategory, PieceWorkRecord, LeaveApplication,
-    Vehicle, VehicleDocument, Notification, NotificationTemplate,
-    ScheduledNotification, RepeatType, ScheduledNotificationStatus,
+    Vehicle, VehicleDocument, Notification,
     UserRole, LeaveStatus, VehicleStatus, WarehouseType, DriverLicense
 )
 # 从 common.py 导入密码哈希函数，解决循环导入问题
 from common import hash_password
 # 导入参数数据类，用于封装多参数函数
-from schemas import ScheduledNotificationParams, VehicleCreateParams
+from schemas import VehicleCreateParams
 
 
 # ==================== 用户 CRUD ====================
@@ -106,7 +105,9 @@ def get_users(
     Returns:
         List[User]: 用户列表
     """
-    statement = select(User)
+    from sqlalchemy.orm import selectinload
+    
+    statement = select(User).options(selectinload(User.driver_license))
 
     # 应用筛选条件
     if role is not None:
@@ -126,6 +127,7 @@ def update_user(
     name: Optional[str] = None,
     phone: Optional[str] = None,
     role: Optional[UserRole] = None,
+    driver_type: Optional[str] = None,
     is_active: Optional[bool] = None
 ) -> User:
     """
@@ -137,6 +139,7 @@ def update_user(
         name: 新姓名（可选）
         phone: 新手机号（可选）
         role: 新角色（可选）
+        driver_type: 司机类型（可选）：pure 或 with_vehicle
         is_active: 新启用状态（可选）
 
     Returns:
@@ -148,6 +151,8 @@ def update_user(
         user.phone = phone
     if role is not None:
         user.role = role
+    if driver_type is not None:
+        user.driver_type = driver_type
     if is_active is not None:
         user.is_active = is_active
 
@@ -1838,7 +1843,10 @@ def create_notification(
     user_id: int,
     title: str,
     content: Optional[str] = None,
-    sender_id: Optional[int] = None
+    sender_id: Optional[int] = None,
+    ref_type: Optional[str] = None,
+    ref_id: Optional[int] = None,
+    status: Optional[str] = None
 ) -> Notification:
     """
     创建通知
@@ -1849,6 +1857,9 @@ def create_notification(
         title: 通知标题
         content: 通知内容（可选）
         sender_id: 发送者ID（可选）
+        ref_type: 关联类型（可选）：leave/resign/vehicle
+        ref_id: 关联业务ID（可选）
+        status: 审批状态（可选）：pending/approved/rejected
 
     Returns:
         Notification: 创建的通知对象
@@ -1857,7 +1868,10 @@ def create_notification(
         user_id=user_id,
         title=title,
         content=content,
-        sender_id=sender_id
+        sender_id=sender_id,
+        ref_type=ref_type,
+        ref_id=ref_id,
+        status=status
     )
     session.add(notification)
     session.commit()
@@ -1870,7 +1884,10 @@ def create_notifications_batch(
     user_ids: List[int],
     title: str,
     content: Optional[str] = None,
-    sender_id: Optional[int] = None
+    sender_id: Optional[int] = None,
+    ref_type: Optional[str] = None,
+    ref_id: Optional[int] = None,
+    status: Optional[str] = None
 ) -> List[Notification]:
     """
     批量创建通知（发送给多个用户）
@@ -1881,6 +1898,9 @@ def create_notifications_batch(
         title: 通知标题
         content: 通知内容（可选）
         sender_id: 发送者ID（可选）
+        ref_type: 关联类型（可选）：leave/resign/vehicle
+        ref_id: 关联业务ID（可选）
+        status: 审批状态（可选）：pending/approved/rejected
 
     Returns:
         List[Notification]: 创建的通知对象列表
@@ -1891,7 +1911,10 @@ def create_notifications_batch(
             user_id=user_id,
             title=title,
             content=content,
-            sender_id=sender_id
+            sender_id=sender_id,
+            ref_type=ref_type,
+            ref_id=ref_id,
+            status=status
         )
         session.add(notification)
         notifications.append(notification)
@@ -1903,6 +1926,247 @@ def create_notifications_batch(
         session.refresh(notification)
 
     return notifications
+
+
+def notify_admins(
+    session: Session,
+    title: str,
+    content: str,
+    sender_id: Optional[int] = None,
+    include_manager: bool = True
+) -> List[Notification]:
+    """
+    发送通知给所有管理员（简化版）
+    
+    一行代码即可发送通知给所有管理员，无需手动筛选用户。
+
+    Args:
+        session: 数据库会话
+        title: 通知标题
+        content: 通知内容
+        sender_id: 发送者ID（可选）
+        include_manager: 是否包含车队长，默认 True
+            - True: 发送给车队长、调度、老板
+            - False: 只发送给调度、老板
+
+    Returns:
+        List[Notification]: 创建的通知列表
+
+    Example:
+        # 请假申请通知（发给车队长、调度、老板）
+        crud.notify_admins(session, "新的请假申请", f"{user.name} 提交了请假申请", sender_id=user.id)
+        
+        # 车辆审核通知（只发给调度、老板）
+        crud.notify_admins(session, "新的车辆审核", f"{user.name} 添加了新车辆", sender_id=user.id, include_manager=False)
+    """
+    try:
+        # 确定目标角色
+        if include_manager:
+            target_roles = [UserRole.MANAGER.value, UserRole.PEER_ADMIN.value, UserRole.BOSS.value]
+        else:
+            target_roles = [UserRole.PEER_ADMIN.value, UserRole.BOSS.value]
+        
+        # 获取所有激活的管理员用户
+        admin_users = get_users(session, is_active=True, skip=0, limit=1000)
+        admin_ids = [u.id for u in admin_users if u.role in target_roles]
+        
+        if not admin_ids:
+            return []
+        
+        # 批量创建通知
+        return create_notifications_batch(
+            session,
+            user_ids=admin_ids,
+            title=title,
+            content=content,
+            sender_id=sender_id
+        )
+    except Exception as e:
+        # 通知发送失败不影响主流程
+        print(f"发送管理员通知失败: {e}")
+        return []
+
+
+def get_managers_for_user(session: Session, user_id: int) -> List[User]:
+    """
+    获取管辖某用户的车队长列表
+    
+    通过用户的仓库分配，找到同样分配到这些仓库的车队长。
+    
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+        
+    Returns:
+        List[User]: 管辖该用户的车队长列表
+    """
+    # 1. 获取用户分配的仓库ID列表
+    user_warehouses = get_user_warehouses(session, user_id)
+    warehouse_ids = [w.id for w in user_warehouses]
+    
+    if not warehouse_ids:
+        return []
+    
+    # 2. 查找分配到这些仓库的车队长
+    statement = (
+        select(User)
+        .join(WarehouseAssignment)
+        .where(
+            WarehouseAssignment.warehouse_id.in_(warehouse_ids),
+            User.role == UserRole.MANAGER.value,
+            User.is_active == True
+        )
+        .distinct()
+    )
+    
+    return list(session.exec(statement).all())
+
+
+def create_approval_notification(
+    session: Session,
+    applicant_id: int,
+    ref_type: str,
+    ref_id: int,
+    title: str,
+    content: str
+) -> List[Notification]:
+    """
+    创建审批通知
+    
+    自动发送给：
+    1. 管辖申请人的车队长（通过仓库分配确定）
+    2. 所有调度（peer_admin）
+    3. 所有老板（boss）
+    
+    Args:
+        session: 数据库会话
+        applicant_id: 申请人ID
+        ref_type: 关联类型（leave/vehicle/resign）
+        ref_id: 关联业务ID
+        title: 通知标题
+        content: 通知内容
+        
+    Returns:
+        List[Notification]: 创建的通知列表
+    """
+    try:
+        # 1. 获取管辖申请人的车队长
+        managers = get_managers_for_user(session, applicant_id)
+        manager_ids = [m.id for m in managers]
+        
+        # 2. 获取所有调度和老板
+        all_users = get_users(session, is_active=True, skip=0, limit=1000)
+        admin_ids = [
+            u.id for u in all_users 
+            if u.role in [UserRole.PEER_ADMIN.value, UserRole.BOSS.value]
+        ]
+        
+        # 3. 合并去重
+        recipient_ids = list(set(manager_ids + admin_ids))
+        
+        if not recipient_ids:
+            return []
+        
+        # 4. 批量创建通知（带业务关联）
+        notifications = []
+        for user_id in recipient_ids:
+            notification = Notification(
+                user_id=user_id,
+                title=title,
+                content=content,
+                sender_id=applicant_id,
+                ref_type=ref_type,
+                ref_id=ref_id,
+                status="pending"
+            )
+            session.add(notification)
+            notifications.append(notification)
+        
+        session.commit()
+        for n in notifications:
+            session.refresh(n)
+        
+        return notifications
+    except Exception as e:
+        print(f"创建审批通知失败: {e}")
+        return []
+
+
+def complete_approval(
+    session: Session,
+    ref_type: str,
+    ref_id: int,
+    result: str,
+    approver_id: int,
+    applicant_id: int,
+    result_title: str,
+    result_content: str
+) -> List[Notification]:
+    """
+    完成审批，更新所有相关通知并发送结果通知
+    
+    1. 更新所有相关 pending 通知的状态
+    2. 给所有之前收到通知的管理员发送结果通知
+    3. 给申请人发送结果通知
+    
+    Args:
+        session: 数据库会话
+        ref_type: 关联类型（leave/vehicle/resign）
+        ref_id: 关联业务ID
+        result: 审批结果（approved/rejected）
+        approver_id: 审批人ID
+        applicant_id: 申请人ID
+        result_title: 结果通知标题
+        result_content: 结果通知内容
+        
+    Returns:
+        List[Notification]: 新创建的结果通知列表
+    """
+    from datetime import datetime
+    
+    try:
+        # 1. 查找所有相关的 pending 通知
+        statement = select(Notification).where(
+            Notification.ref_type == ref_type,
+            Notification.ref_id == ref_id,
+            Notification.status == "pending"
+        )
+        pending_notifications = list(session.exec(statement).all())
+        
+        # 2. 更新所有 pending 通知的状态
+        notified_user_ids = set()
+        for notification in pending_notifications:
+            notification.status = result
+            notification.updated_at = datetime.now()
+            session.add(notification)
+            notified_user_ids.add(notification.user_id)
+        
+        # 3. 添加申请人到通知列表
+        notified_user_ids.add(applicant_id)
+        
+        # 4. 给所有相关人员发送结果通知
+        result_notifications = []
+        for user_id in notified_user_ids:
+            notification = Notification(
+                user_id=user_id,
+                title=result_title,
+                content=result_content,
+                sender_id=approver_id,
+                ref_type=ref_type,
+                ref_id=ref_id,
+                status=result
+            )
+            session.add(notification)
+            result_notifications.append(notification)
+        
+        session.commit()
+        for n in result_notifications:
+            session.refresh(n)
+        
+        return result_notifications
+    except Exception as e:
+        print(f"完成审批通知失败: {e}")
+        return []
 
 
 def get_notifications(
@@ -2075,1339 +2339,6 @@ def init_default_data(session: Session) -> None:
         for name, price, unit in default_categories:
             create_piece_work_category(session, name, price, unit)
         print("✅ 已创建默认计件分类")
-
-    # 检查是否已有通知模板
-    templates = get_notification_templates(session)
-    if not templates:
-        # 创建默认通知模板
-        init_default_notification_templates(session)
-        print("✅ 已创建默认通知模板")
-
-
-# ==================== 通知模板 CRUD ====================
-
-def create_notification_template(
-    session: Session,
-    name: str,
-    title: str,
-    content: str,
-    variables: Optional[dict] = None,
-    category: Optional[str] = None,
-    is_active: bool = True
-) -> NotificationTemplate:
-    """
-    创建通知模板
-
-    Args:
-        session: 数据库会话
-        name: 模板名称（唯一标识）
-        title: 通知标题模板
-        content: 通知内容模板
-        variables: 模板变量说明（可选）
-        category: 模板分类（可选）
-        is_active: 是否启用，默认 True
-
-    Returns:
-        NotificationTemplate: 创建的模板对象
-    """
-    import json
-
-    # 将变量字典转换为 JSON 字符串存储
-    variables_json = json.dumps(variables, ensure_ascii=False) if variables else None
-
-    template = NotificationTemplate(
-        name=name,
-        title=title,
-        content=content,
-        variables=variables_json,
-        category=category,
-        is_active=is_active
-    )
-    session.add(template)
-    session.commit()
-    session.refresh(template)
-    return template
-
-
-def get_notification_template_by_id(
-    session: Session,
-    template_id: int
-) -> Optional[NotificationTemplate]:
-    """
-    根据ID获取通知模板
-
-    Args:
-        session: 数据库会话
-        template_id: 模板ID
-
-    Returns:
-        NotificationTemplate: 模板对象，不存在则返回 None
-    """
-    return session.get(NotificationTemplate, template_id)
-
-
-def get_notification_template_by_name(
-    session: Session,
-    name: str
-) -> Optional[NotificationTemplate]:
-    """
-    根据名称获取通知模板
-
-    Args:
-        session: 数据库会话
-        name: 模板名称
-
-    Returns:
-        NotificationTemplate: 模板对象，不存在则返回 None
-    """
-    statement = select(NotificationTemplate).where(NotificationTemplate.name == name)
-    return session.exec(statement).first()
-
-
-def get_notification_templates(
-    session: Session,
-    category: Optional[str] = None,
-    is_active: Optional[bool] = None,
-    skip: int = 0,
-    limit: int = 100
-) -> List[NotificationTemplate]:
-    """
-    获取通知模板列表
-
-    Args:
-        session: 数据库会话
-        category: 按分类筛选（可选）
-        is_active: 按启用状态筛选（可选）
-        skip: 跳过记录数
-        limit: 返回记录数上限
-
-    Returns:
-        List[NotificationTemplate]: 模板列表
-    """
-    statement = select(NotificationTemplate)
-
-    if category is not None:
-        statement = statement.where(NotificationTemplate.category == category)
-    if is_active is not None:
-        statement = statement.where(NotificationTemplate.is_active == is_active)
-
-    # 按创建时间倒序
-    statement = statement.order_by(NotificationTemplate.created_at.desc())
-    statement = statement.offset(skip).limit(limit)
-
-    return list(session.exec(statement).all())
-
-
-def update_notification_template(
-    session: Session,
-    template: NotificationTemplate,
-    name: Optional[str] = None,
-    title: Optional[str] = None,
-    content: Optional[str] = None,
-    variables: Optional[dict] = None,
-    category: Optional[str] = None,
-    is_active: Optional[bool] = None
-) -> NotificationTemplate:
-    """
-    更新通知模板
-
-    Args:
-        session: 数据库会话
-        template: 要更新的模板对象
-        name: 新名称（可选）
-        title: 新标题模板（可选）
-        content: 新内容模板（可选）
-        variables: 新变量说明（可选）
-        category: 新分类（可选）
-        is_active: 新启用状态（可选）
-
-    Returns:
-        NotificationTemplate: 更新后的模板对象
-    """
-    import json
-
-    if name is not None:
-        template.name = name
-    if title is not None:
-        template.title = title
-    if content is not None:
-        template.content = content
-    if variables is not None:
-        template.variables = json.dumps(variables, ensure_ascii=False)
-    if category is not None:
-        template.category = category
-    if is_active is not None:
-        template.is_active = is_active
-
-    template.updated_at = datetime.now()
-    session.add(template)
-    session.commit()
-    session.refresh(template)
-    return template
-
-
-def delete_notification_template(session: Session, template: NotificationTemplate) -> None:
-    """
-    删除通知模板
-
-    Args:
-        session: 数据库会话
-        template: 要删除的模板对象
-    """
-    session.delete(template)
-    session.commit()
-
-
-def render_notification_template(
-    template: NotificationTemplate,
-    variables: Optional[dict] = None
-) -> tuple:
-    """
-    渲染通知模板
-    将模板中的变量占位符替换为实际值
-
-    Args:
-        template: 模板对象
-        variables: 变量值字典，如 {"user_name": "张三", "date": "2024-01-01"}
-
-    Returns:
-        tuple: (渲染后的标题, 渲染后的内容)
-    """
-    title = template.title
-    content = template.content
-
-    if variables:
-        # 替换标题中的变量
-        for key, value in variables.items():
-            placeholder = "{" + key + "}"
-            title = title.replace(placeholder, str(value))
-
-        # 替换内容中的变量
-        for key, value in variables.items():
-            placeholder = "{" + key + "}"
-            content = content.replace(placeholder, str(value))
-
-    return title, content
-
-
-def create_notification_from_template(
-    session: Session,
-    user_ids: List[int],
-    template_id: int,
-    variables: Optional[dict] = None,
-    sender_id: Optional[int] = None
-) -> List[Notification]:
-    """
-    使用模板创建通知
-
-    Args:
-        session: 数据库会话
-        user_ids: 接收用户ID列表
-        template_id: 模板ID
-        variables: 模板变量值（可选）
-        sender_id: 发送者ID（可选）
-
-    Returns:
-        List[Notification]: 创建的通知对象列表
-
-    Raises:
-        ValueError: 当模板不存在或未启用时抛出
-    """
-    # 获取模板
-    template = get_notification_template_by_id(session, template_id)
-    if not template:
-        raise ValueError(f"模板不存在: {template_id}")
-    if not template.is_active:
-        raise ValueError(f"模板已禁用: {template.name}")
-
-    # 渲染模板
-    title, content = render_notification_template(template, variables)
-
-    # 批量创建通知
-    notifications = []
-    for user_id in user_ids:
-        notification = Notification(
-            user_id=user_id,
-            title=title,
-            content=content,
-            sender_id=sender_id,
-            template_id=template_id
-        )
-        session.add(notification)
-        notifications.append(notification)
-
-    session.commit()
-
-    # 刷新所有通知对象
-    for notification in notifications:
-        session.refresh(notification)
-
-    return notifications
-
-
-def init_default_notification_templates(session: Session) -> None:
-    """
-    初始化默认通知模板
-    创建系统常用的通知模板
-
-    Args:
-        session: 数据库会话
-    """
-    default_templates = [
-        # 考勤相关模板
-        {
-            "name": "attendance_reminder",
-            "title": "打卡提醒",
-            "content": "亲爱的{user_name}，今天还没有打卡哦，请记得打卡！",
-            "variables": {"user_name": "用户姓名"},
-            "category": "attendance"
-        },
-        {
-            "name": "attendance_success",
-            "title": "打卡成功",
-            "content": "{user_name}，您已于{time}成功{action}打卡。",
-            "variables": {"user_name": "用户姓名", "time": "打卡时间", "action": "上班/下班"},
-            "category": "attendance"
-        },
-        # 请假相关模板
-        {
-            "name": "leave_submitted",
-            "title": "请假申请已提交",
-            "content": "您的请假申请（{start_date}至{end_date}）已提交，请等待审批。",
-            "variables": {"start_date": "开始日期", "end_date": "结束日期"},
-            "category": "leave"
-        },
-        {
-            "name": "leave_approved",
-            "title": "请假申请已批准",
-            "content": "您的请假申请（{start_date}至{end_date}）已被批准。{remark}",
-            "variables": {"start_date": "开始日期", "end_date": "结束日期", "remark": "审批备注"},
-            "category": "leave"
-        },
-        {
-            "name": "leave_rejected",
-            "title": "请假申请已拒绝",
-            "content": "您的请假申请（{start_date}至{end_date}）已被拒绝。原因：{remark}",
-            "variables": {"start_date": "开始日期", "end_date": "结束日期", "remark": "拒绝原因"},
-            "category": "leave"
-        },
-        {
-            "name": "leave_pending_approval",
-            "title": "有新的请假申请待审批",
-            "content": "{user_name}提交了请假申请（{start_date}至{end_date}），请及时审批。",
-            "variables": {"user_name": "申请人姓名", "start_date": "开始日期", "end_date": "结束日期"},
-            "category": "leave"
-        },
-        # 车辆相关模板
-        {
-            "name": "vehicle_submitted",
-            "title": "车辆信息已提交",
-            "content": "您的车辆（{license_plate}）信息已提交，请等待审核。",
-            "variables": {"license_plate": "车牌号"},
-            "category": "vehicle"
-        },
-        {
-            "name": "vehicle_approved",
-            "title": "车辆审核通过",
-            "content": "您的车辆（{license_plate}）已通过审核，可以正常使用。",
-            "variables": {"license_plate": "车牌号"},
-            "category": "vehicle"
-        },
-        {
-            "name": "vehicle_rejected",
-            "title": "车辆审核未通过",
-            "content": "您的车辆（{license_plate}）审核未通过。原因：{remark}",
-            "variables": {"license_plate": "车牌号", "remark": "拒绝原因"},
-            "category": "vehicle"
-        },
-        {
-            "name": "rent_reminder",
-            "title": "租金缴纳提醒",
-            "content": "您的车辆（{license_plate}）租金将于{payment_date}到期，金额{amount}元，请及时缴纳。",
-            "variables": {"license_plate": "车牌号", "payment_date": "缴纳日期", "amount": "租金金额"},
-            "category": "vehicle"
-        },
-        # 计件相关模板
-        {
-            "name": "piece_work_recorded",
-            "title": "计件记录已保存",
-            "content": "您在{date}的计件记录已保存：{category} {quantity}{unit}，金额{amount}元。",
-            "variables": {"date": "工作日期", "category": "分类名称", "quantity": "数量", "unit": "单位", "amount": "金额"},
-            "category": "piece_work"
-        },
-        # 系统通知模板
-        {
-            "name": "system_announcement",
-            "title": "系统公告",
-            "content": "{content}",
-            "variables": {"content": "公告内容"},
-            "category": "system"
-        },
-        {
-            "name": "welcome",
-            "title": "欢迎加入",
-            "content": "欢迎{user_name}加入车队管家系统！如有问题请联系管理员。",
-            "variables": {"user_name": "用户姓名"},
-            "category": "system"
-        }
-    ]
-
-    for template_data in default_templates:
-        # 检查模板是否已存在
-        existing = get_notification_template_by_name(session, template_data["name"])
-        if not existing:
-            create_notification_template(
-                session,
-                name=template_data["name"],
-                title=template_data["title"],
-                content=template_data["content"],
-                variables=template_data["variables"],
-                category=template_data["category"]
-            )
-
-
-# ==================== 定时通知 CRUD ====================
-
-
-def create_scheduled_notification(
-    session: Session,
-    name: str,
-    scheduled_time: datetime,
-    template_id: Optional[int] = None,
-    title: Optional[str] = None,
-    content: Optional[str] = None,
-    variables: Optional[dict] = None,
-    target_user_ids: Optional[List[int]] = None,
-    target_roles: Optional[List[str]] = None,
-    repeat_type: RepeatType = RepeatType.ONCE,
-    repeat_interval: int = 1,
-    repeat_end_date: Optional[date] = None,
-    weekdays: Optional[List[int]] = None,
-    monthly_day: Optional[int] = None,
-    creator_id: Optional[int] = None
-) -> ScheduledNotification:
-    """
-    创建定时通知任务
-
-    Args:
-        session: 数据库会话
-        name: 任务名称
-        scheduled_time: 计划发送时间
-        template_id: 模板ID（可选）
-        title: 通知标题（不使用模板时）
-        content: 通知内容（不使用模板时）
-        variables: 模板变量值（可选）
-        target_user_ids: 目标用户ID列表（可选）
-        target_roles: 目标角色列表（可选）
-        repeat_type: 重复类型，默认为一次性
-        repeat_interval: 重复间隔，默认为1
-        repeat_end_date: 重复结束日期（可选）
-        weekdays: 每周重复的星期几（可选）
-        monthly_day: 每月重复的日期（可选）
-        creator_id: 创建者ID（可选）
-
-    Returns:
-        ScheduledNotification: 创建的定时通知对象
-    """
-    import json
-
-    # 序列化 JSON 字段
-    variables_json = json.dumps(variables, ensure_ascii=False) if variables else None
-    target_user_ids_json = json.dumps(target_user_ids) if target_user_ids else None
-    target_roles_json = json.dumps(target_roles) if target_roles else None
-    weekdays_json = json.dumps(weekdays) if weekdays else None
-
-    # 计算下次执行时间
-    next_execute_at = scheduled_time
-
-    # 确定初始状态
-    status = ScheduledNotificationStatus.PENDING
-    if repeat_type != RepeatType.ONCE:
-        status = ScheduledNotificationStatus.ACTIVE
-
-    scheduled = ScheduledNotification(
-        name=name,
-        template_id=template_id,
-        title=title,
-        content=content,
-        variables=variables_json,
-        target_user_ids=target_user_ids_json,
-        target_roles=target_roles_json,
-        scheduled_time=scheduled_time,
-        repeat_type=repeat_type,
-        repeat_interval=repeat_interval,
-        repeat_end_date=repeat_end_date,
-        weekdays=weekdays_json,
-        monthly_day=monthly_day,
-        status=status,
-        next_execute_at=next_execute_at,
-        creator_id=creator_id
-    )
-
-    session.add(scheduled)
-    session.commit()
-    session.refresh(scheduled)
-    return scheduled
-
-
-def create_scheduled_notification_with_params(
-    session: Session,
-    params: ScheduledNotificationParams
-) -> ScheduledNotification:
-    """
-    使用参数数据类创建定时通知任务
-    封装多参数为单一参数对象，简化函数调用
-
-    Args:
-        session: 数据库会话
-        params: 定时通知参数对象，包含所有创建所需的参数
-
-    Returns:
-        ScheduledNotification: 创建的定时通知对象
-
-    Requirements: 4.1
-    """
-    # 调用原有函数，保持向后兼容
-    return create_scheduled_notification(
-        session=session,
-        name=params.name,
-        scheduled_time=params.scheduled_time,
-        template_id=params.template_id,
-        title=params.title,
-        content=params.content,
-        variables=params.variables,
-        target_user_ids=params.target_user_ids,
-        target_roles=params.target_roles,
-        repeat_type=params.repeat_type,
-        repeat_interval=params.repeat_interval,
-        repeat_end_date=params.repeat_end_date,
-        weekdays=params.weekdays,
-        monthly_day=params.monthly_day,
-        creator_id=params.creator_id
-    )
-
-
-def get_scheduled_notification_by_id(
-    session: Session,
-    scheduled_id: int
-) -> Optional[ScheduledNotification]:
-    """
-    根据ID获取定时通知
-
-    Args:
-        session: 数据库会话
-        scheduled_id: 定时通知ID
-
-    Returns:
-        ScheduledNotification: 定时通知对象，不存在则返回 None
-    """
-    return session.get(ScheduledNotification, scheduled_id)
-
-
-def get_scheduled_notifications(
-    session: Session,
-    status: Optional[ScheduledNotificationStatus] = None,
-    creator_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100
-) -> List[ScheduledNotification]:
-    """
-    获取定时通知列表
-
-    Args:
-        session: 数据库会话
-        status: 按状态筛选（可选）
-        creator_id: 按创建者筛选（可选）
-        skip: 跳过记录数
-        limit: 返回记录数
-
-    Returns:
-        List[ScheduledNotification]: 定时通知列表
-    """
-    statement = select(ScheduledNotification)
-
-    if status is not None:
-        statement = statement.where(ScheduledNotification.status == status)
-    if creator_id is not None:
-        statement = statement.where(ScheduledNotification.creator_id == creator_id)
-
-    # 按下次执行时间排序
-    statement = statement.order_by(ScheduledNotification.next_execute_at.asc())
-    statement = statement.offset(skip).limit(limit)
-
-    return list(session.exec(statement).all())
-
-
-def get_pending_scheduled_notifications(
-    session: Session,
-    before_time: Optional[datetime] = None
-) -> List[ScheduledNotification]:
-    """
-    获取待执行的定时通知
-
-    Args:
-        session: 数据库会话
-        before_time: 在此时间之前需要执行的任务（可选，默认为当前时间）
-
-    Returns:
-        List[ScheduledNotification]: 待执行的定时通知列表
-    """
-    if before_time is None:
-        before_time = datetime.now()
-
-    statement = select(ScheduledNotification).where(
-        ScheduledNotification.status.in_([
-            ScheduledNotificationStatus.PENDING,
-            ScheduledNotificationStatus.ACTIVE
-        ]),
-        ScheduledNotification.next_execute_at <= before_time
-    ).order_by(ScheduledNotification.next_execute_at.asc())
-
-    return list(session.exec(statement).all())
-
-
-def update_scheduled_notification(
-    session: Session,
-    scheduled: ScheduledNotification,
-    name: Optional[str] = None,
-    template_id: Optional[int] = None,
-    title: Optional[str] = None,
-    content: Optional[str] = None,
-    variables: Optional[dict] = None,
-    target_user_ids: Optional[List[int]] = None,
-    target_roles: Optional[List[str]] = None,
-    scheduled_time: Optional[datetime] = None,
-    repeat_type: Optional[RepeatType] = None,
-    repeat_interval: Optional[int] = None,
-    repeat_end_date: Optional[date] = None,
-    weekdays: Optional[List[int]] = None,
-    monthly_day: Optional[int] = None,
-    status: Optional[ScheduledNotificationStatus] = None
-) -> ScheduledNotification:
-    """
-    更新定时通知
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-        其他参数: 要更新的字段（可选）
-
-    Returns:
-        ScheduledNotification: 更新后的定时通知对象
-
-    Requirements: 2.2
-    """
-    # 导入辅助函数
-    from helpers import apply_scheduled_notification_updates, update_notification_next_execute_time
-
-    # 构建更新字典（不包含 scheduled_time，单独处理）
-    updates = {
-        "name": name,
-        "template_id": template_id,
-        "title": title,
-        "content": content,
-        "variables": variables,
-        "target_user_ids": target_user_ids,
-        "target_roles": target_roles,
-        "repeat_type": repeat_type,
-        "repeat_interval": repeat_interval,
-        "repeat_end_date": repeat_end_date,
-        "weekdays": weekdays,
-        "monthly_day": monthly_day,
-        "status": status
-    }
-
-    # 应用字段更新
-    apply_scheduled_notification_updates(scheduled, updates)
-
-    # 单独处理 scheduled_time（需要同步更新 next_execute_at）
-    update_notification_next_execute_time(scheduled, scheduled_time)
-
-    # 更新时间戳
-    scheduled.updated_at = datetime.now()
-
-    # 保存到数据库
-    session.add(scheduled)
-    session.commit()
-    session.refresh(scheduled)
-    return scheduled
-
-
-def update_scheduled_notification_with_params(
-    session: Session,
-    scheduled: ScheduledNotification,
-    params: ScheduledNotificationParams
-) -> ScheduledNotification:
-    """
-    使用参数数据类更新定时通知
-    封装多参数为单一参数对象，简化函数调用
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-        params: 定时通知参数对象，包含所有更新所需的参数
-
-    Returns:
-        ScheduledNotification: 更新后的定时通知对象
-
-    Requirements: 4.1
-    """
-    # 调用原有函数，保持向后兼容
-    return update_scheduled_notification(
-        session=session,
-        scheduled=scheduled,
-        name=params.name if params.name != scheduled.name else None,
-        template_id=params.template_id,
-        title=params.title,
-        content=params.content,
-        variables=params.variables,
-        target_user_ids=params.target_user_ids,
-        target_roles=params.target_roles,
-        scheduled_time=params.scheduled_time if params.scheduled_time != scheduled.scheduled_time else None,
-        repeat_type=params.repeat_type if params.repeat_type != scheduled.repeat_type else None,
-        repeat_interval=params.repeat_interval if params.repeat_interval != scheduled.repeat_interval else None,
-        repeat_end_date=params.repeat_end_date,
-        weekdays=params.weekdays,
-        monthly_day=params.monthly_day,
-        status=params.status
-    )
-
-
-def delete_scheduled_notification(session: Session, scheduled: ScheduledNotification) -> None:
-    """
-    删除定时通知
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-    """
-    session.delete(scheduled)
-    session.commit()
-
-
-def cancel_scheduled_notification(
-    session: Session,
-    scheduled: ScheduledNotification
-) -> ScheduledNotification:
-    """
-    取消定时通知
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-
-    Returns:
-        ScheduledNotification: 更新后的定时通知对象
-    """
-    scheduled.status = ScheduledNotificationStatus.CANCELLED
-    scheduled.updated_at = datetime.now()
-
-    session.add(scheduled)
-    session.commit()
-    session.refresh(scheduled)
-    return scheduled
-
-
-# ==================== 下次执行时间计算辅助函数 ====================
-
-def _calculate_daily_next_time(
-    base_time: datetime,
-    repeat_interval: int
-) -> datetime:
-    """
-    计算每日重复的下次执行时间
-
-    Args:
-        base_time: 基准时间
-        repeat_interval: 重复间隔（天数）
-
-    Returns:
-        datetime: 下次执行时间
-    """
-    from datetime import timedelta
-    return base_time + timedelta(days=repeat_interval)
-
-
-def _calculate_weekly_next_time(
-    base_time: datetime,
-    repeat_interval: int,
-    weekdays_json: Optional[str]
-) -> datetime:
-    """
-    计算每周重复的下次执行时间
-
-    Args:
-        base_time: 基准时间
-        repeat_interval: 重复间隔（周数）
-        weekdays_json: 指定的星期几（JSON 格式）
-
-    Returns:
-        datetime: 下次执行时间
-    """
-    import json
-    from datetime import timedelta
-
-    # 没有指定星期几，按间隔周数计算
-    if not weekdays_json:
-        return base_time + timedelta(weeks=repeat_interval)
-
-    # 解析指定的星期几
-    weekdays = json.loads(weekdays_json)
-    current_weekday = base_time.isoweekday()
-
-    # 找到下一个符合条件的星期几
-    days_ahead = None
-    for wd in sorted(weekdays):
-        if wd > current_weekday:
-            days_ahead = wd - current_weekday
-            break
-
-    # 如果本周没有符合条件的日期，取下周的第一个
-    if days_ahead is None:
-        days_ahead = 7 - current_weekday + min(weekdays)
-
-    return base_time + timedelta(days=days_ahead)
-
-
-def _calculate_monthly_next_time(
-    base_time: datetime,
-    repeat_interval: int,
-    monthly_day: Optional[int]
-) -> datetime:
-    """
-    计算每月重复的下次执行时间
-
-    Args:
-        base_time: 基准时间
-        repeat_interval: 重复间隔（月数）
-        monthly_day: 指定的日期
-
-    Returns:
-        datetime: 下次执行时间
-    """
-    from calendar import monthrange
-
-    target_day = monthly_day or base_time.day
-
-    # 计算目标月份和年份
-    next_month = base_time.month + repeat_interval
-    next_year = base_time.year
-
-    while next_month > 12:
-        next_month -= 12
-        next_year += 1
-
-    # 处理月末日期（如31号在2月）
-    max_day = monthrange(next_year, next_month)[1]
-    actual_day = min(target_day, max_day)
-
-    return base_time.replace(
-        year=next_year,
-        month=next_month,
-        day=actual_day
-    )
-
-
-def _advance_time_by_repeat_type(
-    current_time: datetime,
-    repeat_type: RepeatType,
-    repeat_interval: int,
-    monthly_day: Optional[int]
-) -> datetime:
-    """
-    根据重复类型将时间向前推进一个周期
-
-    Args:
-        current_time: 当前时间
-        repeat_type: 重复类型
-        repeat_interval: 重复间隔
-        monthly_day: 月度重复的指定日期
-
-    Returns:
-        datetime: 推进后的时间
-    """
-    from datetime import timedelta
-    from calendar import monthrange
-
-    # 使用字典映射处理不同的重复类型
-    if repeat_type == RepeatType.DAILY:
-        return current_time + timedelta(days=repeat_interval)
-
-    if repeat_type == RepeatType.WEEKLY:
-        return current_time + timedelta(weeks=repeat_interval)
-
-    if repeat_type == RepeatType.MONTHLY:
-        next_month = current_time.month + repeat_interval
-        next_year = current_time.year
-        while next_month > 12:
-            next_month -= 12
-            next_year += 1
-        max_day = monthrange(next_year, next_month)[1]
-        actual_day = min(monthly_day or current_time.day, max_day)
-        return current_time.replace(year=next_year, month=next_month, day=actual_day)
-
-    return current_time
-
-
-def calculate_next_execute_time(
-    scheduled: ScheduledNotification,
-    from_time: Optional[datetime] = None
-) -> Optional[datetime]:
-    """
-    计算下次执行时间
-
-    重构说明：
-    - 使用字典映射替代多层 if-else
-    - 提取 _calculate_daily_next_time 计算每日重复
-    - 提取 _calculate_weekly_next_time 计算每周重复
-    - 提取 _calculate_monthly_next_time 计算每月重复
-    - 提取 _advance_time_by_repeat_type 推进时间
-    - 嵌套深度从 5 层降低到 3 层
-
-    Args:
-        scheduled: 定时通知对象
-        from_time: 从哪个时间开始计算（可选，默认为当前时间）
-
-    Returns:
-        datetime: 下次执行时间，如果任务已结束则返回 None
-    """
-    if from_time is None:
-        from_time = datetime.now()
-
-    # 一次性任务不需要计算下次执行时间
-    if scheduled.repeat_type == RepeatType.ONCE:
-        return None
-
-    # 检查是否已过结束日期
-    if scheduled.repeat_end_date and from_time.date() > scheduled.repeat_end_date:
-        return None
-
-    # 获取基准时间（上次执行时间或计划时间）
-    base_time = scheduled.last_executed_at or scheduled.scheduled_time
-
-    # 使用字典映射计算下次执行时间
-    repeat_type_calculators = {
-        RepeatType.DAILY: lambda: _calculate_daily_next_time(
-            base_time, scheduled.repeat_interval
-        ),
-        RepeatType.WEEKLY: lambda: _calculate_weekly_next_time(
-            base_time, scheduled.repeat_interval, scheduled.weekdays
-        ),
-        RepeatType.MONTHLY: lambda: _calculate_monthly_next_time(
-            base_time, scheduled.repeat_interval, scheduled.monthly_day
-        ),
-    }
-
-    # 获取对应的计算函数
-    calculator = repeat_type_calculators.get(scheduled.repeat_type)
-    if calculator is None:
-        return None
-
-    next_time = calculator()
-
-    # 确保下次执行时间在当前时间之后
-    while next_time <= from_time:
-        next_time = _advance_time_by_repeat_type(
-            next_time,
-            scheduled.repeat_type,
-            scheduled.repeat_interval,
-            scheduled.monthly_day
-        )
-
-    # 检查是否超过结束日期
-    if scheduled.repeat_end_date and next_time.date() > scheduled.repeat_end_date:
-        return None
-
-    return next_time
-
-
-def _get_target_user_ids_from_scheduled(
-    session: Session,
-    scheduled: ScheduledNotification
-) -> List[int]:
-    """
-    从定时通知配置中获取目标用户ID列表
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-
-    Returns:
-        List[int]: 去重后的目标用户ID列表
-    """
-    import json
-    target_user_ids = []
-
-    # 从指定的用户ID列表获取
-    if scheduled.target_user_ids:
-        target_user_ids.extend(json.loads(scheduled.target_user_ids))
-
-    # 从指定的角色获取用户
-    if scheduled.target_roles:
-        roles = json.loads(scheduled.target_roles)
-        for role_str in roles:
-            try:
-                role = UserRole(role_str)
-                users = get_users(session, role=role, is_active=True, limit=10000)
-                target_user_ids.extend([u.id for u in users])
-            except ValueError:
-                pass  # 忽略无效的角色
-
-    # 去重并返回
-    return list(set(target_user_ids))
-
-
-def _get_notification_content(
-    session: Session,
-    scheduled: ScheduledNotification
-) -> tuple:
-    """
-    获取定时通知的标题和内容
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-
-    Returns:
-        tuple: (title, content) 通知标题和内容
-    """
-    import json
-    title = scheduled.title
-    content = scheduled.content
-    variables = json.loads(scheduled.variables) if scheduled.variables else None
-
-    # 如果使用模板，渲染模板
-    if scheduled.template_id:
-        template = get_notification_template_by_id(session, scheduled.template_id)
-        if template and template.is_active:
-            title, content = render_notification_template(template, variables)
-
-    return title, content
-
-
-def _mark_scheduled_as_failed(
-    session: Session,
-    scheduled: ScheduledNotification
-) -> None:
-    """
-    将定时通知标记为失败状态
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-    """
-    scheduled.status = ScheduledNotificationStatus.FAILED
-    scheduled.updated_at = datetime.now()
-    session.add(scheduled)
-    session.commit()
-
-
-def _update_scheduled_after_execution(
-    session: Session,
-    scheduled: ScheduledNotification
-) -> None:
-    """
-    执行后更新定时通知状态
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-    """
-    scheduled.last_executed_at = datetime.now()
-    scheduled.execution_count += 1
-
-    # 计算下次执行时间
-    if scheduled.repeat_type == RepeatType.ONCE:
-        scheduled.status = ScheduledNotificationStatus.COMPLETED
-        scheduled.next_execute_at = None
-    else:
-        next_time = calculate_next_execute_time(scheduled)
-        if next_time:
-            scheduled.next_execute_at = next_time
-        else:
-            scheduled.status = ScheduledNotificationStatus.COMPLETED
-            scheduled.next_execute_at = None
-
-    scheduled.updated_at = datetime.now()
-    session.add(scheduled)
-    session.commit()
-    session.refresh(scheduled)
-
-
-def execute_scheduled_notification(
-    session: Session,
-    scheduled: ScheduledNotification
-) -> List[Notification]:
-    """
-    执行定时通知任务
-
-    Args:
-        session: 数据库会话
-        scheduled: 定时通知对象
-
-    Returns:
-        List[Notification]: 创建的通知列表
-    """
-    # 获取目标用户列表
-    target_user_ids = _get_target_user_ids_from_scheduled(session, scheduled)
-    if not target_user_ids:
-        _mark_scheduled_as_failed(session, scheduled)
-        return []
-
-    # 获取通知内容
-    title, content = _get_notification_content(session, scheduled)
-    if not title:
-        _mark_scheduled_as_failed(session, scheduled)
-        return []
-
-    # 创建通知
-    notifications = create_notifications_batch(
-        session,
-        user_ids=target_user_ids,
-        title=title,
-        content=content,
-        sender_id=scheduled.creator_id
-    )
-
-    # 更新执行信息
-    _update_scheduled_after_execution(session, scheduled)
-
-    return notifications
-
-
-def get_scheduler_status(session: Session) -> dict:
-    """
-    获取调度器状态
-
-    Args:
-        session: 数据库会话
-
-    Returns:
-        dict: 调度器状态信息
-    """
-    # 统计待执行任务数
-    pending_count = session.exec(
-        select(func.count(ScheduledNotification.id)).where(
-            ScheduledNotification.status == ScheduledNotificationStatus.PENDING
-        )
-    ).one()
-
-    # 统计活跃任务数
-    active_count = session.exec(
-        select(func.count(ScheduledNotification.id)).where(
-            ScheduledNotification.status == ScheduledNotificationStatus.ACTIVE
-        )
-    ).one()
-
-    # 获取下一个执行时间
-    next_scheduled = session.exec(
-        select(ScheduledNotification).where(
-            ScheduledNotification.status.in_([
-                ScheduledNotificationStatus.PENDING,
-                ScheduledNotificationStatus.ACTIVE
-            ]),
-            ScheduledNotification.next_execute_at.isnot(None)
-        ).order_by(ScheduledNotification.next_execute_at.asc()).limit(1)
-    ).first()
-
-    next_execution = next_scheduled.next_execute_at if next_scheduled else None
-
-    return {
-        "pending_tasks": pending_count,
-        "active_tasks": active_count,
-        "next_execution": next_execution
-    }
-
-
-def get_target_user_count(
-    session: Session,
-    target_user_ids: Optional[List[int]] = None,
-    target_roles: Optional[List[str]] = None
-) -> int:
-    """
-    计算目标用户数量
-
-    Args:
-        session: 数据库会话
-        target_user_ids: 目标用户ID列表
-        target_roles: 目标角色列表
-
-    Returns:
-        int: 目标用户数量
-    """
-    user_ids = set()
-
-    if target_user_ids:
-        user_ids.update(target_user_ids)
-
-    if target_roles:
-        for role_str in target_roles:
-            try:
-                role = UserRole(role_str)
-                users = get_users(session, role=role, is_active=True, limit=10000)
-                user_ids.update([u.id for u in users])
-            except ValueError:
-                pass
-
-    return len(user_ids)
-
-
-# ==================== 车辆历史 CRUD ====================
-
-from models import VehicleHistory, VehicleHistoryActionType
-
-
-def create_vehicle_history(
-    session: Session,
-    vehicle_id: int,
-    user_id: int,
-    action_type: VehicleHistoryActionType,
-    action_time: datetime,
-    photos: Optional[str] = None,
-    damage_photos: Optional[str] = None,
-    remark: Optional[str] = None
-) -> VehicleHistory:
-    """
-    创建车辆历史记录
-    记录车辆的提车或还车操作
-
-    Args:
-        session: 数据库会话
-        vehicle_id: 车辆ID
-        user_id: 司机ID
-        action_type: 操作类型（pickup=提车, return=还车）
-        action_time: 操作时间
-        photos: 照片JSON数组（7张基本照片）
-        damage_photos: 车损照片JSON数组
-        remark: 备注
-
-    Returns:
-        VehicleHistory: 创建的历史记录对象
-
-    Requirements: 15.2, 15.3
-    """
-    history = VehicleHistory(
-        vehicle_id=vehicle_id,
-        user_id=user_id,
-        action_type=action_type,
-        action_time=action_time,
-        photos=photos,
-        damage_photos=damage_photos,
-        remark=remark
-    )
-    session.add(history)
-    session.commit()
-    session.refresh(history)
-    return history
-
-
-def get_vehicle_history_by_id(
-    session: Session,
-    history_id: int
-) -> Optional[VehicleHistory]:
-    """
-    根据ID获取车辆历史记录
-
-    Args:
-        session: 数据库会话
-        history_id: 历史记录ID
-
-    Returns:
-        VehicleHistory: 历史记录对象，不存在则返回 None
-    """
-    return session.get(VehicleHistory, history_id)
-
-
-def get_vehicle_history(
-    session: Session,
-    vehicle_id: int,
-    action_type: Optional[VehicleHistoryActionType] = None,
-    skip: int = 0,
-    limit: int = 20
-) -> List[VehicleHistory]:
-    """
-    获取车辆的使用历史列表
-    返回指定车辆的所有提车和还车记录
-
-    Args:
-        session: 数据库会话
-        vehicle_id: 车辆ID
-        action_type: 按操作类型筛选（可选）
-        skip: 跳过记录数，默认0
-        limit: 返回记录数上限，默认20
-
-    Returns:
-        List[VehicleHistory]: 历史记录列表，按操作时间倒序排列
-
-    Requirements: 15.1, 15.2, 15.3, 15.4
-    """
-    statement = select(VehicleHistory).where(VehicleHistory.vehicle_id == vehicle_id)
-
-    # 按操作类型筛选（可选）
-    if action_type is not None:
-        statement = statement.where(VehicleHistory.action_type == action_type)
-
-    # 按操作时间倒序排列
-    statement = statement.order_by(VehicleHistory.action_time.desc())
-    # 分页
-    statement = statement.offset(skip).limit(limit)
-
-    return list(session.exec(statement).all())
-
-
-def get_vehicle_history_count(
-    session: Session,
-    vehicle_id: int,
-    action_type: Optional[VehicleHistoryActionType] = None
-) -> int:
-    """
-    获取车辆历史记录总数
-    用于分页
-
-    Args:
-        session: 数据库会话
-        vehicle_id: 车辆ID
-        action_type: 按操作类型筛选（可选）
-
-    Returns:
-        int: 历史记录总数
-
-    Requirements: 15.4
-    """
-    statement = select(func.count(VehicleHistory.id)).where(
-        VehicleHistory.vehicle_id == vehicle_id
-    )
-
-    if action_type is not None:
-        statement = statement.where(VehicleHistory.action_type == action_type)
-
-    return session.exec(statement).first() or 0
-
-
-def get_user_vehicle_history(
-    session: Session,
-    user_id: int,
-    skip: int = 0,
-    limit: int = 20
-) -> List[VehicleHistory]:
-    """
-    获取用户的车辆使用历史
-    返回指定用户的所有提车和还车记录
-
-    Args:
-        session: 数据库会话
-        user_id: 用户ID
-        skip: 跳过记录数
-        limit: 返回记录数上限
-
-    Returns:
-        List[VehicleHistory]: 历史记录列表
-    """
-    statement = select(VehicleHistory).where(
-        VehicleHistory.user_id == user_id
-    ).order_by(VehicleHistory.action_time.desc()).offset(skip).limit(limit)
-
-    return list(session.exec(statement).all())
 
 
 # ==================== 司机证件 CRUD ====================

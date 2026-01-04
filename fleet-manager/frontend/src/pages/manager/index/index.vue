@@ -10,6 +10,14 @@
   @requirements 4.1 - 仓库切换器组件
   @requirements 5.1 - 数据仪表盘 2x2 网格布局
   @requirements 6.1 - 司机实时状态统计
+  
+  重构说明：
+  - 使用 WelcomeCard 组件替换原有欢迎卡片
+  - 使用 LogoutCard 组件替换原有退出登录卡片
+  - 使用 QuickActions 组件替换原有快捷功能入口
+  - 使用 useHomeStats composable 替换 loadAttendanceStats 和 loadPieceWorkStats
+  - 使用 useWarehouseLoader composable 替换 loadWarehouses
+  - 引入共享样式 home-common.scss
 -->
 <template>
   <view class="manager-home" :style="{ background: 'linear-gradient(to bottom, #F8FAFC, #E2E8F0)' }">
@@ -19,17 +27,11 @@
     <!-- 页面内容 -->
     <scroll-view scroll-y class="page-content" @scrolltolower="onScrollToLower">
       <view class="content-wrapper">
-        <!-- 欢迎卡片 - 蓝色主题（与主项目一致）- Requirements 1.1 -->
-        <view class="welcome-card">
-          <view class="welcome-content">
-            <view class="welcome-text">
-              <text class="welcome-title">车队长工作台</text>
-              <text class="welcome-subtitle">欢迎回来，{{ displayName }}</text>
-            </view>
-            <!-- 通知铃铛 - Requirements 2.1 -->
-            <NotificationBell :user-id="userStore.user?.id?.toString() || ''" />
-          </view>
-        </view>
+        <!-- 欢迎卡片 - 使用共享组件 WelcomeCard -->
+        <WelcomeCard title="车队长工作台" :subtitle="`欢迎回来，${displayName}`">
+          <!-- 通知铃铛 - Requirements 2.1 -->
+          <NotificationBell :user-id="userStore.user?.id?.toString() || ''" />
+        </WelcomeCard>
 
         <!-- 实时通知栏 - Requirements 3.1 -->
         <RealNotificationBar ref="notificationBarRef" />
@@ -92,7 +94,7 @@
           />
         </view>
 
-        <!-- 快捷功能入口 - 2x3 网格布局 -->
+        <!-- 快捷功能入口 - 使用共享组件 QuickActions -->
         <view class="section">
           <view class="section-header">
             <view class="section-title-wrapper">
@@ -105,75 +107,12 @@
               <text class="profile-text">个人中心</text>
             </view>
           </view>
-
-          <view class="quick-actions-card">
-            <view class="quick-actions-grid">
-              <!-- 待审批 -->
-              <view class="action-item orange" @click="navigateTo('/pages/manager/approval/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📋</text>
-                  <view v-if="stats.pendingCount > 0" class="badge">
-                    <text class="badge-count">{{ stats.pendingCount > 99 ? '99+' : stats.pendingCount }}</text>
-                  </view>
-                </view>
-                <text class="action-text">待审批</text>
-              </view>
-
-              <!-- 数据统计 - 跳转到数据统计页面 Requirements 6.1 -->
-              <view class="action-item red" @click="navigateTo('/pages/manager/attendance/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📊</text>
-                  <view v-if="stats.pendingCount > 0" class="badge">
-                    <text class="badge-count">{{ stats.pendingCount > 99 ? '99+' : stats.pendingCount }}</text>
-                  </view>
-                </view>
-                <text class="action-text">数据统计</text>
-              </view>
-
-              <!-- 品类配置 -->
-              <view class="action-item green" @click="handleWarehouseCategories">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">🏷️</text>
-                </view>
-                <text class="action-text">品类配置</text>
-              </view>
-
-              <!-- 司机管理 -->
-              <view class="action-item purple" @click="navigateTo('/pages/manager/drivers/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">👥</text>
-                </view>
-                <text class="action-text">司机管理</text>
-              </view>
-
-              <!-- 通知中心 -->
-              <view class="action-item blue" @click="navigateTo('/pages/notifications/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">🔔</text>
-                  <view v-if="unreadCount > 0" class="badge">
-                    <text class="badge-count">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
-                  </view>
-                </view>
-                <text class="action-text">通知中心</text>
-              </view>
-
-              <!-- 发送通知 -->
-              <view class="action-item teal" @click="navigateTo('/pages/manager/notify/index')">
-                <view class="action-icon-wrapper">
-                  <text class="action-icon">📢</text>
-                </view>
-                <text class="action-text">发送通知</text>
-              </view>
-            </view>
-          </view>
+          <QuickActions :actions="quickActions" :columns="2" @click="handleQuickActionClick" />
         </view>
 
-        <!-- 退出登录 -->
+        <!-- 退出登录 - 使用共享组件 LogoutCard -->
         <view class="section">
-          <view class="logout-card" @click="handleLogout">
-            <text class="logout-icon">🚪</text>
-            <text class="logout-text">退出登录</text>
-          </view>
+          <LogoutCard />
         </view>
       </view>
     </scroll-view>
@@ -181,6 +120,19 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 车队长工作台首页
+ * 
+ * @description 提供车队长工作台功能，包括今日统计、待审批、司机管理等
+ * 
+ * 重构说明：
+ * - 使用 WelcomeCard 组件替换原有欢迎卡片
+ * - 使用 LogoutCard 组件替换原有退出登录卡片
+ * - 使用 QuickActions 组件替换原有快捷功能入口
+ * - 使用 useHomeStats composable 替换 loadAttendanceStats 和 loadPieceWorkStats
+ * - 使用 useWarehouseLoader composable 替换 loadWarehouses
+ */
+
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
@@ -190,60 +142,108 @@ import {
   getPieceWorkStats,
   getAttendanceRecords,
   getUnreadCount,
-  getWarehouses,
   getWarehouseUsers,
 } from '@/api'
-import { UserRole, LeaveStatus } from '@/api/types'
+import { UserRole, LeaveStatus, getWarehousePresetUnit } from '@/api/types'
 import type { DashboardStats, CardType } from '@/components/Dashboard/types'
 import type { DriverStatsData } from '@/components/DriverStats/types'
-import type { Warehouse } from '@/components/WarehouseSwitcher/types'
+import type { QuickAction } from '@/components/QuickActions/types'
 import type { AssignmentUpdateEvent } from '@/types/sse-events'
+
+// 共享组件
+import { WelcomeCard, LogoutCard, QuickActions } from '@/components'
 import NotificationBell from '@/components/NotificationBell/index.vue'
 import RealNotificationBar from '@/components/RealNotificationBar/index.vue'
 import Dashboard from '@/components/Dashboard/index.vue'
 import WarehouseSwitcher from '@/components/WarehouseSwitcher/index.vue'
 import DriverStats from '@/components/DriverStats/index.vue'
+
+// Composables
+import { useHomeStats } from '@/composables/useHomeStats'
+import { useWarehouseLoader } from '@/composables/useWarehouseLoader'
+
+// 工具函数
 import {
   filterWarehousesWithDataOrDrivers,
   shouldShowWarehouseSwitcher,
-  createWarehouseDataMap,
 } from '@/utils/warehouse'
+import { getLocalDateString } from '@/utils/date'
+
+// ==================== Store ====================
 
 const userStore = useUserStore()
+
+// ==================== 组件引用 ====================
+
 const notificationBarRef = ref<InstanceType<typeof RealNotificationBar> | null>(null)
-const loading = ref(false)
-const driverStatsLoading = ref(false)
-const unreadCount = ref(0)
-const warehouses = ref<Warehouse[]>([])
+
+// ==================== Composables ====================
+
+/** 当前选中的仓库索引 */
 const currentWarehouseIndex = ref(0)
 
-/** 仓库数据映射（warehouseId -> hasData） */
-const warehouseDataMap = ref<Map<number, boolean>>(new Map())
-
-/** 仓库司机数量映射（warehouseId -> driverCount） */
-const warehouseDriverCountMap = ref<Map<number, number>>(new Map())
-
-const stats = ref({
-  driverCount: 0,
-  todayAttendanceCount: 0,
-  todayPieceCount: 0,
-  todayAmount: 0,
-  monthPieceCount: 0,
-  monthAmount: 0,
-  pendingCount: 0,
+/**
+ * 使用 useWarehouseLoader composable 加载仓库数据
+ * 车队长端按今日出勤排序
+ */
+const {
+  warehouses,
+  warehouseDataMap,
+  warehouseDriverCountMap,
+  warehouseTodayAttendanceMap,
+  warehouseTypeMap,
+  loading: warehouseLoading,
+  loadWarehouses,
+} = useWarehouseLoader({
+  sortBy: 'todayAttendance',
+  includeDriverCount: true,
+  includeAttendance: true,
 })
 
+/**
+ * 当前选中的仓库ID（用于 useHomeStats）
+ */
+const currentWarehouseIdForStats = computed(() => {
+  const id = warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.id
+  return id ? parseInt(id) : undefined
+})
+
+/**
+ * 使用 useHomeStats composable 加载统计数据
+ */
+const {
+  stats: homeStats,
+  loading: statsLoading,
+  loadAllStats,
+} = useHomeStats(currentWarehouseIdForStats)
+
+// ==================== 状态 ====================
+
+/** 加载状态（综合仓库加载和统计加载） */
+const loading = computed(() => warehouseLoading.value || statsLoading.value)
+
+/** 司机统计加载状态 */
+const driverStatsLoading = ref(false)
+
+/** 未读通知数量 */
+const unreadCount = ref(0)
+
+/** 待审批数量 */
+const pendingCount = ref(0)
+
+/** 司机统计数据 */
 const driverStats = ref<DriverStatsData | null>(null)
+
+// ==================== 计算属性 ====================
 
 const displayName = computed(() => userStore.userName || '车队长')
 const todayDate = computed(() => new Date().toLocaleDateString('zh-CN'))
 
 /**
  * 有数据或有司机的仓库列表
- * 使用统一的工具函数过滤
+ * 使用统一的工具函数过滤，按今日出勤排序（从多到少）
  */
 const warehousesWithDataOrDrivers = computed(() => {
-  // 将 Warehouse 类型转换为工具函数需要的类型
   const warehouseList = warehouses.value.map(w => ({
     id: parseInt(w.id),
     name: w.name,
@@ -257,124 +257,133 @@ const warehousesWithDataOrDrivers = computed(() => {
     warehouses: warehouseList,
     warehouseDataMap: warehouseDataMap.value,
     warehouseDriverCountMap: warehouseDriverCountMap.value,
+    warehouseTodayAttendanceMap: warehouseTodayAttendanceMap.value,
+    sortBy: 'todayAttendance',
   }).map(w => ({ id: String(w.id), name: w.name }))
 })
 
 /**
  * 是否显示仓库切换器
- * 使用统一的工具函数判断
  */
 const showWarehouseSwitcher = computed(() => {
   return shouldShowWarehouseSwitcher(warehousesWithDataOrDrivers.value)
 })
 
+/**
+ * 当前选中的仓库ID
+ */
+const currentWarehouseId = computed(() => {
+  return warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.id || ''
+})
+
 const currentWarehouseName = computed(() => warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.name || '')
 
+/**
+ * 当前选中仓库的计量单位
+ */
+const currentUnit = computed(() => {
+  const warehouseId = currentWarehouseId.value ? parseInt(currentWarehouseId.value) : 0
+  const warehouseType = warehouseTypeMap.value.get(warehouseId)
+  if (warehouseType) {
+    return getWarehousePresetUnit(warehouseType)
+  }
+  return '件'
+})
+
+/**
+ * 数据仪表盘统计数据
+ * 使用 useHomeStats 返回的统计数据
+ */
 const dashboardStats = computed<DashboardStats | null>(() => {
-  if (loading.value && stats.value.todayAttendanceCount === 0) return null
+  if (loading.value) return null
+  
   return {
-    todayAttendance: stats.value.todayAttendanceCount,
-    todayPieceCount: stats.value.todayPieceCount,
-    pendingCount: stats.value.pendingCount,
-    monthlyPieceCount: stats.value.monthPieceCount,
+    todayAttendance: homeStats.value.todayAttendanceCount,
+    todayPieceCount: homeStats.value.todayPieceCount,
+    pendingCount: pendingCount.value,
+    monthlyPieceCount: homeStats.value.monthPieceCount,
+    unit: currentUnit.value,
   }
 })
+
+/**
+ * 快捷功能列表
+ * 使用 QuickActions 组件渲染
+ */
+const quickActions = computed<QuickAction[]>(() => [
+  { key: 'approval', icon: '📋', text: '待审批', color: 'orange', badge: pendingCount.value },
+  { key: 'stats', icon: '📊', text: '数据统计', color: 'red', badge: pendingCount.value },
+  { key: 'categories', icon: '🏷️', text: '品类配置', color: 'green' },
+  { key: 'drivers', icon: '👥', text: '司机管理', color: 'purple' },
+  { key: 'notifications', icon: '🔔', text: '通知中心', color: 'blue', badge: unreadCount.value },
+  { key: 'notify', icon: '📢', text: '发送通知', color: 'teal' },
+])
+
+// ==================== 生命周期 ====================
 
 onMounted(() => loadData())
 onShow(() => loadData())
 
+// ==================== 方法 ====================
+
+/**
+ * 加载页面数据
+ */
 async function loadData(): Promise<void> {
-  loading.value = true
   driverStatsLoading.value = true
   try {
+    // 先加载仓库列表（使用 composable）
     await loadWarehouses()
+    
+    // 并行加载数据
     await Promise.all([
-      loadDriverStats(), loadAttendanceStats(), loadPieceWorkStats(),
-      loadPendingCount(), loadUnreadCount(), loadDriverStatsData(),
+      loadAllStats(), // 使用 useHomeStats 的 loadAllStats
+      loadPendingCount(),
+      loadUnreadCount(),
+      loadDriverStatsData(),
     ])
   } catch (error) {
     console.error('加载数据失败:', error)
   } finally {
-    loading.value = false
     driverStatsLoading.value = false
   }
 }
 
-async function loadWarehouses(): Promise<void> {
-  try {
-    const data = await getWarehouses()
-    // 将 API 返回的 number 类型 id 转换为 string 类型，以匹配组件类型定义
-    warehouses.value = data.map(w => ({ id: String(w.id), name: w.name }))
-    
-    // 获取本月第一天（用于统计本月数据）
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthStartStr = monthStart.toISOString().split('T')[0]
-    const todayStr = now.toISOString().split('T')[0]
-    
-    // 并行获取每个仓库的计件数据和司机数量
-    const warehouseInfoPromises = data.map(async (warehouse) => {
-      try {
-        const [stats, users] = await Promise.all([
-          getPieceWorkStats({
-            warehouse_id: warehouse.id,
-            start_date: monthStartStr,
-            end_date: todayStr,
-          }),
-          getWarehouseUsers(warehouse.id),
-        ])
-        // 统计司机数量
-        const driverCount = users.filter(u => u.role === UserRole.DRIVER).length
-        return {
-          warehouseId: warehouse.id,
-          hasData: (stats.total_quantity || 0) > 0,
-          driverCount,
-        }
-      } catch {
-        return { warehouseId: warehouse.id, hasData: false, driverCount: 0 }
-      }
-    })
-    
-    const warehouseInfoResults = await Promise.all(warehouseInfoPromises)
-    
-    // 创建仓库数据映射
-    warehouseDataMap.value = createWarehouseDataMap(
-      warehouseInfoResults.map(r => ({
-        warehouseId: r.warehouseId,
-        hasData: r.hasData,
-      }))
-    )
-    
-    // 创建仓库司机数量映射
-    const driverCountMap = new Map<number, number>()
-    warehouseInfoResults.forEach(r => {
-      driverCountMap.set(r.warehouseId, r.driverCount)
-    })
-    warehouseDriverCountMap.value = driverCountMap
-  } catch (error) {
-    console.error('加载仓库列表失败:', error)
-    warehouses.value = []
-  }
-}
-
-async function loadDriverStats(): Promise<void> {
-  try {
-    const drivers = await getUsers({ role: UserRole.DRIVER })
-    stats.value.driverCount = drivers.length
-  } catch (error) {
-    console.error('加载司机统计失败:', error)
-  }
-}
-
+/**
+ * 加载司机实时状态统计
+ */
 async function loadDriverStatsData(): Promise<void> {
   try {
-    const drivers = await getUsers({ role: UserRole.DRIVER })
+    const warehouseId = currentWarehouseId.value ? parseInt(currentWarehouseId.value) : undefined
+    
+    // 获取司机数量
+    let drivers: any[] = []
+    if (warehouseId) {
+      const warehouseUsers = await getWarehouseUsers(warehouseId)
+      drivers = warehouseUsers.filter(u => u.role === UserRole.DRIVER)
+    } else {
+      drivers = await getUsers({ role: UserRole.DRIVER })
+    }
     const totalDrivers = drivers.length
-    const todayStr = new Date().toISOString().split('T')[0]
-    const records = await getAttendanceRecords({ start_date: todayStr, end_date: todayStr, limit: 1000 })
+    
+    const todayStr = getLocalDateString()
+    
+    // 获取今日考勤记录
+    const records = await getAttendanceRecords({ 
+      start_date: todayStr, 
+      end_date: todayStr, 
+      warehouse_id: warehouseId,
+      limit: 1000 
+    })
     const onlineDriverIds = new Set(records.map(r => r.user_id))
     const onlineDrivers = onlineDriverIds.size
-    const pieceWorkStats = await getPieceWorkStats({ start_date: todayStr, end_date: todayStr })
+    
+    // 获取今日计件统计
+    const pieceWorkStats = await getPieceWorkStats({ 
+      start_date: todayStr, 
+      end_date: todayStr,
+      warehouse_id: warehouseId,
+    })
     const busyDrivers = pieceWorkStats.driver_count || 0
     const idleDrivers = Math.max(0, onlineDrivers - busyDrivers)
     driverStats.value = { totalDrivers, onlineDrivers, busyDrivers, idleDrivers }
@@ -384,40 +393,10 @@ async function loadDriverStatsData(): Promise<void> {
   }
 }
 
-async function loadAttendanceStats(): Promise<void> {
-  try {
-    const todayStr = new Date().toISOString().split('T')[0]
-    const records = await getAttendanceRecords({ start_date: todayStr, end_date: todayStr, limit: 1000 })
-    const uniqueUserIds = new Set(records.map(r => r.user_id))
-    stats.value.todayAttendanceCount = uniqueUserIds.size
-  } catch (error) {
-    console.error('加载出勤统计失败:', error)
-  }
-}
-
-async function loadPieceWorkStats(): Promise<void> {
-  try {
-    const todayStr = new Date().toISOString().split('T')[0]
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthStartStr = monthStart.toISOString().split('T')[0]
-    const [todayStats, monthStats] = await Promise.all([
-      getPieceWorkStats({ start_date: todayStr, end_date: todayStr }),
-      getPieceWorkStats({ start_date: monthStartStr, end_date: todayStr }),
-    ])
-    stats.value.todayPieceCount = todayStats.total_quantity || 0
-    stats.value.todayAmount = todayStats.total_amount || 0
-    stats.value.monthPieceCount = monthStats.total_quantity || 0
-    stats.value.monthAmount = monthStats.total_amount || 0
-  } catch (error) {
-    console.error('加载计件统计失败:', error)
-  }
-}
-
 async function loadPendingCount(): Promise<void> {
   try {
     const pendingLeaves = await getLeaveApplications({ status: LeaveStatus.PENDING, limit: 1000 })
-    stats.value.pendingCount = pendingLeaves.length
+    pendingCount.value = pendingLeaves.length
   } catch (error) {
     console.error('加载待审批数量失败:', error)
   }
@@ -440,27 +419,14 @@ function handleWarehouseChange(index: number): void {
 
 /**
  * 处理仓库分配更新事件
- * 当收到 SSE 仓库分配更新事件时，直接使用推送的数据更新本地仓库列表
- * 
- * @param data - 仓库分配更新事件数据
- * Requirements: 5.4 - 仓库选择器集成实时更新
  */
 function handleAssignmentUpdate(data: AssignmentUpdateEvent): void {
   console.log('[ManagerHome] 收到仓库分配更新事件:', data)
   
-  // 直接使用推送的数据更新本地仓库列表
-  // 将 API 返回的 number 类型 id 转换为 string 类型，以匹配组件类型定义
-  warehouses.value = data.warehouses.map(w => ({ 
-    id: String(w.id), 
-    name: w.name 
-  }))
-  
-  // 如果当前选中的仓库索引超出范围，重置为 0
   if (currentWarehouseIndex.value >= warehousesWithDataOrDrivers.value.length) {
     currentWarehouseIndex.value = Math.max(0, warehousesWithDataOrDrivers.value.length - 1)
   }
   
-  // 重新加载数据以更新统计信息
   loadData()
 }
 
@@ -473,12 +439,17 @@ function handleDashboardCardClick(type: CardType): void {
   }
 }
 
-function handleWarehouseCategories(): void {
-  const warehouse = warehouses.value[currentWarehouseIndex.value]
-  if (warehouse) {
-    navigateTo(`/pages/manager/warehouse-categories/index?warehouseId=${warehouse.id}&warehouseName=${encodeURIComponent(warehouse.name)}`)
-  } else {
-    uni.showToast({ title: '请先选择仓库', icon: 'none' })
+/**
+ * 处理快捷功能点击
+ */
+function handleQuickActionClick(key: string): void {
+  switch (key) {
+    case 'approval': navigateTo('/pages/manager/approval/index'); break
+    case 'stats': navigateTo('/pages/manager/attendance/index'); break
+    case 'categories': navigateTo('/pages/boss/categories/index'); break
+    case 'drivers': navigateTo('/pages/manager/drivers/index'); break
+    case 'notifications': navigateTo('/pages/notifications/index'); break
+    case 'notify': navigateTo('/pages/manager/notify/index'); break
   }
 }
 
@@ -489,84 +460,13 @@ function navigateTo(url: string): void {
 }
 
 function onScrollToLower(): void {}
-
-function handleLogout(): void {
-  uni.showModal({
-    title: '退出登录',
-    content: '确定要退出登录吗？',
-    success: (res) => {
-      if (res.confirm) {
-        userStore.logout()
-        uni.reLaunch({ url: '/pages/login/index' })
-      }
-    }
-  })
-}
 </script>
 
+
 <style lang="scss" scoped>
+/* 引入共享样式 */
+@import '@/styles/home-common.scss';
+
+/* ==================== 主页面容器 ==================== */
 .manager-home { min-height: 100vh; }
-.safe-area-top { height: env(safe-area-inset-top); height: constant(safe-area-inset-top); }
-.page-content { height: calc(100vh - env(safe-area-inset-top)); }
-.content-wrapper { padding: 32rpx; padding-bottom: 120rpx; }
-
-.welcome-card {
-  background: linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%);
-  border-radius: 24rpx;
-  padding: 48rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 8rpx 32rpx rgba(30, 58, 138, 0.3);
-}
-.welcome-content { display: flex; align-items: center; justify-content: space-between; }
-.welcome-text { display: flex; flex-direction: column; flex: 1; padding-right: 24rpx; }
-.welcome-title { font-size: 48rpx; font-weight: bold; color: #ffffff; margin-bottom: 8rpx; }
-.welcome-subtitle { font-size: 28rpx; color: rgba(255, 255, 255, 0.8); }
-
-.section { margin-bottom: 24rpx; }
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
-.section-title-wrapper { display: flex; align-items: center; }
-.section-icon { font-size: 36rpx; margin-right: 12rpx; }
-.section-title { font-size: 32rpx; font-weight: bold; color: #1F2937; }
-
-.loading-icon { font-size: 28rpx; margin-left: 12rpx; animation: spin 1s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-.section-info { display: flex; align-items: center; }
-.section-warehouse { font-size: 24rpx; color: #6B7280; }
-.section-divider { font-size: 24rpx; color: #D1D5DB; margin: 0 12rpx; }
-.section-date { font-size: 24rpx; color: #6B7280; }
-.warehouse-count { font-size: 24rpx; color: #9CA3AF; margin-left: 8rpx; }
-.sort-hint { font-size: 24rpx; color: #9CA3AF; }
-
-.profile-btn { display: flex; align-items: center; background-color: #EFF6FF; border-radius: 32rpx; padding: 12rpx 24rpx; }
-.profile-icon { font-size: 28rpx; margin-right: 8rpx; }
-.profile-text { font-size: 26rpx; color: #1E3A8A; font-weight: 500; }
-
-.quick-actions-card { background-color: #ffffff; border-radius: 24rpx; padding: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08); }
-.quick-actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
-.action-item {
-  display: flex; flex-direction: column; align-items: center; padding: 24rpx 16rpx; border-radius: 16rpx; transition: transform 0.2s;
-  &:active { transform: scale(0.95); }
-  &.blue { background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); }
-  &.green { background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); }
-  &.orange { background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); }
-  &.purple { background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%); }
-  &.teal { background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%); }
-  &.red { background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%); }
-  &.cyan { background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); }
-}
-.action-icon-wrapper { position: relative; margin-bottom: 12rpx; }
-.action-icon { font-size: 56rpx; }
-.badge { position: absolute; top: -8rpx; right: -16rpx; min-width: 32rpx; height: 32rpx; background-color: #EF4444; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; padding: 0 8rpx; }
-.badge-count { font-size: 20rpx; font-weight: bold; color: #ffffff; }
-.action-text { font-size: 26rpx; font-weight: 500; color: #374151; text-align: center; }
-
-.logout-card {
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-  border-radius: 24rpx; padding: 32rpx; box-shadow: 0 4rpx 16rpx rgba(239, 68, 68, 0.3);
-  &:active { opacity: 0.9; }
-}
-.logout-icon { font-size: 40rpx; margin-right: 12rpx; }
-.logout-text { font-size: 32rpx; font-weight: bold; color: #ffffff; }
 </style>

@@ -112,6 +112,7 @@ import { getLeaveApplication, approveLeaveApplication } from '@/api'
 import type { LeaveApplication } from '@/api/types'
 import { LeaveStatus, LeaveType } from '@/api/types'
 import { formatDate, formatDateTime } from '@/utils'
+import { calculateDays } from '@/utils/date'
 
 // ==================== 状态 ====================
 
@@ -202,21 +203,6 @@ function getStatusIcon(status: LeaveStatus): string {
     [LeaveStatus.REJECTED]: '❌',
   }
   return iconMap[status] || '❓'
-}
-
-/**
- * 计算请假天数
- * 
- * @param startDate - 开始日期
- * @param endDate - 结束日期
- * @returns 天数
- */
-function calculateDays(startDate: string, endDate: string): number {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  const diffTime = Math.abs(end.getTime() - start.getTime())
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  return diffDays + 1 // 包含开始和结束日期
 }
 
 /**

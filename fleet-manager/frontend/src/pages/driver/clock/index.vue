@@ -31,11 +31,11 @@
           <view class="status-details">
             <view class="detail-row">
               <text class="detail-label">上班时间</text>
-              <text class="detail-value">{{ formatTime(attendance.clock_in_time) }}</text>
+              <text class="detail-value">{{ formatTime(attendance.clock_in_time, '--:--') }}</text>
             </view>
             <view v-if="attendance.has_clocked_out" class="detail-row">
               <text class="detail-label">下班时间</text>
-              <text class="detail-value">{{ formatTime(attendance.clock_out_time) }}</text>
+              <text class="detail-value">{{ formatTime(attendance.clock_out_time, '--:--') }}</text>
             </view>
             <view v-if="attendance.work_hours" class="detail-row">
               <text class="detail-label">工作时长</text>
@@ -163,7 +163,7 @@
                 >{{ getStatusInfo(attendance.status).text }}</text>
               </view>
             </view>
-            <text class="record-time">{{ formatTime(attendance.clock_in_time) }}</text>
+            <text class="record-time">{{ formatTime(attendance.clock_in_time, '--:--') }}</text>
             <view v-if="attendance.warehouse_name" class="record-warehouse">
               <text class="warehouse-icon">🏭</text>
               <text class="warehouse-text">{{ attendance.warehouse_name }}</text>
@@ -182,7 +182,7 @@
               </view>
             </view>
             <text v-if="attendance.has_clocked_out" class="record-time">
-              {{ formatTime(attendance.clock_out_time) }}
+              {{ formatTime(attendance.clock_out_time, '--:--') }}
             </text>
             <text v-else class="record-pending">未打卡</text>
             <view v-if="attendance.work_hours" class="record-hours">
@@ -238,6 +238,7 @@ import {
   checkUserOnLeave,
 } from '@/api'
 import type { TodayAttendance, Warehouse, AttendanceRule } from '@/api/types'
+import { formatTime } from '@/utils/dateFormat'
 
 // ==================== 类型定义 ====================
 
@@ -592,19 +593,6 @@ async function doClockOut(): Promise<void> {
   } finally {
     loading.value = false
   }
-}
-
-/**
- * 格式化时间显示
- * @param timeStr - ISO 时间字符串
- * @returns 格式化后的时间 HH:mm
- */
-function formatTime(timeStr: string | null): string {
-  if (!timeStr) return '--:--'
-  const date = new Date(timeStr)
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${hours}:${minutes}`
 }
 
 /**

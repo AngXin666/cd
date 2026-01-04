@@ -41,6 +41,10 @@ async def login(
     """
     用户登录
     验证用户名密码，返回 JWT Token
+    
+    支持多种登录方式：
+    1. 直接使用用户名登录
+    2. 使用手机号登录（自动尝试添加 @fleet.com 后缀）
 
     Args:
         request: 登录请求，包含用户名和密码
@@ -52,8 +56,14 @@ async def login(
     Raises:
         HTTPException 401: 用户名或密码错误
     """
-    # 验证用户凭据
+    # 首先尝试直接使用输入的用户名验证
     user = authenticate_user(session, request.username, request.password)
+    
+    # 如果直接验证失败，尝试添加 @fleet.com 后缀（支持手机号登录）
+    if not user and '@' not in request.username:
+        username_with_suffix = f"{request.username}@fleet.com"
+        user = authenticate_user(session, username_with_suffix, request.password)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

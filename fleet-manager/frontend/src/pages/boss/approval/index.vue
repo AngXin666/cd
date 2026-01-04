@@ -79,6 +79,7 @@
                   <text class="type-text">请假</text>
                 </view>
               </view>
+              <text class="warehouse-name" v-if="application.warehouse_name">{{ application.warehouse_name }}</text>
               <text class="apply-time">申请时间：{{ formatDateTime(application.created_at) }}</text>
             </view>
           </view>
@@ -159,6 +160,7 @@
                   <text class="type-text">离职</text>
                 </view>
               </view>
+              <text class="warehouse-name" v-if="application.warehouse_name">{{ application.warehouse_name }}</text>
               <text class="apply-time">申请时间：{{ formatDateTime(application.created_at) }}</text>
             </view>
           </view>
@@ -344,18 +346,34 @@ const vehicleFilterTabs = computed(() => [
   { label: '全部', value: 'all' as const, count: vehicles.value.length },
 ])
 
-/** 筛选后的请假申请 */
+/** 筛选后的请假申请（按仓库排序） */
 const filteredLeaveApplications = computed(() => {
-  if (leaveFilter.value === 'all') return leaveApplications.value
-  const statusMap: Record<string, LeaveStatus> = { pending: LeaveStatus.PENDING, approved: LeaveStatus.APPROVED, rejected: LeaveStatus.REJECTED }
-  return leaveApplications.value.filter(a => a.status === statusMap[leaveFilter.value])
+  let filtered = leaveApplications.value
+  if (leaveFilter.value !== 'all') {
+    const statusMap: Record<string, LeaveStatus> = { pending: LeaveStatus.PENDING, approved: LeaveStatus.APPROVED, rejected: LeaveStatus.REJECTED }
+    filtered = filtered.filter(a => a.status === statusMap[leaveFilter.value])
+  }
+  // 按仓库名称排序（无仓库的排在最后）
+  return [...filtered].sort((a, b) => {
+    const warehouseA = a.warehouse_name || 'zzz'
+    const warehouseB = b.warehouse_name || 'zzz'
+    return warehouseA.localeCompare(warehouseB, 'zh-CN')
+  })
 })
 
-/** 筛选后的离职申请 */
+/** 筛选后的离职申请（按仓库排序） */
 const filteredResignApplications = computed(() => {
-  if (resignFilter.value === 'all') return resignApplications.value
-  const statusMap: Record<string, LeaveStatus> = { pending: LeaveStatus.PENDING, approved: LeaveStatus.APPROVED, rejected: LeaveStatus.REJECTED }
-  return resignApplications.value.filter(a => a.status === statusMap[resignFilter.value])
+  let filtered = resignApplications.value
+  if (resignFilter.value !== 'all') {
+    const statusMap: Record<string, LeaveStatus> = { pending: LeaveStatus.PENDING, approved: LeaveStatus.APPROVED, rejected: LeaveStatus.REJECTED }
+    filtered = filtered.filter(a => a.status === statusMap[resignFilter.value])
+  }
+  // 按仓库名称排序（无仓库的排在最后）
+  return [...filtered].sort((a, b) => {
+    const warehouseA = a.warehouse_name || 'zzz'
+    const warehouseB = b.warehouse_name || 'zzz'
+    return warehouseA.localeCompare(warehouseB, 'zh-CN')
+  })
 })
 
 /** 筛选后的车辆 */
@@ -750,6 +768,13 @@ async function handleVehicleSupplement(vehicle: Vehicle): Promise<void> {
 .review-text { font-size: 22rpx; }
 
 .apply-time { font-size: 24rpx; color: #999999; }
+
+.warehouse-name { 
+  font-size: 24rpx; 
+  color: #1890ff; 
+  margin-bottom: 4rpx;
+  display: block;
+}
 
 /* 请假信息 */
 .leave-info { padding: 20rpx 0; }

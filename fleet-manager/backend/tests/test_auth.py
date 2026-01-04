@@ -107,11 +107,13 @@ class TestLogin:
         test_password: str
     ):
         """
-        测试禁用用户登录失败
+        测试禁用用户可以登录
 
         验证：
-        - 禁用用户无法登录
-        - 返回 401 状态码
+        - 禁用用户可以登录（但只能查看数据，无法进行数据录入操作）
+        - 返回 200 状态码和有效的 access_token
+
+        Requirements: 8.1, 12.3 - 禁用用户可登录查看但无法进行数据录入操作
         """
         response = client.post(
             "/api/auth/login",
@@ -121,7 +123,9 @@ class TestLogin:
             }
         )
 
-        assert_error_response(response, 401)
+        # 禁用用户可以登录
+        data = assert_success_response(response, 200)
+        assert "access_token" in data, "禁用用户登录应返回 access_token"
 
     def test_login_empty_username(self, client: TestClient):
         """
@@ -318,11 +322,13 @@ class TestTokenValidation:
         disabled_user: User
     ):
         """
-        测试禁用用户的 Token 访问失败
+        测试禁用用户的 Token 可以访问查看接口
 
         验证：
-        - 即使 Token 有效，禁用用户也无法访问
-        - 返回 403 状态码，错误代码为 user_disabled
+        - 禁用用户可以访问查看类接口（如获取用户信息）
+        - 返回 200 状态码
+
+        Requirements: 8.1, 12.3 - 禁用用户可登录查看但无法进行数据录入操作
         """
         # 为禁用用户创建 Token
         token = create_test_token(disabled_user.id)
@@ -332,13 +338,10 @@ class TestTokenValidation:
             headers=get_auth_headers(token)
         )
 
-        # 应该返回 403，因为用户被禁用
-        assert response.status_code == 403
+        # 禁用用户可以访问查看类接口
+        assert response.status_code == 200
         data = response.json()
-
-        # 验证错误代码
-        if "detail" in data and isinstance(data["detail"], dict):
-            assert data["detail"].get("error_code") == "user_disabled"
+        assert data["id"] == disabled_user.id
 
 
 # ==================== 密码修改测试 ====================
@@ -527,7 +530,9 @@ class TestGetCurrentUser:
         assert data["id"] == driver_user.id
         assert data["username"] == driver_user.username
         assert data["name"] == driver_user.name
-        assert data["role"] == driver_user.role.value
+        # 处理 role 可能是枚举或字符串的情况
+        expected_role = driver_user.role.value if hasattr(driver_user.role, 'value') else driver_user.role
+        assert data["role"] == expected_role
 
         # 不应该返回密码
         assert "password" not in data
@@ -563,4 +568,64 @@ class TestGetCurrentUser:
 
             data = assert_success_response(response, 200)
             assert data["id"] == user.id
-            assert data["role"] == user.role.value
+            # 处理 role 可能是枚举或字符串的情况
+            expected_role = user.role.value if hasattr(user.role, 'value') else user.role
+            assert data["role"] == expected_role
+
+
+# ==================== 禁用用户数据录入限制测试 ====================
+# Requirements: 8.1, 12.3 - 禁用用户可登录查看但无法进行数据录入操作
+
+class TestDisabledUserDataEntry:
+    """禁用用户数据录入限制测试"""
+
+    def test_disabled_user_cannot_clock_in(
+        self,
+        client: TestClient,
+        disabled_user: User
+    ):
+        """
+        测试禁用用户无法打卡
+
+        验证：
+        - 禁用用户尝试打卡时返回 403 错误
+        - 错误代码为 user_disabled
+        """
+        # 为禁用用户创建 Token
+        token = create_test_token(disabled_user.id)
+
+        response = client.post(
+            "/api/attendance/clock-in",
+            headers=get_auth_headers(token)
+        )
+
+        # 应该返回 403，因为用户被禁用
+        assert response.status_code == 403
+        data = response.json()
+
+        # 验证错误代码
+        if "detail" in data and isinstance(data["detail"], dict):
+            assert data["detail"].get("error_code") == "user_disabled"
+
+    def test_disabled_user_can_view_attendance(
+        self,
+        client: TestClient,
+        disabled_user: User
+    ):
+        """
+        测试禁用用户可以查看考勤记录
+
+        验证：
+        - 禁用用户可以查看自己的考勤记录
+        - 返回 200 状态码
+        """
+        # 为禁用用户创建 Token
+        token = create_test_token(disabled_user.id)
+
+        response = client.get(
+            "/api/attendance",
+            headers=get_auth_headers(token)
+        )
+
+        # 禁用用户可以查看考勤记录
+        assert response.status_code == 200

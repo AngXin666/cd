@@ -207,6 +207,30 @@ export function navigateTo(
 }
 
 /**
+ * 智能页面跳转
+ * 自动判断是否为 tabBar 页面，使用正确的跳转方法
+ * 
+ * @param url - 页面路径
+ */
+export function smartNavigateTo(url: string): void {
+  // tabBar 页面列表
+  const tabBarPages = [
+    '/pages/index/index',
+    '/pages/notifications/index',
+    '/pages/profile/index',
+  ]
+  
+  // 判断是否为 tabBar 页面
+  const isTabBarPage = tabBarPages.some(page => url.startsWith(page))
+  
+  if (isTabBarPage) {
+    uni.switchTab({ url })
+  } else {
+    uni.navigateTo({ url })
+  }
+}
+
+/**
  * 页面重定向
  * 
  * @param url - 页面路径

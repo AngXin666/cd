@@ -22,9 +22,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 设置测试环境变量（必须在导入 main 之前设置）
-os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
-os.environ.setdefault("DEBUG", "true")
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["JWT_SECRET_KEY"] = "test-secret-key"
+os.environ["DEBUG"] = "true"
+os.environ["TESTING"] = "true"  # 标记测试环境，跳过调度器启动
 
 # 清除可能导致问题的环境变量
 for key in list(os.environ.keys()):

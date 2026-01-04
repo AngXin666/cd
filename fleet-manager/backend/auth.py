@@ -161,6 +161,9 @@ async def get_current_user(
     获取当前登录用户
     从 JWT 令牌中解析用户信息
 
+    注意：此函数不检查用户是否被禁用，禁用用户可以登录查看数据。
+    对于数据录入操作（打卡、计件、请假等），需要额外调用 require_active_user 检查。
+
     Args:
         credentials: HTTP Bearer 认证凭据
         session: 数据库会话
@@ -170,6 +173,8 @@ async def get_current_user(
 
     Raises:
         HTTPException: 认证失败时抛出 401 错误
+
+    Requirements: 8.1, 12.3 - 禁用用户可登录查看但无法进行数据录入操作
     """
     # 定义认证异常
     credentials_exception = HTTPException(
@@ -198,12 +203,8 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
-    # 检查用户是否启用
-    if not user.is_active:
-        raise PermissionError(
-            error_code=PermissionErrorCode.USER_DISABLED,
-            message="用户已被禁用"
-        )
+    # 注意：不再检查 is_active，禁用用户可以登录查看数据
+    # 数据录入操作需要调用 require_active_user 进行检查
 
     return user
 
@@ -267,10 +268,18 @@ require_management = require_roles([UserRole.MANAGER, UserRole.PEER_ADMIN, UserR
 # 所有角色都可以访问（但必须登录）
 require_any_role = require_roles([UserRole.DRIVER, UserRole.MANAGER, UserRole.PEER_ADMIN, UserRole.BOSS])
 
+# 可以创建用户的角色（车队长、调度、老板）
+# 车队长只能创建司机，调度和老板可以创建更多角色
+# Requirements: 1.4, 12.1 - 允许车队长创建司机
+require_user_creator = require_roles([UserRole.MANAGER, UserRole.PEER_ADMIN, UserRole.BOSS])
+
 
 def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
     """
     验证用户登录
+
+    注意：禁用用户也可以登录，但只能查看数据，无法进行数据录入操作。
+    数据录入操作需要在接口中调用 require_active_user 进行检查。
 
     Args:
         session: 数据库会话
@@ -279,6 +288,8 @@ def authenticate_user(session: Session, username: str, password: str) -> Optiona
 
     Returns:
         User: 验证成功返回用户对象，失败返回 None
+
+    Requirements: 8.1, 12.3 - 禁用用户可登录查看但无法进行数据录入操作
     """
     # 查询用户
     statement = select(User).where(User.username == username)
@@ -292,9 +303,8 @@ def authenticate_user(session: Session, username: str, password: str) -> Optiona
     if not verify_password(password, user.password_hash):
         return None
 
-    # 用户被禁用
-    if not user.is_active:
-        return None
+    # 注意：不再检查 is_active，禁用用户可以登录查看数据
+    # 数据录入操作需要调用 require_active_user 进行检查
 
     return user
 
@@ -361,7 +371,8 @@ def is_admin_role(role: UserRole) -> bool:
     Returns:
         bool: 是否为管理员角色
     """
-    return role in [UserRole.PEER_ADMIN, UserRole.BOSS]
+    # 注意：role 可能是字符串，需要与枚举值比较
+    return role in [UserRole.PEER_ADMIN.value, UserRole.BOSS.value]
 
 
 def has_management_permission(role: UserRole) -> bool:
@@ -376,7 +387,8 @@ def has_management_permission(role: UserRole) -> bool:
     Returns:
         bool: 是否具有管理权限
     """
-    return role in [UserRole.MANAGER, UserRole.PEER_ADMIN, UserRole.BOSS]
+    # 注意：role 可能是字符串，需要与枚举值比较
+    return role in [UserRole.MANAGER.value, UserRole.PEER_ADMIN.value, UserRole.BOSS.value]
 
 
 def can_manage_user(manager_role: UserRole, target_role: UserRole) -> bool:
@@ -530,6 +542,31 @@ def require_boss_for_high_roles(
 
 # 保留旧函数名作为别名，保持向后兼容
 require_super_admin_for_high_roles = require_boss_for_high_roles
+
+
+def require_active_user(current_user: User) -> None:
+    """
+    检查用户是否处于激活状态，用于数据录入操作
+
+    禁用用户可以登录查看数据，但不能进行数据录入操作（打卡、计件、请假等）。
+    此函数应在所有数据录入接口中调用。
+
+    Args:
+        current_user: 当前登录用户
+
+    Raises:
+        PermissionError: 当用户被禁用时
+
+    Requirements: 8.1, 12.3 - 禁用用户可登录查看但无法进行数据录入操作
+    """
+    if not current_user.is_active:
+        logger.warning(
+            f"权限拒绝: 禁用用户 {current_user.id} 尝试进行数据录入操作"
+        )
+        raise PermissionError(
+            error_code=PermissionErrorCode.USER_DISABLED,
+            message="您的账号已被禁用，无法进行此操作"
+        )
 
 
 def check_manager_warehouse_access(

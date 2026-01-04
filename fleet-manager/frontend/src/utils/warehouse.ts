@@ -26,6 +26,14 @@ export interface WarehouseFilterOptions {
   users?: User[]
   /** 角色过滤（用于统计特定角色的用户） */
   roleFilter?: UserRole
+  /** 仓库司机数量映射 (warehouseId -> driverCount)，直接提供司机数量 */
+  warehouseDriverCountMap?: Map<number, number>
+  /** 仓库今日件数映射 (warehouseId -> todayPieceCount)，用于排序 */
+  warehouseTodayPieceCountMap?: Map<number, number>
+  /** 仓库今日出勤映射 (warehouseId -> todayAttendanceCount)，用于排序 */
+  warehouseTodayAttendanceMap?: Map<number, number>
+  /** 排序方式：'todayPieceCount' 按今日件数 | 'todayAttendance' 按今日出勤 */
+  sortBy?: 'todayPieceCount' | 'todayAttendance'
 }
 
 // ==================== 核心过滤函数 ====================
@@ -33,29 +41,43 @@ export interface WarehouseFilterOptions {
 /**
  * 过滤有数据的仓库
  * 用于司机端首页、计件记录等页面
+ * 支持按今日件数排序（从多到少）
  * 
  * @param options - 过滤选项
- * @returns 有数据的仓库列表
+ * @returns 有数据的仓库列表（已排序）
  * 
  * @example
  * const validWarehouses = filterWarehousesWithData({
  *   warehouses: allWarehouses,
  *   warehouseDataMap: new Map([[1, true], [2, false]]),
+ *   warehouseTodayPieceCountMap: new Map([[1, 100], [2, 50]]),
+ *   sortBy: 'todayPieceCount',
  * })
  * 
  * @requirements 2.1, 2.2, 2.3
  */
 export function filterWarehousesWithData(options: WarehouseFilterOptions): Warehouse[] {
-  const { warehouses, warehouseDataMap } = options
+  const { warehouses, warehouseDataMap, warehouseTodayPieceCountMap, sortBy } = options
   
   // 如果没有数据映射，返回空数组（没有数据的仓库不显示）
   if (!warehouseDataMap || warehouseDataMap.size === 0) {
     return []
   }
   
-  return warehouses.filter(warehouse => {
+  const filtered = warehouses.filter(warehouse => {
     return warehouseDataMap.get(warehouse.id) === true
   })
+  
+  // 按今日件数排序（从多到少）
+  if (sortBy === 'todayPieceCount' && warehouseTodayPieceCountMap) {
+    filtered.sort((a, b) => {
+      const countA = warehouseTodayPieceCountMap.get(a.id) || 0
+      const countB = warehouseTodayPieceCountMap.get(b.id) || 0
+      return countB - countA // 降序
+    })
+  }
+  
+  return filtered
 }
 
 /**
@@ -111,9 +133,10 @@ export function filterWarehousesWithDrivers(options: WarehouseFilterOptions): Wa
 /**
  * 过滤有数据或有司机的仓库
  * 用于车队长/老板端首页、考勤管理等页面
+ * 支持按今日件数或今日出勤排序（从多到少）
  * 
  * @param options - 过滤选项
- * @returns 有数据或有司机的仓库列表
+ * @returns 有数据或有司机的仓库列表（已排序）
  * 
  * @example
  * const validWarehouses = filterWarehousesWithDataOrDrivers({
@@ -122,17 +145,29 @@ export function filterWarehousesWithDrivers(options: WarehouseFilterOptions): Wa
  *   userWarehouseIdsMap: userWarehouseMap,
  *   users: allUsers,
  *   roleFilter: UserRole.DRIVER,
+ *   warehouseTodayPieceCountMap: pieceCountMap,
+ *   sortBy: 'todayPieceCount',
  * })
  * 
  * @requirements 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4
  */
 export function filterWarehousesWithDataOrDrivers(options: WarehouseFilterOptions): Warehouse[] {
-  const { warehouses, warehouseDataMap, userWarehouseIdsMap, users, roleFilter } = options
+  const { 
+    warehouses, warehouseDataMap, userWarehouseIdsMap, users, roleFilter, 
+    warehouseDriverCountMap, warehouseTodayPieceCountMap, warehouseTodayAttendanceMap, sortBy 
+  } = options
   
   // 计算每个仓库的司机数量
-  const warehouseDriverCounts = new Map<number, number>()
+  // 优先使用直接提供的 warehouseDriverCountMap
+  let driverCounts: Map<number, number>
   
-  if (users && users.length > 0) {
+  if (warehouseDriverCountMap && warehouseDriverCountMap.size > 0) {
+    // 直接使用提供的司机数量映射
+    driverCounts = warehouseDriverCountMap
+  } else if (users && users.length > 0) {
+    // 从用户列表计算司机数量
+    driverCounts = new Map<number, number>()
+    
     for (const user of users) {
       // 如果指定了角色过滤，只统计该角色的用户
       if (roleFilter && user.role !== roleFilter) {
@@ -143,18 +178,38 @@ export function filterWarehousesWithDataOrDrivers(options: WarehouseFilterOption
       const userWarehouseIds = userWarehouseIdsMap?.get(user.id) || []
       
       for (const warehouseId of userWarehouseIds) {
-        const count = warehouseDriverCounts.get(warehouseId) || 0
-        warehouseDriverCounts.set(warehouseId, count + 1)
+        const count = driverCounts.get(warehouseId) || 0
+        driverCounts.set(warehouseId, count + 1)
       }
     }
+  } else {
+    // 没有司机数据
+    driverCounts = new Map<number, number>()
   }
   
   // 过滤有数据或有司机的仓库
-  return warehouses.filter(warehouse => {
+  const filtered = warehouses.filter(warehouse => {
     const hasData = warehouseDataMap?.get(warehouse.id) === true
-    const hasDrivers = (warehouseDriverCounts.get(warehouse.id) || 0) > 0
+    const hasDrivers = (driverCounts.get(warehouse.id) || 0) > 0
     return hasData || hasDrivers
   })
+  
+  // 按指定方式排序（从多到少）
+  if (sortBy === 'todayPieceCount' && warehouseTodayPieceCountMap) {
+    filtered.sort((a, b) => {
+      const countA = warehouseTodayPieceCountMap.get(a.id) || 0
+      const countB = warehouseTodayPieceCountMap.get(b.id) || 0
+      return countB - countA // 降序
+    })
+  } else if (sortBy === 'todayAttendance' && warehouseTodayAttendanceMap) {
+    filtered.sort((a, b) => {
+      const countA = warehouseTodayAttendanceMap.get(a.id) || 0
+      const countB = warehouseTodayAttendanceMap.get(b.id) || 0
+      return countB - countA // 降序
+    })
+  }
+  
+  return filtered
 }
 
 // ==================== 辅助函数 ====================

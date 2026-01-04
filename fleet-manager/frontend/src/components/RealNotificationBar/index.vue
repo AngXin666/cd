@@ -49,6 +49,7 @@
 
 import { ref, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { getNotifications } from '@/api'
 import type { Notification } from './types'
 
 // ==================== Props ====================
@@ -58,17 +59,23 @@ interface Props {
   autoplay?: boolean
   /** 自动切换间隔（毫秒） */
   interval?: number
+  /** 最大显示通知数量 */
+  maxCount?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   autoplay: true,
   interval: 3000,
+  maxCount: 10,
 })
 
 // ==================== 状态 ====================
 
 /** 通知列表 */
 const notifications = ref<Notification[]>([])
+
+/** 加载状态 */
+const loading = ref(false)
 
 // ==================== 生命周期 ====================
 
@@ -85,24 +92,32 @@ onShow(() => {
 
 /**
  * 加载通知列表
- * 获取最近的系统通知
+ * 从后端 API 获取最近的未读通知
  */
 async function loadNotifications(): Promise<void> {
+  if (loading.value) return
+  
+  loading.value = true
   try {
-    // 模拟获取通知数据
-    // 实际项目中应该调用 API 获取
-    notifications.value = [
-      {
-        id: '1',
-        type: 'system',
-        title: '系统通知',
-        content: '欢迎使用车队管家系统',
-        createdAt: new Date().toISOString(),
-      },
-    ]
+    // 调用 API 获取未读通知
+    const data = await getNotifications({
+      is_read: false,
+      limit: props.maxCount,
+    })
+    
+    // 转换为组件内部格式
+    notifications.value = (data || []).map(item => ({
+      id: String(item.id),
+      type: 'system' as Notification['type'], // API 暂不返回 type，默认为 system
+      title: item.title || '系统通知',
+      content: item.content || '',
+      createdAt: item.created_at || new Date().toISOString(),
+    }))
   } catch (error) {
     console.error('加载通知失败:', error)
     notifications.value = []
+  } finally {
+    loading.value = false
   }
 }
 

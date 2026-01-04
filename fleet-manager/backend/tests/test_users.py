@@ -135,13 +135,12 @@ class TestUserCreate:
         test_warehouse: "Warehouse"
     ):
         """
-        测试车队长创建司机
+        测试车队长创建司机成功
 
         验证：
-        - 根据当前 API 实现，车队长可能无权创建司机
-        - 返回 200/201（成功）或 403（无权限）
-
-        注意：当前 API 实现中，车队长无法创建用户，只有老板和超管可以
+        - 车队长可以创建司机
+        - 司机自动分配到车队长管理的仓库
+        - Requirements: 1.4, 12.1
         """
         # 先将车队长分配到仓库
         from models import WarehouseAssignment
@@ -157,8 +156,7 @@ class TestUserCreate:
             "password": "password123",
             "name": "车队长创建的司机",
             "phone": "13900000004",
-            "role": "driver",
-            "warehouse_id": test_warehouse.id
+            "role": "driver"
         }
 
         response = client.post(
@@ -167,9 +165,9 @@ class TestUserCreate:
             headers=get_auth_headers(manager_token)
         )
 
-        # 根据当前 API 实现，车队长可能无权创建司机
-        # 返回 200/201（成功）或 403（无权限）都是合理的
-        assert response.status_code in [200, 201, 403]
+        data = assert_success_response(response, [200, 201])
+        assert data["username"] == user_data["username"]
+        assert data["role"] == "driver"
 
     def test_create_user_invalid_role(
         self,

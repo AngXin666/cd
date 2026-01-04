@@ -75,7 +75,8 @@ async def get_warehouses(
         List[WarehouseResponse]: 仓库列表
     """
     # 老板和调度可以看到所有仓库
-    if current_user.role in [UserRole.BOSS, UserRole.PEER_ADMIN]:
+    # 注意：current_user.role 是字符串，需要与枚举值比较
+    if current_user.role in [UserRole.BOSS.value, UserRole.PEER_ADMIN.value]:
         warehouses = crud.get_warehouses(
             session, 
             is_active=is_active, 
@@ -114,12 +115,16 @@ async def create_warehouse(
     创建仓库（管理员级别可访问：调度、老板）
     
     支持设置仓库类型，默认为计件类型。
+    支持同时创建品类和设置司机价格。
 
     Args:
         request: 仓库创建请求，包含：
             - name: 仓库名称（必填）
             - address: 仓库地址（可选）
             - warehouse_type: 仓库类型（可选，默认 piece）
+            - category_name: 品类名称（可选）
+            - driver_only_price: 纯司机单价（可选）
+            - with_vehicle_price: 带车司机单价（可选）
         current_user: 当前登录用户
         session: 数据库会话
 
@@ -138,6 +143,22 @@ async def create_warehouse(
         address=request.address,
         warehouse_type=request.warehouse_type
     )
+    
+    # 如果提供了品类名称，创建品类
+    if request.category_name:
+        # 获取仓库类型对应的预设单位
+        preset_unit = get_warehouse_preset_unit(warehouse.warehouse_type)
+        
+        # 使用带车司机单价作为默认单价（如果提供）
+        default_price = request.with_vehicle_price or request.driver_only_price or 0.0
+        
+        # 创建品类
+        crud.create_piece_work_category(
+            session,
+            name=request.category_name,
+            unit_price=default_price,
+            unit=preset_unit
+        )
     
     # 使用 from_warehouse 方法转换，自动计算 preset_unit
     return WarehouseResponse.from_warehouse(warehouse)
@@ -329,6 +350,17 @@ async def assign_users_to_warehouse(
                 user_id=assigned_user_id,
                 warehouses=warehouses_data,
                 assignment_type=assignment_type
+            )
+
+            # 发送仓库分配通知给被分配的用户
+            crud.create_notification(
+                session,
+                user_id=assigned_user_id,
+                title="仓库分配已更新",
+                content=f"您已被分配到仓库：{warehouse.name}",
+                sender_id=current_user.id,
+                ref_type="warehouse_assignment",
+                ref_id=warehouse_id
             )
 
     return MessageResponse(message="用户分配成功")

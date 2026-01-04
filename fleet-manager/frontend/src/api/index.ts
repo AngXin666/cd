@@ -42,13 +42,7 @@ import type {
   SupplementedPhotosResponse,
   Notification,
   NotificationCreate,
-  NotificationFromTemplateCreate,
   UnreadCountResponse,
-  NotificationTemplate,
-  NotificationTemplateCreate,
-  NotificationTemplateUpdate,
-  TemplatePreviewResponse,
-  TemplateCategoriesResponse,
   MessageResponse,
   PaginationParams,
   OCRDrivingLicenseRequest,
@@ -260,6 +254,7 @@ export async function getTodayAttendanceForUser(userId: number): Promise<Attenda
 export const getAttendanceRecords = (
   params?: PaginationParams & {
     user_id?: number;
+    warehouse_id?: number;
     start_date?: string;
     end_date?: string;
   }
@@ -345,12 +340,13 @@ export async function checkUserOnLeave(): Promise<LeaveCheckResult> {
  * 
  * @param isActive - 是否只获取启用的分类（可选）
  * @param unit - 按计量单位筛选（可选），如 "件"、"点"、"车"、"公里"
+ * @param warehouseId - 按仓库ID筛选（可选）
  * @returns 分类列表
  * 
  * Requirements: 7.4 - 支持按单位筛选品类
  */
-export const getPieceWorkCategories = (isActive?: boolean, unit?: string) =>
-  get<PieceWorkCategory[]>('/piece-work/categories', { is_active: isActive, unit });
+export const getPieceWorkCategories = (isActive?: boolean, unit?: string, warehouseId?: number) =>
+  get<PieceWorkCategory[]>('/piece-work/categories', { is_active: isActive, unit, warehouse_id: warehouseId });
 
 /**
  * 创建计件分类
@@ -438,8 +434,12 @@ export const deletePieceWorkRecord = (id: number) =>
 /**
  * 司机类型枚举
  * 用于区分带车司机和纯司机的单价配置
+ * 
+ * 注意：枚举值必须与后端保持一致
+ * - pure: 纯司机
+ * - with_vehicle: 带车司机
  */
-export type DriverType = 'with_vehicle' | 'driver_only';
+export type DriverType = 'with_vehicle' | 'pure';
 
 /**
  * 单价配置接口
@@ -460,7 +460,7 @@ export interface CategoryPriceConfig {
  * 
  * @param warehouseId - 仓库 ID
  * @param categoryId - 品类 ID
- * @param driverType - 司机类型 (with_vehicle | driver_only)
+ * @param driverType - 司机类型 (with_vehicle | pure)
  * @returns 单价配置，如果未找到则返回 null
  * @requirements 1.3 - 司机类型单价加载
  * 
@@ -480,12 +480,13 @@ export async function getCategoryPriceForDriver(
       driverType,
     });
     
-    // 获取所有启用的分类
-    const categories = await getPieceWorkCategories(true);
+    // 获取指定仓库的启用分类
+    const categories = await getPieceWorkCategories(true, undefined, warehouseId);
     
     console.log('[getCategoryPriceForDriver] 获取到分类列表:', {
       count: categories.length,
-      categories: categories.map(c => ({ id: c.id, name: c.name, unit_price: c.unit_price })),
+      warehouseId,
+      categories: categories.map(c => ({ id: c.id, name: c.name, unit_price: c.unit_price, warehouse_id: c.warehouse_id })),
     });
     
     // 查找指定的分类
@@ -501,14 +502,24 @@ export async function getCategoryPriceForDriver(
       name: category.name,
       unit_price: category.unit_price,
       unit_price_type: typeof category.unit_price,
+      driver_only_price: category.driver_only_price,
+      with_vehicle_price: category.with_vehicle_price,
     });
     
-    // 当前后端只有统一单价，返回分类的单价
-    // 未来可以根据 driverType 和 warehouseId 获取不同的单价
+    // 根据司机类型获取对应的单价
+    let unitPrice = category.unit_price;
+    
+    // 如果有司机类型特定的单价，优先使用
+    if (driverType === 'pure' && category.driver_only_price !== undefined && category.driver_only_price > 0) {
+      unitPrice = category.driver_only_price;
+    } else if (driverType === 'with_vehicle' && category.with_vehicle_price !== undefined && category.with_vehicle_price > 0) {
+      unitPrice = category.with_vehicle_price;
+    }
+    
     const result = {
-      unitPrice: category.unit_price,
-      isLocked: category.unit_price > 0, // 如果有单价则认为是管理员设置的
-      source: category.unit_price > 0 ? '管理员已设置' : '请输入单价',
+      unitPrice: unitPrice,
+      isLocked: unitPrice > 0, // 如果有单价则认为是管理员设置的
+      source: unitPrice > 0 ? '管理员已设置' : '请输入单价',
     };
     
     console.log('[getCategoryPriceForDriver] 返回单价配置:', result);
@@ -842,64 +853,6 @@ export const createNotificationFromTemplate = (data: NotificationFromTemplateCre
 
 // ==================== 通知模板 API ====================
 
-/**
- * 获取通知模板列表
- * @param params - 查询参数
- * @returns 模板列表
- */
-export const getNotificationTemplates = (
-  params?: PaginationParams & { category?: string; is_active?: boolean }
-) => get<NotificationTemplate[]>('/notification-templates', params);
-
-/**
- * 创建通知模板
- * @param data - 模板信息
- * @returns 创建的模板
- */
-export const createNotificationTemplate = (data: NotificationTemplateCreate) =>
-  post<NotificationTemplate>('/notification-templates', data);
-
-/**
- * 获取通知模板详情
- * @param id - 模板ID
- * @returns 模板信息
- */
-export const getNotificationTemplate = (id: number) =>
-  get<NotificationTemplate>(`/notification-templates/${id}`);
-
-/**
- * 更新通知模板
- * @param id - 模板ID
- * @param data - 更新数据
- * @returns 更新后的模板
- */
-export const updateNotificationTemplate = (id: number, data: NotificationTemplateUpdate) =>
-  put<NotificationTemplate>(`/notification-templates/${id}`, data);
-
-/**
- * 删除通知模板
- * @param id - 模板ID
- * @returns 消息响应
- */
-export const deleteNotificationTemplate = (id: number) =>
-  del<MessageResponse>(`/notification-templates/${id}`);
-
-/**
- * 预览通知模板
- * @param id - 模板ID
- * @param variables - 变量值
- * @returns 预览结果
- */
-export const previewNotificationTemplate = (id: number, variables?: Record<string, string>) =>
-  post<TemplatePreviewResponse>(`/notification-templates/${id}/preview`, variables || {});
-
-/**
- * 获取模板分类列表
- * @returns 分类列表
- */
-export const getTemplateCategories = () =>
-  get<TemplateCategoriesResponse>('/notification-templates/categories');
-
 // ==================== OCR API ====================
 
 /**
@@ -916,102 +869,6 @@ export const recognizeDrivingLicense = (image: string) =>
  */
 export const getOCRStatus = () =>
   get<OCRStatusResponse>('/ocr/status');
-
-// ==================== 定时通知 API ====================
-
-import type {
-  ScheduledNotification,
-  ScheduledNotificationCreate,
-  ScheduledNotificationUpdate,
-  SchedulerStatusResponse,
-} from './types';
-import { ScheduledNotificationStatus } from './types';
-
-/**
- * 获取定时通知列表
- * @param params - 查询参数
- * @returns 定时通知列表
- */
-export const getScheduledNotifications = (
-  params?: PaginationParams & { status?: ScheduledNotificationStatus }
-) => get<ScheduledNotification[]>('/scheduled-notifications', params);
-
-/**
- * 创建定时通知
- * @param data - 定时通知信息
- * @returns 创建的定时通知
- */
-export const createScheduledNotification = (data: ScheduledNotificationCreate) =>
-  post<ScheduledNotification>('/scheduled-notifications', data);
-
-/**
- * 获取定时通知详情
- * @param id - 定时通知ID
- * @returns 定时通知信息
- */
-export const getScheduledNotification = (id: number) =>
-  get<ScheduledNotification>(`/scheduled-notifications/${id}`);
-
-/**
- * 更新定时通知
- * @param id - 定时通知ID
- * @param data - 更新数据
- * @returns 更新后的定时通知
- */
-export const updateScheduledNotification = (id: number, data: ScheduledNotificationUpdate) =>
-  put<ScheduledNotification>(`/scheduled-notifications/${id}`, data);
-
-/**
- * 删除定时通知
- * @param id - 定时通知ID
- * @returns 消息响应
- */
-export const deleteScheduledNotification = (id: number) =>
-  del<MessageResponse>(`/scheduled-notifications/${id}`);
-
-/**
- * 取消定时通知
- * @param id - 定时通知ID
- * @returns 取消后的定时通知
- */
-export const cancelScheduledNotification = (id: number) =>
-  post<ScheduledNotification>(`/scheduled-notifications/${id}/cancel`);
-
-/**
- * 手动执行定时通知
- * @param id - 定时通知ID
- * @returns 消息响应
- */
-export const executeScheduledNotification = (id: number) =>
-  post<MessageResponse>(`/scheduled-notifications/${id}/execute`);
-
-/**
- * 获取调度器状态
- * @returns 调度器状态
- */
-export const getSchedulerStatus = () =>
-  get<SchedulerStatusResponse>('/scheduled-notifications/scheduler/status');
-
-/**
- * 手动触发调度器检查
- * @returns 消息响应
- */
-export const triggerSchedulerCheck = () =>
-  post<MessageResponse>('/scheduled-notifications/scheduler/trigger');
-
-/**
- * 启动调度器
- * @returns 消息响应
- */
-export const startScheduler = () =>
-  post<MessageResponse>('/scheduled-notifications/scheduler/start');
-
-/**
- * 停止调度器
- * @returns 消息响应
- */
-export const stopScheduler = () =>
-  post<MessageResponse>('/scheduled-notifications/scheduler/stop');
 
 // 导出 SSE 服务
 export { sseService, SSEConnectionState } from '@/utils/sse';

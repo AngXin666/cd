@@ -1,0 +1,206 @@
+/**
+ * 首页共享样式文件
+ * 提取自司机端、老板端、车队长端首页的重复样式
+ * 
+ * @module styles/home-common
+ * @requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6
+ */
+
+// ==================== 安全区域 ====================
+// Requirements 1.5 - 安全区域样式
+
+.safe-area-top {
+  height: env(safe-area-inset-top);
+  height: constant(safe-area-inset-top);
+}
+
+// ==================== 区块通用样式 ====================
+// Requirements 1.2 - 区块标题样式
+
+.section {
+  margin-bottom: 32rpx;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.section-title-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.section-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #1F2937;
+}
+
+.section-info {
+  display: flex;
+  align-items: center;
+}
+
+.section-warehouse {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.section-divider {
+  font-size: 24rpx;
+  color: #D1D5DB;
+  margin: 0 12rpx;
+}
+
+.section-date {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.section-hint {
+  font-size: 24rpx;
+  color: #9CA3AF;
+}
+
+.warehouse-count {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-left: 8rpx;
+}
+
+.sort-hint {
+  font-size: 24rpx;
+  color: #9CA3AF;
+}
+
+// ==================== 加载动画 ====================
+// Requirements 1.3 - 加载动画样式
+
+.loading-icon {
+  font-size: 28rpx;
+  margin-left: 12rpx;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// ==================== 渐变背景 Mixin ====================
+// Requirements 1.4 - 卡片渐变背景
+
+@mixin gradient-bg($color) {
+  @if $color == 'blue' {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  } @else if $color == 'green' {
+    background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+  } @else if $color == 'orange' {
+    background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+  } @else if $color == 'purple' {
+    background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
+  } @else if $color == 'teal' {
+    background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%);
+  } @else if $color == 'red' {
+    background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+  } @else if $color == 'cyan' {
+    background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);
+  }
+}
+
+// 渐变背景类（用于快捷功能入口等）
+.bg-blue { @include gradient-bg('blue'); }
+.bg-green { @include gradient-bg('green'); }
+.bg-orange { @include gradient-bg('orange'); }
+.bg-purple { @include gradient-bg('purple'); }
+.bg-teal { @include gradient-bg('teal'); }
+.bg-red { @include gradient-bg('red'); }
+.bg-cyan { @include gradient-bg('cyan'); }
+
+// ==================== 徽章样式 ====================
+// Requirements 1.6 - 徽章样式
+
+.badge {
+  position: absolute;
+  top: -8rpx;
+  right: -16rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  background-color: #EF4444;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+}
+
+.badge-count {
+  font-size: 20rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+// 未读徽章（司机端使用）
+.unread-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -16rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  background-color: #EF4444;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+}
+
+.unread-count {
+  font-size: 20rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+// ==================== 页面容器样式 ====================
+
+.page-content {
+  height: calc(100vh - env(safe-area-inset-top));
+}
+
+.content-wrapper {
+  padding: 32rpx;
+  padding-bottom: 120rpx;
+}
+
+// ==================== 个人中心按钮 ====================
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  background-color: #EFF6FF;
+  border-radius: 32rpx;
+  padding: 12rpx 24rpx;
+  
+  &:active {
+    background-color: #DBEAFE;
+  }
+}
+
+.profile-icon {
+  font-size: 28rpx;
+  margin-right: 8rpx;
+}
+
+.profile-text {
+  font-size: 26rpx;
+  color: #1E3A8A;
+  font-weight: 500;
+}

@@ -10,7 +10,7 @@ from sqlmodel import Session
 
 from database import get_session
 from models import User, UserRole, LeaveStatus, LeaveApplication, is_role
-from auth import get_current_user, require_management, check_resource_ownership
+from auth import get_current_user, require_management, require_active_user, check_resource_ownership
 from schemas import (
     LeaveApplicationCreate, LeaveApproveRequest, LeaveApplicationResponse
 )
@@ -84,6 +84,14 @@ async def get_leave_applications(
     for app in applications:
         user = crud.get_user_by_id(session, app.user_id)
         approver = crud.get_user_by_id(session, app.approver_id) if app.approver_id else None
+        
+        # 获取申请人所属仓库名称
+        warehouse_name = None
+        if user:
+            user_warehouses = crud.get_user_warehouses(session, user.id)
+            if user_warehouses:
+                # 取第一个仓库名称（如果有多个仓库，用逗号分隔）
+                warehouse_name = ", ".join(w.name for w in user_warehouses)
 
         result.append(LeaveApplicationResponse(
             id=app.id,
@@ -98,7 +106,8 @@ async def get_leave_applications(
             created_at=app.created_at,
             updated_at=app.updated_at,
             user_name=user.name if user else None,
-            approver_name=approver.name if approver else None
+            approver_name=approver.name if approver else None,
+            warehouse_name=warehouse_name
         ))
 
     return result
@@ -114,6 +123,9 @@ async def create_leave_application(
     提交请假申请（司机操作）
     创建申请后自动发送通知给管理员
 
+    禁用用户无法提交请假申请。
+    不允许提交与已有申请（待审批/已批准）日期重叠的请假。
+
     Args:
         request: 请假申请数据
         current_user: 当前登录用户
@@ -121,7 +133,36 @@ async def create_leave_application(
 
     Returns:
         LeaveApplicationResponse: 创建的请假申请
+
+    Raises:
+        PermissionError: 用户已被禁用
+        HTTPException 400: 请假日期与已有申请重叠
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法提交请假申请）
+    require_active_user(current_user)
+
+    # 检查是否与已有申请（待审批/已批准）日期重叠
+    existing_applications = crud.get_leave_applications(
+        session,
+        user_id=current_user.id,
+        skip=0,
+        limit=1000
+    )
+    
+    for app in existing_applications:
+        # 只检查待审批和已批准的申请
+        if app.status not in [LeaveStatus.PENDING, LeaveStatus.APPROVED]:
+            continue
+        
+        # 检查日期是否重叠：新申请的开始日期 <= 已有申请的结束日期 且 新申请的结束日期 >= 已有申请的开始日期
+        if request.start_date <= app.end_date and request.end_date >= app.start_date:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"请假日期与已有申请重叠（{app.start_date} 至 {app.end_date}）"
+            )
+
     application = crud.create_leave_application(
         session,
         user_id=current_user.id,
@@ -131,14 +172,19 @@ async def create_leave_application(
         reason=request.reason
     )
 
-    # 发送通知给管理员（车队长、调度、老板）
-    _send_leave_notification_to_admins(
+    # 发送审批通知给管辖车队长、调度、老板
+    leave_type_text = "请假" if request.leave_type == "leave" else "离职"
+    ref_type = "leave" if request.leave_type == "leave" else "resign"
+    content = f"{current_user.name} 提交了{leave_type_text}申请，日期：{request.start_date} 至 {request.end_date}"
+    if request.reason:
+        content += f"，原因：{request.reason}"
+    crud.create_approval_notification(
         session,
-        current_user,
-        request.leave_type,
-        request.start_date,
-        request.end_date,
-        request.reason
+        applicant_id=current_user.id,
+        ref_type=ref_type,
+        ref_id=application.id,
+        title=f"新的{leave_type_text}申请",
+        content=content
     )
 
     return LeaveApplicationResponse(
@@ -259,6 +305,27 @@ async def approve_leave_application(
     )
 
     user = crud.get_user_by_id(session, updated.user_id)
+    
+    # 发送审批完成通知给所有相关人员
+    leave_type_text = "请假" if updated.leave_type == "leave" else "离职"
+    ref_type = "leave" if updated.leave_type == "leave" else "resign"
+    status_text = "批准" if request.status == LeaveStatus.APPROVED else "拒绝"
+    result = "approved" if request.status == LeaveStatus.APPROVED else "rejected"
+    
+    result_content = f"{user.name if user else '用户'} 的{leave_type_text}申请已被 {current_user.name} {status_text}"
+    if request.approve_remark:
+        result_content += f"，备注：{request.approve_remark}"
+    
+    crud.complete_approval(
+        session,
+        ref_type=ref_type,
+        ref_id=application.id,
+        result=result,
+        approver_id=current_user.id,
+        applicant_id=updated.user_id,
+        result_title=f"{leave_type_text}申请已{status_text}",
+        result_content=result_content
+    )
 
     # 触发请假更新事件
     _emit_leave_update_event(session, updated)
@@ -281,60 +348,6 @@ async def approve_leave_application(
 
 
 # ==================== 辅助函数 ====================
-
-def _send_leave_notification_to_admins(
-    session: Session,
-    current_user: User,
-    leave_type: str,
-    start_date,
-    end_date,
-    reason: Optional[str]
-) -> None:
-    """
-    发送请假申请通知给管理员
-
-    Args:
-        session: 数据库会话
-        current_user: 申请人
-        leave_type: 请假类型
-        start_date: 开始日期
-        end_date: 结束日期
-        reason: 请假原因
-    """
-    try:
-        # 获取所有管理员用户
-        admin_users = crud.get_users(
-            session,
-            is_active=True,
-            skip=0,
-            limit=1000
-        )
-        # 筛选管理角色（老板是最高权限角色）
-        admin_ids = [
-            u.id for u in admin_users
-            if u.role in [UserRole.MANAGER, UserRole.PEER_ADMIN, UserRole.BOSS]
-        ]
-
-        if admin_ids:
-            # 构建通知内容
-            leave_type_text = "请假" if leave_type == "leave" else "离职"
-            title = f"新的{leave_type_text}申请"
-            content = f"{current_user.name} 提交了{leave_type_text}申请，日期：{start_date} 至 {end_date}"
-            if reason:
-                content += f"，原因：{reason}"
-
-            # 发送通知
-            crud.create_notifications_batch(
-                session,
-                user_ids=admin_ids,
-                title=title,
-                content=content,
-                sender_id=current_user.id
-            )
-    except Exception as e:
-        # 通知发送失败不影响申请创建
-        print(f"发送请假申请通知失败: {e}")
-
 
 def _emit_leave_update_event(session: Session, updated: LeaveApplication) -> None:
     """
@@ -362,14 +375,15 @@ def _emit_leave_update_event(session: Session, updated: LeaveApplication) -> Non
                 target_user_ids.append(warehouse_user.id)
 
     # 触发请假更新事件
+    # 注意：leave_type 和 status 现在是字符串类型，不需要调用 .value
     emit_leave_update(
         leave_id=updated.id,
         user_id=updated.user_id,
-        leave_type=updated.leave_type.value,
+        leave_type=updated.leave_type,
         start_date=updated.start_date.isoformat(),
         end_date=updated.end_date.isoformat(),
         reason=updated.reason,
-        status=updated.status.value,
+        status=updated.status,
         approver_id=updated.approver_id,
         approve_remark=updated.approve_remark,
         created_at=updated.created_at.isoformat(),

@@ -205,25 +205,86 @@ class TestManagerPermissions:
         data = assert_success_response(response, 200)
         assert isinstance(data, list)
 
-    def test_manager_cannot_create_user(
+    def test_manager_can_create_driver(
+        self,
+        client: TestClient,
+        session: Session,
+        manager_user: User,
+        manager_token: str
+    ):
+        """
+        测试车队长可以创建司机
+
+        验证：
+        - 车队长可以创建司机用户
+        - Requirements: 1.4, 12.1
+        """
+        # 创建仓库并分配给车队长
+        warehouse = WarehouseFactory.create(session, name="车队长创建司机仓库")
+        WarehouseFactory.assign_user(session, manager_user, warehouse)
+
+        response = client.post(
+            "/api/users",
+            json={
+                "username": "manager_created_driver",
+                "password": "password123",
+                "name": "车队长创建的司机",
+                "phone": "13800000001",
+                "role": "driver"
+            },
+            headers=get_auth_headers(manager_token)
+        )
+
+        data = assert_success_response(response, 200)
+        assert data["username"] == "manager_created_driver"
+        assert data["role"] == "driver"
+
+    def test_manager_cannot_create_manager(
         self,
         client: TestClient,
         manager_token: str
     ):
         """
-        测试车队长无法创建用户
+        测试车队长无法创建车队长
 
         验证：
-        - 车队长角色无法创建新用户
+        - 车队长只能创建司机，不能创建车队长
+        - Requirements: 1.4
         """
         response = client.post(
             "/api/users",
             json={
-                "username": "manager_created",
+                "username": "manager_try_create_manager",
                 "password": "password123",
-                "name": "车队长创建",
-                "phone": "13800000001",
-                "role": "driver"
+                "name": "车队长尝试创建车队长",
+                "phone": "13800000002",
+                "role": "manager"
+            },
+            headers=get_auth_headers(manager_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_manager_cannot_create_boss(
+        self,
+        client: TestClient,
+        manager_token: str
+    ):
+        """
+        测试车队长无法创建老板
+
+        验证：
+        - 车队长只能创建司机，不能创建老板
+        - Requirements: 1.4
+        """
+        response = client.post(
+            "/api/users",
+            json={
+                "username": "manager_try_create_boss",
+                "password": "password123",
+                "name": "车队长尝试创建老板",
+                "phone": "13800000003",
+                "role": "boss"
             },
             headers=get_auth_headers(manager_token)
         )
@@ -584,3 +645,346 @@ class TestUnauthenticatedAccess:
         response = client.post("/api/attendance/clock-in")
 
         assert response.status_code in [401, 403]
+
+
+# ==================== 用户更新权限测试 ====================
+# Requirements: 2.1-2.8
+
+class TestUserUpdatePermissions:
+    """用户更新权限测试"""
+
+    def test_boss_can_update_any_user(
+        self,
+        client: TestClient,
+        session: Session,
+        boss_token: str
+    ):
+        """
+        测试老板可以更新任意用户
+        Requirements: 2.1
+        """
+        driver = UserFactory.create_driver(session, username="boss_update_target")
+
+        response = client.put(
+            f"/api/users/{driver.id}",
+            json={"name": "老板更新的名字"},
+            headers=get_auth_headers(boss_token)
+        )
+
+        data = assert_success_response(response, 200)
+        assert data["name"] == "老板更新的名字"
+
+    def test_peer_admin_can_update_manager(
+        self,
+        client: TestClient,
+        session: Session,
+        peer_admin_token: str
+    ):
+        """
+        测试调度可以更新车队长
+        Requirements: 2.3
+        """
+        manager = UserFactory.create_manager(session, username="peer_update_manager")
+
+        response = client.put(
+            f"/api/users/{manager.id}",
+            json={"name": "调度更新的车队长"},
+            headers=get_auth_headers(peer_admin_token)
+        )
+
+        data = assert_success_response(response, 200)
+        assert data["name"] == "调度更新的车队长"
+
+    def test_peer_admin_can_update_driver(
+        self,
+        client: TestClient,
+        session: Session,
+        peer_admin_token: str
+    ):
+        """
+        测试调度可以更新司机
+        Requirements: 2.3
+        """
+        driver = UserFactory.create_driver(session, username="peer_update_driver")
+
+        response = client.put(
+            f"/api/users/{driver.id}",
+            json={"name": "调度更新的司机"},
+            headers=get_auth_headers(peer_admin_token)
+        )
+
+        data = assert_success_response(response, 200)
+        assert data["name"] == "调度更新的司机"
+
+    def test_peer_admin_cannot_update_boss(
+        self,
+        client: TestClient,
+        boss_user: User,
+        peer_admin_token: str
+    ):
+        """
+        测试调度无法更新老板
+        Requirements: 2.4
+        """
+        response = client.put(
+            f"/api/users/{boss_user.id}",
+            json={"name": "调度尝试更新老板"},
+            headers=get_auth_headers(peer_admin_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_manager_can_update_assigned_driver(
+        self,
+        client: TestClient,
+        session: Session,
+        manager_user: User,
+        manager_token: str
+    ):
+        """
+        测试车队长可以更新所辖仓库司机
+        Requirements: 2.5
+        """
+        # 创建仓库并分配
+        warehouse = WarehouseFactory.create(session, name="车队长更新司机仓库")
+        WarehouseFactory.assign_user(session, manager_user, warehouse)
+        driver = UserFactory.create_driver(session, username="manager_update_target")
+        WarehouseFactory.assign_user(session, driver, warehouse)
+
+        response = client.put(
+            f"/api/users/{driver.id}/driver-info",
+            json={"name": "车队长更新的司机"},
+            headers=get_auth_headers(manager_token)
+        )
+
+        data = assert_success_response(response, 200)
+        assert data["name"] == "车队长更新的司机"
+
+    def test_manager_cannot_update_unassigned_driver(
+        self,
+        client: TestClient,
+        session: Session,
+        manager_user: User,
+        manager_token: str
+    ):
+        """
+        测试车队长无法更新非所辖仓库司机
+        Requirements: 2.6
+        """
+        # 创建两个仓库
+        warehouse1 = WarehouseFactory.create(session, name="车队长仓库")
+        warehouse2 = WarehouseFactory.create(session, name="其他仓库")
+
+        # 车队长分配到仓库1
+        WarehouseFactory.assign_user(session, manager_user, warehouse1)
+
+        # 司机分配到仓库2
+        driver = UserFactory.create_driver(session, username="other_warehouse_driver")
+        WarehouseFactory.assign_user(session, driver, warehouse2)
+
+        response = client.put(
+            f"/api/users/{driver.id}/driver-info",
+            json={"name": "车队长尝试更新"},
+            headers=get_auth_headers(manager_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_manager_cannot_update_non_driver(
+        self,
+        client: TestClient,
+        session: Session,
+        manager_user: User,
+        manager_token: str
+    ):
+        """
+        测试车队长无法更新非司机角色用户
+        Requirements: 2.7
+        """
+        # 创建仓库并分配
+        warehouse = WarehouseFactory.create(session, name="车队长更新非司机仓库")
+        WarehouseFactory.assign_user(session, manager_user, warehouse)
+
+        # 创建另一个车队长
+        another_manager = UserFactory.create_manager(session, username="another_manager_target")
+        WarehouseFactory.assign_user(session, another_manager, warehouse)
+
+        response = client.put(
+            f"/api/users/{another_manager.id}/driver-info",
+            json={"name": "车队长尝试更新车队长"},
+            headers=get_auth_headers(manager_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_driver_cannot_update_others(
+        self,
+        client: TestClient,
+        session: Session,
+        driver_token: str
+    ):
+        """
+        测试司机无法更新他人信息
+        Requirements: 2.8
+        """
+        another_driver = UserFactory.create_driver(session, username="another_driver_target")
+
+        response = client.put(
+            f"/api/users/{another_driver.id}",
+            json={"name": "司机尝试更新"},
+            headers=get_auth_headers(driver_token)
+        )
+
+        assert_forbidden(response)
+
+
+# ==================== 用户删除权限测试 ====================
+# Requirements: 3.1-3.7
+
+class TestUserDeletePermissions:
+    """用户删除权限测试"""
+
+    def test_boss_can_delete_user(
+        self,
+        client: TestClient,
+        session: Session,
+        boss_token: str
+    ):
+        """
+        测试老板可以删除用户
+        Requirements: 3.1
+        """
+        driver = UserFactory.create_driver(session, username="boss_delete_target")
+
+        response = client.delete(
+            f"/api/users/{driver.id}",
+            headers=get_auth_headers(boss_token)
+        )
+
+        assert response.status_code in [200, 204]
+
+    def test_boss_cannot_delete_self(
+        self,
+        client: TestClient,
+        boss_user: User,
+        boss_token: str
+    ):
+        """
+        测试老板不能删除自己
+        Requirements: 3.2
+        """
+        response = client.delete(
+            f"/api/users/{boss_user.id}",
+            headers=get_auth_headers(boss_token)
+        )
+
+        assert response.status_code in [400, 403]
+
+    def test_peer_admin_can_delete_manager(
+        self,
+        client: TestClient,
+        session: Session,
+        peer_admin_token: str
+    ):
+        """
+        测试调度可以删除车队长
+        Requirements: 3.3
+        """
+        manager = UserFactory.create_manager(session, username="peer_delete_manager")
+
+        response = client.delete(
+            f"/api/users/{manager.id}",
+            headers=get_auth_headers(peer_admin_token)
+        )
+
+        assert response.status_code in [200, 204]
+
+    def test_peer_admin_can_delete_driver(
+        self,
+        client: TestClient,
+        session: Session,
+        peer_admin_token: str
+    ):
+        """
+        测试调度可以删除司机
+        Requirements: 3.3
+        """
+        driver = UserFactory.create_driver(session, username="peer_delete_driver")
+
+        response = client.delete(
+            f"/api/users/{driver.id}",
+            headers=get_auth_headers(peer_admin_token)
+        )
+
+        assert response.status_code in [200, 204]
+
+    def test_peer_admin_cannot_delete_boss(
+        self,
+        client: TestClient,
+        boss_user: User,
+        peer_admin_token: str
+    ):
+        """
+        测试调度无法删除老板
+        Requirements: 3.4
+        """
+        response = client.delete(
+            f"/api/users/{boss_user.id}",
+            headers=get_auth_headers(peer_admin_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_manager_cannot_delete_user(
+        self,
+        client: TestClient,
+        session: Session,
+        manager_token: str
+    ):
+        """
+        测试车队长无法删除用户
+        Requirements: 3.5
+        """
+        driver = UserFactory.create_driver(session, username="manager_delete_target")
+
+        response = client.delete(
+            f"/api/users/{driver.id}",
+            headers=get_auth_headers(manager_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_driver_cannot_delete_user(
+        self,
+        client: TestClient,
+        session: Session,
+        driver_token: str
+    ):
+        """
+        测试司机无法删除用户
+        Requirements: 3.6
+        """
+        another_driver = UserFactory.create_driver(session, username="driver_delete_target")
+
+        response = client.delete(
+            f"/api/users/{another_driver.id}",
+            headers=get_auth_headers(driver_token)
+        )
+
+        assert_forbidden(response)
+
+    def test_delete_nonexistent_user(
+        self,
+        client: TestClient,
+        boss_token: str
+    ):
+        """
+        测试删除不存在的用户
+        Requirements: 3.7
+        """
+        response = client.delete(
+            "/api/users/99999",
+            headers=get_auth_headers(boss_token)
+        )
+
+        assert response.status_code == 404

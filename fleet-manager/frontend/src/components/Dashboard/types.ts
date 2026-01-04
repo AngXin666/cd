@@ -16,6 +16,8 @@ export interface DashboardStats {
   pendingCount: number
   /** 本月完成件数 */
   monthlyPieceCount: number
+  /** 计量单位（根据仓库类型确定，如：件、点、车、公里） */
+  unit?: string
 }
 
 /**

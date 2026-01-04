@@ -224,12 +224,12 @@
           <view class="user-info">
             <view class="user-name-row">
               <text class="user-name">{{ user.name || '未设置姓名' }}</text>
-              <!-- 实名认证标签 -->
-              <view v-if="isUserVerified(user)" class="verified-tag">
+              <!-- 实名认证标签（仅司机显示） -->
+              <view v-if="user.role === UserRole.DRIVER && isUserVerified(user)" class="verified-tag">
                 <text class="verified-text">已实名</text>
               </view>
               <!-- 司机类型标签 -->
-              <view v-if="user.role === 'driver'" :class="['driver-type-tag', getDriverTypeClass(user)]">
+              <view v-if="user.role === UserRole.DRIVER" :class="['driver-type-tag', getDriverTypeClass(user)]">
                 <text class="driver-type-text">{{ getDriverTypeText(user) }}</text>
               </view>
               <!-- 角色标签（非司机） -->
@@ -249,32 +249,8 @@
         </view>
 
         <!-- 司机详细信息 -->
-        <view v-if="user.role === 'driver'" class="user-detail">
+        <view v-if="user.role === UserRole.DRIVER" class="user-detail">
           <view class="detail-grid">
-            <!-- 年龄 -->
-            <view v-if="getUserDetail(user.id)?.age" class="detail-item">
-              <text class="detail-icon">🎂</text>
-              <view class="detail-content">
-                <text class="detail-label">年龄</text>
-                <text class="detail-value">{{ getUserDetail(user.id)?.age }}岁</text>
-              </view>
-            </view>
-            <!-- 驾龄 -->
-            <view v-if="getUserDetail(user.id)?.drivingYears" class="detail-item">
-              <text class="detail-icon">🚗</text>
-              <view class="detail-content">
-                <text class="detail-label">驾龄</text>
-                <text class="detail-value">{{ getUserDetail(user.id)?.drivingYears }}年</text>
-              </view>
-            </view>
-            <!-- 准驾车型 -->
-            <view v-if="getUserDetail(user.id)?.licenseClass" class="detail-item">
-              <text class="detail-icon">📋</text>
-              <view class="detail-content">
-                <text class="detail-label">准驾车型</text>
-                <text class="detail-value">{{ getUserDetail(user.id)?.licenseClass }}</text>
-              </view>
-            </view>
             <!-- 车辆数量 -->
             <view class="detail-item">
               <text class="detail-icon">🚚</text>
@@ -306,24 +282,6 @@
             <text class="plate-icon">🚗</text>
             <text class="plate-label">车牌号：</text>
             <text class="plate-value">{{ getUserDetail(user.id)?.plateNumbers?.join('、') }}</text>
-          </view>
-
-          <!-- 身份证号码 -->
-          <view v-if="getUserDetail(user.id)?.idCardNumber" class="id-card-info">
-            <text class="id-icon">🪪</text>
-            <view class="id-content">
-              <text class="id-label">身份证号码</text>
-              <text class="id-value">{{ getUserDetail(user.id)?.idCardNumber }}</text>
-            </view>
-          </view>
-
-          <!-- 住址 -->
-          <view v-if="getUserDetail(user.id)?.address" class="address-info">
-            <text class="address-icon">🏠</text>
-            <view class="address-content">
-              <text class="address-label">住址</text>
-              <text class="address-value">{{ getUserDetail(user.id)?.address }}</text>
-            </view>
           </view>
         </view>
 
@@ -435,14 +393,8 @@ type TabType = 'DRIVER' | 'MANAGER'
 /** 司机类型 */
 type DriverType = 'pure' | 'with_vehicle'
 
-/** 用户详细信息 */
+/** 用户详细信息（仅存储需要额外计算的数据） */
 interface UserDetailInfo {
-  /** 年龄 */
-  age?: number | null
-  /** 驾龄 */
-  drivingYears?: number | null
-  /** 准驾车型 */
-  licenseClass?: string | null
   /** 车辆数量 */
   vehicleCount: number
   /** 入职时间 */
@@ -451,10 +403,6 @@ interface UserDetailInfo {
   workDays?: number | null
   /** 车牌号列表 */
   plateNumbers?: string[]
-  /** 身份证号码 */
-  idCardNumber?: string | null
-  /** 住址 */
-  address?: string | null
 }
 
 // ==================== 状态 ====================
@@ -613,16 +561,16 @@ const filteredUsers = computed(() => {
   if (activeTab.value === 'DRIVER') {
     result = result.filter(u => u.role === UserRole.DRIVER)
   } else {
-    // 管理员标签页显示车队长、调度、老板
+    // 管理员标签页只显示车队长和调度，不显示老板（老板是当前登录用户）
     result = result.filter(u => 
       u.role === UserRole.MANAGER || 
-      u.role === UserRole.PEER_ADMIN || 
-      u.role === UserRole.BOSS
+      u.role === UserRole.PEER_ADMIN
     )
   }
 
-  // 2. 按仓库筛选（显示切换器时）
-  if (showWarehouseSwitcher.value && warehouseOptions.value[currentWarehouseIndex.value]) {
+  // 2. 按仓库筛选（仅司机管理标签页，且显示切换器时）
+  // 管理员标签页不按仓库筛选，因为车队长和调度需要全部显示
+  if (activeTab.value === 'DRIVER' && showWarehouseSwitcher.value && warehouseOptions.value[currentWarehouseIndex.value]) {
     const currentOption = warehouseOptions.value[currentWarehouseIndex.value]
     const currentWarehouseId = currentOption.id
     
@@ -702,7 +650,6 @@ async function loadData(): Promise<void> {
 /**
  * 加载用户详细信息
  * 包括车辆信息、仓库分配等
- * 使用 getUserWarehouses API 获取用户分配的仓库列表
  */
 async function loadUserDetails(): Promise<void> {
   const detailsMap = new Map<number, UserDetailInfo>()
@@ -711,34 +658,33 @@ async function loadUserDetails(): Promise<void> {
   // 获取所有车辆信息
   const allVehicles = await getVehicles()
 
+  // 并行获取所有用户的仓库分配
+  const warehousePromises = users.value.map(async (user) => {
+    try {
+      const userWarehouses = await getUserWarehouses(user.id)
+      return { userId: user.id, warehouseIds: userWarehouses.map(w => w.id) }
+    } catch (error) {
+      return { userId: user.id, warehouseIds: [] }
+    }
+  })
+  
+  const warehouseResults = await Promise.all(warehousePromises)
+  warehouseResults.forEach(({ userId, warehouseIds }) => {
+    warehouseIdsMap.set(userId, warehouseIds)
+  })
+
+  // 构建用户详情
   for (const user of users.value) {
-    // 获取用户的有效车辆（使用共享工具函数）
     const validVehicles = getValidVehicles(allVehicles, user.id)
     
-    // 构建详细信息
     const detail: UserDetailInfo = {
       vehicleCount: validVehicles.length,
       plateNumbers: validVehicles.map(v => v.license_plate),
-      // 其他信息需要从后端获取，这里先设置为 null
-      age: null,
-      drivingYears: null,
-      licenseClass: null,
       joinDate: user.created_at ? user.created_at.split('T')[0] : null,
       workDays: user.created_at ? calculateWorkDays(user.created_at) : null,
-      idCardNumber: null,
-      address: null,
     }
     
     detailsMap.set(user.id, detail)
-
-    // 从后端获取用户分配的仓库列表（多对多关系）
-    try {
-      const userWarehouses = await getUserWarehouses(user.id)
-      warehouseIdsMap.set(user.id, userWarehouses.map(w => w.id))
-    } catch (error) {
-      console.error(`获取用户 ${user.id} 的仓库分配失败:`, error)
-      warehouseIdsMap.set(user.id, [])
-    }
   }
 
   userDetails.value = detailsMap
@@ -862,6 +808,7 @@ function getRoleClass(role: string): string {
 
 /**
  * 判断用户是否已实名
+ * 直接使用后端返回的 is_verified 字段
  * @param user - 用户信息
  * @returns 是否已实名
  */
@@ -880,7 +827,7 @@ function getDriverTypeText(user: User): string {
   const detail = getUserDetail(user.id)
   // 判断是否为新司机（在职天数 <= 7）
   const isNewDriver = detail?.workDays != null && detail.workDays <= 7
-  const isWithVehicle = (user as any).driver_type === 'with_vehicle'
+  const isWithVehicle = user.driver_type === 'with_vehicle'
   
   if (isNewDriver) {
     return isWithVehicle ? '新带车司机' : '新纯司机'
@@ -1084,7 +1031,7 @@ async function handleToggleDriverType(user: User): Promise<void> {
     return
   }
 
-  const currentType = (user as any).driver_type || 'pure'
+  const currentType = user.driver_type || 'pure'
   const newType = currentType === 'with_vehicle' ? 'pure' : 'with_vehicle'
   const currentTypeText = currentType === 'with_vehicle' ? '带车司机' : '纯司机'
   const newTypeText = newType === 'with_vehicle' ? '带车司机' : '纯司机'
@@ -1105,7 +1052,7 @@ async function handleToggleDriverType(user: User): Promise<void> {
   uni.showLoading({ title: '切换中...' })
 
   try {
-    await updateUser(user.id, { driver_type: newType } as any)
+    await updateUser(user.id, { driver_type: newType })
     uni.hideLoading()
     uni.showToast({ title: `已切换为${newTypeText}`, icon: 'success' })
     await loadData()

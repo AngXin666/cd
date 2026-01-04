@@ -1,0 +1,699 @@
+/**
+ * 考勤管理公共组件样式
+ * @module components/AttendancePage
+ * @requirements 3.1, 3.2
+ */
+
+/* 页面容器 */
+.attendance-page {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+/* ==================== 数据驾驶舱 ==================== */
+
+.dashboard-panel {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1d4ed8 100%);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(30, 58, 138, 0.3);
+}
+
+.dashboard-title-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.dashboard-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #ffffff;
+  letter-spacing: 8rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-date {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8rpx;
+}
+
+/* 圆形指标网格 */
+.circle-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.circle-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+/* 单个圆形指标 */
+.circle-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.active .circle-ring {
+    transform: scale(1.05);
+  }
+}
+
+/* 圆环容器 */
+.circle-ring {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+
+  &.total {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.4);
+  }
+
+  &.attendance {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4rpx 16rpx rgba(16, 185, 129, 0.4);
+  }
+
+  &.recorded {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 4rpx 16rpx rgba(139, 92, 246, 0.4);
+  }
+
+  &.unrecorded {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 4rpx 16rpx rgba(245, 158, 11, 0.4);
+  }
+
+  &.week {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    box-shadow: 0 4rpx 16rpx rgba(6, 182, 212, 0.4);
+  }
+
+  &.month {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    box-shadow: 0 4rpx 16rpx rgba(236, 72, 153, 0.4);
+  }
+}
+
+/* 选中状态增强 */
+.circle-metric.active .circle-ring {
+  &.total { box-shadow: 0 6rpx 24rpx rgba(59, 130, 246, 0.6); }
+  &.attendance { box-shadow: 0 6rpx 24rpx rgba(16, 185, 129, 0.6); }
+  &.recorded { box-shadow: 0 6rpx 24rpx rgba(139, 92, 246, 0.6); }
+  &.unrecorded { box-shadow: 0 6rpx 24rpx rgba(245, 158, 11, 0.6); }
+  &.week { box-shadow: 0 6rpx 24rpx rgba(6, 182, 212, 0.6); }
+  &.month { box-shadow: 0 6rpx 24rpx rgba(236, 72, 153, 0.6); }
+}
+
+/* 内圆 */
+.circle-inner {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circle-value {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.circle-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 10rpx;
+}
+
+/* ==================== 标签页切换 ==================== */
+
+.tab-switcher {
+  display: flex;
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 12rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
+  transition: all 0.3s;
+  position: relative;
+  
+  &.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
+    
+    .tab-icon, .tab-label {
+      color: #ffffff;
+    }
+  }
+}
+
+.tab-icon {
+  font-size: 36rpx;
+  margin-bottom: 8rpx;
+  color: #6b7280;
+}
+
+.tab-label {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* ==================== 搜索 ==================== */
+
+.search-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border: 2rpx solid #e5e7eb;
+}
+
+.search-toggle-icon {
+  font-size: 28rpx;
+  color: #3b82f6;
+  margin-right: 12rpx;
+}
+
+.search-toggle-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+.search-bar {
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  height: 72rpx;
+}
+
+.search-icon {
+  font-size: 28rpx;
+  margin-right: 12rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.clear-icon {
+  font-size: 28rpx;
+  color: #999999;
+  padding: 8rpx;
+}
+
+/* ==================== 仓库切换器 ==================== */
+
+.warehouse-switcher {
+  margin-bottom: 24rpx;
+}
+
+.warehouse-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.warehouse-label {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #1e3a8a;
+}
+
+.warehouse-indicator {
+  font-size: 24rpx;
+  color: #9ca3af;
+  margin-left: 12rpx;
+}
+
+.warehouse-count {
+  font-size: 24rpx;
+  color: #9ca3af;
+  margin-left: auto;
+}
+
+.warehouse-swiper {
+  height: 120rpx;
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.warehouse-item {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  padding: 0 24rpx;
+}
+
+.warehouse-icon {
+  font-size: 40rpx;
+  margin-right: 12rpx;
+}
+
+.warehouse-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #1e3a8a;
+}
+
+.warehouse-user-count {
+  font-size: 24rpx;
+  color: #6b7280;
+  margin-left: 12rpx;
+}
+
+/* 单仓库信息卡片 */
+.warehouse-info {
+  margin-bottom: 24rpx;
+}
+
+.warehouse-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+/* ==================== 加载和空状态 ==================== */
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 100rpx 0;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #999999;
+}
+
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0;
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.empty-icon {
+  font-size: 96rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #6b7280;
+}
+
+/* ==================== 司机列表 ==================== */
+
+.driver-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.driver-card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  border: 2rpx solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.driver-header {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+}
+
+.driver-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4a90e2 0%, #6ba3e8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+}
+
+.avatar-text {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.driver-info {
+  flex: 1;
+}
+
+.driver-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+
+.driver-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.driver-phone {
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+.driver-tenure {
+  display: flex;
+  align-items: center;
+  margin-top: 8rpx;
+}
+
+.tenure-text {
+  font-size: 24rpx;
+  color: #9ca3af;
+}
+
+.tenure-divider {
+  font-size: 24rpx;
+  color: #d1d5db;
+  margin: 0 12rpx;
+}
+
+/* ==================== 标签样式 ==================== */
+
+.verified-tag {
+  background-color: #dcfce7;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.verified-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #16a34a;
+}
+
+.unverified-tag {
+  background-color: #fee2e2;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.unverified-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.new-driver-tag {
+  background-color: #fef3c7;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.new-driver-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #b45309;
+}
+
+.driver-type-tag {
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  
+  &.with-vehicle {
+    background-color: #ffedd5;
+  }
+  
+  &.pure {
+    background-color: #dbeafe;
+  }
+}
+
+.driver-type-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  
+  .with-vehicle & {
+    color: #c2410c;
+  }
+  
+  .pure & {
+    color: #2563eb;
+  }
+}
+
+/* ==================== 考勤统计 ==================== */
+
+.attendance-stats {
+  display: flex;
+  padding: 16rpx 20rpx;
+  gap: 16rpx;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 12rpx;
+  background-color: #f8fafc;
+  border-radius: 12rpx;
+  border: 1rpx solid #e2e8f0;
+}
+
+.stat-icon {
+  font-size: 28rpx;
+  margin-bottom: 6rpx;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 22rpx;
+  color: #64748b;
+  margin-bottom: 4rpx;
+}
+
+.stat-value {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #16a34a;
+  
+  &.late {
+    color: #f59e0b;
+  }
+  
+  &.leave {
+    color: #3b82f6;
+  }
+}
+
+/* ==================== 操作按钮 ==================== */
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12rpx;
+  padding: 16rpx;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid;
+  
+  &.profile-btn {
+    background-color: #eff6ff;
+    border-color: #bfdbfe;
+    
+    &.disabled {
+      background-color: #f3f4f6;
+      border-color: #e5e7eb;
+      opacity: 0.6;
+      cursor: not-allowed;
+      
+      .btn-text {
+        color: #9ca3af;
+      }
+    }
+  }
+  
+  &.vehicle-btn {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+  }
+}
+
+.btn-icon {
+  font-size: 24rpx;
+  margin-right: 8rpx;
+}
+
+.btn-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  
+  .profile-btn & {
+    color: #2563eb;
+  }
+  
+  .vehicle-btn & {
+    color: #16a34a;
+  }
+}
+
+/* ==================== 统计页脚 ==================== */
+
+.stats-footer {
+  padding: 24rpx;
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  margin-top: 24rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.stats-text {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+/* ==================== 计件统计标签页 ==================== */
+
+.piece-work-tab {
+  background-color: transparent;
+}
+
+.piece-work-stats {
+  padding: 16rpx 20rpx;
+}
+
+.piece-work-group {
+  margin-bottom: 16rpx;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.warehouse-title {
+  margin-bottom: 12rpx;
+  padding-left: 4rpx;
+}
+
+.warehouse-title-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.piece-stats-items {
+  flex: 1;
+  display: flex;
+  gap: 12rpx;
+}
+
+.piece-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx 8rpx;
+  background-color: #f8fafc;
+  border-radius: 10rpx;
+  border: 1rpx solid #e2e8f0;
+}
+
+.piece-stat-label {
+  font-size: 22rpx;
+  color: #64748b;
+  margin-bottom: 4rpx;
+}
+
+.piece-stat-value {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #16a34a;
+  
+  &.week {
+    color: #2563eb;
+  }
+  
+  &.month {
+    color: #7c3aed;
+  }
+}

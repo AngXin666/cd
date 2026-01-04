@@ -59,6 +59,29 @@ inclusion: always
 - 包含：时间、级别、位置、错误信息
 - 生产环境日志级别为 WARNING
 
+### 12. 枚举值规范（重要）
+- 所有枚举值必须使用**小写字符串**
+- 前端、后端、数据库三端必须保持一致
+- 枚举名使用大写（如 `DRIVER`），枚举值使用小写（如 `"driver"`）
+- 示例：
+  ```python
+  # Python 后端
+  class UserRole(str, Enum):
+      DRIVER = "driver"      # ✓ 正确
+      MANAGER = "manager"    # ✓ 正确
+      # DRIVER = "DRIVER"    # ✗ 错误
+  ```
+  ```typescript
+  // TypeScript 前端
+  export enum UserRole {
+    DRIVER = 'driver',     // ✓ 正确
+    MANAGER = 'manager',   // ✓ 正确
+    // DRIVER = 'DRIVER',  // ✗ 错误
+  }
+  ```
+- 数据库存储值必须与枚举值完全一致（小写）
+- 新增枚举时必须检查前后端定义是否一致
+
 ## 本地测试流程
 
 ```bash

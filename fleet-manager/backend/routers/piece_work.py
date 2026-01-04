@@ -12,11 +12,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from database import get_session
-from models import User, UserRole, is_role
+from models import User, UserRole, is_role, PieceWorkCategory, PieceWorkRecord
 from auth import (
     get_current_user,
     require_management,
     require_admin,
+    require_active_user,
     check_resource_ownership
 )
 import crud
@@ -49,17 +50,22 @@ async def get_piece_work_categories(
         None,
         description="按计量单位筛选，如 '件'、'点'、'车'、'公里'"
     ),
+    warehouse_id: Optional[int] = Query(
+        None,
+        description="按仓库ID筛选"
+    ),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     """
     获取计件分类列表
     
-    支持按启用状态和单位筛选。
+    支持按启用状态、单位和仓库筛选。
 
     Args:
         is_active: 是否只获取启用的分类（可选）
         unit: 按计量单位筛选（可选），如 "件"、"点"、"车"、"公里"
+        warehouse_id: 按仓库ID筛选（可选）
         current_user: 当前登录用户
         session: 数据库会话
 
@@ -69,8 +75,38 @@ async def get_piece_work_categories(
     Requirements:
         - Requirement 7.4: 支持按单位筛选品类
     """
-    categories = crud.get_piece_work_categories(session, is_active=is_active, unit=unit)
-    return categories
+    categories = crud.get_piece_work_categories(
+        session, 
+        is_active=is_active, 
+        unit=unit,
+        warehouse_id=warehouse_id
+    )
+    
+    # 构建响应，添加仓库名称
+    result = []
+    for category in categories:
+        warehouse_name = None
+        if category.warehouse_id:
+            warehouse = crud.get_warehouse_by_id(session, category.warehouse_id)
+            if warehouse:
+                warehouse_name = warehouse.name
+        
+        result.append(PieceWorkCategoryResponse(
+            id=category.id,
+            name=category.name,
+            warehouse_id=category.warehouse_id,
+            unit_price=category.unit_price,
+            driver_only_price=category.driver_only_price,
+            with_vehicle_price=category.with_vehicle_price,
+            upstairs_price=category.upstairs_price,
+            sorting_price=category.sorting_price,
+            unit=category.unit,
+            is_active=category.is_active,
+            created_at=category.created_at,
+            warehouse_name=warehouse_name
+        ))
+    
+    return result
 
 
 
@@ -82,7 +118,8 @@ async def create_piece_work_category(
 ):
     """
     创建计件分类（老板、调度可访问）
-    支持基础单价、上楼单价、分拣单价配置
+    支持纯司机单价、带车司机单价配置
+    当 unit 未指定时，自动使用仓库的预设单位
 
     Args:
         request: 计件分类创建请求
@@ -92,17 +129,74 @@ async def create_piece_work_category(
     Returns:
         PieceWorkCategoryResponse: 创建的计件分类
 
-    Requirements: 3.1 - 支持多种单价配置
+    Requirements: 2.1, 2.2, 3.1 - 品类单位继承，支持多种单价配置
     """
+    from helpers import get_warehouse_preset_unit
+    
+    # 检查仓库是否存在
+    warehouse = crud.get_warehouse_by_id(session, request.warehouse_id)
+    if not warehouse:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="仓库不存在"
+        )
+    
+    # 确定品类单位：优先使用请求中的 unit，否则使用仓库预设单位
+    category_unit = request.unit if request.unit else get_warehouse_preset_unit(warehouse.warehouse_type)
+    
+    # 检查同一仓库下是否已存在同名品类
+    existing_categories = crud.get_piece_work_categories(
+        session, 
+        warehouse_id=request.warehouse_id
+    )
+    for cat in existing_categories:
+        if cat.name == request.name:
+            # 如果存在同名品类，更新价格和单位
+            updated = crud.update_piece_work_category(
+                session, cat,
+                driver_only_price=request.driver_only_price,
+                with_vehicle_price=request.with_vehicle_price,
+                unit=category_unit
+            )
+            return PieceWorkCategoryResponse(
+                id=updated.id,
+                name=updated.name,
+                warehouse_id=updated.warehouse_id,
+                unit_price=updated.unit_price,
+                driver_only_price=updated.driver_only_price,
+                with_vehicle_price=updated.with_vehicle_price,
+                upstairs_price=updated.upstairs_price,
+                sorting_price=updated.sorting_price,
+                unit=updated.unit,
+                is_active=updated.is_active,
+                created_at=updated.created_at,
+                warehouse_name=warehouse.name
+            )
+    
+    # 创建新品类
     category = crud.create_piece_work_category(
         session,
         name=request.name,
-        unit_price=request.unit_price,
-        unit=request.unit,
-        upstairs_price=request.upstairs_price,
-        sorting_price=request.sorting_price
+        warehouse_id=request.warehouse_id,
+        driver_only_price=request.driver_only_price,
+        with_vehicle_price=request.with_vehicle_price,
+        unit=category_unit
     )
-    return category
+    
+    return PieceWorkCategoryResponse(
+        id=category.id,
+        name=category.name,
+        warehouse_id=category.warehouse_id,
+        unit_price=category.unit_price,
+        driver_only_price=category.driver_only_price,
+        with_vehicle_price=category.with_vehicle_price,
+        upstairs_price=category.upstairs_price,
+        sorting_price=category.sorting_price,
+        unit=category.unit,
+        is_active=category.is_active,
+        created_at=category.created_at,
+        warehouse_name=warehouse.name
+    )
 
 
 @router.put("/categories/{category_id}", response_model=PieceWorkCategoryResponse)
@@ -114,7 +208,7 @@ async def update_piece_work_category(
 ):
     """
     更新计件分类（老板、调度可访问）
-    支持更新基础单价、上楼单价、分拣单价
+    支持更新纯司机单价、带车司机单价
 
     Args:
         category_id: 分类ID
@@ -130,7 +224,7 @@ async def update_piece_work_category(
 
     Requirements: 3.2 - 支持编辑品类配置
     """
-    category = session.get(crud.PieceWorkCategory, category_id)
+    category = session.get(PieceWorkCategory, category_id)
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -144,9 +238,32 @@ async def update_piece_work_category(
         unit=request.unit,
         is_active=request.is_active,
         upstairs_price=request.upstairs_price,
-        sorting_price=request.sorting_price
+        sorting_price=request.sorting_price,
+        driver_only_price=request.driver_only_price,
+        with_vehicle_price=request.with_vehicle_price
     )
-    return updated
+    
+    # 获取仓库名称
+    warehouse_name = None
+    if updated.warehouse_id:
+        warehouse = crud.get_warehouse_by_id(session, updated.warehouse_id)
+        if warehouse:
+            warehouse_name = warehouse.name
+    
+    return PieceWorkCategoryResponse(
+        id=updated.id,
+        name=updated.name,
+        warehouse_id=updated.warehouse_id,
+        unit_price=updated.unit_price,
+        driver_only_price=updated.driver_only_price,
+        with_vehicle_price=updated.with_vehicle_price,
+        upstairs_price=updated.upstairs_price,
+        sorting_price=updated.sorting_price,
+        unit=updated.unit,
+        is_active=updated.is_active,
+        created_at=updated.created_at,
+        warehouse_name=warehouse_name
+    )
 
 
 @router.delete("/categories/{category_id}", response_model=MessageResponse)
@@ -239,7 +356,7 @@ async def get_piece_work_records(
     result = []
     for record in records:
         user = crud.get_user_by_id(session, record.user_id)
-        category = session.get(crud.PieceWorkCategory, record.category_id)
+        category = session.get(PieceWorkCategory, record.category_id)
         warehouse = crud.get_warehouse_by_id(session, record.warehouse_id) if record.warehouse_id else None
 
         result.append(PieceWorkRecordResponse(
@@ -271,6 +388,8 @@ async def create_piece_work_record(
     录入计件记录（司机操作）
     录入完成后会触发 piece_work_update 事件，通知对应仓库的车队长
 
+    禁用用户无法进行计件录入操作。
+
     Args:
         request: 计件记录创建请求
         current_user: 当前登录用户
@@ -282,16 +401,21 @@ async def create_piece_work_record(
     Raises:
         HTTPException 404: 计件分类不存在
         HTTPException 400: 品类单位与仓库类型不匹配
+        PermissionError: 用户已被禁用
 
     Requirements: 
         - 4.1 - 计件记录实时数据同步
         - 3.1 - 品类单位限制（仓库类型与品类单位匹配验证）
+        - 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法录入计件）
+    require_active_user(current_user)
+
     # 导入单位验证辅助函数
     from helpers import validate_category_unit_for_warehouse
     
     # 验证分类是否存在
-    category = session.get(crud.PieceWorkCategory, request.category_id)
+    category = session.get(PieceWorkCategory, request.category_id)
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -437,6 +561,8 @@ async def update_piece_work_record(
     - 司机只能更新自己的计件记录
     - 管理角色（车队长、调度、老板、超级管理员）可以更新任何记录
 
+    禁用用户无法更新计件记录。
+
     更新完成后会触发 piece_work_update 事件，通知相关用户
 
     Args:
@@ -451,9 +577,14 @@ async def update_piece_work_record(
     Raises:
         HTTPException 404: 计件记录不存在
         HTTPException 403: 无权限更新此记录
+        PermissionError: 用户已被禁用
 
     Requirements: 2.4, 4.2 - 计件审批实时数据同步
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法更新计件记录）
+    require_active_user(current_user)
+
     # 导入辅助函数
     from helpers import (
         get_piece_work_record_or_404,
@@ -531,6 +662,8 @@ async def delete_piece_work_record(
     - 司机只能删除自己的计件记录
     - 管理角色（车队长、调度、老板、超级管理员）可以删除任何记录
 
+    禁用用户无法删除计件记录。
+
     Args:
         record_id: 记录ID
         current_user: 当前登录用户
@@ -542,9 +675,15 @@ async def delete_piece_work_record(
     Raises:
         HTTPException 404: 计件记录不存在
         HTTPException 403: 无权限删除此记录
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法删除计件记录）
+    require_active_user(current_user)
+
     # 获取记录
-    record = session.get(crud.PieceWorkRecord, record_id)
+    record = session.get(PieceWorkRecord, record_id)
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

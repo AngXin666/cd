@@ -13,7 +13,7 @@ from sqlmodel import Session
 
 from database import get_session
 from models import User, UserRole, is_role
-from auth import get_current_user
+from auth import get_current_user, require_active_user
 import crud
 from schemas import (
     AttendanceResponse,
@@ -36,13 +36,23 @@ async def clock_in(
     """
     上班打卡（司机操作）
 
+    禁用用户无法进行打卡操作。
+
     Args:
         current_user: 当前登录用户
         session: 数据库会话
 
     Returns:
         AttendanceResponse: 打卡记录响应
+
+    Raises:
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法打卡）
+    require_active_user(current_user)
+
     attendance = crud.clock_in(session, current_user.id)
 
     # 构建响应
@@ -66,6 +76,8 @@ async def clock_out(
     """
     下班打卡（司机操作）
 
+    禁用用户无法进行打卡操作。
+
     Args:
         current_user: 当前登录用户
         session: 数据库会话
@@ -75,7 +87,13 @@ async def clock_out(
 
     Raises:
         HTTPException 400: 今天还没有上班打卡
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法打卡）
+    require_active_user(current_user)
+
     attendance = crud.clock_out(session, current_user.id)
 
     if not attendance:
@@ -209,7 +227,8 @@ async def get_attendance_records(
             user_ids_filter = list(allowed_user_ids) if allowed_user_ids else None
 
     # 调度和老板：可以查看所有，支持按仓库筛选
-    elif current_user.role in [UserRole.BOSS, UserRole.PEER_ADMIN]:
+    # 注意：current_user.role 是字符串，需要与枚举值比较
+    elif current_user.role in [UserRole.BOSS.value, UserRole.PEER_ADMIN.value]:
         if warehouse_id:
             # 获取该仓库的用户列表
             warehouse_users = crud.get_warehouse_users(session, warehouse_id)

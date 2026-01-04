@@ -57,17 +57,19 @@ export function formatDateShort(dateStr: string | null | undefined): string {
  * 格式化时间 (HH:mm)
  * 
  * @param dateTimeStr - 日期时间字符串，ISO 格式或包含时间的字符串
+ * @param placeholder - 空值时的占位符，默认 ''
  * @returns 时间字符串，如 '14:30'
  * 
  * @example
  * formatTime('2024-12-24T14:30:00') // '14:30'
  * formatTime('2024-12-24 08:05:00') // '08:05'
+ * formatTime(null, '--:--') // '--:--'
  */
-export function formatTime(dateTimeStr: string | null | undefined): string {
-  if (!dateTimeStr) return ''
+export function formatTime(dateTimeStr: string | null | undefined, placeholder = ''): string {
+  if (!dateTimeStr) return placeholder
   
   const date = new Date(dateTimeStr)
-  if (isNaN(date.getTime())) return ''
+  if (isNaN(date.getTime())) return placeholder
   
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
@@ -192,4 +194,30 @@ export function formatDateRange(
   if (!end) return start
   
   return `${start} - ${end}`
+}
+
+/**
+ * 格式化为标准日期时间 (YYYY-MM-DD HH:mm)
+ * 
+ * @param dateTimeStr - 日期时间字符串，ISO 格式或包含时间的字符串
+ * @param placeholder - 空值时的占位符，默认 ''
+ * @returns 标准格式的日期时间字符串，如 '2024-12-24 14:30'
+ * 
+ * @example
+ * formatDateTime('2024-12-24T14:30:00') // '2024-12-24 14:30'
+ * formatDateTime(null) // ''
+ */
+export function formatDateTime(dateTimeStr: string | null | undefined, placeholder = ''): string {
+  if (!dateTimeStr) return placeholder
+  
+  const date = new Date(dateTimeStr)
+  if (isNaN(date.getTime())) return placeholder
+  
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }

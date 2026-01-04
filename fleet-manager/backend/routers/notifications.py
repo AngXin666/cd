@@ -1,6 +1,6 @@
 """
 通知系统路由模块
-提供通知管理、通知模板、SSE 实时推送等功能
+提供通知管理、SSE 实时推送等功能
 
 包含的端点：
 - GET /api/notifications - 获取通知列表
@@ -11,20 +11,11 @@
 - GET /api/notifications/{id} - 获取通知详情
 - GET /api/notifications/stream - SSE 实时通知推送
 - GET /api/notifications/sse-status - 获取 SSE 连接状态
-- POST /api/notifications/from-template - 使用模板发送通知
-- GET /api/notification-templates - 获取模板列表
-- POST /api/notification-templates - 创建模板
-- GET /api/notification-templates/{id} - 获取模板详情
-- PUT /api/notification-templates/{id} - 更新模板
-- DELETE /api/notification-templates/{id} - 删除模板
-- POST /api/notification-templates/{id}/preview - 预览模板
-- GET /api/notification-templates/categories - 获取模板分类
 
 Requirements: 9.1 - 创建 routers/ 目录包含各功能模块路由
 """
 
 import asyncio
-import json
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
@@ -33,14 +24,12 @@ from sqlmodel import Session
 
 from database import get_session, engine
 from models import User, Notification as NotificationModel
-from auth import get_current_user, require_management, require_admin, check_resource_ownership
+from auth import get_current_user, require_management, check_resource_ownership
 import crud
 import helpers
 
 from schemas import (
     NotificationCreate, NotificationResponse, UnreadCountResponse,
-    NotificationFromTemplateCreate,
-    NotificationTemplateCreate, NotificationTemplateUpdate, NotificationTemplateResponse,
     MessageResponse
 )
 
@@ -137,7 +126,7 @@ async def mark_notification_as_read(
         HTTPException 404: 通知不存在
         HTTPException 403: 无权操作该通知
     """
-    notification = session.get(crud.Notification, notification_id)
+    notification = session.get(NotificationModel, notification_id)
     if not notification:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -235,7 +224,7 @@ async def get_notification_detail(
         HTTPException 404: 通知不存在
         HTTPException 403: 无权查看该通知
     """
-    notification = session.get(crud.Notification, notification_id)
+    notification = session.get(NotificationModel, notification_id)
     if not notification:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -256,8 +245,11 @@ async def get_notification_detail(
         content=notification.content,
         is_read=notification.is_read,
         sender_id=notification.sender_id,
-        template_id=notification.template_id,
-        created_at=notification.created_at
+        ref_type=notification.ref_type,
+        ref_id=notification.ref_id,
+        status=notification.status,
+        created_at=notification.created_at,
+        updated_at=notification.updated_at
     )
 
 
@@ -431,407 +423,3 @@ async def get_sse_status(
         "connection_count": len(_active_connections)
     }
 
-
-# ==================== 通知模板 API ====================
-
-@router.get("/api/notification-templates", response_model=List[NotificationTemplateResponse], tags=["通知模板"])
-async def get_notification_templates(
-    category: Optional[str] = Query(None, description="按分类筛选"),
-    is_active: Optional[bool] = Query(None, description="按启用状态筛选"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    current_user: User = Depends(require_management),
-    session: Session = Depends(get_session)
-):
-    """
-    获取通知模板列表
-    管理权限可访问（车队长、调度、老板）
-
-    Args:
-        category: 按分类筛选（可选）
-        is_active: 按启用状态筛选（可选）
-        skip: 跳过记录数
-        limit: 返回记录数
-        current_user: 当前登录用户（需要管理权限）
-        session: 数据库会话
-
-    Returns:
-        List[NotificationTemplateResponse]: 模板列表
-    """
-    templates = crud.get_notification_templates(
-        session,
-        category=category,
-        is_active=is_active,
-        skip=skip,
-        limit=limit
-    )
-
-    # 转换响应格式（解析 variables JSON）
-    result = []
-    for template in templates:
-        variables = None
-        if template.variables:
-            try:
-                variables = json.loads(template.variables)
-            except json.JSONDecodeError:
-                variables = None
-
-        result.append(NotificationTemplateResponse(
-            id=template.id,
-            name=template.name,
-            title=template.title,
-            content=template.content,
-            variables=variables,
-            category=template.category,
-            is_active=template.is_active,
-            created_at=template.created_at,
-            updated_at=template.updated_at
-        ))
-
-    return result
-
-
-@router.post("/api/notification-templates", response_model=NotificationTemplateResponse, tags=["通知模板"])
-async def create_notification_template(
-    request: NotificationTemplateCreate,
-    current_user: User = Depends(require_admin),
-    session: Session = Depends(get_session)
-):
-    """
-    创建通知模板（管理员级别可访问：调度、老板、超级管理员）
-
-    模板支持变量占位符，格式为 {variable_name}
-    例如：标题 "请假申请已{status}"，内容 "{user_name}的请假申请已{status}"
-
-    Args:
-        request: 模板创建请求
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        NotificationTemplateResponse: 创建的模板
-
-    Raises:
-        HTTPException 400: 模板名称已存在
-    """
-    # 检查模板名称是否已存在
-    existing = crud.get_notification_template_by_name(session, request.name)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="模板名称已存在"
-        )
-
-    template = crud.create_notification_template(
-        session,
-        name=request.name,
-        title=request.title,
-        content=request.content,
-        variables=request.variables,
-        category=request.category,
-        is_active=request.is_active
-    )
-
-    # 解析 variables JSON
-    variables = None
-    if template.variables:
-        try:
-            variables = json.loads(template.variables)
-        except json.JSONDecodeError:
-            variables = None
-
-    return NotificationTemplateResponse(
-        id=template.id,
-        name=template.name,
-        title=template.title,
-        content=template.content,
-        variables=variables,
-        category=template.category,
-        is_active=template.is_active,
-        created_at=template.created_at,
-        updated_at=template.updated_at
-    )
-
-
-@router.get("/api/notification-templates/{template_id}", response_model=NotificationTemplateResponse, tags=["通知模板"])
-async def get_notification_template(
-    template_id: int,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """
-    获取通知模板详情
-
-    Args:
-        template_id: 模板ID
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        NotificationTemplateResponse: 模板详情
-
-    Raises:
-        HTTPException 404: 模板不存在
-    """
-    template = crud.get_notification_template_by_id(session, template_id)
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
-
-    # 解析 variables JSON
-    variables = None
-    if template.variables:
-        try:
-            variables = json.loads(template.variables)
-        except json.JSONDecodeError:
-            variables = None
-
-    return NotificationTemplateResponse(
-        id=template.id,
-        name=template.name,
-        title=template.title,
-        content=template.content,
-        variables=variables,
-        category=template.category,
-        is_active=template.is_active,
-        created_at=template.created_at,
-        updated_at=template.updated_at
-    )
-
-
-@router.put("/api/notification-templates/{template_id}", response_model=NotificationTemplateResponse, tags=["通知模板"])
-async def update_notification_template(
-    template_id: int,
-    request: NotificationTemplateUpdate,
-    current_user: User = Depends(require_admin),
-    session: Session = Depends(get_session)
-):
-    """
-    更新通知模板（管理员级别可访问：调度、老板、超级管理员）
-
-    Args:
-        template_id: 模板ID
-        request: 模板更新请求
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        NotificationTemplateResponse: 更新后的模板
-
-    Raises:
-        HTTPException 404: 模板不存在
-        HTTPException 400: 模板名称已存在
-    """
-    template = crud.get_notification_template_by_id(session, template_id)
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
-
-    # 如果要更新名称，检查新名称是否已存在
-    if request.name and request.name != template.name:
-        existing = crud.get_notification_template_by_name(session, request.name)
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="模板名称已存在"
-            )
-
-    updated = crud.update_notification_template(
-        session, template,
-        name=request.name,
-        title=request.title,
-        content=request.content,
-        variables=request.variables,
-        category=request.category,
-        is_active=request.is_active
-    )
-
-    # 解析 variables JSON
-    variables = None
-    if updated.variables:
-        try:
-            variables = json.loads(updated.variables)
-        except json.JSONDecodeError:
-            variables = None
-
-    return NotificationTemplateResponse(
-        id=updated.id,
-        name=updated.name,
-        title=updated.title,
-        content=updated.content,
-        variables=variables,
-        category=updated.category,
-        is_active=updated.is_active,
-        created_at=updated.created_at,
-        updated_at=updated.updated_at
-    )
-
-
-@router.delete("/api/notification-templates/{template_id}", response_model=MessageResponse, tags=["通知模板"])
-async def delete_notification_template(
-    template_id: int,
-    current_user: User = Depends(require_admin),
-    session: Session = Depends(get_session)
-):
-    """
-    删除通知模板（管理员级别可访问：调度、老板、超级管理员）
-
-    Args:
-        template_id: 模板ID
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        MessageResponse: 删除成功消息
-
-    Raises:
-        HTTPException 404: 模板不存在
-    """
-    template = crud.get_notification_template_by_id(session, template_id)
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
-
-    crud.delete_notification_template(session, template)
-    return MessageResponse(message="模板已删除")
-
-
-@router.post("/api/notification-templates/{template_id}/preview", tags=["通知模板"])
-async def preview_notification_template(
-    template_id: int,
-    request: dict = None,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """
-    预览通知模板渲染效果
-
-    传入变量值，返回渲染后的标题和内容
-    用于发送通知前预览效果
-
-    Args:
-        template_id: 模板ID
-        request: 请求体，包含 variables 字段
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        dict: 渲染后的标题和内容
-
-    Raises:
-        HTTPException 404: 模板不存在
-    """
-    template = crud.get_notification_template_by_id(session, template_id)
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
-
-    # 从请求体中获取变量
-    variables = None
-    if request:
-        variables = request.get("variables", {})
-
-    # 渲染模板
-    title, content = crud.render_notification_template(template, variables)
-
-    return {
-        "template_id": template_id,
-        "template_name": template.name,
-        "title": title,
-        "content": content,
-        "rendered_title": title,
-        "rendered_content": content,
-        "variables_used": variables or {}
-    }
-
-
-@router.post("/api/notifications/from-template", response_model=MessageResponse)
-async def create_notification_from_template(
-    request: NotificationFromTemplateCreate,
-    current_user: User = Depends(require_management),
-    session: Session = Depends(get_session)
-):
-    """
-    使用模板发送通知（管理权限可操作：车队长、调度、老板、超级管理员）
-
-    通过模板ID和变量值创建通知，自动渲染模板内容
-
-    Args:
-        request: 模板通知创建请求
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        MessageResponse: 发送成功消息
-
-    Raises:
-        HTTPException 400: 模板不存在或已禁用
-    """
-    try:
-        notifications = crud.create_notification_from_template(
-            session,
-            user_ids=request.user_ids,
-            template_id=request.template_id,
-            variables=request.variables,
-            sender_id=current_user.id
-        )
-
-        return MessageResponse(message=f"通知已发送给 {len(notifications)} 位用户")
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-
-
-@router.get("/api/notification-templates/categories", tags=["通知模板"])
-async def get_template_categories(
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """
-    获取所有模板分类
-
-    返回系统中已有的模板分类列表，用于前端筛选
-
-    Args:
-        current_user: 当前登录用户
-        session: 数据库会话
-
-    Returns:
-        dict: 分类列表
-    """
-    templates = crud.get_notification_templates(session)
-
-    # 提取所有不重复的分类
-    categories = set()
-    for template in templates:
-        if template.category:
-            categories.add(template.category)
-
-    # 分类显示名称映射
-    category_names = {
-        "attendance": "考勤",
-        "leave": "请假",
-        "vehicle": "车辆",
-        "piece_work": "计件",
-        "system": "系统"
-    }
-
-    return {
-        "categories": [
-            {
-                "value": cat,
-                "label": category_names.get(cat, cat)
-            }
-            for cat in sorted(categories)
-        ]
-    }

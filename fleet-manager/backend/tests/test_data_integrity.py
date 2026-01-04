@@ -24,8 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models import (
     User, UserRole, WarehouseAssignment,
-    VehicleStatus, PieceWorkCategory,
-    ScheduledNotification
+    VehicleStatus, PieceWorkCategory
 )
 
 
@@ -505,42 +504,6 @@ class TestDeleteOperations:
         )
 
         # 可能返回 200/204（成功）或 404（不存在）
-        assert response.status_code in [200, 204, 404]
-
-    def test_delete_scheduled_notification_success(
-        self,
-        client: TestClient,
-        session: Session,
-        boss_token: str
-    ):
-        """
-        测试删除定时通知成功
-
-        验证：
-        - 可以删除定时通知
-        """
-        from datetime import datetime, timedelta
-        from models import RepeatType, ScheduledNotificationStatus
-
-        scheduled_time = datetime.now() + timedelta(hours=1)
-        notification = ScheduledNotification(
-            name="待删除定时通知",
-            title="待删除通知",
-            content="测试内容",
-            scheduled_time=scheduled_time,
-            repeat_type=RepeatType.ONCE,
-            status=ScheduledNotificationStatus.PENDING
-        )
-        session.add(notification)
-        session.commit()
-        session.refresh(notification)
-        notification_id = notification.id
-
-        response = client.delete(
-            f"/api/scheduled-notifications/{notification_id}",
-            headers=get_auth_headers(boss_token)
-        )
-
         assert response.status_code in [200, 204, 404]
 
     def test_delete_category_with_records_fails(

@@ -416,11 +416,21 @@ export const useUserStore = defineStore('user', () => {
   /**
    * 加载用户权限
    * 从后端获取当前用户的权限列表
+   * 注意：只有管理员角色（调度、老板）才能调用权限 API
+   * 司机和车队长不需要加载权限配置
    * 
    * @returns 权限键列表
    */
   async function loadPermissions(): Promise<string[]> {
     if (!token.value || !user.value) {
+      return [];
+    }
+    
+    // 只有管理员角色（调度、老板）才能调用权限 API
+    // 司机和车队长不需要加载权限配置
+    const adminRoles = [UserRole.DISPATCHER, UserRole.BOSS];
+    if (!adminRoles.includes(user.value.role as UserRole)) {
+      console.log('[UserStore] 非管理员角色，跳过加载权限');
       return [];
     }
     

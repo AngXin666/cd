@@ -52,6 +52,9 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.hypothesis/
+*-TEST-REPORT.md
+TEST-REPORT.md
 
 # 其他
 .DS_Store

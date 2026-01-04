@@ -582,3 +582,28 @@ class TestResignApplication:
 
         assert approve_data["status"] == "approved"
         assert approve_data["leave_type"] == "resign"
+
+
+# ==================== 请假通知测试 ====================
+# Requirements: 需求 3 - 审批通知接收人规则
+
+class TestLeaveNotification:
+    """请假通知测试 - 验证请假申请能正常发送通知给管辖车队长"""
+
+    def test_leave_notification_sent_to_manager(
+        self,
+        client: TestClient,
+        session: Session
+    ):
+        """
+        测试请假申请发送通知给管辖车队长
+
+        验证：
+        - 司机提交请假申请后，管辖该司机的车队长能收到通知
+        - 通知包含正确的 ref_type 和 ref_id
+        - 通知状态为 pending
+
+        Requirements: 3.1 - WHEN 司机提交请假
+        """
+        # TODO: 实现请假通知测试
+        pass

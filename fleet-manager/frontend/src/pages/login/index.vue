@@ -243,8 +243,8 @@ const quickLoginAccounts = [
   { username: 'dispatcher', password: 'dispatch123', label: '调度', icon: '📋', roleClass: 'role-dispatcher' },
   { username: 'manager', password: 'manager123', label: '车队长', icon: '🚛', roleClass: 'role-manager' },
   { username: 'driver', password: 'driver123', label: '司机1', icon: '🚗', roleClass: 'role-driver' },
-  { username: 'user_j8vj9b', password: 'driver123', label: '司机2', icon: '🚙', roleClass: 'role-driver' },
-  { username: 'user_mck0g2', password: 'driver123', label: '司机3', icon: '🚕', roleClass: 'role-driver' },
+  { username: 'driver2', password: 'driver123', label: '司机2', icon: '🚙', roleClass: 'role-driver' },
+  { username: 'driver3', password: 'driver123', label: '司机3', icon: '🚕', roleClass: 'role-driver' },
 ]
 
 // ==================== 生命周期 ====================

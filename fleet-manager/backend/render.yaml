@@ -1,0 +1,34 @@
+# Render 部署配置
+# 文档: https://render.com/docs/blueprint-spec
+
+services:
+  # FastAPI 后端服务
+  - type: web
+    name: fleet-manager-api
+    runtime: python
+    region: singapore  # 新加坡区域，国内访问较快
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fleet-manager-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: "HS256"
+      - key: JWT_EXPIRE_MINUTES
+        value: "1440"
+      - key: DEBUG
+        value: "false"
+      - key: CORS_ORIGINS
+        value: "*"
+    healthCheckPath: /api/health
+
+databases:
+  # PostgreSQL 数据库
+  - name: fleet-manager-db
+    plan: free
+    region: singapore

@@ -13,8 +13,12 @@ import * as fc from 'fast-check'
 /**
  * 司机类型枚举
  * 用于区分带车司机和纯司机
+ * 
+ * 注意：枚举值必须与后端保持一致
+ * - pure: 纯司机
+ * - with_vehicle: 带车司机
  */
-type DriverType = 'with_vehicle' | 'driver_only'
+type DriverType = 'with_vehicle' | 'pure'
 
 /**
  * 品类价格配置接口
@@ -110,7 +114,7 @@ const positivePriceArb = fc.float({ min: Math.fround(0.01), max: Math.fround(100
 /**
  * 生成司机类型的 Arbitrary
  */
-const driverTypeArb: fc.Arbitrary<DriverType> = fc.constantFrom('with_vehicle', 'driver_only')
+const driverTypeArb: fc.Arbitrary<DriverType> = fc.constantFrom('with_vehicle', 'pure')
 
 /**
  * 生成价格配置的 Arbitrary
@@ -195,7 +199,7 @@ describe('司机类型单价加载属性测试', () => {
               [config],
               warehouseId,
               categoryId,
-              'driver_only'
+              'pure'
             )
             
             // 验证返回的单价等于 driverOnlyPrice
@@ -239,7 +243,7 @@ describe('司机类型单价加载属性测试', () => {
               [config],
               warehouseId,
               categoryId,
-              'driver_only'
+              'pure'
             )
             
             // 验证两种司机类型获取的单价不同
@@ -549,7 +553,7 @@ describe('司机类型单价加载属性测试', () => {
               [config],
               warehouseId,
               categoryId,
-              'driver_only'
+              'pure'
             )
             
             // 验证来源说明
@@ -593,7 +597,7 @@ describe('司机类型单价加载示例测试', () => {
       }
     ]
     
-    const result = getPriceForDriverType(configs, 1, 2, 'driver_only')
+    const result = getPriceForDriverType(configs, 1, 2, 'pure')
     
     expect(result).not.toBeNull()
     expect(result?.unitPrice).toBe(12.0)

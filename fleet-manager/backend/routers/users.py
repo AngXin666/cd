@@ -17,6 +17,7 @@ from auth import (
     get_current_user,
     require_admin,
     require_management,
+    require_user_creator,
     PermissionErrorCode,
     PermissionError,
     require_super_admin_for_high_roles,
@@ -75,11 +76,18 @@ async def get_users(
 @router.post("", response_model=UserResponse)
 async def create_user(
     request: UserCreate,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_user_creator),
     session: Session = Depends(get_session)
 ):
     """
-    创建新用户（管理员级别可访问：调度、老板、超级管理员）
+    创建新用户（车队长、调度、老板可访问）
+
+    权限规则：
+    - 老板：可以创建所有角色
+    - 调度：可以创建车队长和司机
+    - 车队长：只能创建司机，且自动分配到其管理的仓库
+
+    Requirements: 1.4, 12.1 - 允许车队长创建司机
 
     Args:
         request: 用户创建请求
@@ -91,7 +99,7 @@ async def create_user(
 
     Raises:
         HTTPException 400: 用户名已存在
-        HTTPException 403: 无权限创建高权限角色用户
+        HTTPException 403: 无权限创建该角色用户
     """
     # 检查用户名是否已存在
     existing = crud.get_user_by_username(session, request.username)
@@ -104,6 +112,23 @@ async def create_user(
     # 权限控制：使用统一的高权限角色检查
     require_super_admin_for_high_roles(request.role, current_user, "创建")
 
+    # 车队长只能创建司机
+    # Requirements: 1.4, 12.1 - 车队长创建司机权限
+    if is_role(current_user.role, UserRole.MANAGER):
+        if not is_role(request.role, UserRole.DRIVER):
+            raise PermissionError(
+                error_code=PermissionErrorCode.ROLE_INSUFFICIENT,
+                message="车队长只能创建司机"
+            )
+
+    # 调度不能创建老板
+    if is_role(current_user.role, UserRole.PEER_ADMIN):
+        if is_role(request.role, UserRole.BOSS):
+            raise PermissionError(
+                error_code=PermissionErrorCode.ROLE_INSUFFICIENT,
+                message="调度无权创建老板"
+            )
+
     user = crud.create_user(
         session,
         username=request.username,
@@ -112,6 +137,15 @@ async def create_user(
         phone=request.phone,
         role=request.role
     )
+
+    # 车队长创建司机时，自动分配到车队长管理的所有仓库
+    # Requirements: 12.1 - 车队长创建司机时自动分配到其管理的仓库
+    if is_role(current_user.role, UserRole.MANAGER):
+        manager_warehouses = crud.get_user_warehouses(session, current_user.id)
+        if manager_warehouses:
+            warehouse_ids = [w.id for w in manager_warehouses]
+            crud.assign_warehouses_to_user(session, user.id, warehouse_ids)
+
     return user
 
 
@@ -156,6 +190,7 @@ async def update_user(
 
     当用户角色或状态发生变更时，会向该用户推送 user_update 事件，
     让用户及时了解账号状态变更。
+    当司机类型变更时，会向该司机发送通知。
 
     Requirements: 7.1, 7.2 - 用户状态实时通知
 
@@ -182,6 +217,7 @@ async def update_user(
     # 记录更新前的状态，用于判断是否需要推送事件
     old_role = user.role
     old_is_active = user.is_active
+    old_driver_type = user.driver_type
 
     # 权限控制：使用统一的高权限角色检查
     # 检查是否有权修改当前用户（如果是老板或超级管理员）
@@ -196,6 +232,7 @@ async def update_user(
         name=request.name,
         phone=request.phone,
         role=request.role,
+        driver_type=request.driver_type,
         is_active=request.is_active
     )
 
@@ -210,12 +247,38 @@ async def update_user(
 
         # 触发用户状态更新事件
         # Requirements: 7.2 - 事件负载包含用户ID、变更类型、新的状态值
+        # 注意：role 现在是字符串类型，不需要调用 .value
         emit_user_update(
             user_id=updated_user.id,
-            role=updated_user.role.value,
+            role=updated_user.role,
             is_active=updated_user.is_active,
             updated_at=updated_user.updated_at.isoformat() if updated_user.updated_at else datetime.now().isoformat(),
             action=action
+        )
+
+    # 检查司机类型是否变更，如果变更则发送通知
+    driver_type_changed = (
+        request.driver_type is not None and 
+        request.driver_type != old_driver_type and
+        is_role(updated_user.role, UserRole.DRIVER)
+    )
+    if driver_type_changed:
+        # 司机类型映射
+        driver_type_names = {
+            "driver_only": "纯司机",
+            "with_vehicle": "带车司机"
+        }
+        new_type_name = driver_type_names.get(request.driver_type, request.driver_type)
+        
+        # 创建通知给被修改的司机
+        crud.create_notification(
+            session,
+            user_id=updated_user.id,
+            title="司机类型已变更",
+            content=f"您的司机类型已被修改为：{new_type_name}",
+            sender_id=current_user.id,
+            ref_type="driver_type_change",
+            ref_id=updated_user.id
         )
 
     return updated_user
@@ -400,6 +463,21 @@ async def assign_warehouses_to_user(
         warehouses=warehouses_data,
         assignment_type=assignment_type
     )
+
+    # 发送仓库分配通知给被分配的用户
+    if request.warehouse_ids:
+        warehouse_names = [w.name for w in assigned_warehouses]
+        warehouse_list = "、".join(warehouse_names) if warehouse_names else "无"
+        
+        crud.create_notification(
+            session,
+            user_id=user_id,
+            title="仓库分配已更新",
+            content=f"您已被分配到以下仓库：{warehouse_list}",
+            sender_id=current_user.id,
+            ref_type="warehouse_assignment",
+            ref_id=user_id
+        )
 
     return MessageResponse(message="仓库分配成功")
 

@@ -1,52 +1,53 @@
 """
 数据库模型模块
-定义所有数据库表结构，使用 SQLModel 实现 ORM
-包含 10 个核心数据表：用户、仓库、考勤、计件、请假、车辆、通知等
+
+定义所有数据库表结构，使用 SQLModel 实现 ORM。
+包含 10 个核心数据表：用户、仓库、考勤、计件、请假、车辆、通知等。
+
+枚举处理规范：
+1. 所有枚举类定义在 enums.py 中，继承 LowercaseStrEnum
+2. 数据库字段使用 str 类型 + sa_column=Column(String(N))
+3. 枚举值统一使用小写字符串
+4. 代码中可以使用枚举常量（如 LeaveStatus.PENDING.value）进行比较
 """
 
 from datetime import datetime, date
-from enum import Enum
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, String
 
+# 从 enums.py 导入所有枚举类型
+from enums import (
+    UserRole,
+    LeaveType,
+    LeaveStatus,
+    VehicleStatus,
+    DocumentType,
+    VehicleHistoryActionType,
+    WarehouseType,
+    normalize_enum_value,
+    is_enum_equal,
+)
 
-# ==================== 枚举类型定义 ====================
+# 重新导出枚举类型，方便其他模块导入
+__all__ = [
+    "UserRole",
+    "LeaveType",
+    "LeaveStatus",
+    "VehicleStatus",
+    "DocumentType",
+    "VehicleHistoryActionType",
+    "WarehouseType",
+    "normalize_enum_value",
+    "is_enum_equal",
+]
 
-class UserRole(str, Enum):
-    """
-    用户角色枚举
-    - DRIVER: 司机，负责打卡、计件、请假、车辆管理
-    - MANAGER: 车队长，负责司机管理、审批、统计
-    - PEER_ADMIN: 调度，负责协助管理，拥有与老板类似的管理权限
-    - BOSS: 老板，负责全局管理、用户管理、仓库管理，拥有系统最高权限
-    
-    注意：枚举值统一使用小写，数据库存储也使用小写
-    """
-    DRIVER = "driver"
-    MANAGER = "manager"
-    PEER_ADMIN = "peer_admin"
-    BOSS = "boss"
-    
-    @classmethod
-    def _missing_(cls, value):
-        """
-        处理大小写不敏感的枚举值匹配
-        当传入的值不完全匹配时，尝试转换为小写后匹配
-        """
-        if isinstance(value, str):
-            # 尝试小写匹配
-            lower_value = value.lower()
-            for member in cls:
-                if member.value == lower_value:
-                    return member
-        return None
 
+# ==================== 辅助函数 ====================
 
 def normalize_role(role) -> str:
     """
-    规范化角色值为小写字符串
-    支持 UserRole 枚举、字符串（大小写不敏感）
+    规范化角色值为小写字符串（向后兼容）
     
     Args:
         role: 角色值，可以是 UserRole 枚举或字符串
@@ -54,16 +55,12 @@ def normalize_role(role) -> str:
     Returns:
         小写的角色字符串
     """
-    if isinstance(role, UserRole):
-        return role.value
-    if isinstance(role, str):
-        return role.lower()
-    return str(role).lower()
+    return normalize_enum_value(role)
 
 
 def is_role(user_role, target_role) -> bool:
     """
-    检查用户角色是否匹配目标角色（大小写不敏感）
+    检查用户角色是否匹配目标角色（大小写不敏感，向后兼容）
     
     Args:
         user_role: 用户的角色值（可以是字符串或 UserRole 枚举）
@@ -71,79 +68,8 @@ def is_role(user_role, target_role) -> bool:
         
     Returns:
         是否匹配
-        
-    Example:
-        >>> is_role("DRIVER", UserRole.DRIVER)  # True
-        >>> is_role("driver", "DRIVER")  # True
-        >>> is_role(UserRole.BOSS, "boss")  # True
     """
-    return normalize_role(user_role) == normalize_role(target_role)
-
-
-class LeaveType(str, Enum):
-    """
-    请假类型枚举
-    - LEAVE: 请假
-    - RESIGN: 离职申请
-    """
-    LEAVE = "leave"
-    RESIGN = "resign"
-
-
-class LeaveStatus(str, Enum):
-    """
-    请假状态枚举
-    - PENDING: 待审批
-    - APPROVED: 已批准
-    - REJECTED: 已拒绝
-    """
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-
-
-class VehicleStatus(str, Enum):
-    """
-    车辆状态枚举
-    - ACTIVE: 使用中
-    - RETURNED: 已归还
-    - REVIEWING: 审核中
-    - REJECTED: 审核拒绝
-    """
-    ACTIVE = "active"
-    RETURNED = "returned"
-    REVIEWING = "reviewing"
-    REJECTED = "rejected"
-
-
-class DocumentType(str, Enum):
-    """
-    证件类型枚举
-    - LICENSE: 驾驶证
-    - REGISTRATION: 行驶证
-    - INSURANCE: 保险单
-    """
-    LICENSE = "license"
-    REGISTRATION = "registration"
-    INSURANCE = "insurance"
-
-
-class WarehouseType(str, Enum):
-    """
-    仓库类型枚举
-    定义仓库的业务分类，每种类型对应预设的计量单位
-    
-    - PIECE: 计件类型，预设单位为"件"
-    - POINT: 点位类型，预设单位为"点"
-    - WHOLE: 整车类型，预设单位为"车"
-    - DISTANCE: 距离类型，预设单位为"公里"
-    
-    Requirements: 1.1 - 支持四种仓库类型
-    """
-    PIECE = "piece"      # 计件 → 件
-    POINT = "point"      # 点位 → 点
-    WHOLE = "whole"      # 整车 → 车
-    DISTANCE = "distance"  # 距离 → 公里
+    return is_enum_equal(user_role, target_role)
 
 
 # ==================== 数据库模型定义 ====================
@@ -152,17 +78,6 @@ class User(SQLModel, table=True):
     """
     用户表
     存储系统所有用户信息，包括司机、车队长、老板
-
-    Attributes:
-        id: 主键，自增
-        username: 用户名，唯一，用于登录
-        password_hash: 密码哈希值
-        name: 真实姓名
-        phone: 手机号码
-        role: 用户角色（司机/车队长/老板）
-        is_active: 是否启用
-        created_at: 创建时间
-        updated_at: 更新时间
     """
     __tablename__ = "users"
 
@@ -171,8 +86,10 @@ class User(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     name: str = Field(max_length=50)
     phone: Optional[str] = Field(default=None, max_length=20)
-    # 使用字符串类型存储角色，支持大小写不敏感
-    role: str = Field(default="driver", sa_column=Column(String(20)))
+    # 使用字符串类型存储，值为小写
+    role: str = Field(default=UserRole.DRIVER.value, sa_column=Column(String(20)))
+    # 司机类型：pure（纯司机）或 with_vehicle（带车司机）
+    driver_type: Optional[str] = Field(default="pure", sa_column=Column(String(20)))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -187,14 +104,12 @@ class User(SQLModel, table=True):
     )
     vehicles: List["Vehicle"] = Relationship(back_populates="user")
     notifications: List["Notification"] = Relationship(back_populates="user")
-    # 司机证件信息（一对一关系）
     driver_license: Optional["DriverLicense"] = Relationship(back_populates="user")
 
     @property
     def is_verified(self) -> bool:
         """是否已实名：司机需要有身份证号码，其他角色默认已实名"""
-        # 使用 normalize_role 进行大小写不敏感比较
-        if normalize_role(self.role) != "driver":
+        if normalize_role(self.role) != UserRole.DRIVER.value:
             return True
         return bool(self.driver_license and self.driver_license.id_card_number)
 
@@ -203,30 +118,17 @@ class Warehouse(SQLModel, table=True):
     """
     仓库表
     存储仓库/工作地点信息
-    
-    新增字段:
-        warehouse_type: 仓库类型（计件/点位/整车/距离），默认为计件
-
-    Attributes:
-        id: 主键，自增
-        name: 仓库名称
-        address: 仓库地址
-        warehouse_type: 仓库类型，定义仓库的业务分类
-        is_active: 是否启用
-        created_at: 创建时间
-        
-    Requirements: 1.6 - 仓库类型作为必填字段，默认值为 "piece"
     """
     __tablename__ = "warehouses"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, index=True)
     address: Optional[str] = Field(default=None, max_length=255)
-    # 新增：仓库类型字段，默认为计件类型
-    # Requirements: 1.1-1.6 - 支持四种仓库类型，默认为 piece
-    warehouse_type: WarehouseType = Field(
-        default=WarehouseType.PIECE,
-        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离"
+    # 仓库类型：piece=计件, point=点位, whole=整车, distance=距离
+    warehouse_type: str = Field(
+        default=WarehouseType.PIECE.value,
+        sa_column=Column(String(20)),
+        description="仓库类型"
     )
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
@@ -234,7 +136,6 @@ class Warehouse(SQLModel, table=True):
     # 关联关系
     assignments: List["WarehouseAssignment"] = Relationship(back_populates="warehouse")
     piece_work_records: List["PieceWorkRecord"] = Relationship(back_populates="warehouse")
-    # 新增：仓库下的车辆列表
     vehicles: List["Vehicle"] = Relationship(back_populates="warehouse")
 
 
@@ -242,12 +143,6 @@ class WarehouseAssignment(SQLModel, table=True):
     """
     用户-仓库关联表
     记录用户分配到哪个仓库工作
-
-    Attributes:
-        id: 主键，自增
-        user_id: 用户ID（外键）
-        warehouse_id: 仓库ID（外键）
-        created_at: 分配时间
     """
     __tablename__ = "warehouse_assignments"
 
@@ -265,15 +160,6 @@ class Attendance(SQLModel, table=True):
     """
     考勤记录表
     记录司机的上班/下班打卡信息
-
-    Attributes:
-        id: 主键，自增
-        user_id: 用户ID（外键）
-        work_date: 工作日期
-        clock_in: 上班打卡时间
-        clock_out: 下班打卡时间
-        work_hours: 工作时长（小时）
-        created_at: 记录创建时间
     """
     __tablename__ = "attendance"
 
@@ -293,24 +179,19 @@ class PieceWorkCategory(SQLModel, table=True):
     """
     计件分类表
     定义计件工作的分类和单价
-
-    Attributes:
-        id: 主键，自增
-        name: 分类名称
-        unit_price: 基础单价（元/件）
-        upstairs_price: 上楼单价（元/件），可选
-        sorting_price: 分拣单价（元/件），可选
-        unit: 计量单位（如：件、箱、趟）
-        is_active: 是否启用
-        created_at: 创建时间
-
-    Requirements: 3.1 - 支持多种单价配置
+    每个品类关联到一个仓库
     """
     __tablename__ = "piece_work_categories"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=50, index=True)
-    unit_price: float = Field(default=0.0, description="基础单价（元/件）")
+    # 关联仓库ID
+    warehouse_id: Optional[int] = Field(default=None, foreign_key="warehouses.id", index=True)
+    unit_price: float = Field(default=0.0, description="基础单价（元/件）- 兼容旧数据")
+    # 纯司机单价
+    driver_only_price: float = Field(default=0.0, description="纯司机单价（元/件）")
+    # 带车司机单价
+    with_vehicle_price: float = Field(default=0.0, description="带车司机单价（元/件）")
     upstairs_price: Optional[float] = Field(default=None, description="上楼单价（元/件）")
     sorting_price: Optional[float] = Field(default=None, description="分拣单价（元/件）")
     unit: str = Field(default="件", max_length=20)
@@ -325,17 +206,6 @@ class PieceWorkRecord(SQLModel, table=True):
     """
     计件记录表
     记录司机的计件工作详情
-
-    Attributes:
-        id: 主键，自增
-        user_id: 用户ID（外键）
-        category_id: 分类ID（外键）
-        warehouse_id: 仓库ID（外键）
-        work_date: 工作日期
-        quantity: 数量
-        amount: 金额（数量 × 单价）
-        remark: 备注
-        created_at: 记录创建时间
     """
     __tablename__ = "piece_work_records"
 
@@ -359,29 +229,18 @@ class LeaveApplication(SQLModel, table=True):
     """
     请假/离职申请表
     记录司机的请假和离职申请
-
-    Attributes:
-        id: 主键，自增
-        user_id: 申请人ID（外键）
-        leave_type: 申请类型（请假/离职）
-        start_date: 开始日期
-        end_date: 结束日期
-        reason: 申请原因
-        status: 审批状态
-        approver_id: 审批人ID（外键）
-        approve_remark: 审批备注
-        created_at: 申请时间
-        updated_at: 更新时间
     """
     __tablename__ = "leave_applications"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
-    leave_type: LeaveType = Field(default=LeaveType.LEAVE)
+    # 请假类型：leave=请假, resign=离职
+    leave_type: str = Field(default=LeaveType.LEAVE.value, sa_column=Column(String(20)))
     start_date: date
     end_date: date
     reason: Optional[str] = Field(default=None, max_length=500)
-    status: LeaveStatus = Field(default=LeaveStatus.PENDING, index=True)
+    # 审批状态：pending=待审批, approved=已批准, rejected=已拒绝
+    status: str = Field(default=LeaveStatus.PENDING.value, sa_column=Column(String(20), index=True))
     approver_id: Optional[int] = Field(default=None, foreign_key="users.id")
     approve_remark: Optional[str] = Field(default=None, max_length=255)
     created_at: datetime = Field(default_factory=datetime.now)
@@ -397,94 +256,49 @@ class LeaveApplication(SQLModel, table=True):
 class Vehicle(SQLModel, table=True):
     """
     车辆信息表
-    记录司机的车辆信息，包含租赁相关字段、还车/提车照片和行驶证照片
-
-    Attributes:
-        id: 主键，自增
-        user_id: 车主ID（外键）
-        warehouse_id: 所属仓库ID（外键）
-        license_plate: 车牌号，唯一
-        brand: 品牌
-        model: 型号
-        color: 颜色
-        status: 车辆状态
-        ownership_type: 所有权类型（company=公司车辆, personal=个人车辆, leased=租赁车辆）
-        lessor_name: 出租方名称
-        lessor_contact: 出租方联系方式
-        lessee_name: 承租方名称
-        lessee_contact: 承租方联系方式
-        monthly_rent: 月租金（元）
-        lease_start_date: 租赁开始日期
-        lease_end_date: 租赁结束日期
-        rent_payment_day: 每月租金缴纳日（1-31）
-        left_front_photo: 左前照片URL
-        right_front_photo: 右前照片URL
-        left_rear_photo: 左后照片URL
-        right_rear_photo: 右后照片URL
-        dashboard_photo: 仪表盘照片URL
-        rear_door_photo: 后门照片URL
-        cargo_box_photo: 货箱照片URL
-        driving_license_main_photo: 行驶证主页照片URL
-        driving_license_sub_photo: 行驶证副页照片URL
-        driving_license_sub_back_photo: 行驶证副页背面照片URL
-        registration_photos: 行驶证照片JSON数组
-        pickup_photos: 提车照片JSON数组
-        pickup_time: 提车时间
-        return_photos: 还车照片JSON数组
-        damage_photos: 车损照片JSON数组
-        return_time: 还车时间
-        created_at: 创建时间
-        updated_at: 更新时间
+    记录司机的车辆信息
     """
     __tablename__ = "vehicles"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
-    # 新增：所属仓库ID（外键关联仓库）
-    warehouse_id: Optional[int] = Field(default=None, foreign_key="warehouses.id", index=True, description="所属仓库ID")
+    warehouse_id: Optional[int] = Field(default=None, foreign_key="warehouses.id", index=True)
     license_plate: str = Field(unique=True, index=True, max_length=20)
     brand: Optional[str] = Field(default=None, max_length=50)
     model: Optional[str] = Field(default=None, max_length=50)
     color: Optional[str] = Field(default=None, max_length=20)
-    status: VehicleStatus = Field(default=VehicleStatus.REVIEWING)
+    # 车辆状态：active=使用中, returned=已归还, reviewing=审核中, rejected=审核拒绝
+    status: str = Field(default=VehicleStatus.REVIEWING.value, sa_column=Column(String(20)))
     # 所有权类型：company=公司车辆, personal=个人车辆, leased=租赁车辆
     ownership_type: Optional[str] = Field(default="company", max_length=20)
-    # 租赁信息 - 出租方
+    # 租赁信息
     lessor_name: Optional[str] = Field(default=None, max_length=100)
     lessor_contact: Optional[str] = Field(default=None, max_length=50)
-    # 租赁信息 - 承租方
     lessee_name: Optional[str] = Field(default=None, max_length=100)
     lessee_contact: Optional[str] = Field(default=None, max_length=50)
-    # 租赁信息 - 租金
     monthly_rent: Optional[float] = Field(default=None)
     lease_start_date: Optional[date] = Field(default=None)
     lease_end_date: Optional[date] = Field(default=None)
-    rent_payment_day: Optional[int] = Field(default=None)  # 每月缴纳日（1-31）
-    
-    # 车辆照片（7张基本照片）
-    left_front_photo: Optional[str] = Field(default=None, max_length=500, description="左前照片URL")
-    right_front_photo: Optional[str] = Field(default=None, max_length=500, description="右前照片URL")
-    left_rear_photo: Optional[str] = Field(default=None, max_length=500, description="左后照片URL")
-    right_rear_photo: Optional[str] = Field(default=None, max_length=500, description="右后照片URL")
-    dashboard_photo: Optional[str] = Field(default=None, max_length=500, description="仪表盘照片URL")
-    rear_door_photo: Optional[str] = Field(default=None, max_length=500, description="后门照片URL")
-    cargo_box_photo: Optional[str] = Field(default=None, max_length=500, description="货箱照片URL")
-    
-    # 行驶证照片（3张）
-    driving_license_main_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证主页照片URL")
-    driving_license_sub_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页照片URL")
-    driving_license_sub_back_photo: Optional[str] = Field(default=None, max_length=500, description="行驶证副页背面照片URL")
-    
-    # 行驶证照片数组（JSON格式）
-    registration_photos: Optional[str] = Field(default=None, description="行驶证照片JSON数组")
-    
-    # 提车照片和时间
-    pickup_photos: Optional[str] = Field(default=None, description="提车照片JSON数组")
-    pickup_time: Optional[datetime] = Field(default=None, description="提车时间")
-    # 还车照片和时间
-    return_photos: Optional[str] = Field(default=None, description="还车照片JSON数组（7张）")
-    damage_photos: Optional[str] = Field(default=None, description="车损照片JSON数组（最多9张）")
-    return_time: Optional[datetime] = Field(default=None, description="还车时间")
+    rent_payment_day: Optional[int] = Field(default=None)
+    # 车辆照片
+    left_front_photo: Optional[str] = Field(default=None, max_length=500)
+    right_front_photo: Optional[str] = Field(default=None, max_length=500)
+    left_rear_photo: Optional[str] = Field(default=None, max_length=500)
+    right_rear_photo: Optional[str] = Field(default=None, max_length=500)
+    dashboard_photo: Optional[str] = Field(default=None, max_length=500)
+    rear_door_photo: Optional[str] = Field(default=None, max_length=500)
+    cargo_box_photo: Optional[str] = Field(default=None, max_length=500)
+    # 行驶证照片
+    driving_license_main_photo: Optional[str] = Field(default=None, max_length=500)
+    driving_license_sub_photo: Optional[str] = Field(default=None, max_length=500)
+    driving_license_sub_back_photo: Optional[str] = Field(default=None, max_length=500)
+    registration_photos: Optional[str] = Field(default=None)
+    # 提车/还车照片
+    pickup_photos: Optional[str] = Field(default=None)
+    pickup_time: Optional[datetime] = Field(default=None)
+    return_photos: Optional[str] = Field(default=None)
+    damage_photos: Optional[str] = Field(default=None)
+    return_time: Optional[datetime] = Field(default=None)
     # 时间戳
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -498,27 +312,17 @@ class Vehicle(SQLModel, table=True):
 class VehicleDocument(SQLModel, table=True):
     """
     车辆证件表
-    存储车辆相关证件信息（驾驶证、行驶证、保险等）
-
-    Attributes:
-        id: 主键，自增
-        vehicle_id: 车辆ID（外键）
-        doc_type: 证件类型
-        file_url: 证件图片URL
-        expiry_date: 过期日期
-        supplemented_photos: 补录照片元数据（JSON格式）
-        created_at: 上传时间
-        updated_at: 更新时间
+    存储车辆相关证件信息
     """
     __tablename__ = "vehicle_documents"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     vehicle_id: int = Field(foreign_key="vehicles.id", index=True)
-    doc_type: DocumentType
+    # 证件类型：license=驾驶证, registration=行驶证, insurance=保险单
+    doc_type: str = Field(sa_column=Column(String(20)))
     file_url: Optional[str] = Field(default=None, max_length=500)
     expiry_date: Optional[date] = Field(default=None)
-    # 补录照片元数据，存储格式：{ "field_index": { field, index, supplemented_at, original_url, supplement_count } }
-    supplemented_photos: Optional[str] = Field(default=None, description="补录照片元数据（JSON格式）")
+    supplemented_photos: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -529,17 +333,7 @@ class VehicleDocument(SQLModel, table=True):
 class Notification(SQLModel, table=True):
     """
     通知消息表
-    存储系统通知和消息
-
-    Attributes:
-        id: 主键，自增
-        user_id: 接收用户ID（外键）
-        title: 通知标题
-        content: 通知内容
-        is_read: 是否已读
-        sender_id: 发送者ID（可选）
-        template_id: 使用的模板ID（可选）
-        created_at: 发送时间
+    存储系统通知和消息，支持审批类通知的业务关联
     """
     __tablename__ = "notifications"
 
@@ -549,245 +343,67 @@ class Notification(SQLModel, table=True):
     content: Optional[str] = Field(default=None, max_length=1000)
     is_read: bool = Field(default=False, index=True)
     sender_id: Optional[int] = Field(default=None)
-    template_id: Optional[int] = Field(default=None, foreign_key="notification_templates.id")
+    
+    # 审批类通知的业务关联字段
+    ref_type: Optional[str] = Field(default=None, sa_column=Column(String(20), index=True))
+    # 关联类型：leave（请假）/resign（离职）/vehicle（车辆）
+    
+    ref_id: Optional[int] = Field(default=None, index=True)
+    # 关联业务ID（请假申请ID/车辆ID）
+    
+    status: Optional[str] = Field(default=None, sa_column=Column(String(20)))
+    # 审批状态：pending（待审批）/approved（已批准）/rejected（已拒绝）
+    
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = Field(default=None)
 
     # 关联关系
     user: Optional[User] = Relationship(back_populates="notifications")
-    template: Optional["NotificationTemplate"] = Relationship(back_populates="notifications")
 
-
-class NotificationTemplate(SQLModel, table=True):
-    """
-    通知模板表
-    存储可复用的通知模板，支持变量替换
-
-    Attributes:
-        id: 主键，自增
-        name: 模板名称，唯一标识
-        title: 通知标题模板，支持变量如 {user_name}
-        content: 通知内容模板，支持变量如 {date}、{amount}
-        variables: 模板变量说明（JSON格式），如 {"user_name": "用户姓名", "date": "日期"}
-        category: 模板分类，如 attendance（考勤）、leave（请假）、vehicle（车辆）
-        is_active: 是否启用
-        created_at: 创建时间
-        updated_at: 更新时间
-    """
-    __tablename__ = "notification_templates"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(unique=True, index=True, max_length=50, description="模板名称")
-    title: str = Field(max_length=100, description="通知标题模板")
-    content: str = Field(max_length=2000, description="通知内容模板")
-    variables: Optional[str] = Field(default=None, description="模板变量说明（JSON格式）")
-    category: Optional[str] = Field(default=None, max_length=50, index=True, description="模板分类")
-    is_active: bool = Field(default=True, description="是否启用")
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-
-    # 关联关系
-    notifications: List["Notification"] = Relationship(back_populates="template")
-    scheduled_notifications: List["ScheduledNotification"] = Relationship(back_populates="template")
-
-
-class RepeatType(str, Enum):
-    """
-    定时通知重复类型枚举
-    - ONCE: 仅执行一次
-    - DAILY: 每天重复
-    - WEEKLY: 每周重复
-    - MONTHLY: 每月重复
-    """
-    ONCE = "once"
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-
-
-class ScheduledNotificationStatus(str, Enum):
-    """
-    定时通知状态枚举
-    - PENDING: 待执行
-    - ACTIVE: 执行中（用于重复任务）
-    - COMPLETED: 已完成
-    - CANCELLED: 已取消
-    - FAILED: 执行失败
-    """
-    PENDING = "pending"
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    FAILED = "failed"
-
-
-class ScheduledNotification(SQLModel, table=True):
-    """
-    定时通知表
-    存储定时发送的通知任务，支持一次性和重复发送
-
-    Attributes:
-        id: 主键，自增
-        name: 任务名称，用于标识和管理
-        template_id: 使用的通知模板ID（可选，如果不使用模板则直接使用 title/content）
-        title: 通知标题（如果不使用模板）
-        content: 通知内容（如果不使用模板）
-        variables: 模板变量值（JSON格式），用于替换模板中的变量
-        target_user_ids: 目标用户ID列表（JSON格式），如 [1, 2, 3]
-        target_roles: 目标角色列表（JSON格式），如 ["driver", "manager"]，发送给指定角色的所有用户
-        scheduled_time: 计划发送时间（首次发送时间）
-        repeat_type: 重复类型（once/daily/weekly/monthly）
-        repeat_interval: 重复间隔（如每2天、每3周）
-        repeat_end_date: 重复结束日期（可选，不设置则无限重复）
-        weekdays: 每周重复时的星期几（JSON格式），如 [1, 3, 5] 表示周一、周三、周五
-        monthly_day: 每月重复时的日期（1-31）
-        status: 任务状态
-        last_executed_at: 上次执行时间
-        next_execute_at: 下次执行时间
-        execution_count: 已执行次数
-        creator_id: 创建者ID
-        created_at: 创建时间
-        updated_at: 更新时间
-    """
-    __tablename__ = "scheduled_notifications"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=100, index=True, description="任务名称")
-
-    # 通知内容（可以使用模板或直接指定）
-    template_id: Optional[int] = Field(default=None, foreign_key="notification_templates.id", description="模板ID")
-    title: Optional[str] = Field(default=None, max_length=100, description="通知标题（不使用模板时）")
-    content: Optional[str] = Field(default=None, max_length=2000, description="通知内容（不使用模板时）")
-    variables: Optional[str] = Field(default=None, description="模板变量值（JSON格式）")
-
-    # 目标用户
-    target_user_ids: Optional[str] = Field(default=None, description="目标用户ID列表（JSON格式）")
-    target_roles: Optional[str] = Field(default=None, description="目标角色列表（JSON格式）")
-
-    # 定时规则
-    scheduled_time: datetime = Field(description="计划发送时间（首次发送时间）")
-    repeat_type: RepeatType = Field(default=RepeatType.ONCE, description="重复类型")
-    repeat_interval: int = Field(default=1, ge=1, description="重复间隔")
-    repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
-    weekdays: Optional[str] = Field(default=None, description="每周重复的星期几（JSON格式，1-7）")
-    monthly_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月重复的日期")
-
-    # 状态和执行信息
-    status: ScheduledNotificationStatus = Field(default=ScheduledNotificationStatus.PENDING, index=True)
-    last_executed_at: Optional[datetime] = Field(default=None, description="上次执行时间")
-    next_execute_at: Optional[datetime] = Field(default=None, index=True, description="下次执行时间")
-    execution_count: int = Field(default=0, description="已执行次数")
-
-    # 创建者和时间戳
-    creator_id: Optional[int] = Field(default=None, foreign_key="users.id", description="创建者ID")
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-
-    # 关联关系
-    template: Optional["NotificationTemplate"] = Relationship(back_populates="scheduled_notifications")
-
-
-# ==================== 车辆历史记录相关 ====================
-
-class VehicleHistoryActionType(str, Enum):
-    """
-    车辆历史操作类型枚举
-    - PICKUP: 提车操作
-    - RETURN: 还车操作
-    """
-    PICKUP = "pickup"
-    RETURN = "return"
 
 
 class VehicleHistory(SQLModel, table=True):
     """
     车辆使用历史表
-    记录车辆的每次提车和还车操作，包含照片、时间、司机信息
-
-    Attributes:
-        id: 主键，自增
-        vehicle_id: 车辆ID（外键）
-        user_id: 司机ID（外键）
-        action_type: 操作类型（pickup=提车, return=还车）
-        action_time: 操作时间
-        photos: 照片JSON数组（7张基本照片）
-        damage_photos: 车损照片JSON数组
-        remark: 备注
-        created_at: 记录创建时间
-
-    Requirements: 15.2, 15.3
+    记录车辆的每次提车和还车操作
     """
     __tablename__ = "vehicle_history"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    vehicle_id: int = Field(foreign_key="vehicles.id", index=True, description="车辆ID")
-    user_id: int = Field(foreign_key="users.id", index=True, description="司机ID")
-    action_type: VehicleHistoryActionType = Field(description="操作类型：pickup=提车, return=还车")
-    action_time: datetime = Field(description="操作时间")
-    photos: Optional[str] = Field(default=None, description="照片JSON数组（7张基本照片）")
-    damage_photos: Optional[str] = Field(default=None, description="车损照片JSON数组")
-    remark: Optional[str] = Field(default=None, max_length=500, description="备注")
+    vehicle_id: int = Field(foreign_key="vehicles.id", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    # 操作类型：pickup=提车, return=还车
+    action_type: str = Field(sa_column=Column(String(20)))
+    action_time: datetime
+    photos: Optional[str] = Field(default=None)
+    damage_photos: Optional[str] = Field(default=None)
+    remark: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=datetime.now)
 
-    # 关联关系（可选，用于 ORM 查询）
-    # 注意：这里不添加 back_populates 以避免循环引用问题
-
-
-# ==================== 司机证件信息相关 ====================
 
 class DriverLicense(SQLModel, table=True):
     """
     司机证件信息表
-    存储司机的身份证和驾驶证信息，与用户表一对一关联
-    
-    用于在司机个人档案页面显示证件信息，以及在车辆录入时保存司机证件
-
-    Attributes:
-        id: 主键，自增
-        user_id: 用户ID（外键，唯一，一对一关系）
-        
-        # 身份证信息
-        id_card_number: 身份证号码
-        id_card_name: 身份证姓名
-        id_card_photo_front: 身份证正面照片URL
-        id_card_photo_back: 身份证背面照片URL
-        
-        # 驾驶证信息
-        license_number: 驾驶证号码
-        license_class: 驾驶证类型（如：C1、B2、A2等）
-        valid_from: 驾驶证有效期起始日期
-        valid_to: 驾驶证有效期截止日期
-        driving_license_photo: 驾驶证照片URL
-        
-        # 时间戳
-        created_at: 创建时间
-        updated_at: 更新时间
-
-    Requirements: 4.5, 4.6, 4.7 - 司机个人档案页面显示身份证号、驾驶证类型、驾驶证有效期
+    存储司机的身份证和驾驶证信息
     """
     __tablename__ = "driver_licenses"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    # 用户ID，唯一约束确保一对一关系
-    user_id: int = Field(foreign_key="users.id", unique=True, index=True, description="用户ID（一对一关系）")
-    
+    user_id: int = Field(foreign_key="users.id", unique=True, index=True)
     # 身份证信息
-    id_card_number: Optional[str] = Field(default=None, max_length=18, description="身份证号码")
-    id_card_name: Optional[str] = Field(default=None, max_length=50, description="身份证姓名")
-    id_card_photo_front: Optional[str] = Field(default=None, max_length=500, description="身份证正面照片URL")
-    id_card_photo_back: Optional[str] = Field(default=None, max_length=500, description="身份证背面照片URL")
-    
+    id_card_number: Optional[str] = Field(default=None, max_length=18)
+    id_card_name: Optional[str] = Field(default=None, max_length=50)
+    id_card_photo_front: Optional[str] = Field(default=None, max_length=500)
+    id_card_photo_back: Optional[str] = Field(default=None, max_length=500)
     # 驾驶证信息
-    license_number: Optional[str] = Field(default=None, max_length=18, description="驾驶证号码")
-    license_class: Optional[str] = Field(default=None, max_length=10, description="驾驶证类型（如：C1、B2、A2等）")
-    valid_from: Optional[date] = Field(default=None, description="驾驶证有效期起始日期")
-    valid_to: Optional[date] = Field(default=None, description="驾驶证有效期截止日期")
-    driving_license_photo: Optional[str] = Field(default=None, max_length=500, description="驾驶证照片URL")
-    
+    license_number: Optional[str] = Field(default=None, max_length=18)
+    license_class: Optional[str] = Field(default=None, max_length=10)
+    valid_from: Optional[date] = Field(default=None)
+    valid_to: Optional[date] = Field(default=None)
+    driving_license_photo: Optional[str] = Field(default=None, max_length=500)
     # 时间戳
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
     # 关联关系
     user: Optional[User] = Relationship(back_populates="driver_license")
-
-

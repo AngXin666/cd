@@ -200,6 +200,8 @@ export interface User {
   warehouse_id?: number | null;
   /** 是否已实名认证 */
   is_verified?: boolean;
+  /** 司机类型：pure（纯司机）或 with_vehicle（带车司机） */
+  driver_type?: 'pure' | 'with_vehicle';
 }
 
 /** 创建用户请求 */
@@ -219,6 +221,8 @@ export interface UserUpdate {
   is_active?: boolean;
   /** 所属仓库ID */
   warehouse_id?: number | null;
+  /** 司机类型：pure（纯司机）或 with_vehicle（带车司机） */
+  driver_type?: 'pure' | 'with_vehicle';
 }
 
 // ==================== 仓库相关类型 ====================
@@ -256,6 +260,12 @@ export interface WarehouseCreate {
   address?: string;
   /** 仓库类型（可选，默认为 piece） */
   warehouse_type?: WarehouseType;
+  /** 品类名称 */
+  category_name?: string;
+  /** 纯司机单价 */
+  driver_only_price?: number;
+  /** 带车司机单价 */
+  with_vehicle_price?: number;
 }
 
 /**
@@ -340,14 +350,20 @@ export interface LeaveCheckResult {
 
 /** 
  * 计件分类
- * 支持基础单价、上楼单价、分拣单价配置
+ * 支持纯司机单价、带车司机单价配置
  * Requirements: 3.1 - 支持多种单价配置
  */
 export interface PieceWorkCategory {
   id: number;
   name: string;
-  /** 基础单价（元/件） */
+  /** 关联仓库ID */
+  warehouse_id?: number | null;
+  /** 基础单价（元/件）- 兼容旧数据 */
   unit_price: number;
+  /** 纯司机单价（元/件） */
+  driver_only_price: number;
+  /** 带车司机单价（元/件） */
+  with_vehicle_price: number;
   /** 上楼单价（元/件），可选 */
   upstairs_price?: number | null;
   /** 分拣单价（元/件），可选 */
@@ -355,6 +371,8 @@ export interface PieceWorkCategory {
   unit: string;
   is_active: boolean;
   created_at: string;
+  /** 仓库名称 */
+  warehouse_name?: string | null;
 }
 
 /** 
@@ -363,12 +381,12 @@ export interface PieceWorkCategory {
  */
 export interface PieceWorkCategoryCreate {
   name: string;
-  /** 基础单价（元/件） */
-  unit_price: number;
-  /** 上楼单价（元/件），可选 */
-  upstairs_price?: number;
-  /** 分拣单价（元/件），可选 */
-  sorting_price?: number;
+  /** 关联仓库ID */
+  warehouse_id: number;
+  /** 纯司机单价（元/件） */
+  driver_only_price: number;
+  /** 带车司机单价（元/件） */
+  with_vehicle_price: number;
   unit?: string;
 }
 
@@ -378,8 +396,12 @@ export interface PieceWorkCategoryCreate {
  */
 export interface PieceWorkCategoryUpdate {
   name?: string;
-  /** 基础单价（元/件） */
+  /** 基础单价（元/件）- 兼容旧数据 */
   unit_price?: number;
+  /** 纯司机单价（元/件） */
+  driver_only_price?: number;
+  /** 带车司机单价（元/件） */
+  with_vehicle_price?: number;
   /** 上楼单价（元/件） */
   upstairs_price?: number;
   /** 分拣单价（元/件） */
@@ -520,6 +542,8 @@ export interface LeaveApplication {
   updated_at: string;
   user_name?: string;
   approver_name?: string;
+  /** 申请人所属仓库名称 */
+  warehouse_name?: string;
 }
 
 /** 创建请假申请请求 */
@@ -999,61 +1023,6 @@ export interface UnreadCountResponse {
   count: number;
 }
 
-// ==================== 通知模板相关类型 ====================
-
-/** 通知模板 */
-export interface NotificationTemplate {
-  id: number;
-  name: string;
-  title: string;
-  content: string;
-  variables: Record<string, string> | null;
-  category: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-/** 创建通知模板请求 */
-export interface NotificationTemplateCreate {
-  name: string;
-  title: string;
-  content: string;
-  variables?: Record<string, string>;
-  category?: string;
-  is_active?: boolean;
-}
-
-/** 更新通知模板请求 */
-export interface NotificationTemplateUpdate {
-  name?: string;
-  title?: string;
-  content?: string;
-  variables?: Record<string, string>;
-  category?: string;
-  is_active?: boolean;
-}
-
-/** 模板预览响应 */
-export interface TemplatePreviewResponse {
-  template_id: number;
-  template_name: string;
-  rendered_title: string;
-  rendered_content: string;
-  variables_used: Record<string, string>;
-}
-
-/** 模板分类 */
-export interface TemplateCategory {
-  value: string;
-  label: string;
-}
-
-/** 模板分类列表响应 */
-export interface TemplateCategoriesResponse {
-  categories: TemplateCategory[];
-}
-
 // ==================== 通用类型 ====================
 
 /** 消息响应 */
@@ -1162,107 +1131,6 @@ export interface SupplementedPhotosResponse {
   vehicle_id: number;
   /** 补录照片元数据字典 */
   supplemented_photos: SupplementedPhotos;
-}
-
-
-
-// ==================== 定时通知相关类型 ====================
-
-/** 定时通知重复类型枚举 */
-export enum RepeatType {
-  /** 仅执行一次 */
-  ONCE = 'once',
-  /** 每天重复 */
-  DAILY = 'daily',
-  /** 每周重复 */
-  WEEKLY = 'weekly',
-  /** 每月重复 */
-  MONTHLY = 'monthly',
-}
-
-/** 定时通知状态枚举 */
-export enum ScheduledNotificationStatus {
-  /** 待执行 */
-  PENDING = 'pending',
-  /** 执行中（用于重复任务） */
-  ACTIVE = 'active',
-  /** 已完成 */
-  COMPLETED = 'completed',
-  /** 已取消 */
-  CANCELLED = 'cancelled',
-  /** 执行失败 */
-  FAILED = 'failed',
-}
-
-/** 定时通知信息 */
-export interface ScheduledNotification {
-  id: number;
-  name: string;
-  template_id: number | null;
-  template_name: string | null;
-  title: string | null;
-  content: string | null;
-  variables: Record<string, string> | null;
-  target_user_ids: number[] | null;
-  target_roles: string[] | null;
-  target_user_count: number;
-  scheduled_time: string;
-  repeat_type: RepeatType;
-  repeat_interval: number;
-  repeat_end_date: string | null;
-  weekdays: number[] | null;
-  monthly_day: number | null;
-  status: ScheduledNotificationStatus;
-  last_executed_at: string | null;
-  next_execute_at: string | null;
-  execution_count: number;
-  creator_id: number | null;
-  creator_name: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-/** 创建定时通知请求 */
-export interface ScheduledNotificationCreate {
-  name: string;
-  scheduled_time: string;
-  template_id?: number;
-  title?: string;
-  content?: string;
-  variables?: Record<string, string>;
-  target_user_ids?: number[];
-  target_roles?: string[];
-  repeat_type?: RepeatType;
-  repeat_interval?: number;
-  repeat_end_date?: string;
-  weekdays?: number[];
-  monthly_day?: number;
-}
-
-/** 更新定时通知请求 */
-export interface ScheduledNotificationUpdate {
-  name?: string;
-  template_id?: number;
-  title?: string;
-  content?: string;
-  variables?: Record<string, string>;
-  target_user_ids?: number[];
-  target_roles?: string[];
-  scheduled_time?: string;
-  repeat_type?: RepeatType;
-  repeat_interval?: number;
-  repeat_end_date?: string;
-  weekdays?: number[];
-  monthly_day?: number;
-  status?: ScheduledNotificationStatus;
-}
-
-/** 调度器状态响应 */
-export interface SchedulerStatusResponse {
-  is_running: boolean;
-  pending_tasks: number;
-  active_tasks: number;
-  next_execution: string | null;
 }
 
 

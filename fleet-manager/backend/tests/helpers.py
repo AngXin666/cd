@@ -7,18 +7,25 @@
 - 请求头构建
 - 响应断言
 - 数据比较
+- 测试数据工厂函数
+- 通知断言工具
 """
 
 from datetime import timedelta
 from typing import Dict, Any, Optional, List
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
 # 导入认证模块
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auth import create_access_token
+from auth import create_access_token, hash_password
+from models import (
+    User, UserRole, Warehouse, WarehouseAssignment,
+    Vehicle, VehicleStatus, Notification
+)
 
 
 # ==================== Token 辅助函数 ====================
@@ -415,3 +422,420 @@ def test_endpoint_requires_role(
         raise ValueError(f"不支持的 HTTP 方法: {method}")
 
     return response.status_code == 403
+
+
+
+# ==================== 测试数据工厂函数 ====================
+
+def random_string(length: int = 8) -> str:
+    """
+    生成随机字符串
+
+    Args:
+        length: 字符串长度
+
+    Returns:
+        str: 随机字符串
+    """
+    import random
+    import string
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+
+def random_phone() -> str:
+    """
+    生成随机手机号
+
+    Returns:
+        str: 随机手机号（138开头）
+    """
+    import random
+    return f"138{random.randint(10000000, 99999999)}"
+
+
+def random_license_plate() -> str:
+    """
+    生成随机车牌号
+
+    Returns:
+        str: 随机车牌号（如：川A12345）
+    """
+    import random
+    import string
+    provinces = ['川', '京', '沪', '粤', '浙', '苏', '鲁', '豫']
+    letters = string.ascii_uppercase
+    province = random.choice(provinces)
+    letter = random.choice(letters)
+    numbers = ''.join(random.choices(string.digits, k=5))
+    return f"{province}{letter}{numbers}"
+
+
+def create_test_user(
+    session: Session,
+    role: str = "driver",
+    username: Optional[str] = None,
+    name: Optional[str] = None,
+    phone: Optional[str] = None,
+    password: str = "test123456",
+    is_active: bool = True
+) -> User:
+    """
+    创建测试用户
+
+    Args:
+        session: 数据库会话
+        role: 用户角色 (driver/manager/peer_admin/boss)
+        username: 用户名，默认随机生成
+        name: 姓名，默认随机生成
+        phone: 手机号，默认随机生成
+        password: 密码，默认 test123456
+        is_active: 是否启用，默认 True
+
+    Returns:
+        User: 创建的用户对象
+    """
+    # 角色映射
+    role_map = {
+        "driver": UserRole.DRIVER.value,
+        "manager": UserRole.MANAGER.value,
+        "peer_admin": UserRole.PEER_ADMIN.value,
+        "dispatcher": UserRole.PEER_ADMIN.value,  # 别名
+        "boss": UserRole.BOSS.value
+    }
+    
+    role_value = role_map.get(role.lower(), UserRole.DRIVER.value)
+    
+    user = User(
+        username=username or f"user_{random_string()}",
+        password_hash=hash_password(password),
+        name=name or f"测试用户_{random_string(4)}",
+        phone=phone or random_phone(),
+        role=role_value,
+        is_active=is_active
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def create_test_warehouse(
+    session: Session,
+    name: Optional[str] = None,
+    address: Optional[str] = None,
+    is_active: bool = True
+) -> Warehouse:
+    """
+    创建测试仓库
+
+    Args:
+        session: 数据库会话
+        name: 仓库名称，默认随机生成
+        address: 仓库地址，默认随机生成
+        is_active: 是否启用，默认 True
+
+    Returns:
+        Warehouse: 创建的仓库对象
+    """
+    warehouse = Warehouse(
+        name=name or f"仓库_{random_string(4)}",
+        address=address or f"测试地址_{random_string(6)}",
+        is_active=is_active
+    )
+    session.add(warehouse)
+    session.commit()
+    session.refresh(warehouse)
+    return warehouse
+
+
+def assign_user_to_warehouse(
+    session: Session,
+    user: User,
+    warehouse: Warehouse
+) -> WarehouseAssignment:
+    """
+    将用户分配到仓库
+
+    Args:
+        session: 数据库会话
+        user: 用户对象
+        warehouse: 仓库对象
+
+    Returns:
+        WarehouseAssignment: 分配记录
+    """
+    # 检查是否已存在分配
+    existing = session.exec(
+        select(WarehouseAssignment).where(
+            WarehouseAssignment.user_id == user.id,
+            WarehouseAssignment.warehouse_id == warehouse.id
+        )
+    ).first()
+    
+    if existing:
+        return existing
+    
+    assignment = WarehouseAssignment(
+        user_id=user.id,
+        warehouse_id=warehouse.id
+    )
+    session.add(assignment)
+    session.commit()
+    session.refresh(assignment)
+    return assignment
+
+
+def create_test_vehicle(
+    session: Session,
+    user: User,
+    warehouse: Optional[Warehouse] = None,
+    license_plate: Optional[str] = None,
+    brand: Optional[str] = None,
+    model: Optional[str] = None,
+    color: Optional[str] = None,
+    status: str = "reviewing",
+    ownership_type: str = "company"
+) -> Vehicle:
+    """
+    创建测试车辆
+
+    Args:
+        session: 数据库会话
+        user: 车主用户
+        warehouse: 所属仓库（可选）
+        license_plate: 车牌号，默认随机生成
+        brand: 品牌，默认随机
+        model: 型号，默认随机
+        color: 颜色，默认随机
+        status: 状态，默认 reviewing
+        ownership_type: 所有权类型，默认 company
+
+    Returns:
+        Vehicle: 创建的车辆对象
+    """
+    import random
+    
+    # 状态映射
+    status_map = {
+        "active": VehicleStatus.ACTIVE.value,
+        "returned": VehicleStatus.RETURNED.value,
+        "reviewing": VehicleStatus.REVIEWING.value,
+        "rejected": VehicleStatus.REJECTED.value
+    }
+    
+    brands = ['丰田', '本田', '大众', '比亚迪', '特斯拉']
+    colors = ['白色', '黑色', '银色', '红色', '蓝色']
+    
+    vehicle = Vehicle(
+        user_id=user.id,
+        warehouse_id=warehouse.id if warehouse else None,
+        license_plate=license_plate or random_license_plate(),
+        brand=brand or random.choice(brands),
+        model=model or f"型号_{random_string(3)}",
+        color=color or random.choice(colors),
+        status=status_map.get(status.lower(), VehicleStatus.REVIEWING.value),
+        ownership_type=ownership_type
+    )
+    session.add(vehicle)
+    session.commit()
+    session.refresh(vehicle)
+    return vehicle
+
+
+# ==================== 通知断言工具 ====================
+
+def assert_notification_exists(
+    session: Session,
+    user_id: int,
+    title: Optional[str] = None,
+    ref_type: Optional[str] = None,
+    ref_id: Optional[int] = None,
+    status: Optional[str] = None
+) -> Notification:
+    """
+    断言通知存在
+
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+        title: 通知标题（可选，部分匹配）
+        ref_type: 关联类型（可选）
+        ref_id: 关联ID（可选）
+        status: 状态（可选）
+
+    Returns:
+        Notification: 找到的通知对象
+
+    Raises:
+        AssertionError: 通知不存在时
+    """
+    stmt = select(Notification).where(Notification.user_id == user_id)
+    
+    if ref_type is not None:
+        stmt = stmt.where(Notification.ref_type == ref_type)
+    if ref_id is not None:
+        stmt = stmt.where(Notification.ref_id == ref_id)
+    if status is not None:
+        stmt = stmt.where(Notification.status == status)
+    
+    notifications = list(session.exec(stmt).all())
+    
+    if title is not None:
+        notifications = [n for n in notifications if title in n.title]
+    
+    assert len(notifications) > 0, \
+        f"未找到符合条件的通知: user_id={user_id}, title={title}, ref_type={ref_type}, ref_id={ref_id}, status={status}"
+    
+    return notifications[0]
+
+
+def assert_notification_status(
+    session: Session,
+    notification_id: int,
+    expected_status: str
+) -> Notification:
+    """
+    断言通知状态
+
+    Args:
+        session: 数据库会话
+        notification_id: 通知ID
+        expected_status: 期望的状态
+
+    Returns:
+        Notification: 通知对象
+
+    Raises:
+        AssertionError: 通知不存在或状态不匹配时
+    """
+    notification = session.get(Notification, notification_id)
+    
+    assert notification is not None, f"通知不存在: id={notification_id}"
+    assert notification.status == expected_status, \
+        f"通知状态不匹配: 期望 '{expected_status}'，实际 '{notification.status}'"
+    
+    return notification
+
+
+def get_notifications_by_ref(
+    session: Session,
+    ref_type: str,
+    ref_id: int,
+    status: Optional[str] = None
+) -> List[Notification]:
+    """
+    按 ref_type/ref_id 查询通知
+
+    Args:
+        session: 数据库会话
+        ref_type: 关联类型
+        ref_id: 关联ID
+        status: 状态过滤（可选）
+
+    Returns:
+        List[Notification]: 通知列表
+    """
+    stmt = select(Notification).where(
+        Notification.ref_type == ref_type,
+        Notification.ref_id == ref_id
+    )
+    
+    if status is not None:
+        stmt = stmt.where(Notification.status == status)
+    
+    return list(session.exec(stmt).all())
+
+
+def assert_notifications_sent_to_users(
+    session: Session,
+    user_ids: List[int],
+    title: Optional[str] = None,
+    ref_type: Optional[str] = None,
+    ref_id: Optional[int] = None
+) -> List[Notification]:
+    """
+    断言通知已发送给指定用户列表
+
+    Args:
+        session: 数据库会话
+        user_ids: 用户ID列表
+        title: 通知标题（可选，部分匹配）
+        ref_type: 关联类型（可选）
+        ref_id: 关联ID（可选）
+
+    Returns:
+        List[Notification]: 找到的通知列表
+
+    Raises:
+        AssertionError: 有用户未收到通知时
+    """
+    notifications = []
+    missing_users = []
+    
+    for user_id in user_ids:
+        try:
+            n = assert_notification_exists(
+                session, user_id, title, ref_type, ref_id
+            )
+            notifications.append(n)
+        except AssertionError:
+            missing_users.append(user_id)
+    
+    assert len(missing_users) == 0, \
+        f"以下用户未收到通知: {missing_users}"
+    
+    return notifications
+
+
+def assert_all_notifications_status_updated(
+    session: Session,
+    ref_type: str,
+    ref_id: int,
+    expected_status: str
+) -> List[Notification]:
+    """
+    断言所有相关通知的状态已更新
+
+    Args:
+        session: 数据库会话
+        ref_type: 关联类型
+        ref_id: 关联ID
+        expected_status: 期望的状态
+
+    Returns:
+        List[Notification]: 通知列表
+
+    Raises:
+        AssertionError: 有通知状态未更新时
+    """
+    notifications = get_notifications_by_ref(session, ref_type, ref_id)
+    
+    assert len(notifications) > 0, \
+        f"未找到相关通知: ref_type={ref_type}, ref_id={ref_id}"
+    
+    wrong_status = [n for n in notifications if n.status != expected_status]
+    
+    assert len(wrong_status) == 0, \
+        f"以下通知状态未更新为 '{expected_status}': {[n.id for n in wrong_status]}"
+    
+    return notifications
+
+
+def get_unread_notifications_count(session: Session, user_id: int) -> int:
+    """
+    获取用户未读通知数量
+
+    Args:
+        session: 数据库会话
+        user_id: 用户ID
+
+    Returns:
+        int: 未读通知数量
+    """
+    from sqlmodel import func
+    
+    stmt = select(func.count(Notification.id)).where(
+        Notification.user_id == user_id,
+        Notification.is_read == False
+    )
+    return session.exec(stmt).first() or 0

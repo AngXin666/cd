@@ -71,7 +71,7 @@
             </text>
             <view v-if="loadingCategories" class="loading-text">加载中...</view>
             <view v-else-if="categories.length === 0" class="empty-text">
-              暂无单位为「{{ currentWarehousePresetUnit || '件' }}」的品类
+              该仓库暂无品类
             </view>
             <view v-else-if="categories.length === 1" class="form-readonly">
               <text class="readonly-value">{{ categories[0]?.name }}</text>
@@ -125,23 +125,24 @@
             </view>
           </view>
 
-          <!-- 件数输入 - 使用 v-model 确保 H5 兼容性 -->
+          <!-- 数量输入 - 支持小数点输入 -->
           <view class="form-item">
             <text class="form-label">
-              <text class="required">*</text> 件数（正整数）
+              <text class="required">*</text> {{ currentCategoryUnit }}数
             </text>
             <input 
               v-model="pieceWorkItems[index].quantity"
-              type="number" 
+              type="text"
+              inputmode="decimal"
               class="form-input"
-              placeholder="请输入件数"
+              :placeholder="'请输入' + currentCategoryUnit + '数'"
             />
           </view>
 
           <!-- 单价输入 - 4.4 根据司机类型自动加载单价 -->
           <view class="form-item">
             <text class="form-label">
-              <text class="required">*</text> 单价（元/件）
+              <text class="required">*</text> 单价（元/{{ currentCategoryUnit }}）
               <text v-if="item.unitPriceLocked" class="price-locked">（管理员已设置：¥{{ item.unitPrice }}）</text>
             </text>
             <!-- 锁定时显示只读文本，未锁定时显示输入框 -->
@@ -151,14 +152,15 @@
             <input 
               v-else
               v-model="pieceWorkItems[index].unitPrice"
-              type="digit" 
+              type="text"
+              inputmode="decimal"
               class="form-input"
               placeholder="请输入单价"
             />
           </view>
 
-          <!-- 是否需要上楼 -->
-          <view class="form-item">
+          <!-- 是否需要上楼 - 只有"件"类型才显示 -->
+          <view v-if="currentCategoryUnit === '件'" class="form-item">
             <view class="switch-row">
               <text class="switch-label">是否需要上楼</text>
               <switch 
@@ -170,20 +172,21 @@
           </view>
 
           <!-- 上楼单价 -->
-          <view v-if="item.needUpstairs" class="form-item">
+          <view v-if="currentCategoryUnit === '件' && item.needUpstairs" class="form-item">
             <text class="form-label">
-              <text class="required">*</text> 上楼单价（元/件）
+              <text class="required">*</text> 上楼单价（元/{{ currentCategoryUnit }}）
             </text>
             <input 
               v-model="pieceWorkItems[index].upstairsPrice"
-              type="digit" 
+              type="text"
+              inputmode="decimal"
               class="form-input"
               placeholder="请输入上楼单价"
             />
           </view>
 
-          <!-- 是否需要分拣 -->
-          <view class="form-item">
+          <!-- 是否需要分拣 - 只有"件"类型才显示 -->
+          <view v-if="currentCategoryUnit === '件'" class="form-item">
             <view class="switch-row">
               <text class="switch-label">是否需要分拣</text>
               <switch 
@@ -194,26 +197,28 @@
             </view>
           </view>
 
-          <!-- 分拣件数和单价 -->
-          <template v-if="item.needSorting">
+          <!-- 分拣件数和单价 - 只有"件"类型才显示 -->
+          <template v-if="currentCategoryUnit === '件' && item.needSorting">
             <view class="form-item">
               <text class="form-label">
-                <text class="required">*</text> 分拣件数
+                <text class="required">*</text> 分拣{{ currentCategoryUnit }}数
               </text>
               <input 
                 v-model="pieceWorkItems[index].sortingQuantity"
-                type="number" 
+                type="text"
+                inputmode="decimal"
                 class="form-input"
-                placeholder="请输入分拣件数"
+                :placeholder="'请输入分拣' + currentCategoryUnit + '数'"
               />
             </view>
             <view class="form-item">
               <text class="form-label">
-                <text class="required">*</text> 分拣单价（元/件）
+                <text class="required">*</text> 分拣单价（元/{{ currentCategoryUnit }}）
               </text>
               <input 
                 v-model="pieceWorkItems[index].sortingUnitPrice"
-                type="digit" 
+                type="text"
+                inputmode="decimal"
                 class="form-input"
                 placeholder="请输入分拣单价"
               />
@@ -227,11 +232,11 @@
               <text class="amount-label">基础金额：</text>
               <text class="amount-value">¥{{ calculateItemAmount(item).baseAmount.toFixed(2) }}</text>
             </view>
-            <view v-if="item.needUpstairs" class="amount-row">
+            <view v-if="currentCategoryUnit === '件' && item.needUpstairs" class="amount-row">
               <text class="amount-label">上楼金额：</text>
               <text class="amount-value blue">¥{{ calculateItemAmount(item).upstairsAmount.toFixed(2) }}</text>
             </view>
-            <view v-if="item.needSorting" class="amount-row">
+            <view v-if="currentCategoryUnit === '件' && item.needSorting" class="amount-row">
               <text class="amount-label">分拣金额：</text>
               <text class="amount-value purple">¥{{ calculateItemAmount(item).sortingAmount.toFixed(2) }}</text>
             </view>
@@ -296,7 +301,6 @@ import {
   getPieceWorkCategories, 
   createPieceWorkRecord,
   getTodayAttendanceForUser,
-  getCategoryPriceForDriver,
   checkDuplicateRecord,
   updatePieceWorkRecord,
 } from '@/api'
@@ -425,6 +429,42 @@ const currentWarehousePresetUnit = computed(() => {
   return '件'
 })
 
+/** 
+ * 当前品类的计量单位
+ * 优先级：
+ * 1. 如果品类有独立配置的单位（与仓库预设单位不同），使用品类单位
+ * 2. 否则使用仓库预设单位
+ * 3. 默认值"件"
+ * 
+ * 注意：如果品类的 unit 是默认值"件"，但仓库预设单位不是"件"，
+ * 则应该使用仓库预设单位（因为品类可能是在仓库类型设置之前创建的）
+ * 
+ * @requirements 2.1, 2.2, 2.3 - 品类单位继承
+ */
+const currentCategoryUnit = computed(() => {
+  const category = currentCategory.value
+  const warehouseUnit = currentWarehousePresetUnit.value
+  
+  // 如果有仓库预设单位，优先使用它
+  // 这样可以确保品类单位与仓库类型一致
+  if (warehouseUnit) {
+    // 如果品类有独立配置的单位（非空且与仓库预设单位不同），使用品类单位
+    // 但如果品类单位是默认的"件"，而仓库预设单位不是"件"，则使用仓库预设单位
+    if (category?.unit && category.unit.trim() !== '' && category.unit !== '件') {
+      return category.unit
+    }
+    return warehouseUnit
+  }
+  
+  // 如果没有仓库预设单位，使用品类单位或默认值
+  if (category?.unit && category.unit.trim() !== '') {
+    return category.unit
+  }
+  
+  // 默认返回"件"
+  return '件'
+})
+
 /**
  * 司机类型显示标签
  * @requirements 1.1 - 司机类型显示
@@ -432,7 +472,7 @@ const currentWarehousePresetUnit = computed(() => {
 const driverTypeLabel = computed(() => {
   if (driverType.value === 'with_vehicle') {
     return '带车司机'
-  } else if (driverType.value === 'driver_only') {
+  } else if (driverType.value === 'pure') {
     return '纯司机'
   }
   return ''
@@ -444,6 +484,9 @@ const canSubmit = computed(() => {
   if (warehouses.value.length === 0 || categories.value.length === 0) return false
   if (!workDate.value) return false
   
+  // 获取当前单位
+  const unit = currentCategoryUnit.value
+  
   // 所有计件项必须有效
   return pieceWorkItems.value.every(item => {
     const quantity = Number(item.quantity)
@@ -451,14 +494,14 @@ const canSubmit = computed(() => {
     if (!quantity || quantity <= 0) return false
     if (!unitPrice || unitPrice < 0) return false
     
-    // 上楼验证
-    if (item.needUpstairs) {
+    // 上楼验证 - 只有"件"类型才验证
+    if (unit === '件' && item.needUpstairs) {
       const upstairsPrice = Number(item.upstairsPrice)
       if (!upstairsPrice || upstairsPrice < 0) return false
     }
     
-    // 分拣验证
-    if (item.needSorting) {
+    // 分拣验证 - 只有"件"类型才验证
+    if (unit === '件' && item.needSorting) {
       const sortingQuantity = Number(item.sortingQuantity)
       const sortingUnitPrice = Number(item.sortingUnitPrice)
       if (!sortingQuantity || sortingQuantity <= 0) return false
@@ -493,18 +536,14 @@ onShow(() => {
 
 /**
  * 初始化工作日期
- * 优先使用用户偏好中保存的日期，否则使用今天
- * @requirements 1.5 - 用户偏好恢复
+ * 始终默认使用今天的日期，不恢复历史日期
+ * 因为计件录入通常是当天的工作，不应该默认显示昨天
+ * @requirements 1.5 - 用户偏好恢复（工作日期除外）
  */
 function initWorkDate(): void {
-  // 尝试从用户偏好恢复日期
-  const lastDate = getLastWorkDate()
-  if (lastDate) {
-    workDate.value = lastDate
-  } else {
-    // 使用今天的日期
-    workDate.value = getLocalDateString()
-  }
+  // 始终使用今天的日期作为默认值
+  // 不再从用户偏好恢复日期，避免默认显示昨天的问题
+  workDate.value = getLocalDateString()
 }
 
 /**
@@ -552,13 +591,13 @@ function loadDriverType(): void {
   const user = userStore.user
   if (user) {
     // 根据用户角色或其他属性判断司机类型
-    // 这里假设用户有 driver_type 字段，如果没有则默认为 driver_only
+    // 这里假设用户有 driver_type 字段，如果没有则默认为 pure
     // 实际项目中可能需要从用户扩展信息中获取
-    driverType.value = (user as any).driver_type || 'driver_only'
+    driverType.value = (user as any).driver_type || 'pure'
   } else {
     // 用户未登录时，设置默认司机类型
     // 确保 loadCategoryPrice 可以正常执行
-    driverType.value = 'driver_only'
+    driverType.value = 'pure'
   }
 }
 
@@ -607,7 +646,7 @@ async function restoreUserPreferences(): Promise<void> {
     if (categoryIndex >= 0) {
       selectedCategoryIndex.value = categoryIndex
       // 加载单价
-      await loadCategoryPrice()
+      loadCategoryPrice()
     }
   }
 }
@@ -631,7 +670,7 @@ async function loadWarehouses(): Promise<void> {
 
 /**
  * 加载分类列表
- * 根据仓库类型筛选匹配单位的品类
+ * 根据仓库ID筛选该仓库的品类
  * 
  * @param warehouseId - 仓库 ID
  * @requirements 3.1, 4.1 - 品类单位限制，仓库品类关联
@@ -643,9 +682,7 @@ async function loadCategories(warehouseId: number): Promise<void> {
     // 获取当前仓库信息
     const warehouse = warehouses.value.find(w => w.id === warehouseId)
     
-    // 获取仓库的预设单位
-    // 如果仓库有 warehouse_type，则根据类型获取预设单位
-    // 否则使用仓库返回的 preset_unit 字段
+    // 获取仓库的预设单位（用于显示提示）
     let presetUnit: string | undefined
     if (warehouse) {
       if (warehouse.warehouse_type) {
@@ -662,22 +699,22 @@ async function loadCategories(warehouseId: number): Promise<void> {
       presetUnit,
     })
     
-    // 按单位筛选品类（如果有预设单位）
-    const data = await getPieceWorkCategories(true, presetUnit)
+    // 按仓库ID筛选品类（只获取该仓库的品类）
+    const data = await getPieceWorkCategories(true, undefined, warehouseId)
     
     console.log('[计件录入] loadCategories 获取到分类:', {
       count: data.length,
-      filterUnit: presetUnit,
-      categories: data.map(c => ({ id: c.id, name: c.name, unit: c.unit, unit_price: c.unit_price })),
+      warehouseId,
+      categories: data.map(c => ({ id: c.id, name: c.name, unit: c.unit, unit_price: c.unit_price, warehouse_id: c.warehouse_id })),
     })
     
     categories.value = data
     selectedCategoryIndex.value = 0
     
     // 如果没有匹配的品类，显示提示
-    if (data.length === 0 && presetUnit) {
+    if (data.length === 0) {
       uni.showToast({
-        title: `暂无单位为「${presetUnit}」的品类`,
+        title: `该仓库暂无品类`,
         icon: 'none',
         duration: 2000,
       })
@@ -687,7 +724,7 @@ async function loadCategories(warehouseId: number): Promise<void> {
     if (data.length > 0) {
       // 使用 nextTick 确保响应式更新完成
       await nextTick()
-      await loadCategoryPrice()
+      loadCategoryPrice()
     }
   } catch (error) {
     console.error('加载分类失败:', error)
@@ -699,48 +736,51 @@ async function loadCategories(warehouseId: number): Promise<void> {
 
 /**
  * 加载单价配置
- * 根据司机类型加载对应的单价
+ * 直接从已加载的品类数据中读取单价，根据司机类型选择对应价格
  * @requirements 1.3, 1.4 - 单价自动加载
  */
-async function loadCategoryPrice(): Promise<void> {
-  const warehouse = currentWarehouse.value
+function loadCategoryPrice(): void {
   const category = currentCategory.value
   
   console.log('[计件录入] loadCategoryPrice 调用:', {
-    warehouse: warehouse?.id,
     category: category?.id,
+    categoryName: category?.name,
     driverType: driverType.value,
-    categoryUnitPrice: category?.unit_price,
+    driver_only_price: category?.driver_only_price,
+    with_vehicle_price: category?.with_vehicle_price,
+    unit_price: category?.unit_price,
   })
   
-  if (!warehouse || !category || !driverType.value) {
-    console.log('[计件录入] loadCategoryPrice 提前返回: 缺少必要数据')
+  if (!category) {
+    console.log('[计件录入] loadCategoryPrice 提前返回: 没有选中品类')
     return
   }
   
-  try {
-    const priceConfig = await getCategoryPriceForDriver(
-      warehouse.id,
-      category.id,
-      driverType.value
-    )
-    
-    console.log('[计件录入] 获取到单价配置:', priceConfig)
-    
-    if (priceConfig) {
-      // 更新所有计件项的单价
-      const newUnitPrice = priceConfig.unitPrice > 0 ? priceConfig.unitPrice.toString() : ''
-      console.log('[计件录入] 设置单价:', newUnitPrice, '锁定:', priceConfig.isLocked)
-      
-      pieceWorkItems.value = pieceWorkItems.value.map(item => ({
-        ...item,
-        unitPrice: newUnitPrice || item.unitPrice,
-        unitPriceLocked: priceConfig.isLocked,
-      }))
-    }
-  } catch (error) {
-    console.error('加载单价配置失败:', error)
+  // 根据司机类型选择对应的单价
+  let unitPrice = 0
+  
+  if (driverType.value === 'pure' && category.driver_only_price > 0) {
+    // 纯司机使用 driver_only_price
+    unitPrice = category.driver_only_price
+  } else if (driverType.value === 'with_vehicle' && category.with_vehicle_price > 0) {
+    // 带车司机使用 with_vehicle_price
+    unitPrice = category.with_vehicle_price
+  } else if (category.unit_price > 0) {
+    // 兜底使用 unit_price
+    unitPrice = category.unit_price
   }
+  
+  console.log('[计件录入] 计算得到单价:', unitPrice, '司机类型:', driverType.value)
+  
+  // 更新所有计件项的单价
+  const newUnitPrice = unitPrice > 0 ? unitPrice.toString() : ''
+  const isLocked = unitPrice > 0
+  
+  pieceWorkItems.value = pieceWorkItems.value.map(item => ({
+    ...item,
+    unitPrice: newUnitPrice || item.unitPrice,
+    unitPriceLocked: isLocked,
+  }))
 }
 
 /**
@@ -762,11 +802,11 @@ async function onWarehouseChange(e: any): Promise<void> {
  * 分类选择变化
  * @param e - 事件对象
  */
-async function onCategoryChange(e: any): Promise<void> {
+function onCategoryChange(e: any): void {
   selectedCategoryIndex.value = Number(e.detail.value)
   
   // 重新加载单价
-  await loadCategoryPrice()
+  loadCategoryPrice()
 }
 
 /**
@@ -1117,7 +1157,7 @@ async function doSubmit(): Promise<void> {
   }
   
   /* 纯司机 - 绿色 */
-  &.driver_only {
+  &.pure {
     background: linear-gradient(135deg, #10B981 0%, #059669 100%);
   }
   

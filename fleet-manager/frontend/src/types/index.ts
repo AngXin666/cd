@@ -65,21 +65,7 @@ export type {
   // 通知相关
   Notification,
   NotificationCreate,
-  NotificationFromTemplateCreate,
   UnreadCountResponse,
-  NotificationTemplate,
-  NotificationTemplateCreate,
-  NotificationTemplateUpdate,
-  TemplatePreviewResponse,
-  TemplateCategoriesResponse,
-
-  // 定时通知相关
-  ScheduledNotification,
-  ScheduledNotificationCreate,
-  ScheduledNotificationUpdate,
-  SchedulerStatusResponse,
-  RepeatType,
-  ScheduledNotificationStatus,
 
   // 版本相关
   AppVersion,

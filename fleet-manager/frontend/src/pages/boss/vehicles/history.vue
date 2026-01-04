@@ -63,7 +63,7 @@
             <view class="record-type-tag" :class="getTypeClass(record.action_type)">
               <text>{{ getTypeLabel(record.action_type) }}</text>
             </view>
-            <text class="record-time">{{ formatTime(record.action_time) }}</text>
+            <text class="record-time">{{ formatDateTime(record.action_time) }}</text>
           </view>
 
           <!-- 司机信息 -->
@@ -160,6 +160,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getVehicle, getVehicleHistory } from '@/api'
 import type { Vehicle, VehicleHistory, VehicleHistoryPhotos } from '@/api/types'
 import { VehicleHistoryActionType } from '@/api/types'
+import { formatDateTime } from '@/utils/dateFormat'
 import PhotoCompare from '@/components/PhotoCompare/index.vue'
 import type { PhotoItem, CompareSelection, PhotoType } from '@/components/PhotoCompare/types'
 
@@ -277,22 +278,6 @@ function getTypeLabel(type: VehicleHistoryActionType): string {
  */
 function getTypeClass(type: VehicleHistoryActionType): string {
   return type === VehicleHistoryActionType.PICKUP ? 'type-pickup' : 'type-return'
-}
-
-/**
- * 格式化时间
- * @param timeStr - 时间字符串
- * @returns 格式化后的时间
- */
-function formatTime(timeStr: string): string {
-  if (!timeStr) return ''
-  const date = new Date(timeStr)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
 /**

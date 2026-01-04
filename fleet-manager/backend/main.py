@@ -16,8 +16,7 @@
 - piece_work_router: 计件功能路由
 - leave_router: 请假审批路由
 - vehicles_router: 车辆管理路由
-- notifications_router: 通知系统路由（通知管理、模板、SSE 推送）
-- scheduled_router: 定时通知路由（定时通知管理、调度器控制）
+- notifications_router: 通知系统路由（通知管理、SSE 推送）
 - ocr_router: OCR 识别路由（驾驶证、行驶证识别）
 - upload_router: 图片上传路由（车辆照片、证件照片、头像）
 - admin_router: 系统管理路由（老板管理、权限配置）
@@ -38,15 +37,12 @@ import crud
 # 获取配置
 settings = get_settings()
 
-# 导入调度器模块
-from scheduler import start_scheduler, stop_scheduler
-
 # 导入路由模块
 from routers import (
     auth_router, users_router, warehouses_router,
     attendance_router, piece_work_router,
     leave_router, vehicles_router,
-    notifications_router, scheduled_router,
+    notifications_router,
     ocr_router, upload_router, admin_router
 )
 
@@ -57,35 +53,34 @@ from routers import (
 async def lifespan(app: FastAPI):
     """
     应用生命周期管理
-    启动时创建数据库表和初始化数据，启动定时任务调度器
+    启动时创建数据库表和初始化数据
 
     Yields:
         None: 应用运行中
     """
-    # 启动时执行
-    print("🚀 正在启动车队管家后端服务...")
-    create_db_and_tables()
+    import os
+    is_testing = os.environ.get("TESTING") == "true"
     
-    # 执行数据库迁移（幂等操作，可安全多次执行）
-    # Requirements: 5.1 - 数据迁移
-    run_migrations()
+    # 启动时执行
+    if not is_testing:
+        print("🚀 正在启动车队管家后端服务...")
+        create_db_and_tables()
+        
+        # 执行数据库迁移（幂等操作，可安全多次执行）
+        # Requirements: 5.1 - 数据迁移
+        run_migrations()
 
-    # 初始化默认数据
-    with Session(engine) as session:
-        crud.init_default_data(session)
+        # 初始化默认数据
+        with Session(engine) as session:
+            crud.init_default_data(session)
 
-    # 启动定时任务调度器
-    start_scheduler()
-    print("⏰ 定时任务调度器已启动")
-
-    print("✅ 服务启动完成！")
+        print("✅ 服务启动完成！")
 
     yield  # 应用运行中
 
     # 关闭时执行
-    stop_scheduler()
-    print("⏰ 定时任务调度器已停止")
-    print("👋 服务已关闭")
+    if not is_testing:
+        print("👋 服务已关闭")
 
 
 # ==================== 创建 FastAPI 应用 ====================
@@ -143,11 +138,8 @@ app.include_router(leave_router)
 # 注册车辆管理路由
 app.include_router(vehicles_router)
 
-# 注册通知系统路由（通知管理、模板、SSE 推送）
+# 注册通知系统路由（通知管理、SSE 推送）
 app.include_router(notifications_router)
-
-# 注册定时通知路由（定时通知管理、调度器控制）
-app.include_router(scheduled_router)
 
 # 注册 OCR 识别路由（驾驶证、行驶证识别）
 app.include_router(ocr_router)

@@ -95,11 +95,11 @@
             <view class="record-details">
               <view class="detail-item">
                 <text class="detail-icon">🟢</text>
-                <text class="detail-text">{{ formatTime(record.clock_in_time) }}</text>
+                <text class="detail-text">{{ formatTime(record.clock_in_time, '--:--') }}</text>
               </view>
               <view v-if="record.clock_out_time" class="detail-item">
                 <text class="detail-icon">🔴</text>
-                <text class="detail-text">{{ formatTime(record.clock_out_time) }}</text>
+                <text class="detail-text">{{ formatTime(record.clock_out_time, '--:--') }}</text>
               </view>
               <view class="detail-item">
                 <text class="detail-icon">⏱️</text>
@@ -224,6 +224,8 @@ import {
 } from '@/api'
 import type { Warehouse, AttendanceRecord, PieceWorkRecord, PieceWorkStats } from '@/api/types'
 import { navigateBack } from '@/utils'
+import { getLocalDateString } from '@/utils/date'
+import { formatTime } from '@/utils/dateFormat'
 import TopNavBar from '@/components/TopNavBar/index.vue'
 
 // ==================== 类型定义 ====================
@@ -340,17 +342,17 @@ watch(dateRange, () => {
  */
 function getDateRange(): { startDate: string; endDate: string } {
   const now = new Date()
-  const endDate = now.toISOString().split('T')[0]
+  const endDate = getLocalDateString(now)
   let startDate = ''
 
   if (dateRange.value === 'week') {
     // 最近一周
     const weekAgo = new Date(now)
     weekAgo.setDate(weekAgo.getDate() - 7)
-    startDate = weekAgo.toISOString().split('T')[0]
+    startDate = getLocalDateString(weekAgo)
   } else if (dateRange.value === 'month') {
     // 本月第一天
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    startDate = getLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1))
   }
   // 'all' 时 startDate 为空，表示不限制开始日期
 
@@ -454,19 +456,6 @@ function formatDateChinese(dateStr: string): string {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}月${date.getDate()}日`
-}
-
-/**
- * 格式化时间
- */
-function formatTime(timeStr: string | null): string {
-  if (!timeStr) return '--:--'
-  // 如果是完整的 ISO 时间字符串，提取时间部分
-  if (timeStr.includes('T')) {
-    return timeStr.split('T')[1].substring(0, 5)
-  }
-  // 如果已经是时间格式
-  return timeStr.substring(0, 5)
 }
 
 /**

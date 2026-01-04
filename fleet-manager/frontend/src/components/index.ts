@@ -71,3 +71,20 @@ export type {
   CompareSelection
 } from './PhotoCompare/types'
 export { ANGLE_LABELS, SOURCE_LABELS } from './PhotoCompare/types'
+
+// 考勤管理公共组件
+export { default as AttendancePage } from './AttendancePage/index.vue'
+
+// 请假详情公共组件
+export { default as LeaveDetail } from './LeaveDetail/index.vue'
+
+// 欢迎卡片组件
+export { default as WelcomeCard } from './WelcomeCard/index.vue'
+export type { WelcomeCardProps } from './WelcomeCard/types'
+
+// 退出登录卡片组件
+export { default as LogoutCard } from './LogoutCard/index.vue'
+
+// 快捷功能入口组件
+export { default as QuickActions } from './QuickActions/index.vue'
+export type { QuickAction, QuickActionsProps } from './QuickActions/types'

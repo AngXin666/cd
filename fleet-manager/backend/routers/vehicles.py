@@ -15,7 +15,7 @@ from models import (
 )
 from auth import (
     get_current_user, require_admin, require_management,
-    check_vehicle_ownership
+    require_active_user, check_vehicle_ownership
 )
 from schemas import (
     VehicleCreate, VehicleUpdate, VehicleResponse, VehicleReviewRequest,
@@ -133,6 +133,8 @@ async def create_vehicle(
     使用参数数据类封装多参数，简化函数调用。
     如果请求中包含司机证件信息，会同时创建或更新司机证件记录。
 
+    禁用用户无法添加车辆。
+
     Args:
         request: 车辆创建数据（包含可选的司机证件信息）
         current_user: 当前登录用户
@@ -143,9 +145,14 @@ async def create_vehicle(
 
     Raises:
         HTTPException 400: 车牌号已存在
+        PermissionError: 用户已被禁用
 
     Requirements: 4.2, 10.4 - 在创建车辆时同时保存司机证件信息
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法添加车辆）
+    require_active_user(current_user)
+
     from schemas import VehicleCreateParams
 
     # 检查车牌号是否已存在
@@ -168,8 +175,21 @@ async def create_vehicle(
     # Requirements: 10.4 - 在创建车辆时同时保存司机证件信息
     _save_driver_license_if_provided(session, current_user.id, request)
 
-    # 发送通知给管理员进行车辆审核
-    _send_vehicle_review_notification(session, current_user, request)
+    # 发送审批通知给管辖车队长、调度、老板
+    content = f"{current_user.name} 添加了新车辆，车牌号：{request.license_plate}"
+    if request.brand:
+        content += f"，品牌：{request.brand}"
+    if request.model:
+        content += f"，型号：{request.model}"
+    content += "，请及时审核。"
+    crud.create_approval_notification(
+        session,
+        applicant_id=current_user.id,
+        ref_type="vehicle",
+        ref_id=vehicle.id,
+        title="新的车辆审核申请",
+        content=content
+    )
 
     return VehicleResponse(
         id=vehicle.id,
@@ -245,6 +265,8 @@ async def update_vehicle(
     更新车辆信息
     司机只能更新自己的车辆，老板可以更新所有
 
+    禁用用户无法更新车辆信息。
+
     Args:
         vehicle_id: 车辆ID
         request: 车辆更新数据
@@ -257,7 +279,13 @@ async def update_vehicle(
     Raises:
         HTTPException 404: 车辆不存在
         HTTPException 403: 无权更新该车辆
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法更新车辆信息）
+    require_active_user(current_user)
+
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(
@@ -387,14 +415,32 @@ async def review_vehicle(
     updated = crud.review_vehicle(session, vehicle, request.status)
     user = crud.get_user_by_id(session, updated.user_id)
 
+    # 发送审核完成通知给所有相关人员
+    status_text = "通过" if request.status == VehicleStatus.ACTIVE else "拒绝"
+    result = "approved" if request.status == VehicleStatus.ACTIVE else "rejected"
+    
+    result_content = f"车辆 {updated.license_plate} 的审核已被 {current_user.name} {status_text}"
+    
+    crud.complete_approval(
+        session,
+        ref_type="vehicle",
+        ref_id=vehicle.id,
+        result=result,
+        approver_id=current_user.id,
+        applicant_id=updated.user_id,
+        result_title=f"车辆审核已{status_text}",
+        result_content=result_content
+    )
+
     # 触发车辆更新事件，向车辆所有者推送实时更新
+    # 注意：status 现在是字符串类型，不需要调用 .value
     emit_vehicle_update(
         vehicle_id=updated.id,
         license_plate=updated.license_plate,
         brand=updated.brand,
         model=updated.model,
         color=updated.color,
-        status=updated.status.value,
+        status=updated.status,
         user_id=updated.user_id,
         warehouse_id=updated.warehouse_id,
         ownership_type=updated.ownership_type,
@@ -431,6 +477,8 @@ async def create_vehicle_document(
     """
     上传车辆证件
 
+    禁用用户无法上传车辆证件。
+
     Args:
         vehicle_id: 车辆ID
         request: 证件创建数据
@@ -443,7 +491,13 @@ async def create_vehicle_document(
     Raises:
         HTTPException 404: 车辆不存在
         HTTPException 403: 无权操作该车辆
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法上传证件）
+    require_active_user(current_user)
+
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(
@@ -553,7 +607,10 @@ async def return_vehicle(
     验证车辆存在且属于当前用户，存储还车照片和车损照片，
     更新车辆状态为 returned，记录还车时间，并自动创建历史记录。
 
+    禁用用户无法进行还车操作。
+
     Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 15.2, 3.3
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
 
     Args:
         vehicle_id: 车辆ID
@@ -568,7 +625,11 @@ async def return_vehicle(
         HTTPException 404: 车辆不存在
         HTTPException 403: 无权操作该车辆（车辆不属于当前用户）
         HTTPException 400: 还车照片数量不正确
+        PermissionError: 用户已被禁用
     """
+    # 检查用户是否激活（禁用用户无法还车）
+    require_active_user(current_user)
+
     # 1. 验证还车请求
     vehicle = helpers.validate_return_vehicle_request(
         session,
@@ -788,6 +849,8 @@ async def update_vehicle_lease(
     更新车辆租赁信息
     司机只能更新自己车辆的租赁信息，管理员可以更新所有
 
+    禁用用户无法更新租赁信息。
+
     Args:
         vehicle_id: 车辆ID
         request: 租赁更新数据
@@ -800,7 +863,13 @@ async def update_vehicle_lease(
     Raises:
         HTTPException 404: 车辆不存在
         HTTPException 403: 无权更新该车辆
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法更新租赁信息）
+    require_active_user(current_user)
+
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(
@@ -896,6 +965,8 @@ async def supplement_photos_simple(
 
     用于快速补录车辆照片，支持简单的请求格式。
 
+    禁用用户无法补录照片。
+
     Args:
         vehicle_id: 车辆ID
         request: 补录照片请求，包含 photo_type（照片类型）和 photo_url（照片URL）
@@ -908,7 +979,13 @@ async def supplement_photos_simple(
     Raises:
         HTTPException 404: 车辆不存在
         HTTPException 403: 无权操作该车辆
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法补录照片）
+    require_active_user(current_user)
+
     # 1. 获取车辆
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
@@ -961,6 +1038,8 @@ async def supplement_photo(
     补录照片
     为车辆的指定照片字段补录新照片，并记录补录元数据
 
+    禁用用户无法补录照片。
+
     Args:
         vehicle_id: 车辆ID
         request: 补录照片请求，包含字段名、索引和新照片URL
@@ -974,7 +1053,13 @@ async def supplement_photo(
         HTTPException 404: 车辆不存在
         HTTPException 403: 无权操作该车辆
         HTTPException 400: 无效的照片字段名
+        PermissionError: 用户已被禁用
+
+    Requirements: 8.1, 12.3 - 禁用用户无法进行数据录入操作
     """
+    # 检查用户是否激活（禁用用户无法补录照片）
+    require_active_user(current_user)
+
     # 获取车辆
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
@@ -1147,56 +1232,6 @@ def _save_driver_license_if_provided(
         print(f"保存司机证件信息失败: {e}")
 
 
-def _send_vehicle_review_notification(
-    session: Session,
-    current_user: User,
-    request: VehicleCreate
-) -> None:
-    """
-    发送车辆审核通知给管理员
-
-    Args:
-        session: 数据库会话
-        current_user: 当前用户（车辆创建者）
-        request: 车辆创建请求
-    """
-    try:
-        # 获取所有管理员用户
-        admin_users = crud.get_users(
-            session,
-            is_active=True,
-            skip=0,
-            limit=1000
-        )
-        # 筛选有车辆审核权限的角色（老板是最高权限角色）
-        admin_ids = [
-            u.id for u in admin_users
-            if u.role in [UserRole.PEER_ADMIN, UserRole.BOSS]
-        ]
-
-        if admin_ids:
-            # 构建通知内容
-            title = "新的车辆审核申请"
-            content = f"{current_user.name} 添加了新车辆，车牌号：{request.license_plate}"
-            if request.brand:
-                content += f"，品牌：{request.brand}"
-            if request.model:
-                content += f"，型号：{request.model}"
-            content += "，请及时审核。"
-
-            # 发送通知
-            crud.create_notifications_batch(
-                session,
-                user_ids=admin_ids,
-                title=title,
-                content=content,
-                sender_id=current_user.id
-            )
-    except Exception as e:
-        # 通知发送失败不影响车辆创建
-        print(f"发送车辆审核通知失败: {e}")
-
-
 def _build_history_items(
     session: Session,
     history_records: List
@@ -1227,8 +1262,8 @@ def _build_history_items(
         # 使用辅助函数解析车损照片
         damage_photos = parse_damage_photos(record.damage_photos)
 
-        # 转换操作类型
-        action_type = SchemaVehicleHistoryActionType(record.action_type.value)
+        # 转换操作类型（字段现在是字符串，直接使用）
+        action_type = SchemaVehicleHistoryActionType(record.action_type)
 
         # 构建响应对象
         items.append(VehicleHistoryResponse(

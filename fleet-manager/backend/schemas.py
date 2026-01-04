@@ -15,8 +15,6 @@ from models import (
     LeaveStatus,
     VehicleStatus,
     DocumentType,
-    RepeatType,
-    ScheduledNotificationStatus,
     VehicleHistoryActionType,
     WarehouseType
 )
@@ -90,6 +88,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=50, description="真实姓名")
     phone: Optional[str] = Field(default=None, max_length=20, description="手机号")
     role: Optional[UserRole] = Field(default=None, description="用户角色")
+    driver_type: Optional[str] = Field(default=None, description="司机类型：pure（纯司机）或 with_vehicle（带车司机）")
     is_active: Optional[bool] = Field(default=None, description="是否启用")
 
 
@@ -111,6 +110,7 @@ class UserResponse(UserBase):
     id: int = Field(..., description="用户ID")
     created_at: datetime = Field(..., description="创建时间")
     is_verified: bool = Field(default=False, description="是否已实名认证（司机有身份证号码即为已实名）")
+    driver_type: Optional[str] = Field(default="pure", description="司机类型：pure（纯司机）或 with_vehicle（带车司机）")
 
     class Config:
         from_attributes = True
@@ -180,12 +180,18 @@ class WarehouseCreate(WarehouseBase):
     
     继承 WarehouseBase，用于创建新仓库时的请求数据验证。
     支持设置仓库类型，默认为计件类型。
+    支持同时创建品类和设置司机价格。
     
     继承字段:
         name: 仓库名称（必填，1-100 字符）
         address: 仓库地址（可选，最大 255 字符）
         is_active: 是否启用（默认 True）
         warehouse_type: 仓库类型（默认 WarehouseType.PIECE）
+        
+    新增字段:
+        category_name: 品类名称（可选）
+        driver_only_price: 纯司机单价（可选）
+        with_vehicle_price: 带车司机单价（可选）
         
     Requirements: 
         - Requirement 1.6: 仓库类型字段默认值为 "piece"
@@ -196,10 +202,30 @@ class WarehouseCreate(WarehouseBase):
         >>> create_data = WarehouseCreate(
         ...     name="上海仓库",
         ...     address="上海市浦东新区",
-        ...     warehouse_type=WarehouseType.POINT
+        ...     warehouse_type=WarehouseType.POINT,
+        ...     category_name="搬运",
+        ...     driver_only_price=10.0,
+        ...     with_vehicle_price=15.0
         ... )
     """
-    pass
+    # 品类名称（可选）
+    category_name: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="品类名称"
+    )
+    # 纯司机单价（可选）
+    driver_only_price: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="纯司机单价"
+    )
+    # 带车司机单价（可选）
+    with_vehicle_price: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="带车司机单价"
+    )
 
 
 class WarehouseUpdate(BaseModel):
@@ -391,41 +417,63 @@ class TodayAttendanceResponse(BaseModel):
 class PieceWorkCategoryBase(BaseModel):
     """
     计件分类基础模式
-    支持基础单价、上楼单价、分拣单价配置
-    Requirements: 3.1 - 支持多种单价配置
+    支持纯司机单价、带车司机单价配置
     """
     name: str = Field(..., min_length=1, max_length=50, description="分类名称")
-    unit_price: float = Field(..., ge=0, description="基础单价（元/件）")
+    warehouse_id: Optional[int] = Field(default=None, description="关联仓库ID")
+    unit_price: float = Field(default=0.0, ge=0, description="基础单价（元/件）- 兼容旧数据")
+    driver_only_price: float = Field(default=0.0, ge=0, description="纯司机单价（元/件）")
+    with_vehicle_price: float = Field(default=0.0, ge=0, description="带车司机单价（元/件）")
     upstairs_price: Optional[float] = Field(default=None, ge=0, description="上楼单价（元/件）")
     sorting_price: Optional[float] = Field(default=None, ge=0, description="分拣单价（元/件）")
     unit: str = Field(default="件", max_length=20, description="计量单位")
     is_active: bool = Field(default=True, description="是否启用")
 
 
-class PieceWorkCategoryCreate(PieceWorkCategoryBase):
-    """创建计件分类请求模式"""
-    pass
+class PieceWorkCategoryCreate(BaseModel):
+    """
+    创建计件分类请求模式
+    
+    当 unit 未指定时，将自动使用关联仓库的预设单位。
+    Requirements: 2.1, 2.2 - 品类单位继承仓库预设单位
+    """
+    name: str = Field(..., min_length=1, max_length=50, description="分类名称")
+    warehouse_id: int = Field(..., description="关联仓库ID")
+    driver_only_price: float = Field(default=0.0, ge=0, description="纯司机单价（元/件）")
+    with_vehicle_price: float = Field(default=0.0, ge=0, description="带车司机单价（元/件）")
+    unit: Optional[str] = Field(default=None, max_length=20, description="计量单位，不指定则继承仓库预设单位")
 
 
 class PieceWorkCategoryUpdate(BaseModel):
     """
     更新计件分类请求模式
-    Requirements: 3.2 - 支持编辑品类配置
     """
     name: Optional[str] = Field(default=None, max_length=50, description="分类名称")
-    unit_price: Optional[float] = Field(default=None, ge=0, description="基础单价")
+    driver_only_price: Optional[float] = Field(default=None, ge=0, description="纯司机单价")
+    with_vehicle_price: Optional[float] = Field(default=None, ge=0, description="带车司机单价")
     upstairs_price: Optional[float] = Field(default=None, ge=0, description="上楼单价")
     sorting_price: Optional[float] = Field(default=None, ge=0, description="分拣单价")
     unit: Optional[str] = Field(default=None, max_length=20, description="计量单位")
     is_active: Optional[bool] = Field(default=None, description="是否启用")
 
 
-class PieceWorkCategoryResponse(PieceWorkCategoryBase):
+class PieceWorkCategoryResponse(BaseModel):
     """
     计件分类响应模式
     """
     id: int = Field(..., description="分类ID")
+    name: str = Field(..., description="分类名称")
+    warehouse_id: Optional[int] = Field(default=None, description="关联仓库ID")
+    unit_price: float = Field(default=0.0, description="基础单价（元/件）")
+    driver_only_price: float = Field(default=0.0, description="纯司机单价（元/件）")
+    with_vehicle_price: float = Field(default=0.0, description="带车司机单价（元/件）")
+    upstairs_price: Optional[float] = Field(default=None, description="上楼单价（元/件）")
+    sorting_price: Optional[float] = Field(default=None, description="分拣单价（元/件）")
+    unit: str = Field(default="件", description="计量单位")
+    is_active: bool = Field(default=True, description="是否启用")
     created_at: datetime = Field(..., description="创建时间")
+    # 关联信息
+    warehouse_name: Optional[str] = Field(default=None, description="仓库名称")
 
     class Config:
         from_attributes = True
@@ -545,6 +593,7 @@ class LeaveApplicationResponse(BaseModel):
     # 关联信息
     user_name: Optional[str] = Field(default=None, description="申请人姓名")
     approver_name: Optional[str] = Field(default=None, description="审批人姓名")
+    warehouse_name: Optional[str] = Field(default=None, description="申请人所属仓库名称")
 
     class Config:
         from_attributes = True
@@ -841,22 +890,12 @@ class NotificationCreate(BaseModel):
     user_ids: List[int] = Field(..., min_length=1, description="接收用户ID列表")
     title: str = Field(..., min_length=1, max_length=100, description="通知标题")
     content: Optional[str] = Field(default=None, max_length=1000, description="通知内容")
-    template_id: Optional[int] = Field(default=None, description="使用的模板ID")
-
-
-class NotificationFromTemplateCreate(BaseModel):
-    """
-    使用模板创建通知请求模式
-    通过模板ID和变量值创建通知
-    """
-    user_ids: List[int] = Field(..., min_length=1, description="接收用户ID列表")
-    template_id: int = Field(..., description="模板ID")
-    variables: Optional[dict] = Field(default={}, description="模板变量值，如 {'user_name': '张三', 'date': '2024-01-01'}")
 
 
 class NotificationResponse(BaseModel):
     """
     通知响应模式
+    支持审批类通知的业务关联字段
     """
     id: int = Field(..., description="通知ID")
     user_id: int = Field(..., description="接收用户ID")
@@ -864,8 +903,12 @@ class NotificationResponse(BaseModel):
     content: Optional[str] = Field(default=None, description="通知内容")
     is_read: bool = Field(..., description="是否已读")
     sender_id: Optional[int] = Field(default=None, description="发送者ID")
-    template_id: Optional[int] = Field(default=None, description="使用的模板ID")
+    # 审批类通知的业务关联字段
+    ref_type: Optional[str] = Field(default=None, description="关联类型：leave/resign/vehicle")
+    ref_id: Optional[int] = Field(default=None, description="关联业务ID")
+    status: Optional[str] = Field(default=None, description="审批状态：pending/approved/rejected")
     created_at: datetime = Field(..., description="发送时间")
+    updated_at: Optional[datetime] = Field(default=None, description="更新时间")
 
     class Config:
         from_attributes = True
@@ -877,69 +920,6 @@ class UnreadCountResponse(BaseModel):
     """
     count: int = Field(..., description="未读数量")
 
-
-# ==================== 通知模板相关模式 ====================
-
-class NotificationTemplateBase(BaseModel):
-    """
-    通知模板基础模式
-
-    Attributes:
-        name: 模板名称，唯一标识
-        title: 通知标题模板，支持变量如 {user_name}
-        content: 通知内容模板，支持变量如 {date}、{amount}
-        variables: 模板变量说明，如 {"user_name": "用户姓名", "date": "日期"}
-        category: 模板分类，如 attendance（考勤）、leave（请假）、vehicle（车辆）
-        is_active: 是否启用
-    """
-    name: str = Field(..., min_length=1, max_length=50, description="模板名称")
-    title: str = Field(..., min_length=1, max_length=100, description="通知标题模板")
-    content: str = Field(..., min_length=1, max_length=2000, description="通知内容模板")
-    variables: Optional[dict] = Field(default=None, description="模板变量说明")
-    category: Optional[str] = Field(default=None, max_length=50, description="模板分类")
-    is_active: bool = Field(default=True, description="是否启用")
-
-
-class NotificationTemplateCreate(NotificationTemplateBase):
-    """
-    创建通知模板请求模式
-    继承 NotificationTemplateBase
-    """
-    pass
-
-
-class NotificationTemplateUpdate(BaseModel):
-    """
-    更新通知模板请求模式
-    所有字段可选
-    """
-    name: Optional[str] = Field(default=None, max_length=50, description="模板名称")
-    title: Optional[str] = Field(default=None, max_length=100, description="通知标题模板")
-    content: Optional[str] = Field(default=None, max_length=2000, description="通知内容模板")
-    variables: Optional[dict] = Field(default=None, description="模板变量说明")
-    category: Optional[str] = Field(default=None, max_length=50, description="模板分类")
-    is_active: Optional[bool] = Field(default=None, description="是否启用")
-
-
-class NotificationTemplateResponse(NotificationTemplateBase):
-    """
-    通知模板响应模式
-    """
-    id: int = Field(..., description="模板ID")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
-
-    class Config:
-        from_attributes = True
-
-
-class NotificationTemplatePreviewRequest(BaseModel):
-    """
-    预览通知模板请求模式
-    用于预览模板渲染后的效果
-    """
-    template_id: int = Field(..., description="模板ID")
-    variables: Optional[dict] = Field(default={}, description="模板变量值")
 
 
 # ==================== 通用响应模式 ====================
@@ -1009,124 +989,6 @@ class OCRStatusResponse(BaseModel):
     """
     configured: bool = Field(..., description="是否已配置 OCR 服务")
     provider: str = Field(default="baidu", description="OCR 服务提供商")
-
-
-# ==================== 定时通知相关模式 ====================
-# 注意：RepeatType 和 ScheduledNotificationStatus 枚举已从 models.py 导入，避免重复定义
-
-
-class ScheduledNotificationBase(BaseModel):
-    """
-    定时通知基础模式
-
-    Attributes:
-        name: 任务名称
-        template_id: 模板ID（可选）
-        title: 通知标题（不使用模板时）
-        content: 通知内容（不使用模板时）
-        variables: 模板变量值
-        target_user_ids: 目标用户ID列表
-        target_roles: 目标角色列表
-        scheduled_time: 计划发送时间
-        repeat_type: 重复类型
-        repeat_interval: 重复间隔
-        repeat_end_date: 重复结束日期
-        weekdays: 每周重复的星期几
-        monthly_day: 每月重复的日期
-    """
-    name: str = Field(..., min_length=1, max_length=100, description="任务名称")
-    template_id: Optional[int] = Field(default=None, description="模板ID")
-    title: Optional[str] = Field(default=None, max_length=100, description="通知标题（不使用模板时）")
-    content: Optional[str] = Field(default=None, max_length=2000, description="通知内容（不使用模板时）")
-    variables: Optional[dict] = Field(default=None, description="模板变量值")
-    target_user_ids: Optional[List[int]] = Field(default=None, description="目标用户ID列表")
-    target_roles: Optional[List[str]] = Field(default=None, description="目标角色列表")
-    scheduled_time: datetime = Field(..., description="计划发送时间")
-    repeat_type: RepeatType = Field(default=RepeatType.ONCE, description="重复类型")
-    repeat_interval: int = Field(default=1, ge=1, description="重复间隔")
-    repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
-    weekdays: Optional[List[int]] = Field(default=None, description="每周重复的星期几（1-7）")
-    monthly_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月重复的日期")
-
-
-class ScheduledNotificationCreate(ScheduledNotificationBase):
-    """
-    创建定时通知请求模式
-    继承 ScheduledNotificationBase
-    """
-    pass
-
-
-class ScheduledNotificationUpdate(BaseModel):
-    """
-    更新定时通知请求模式
-    所有字段可选
-    """
-    name: Optional[str] = Field(default=None, max_length=100, description="任务名称")
-    template_id: Optional[int] = Field(default=None, description="模板ID")
-    title: Optional[str] = Field(default=None, max_length=100, description="通知标题")
-    content: Optional[str] = Field(default=None, max_length=2000, description="通知内容")
-    variables: Optional[dict] = Field(default=None, description="模板变量值")
-    target_user_ids: Optional[List[int]] = Field(default=None, description="目标用户ID列表")
-    target_roles: Optional[List[str]] = Field(default=None, description="目标角色列表")
-    scheduled_time: Optional[datetime] = Field(default=None, description="计划发送时间")
-    repeat_type: Optional[RepeatType] = Field(default=None, description="重复类型")
-    repeat_interval: Optional[int] = Field(default=None, ge=1, description="重复间隔")
-    repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
-    weekdays: Optional[List[int]] = Field(default=None, description="每周重复的星期几（1-7）")
-    monthly_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月重复的日期")
-    status: Optional[ScheduledNotificationStatus] = Field(default=None, description="任务状态")
-
-
-class ScheduledNotificationResponse(BaseModel):
-    """
-    定时通知响应模式
-    """
-    id: int = Field(..., description="任务ID")
-    name: str = Field(..., description="任务名称")
-    template_id: Optional[int] = Field(default=None, description="模板ID")
-    template_name: Optional[str] = Field(default=None, description="模板名称")
-    title: Optional[str] = Field(default=None, description="通知标题")
-    content: Optional[str] = Field(default=None, description="通知内容")
-    variables: Optional[dict] = Field(default=None, description="模板变量值")
-    target_user_ids: Optional[List[int]] = Field(default=None, description="目标用户ID列表")
-    target_roles: Optional[List[str]] = Field(default=None, description="目标角色列表")
-    target_user_count: int = Field(default=0, description="目标用户数量")
-    scheduled_time: datetime = Field(..., description="计划发送时间")
-    repeat_type: str = Field(..., description="重复类型")
-    repeat_interval: int = Field(default=1, description="重复间隔")
-    repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
-    weekdays: Optional[List[int]] = Field(default=None, description="每周重复的星期几")
-    monthly_day: Optional[int] = Field(default=None, description="每月重复的日期")
-    status: str = Field(..., description="任务状态")
-    last_executed_at: Optional[datetime] = Field(default=None, description="上次执行时间")
-    next_execute_at: Optional[datetime] = Field(default=None, description="下次执行时间")
-    execution_count: int = Field(default=0, description="已执行次数")
-    creator_id: Optional[int] = Field(default=None, description="创建者ID")
-    creator_name: Optional[str] = Field(default=None, description="创建者姓名")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
-
-    class Config:
-        from_attributes = True
-
-
-class ScheduledNotificationExecuteRequest(BaseModel):
-    """
-    手动执行定时通知请求模式
-    用于立即执行一个定时通知任务
-    """
-    pass  # 不需要额外参数，通过 URL 路径传递任务ID
-
-
-class SchedulerStatusResponse(BaseModel):
-    """
-    调度器状态响应模式
-    """
-    is_running: bool = Field(..., description="调度器是否运行中")
-    pending_tasks: int = Field(..., description="待执行任务数")
-    active_tasks: int = Field(..., description="活跃任务数")
-    next_execution: Optional[datetime] = Field(default=None, description="下一个执行时间")
 
 
 # ==================== 车辆还车/分配相关模式 ====================
@@ -1433,117 +1295,6 @@ class AllPermissionsResponse(BaseModel):
 
 # ==================== 内部参数数据类 ====================
 # 用于封装 CRUD 函数的多参数，减少函数签名复杂度
-# Requirements: 4.1, 4.2
-
-
-class ScheduledNotificationParams(BaseModel):
-    """
-    定时通知参数数据类
-    用于封装 create_scheduled_notification 和 update_scheduled_notification 的参数
-    减少函数参数数量，提高代码可读性
-
-    Attributes:
-        name: 任务名称
-        scheduled_time: 计划发送时间
-        template_id: 模板ID（可选）
-        title: 通知标题（不使用模板时）
-        content: 通知内容（不使用模板时）
-        variables: 模板变量值（可选）
-        target_user_ids: 目标用户ID列表（可选）
-        target_roles: 目标角色列表（可选）
-        repeat_type: 重复类型，默认为一次性
-        repeat_interval: 重复间隔，默认为1
-        repeat_end_date: 重复结束日期（可选）
-        weekdays: 每周重复的星期几（可选）
-        monthly_day: 每月重复的日期（可选）
-        creator_id: 创建者ID（可选）
-        status: 任务状态（仅用于更新）
-
-    Requirements: 4.1
-    """
-    # 必填字段
-    name: str = Field(..., description="任务名称")
-    scheduled_time: datetime = Field(..., description="计划发送时间")
-
-    # 通知内容（模板或自定义）
-    template_id: Optional[int] = Field(default=None, description="模板ID")
-    title: Optional[str] = Field(default=None, description="通知标题（不使用模板时）")
-    content: Optional[str] = Field(default=None, description="通知内容（不使用模板时）")
-    variables: Optional[dict] = Field(default=None, description="模板变量值")
-
-    # 目标用户
-    target_user_ids: Optional[List[int]] = Field(default=None, description="目标用户ID列表")
-    target_roles: Optional[List[str]] = Field(default=None, description="目标角色列表")
-
-    # 重复设置
-    repeat_type: RepeatType = Field(default=RepeatType.ONCE, description="重复类型")
-    repeat_interval: int = Field(default=1, ge=1, description="重复间隔")
-    repeat_end_date: Optional[date] = Field(default=None, description="重复结束日期")
-    weekdays: Optional[List[int]] = Field(default=None, description="每周重复的星期几（1-7）")
-    monthly_day: Optional[int] = Field(default=None, ge=1, le=31, description="每月重复的日期")
-
-    # 其他
-    creator_id: Optional[int] = Field(default=None, description="创建者ID")
-    status: Optional[ScheduledNotificationStatus] = Field(default=None, description="任务状态（仅用于更新）")
-
-    @classmethod
-    def from_create_request(cls, request: "ScheduledNotificationCreate", creator_id: Optional[int] = None) -> "ScheduledNotificationParams":
-        """
-        从创建请求构建参数对象
-
-        Args:
-            request: 创建请求对象
-            creator_id: 创建者ID
-
-        Returns:
-            ScheduledNotificationParams: 参数对象
-        """
-        return cls(
-            name=request.name,
-            scheduled_time=request.scheduled_time,
-            template_id=request.template_id,
-            title=request.title,
-            content=request.content,
-            variables=request.variables,
-            target_user_ids=request.target_user_ids,
-            target_roles=request.target_roles,
-            repeat_type=request.repeat_type,
-            repeat_interval=request.repeat_interval,
-            repeat_end_date=request.repeat_end_date,
-            weekdays=request.weekdays,
-            monthly_day=request.monthly_day,
-            creator_id=creator_id
-        )
-
-    @classmethod
-    def from_update_request(cls, request: "ScheduledNotificationUpdate", existing_name: str, existing_time: datetime) -> "ScheduledNotificationParams":
-        """
-        从更新请求构建参数对象
-
-        Args:
-            request: 更新请求对象
-            existing_name: 现有任务名称（用于填充必填字段）
-            existing_time: 现有计划时间（用于填充必填字段）
-
-        Returns:
-            ScheduledNotificationParams: 参数对象
-        """
-        return cls(
-            name=request.name or existing_name,
-            scheduled_time=request.scheduled_time or existing_time,
-            template_id=request.template_id,
-            title=request.title,
-            content=request.content,
-            variables=request.variables,
-            target_user_ids=request.target_user_ids,
-            target_roles=request.target_roles,
-            repeat_type=request.repeat_type or RepeatType.ONCE,
-            repeat_interval=request.repeat_interval or 1,
-            repeat_end_date=request.repeat_end_date,
-            weekdays=request.weekdays,
-            monthly_day=request.monthly_day,
-            status=request.status
-        )
 
 
 class VehicleCreateParams(BaseModel):
@@ -1581,8 +1332,6 @@ class VehicleCreateParams(BaseModel):
         registration_photos: 行驶证照片数组（可选）
         damage_photos: 车损照片数组（可选）
         pickup_time: 提车时间（可选）
-
-    Requirements: 4.2
     """
     # 必填字段
     user_id: int = Field(..., description="车主ID")

@@ -61,6 +61,12 @@
       }
     },
     {
+      "path": "pages/driver/stats/index",
+      "style": {
+        "navigationBarTitleText": "数据统计"
+      }
+    },
+    {
       "path": "pages/driver/leave/apply",
       "style": {
         "navigationBarTitleText": "请假申请"
@@ -294,6 +300,13 @@
       }
     },
     {
+      "path": "pages/boss/categories/index",
+      "style": {
+        "navigationBarTitleText": "计件品类管理",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/boss/stats/index",
       "style": {
         "navigationBarTitleText": "统计报表"
@@ -326,12 +339,6 @@
       "style": {
         "navigationBarTitleText": "管理员资料",
         "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/boss/categories/index",
-      "style": {
-        "navigationBarTitleText": "分类管理"
       }
     },
     {

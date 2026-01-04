@@ -199,7 +199,8 @@ class TestFactories:
         leave = LeaveFactory.create(session, user)
 
         assert leave.user_id == user.id
-        assert leave.status.value == "pending"
+        # status 现在是字符串类型
+        assert leave.status == "pending"
 
     def test_notification_factory(self, session: Session):
         """测试通知工厂"""

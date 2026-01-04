@@ -80,18 +80,19 @@ export function getMonthRange(): DateRange {
 }
 
 /**
- * 获取今天的日期字符串
+ * 获取日期字符串（本地时间）
  * 
- * @returns 今天的日期，格式 'YYYY-MM-DD'
+ * @param date - Date 对象，默认为当前时间
+ * @returns 日期字符串，格式 'YYYY-MM-DD'
  * 
  * @example
  * getLocalDateString() // '2024-12-24'
+ * getLocalDateString(new Date(2024, 0, 1)) // '2024-01-01'
  */
-export function getLocalDateString(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 
@@ -232,4 +233,70 @@ export function compareDates(dateStr1: string, dateStr2: string): number {
  */
 export function isDateInRange(dateStr: string, startDate: string, endDate: string): boolean {
   return compareDates(dateStr, startDate) >= 0 && compareDates(dateStr, endDate) <= 0
+}
+
+/**
+ * 计算两个日期之间的天数（包含首尾）
+ * 
+ * @param startDate - 开始日期字符串，格式 'YYYY-MM-DD'
+ * @param endDate - 结束日期字符串，格式 'YYYY-MM-DD'
+ * @returns 天数差（包含首尾），无效输入返回 0
+ * 
+ * @example
+ * calculateDays('2024-01-15', '2024-01-17') // 3
+ * calculateDays('2024-01-15', '2024-01-15') // 1
+ */
+export function calculateDays(startDate: string, endDate: string): number {
+  if (!startDate || !endDate) return 0
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
+  const diffTime = Math.abs(end.getTime() - start.getTime())
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
+}
+
+/**
+ * 获取本月第一天的日期字符串
+ * 这是 getFirstDayOfMonthString 的别名，用于首页统计等场景
+ * 
+ * @returns 本月第一天的日期，格式 'YYYY-MM-DD'
+ * 
+ * @example
+ * // 假设今天是 2024-12-25
+ * getMonthStartStr() // '2024-12-01'
+ * 
+ * Requirements: 10.2
+ */
+export function getMonthStartStr(): string {
+  return getFirstDayOfMonthString()
+}
+
+/**
+ * 首页日期范围接口
+ * 用于首页统计数据加载时的日期参数
+ */
+export interface HomeDateRange {
+  /** 今天的日期字符串，格式 'YYYY-MM-DD' */
+  todayStr: string
+  /** 本月第一天的日期字符串，格式 'YYYY-MM-DD' */
+  monthStartStr: string
+}
+
+/**
+ * 获取首页统计所需的日期范围
+ * 返回今天和本月第一天的日期字符串，用于首页统计数据加载
+ * 
+ * @returns 包含 todayStr 和 monthStartStr 的对象
+ * 
+ * @example
+ * // 假设今天是 2024-12-25
+ * getDateRange() // { todayStr: '2024-12-25', monthStartStr: '2024-12-01' }
+ * 
+ * Requirements: 10.4
+ */
+export function getDateRange(): HomeDateRange {
+  return {
+    todayStr: getLocalDateString(),
+    monthStartStr: getMonthStartStr()
+  }
 }

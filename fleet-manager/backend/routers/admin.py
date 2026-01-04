@@ -25,9 +25,10 @@ from sqlmodel import Session
 from database import get_session
 from models import User, UserRole
 from auth import (
-    require_admin, require_boss,
+    require_admin, require_boss, get_current_user,
     get_role_display_name, get_creatable_roles
 )
+from models import is_role
 from events import emit_permission_update
 import crud
 
@@ -253,9 +254,10 @@ async def get_available_roles(
     """
     creatable_roles = get_creatable_roles(current_user.role)
 
+    # 注意：current_user.role 现在是字符串类型
     return {
         "current_role": {
-            "value": current_user.role.value,
+            "value": current_user.role,
             "display_name": get_role_display_name(current_user.role)
         },
         "creatable_roles": [

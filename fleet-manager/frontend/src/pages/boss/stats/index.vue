@@ -98,6 +98,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getPieceWorkStats, getUsers } from '@/api'
 import { UserRole } from '@/api/types'
+import { getLocalDateString } from '@/utils/date'
 
 /** 加载状态 */
 const loading = ref(false)
@@ -115,24 +116,12 @@ onMounted(() => {
   // 默认显示本月数据
   const now = new Date()
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-  startDate.value = formatDateStr(firstDay)
-  endDate.value = formatDateStr(now)
+  startDate.value = getLocalDateString(firstDay)
+  endDate.value = getLocalDateString(now)
   loadData()
 })
 
 onShow(() => { loadData() })
-
-/**
- * 格式化日期为字符串
- * @param date - 日期对象
- * @returns 格式化后的日期字符串 (YYYY-MM-DD)
- */
-function formatDateStr(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 /**
  * 加载统计数据

@@ -282,7 +282,6 @@ import {
 } from '@/utils/sort'
 import {
   filterWarehousesWithData,
-  createWarehouseDataMap,
 } from '@/utils/warehouse'
 
 // ==================== 类型定义 ====================
@@ -602,8 +601,8 @@ async function loadWarehouses(): Promise<void> {
     // 获取本月第一天（用于统计本月数据）
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthStartStr = monthStart.toISOString().split('T')[0]
-    const todayStr = now.toISOString().split('T')[0]
+    const monthStartStr = getLocalDateString(monthStart)
+    const todayStr = getLocalDateString(now)
     
     // 并行获取每个仓库的计件数据
     const warehouseStatsPromises = data.map(async (warehouse) => {
@@ -625,8 +624,14 @@ async function loadWarehouses(): Promise<void> {
     
     const warehouseStatsResults = await Promise.all(warehouseStatsPromises)
     
-    // 创建仓库数据映射
-    warehouseDataMap.value = createWarehouseDataMap(warehouseStatsResults)
+    // 创建仓库数据映射（直接构建 Map）
+    const dataMap = new Map<number, boolean>()
+    for (const result of warehouseStatsResults) {
+      if (result.hasData) {
+        dataMap.set(result.warehouseId, true)
+      }
+    }
+    warehouseDataMap.value = dataMap
   } catch (error) {
     console.error('加载仓库列表失败:', error)
   }

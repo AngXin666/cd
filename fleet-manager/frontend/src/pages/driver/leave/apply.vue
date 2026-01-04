@@ -254,7 +254,7 @@
         :class="['btn', 'submit-btn', { disabled: !canSubmit || submitting }]"
         @click="handleSubmit"
       >
-        <text class="btn-text">{{ submitting ? '提交中...' : '提交申请' }}</text>
+        <text class="btn-text">{{ submitButtonText }}</text>
       </view>
     </view>
   </view>
@@ -284,6 +284,7 @@ import { useUserStore } from '@/store/user'
 import { 
   getLocalDateString, 
   getNextDay,
+  calculateDays,
 } from '@/utils/date'
 import { navigateBack } from '@/utils'
 
@@ -370,6 +371,15 @@ const approvedLeaves = ref<LeaveApplication[]>([])
 
 /** 最早可用的请假日期 */
 const earliestAvailableDate = ref<string>('')
+
+/** 是否有待审批的请假申请 */
+const hasPendingLeave = ref(false)
+
+/** 是否有待审批的离职申请 */
+const hasPendingResign = ref(false)
+
+/** 是否为离职申请模式 */
+const isResignMode = ref(false)
 
 // ==================== 计算属性 ====================
 
@@ -493,6 +503,12 @@ const showDateAdjustTip = computed(() => {
  * 是否可以提交
  */
 const canSubmit = computed(() => {
+  // 离职申请模式：检查是否有待审批的离职申请
+  if (isResignMode.value && hasPendingResign.value) return false
+  
+  // 请假申请模式：检查是否有待审批的请假申请
+  if (!isResignMode.value && hasPendingLeave.value) return false
+  
   // 必须选择仓库（如果有多个仓库）
   if (warehouses.value.length > 1 && !warehouseId.value) return false
   
@@ -502,13 +518,23 @@ const canSubmit = computed(() => {
   // 请假天数必须大于 0
   if (leaveDays.value <= 0) return false
   
-  // 不能超过月度上限
-  if (isExceeded.value) return false
+  // 不能超过月度上限（仅请假模式）
+  if (!isResignMode.value && isExceeded.value) return false
   
   // 不能正在提交
   if (submitting.value) return false
   
   return true
+})
+
+/**
+ * 提交按钮文字
+ */
+const submitButtonText = computed(() => {
+  if (submitting.value) return '提交中...'
+  if (isResignMode.value && hasPendingResign.value) return '离职审批中'
+  if (!isResignMode.value && hasPendingLeave.value) return '请假审批中'
+  return '提交申请'
 })
 
 // ==================== 生命周期 ====================
@@ -524,6 +550,7 @@ onLoad((options) => {
   // 检查是否指定了类型（离职申请）
   if (options?.type === 'resign') {
     leaveType.value = 'resign'
+    isResignMode.value = true
   }
 })
 
@@ -568,22 +595,6 @@ function calculateEndDate(start: string, days: number): string {
   const month = String(startDateObj.getMonth() + 1).padStart(2, '0')
   const day = String(startDateObj.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-/**
- * 计算两个日期之间的天数
- * 
- * @param start - 开始日期
- * @param end - 结束日期
- * @returns 天数
- */
-function calculateDays(start: string, end: string): number {
-  if (!start || !end) return 0
-  const startTime = new Date(start).getTime()
-  const endTime = new Date(end).getTime()
-  if (endTime < startTime) return 0
-  const diffTime = endTime - startTime
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
 }
 
 /**
@@ -747,6 +758,16 @@ async function loadApprovedLeaves(): Promise<void> {
     approvedLeaves.value = applications.filter(
       app => app.leave_type !== LeaveType.RESIGN && 
              (app.status === LeaveStatus.APPROVED || app.status === LeaveStatus.PENDING)
+    )
+    
+    // 检查是否有待审批的请假申请
+    hasPendingLeave.value = applications.some(
+      app => app.leave_type !== LeaveType.RESIGN && app.status === LeaveStatus.PENDING
+    )
+    
+    // 检查是否有待审批的离职申请
+    hasPendingResign.value = applications.some(
+      app => app.leave_type === LeaveType.RESIGN && app.status === LeaveStatus.PENDING
     )
     
   } catch (error) {

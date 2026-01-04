@@ -66,7 +66,7 @@
         <view class="notification-content">
           <view class="notification-header">
             <text class="notification-title">{{ item.title }}</text>
-            <text class="notification-time">{{ formatTime(item.created_at) }}</text>
+            <text class="notification-time">{{ formatRelativeTime(item.created_at) }}</text>
           </view>
           <text v-if="item.content" class="notification-body">{{ item.content }}</text>
         </view>
@@ -110,6 +110,7 @@ import {
 } from '@/api'
 import type { Notification } from '@/api/types'
 import type { SSENotification, SSEHeartbeat } from '@/utils/sse'
+import { formatRelativeTime } from '@/utils/dateFormat'
 import Loading from '@/components/Loading/index.vue'
 import Empty from '@/components/Empty/index.vue'
 
@@ -410,50 +411,6 @@ async function handleMarkAllRead() {
   }
 }
 
-/**
- * 格式化时间
- * @param dateStr - 日期字符串
- * @returns 格式化后的时间
- */
-function formatTime(dateStr: string): string {
-  if (!dateStr) return ''
-
-  try {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-
-    // 1分钟内
-    if (diff < 60 * 1000) {
-      return '刚刚'
-    }
-
-    // 1小时内
-    if (diff < 60 * 60 * 1000) {
-      const minutes = Math.floor(diff / (60 * 1000))
-      return `${minutes}分钟前`
-    }
-
-    // 24小时内
-    if (diff < 24 * 60 * 60 * 1000) {
-      const hours = Math.floor(diff / (60 * 60 * 1000))
-      return `${hours}小时前`
-    }
-
-    // 7天内
-    if (diff < 7 * 24 * 60 * 60 * 1000) {
-      const days = Math.floor(diff / (24 * 60 * 60 * 1000))
-      return `${days}天前`
-    }
-
-    // 超过7天显示日期
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${month}-${day}`
-  } catch {
-    return ''
-  }
-}
 </script>
 
 <style lang="scss" scoped>

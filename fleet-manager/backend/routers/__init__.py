@@ -10,8 +10,7 @@
 - piece_work.py: 计件功能路由
 - leave.py: 请假审批路由
 - vehicles.py: 车辆管理路由
-- notifications.py: 通知系统路由（通知管理、模板、SSE 推送）
-- scheduled.py: 定时通知路由（定时通知管理、调度器控制）
+- notifications.py: 通知系统路由（通知管理、SSE 推送）
 - ocr.py: OCR 识别路由（驾驶证、行驶证识别）
 - upload.py: 图片上传路由（车辆照片、证件照片、头像）
 - admin.py: 系统管理路由（超级管理员、权限配置）
@@ -28,7 +27,6 @@ from .piece_work import router as piece_work_router
 from .leave import router as leave_router
 from .vehicles import router as vehicles_router
 from .notifications import router as notifications_router
-from .scheduled import router as scheduled_router
 from .ocr import router as ocr_router
 from .upload import router as upload_router
 from .admin import router as admin_router
@@ -43,7 +41,6 @@ __all__ = [
     "leave_router",
     "vehicles_router",
     "notifications_router",
-    "scheduled_router",
     "ocr_router",
     "upload_router",
     "admin_router",
