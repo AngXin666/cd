@@ -2,7 +2,11 @@
 
 基于 UniApp + Vue3 + FastAPI 的新一代车队管理系统。
 
-## �  项目结构
+> **版本**: v1.2.0  
+> **更新日期**: 2026-01-05  
+> **状态**: ✅ 生产就绪
+
+## 📁 项目结构
 
 ```
 .
@@ -10,10 +14,10 @@
 │   ├── frontend/           # UniApp + Vue3 前端
 │   ├── backend/            # FastAPI 后端
 │   └── docs/               # 项目文档
-├── .kiro/                  # Kiro 配置和规范
-│   ├── specs/              # 功能规范
+├── docs/                   # 项目报告
+├── .kiro/                  # Kiro 配置
 │   └── steering/           # 编码规范
-└── scripts/                # 构建和部署脚本
+└── data/                   # 数据目录
 ```
 
 ## 🚀 快速开始
@@ -23,7 +27,8 @@
 ```bash
 cd fleet-manager/backend
 python -m venv venv
-venv\Scripts\activate  # Windows
+source venv/bin/activate  # Mac/Linux
+# venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 python main.py
 # 访问 http://localhost:8000/docs 查看 API 文档
@@ -34,11 +39,18 @@ python main.py
 ```bash
 cd fleet-manager/frontend
 npm install
-npm run dev:h5      # H5 开发模式
-npm run dev:mp-weixin  # 微信小程序开发模式
+npm run dev:h5           # H5 开发模式
+npm run build:h5         # H5 构建
 ```
 
-### 测试账号
+### Docker 部署
+
+```bash
+cd fleet-manager
+docker-compose up -d
+```
+
+## 👤 测试账号
 
 | 角色 | 账号 | 密码 |
 |------|------|------|
@@ -61,45 +73,45 @@ npm run dev:mp-weixin  # 微信小程序开发模式
 - ✅ 司机管理
 - ✅ 请假审批
 - ✅ 数据汇总
-- ✅ 仓库管理
+- ✅ 仓库品类管理
 - ✅ 通知管理
 
 ### 老板端
 - ✅ 用户管理
-- ✅ 仓库管理
+- ✅ 仓库管理（支持自定义类型）
 - ✅ 车辆审核
 - ✅ 权限配置
-- ✅ 员工管理
 - ✅ 全局统计
 
 ## 🏗️ 技术栈
 
-### 前端
-- **框架**: UniApp + Vue 3
-- **语言**: TypeScript
-- **状态管理**: Pinia
-- **样式**: SCSS + Tailwind CSS
-- **构建**: Vite
+| 层级 | 技术 |
+|------|------|
+| 前端 | UniApp + Vue 3 + TypeScript + Pinia |
+| 后端 | FastAPI + SQLModel + Python 3.11+ |
+| 数据库 | SQLite (开发) / PostgreSQL (生产) |
+| 认证 | JWT Token |
+| 实时通信 | SSE (Server-Sent Events) |
+| 部署 | Docker + Nginx |
 
-### 后端
-- **框架**: FastAPI
-- **语言**: Python 3.11+
-- **数据库**: SQLite (开发) / PostgreSQL (生产)
-- **认证**: JWT
+## 📄 文档
+
+- [项目报告](docs/PROJECT-REPORT.md)
+- [更新日志](fleet-manager/CHANGELOG.md)
+- [后端文档](fleet-manager/backend/README.md)
+- [前端文档](fleet-manager/frontend/README.md)
+- [迁移指南](fleet-manager/docs/MIGRATION-GUIDE.md)
 
 ## 📝 编码规范
 
-详见 [.kiro/steering/SUMMARY.md](.kiro/steering/SUMMARY.md)
+详见 [.kiro/steering/](.kiro/steering/)
 
 **强制规则**：
 1. 所有代码必须有完整注释
 2. 文档必须实时同步更新
 3. 所有对话输出必须使用中文
-
-## 📄 许可证
-
-本项目为内部使用项目，所有权利保留。
+4. 枚举值必须使用小写字符串
 
 ---
 
-**最后更新**: 2025-12-25
+**最后更新**: 2026-01-05
