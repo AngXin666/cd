@@ -234,7 +234,6 @@ async def update_piece_work_category(
     updated = crud.update_piece_work_category(
         session, category,
         name=request.name,
-        unit_price=request.unit_price,
         unit=request.unit,
         is_active=request.is_active,
         upstairs_price=request.upstairs_price,

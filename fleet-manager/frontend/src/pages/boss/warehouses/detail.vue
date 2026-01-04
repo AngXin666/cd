@@ -48,8 +48,19 @@
               <text class="type-label">{{ option.label }}</text>
             </view>
           </view>
+          <!-- 自定义单位输入框（仅 custom 类型显示） -->
+          <view v-if="isCustomType" class="custom-unit-input">
+            <text class="form-label required">自定义单位名称</text>
+            <input 
+              v-model="createForm.custom_unit" 
+              class="form-input" 
+              type="text" 
+              placeholder="请输入单位名称（如：箱、桶、趟）" 
+              maxlength="20"
+            />
+          </view>
           <view class="preset-unit-hint">
-            <text class="hint-label">预设单位：</text>
+            <text class="hint-label">{{ isCustomType ? '当前单位：' : '预设单位：' }}</text>
             <text class="hint-value">{{ currentPresetUnit }}</text>
           </view>
         </view>
@@ -299,12 +310,13 @@ import { formatDateTime, getRoleName } from '@/utils'
 
 // ==================== 常量定义 ====================
 
-/** 仓库类型选项列表 */
+/** 仓库类型选项列表（包含自定义类型） */
 const WAREHOUSE_TYPE_OPTIONS = [
   { value: WarehouseType.PIECE, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.PIECE] },
   { value: WarehouseType.POINT, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.POINT] },
   { value: WarehouseType.WHOLE, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.WHOLE] },
   { value: WarehouseType.DISTANCE, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.DISTANCE] },
+  { value: WarehouseType.CUSTOM, label: WAREHOUSE_TYPE_DISPLAY_NAMES[WarehouseType.CUSTOM] },
 ]
 
 // ==================== 状态 ====================
@@ -329,6 +341,7 @@ const createForm = reactive({
   name: '',
   address: '',
   warehouse_type: WarehouseType.PIECE as WarehouseType,
+  custom_unit: '',  // 自定义单位（仅 custom 类型使用）
   category_name: '',
   driver_only_price: '',
   with_vehicle_price: '',
@@ -339,8 +352,17 @@ const createForm = reactive({
 
 // ==================== 计算属性 ====================
 
+/** 是否为自定义类型 */
+const isCustomType = computed(() => {
+  return createForm.warehouse_type === WarehouseType.CUSTOM
+})
+
 /** 当前选中仓库类型的预设单位 */
 const currentPresetUnit = computed(() => {
+  // 自定义类型使用用户输入的单位
+  if (isCustomType.value) {
+    return createForm.custom_unit || '(请输入)'
+  }
   return getWarehousePresetUnit(createForm.warehouse_type)
 })
 
@@ -420,6 +442,15 @@ async function handleCreate(): Promise<void> {
     uni.showToast({ title: '请输入仓库名称', icon: 'none' })
     return
   }
+  
+  // 自定义类型验证：custom_unit 必填
+  if (createForm.warehouse_type === WarehouseType.CUSTOM) {
+    if (!createForm.custom_unit.trim()) {
+      uni.showToast({ title: '请输入单位名称', icon: 'none' })
+      return
+    }
+  }
+  
   if (!createForm.category_name.trim()) {
     uni.showToast({ title: '请输入品类名称', icon: 'none' })
     return
@@ -440,14 +471,22 @@ async function handleCreate(): Promise<void> {
   try {
     uni.showLoading({ title: '创建中...' })
     
-    await createWarehouse({
+    // 构建创建请求参数
+    const createParams: any = {
       name: createForm.name.trim(),
       address: createForm.address.trim() || undefined,
       warehouse_type: createForm.warehouse_type,
       category_name: createForm.category_name.trim(),
       driver_only_price: driverOnlyPrice,
       with_vehicle_price: withVehiclePrice,
-    })
+    }
+    
+    // 自定义类型添加 custom_unit 参数
+    if (createForm.warehouse_type === WarehouseType.CUSTOM) {
+      createParams.custom_unit = createForm.custom_unit.trim()
+    }
+    
+    await createWarehouse(createParams)
     
     uni.hideLoading()
     uni.showToast({ title: '创建成功', icon: 'success' })
@@ -611,6 +650,9 @@ async function handleAssign(): Promise<void> {
 .preset-unit-hint { display: flex; align-items: center; margin-top: 12rpx; padding: 12rpx 16rpx; background-color: #f0f9ff; border-radius: 8rpx; border-left: 4rpx solid #1890ff; }
 .hint-label { font-size: 24rpx; color: #666666; }
 .hint-value { font-size: 26rpx; color: #1890ff; font-weight: 500; margin-left: 8rpx; }
+
+/* 自定义单位输入框样式 */
+.custom-unit-input { margin-top: 16rpx; padding: 16rpx; background-color: #fffbe6; border-radius: 8rpx; border: 1rpx solid #ffe58f; }
 
 /* 状态切换样式 */
 .status-switch { display: flex; gap: 16rpx; }

@@ -150,13 +150,14 @@ class TestWarehouseCRUD:
         self,
         client: TestClient,
         session: Session,
-        driver_token: str
+        super_admin_token: str
     ):
         """
         测试获取仓库列表
 
         验证：
-        - 所有登录用户可以获取仓库列表
+        - 管理员可以获取所有仓库列表
+        - 注意：司机只能看到分配给他的仓库，所以这里使用管理员 token
         """
         # 创建一些仓库
         for i in range(3):
@@ -164,7 +165,7 @@ class TestWarehouseCRUD:
 
         response = client.get(
             "/api/warehouses",
-            headers=get_auth_headers(driver_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         data = assert_success_response(response, 200)

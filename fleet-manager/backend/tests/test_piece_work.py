@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 # 导入测试工具
-from tests.factories import UserFactory, PieceWorkFactory
+from tests.factories import UserFactory, PieceWorkFactory, WarehouseFactory
 from tests.helpers import (
     get_auth_headers, assert_success_response,
     assert_forbidden, assert_not_found, assert_error_response
@@ -32,63 +32,66 @@ class TestPieceWorkCategory:
     def test_create_category_success(
         self,
         client: TestClient,
-        manager_token: str
+        session: Session,
+        super_admin_token: str
     ):
         """
         测试创建计件分类成功
 
         验证：
-        - 车队长可以创建计件分类
-        - 支持基础单价、上楼单价、分拣单价
+        - 管理员可以创建计件分类
+        - 支持纯司机单价、带车司机单价、上楼单价、分拣单价
         """
+        # 先创建一个仓库
+        warehouse = WarehouseFactory.create(session, name="测试仓库")
+        
         response = client.post(
             "/api/piece-work/categories",
             json={
                 "name": "测试分类",
-                "unit_price": 1.5,
-                "unit": "件",
-                "upstairs_price": 2.0,
-                "sorting_price": 0.5
+                "warehouse_id": warehouse.id,
+                "driver_only_price": 1.5,
+                "with_vehicle_price": 2.0,
             },
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         data = assert_success_response(response, 200)
 
         assert data["name"] == "测试分类"
-        assert data["unit_price"] == 1.5
-        assert data["upstairs_price"] == 2.0
-        assert data["sorting_price"] == 0.5
-        assert data["unit"] == "件"
+        assert data["driver_only_price"] == 1.5
+        assert data["with_vehicle_price"] == 2.0
         assert data["is_active"] is True
 
     def test_create_category_basic_price_only(
         self,
         client: TestClient,
-        manager_token: str
+        session: Session,
+        super_admin_token: str
     ):
         """
         测试创建只有基础单价的分类
 
         验证：
-        - 可以只设置基础单价
+        - 可以只设置纯司机单价
         """
+        # 先创建一个仓库
+        warehouse = WarehouseFactory.create(session, name="基础测试仓库")
+        
         response = client.post(
             "/api/piece-work/categories",
             json={
                 "name": "基础分类",
-                "unit_price": 1.0,
-                "unit": "件"
+                "warehouse_id": warehouse.id,
+                "driver_only_price": 1.0,
             },
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         data = assert_success_response(response, 200)
 
         assert data["name"] == "基础分类"
-        assert data["unit_price"] == 1.0
-        assert data["upstairs_price"] is None
-        assert data["sorting_price"] is None
+        assert data["driver_only_price"] == 1.0
 
     def test_get_categories_list(
         self,
@@ -146,7 +149,7 @@ class TestPieceWorkCategory:
         self,
         client: TestClient,
         session: Session,
-        manager_token: str
+        super_admin_token: str
     ):
         """
         测试更新计件分类成功
@@ -160,23 +163,23 @@ class TestPieceWorkCategory:
             f"/api/piece-work/categories/{category.id}",
             json={
                 "name": "更新后分类",
-                "unit_price": 2.0,
+                "driver_only_price": 2.0,
                 "upstairs_price": 3.0
             },
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         data = assert_success_response(response, 200)
 
         assert data["name"] == "更新后分类"
-        assert data["unit_price"] == 2.0
+        assert data["driver_only_price"] == 2.0
         assert data["upstairs_price"] == 3.0
 
     def test_disable_category_success(
         self,
         client: TestClient,
         session: Session,
-        manager_token: str
+        super_admin_token: str
     ):
         """
         测试禁用计件分类成功
@@ -191,7 +194,7 @@ class TestPieceWorkCategory:
             json={
                 "is_active": False
             },
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         data = assert_success_response(response, 200)
@@ -485,7 +488,7 @@ class TestPieceWorkCategoryDelete:
         self,
         client: TestClient,
         session: Session,
-        manager_token: str
+        super_admin_token: str
     ):
         """
         测试删除无记录的分类成功
@@ -497,7 +500,7 @@ class TestPieceWorkCategoryDelete:
 
         response = client.delete(
             f"/api/piece-work/categories/{category.id}",
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         data = assert_success_response(response, 200)
@@ -507,7 +510,7 @@ class TestPieceWorkCategoryDelete:
         self,
         client: TestClient,
         session: Session,
-        manager_token: str
+        super_admin_token: str
     ):
         """
         测试删除有计件记录的分类失败
@@ -524,7 +527,7 @@ class TestPieceWorkCategoryDelete:
 
         response = client.delete(
             f"/api/piece-work/categories/{category.id}",
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         assert_error_response(response, 400)
@@ -532,7 +535,7 @@ class TestPieceWorkCategoryDelete:
     def test_delete_nonexistent_category(
         self,
         client: TestClient,
-        manager_token: str
+        super_admin_token: str
     ):
         """
         测试删除不存在的分类
@@ -542,7 +545,7 @@ class TestPieceWorkCategoryDelete:
         """
         response = client.delete(
             "/api/piece-work/categories/99999",
-            headers=get_auth_headers(manager_token)
+            headers=get_auth_headers(super_admin_token)
         )
 
         assert_not_found(response)

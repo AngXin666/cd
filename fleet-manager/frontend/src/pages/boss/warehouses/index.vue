@@ -77,8 +77,8 @@
             </view>
             <view class="warehouse-meta">
               <text class="warehouse-address">{{ warehouse.address || '未设置地址' }}</text>
-              <!-- 预设单位显示 Requirements: 2.2 -->
-              <text class="warehouse-unit">单位：{{ warehouse.preset_unit || getWarehousePresetUnit(warehouse.warehouse_type) }}</text>
+              <!-- 单位显示（支持预设和自定义类型） Requirements: 2.2, 3.5 -->
+              <text class="warehouse-unit">单位：{{ getWarehouseUnit(warehouse) || '未设置' }}</text>
             </view>
             <text class="warehouse-time">创建于 {{ formatDate(warehouse.created_at) }}</text>
           </view>
@@ -115,7 +115,8 @@ import {
   WarehouseType, 
   WAREHOUSE_TYPE_DISPLAY_NAMES, 
   getWarehouseTypeDisplayName,
-  getWarehousePresetUnit 
+  getWarehousePresetUnit,
+  getWarehouseUnit 
 } from '@/api/types'
 import { formatDate } from '@/utils'
 

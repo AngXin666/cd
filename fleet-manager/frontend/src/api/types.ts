@@ -100,7 +100,7 @@ export enum DocumentType {
 /**
  * 仓库类型枚举
  * 定义仓库的计量类型，决定该仓库使用的预设单位
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.5, 4.1
  */
 export enum WarehouseType {
   /** 计件类型 - 预设单位：件 */
@@ -111,26 +111,36 @@ export enum WarehouseType {
   WHOLE = 'whole',
   /** 距离类型 - 预设单位：公里 */
   DISTANCE = 'distance',
+  /** 自定义类型 - 单位由老板设置 */
+  CUSTOM = 'custom',
 }
 
 /**
  * 仓库类型显示名称映射
  * 将仓库类型枚举值映射为中文显示名称
- * Requirements: 1.1
+ * Requirements: 1.1, 3.5
  */
 export const WAREHOUSE_TYPE_DISPLAY_NAMES: Record<WarehouseType, string> = {
   [WarehouseType.PIECE]: '计件',
   [WarehouseType.POINT]: '点位',
   [WarehouseType.WHOLE]: '整车',
   [WarehouseType.DISTANCE]: '距离',
+  [WarehouseType.CUSTOM]: '自定义',
 }
 
 /**
- * 仓库类型预设单位映射
- * 将仓库类型枚举值映射为对应的计量单位
- * Requirements: 1.2, 1.3, 1.4, 1.5
+ * 预设仓库类型（不包含 custom）
+ * 用于类型安全的预设单位映射
  */
-export const WAREHOUSE_TYPE_UNITS: Record<WarehouseType, string> = {
+export type PresetWarehouseType = Exclude<WarehouseType, WarehouseType.CUSTOM>;
+
+/**
+ * 仓库类型预设单位映射
+ * 将预设仓库类型枚举值映射为对应的计量单位
+ * 注意：custom 类型不在此映射中，需要从仓库的 custom_unit 字段获取
+ * Requirements: 1.2, 1.3, 1.4, 1.5, 3.5
+ */
+export const WAREHOUSE_TYPE_UNITS: Record<PresetWarehouseType, string> = {
   [WarehouseType.PIECE]: '件',
   [WarehouseType.POINT]: '点',
   [WarehouseType.WHOLE]: '车',
@@ -153,16 +163,47 @@ export function getWarehouseTypeDisplayName(warehouseType: WarehouseType | strin
 
 /**
  * 获取仓库类型的预设单位
+ * 注意：此函数不处理 custom 类型，custom 类型请使用 getWarehouseUnit
  * @param warehouseType 仓库类型枚举值或字符串
- * @returns 仓库类型对应的预设单位，如果类型无效则返回默认值 "件"
+ * @returns 仓库类型对应的预设单位，如果类型无效或为 custom 则返回空字符串
  * @example
  * getWarehousePresetUnit(WarehouseType.PIECE) // 返回 "件"
  * getWarehousePresetUnit('distance') // 返回 "公里"
- * Requirements: 1.2, 1.3, 1.4, 1.5
+ * getWarehousePresetUnit('custom') // 返回 ""（custom 类型需要使用 getWarehouseUnit）
+ * Requirements: 1.2, 1.3, 1.4, 1.5, 3.5
  */
 export function getWarehousePresetUnit(warehouseType: WarehouseType | string): string {
   const type = warehouseType as WarehouseType
-  return WAREHOUSE_TYPE_UNITS[type] || '件'
+  // custom 类型不在预设映射中，返回空字符串
+  if (type === WarehouseType.CUSTOM) {
+    return ''
+  }
+  return WAREHOUSE_TYPE_UNITS[type] || ''
+}
+
+/**
+ * 根据仓库对象获取单位
+ * 支持预设类型和自定义类型
+ * @param warehouse 仓库对象
+ * @returns 对应的单位字符串，未设置时返回空字符串
+ * @example
+ * getWarehouseUnit({ warehouse_type: 'piece' }) // 返回 "件"
+ * getWarehouseUnit({ warehouse_type: 'custom', custom_unit: '箱' }) // 返回 "箱"
+ * getWarehouseUnit({ warehouse_type: 'custom' }) // 返回 ""（未设置 custom_unit）
+ * Requirements: 3.5, 4.1
+ */
+export function getWarehouseUnit(warehouse: Warehouse | null | undefined): string {
+  if (!warehouse?.warehouse_type) {
+    return ''
+  }
+  
+  // custom 类型使用自定义单位
+  if (warehouse.warehouse_type === WarehouseType.CUSTOM) {
+    return warehouse.custom_unit || ''
+  }
+  
+  // 其他类型从映射获取
+  return WAREHOUSE_TYPE_UNITS[warehouse.warehouse_type] || ''
 }
 
 // ==================== 认证相关类型 ====================
@@ -230,7 +271,7 @@ export interface UserUpdate {
 /**
  * 仓库信息接口
  * 包含仓库的基本信息和类型配置
- * Requirements: 1.1, 7.1
+ * Requirements: 1.1, 3.5, 4.1, 7.1
  */
 export interface Warehouse {
   /** 仓库ID */
@@ -243,15 +284,17 @@ export interface Warehouse {
   is_active: boolean;
   /** 创建时间 */
   created_at: string;
-  /** 仓库类型（计件/点位/整车/距离） */
+  /** 仓库类型（计件/点位/整车/距离/自定义） */
   warehouse_type: WarehouseType;
   /** 预设单位（根据仓库类型自动确定） */
   preset_unit: string;
+  /** 自定义单位（仅 custom 类型使用） */
+  custom_unit?: string | null;
 }
 
 /**
  * 创建仓库请求接口
- * Requirements: 7.1
+ * Requirements: 4.1, 4.2, 7.1
  */
 export interface WarehouseCreate {
   /** 仓库名称 */
@@ -260,6 +303,8 @@ export interface WarehouseCreate {
   address?: string;
   /** 仓库类型（可选，默认为 piece） */
   warehouse_type?: WarehouseType;
+  /** 自定义单位（仅 custom 类型使用，custom 类型时必填） */
+  custom_unit?: string;
   /** 品类名称 */
   category_name?: string;
   /** 纯司机单价 */
@@ -270,7 +315,7 @@ export interface WarehouseCreate {
 
 /**
  * 更新仓库请求接口
- * Requirements: 7.1
+ * Requirements: 4.1, 4.2, 7.1
  */
 export interface WarehouseUpdate {
   /** 仓库名称 */
@@ -281,6 +326,8 @@ export interface WarehouseUpdate {
   is_active?: boolean;
   /** 仓库类型 */
   warehouse_type?: WarehouseType;
+  /** 自定义单位（仅 custom 类型使用，custom 类型时必填） */
+  custom_unit?: string;
 }
 
 // ==================== 考勤相关类型 ====================
