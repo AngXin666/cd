@@ -21,8 +21,11 @@ pydantic-settings>=2.0.0
 # File upload
 python-multipart>=0.0.6
 
-# OCR - 使用 HTTP API 直接调用百度 OCR，不需要 baidu-aip SDK
-# baidu-aip>=4.16.0  # 已移除：未使用，OCR 通过 httpx 直接调用 API
+# OCR - 支持两种方式
+# 1. 百度 OCR API（需要配置 API Key）
+# 2. PaddleOCR 本地识别（免费，无需注册）
+# 安装 PaddleOCR: pip install paddlepaddle paddleocr
+# 注意：PaddleOCR 首次运行会下载模型（约 100MB）
 
 # Database drivers
 psycopg2-binary>=2.9.0

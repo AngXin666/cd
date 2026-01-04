@@ -2,6 +2,10 @@
 OCR 识别路由模块
 提供驾驶证、行驶证等证件的 OCR 识别功能
 
+支持两种 OCR 引擎：
+1. 百度 OCR API（需要注册配置）
+2. PaddleOCR 本地识别（免费，无需注册）
+
 包含的端点：
 - POST /api/ocr/driving-license - 识别驾驶证
 - POST /api/ocr/vehicle-license - 识别行驶证
@@ -16,7 +20,27 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 
 from models import User
 from auth import get_current_user
-from ocr import recognize_driving_license as ocr_recognize, is_ocr_configured
+from ocr import recognize_driving_license as baidu_ocr_recognize, is_ocr_configured as is_baidu_configured
+
+# 尝试导入 PaddleOCR
+try:
+    from ocr_paddle import (
+        recognize_driving_license_paddle,
+        recognize_vehicle_license_paddle,
+        is_paddle_ocr_available
+    )
+    PADDLE_AVAILABLE = True
+except ImportError:
+    PADDLE_AVAILABLE = False
+    
+    async def recognize_driving_license_paddle(image_data: str):
+        return {"success": False, "error": "PaddleOCR 未安装", "data": None}
+    
+    async def recognize_vehicle_license_paddle(image_data: str):
+        return {"success": False, "error": "PaddleOCR 未安装", "data": None}
+    
+    def is_paddle_ocr_available():
+        return False
 
 from schemas import (
     OCRDrivingLicenseRequest, OCRDrivingLicenseResponse, OCRDrivingLicenseData,
@@ -66,6 +90,62 @@ async def _process_ocr_image(file: UploadFile) -> str:
     return base64.b64encode(content).decode("utf-8")
 
 
+async def _get_ocr_engine() -> str:
+    """
+    获取当前使用的 OCR 引擎
+    
+    优先级：
+    1. 如果百度 OCR 已配置，使用百度
+    2. 如果 PaddleOCR 可用，使用 Paddle
+    3. 都不可用返回 None
+    
+    Returns:
+        str: "baidu", "paddle" 或 "none"
+    """
+    if is_baidu_configured():
+        return "baidu"
+    if PADDLE_AVAILABLE and is_paddle_ocr_available():
+        return "paddle"
+    return "none"
+
+
+async def _recognize_driving_license(image_data: str):
+    """
+    识别驾驶证（自动选择引擎）
+    """
+    engine = await _get_ocr_engine()
+    
+    if engine == "baidu":
+        return await baidu_ocr_recognize(image_data)
+    elif engine == "paddle":
+        return await recognize_driving_license_paddle(image_data)
+    else:
+        return {
+            "success": False,
+            "error": "OCR 服务未配置。请配置百度 OCR 或安装 PaddleOCR (pip install paddlepaddle paddleocr)",
+            "data": None
+        }
+
+
+async def _recognize_vehicle_license(image_data: str):
+    """
+    识别行驶证（自动选择引擎）
+    """
+    engine = await _get_ocr_engine()
+    
+    if engine == "baidu":
+        # 百度 OCR 暂时使用驾驶证识别
+        return await baidu_ocr_recognize(image_data)
+    elif engine == "paddle":
+        return await recognize_vehicle_license_paddle(image_data)
+    else:
+        return {
+            "success": False,
+            "error": "OCR 服务未配置。请配置百度 OCR 或安装 PaddleOCR (pip install paddlepaddle paddleocr)",
+            "data": None
+        }
+
+
 # ==================== OCR API ====================
 
 @router.post("/api/ocr/driving-license", response_model=OCRDrivingLicenseResponse)
@@ -113,8 +193,8 @@ async def recognize_driving_license(
             detail="请上传图片文件或提供图片数据"
         )
 
-    # 调用 OCR 识别
-    result = await ocr_recognize(image_data)
+    # 调用 OCR 识别（自动选择引擎）
+    result = await _recognize_driving_license(image_data)
 
     # 构建响应
     if result["success"]:
@@ -172,8 +252,8 @@ async def recognize_vehicle_license(
             detail="请上传图片文件或提供图片数据"
         )
 
-    # 调用 OCR 识别（暂时使用驾驶证识别）
-    result = await ocr_recognize(image_data)
+    # 调用 OCR 识别（自动选择引擎）
+    result = await _recognize_vehicle_license(image_data)
 
     # 构建响应
     if result["success"]:
@@ -205,7 +285,11 @@ async def get_ocr_status(
     Returns:
         OCRStatusResponse: OCR 服务状态
     """
-    return OCRStatusResponse(
-        configured=is_ocr_configured(),
-        provider="baidu"
-    )
+    engine = await _get_ocr_engine()
+    
+    if engine == "baidu":
+        return OCRStatusResponse(configured=True, provider="baidu")
+    elif engine == "paddle":
+        return OCRStatusResponse(configured=True, provider="paddle")
+    else:
+        return OCRStatusResponse(configured=False, provider="none")
