@@ -1,16 +1,16 @@
 {
   "pages": [
     {
-      "path": "pages/login/index",
+      "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "登录",
+        "navigationBarTitleText": "首页",
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/index/index",
+      "path": "pages/login/index",
       "style": {
-        "navigationBarTitleText": "首页",
+        "navigationBarTitleText": "登录",
         "navigationStyle": "custom"
       }
     },
@@ -341,25 +341,6 @@
         "navigationStyle": "custom"
       }
     },
-    {
-      "path": "pages/boss/templates/index",
-      "style": {
-        "navigationBarTitleText": "通知模板"
-      }
-    },
-    {
-      "path": "pages/boss/scheduled/index",
-      "style": {
-        "navigationBarTitleText": "定时通知"
-      }
-    },
-    {
-      "path": "pages/boss/scheduled/edit",
-      "style": {
-        "navigationBarTitleText": "编辑定时通知"
-      }
-    },
-
     {
       "path": "pages/profile/index",
       "style": {

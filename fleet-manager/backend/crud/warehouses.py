@@ -12,26 +12,36 @@ def create_warehouse(
     session: Session,
     name: str,
     address: Optional[str] = None,
-    warehouse_type: Optional[WarehouseType] = None
+    warehouse_type: Optional[WarehouseType] = None,
+    custom_unit: Optional[str] = None
 ) -> Warehouse:
     """
     创建新仓库
     
     支持设置仓库类型，默认为计件类型（PIECE）。
+    对于 custom 类型，需要提供 custom_unit 参数。
 
     Args:
         session: 数据库会话
         name: 仓库名称
         address: 仓库地址（可选）
         warehouse_type: 仓库类型（可选），默认为 PIECE
+        custom_unit: 自定义单位名称（可选，仅 custom 类型使用）
 
     Returns:
         Warehouse: 创建的仓库对象
+        
+    Requirements:
+        - Requirement 4.1: 支持自定义类型和自定义单位
     """
     warehouse = Warehouse(name=name, address=address)
     
     if warehouse_type is not None:
         warehouse.warehouse_type = warehouse_type
+    
+    # 设置自定义单位（仅 custom 类型使用）
+    if custom_unit is not None:
+        warehouse.custom_unit = custom_unit
         
     session.add(warehouse)
     session.commit()
@@ -91,7 +101,8 @@ def update_warehouse(
     name: Optional[str] = None,
     address: Optional[str] = None,
     is_active: Optional[bool] = None,
-    warehouse_type: Optional[WarehouseType] = None
+    warehouse_type: Optional[WarehouseType] = None,
+    custom_unit: Optional[str] = None
 ) -> Warehouse:
     """
     更新仓库信息
@@ -103,9 +114,13 @@ def update_warehouse(
         address: 新地址（可选）
         is_active: 新启用状态（可选）
         warehouse_type: 新仓库类型（可选）
+        custom_unit: 自定义单位名称（可选，仅 custom 类型使用）
 
     Returns:
         Warehouse: 更新后的仓库对象
+        
+    Requirements:
+        - Requirement 4.1: 支持自定义类型和自定义单位
     """
     if name is not None:
         warehouse.name = name
@@ -115,6 +130,8 @@ def update_warehouse(
         warehouse.is_active = is_active
     if warehouse_type is not None:
         warehouse.warehouse_type = warehouse_type
+    if custom_unit is not None:
+        warehouse.custom_unit = custom_unit
 
     session.add(warehouse)
     session.commit()

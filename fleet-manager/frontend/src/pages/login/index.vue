@@ -9,7 +9,9 @@
 <template>
   <view 
     class="login-page"
-    :style="{ backgroundImage: `url(${currentBgImage})` }"
+    :class="{ 'login-page--fallback': bgImageFailed }"
+    :style="bgImageFailed ? {} : { backgroundImage: `url(${currentBgImage})` }"
+    @error="handleBgError"
   >
     <!-- 顶部安全区域 -->
     <view class="safe-area-top"></view>
@@ -185,13 +187,17 @@ import { useUserStore } from '@/store/user'
 
 /**
  * 背景图片列表
- * 使用在线图片或本地图片
+ * 使用在线图片，如果加载失败则使用渐变背景
+ * 注意：APK 离线模式下可能无法加载网络图片
  */
 const BG_IMAGES = [
   'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80',
   'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=800&q=80',
   'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80',
 ]
+
+/** 背景图片是否加载失败 */
+const bgImageFailed = ref(false)
 
 // ==================== 状态 ====================
 
@@ -296,9 +302,43 @@ function randomizeBgImage(): void {
     
     // 保存新的索引
     uni.setStorageSync('login_bg_index', newIndex)
+    
+    // 预加载图片，检测是否能加载成功
+    preloadBgImage(BG_IMAGES[newIndex])
   } catch (error) {
     console.error('设置背景图片失败:', error)
+    bgImageFailed.value = true
   }
+}
+
+/**
+ * 预加载背景图片
+ * @param url - 图片 URL
+ */
+function preloadBgImage(url: string): void {
+  // 使用 Image 对象预加载
+  const img = new Image()
+  img.onload = () => {
+    bgImageFailed.value = false
+  }
+  img.onerror = () => {
+    console.warn('背景图片加载失败，使用渐变背景')
+    bgImageFailed.value = true
+  }
+  // 设置超时，3秒内未加载成功则使用 fallback
+  setTimeout(() => {
+    if (!img.complete) {
+      bgImageFailed.value = true
+    }
+  }, 3000)
+  img.src = url
+}
+
+/**
+ * 处理背景图片加载错误
+ */
+function handleBgError(): void {
+  bgImageFailed.value = true
 }
 
 /**
@@ -491,6 +531,13 @@ async function handleQuickLogin(username: string, password: string): Promise<voi
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  /* 默认渐变背景，作为图片加载前的占位 */
+  background-color: #1E3A8A;
+}
+
+/* 背景图片加载失败时的渐变背景 */
+.login-page--fallback {
+  background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 50%, #60A5FA 100%);
 }
 
 /* 顶部安全区域 */

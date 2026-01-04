@@ -209,8 +209,10 @@ class WarehouseType(LowercaseStrEnum):
     - POINT: 点位类型，预设单位为"点"
     - WHOLE: 整车类型，预设单位为"车"
     - DISTANCE: 距离类型，预设单位为"公里"
+    - CUSTOM: 自定义类型，单位由老板在仓库设置中指定
     """
     PIECE = "piece"
     POINT = "point"
     WHOLE = "whole"
     DISTANCE = "distance"
+    CUSTOM = "custom"

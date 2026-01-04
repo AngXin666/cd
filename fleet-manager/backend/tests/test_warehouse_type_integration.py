@@ -345,12 +345,17 @@ class TestPieceWorkUnitValidation:
         data = response.json()
         assert data["quantity"] == 100
     
-    def test_create_piece_work_with_mismatched_unit_fails(
+    def test_create_piece_work_with_category_from_different_warehouse_fails(
         self,
         client: TestClient,
         session: Session
     ):
-        """测试创建计件记录时单位不匹配的情况"""
+        """
+        测试创建计件记录时使用其他仓库的品类应该失败
+        
+        根据新设计：单位完全由仓库类型决定，品类属于特定仓库
+        当使用其他仓库的品类时，应该返回错误
+        """
         # 1. 创建司机用户
         driver = User(
             username="test_driver_mismatch",
@@ -366,22 +371,31 @@ class TestPieceWorkUnitValidation:
         
         driver_token = create_access_token(data={"sub": str(driver.id)})
         
-        # 2. 创建计件类型仓库（预设单位为 "件"）
-        warehouse = Warehouse(
-            name="计件仓库2",
-            address="测试地址",
+        # 2. 创建两个仓库
+        warehouse1 = Warehouse(
+            name="仓库1",
+            address="测试地址1",
             warehouse_type=WarehouseType.PIECE,
             is_active=True
         )
-        session.add(warehouse)
+        warehouse2 = Warehouse(
+            name="仓库2",
+            address="测试地址2",
+            warehouse_type=WarehouseType.POINT,
+            is_active=True
+        )
+        session.add(warehouse1)
+        session.add(warehouse2)
         session.commit()
-        session.refresh(warehouse)
+        session.refresh(warehouse1)
+        session.refresh(warehouse2)
         
-        # 3. 创建单位为 "点" 的品类（与仓库不匹配）
+        # 3. 创建属于仓库2的品类
         category = PieceWorkCategory(
-            name="不匹配品类",
+            name="仓库2的品类",
             unit_price=20.0,
             unit="点",
+            warehouse_id=warehouse2.id,
             is_active=True
         )
         session.add(category)
@@ -390,20 +404,21 @@ class TestPieceWorkUnitValidation:
         
         headers = {"Authorization": f"Bearer {driver_token}"}
         
-        # 4. 创建计件记录（单位不匹配，应该失败）
+        # 4. 尝试在仓库1中使用仓库2的品类创建计件记录（应该失败）
         response = client.post(
             "/api/piece-work/records",
             json={
                 "category_id": category.id,
-                "warehouse_id": warehouse.id,
+                "warehouse_id": warehouse1.id,
                 "work_date": str(date.today()),
                 "quantity": 50
             },
             headers=headers
         )
         
+        # 应该返回 400 错误，因为品类不属于该仓库
         assert response.status_code == 400
-        assert "不匹配" in response.json()["detail"]
+        assert "不属于" in response.json()["detail"] or "不匹配" in response.json()["detail"]
 
 
 # ==================== 集成测试：统计单位显示 ====================

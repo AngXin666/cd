@@ -2,11 +2,13 @@
 仓库管理路由模块
 提供仓库 CRUD、用户分配、车辆查询等仓库管理相关 API
 
-支持仓库类型分类功能（计件/点位/整车/距离），每种类型对应预设的计量单位。
+支持仓库类型分类功能（计件/点位/整车/距离/自定义），每种类型对应预设的计量单位。
+自定义类型需要设置 custom_unit 字段。
 
 Requirements: 
     - Requirement 9.1: 提取仓库管理路由到独立模块
     - Requirement 1: 仓库类型定义
+    - Requirement 4: 自定义单位设置
     - Requirement 7: API 接口更新
 """
 
@@ -33,7 +35,7 @@ from schemas import (
     VehicleResponse,
     PieceWorkCategoryResponse
 )
-from helpers import get_warehouse_preset_unit
+from helpers import get_warehouse_preset_unit, get_warehouse_unit
 from events import emit_assignment_update
 
 
@@ -116,12 +118,14 @@ async def create_warehouse(
     
     支持设置仓库类型，默认为计件类型。
     支持同时创建品类和设置司机价格。
+    对于 custom 类型，必须提供 custom_unit。
 
     Args:
         request: 仓库创建请求，包含：
             - name: 仓库名称（必填）
             - address: 仓库地址（可选）
             - warehouse_type: 仓库类型（可选，默认 piece）
+            - custom_unit: 自定义单位名称（custom 类型必填）
             - category_name: 品类名称（可选）
             - driver_only_price: 纯司机单价（可选）
             - with_vehicle_price: 带车司机单价（可选）
@@ -131,23 +135,38 @@ async def create_warehouse(
     Returns:
         WarehouseResponse: 创建的仓库信息，包含 warehouse_type 和 preset_unit
         
+    Raises:
+        HTTPException 400: custom 类型未设置 custom_unit
+        
     Requirements:
         - Requirement 1.6: 仓库类型字段默认值为 "piece"
         - Requirement 2.3: 创建新仓库时默认类型为"计件"
+        - Requirement 4.1: 支持自定义类型和自定义单位
+        - Requirement 4.2, 4.3: custom 类型必须设置 custom_unit
         - Requirement 7.1: API 接口支持创建带类型的仓库
     """
-    # 创建仓库，支持设置仓库类型
+    # 验证 custom 类型必须设置 custom_unit
+    # Requirements: 4.2, 4.3 - custom 类型必须设置 custom_unit
+    if request.warehouse_type == WarehouseType.CUSTOM:
+        if not request.custom_unit or not request.custom_unit.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="自定义类型仓库必须设置单位名称"
+            )
+    
+    # 创建仓库，支持设置仓库类型和自定义单位
     warehouse = crud.create_warehouse(
         session, 
         name=request.name, 
         address=request.address,
-        warehouse_type=request.warehouse_type
+        warehouse_type=request.warehouse_type,
+        custom_unit=request.custom_unit
     )
     
     # 如果提供了品类名称，创建品类
     if request.category_name:
-        # 获取仓库类型对应的预设单位
-        preset_unit = get_warehouse_preset_unit(warehouse.warehouse_type)
+        # 获取仓库单位（对于 custom 类型会返回 custom_unit）
+        unit = get_warehouse_unit(warehouse)
         
         # 使用带车司机单价作为默认单价（如果提供）
         default_price = request.with_vehicle_price or request.driver_only_price or 0.0
@@ -157,7 +176,7 @@ async def create_warehouse(
             session,
             name=request.category_name,
             unit_price=default_price,
-            unit=preset_unit
+            unit=unit if unit else "件"  # 如果单位为空，使用默认值
         )
     
     # 使用 from_warehouse 方法转换，自动计算 preset_unit
@@ -211,8 +230,8 @@ async def update_warehouse(
     """
     更新仓库信息（管理员级别可访问：调度、老板）
     
-    注意：仓库类型创建后不可修改，以保证计件数据的一致性。
-    即使请求中包含 warehouse_type 字段，也会被忽略。
+    支持更新仓库类型和自定义单位。
+    对于 custom 类型，必须设置 custom_unit。
 
     Args:
         warehouse_id: 仓库ID
@@ -220,7 +239,8 @@ async def update_warehouse(
             - name: 仓库名称（可选）
             - address: 仓库地址（可选）
             - is_active: 是否启用（可选）
-            - warehouse_type: 仓库类型（已忽略，创建后不可修改）
+            - warehouse_type: 仓库类型（可选）
+            - custom_unit: 自定义单位名称（可选，custom 类型必填）
         current_user: 当前登录用户
         session: 数据库会话
 
@@ -229,10 +249,12 @@ async def update_warehouse(
 
     Raises:
         HTTPException 404: 仓库不存在
+        HTTPException 400: custom 类型未设置 custom_unit
         
     Requirements:
-        - Requirement 2.3: 仓库类型创建后不可修改
-        - Requirement 7.1: API 接口支持更新仓库信息（但不包括类型）
+        - Requirement 4.1: 支持自定义类型和自定义单位
+        - Requirement 4.2, 4.3: custom 类型必须设置 custom_unit
+        - Requirement 7.1: API 接口支持更新仓库信息
     """
     warehouse = crud.get_warehouse_by_id(session, warehouse_id)
     if not warehouse:
@@ -241,15 +263,31 @@ async def update_warehouse(
             detail="仓库不存在"
         )
 
+    # 确定更新后的仓库类型
+    new_warehouse_type = request.warehouse_type if request.warehouse_type is not None else warehouse.warehouse_type
+    
+    # 确定更新后的 custom_unit
+    new_custom_unit = request.custom_unit if request.custom_unit is not None else warehouse.custom_unit
+    
+    # 验证 custom 类型必须设置 custom_unit
+    # Requirements: 4.2, 4.3 - custom 类型必须设置 custom_unit
+    # 处理枚举值比较（可能是字符串或枚举）
+    type_value = new_warehouse_type.value if hasattr(new_warehouse_type, 'value') else str(new_warehouse_type)
+    if type_value == "custom":
+        if not new_custom_unit or not new_custom_unit.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="自定义类型仓库必须设置单位名称"
+            )
+
     # 更新仓库信息
-    # 注意：warehouse_type 不传递，因为仓库类型创建后不可修改
-    # Requirements: 2.3 - 仓库类型创建后不可修改
     updated = crud.update_warehouse(
         session, warehouse,
         name=request.name,
         address=request.address,
         is_active=request.is_active,
-        warehouse_type=None  # 显式设置为 None，忽略请求中的类型
+        warehouse_type=request.warehouse_type,
+        custom_unit=request.custom_unit
     )
     
     # 使用 from_warehouse 方法转换，自动计算 preset_unit
@@ -489,6 +527,7 @@ async def get_warehouse_categories(
     
     根据仓库类型返回匹配单位的品类。
     如果仓库没有关联品类，则返回所有匹配仓库类型单位的品类。
+    对于 custom 类型，使用 custom_unit 字段值作为筛选条件。
 
     Args:
         warehouse_id: 仓库ID
@@ -503,6 +542,7 @@ async def get_warehouse_categories(
         HTTPException 404: 仓库不存在
         
     Requirements:
+        - Requirement 4.1: 支持自定义类型和自定义单位
         - Requirement 4.3: 司机在该仓库只能选择合适的品类进行计件
         - Requirement 4.4: 如果没有关联品类，显示所有匹配仓库类型单位的品类
         - Requirement 7.4: 支持按单位筛选品类
@@ -510,6 +550,7 @@ async def get_warehouse_categories(
     Example:
         如果仓库类型为 "piece"（计件），则返回单位为 "件" 的品类
         如果仓库类型为 "point"（点位），则返回单位为 "点" 的品类
+        如果仓库类型为 "custom"（自定义），则返回单位为 custom_unit 的品类
     """
     # 验证仓库是否存在
     warehouse = crud.get_warehouse_by_id(session, warehouse_id)
@@ -519,16 +560,20 @@ async def get_warehouse_categories(
             detail="仓库不存在"
         )
     
-    # 获取仓库类型对应的预设单位
-    # Requirements: 4.3, 4.4 - 根据仓库类型筛选品类
-    preset_unit = get_warehouse_preset_unit(warehouse.warehouse_type)
+    # 获取仓库单位（对于 custom 类型会返回 custom_unit）
+    # Requirements: 4.1, 4.3, 4.4 - 根据仓库类型筛选品类
+    unit = get_warehouse_unit(warehouse)
+    
+    # 如果单位为空（custom 类型未设置 custom_unit），返回空列表
+    if not unit:
+        return []
     
     # 获取匹配单位的品类
     # Requirements: 7.4 - 支持按单位筛选品类
     categories = crud.get_piece_work_categories(
         session, 
         is_active=is_active,
-        unit=preset_unit
+        unit=unit
     )
     
     return categories

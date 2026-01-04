@@ -246,8 +246,9 @@ export async function request<T = unknown>(config: RequestConfig): Promise<T> {
       
       fail: (error) => {
         console.error('请求失败:', error);
-        showError('网络请求失败，请检查网络连接');
-        reject(new Error('网络请求失败'));
+        // 自定义错误提示，避免显示 UniApp 框架的默认错误
+        // 注意：不显示 toast，让调用方决定如何处理错误
+        reject(new Error('网络请求失败，请检查网络连接'));
       },
     });
   });

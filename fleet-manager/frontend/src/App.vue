@@ -141,30 +141,22 @@ function disconnectSSEService(): void {
 onLaunch(async () => {
   console.log('🚀 车队管家启动');
   
-  // 初始化用户状态
+  // 初始化用户状态（仅从本地存储读取，不做网络请求）
   const userStore = useUserStore();
   userStore.initFromStorage();
   
-  // 如果用户已登录，初始化 SSE 服务
-  // Requirements: 6.3 - 权限状态集成实时更新
-  if (userStore.isLoggedIn) {
-    // 延迟初始化 SSE，避免影响启动速度
-    setTimeout(() => {
-      initSSEService();
-      // 加载用户权限
-      userStore.loadPermissions();
-    }, 500);
-  }
+  // 注意：SSE 和权限加载移到登录成功后执行
+  // 这样可以避免启动时的网络请求导致 "连接服务器超时" 错误
   
-  // 初始化清理管理器并执行启动清理
-  // 清理超过 24 小时的临时图片（Requirements 12.4）
-  try {
-    await initAppCleanup({ debug: false });
-    await performLaunchCleanup();
-  } catch (error) {
-    // 清理失败不影响应用启动
-    console.warn('[App] 启动清理失败:', error);
-  }
+  // 初始化清理管理器（延迟执行，不影响启动）
+  setTimeout(async () => {
+    try {
+      await initAppCleanup({ debug: false });
+      await performLaunchCleanup();
+    } catch (error) {
+      console.warn('[App] 启动清理失败:', error);
+    }
+  }, 3000);
 });
 
 // 应用显示时执行（进入前台）

@@ -32,9 +32,9 @@ fi
 
 # 构建 APK
 if [ "$BUILD_TYPE" = "release" ]; then
-    echo "构建 Release APK..."
+    echo "构建 Release APK (已签名)..."
     ./gradlew assembleRelease --no-daemon
-    APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
+    APK_PATH="app/build/outputs/apk/release/app-release.apk"
 else
     echo "构建 Debug APK..."
     ./gradlew assembleDebug --no-daemon

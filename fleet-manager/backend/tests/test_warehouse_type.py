@@ -33,18 +33,18 @@ from helpers import (
 class TestWarehouseTypeEnum:
     """
     测试 WarehouseType 枚举
-    验证枚举包含正确的四个值
+    验证枚举包含正确的五个值（piece, point, whole, distance, custom）
     
-    Requirements: 1.1
+    Requirements: 1.1, 4.1
     """
     
-    def test_enum_has_four_values(self):
-        """测试枚举包含四个值"""
+    def test_enum_has_five_values(self):
+        """测试枚举包含五个值"""
         # 获取所有枚举成员
         members = list(WarehouseType)
         
-        # 验证数量
-        assert len(members) == 4, "WarehouseType 应该包含 4 个值"
+        # 验证数量（包含新增的 CUSTOM 类型）
+        assert len(members) == 5, "WarehouseType 应该包含 5 个值"
     
     def test_enum_piece_value(self):
         """测试 PIECE 枚举值"""
@@ -61,6 +61,10 @@ class TestWarehouseTypeEnum:
     def test_enum_distance_value(self):
         """测试 DISTANCE 枚举值"""
         assert WarehouseType.DISTANCE.value == "distance"
+    
+    def test_enum_custom_value(self):
+        """测试 CUSTOM 枚举值"""
+        assert WarehouseType.CUSTOM.value == "custom"
     
     def test_enum_values_are_strings(self):
         """测试所有枚举值都是字符串类型"""
@@ -262,8 +266,8 @@ class TestValidateCategoryUnitForWarehouse:
             warehouse_id=warehouse.id
         )
     
-    def test_mismatched_unit_raises_400(self, session: Session):
-        """测试单位不匹配时抛出 400 错误"""
+    def test_mismatched_unit_passes_when_no_warehouse_id(self, session: Session):
+        """测试品类没有关联仓库时验证通过（旧数据兼容）"""
         # 创建计件类型仓库（预设单位为 "件"）
         warehouse = Warehouse(
             name="计件仓库",
@@ -275,27 +279,69 @@ class TestValidateCategoryUnitForWarehouse:
         session.commit()
         session.refresh(warehouse)
         
-        # 创建单位为 "点" 的品类（与仓库不匹配）
+        # 创建单位为 "点" 的品类（没有关联仓库，旧数据）
+        # 根据新设计，单位由仓库类型决定，品类的 unit 字段不再用于验证
         category = PieceWorkCategory(
             name="点位品类",
             unit_price=10.0,
             unit="点",
+            warehouse_id=None,  # 没有关联仓库
             is_active=True
         )
         session.add(category)
         session.commit()
         session.refresh(category)
         
-        # 验证应该抛出 400 错误
+        # 验证应该通过（旧数据兼容）
+        validate_category_unit_for_warehouse(
+            session,
+            category_id=category.id,
+            warehouse_id=warehouse.id
+        )
+    
+    def test_category_belongs_to_other_warehouse_raises_400(self, session: Session):
+        """测试品类属于其他仓库时抛出 400 错误"""
+        # 创建两个仓库
+        warehouse1 = Warehouse(
+            name="仓库1",
+            address="测试地址1",
+            warehouse_type=WarehouseType.PIECE,
+            is_active=True
+        )
+        warehouse2 = Warehouse(
+            name="仓库2",
+            address="测试地址2",
+            warehouse_type=WarehouseType.POINT,
+            is_active=True
+        )
+        session.add(warehouse1)
+        session.add(warehouse2)
+        session.commit()
+        session.refresh(warehouse1)
+        session.refresh(warehouse2)
+        
+        # 创建属于仓库1的品类
+        category = PieceWorkCategory(
+            name="仓库1品类",
+            unit_price=10.0,
+            unit="件",
+            warehouse_id=warehouse1.id,
+            is_active=True
+        )
+        session.add(category)
+        session.commit()
+        session.refresh(category)
+        
+        # 尝试在仓库2中使用仓库1的品类，应该抛出 400 错误
         with pytest.raises(HTTPException) as exc_info:
             validate_category_unit_for_warehouse(
                 session,
                 category_id=category.id,
-                warehouse_id=warehouse.id
+                warehouse_id=warehouse2.id
             )
         
         assert exc_info.value.status_code == 400
-        assert "不匹配" in exc_info.value.detail
+        assert "不属于" in exc_info.value.detail
     
     def test_nonexistent_category_raises_404(self, session: Session):
         """测试品类不存在时抛出 404 错误"""

@@ -52,6 +52,7 @@ WAREHOUSE_TYPE_DISPLAY_MAP: Dict[str, str] = {
     "point": "点位",     # 点位类型
     "whole": "整车",     # 整车类型
     "distance": "距离",  # 距离类型
+    "custom": "自定义",  # 自定义类型
 }
 
 
@@ -127,6 +128,62 @@ def get_warehouse_type_display_name(warehouse_type: Any) -> str:
     
     # 从映射中获取显示名称，默认返回 "未知"
     return WAREHOUSE_TYPE_DISPLAY_MAP.get(type_value, "未知")
+
+
+def get_warehouse_unit(warehouse: Any) -> str:
+    """
+    获取仓库的计量单位
+    
+    根据仓库对象获取对应的计量单位字符串。
+    - 预设类型（piece/point/whole/distance）返回对应的预设单位
+    - 自定义类型（custom）返回仓库的 custom_unit 字段值
+    - 未设置或无效类型返回空字符串
+    
+    Args:
+        warehouse: 仓库对象，需要包含 warehouse_type 属性
+            - 预设类型返回对应单位：piece→件, point→点, whole→车, distance→公里
+            - custom 类型返回 custom_unit 字段值
+            - 无效类型或未设置返回空字符串
+    
+    Returns:
+        str: 单位字符串，未设置时返回空字符串（不提供默认值）
+    
+    Example:
+        >>> from models import Warehouse, WarehouseType
+        >>> warehouse = Warehouse(warehouse_type="piece")
+        >>> get_warehouse_unit(warehouse)
+        '件'
+        >>> warehouse = Warehouse(warehouse_type="custom", custom_unit="箱")
+        >>> get_warehouse_unit(warehouse)
+        '箱'
+        >>> warehouse = Warehouse(warehouse_type="custom")  # 未设置 custom_unit
+        >>> get_warehouse_unit(warehouse)
+        ''
+    
+    Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
+    """
+    # 如果仓库对象为空或没有 warehouse_type 属性，返回空字符串
+    if not warehouse or not hasattr(warehouse, 'warehouse_type'):
+        return ""
+    
+    warehouse_type = warehouse.warehouse_type
+    if not warehouse_type:
+        return ""
+    
+    # 如果是枚举类型，获取其值
+    if hasattr(warehouse_type, 'value'):
+        type_value = warehouse_type.value
+    else:
+        type_value = str(warehouse_type)
+    
+    # custom 类型使用自定义单位
+    if type_value == "custom":
+        # 获取 custom_unit 字段，未设置时返回空字符串
+        custom_unit = getattr(warehouse, 'custom_unit', None)
+        return custom_unit if custom_unit else ""
+    
+    # 其他预设类型从映射获取，未知类型返回空字符串
+    return WAREHOUSE_TYPE_UNIT_MAP.get(type_value, "")
 
 
 # ============ 资源获取函数 ============
@@ -1778,10 +1835,10 @@ def validate_category_unit_for_warehouse(
     warehouse_id: int
 ) -> None:
     """
-    验证品类单位是否与仓库类型匹配
+    验证品类是否属于指定仓库
     
-    在创建计件记录时，验证所选品类的单位是否与仓库的预设单位一致。
-    如果不匹配，抛出 HTTP 400 错误。
+    品类的单位由其所属仓库的类型决定，不再单独验证单位。
+    只需要确保品类属于该仓库即可。
     
     Args:
         session: 数据库会话对象
@@ -1789,19 +1846,10 @@ def validate_category_unit_for_warehouse(
         warehouse_id: 仓库 ID
     
     Raises:
-        HTTPException: 当品类单位与仓库类型不匹配时抛出 400 错误
+        HTTPException: 当品类不属于该仓库时抛出 400 错误
         HTTPException: 当品类或仓库不存在时抛出 404 错误
     
-    Example:
-        >>> # 假设仓库类型为 PIECE（预设单位为"件"），品类单位为"件"
-        >>> validate_category_unit_for_warehouse(session, category_id=1, warehouse_id=1)
-        >>> # 验证通过，无异常
-        
-        >>> # 假设仓库类型为 PIECE（预设单位为"件"），品类单位为"点"
-        >>> validate_category_unit_for_warehouse(session, category_id=2, warehouse_id=1)
-        >>> # 抛出 HTTPException 400
-    
-    Requirements: 3.1 - 品类单位限制
+    Requirements: 3.1 - 品类单位限制（由仓库类型决定）
     """
     # 延迟导入避免循环依赖
     import crud
@@ -1823,14 +1871,15 @@ def validate_category_unit_for_warehouse(
             detail="仓库不存在"
         )
     
-    # 3. 获取仓库的预设单位
-    warehouse_preset_unit = get_warehouse_preset_unit(warehouse.warehouse_type)
-    
-    # 4. 比较品类单位与仓库预设单位
-    if category.unit != warehouse_preset_unit:
+    # 3. 验证品类是否属于该仓库
+    # 品类的单位由其所属仓库的类型决定，不再使用品类自身的 unit 字段
+    if category.warehouse_id is not None and category.warehouse_id != warehouse_id:
+        # 品类属于其他仓库，不允许在当前仓库使用
         raise HTTPException(
             status_code=400,
-            detail=f"品类单位「{category.unit}」与仓库预设单位「{warehouse_preset_unit}」不匹配。"
-                   f"该仓库类型为「{get_warehouse_type_display_name(warehouse.warehouse_type)}」，"
-                   f"只能录入单位为「{warehouse_preset_unit}」的品类。"
+            detail=f"品类「{category.name}」不属于仓库「{warehouse.name}」，请选择该仓库的品类。"
         )
+    
+    # 4. 如果品类没有关联仓库（旧数据），也允许使用
+    # 单位由仓库类型决定，前端会正确显示
+    # 验证通过

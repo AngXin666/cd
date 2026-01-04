@@ -4,7 +4,7 @@
   "description": "车队管家前端 - UniApp (Vue 3 + TypeScript)",
   "scripts": {
     "dev:h5": "uni -p h5",
-    "build:h5": "uni build -p h5",
+    "build:h5": "uni build -p h5 && ./fix-paths.sh",
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:mp-weixin": "uni build -p mp-weixin",
     "dev:app": "uni -p app",
@@ -22,7 +22,8 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4010520240507001",
     "@rollup/rollup-darwin-x64": "^4.54.0",
     "pinia": "^2.1.7",
-    "vue": "^3.4.21"
+    "vue": "^3.4.21",
+    "vue-router": "^4.2.5"
   },
   "devDependencies": {
     "@dcloudio/types": "^3.4.8",

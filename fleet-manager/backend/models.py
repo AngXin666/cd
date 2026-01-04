@@ -124,11 +124,17 @@ class Warehouse(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, index=True)
     address: Optional[str] = Field(default=None, max_length=255)
-    # 仓库类型：piece=计件, point=点位, whole=整车, distance=距离
+    # 仓库类型：piece=计件, point=点位, whole=整车, distance=距离, custom=自定义
     warehouse_type: str = Field(
         default=WarehouseType.PIECE.value,
         sa_column=Column(String(20)),
         description="仓库类型"
+    )
+    # 自定义单位（仅 custom 类型使用）
+    custom_unit: Optional[str] = Field(
+        default=None,
+        max_length=20,
+        description="自定义单位名称（仅 custom 类型使用）"
     )
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)

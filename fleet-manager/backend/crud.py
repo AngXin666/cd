@@ -633,8 +633,11 @@ def get_attendance_records(
 def create_piece_work_category(
     session: Session,
     name: str,
-    unit_price: float,
+    unit_price: float = 0.0,
     unit: str = "件",
+    warehouse_id: Optional[int] = None,
+    driver_only_price: float = 0.0,
+    with_vehicle_price: float = 0.0,
     upstairs_price: Optional[float] = None,
     sorting_price: Optional[float] = None
 ) -> PieceWorkCategory:
@@ -644,8 +647,11 @@ def create_piece_work_category(
     Args:
         session: 数据库会话
         name: 分类名称
-        unit_price: 基础单价
-        unit: 计量单位
+        unit_price: 基础单价（兼容旧数据）
+        unit: 计量单位（由仓库类型决定）
+        warehouse_id: 关联仓库ID
+        driver_only_price: 纯司机单价
+        with_vehicle_price: 带车司机单价
         upstairs_price: 上楼单价（可选）
         sorting_price: 分拣单价（可选）
 
@@ -656,7 +662,10 @@ def create_piece_work_category(
     """
     category = PieceWorkCategory(
         name=name,
+        warehouse_id=warehouse_id,
         unit_price=unit_price,
+        driver_only_price=driver_only_price,
+        with_vehicle_price=with_vehicle_price,
         unit=unit,
         upstairs_price=upstairs_price,
         sorting_price=sorting_price
@@ -670,17 +679,19 @@ def create_piece_work_category(
 def get_piece_work_categories(
     session: Session,
     is_active: Optional[bool] = None,
-    unit: Optional[str] = None
+    unit: Optional[str] = None,
+    warehouse_id: Optional[int] = None
 ) -> List[PieceWorkCategory]:
     """
     获取计件分类列表
     
-    支持按启用状态和单位筛选。
+    支持按启用状态、单位和仓库筛选。
 
     Args:
         session: 数据库会话
         is_active: 按启用状态筛选（可选）
         unit: 按计量单位筛选（可选），如 "件"、"点"、"车"、"公里"
+        warehouse_id: 按仓库ID筛选（可选）
 
     Returns:
         List[PieceWorkCategory]: 分类列表
@@ -698,6 +709,10 @@ def get_piece_work_categories(
     # Requirements: 7.4 - 支持按单位筛选品类
     if unit is not None:
         statement = statement.where(PieceWorkCategory.unit == unit)
+    
+    # 按仓库ID筛选
+    if warehouse_id is not None:
+        statement = statement.where(PieceWorkCategory.warehouse_id == warehouse_id)
 
     return list(session.exec(statement).all())
 
@@ -710,7 +725,9 @@ def update_piece_work_category(
     unit: Optional[str] = None,
     is_active: Optional[bool] = None,
     upstairs_price: Optional[float] = None,
-    sorting_price: Optional[float] = None
+    sorting_price: Optional[float] = None,
+    driver_only_price: Optional[float] = None,
+    with_vehicle_price: Optional[float] = None
 ) -> PieceWorkCategory:
     """
     更新计件分类
@@ -724,6 +741,8 @@ def update_piece_work_category(
         is_active: 新启用状态（可选）
         upstairs_price: 新上楼单价（可选）
         sorting_price: 新分拣单价（可选）
+        driver_only_price: 纯司机单价（可选）
+        with_vehicle_price: 带车司机单价（可选）
 
     Returns:
         PieceWorkCategory: 更新后的分类对象
@@ -742,6 +761,10 @@ def update_piece_work_category(
         category.upstairs_price = upstairs_price
     if sorting_price is not None:
         category.sorting_price = sorting_price
+    if driver_only_price is not None:
+        category.driver_only_price = driver_only_price
+    if with_vehicle_price is not None:
+        category.with_vehicle_price = with_vehicle_price
 
     session.add(category)
     session.commit()

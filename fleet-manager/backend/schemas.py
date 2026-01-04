@@ -135,7 +135,7 @@ class WarehouseBase(BaseModel):
     仓库基础模式
     
     定义仓库的基本信息字段，作为创建和响应模式的基类。
-    支持四种仓库类型，每种类型对应预设的计量单位。
+    支持五种仓库类型，每种类型对应预设的计量单位。
     
     Attributes:
         name: 仓库名称，必填，长度 1-100 字符
@@ -146,17 +146,25 @@ class WarehouseBase(BaseModel):
             - POINT: 点位类型，预设单位为"点"
             - WHOLE: 整车类型，预设单位为"车"
             - DISTANCE: 距离类型，预设单位为"公里"
+            - CUSTOM: 自定义类型，单位由 custom_unit 字段指定
+        custom_unit: 自定义单位名称，仅 CUSTOM 类型使用
         
     Requirements:
         - Requirement 1.1: 支持四种仓库类型
         - Requirement 1.2-1.5: 每种类型对应预设单位
         - Requirement 1.6: 仓库类型字段默认值为 "piece"
+        - Requirement 4.1: 支持自定义类型和自定义单位
         
     Example:
         >>> warehouse = WarehouseBase(
         ...     name="北京仓库",
         ...     address="北京市朝阳区",
         ...     warehouse_type=WarehouseType.PIECE
+        ... )
+        >>> custom_warehouse = WarehouseBase(
+        ...     name="特殊仓库",
+        ...     warehouse_type=WarehouseType.CUSTOM,
+        ...     custom_unit="箱"
         ... )
     """
     # 仓库名称，必填字段
@@ -166,11 +174,18 @@ class WarehouseBase(BaseModel):
     # 是否启用，默认启用
     is_active: bool = Field(default=True, description="是否启用")
     # 仓库类型字段，默认为计件类型
-    # 支持四种类型：piece=计件, point=点位, whole=整车, distance=距离
-    # Requirements: 1.1-1.6 - 支持四种仓库类型，默认为 piece
+    # 支持五种类型：piece=计件, point=点位, whole=整车, distance=距离, custom=自定义
+    # Requirements: 1.1-1.6, 4.1 - 支持五种仓库类型，默认为 piece
     warehouse_type: WarehouseType = Field(
         default=WarehouseType.PIECE,
-        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离"
+        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离, custom=自定义"
+    )
+    # 自定义单位名称（仅 custom 类型使用）
+    # Requirements: 4.1 - 支持自定义单位
+    custom_unit: Optional[str] = Field(
+        default=None,
+        max_length=20,
+        description="自定义单位名称（仅 custom 类型使用）"
     )
 
 
@@ -187,6 +202,7 @@ class WarehouseCreate(WarehouseBase):
         address: 仓库地址（可选，最大 255 字符）
         is_active: 是否启用（默认 True）
         warehouse_type: 仓库类型（默认 WarehouseType.PIECE）
+        custom_unit: 自定义单位名称（仅 custom 类型使用）
         
     新增字段:
         category_name: 品类名称（可选）
@@ -196,6 +212,7 @@ class WarehouseCreate(WarehouseBase):
     Requirements: 
         - Requirement 1.6: 仓库类型字段默认值为 "piece"
         - Requirement 2.3: 创建新仓库时默认类型为"计件"
+        - Requirement 4.1: 支持自定义类型和自定义单位
         - Requirement 7.1: API 接口支持创建带类型的仓库
         
     Example:
@@ -206,6 +223,11 @@ class WarehouseCreate(WarehouseBase):
         ...     category_name="搬运",
         ...     driver_only_price=10.0,
         ...     with_vehicle_price=15.0
+        ... )
+        >>> custom_data = WarehouseCreate(
+        ...     name="特殊仓库",
+        ...     warehouse_type=WarehouseType.CUSTOM,
+        ...     custom_unit="箱"
         ... )
     """
     # 品类名称（可选）
@@ -234,7 +256,7 @@ class WarehouseUpdate(BaseModel):
     
     用于更新仓库信息时的请求数据验证。
     所有字段均为可选，只更新提供的字段。
-    支持更新仓库类型。
+    支持更新仓库类型和自定义单位。
     
     Attributes:
         name: 仓库名称（可选，最大 100 字符）
@@ -245,14 +267,21 @@ class WarehouseUpdate(BaseModel):
             - point: 点位类型
             - whole: 整车类型
             - distance: 距离类型
+            - custom: 自定义类型
+        custom_unit: 自定义单位名称（可选，仅 custom 类型使用）
         
     Requirements:
         - Requirement 2.4: 更新仓库类型时验证并保存新类型
+        - Requirement 4.1: 支持自定义类型和自定义单位
         - Requirement 7.1: API 接口支持更新仓库类型
         
     Example:
         >>> update_data = WarehouseUpdate(
         ...     warehouse_type=WarehouseType.WHOLE
+        ... )
+        >>> custom_update = WarehouseUpdate(
+        ...     warehouse_type=WarehouseType.CUSTOM,
+        ...     custom_unit="箱"
         ... )
     """
     # 仓库名称，可选更新
@@ -262,10 +291,17 @@ class WarehouseUpdate(BaseModel):
     # 是否启用，可选更新
     is_active: Optional[bool] = Field(default=None, description="是否启用")
     # 仓库类型字段，支持更新仓库类型
-    # Requirements: 2.4, 7.1 - 支持更新仓库类型
+    # Requirements: 2.4, 4.1, 7.1 - 支持更新仓库类型和自定义类型
     warehouse_type: Optional[WarehouseType] = Field(
         default=None,
-        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离"
+        description="仓库类型：piece=计件, point=点位, whole=整车, distance=距离, custom=自定义"
+    )
+    # 自定义单位名称（仅 custom 类型使用）
+    # Requirements: 4.1 - 支持自定义单位
+    custom_unit: Optional[str] = Field(
+        default=None,
+        max_length=20,
+        description="自定义单位名称（仅 custom 类型使用）"
     )
 
 
@@ -282,14 +318,17 @@ class WarehouseResponse(WarehouseBase):
         address: 仓库地址（继承自 WarehouseBase）
         is_active: 是否启用（继承自 WarehouseBase）
         warehouse_type: 仓库类型（继承自 WarehouseBase）
+        custom_unit: 自定义单位名称（继承自 WarehouseBase，仅 custom 类型使用）
         preset_unit: 预设单位，根据仓库类型自动计算
             - piece → "件"
             - point → "点"
             - whole → "车"
             - distance → "公里"
+            - custom → custom_unit 字段值
         created_at: 创建时间
         
     Requirements:
+        - Requirement 4.1: 支持自定义类型和自定义单位
         - Requirement 7.1: API 返回包含 warehouse_type 字段
         - Requirement 7.2: API 返回包含 preset_unit 字段（基于仓库类型计算）
         
@@ -301,13 +340,21 @@ class WarehouseResponse(WarehouseBase):
         ...     preset_unit="件",
         ...     created_at=datetime.now()
         ... )
+        >>> custom_response = WarehouseResponse(
+        ...     id=2,
+        ...     name="特殊仓库",
+        ...     warehouse_type=WarehouseType.CUSTOM,
+        ...     custom_unit="箱",
+        ...     preset_unit="箱",
+        ...     created_at=datetime.now()
+        ... )
     """
     # 仓库ID，主键
     id: int = Field(..., description="仓库ID")
     # 创建时间
     created_at: datetime = Field(..., description="创建时间")
     # 预设单位字段（计算字段）
-    # 根据 warehouse_type 自动计算：piece→件, point→点, whole→车, distance→公里
+    # 根据 warehouse_type 自动计算：piece→件, point→点, whole→车, distance→公里, custom→custom_unit
     # Requirements: 7.2 - API 返回预设单位
     preset_unit: str = Field(default="件", description="预设单位，根据仓库类型自动计算")
 
@@ -323,6 +370,7 @@ class WarehouseResponse(WarehouseBase):
         
         工厂方法，用于将数据库模型对象转换为 API 响应对象。
         自动根据仓库类型计算 preset_unit 字段值。
+        对于 custom 类型，使用 custom_unit 字段值作为 preset_unit。
         
         Args:
             warehouse: Warehouse 数据库模型对象，包含仓库的所有信息
@@ -342,24 +390,35 @@ class WarehouseResponse(WarehouseBase):
             ... )
             >>> response = WarehouseResponse.from_warehouse(warehouse)
             >>> print(response.preset_unit)  # 输出: "件"
+            >>> custom_warehouse = Warehouse(
+            ...     id=2,
+            ...     name="特殊仓库",
+            ...     warehouse_type=WarehouseType.CUSTOM,
+            ...     custom_unit="箱"
+            ... )
+            >>> response = WarehouseResponse.from_warehouse(custom_warehouse)
+            >>> print(response.preset_unit)  # 输出: "箱"
             
         Requirements: 
+            - Requirement 4.1: 支持自定义类型和自定义单位
             - Requirement 7.2: API 返回预设单位
             
         Note:
             使用延迟导入避免循环依赖问题
         """
         # 延迟导入避免循环依赖
-        from helpers import get_warehouse_preset_unit
+        from helpers import get_warehouse_unit
         
         # 创建响应对象，自动计算预设单位
+        # 对于 custom 类型，get_warehouse_unit 会返回 custom_unit 字段值
         return cls(
             id=warehouse.id,
             name=warehouse.name,
             address=warehouse.address,
             is_active=warehouse.is_active,
             warehouse_type=warehouse.warehouse_type,
-            preset_unit=get_warehouse_preset_unit(warehouse.warehouse_type),
+            custom_unit=warehouse.custom_unit,
+            preset_unit=get_warehouse_unit(warehouse),
             created_at=warehouse.created_at
         )
 
