@@ -371,7 +371,7 @@
  * @module pages/boss/users
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUsers, getWarehouses, createUser, updateUser, assignUserWarehouses, getVehicles, getUserWarehouses } from '@/api'
 import type { User, Warehouse, Vehicle } from '@/api/types'
@@ -384,6 +384,9 @@ import {
   getWarehouseDriverCount as getWarehouseDriverCountUtil,
   getUnassignedUserCount as getUnassignedUserCountUtil,
 } from '@/utils/warehouse'
+import { useWarehouseDataCache } from '@/composables/useWarehouseDataCache'
+import { sseService } from '@/utils/sse'
+import type { AssignmentUpdateEvent } from '@/types/sse-events'
 
 // ==================== 类型定义 ====================
 
@@ -405,22 +408,35 @@ interface UserDetailInfo {
   plateNumbers?: string[]
 }
 
+/**
+ * 用户管理页面数据类型
+ * 包含用户列表、用户详情和仓库分配信息
+ */
+interface UserManagementData {
+  /** 用户列表 */
+  users: User[]
+  /** 用户详细信息映射 */
+  userDetails: Map<number, UserDetailInfo>
+  /** 用户仓库ID映射 */
+  userWarehouseIdsMap: Map<number, number[]>
+}
+
 // ==================== 状态 ====================
 
-/** 加载状态 */
-const loading = ref(false)
+/** 加载状态（由 composable 管理） */
+// const loading = ref(false) // 已移除，使用 composable 的 isLoading
 
-/** 用户列表 */
-const users = ref<User[]>([])
+/** 用户列表（由 composable 管理） */
+// const users = ref<User[]>([]) // 已移除，使用 composable 的 currentData
 
 /** 仓库列表 */
 const warehouses = ref<Warehouse[]>([])
 
-/** 用户详细信息映射 */
-const userDetails = ref<Map<number, UserDetailInfo>>(new Map())
+/** 用户详细信息映射（由 composable 管理） */
+// const userDetails = ref<Map<number, UserDetailInfo>>(new Map()) // 已移除，使用 composable 的 currentData
 
-/** 用户仓库ID映射 */
-const userWarehouseIdsMap = ref<Map<number, number[]>>(new Map())
+/** 用户仓库ID映射（由 composable 管理） */
+// const userWarehouseIdsMap = ref<Map<number, number[]>>(new Map()) // 已移除，使用 composable 的 currentData
 
 // ==================== 筛选状态 ====================
 
@@ -475,6 +491,109 @@ const tabs = [
   { key: 'MANAGER' as const, label: '管理员管理', icon: '👔' },
 ]
 
+// ==================== 数据加载函数 ====================
+
+/**
+ * 加载用户管理数据
+ * 包括用户列表、用户详情和仓库分配信息
+ * @param warehouseId - 仓库ID（用于司机管理标签页的筛选）
+ * @returns 用户管理数据
+ */
+async function loadUserManagementData(warehouseId: number): Promise<UserManagementData> {
+  // 加载用户列表
+  const usersData = await getUsers()
+  
+  // 加载用户详细信息
+  const detailsMap = new Map<number, UserDetailInfo>()
+  const warehouseIdsMap = new Map<number, number[]>()
+
+  // 获取所有车辆信息
+  const allVehicles = await getVehicles()
+
+  // 并行获取所有用户的仓库分配
+  const warehousePromises = usersData.map(async (user) => {
+    try {
+      const userWarehouses = await getUserWarehouses(user.id)
+      return { userId: user.id, warehouseIds: userWarehouses.map(w => w.id) }
+    } catch (error) {
+      return { userId: user.id, warehouseIds: [] }
+    }
+  })
+  
+  const warehouseResults = await Promise.all(warehousePromises)
+  warehouseResults.forEach(({ userId, warehouseIds }) => {
+    warehouseIdsMap.set(userId, warehouseIds)
+  })
+
+  // 构建用户详情
+  for (const user of usersData) {
+    const validVehicles = getValidVehicles(allVehicles, user.id)
+    
+    const detail: UserDetailInfo = {
+      vehicleCount: validVehicles.length,
+      plateNumbers: validVehicles.map(v => v.license_plate),
+      joinDate: user.created_at ? user.created_at.split('T')[0] : null,
+      workDays: user.created_at ? calculateWorkDays(user.created_at) : null,
+    }
+    
+    detailsMap.set(user.id, detail)
+  }
+
+  return {
+    users: usersData,
+    userDetails: detailsMap,
+    userWarehouseIdsMap: warehouseIdsMap,
+  }
+}
+
+/**
+ * 计算在职天数
+ * @param createdAt - 创建时间
+ * @returns 在职天数
+ */
+function calculateWorkDays(createdAt: string): number {
+  const startDate = new Date(createdAt)
+  const today = new Date()
+  const diffTime = today.getTime() - startDate.getTime()
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24))
+}
+
+// ==================== 仓库数据缓存 Composable ====================
+
+/**
+ * 使用仓库数据缓存 composable
+ * 实现无感切换和数据预加载
+ */
+const {
+  currentData,
+  isLoading: loading,
+  switchWarehouse,
+  refreshCurrent,
+  refreshAll,
+} = useWarehouseDataCache<UserManagementData>({
+  loadDataFn: loadUserManagementData,
+  warehouses,  // 直接使用 warehouses ref，避免循环依赖
+  currentIndex: currentWarehouseIndex,
+  enablePreload: true,
+})
+
+// ==================== 从缓存数据中提取状态 ====================
+
+/**
+ * 用户列表（从缓存数据中提取）
+ */
+const users = computed<User[]>(() => currentData.value?.users || [])
+
+/**
+ * 用户详细信息映射（从缓存数据中提取）
+ */
+const userDetails = computed<Map<number, UserDetailInfo>>(() => currentData.value?.userDetails || new Map<number, UserDetailInfo>())
+
+/**
+ * 用户仓库ID映射（从缓存数据中提取）
+ */
+const userWarehouseIdsMap = computed<Map<number, number[]>>(() => currentData.value?.userWarehouseIdsMap || new Map<number, number[]>())
+
 // ==================== 计算属性 ====================
 
 /**
@@ -489,7 +608,7 @@ const currentRoleFilter = computed(() => {
  * 有司机的仓库列表
  * 使用统一的工具函数过滤
  */
-const warehousesWithDrivers = computed(() => {
+const warehousesWithDrivers = computed<Warehouse[]>(() => {
   return filterWarehousesWithDrivers({
     warehouses: warehouses.value,
     userWarehouseIdsMap: userWarehouseIdsMap.value,
@@ -611,97 +730,52 @@ const filteredUsers = computed(() => {
 
 // ==================== 生命周期 ====================
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  // 加载仓库列表
+  try {
+    const warehousesData = await getWarehouses({ is_active: true })
+    warehouses.value = warehousesData
+  } catch (error) {
+    console.error('加载仓库列表失败:', error)
+    uni.showToast({ title: '加载仓库失败', icon: 'none' })
+  }
+  
+  // composable 会自动加载当前仓库的数据
+  
+  // 监听仓库分配更新事件
+  // Requirements: 3.3 - 仓库分配变更时重新加载数据
+  sseService.setCallbacks({
+    onAssignmentUpdate: (data: AssignmentUpdateEvent) => {
+      console.log('[用户管理页面] 收到仓库分配更新事件，重新加载数据')
+      // 使用 composable 的 refreshAll 方法刷新所有仓库数据
+      refreshAll()
+    },
+  })
 })
 
 onShow(() => {
   // 每次显示页面时刷新数据
-  loadData()
+  refreshAll()
 })
 
-// ==================== 数据加载方法 ====================
+onUnmounted(() => {
+  // 清理 SSE 回调
+  sseService.setCallbacks({})
+})
+
+// ==================== 数据加载方法（已移除，由 composable 管理） ====================
 
 /**
- * 加载所有数据
+ * 加载所有数据（已废弃，由 composable 管理）
+ * 保留此注释以便理解迁移过程
  */
-async function loadData(): Promise<void> {
-  loading.value = true
-  try {
-    // 并行加载用户和仓库
-    const [usersData, warehousesData] = await Promise.all([
-      getUsers(),
-      getWarehouses({ is_active: true }),
-    ])
-
-    users.value = usersData
-    warehouses.value = warehousesData
-
-    // 加载用户详细信息
-    await loadUserDetails()
-  } catch (error) {
-    console.error('加载数据失败:', error)
-    uni.showToast({ title: '加载失败', icon: 'none' })
-  } finally {
-    loading.value = false
-  }
-}
+// async function loadData(): Promise<void> { ... }
 
 /**
- * 加载用户详细信息
- * 包括车辆信息、仓库分配等
+ * 加载用户详细信息（已废弃，已整合到 loadUserManagementData）
+ * 保留此注释以便理解迁移过程
  */
-async function loadUserDetails(): Promise<void> {
-  const detailsMap = new Map<number, UserDetailInfo>()
-  const warehouseIdsMap = new Map<number, number[]>()
-
-  // 获取所有车辆信息
-  const allVehicles = await getVehicles()
-
-  // 并行获取所有用户的仓库分配
-  const warehousePromises = users.value.map(async (user) => {
-    try {
-      const userWarehouses = await getUserWarehouses(user.id)
-      return { userId: user.id, warehouseIds: userWarehouses.map(w => w.id) }
-    } catch (error) {
-      return { userId: user.id, warehouseIds: [] }
-    }
-  })
-  
-  const warehouseResults = await Promise.all(warehousePromises)
-  warehouseResults.forEach(({ userId, warehouseIds }) => {
-    warehouseIdsMap.set(userId, warehouseIds)
-  })
-
-  // 构建用户详情
-  for (const user of users.value) {
-    const validVehicles = getValidVehicles(allVehicles, user.id)
-    
-    const detail: UserDetailInfo = {
-      vehicleCount: validVehicles.length,
-      plateNumbers: validVehicles.map(v => v.license_plate),
-      joinDate: user.created_at ? user.created_at.split('T')[0] : null,
-      workDays: user.created_at ? calculateWorkDays(user.created_at) : null,
-    }
-    
-    detailsMap.set(user.id, detail)
-  }
-
-  userDetails.value = detailsMap
-  userWarehouseIdsMap.value = warehouseIdsMap
-}
-
-/**
- * 计算在职天数
- * @param createdAt - 创建时间
- * @returns 在职天数
- */
-function calculateWorkDays(createdAt: string): number {
-  const startDate = new Date(createdAt)
-  const today = new Date()
-  const diffTime = today.getTime() - startDate.getTime()
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24))
-}
+// async function loadUserDetails(): Promise<void> { ... }
 
 // ==================== 筛选方法 ====================
 
@@ -735,10 +809,11 @@ function clearSearch(): void {
 
 /**
  * 处理仓库切换
+ * 使用 composable 的 switchWarehouse 方法实现无感切换
  * @param e - 事件对象
  */
-function handleWarehouseChange(e: { detail: { current: number } }): void {
-  currentWarehouseIndex.value = e.detail.current
+async function handleWarehouseChange(e: { detail: { current: number } }): Promise<void> {
+  await switchWarehouse(e.detail.current)
 }
 
 /**
@@ -972,7 +1047,8 @@ async function handleAddUser(): Promise<void> {
       success: () => {
         resetAddUserForm()
         showAddUser.value = false
-        loadData()
+        // 使用 composable 的 refreshAll 方法刷新数据
+        refreshAll()
       },
     })
   } catch (error: any) {
@@ -1055,7 +1131,8 @@ async function handleToggleDriverType(user: User): Promise<void> {
     await updateUser(user.id, { driver_type: newType })
     uni.hideLoading()
     uni.showToast({ title: `已切换为${newTypeText}`, icon: 'success' })
-    await loadData()
+    // 使用 composable 的 refreshAll 方法刷新数据
+    await refreshAll()
   } catch (error) {
     uni.hideLoading()
     console.error('切换司机类型失败:', error)
@@ -1141,7 +1218,8 @@ async function handleSaveWarehouseAssignment(userId: number): Promise<void> {
     uni.showToast({ title: '保存成功', icon: 'success' })
     warehouseAssignExpanded.value = null
     selectedWarehouseIds.value = []
-    await loadData()
+    // 使用 composable 的 refreshAll 方法刷新数据
+    await refreshAll()
   } catch (error) {
     uni.hideLoading()
     console.error('保存仓库分配失败:', error)

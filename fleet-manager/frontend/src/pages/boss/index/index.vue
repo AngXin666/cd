@@ -100,6 +100,23 @@
           />
         </view>
 
+        <!-- 错误提示 - Requirements 6.2, 6.3 -->
+        <view v-if="currentError" class="error-container">
+          <view class="error-card">
+            <text class="error-icon">⚠️</text>
+            <view class="error-content">
+              <text class="error-title">数据加载失败</text>
+              <text class="error-message">{{ currentError.message || '无法加载当前仓库的数据' }}</text>
+            </view>
+            <view class="error-actions">
+              <view class="retry-button" @click="handleRetryCurrentWarehouse">
+                <text class="retry-icon">🔄</text>
+                <text class="retry-text">重试</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
         <!-- 司机实时状态统计 - Requirements 1.1, 1.2 -->
         <view class="section">
           <view class="section-header">
@@ -195,7 +212,11 @@
                 <text class="feature-text">数据统计</text>
               </view>
 
-              <!-- 通知中心 -->
+              <!-- 数据报表 - 跳转到报表页面 -->
+              <view class="feature-item teal" @click="navigateTo('/pages/common/report/index')">
+                <text class="feature-icon">📈</text>
+                <text class="feature-text">数据报表</text>
+              </view>
               <view class="feature-item blue" @click="navigateTo('/pages/notifications/index')">
                 <view class="feature-icon-wrapper">
                   <text class="feature-icon">🔔</text>
@@ -208,7 +229,7 @@
               </view>
 
               <!-- 发送通知 -->
-              <view class="feature-item purple" @click="navigateTo('/pages/boss/templates/index')">
+              <view class="feature-item purple" @click="navigateTo('/pages/manager/notify/index')">
                 <text class="feature-icon">📢</text>
                 <text class="feature-text">发送通知</text>
               </view>
@@ -239,7 +260,8 @@
  * - 使用 useWarehouseLoader composable 替换 loadWarehouses
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, toRef, watch } from 'vue'
+import type { Ref } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
 import { 
@@ -251,11 +273,25 @@ import {
   getUnreadCount,
   getWarehouseUsers,
 } from '@/api'
-import { LeaveStatus, VehicleStatus, UserRole, getWarehousePresetUnit } from '@/api/types'
-import type { User } from '@/api/types'
+import { LeaveStatus, VehicleStatus, UserRole, getWarehousePresetUnit, WarehouseType } from '@/api/types'
+import type { User, Warehouse } from '@/api/types'
 import type { AssignmentUpdateEvent } from '@/types/sse-events'
 import type { DashboardStats, CardType } from '@/components/Dashboard/types'
 import type { DriverStatsData } from '@/components/DriverStats/types'
+import { sseService } from '@/utils/sse'
+
+/**
+ * 老板首页数据类型
+ * 包含仪表盘统计数据和司机状态统计数据
+ * 
+ * @requirements 7.1 - 老板首页数据结构
+ */
+interface BossHomeData {
+  /** 仪表盘统计数据 */
+  stats: DashboardStats
+  /** 司机状态统计数据 */
+  driverStats: DriverStatsData
+}
 
 // 共享组件
 import { WelcomeCard, LogoutCard } from '@/components'
@@ -268,13 +304,14 @@ import DriverStats from '@/components/DriverStats/index.vue'
 // Composables
 import { useHomeStats } from '@/composables/useHomeStats'
 import { useWarehouseLoader } from '@/composables/useWarehouseLoader'
+import { useWarehouseDataCache } from '@/composables/useWarehouseDataCache'
 
 // 工具函数
 import {
   filterWarehousesWithDataOrDrivers,
   shouldShowWarehouseSwitcher,
 } from '@/utils/warehouse'
-import { getLocalDateString } from '@/utils/date'
+import { getLocalDateString, getMonthStartStr } from '@/utils/date'
 
 // ==================== 常量 ====================
 
@@ -319,8 +356,24 @@ const {
  * 当前选中的仓库ID（用于 useHomeStats）
  */
 const currentWarehouseIdForStats = computed(() => {
-  const id = warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.id
-  return id ? parseInt(id) : undefined
+  const warehouseList = warehouses.value.map(w => ({
+    id: parseInt(w.id),
+    name: w.name,
+    address: null,
+    is_active: true,
+    created_at: '',
+    warehouse_type: WarehouseType.PIECE,
+    preset_unit: '件',
+  }))
+  const filtered = filterWarehousesWithDataOrDrivers({
+    warehouses: warehouseList,
+    warehouseDataMap: warehouseDataMap.value,
+    warehouseDriverCountMap: warehouseDriverCountMap.value,
+    warehouseTodayPieceCountMap: warehouseTodayPieceCountMap.value,
+    sortBy: 'todayPieceCount',
+  })
+  const id = filtered[currentWarehouseIndex.value]?.id
+  return id ? parseInt(String(id)) : undefined
 })
 
 /**
@@ -335,8 +388,8 @@ const {
 
 // ==================== 状态 ====================
 
-/** 加载状态（综合仓库加载和统计加载） */
-const loading = computed(() => warehouseLoading.value || statsLoading.value)
+/** 加载状态（综合仓库加载、统计加载和缓存加载） */
+const loading = computed(() => warehouseLoading.value || statsLoading.value || (cacheLoading?.value ?? false))
 
 /** 司机统计加载状态 */
 const driverStatsLoading = ref(false)
@@ -364,8 +417,22 @@ const basicStats = ref({
   pendingVehicleCount: 0,
 })
 
-/** 司机统计数据 */
-const driverStats = ref<DriverStatsData | null>(null)
+/** 
+ * 司机统计数据
+ * 优先使用缓存数据，如果缓存数据不存在则使用旧的加载方式
+ */
+const driverStats = computed<DriverStatsData | null>(() => {
+  // 优先使用缓存数据
+  if (cachedBossHomeData.value) {
+    return cachedBossHomeData.value.driverStats
+  }
+  
+  // 降级：使用旧的状态变量（兼容过渡期）
+  return driverStatsRef.value
+})
+
+/** 旧的司机统计数据（用于降级） */
+const driverStatsRef = ref<DriverStatsData | null>(null)
 
 // ==================== 计算属性 ====================
 
@@ -375,7 +442,7 @@ const driverStats = ref<DriverStatsData | null>(null)
  */
 const roleTitle = computed(() => {
   const role = userStore.user?.role
-  if (role === 'PEER_ADMIN') {
+  if (role === UserRole.PEER_ADMIN) {
     return '调度控制台'
   }
   return '老板控制台'
@@ -407,8 +474,8 @@ const warehousesWithDataOrDrivers = computed(() => {
     address: null,
     is_active: true,
     created_at: '',
-    warehouse_type: 'NORMAL' as const,
-    preset_unit: '',
+    warehouse_type: WarehouseType.PIECE,
+    preset_unit: '件',
   }))
   return filterWarehousesWithDataOrDrivers({
     warehouses: warehouseList,
@@ -424,7 +491,51 @@ const warehousesWithDataOrDrivers = computed(() => {
  * 使用统一的工具函数判断
  */
 const showWarehouseSwitcher = computed(() => {
-  return shouldShowWarehouseSwitcher(warehousesWithDataOrDrivers.value)
+  // shouldShowWarehouseSwitcher 只检查长度，所以可以传入简化的数组
+  return warehousesWithDataOrDrivers.value.length > 1
+})
+
+/**
+ * 仓库列表（用于缓存，转换为 Warehouse 类型）
+ */
+const warehousesForCache = ref<Warehouse[]>([])
+
+// 使用 watch 同步仓库列表
+watch(warehousesWithDataOrDrivers, (newWarehouses) => {
+  warehousesForCache.value = newWarehouses.map(w => ({
+    id: parseInt(w.id),
+    name: w.name,
+    address: null,
+    is_active: true,
+    created_at: '',
+    warehouse_type: WarehouseType.PIECE,
+    preset_unit: '件',
+  }))
+}, { immediate: true })
+
+/**
+ * 使用 useWarehouseDataCache composable 管理仓库数据缓存
+ * 实现无感切换功能
+ * @requirements 7.1 - 老板首页集成缓存
+ */
+const {
+  currentData: cachedBossHomeData,
+  currentError,
+  isLoading: cacheLoading,
+  isPreloading,
+  preloadProgress,
+  switchWarehouse: switchWarehouseCache,
+  refreshCurrent: refreshCurrentCache,
+  refreshAll: refreshAllCache,
+  clearCache,
+  getWarehouseData,
+  isCached,
+} = useWarehouseDataCache<BossHomeData>({
+  loadDataFn: loadBossHomeData,
+  warehouses: warehousesForCache,
+  currentIndex: currentWarehouseIndex,
+  cacheExpiry: 5 * 60 * 1000, // 5 分钟
+  enablePreload: true,
 })
 
 /**
@@ -463,14 +574,19 @@ const currentUnit = computed(() => {
 
 /**
  * 数据仪表盘统计数据
+ * 优先使用缓存数据，如果缓存数据不存在则使用旧的加载方式
  * 只在加载中时返回 null，加载完成后始终返回数据（即使为 0）
- * 使用 useHomeStats 返回的统计数据
  */
 const dashboardStats = computed<DashboardStats | null>(() => {
   // 加载中时返回 null，显示加载状态
   if (loading.value) return null
   
-  // 加载完成后返回数据（使用 useHomeStats 的数据）
+  // 优先使用缓存数据
+  if (cachedBossHomeData.value) {
+    return cachedBossHomeData.value.stats
+  }
+  
+  // 降级：使用旧的加载方式（兼容过渡期）
   return {
     todayAttendance: homeStats.value.todayAttendanceCount,
     todayPieceCount: homeStats.value.todayPieceCount,
@@ -485,6 +601,16 @@ const dashboardStats = computed<DashboardStats | null>(() => {
 onMounted(() => {
   loadData()
   showWelcomeNotification()
+  
+  // 监听仓库分配更新事件
+  // Requirements: 3.3 - 仓库分配变更时重新加载数据
+  sseService.setCallbacks({
+    onAssignmentUpdate: (data: AssignmentUpdateEvent) => {
+      console.log('[老板首页] 收到仓库分配更新事件，重新加载数据')
+      // 使用 composable 的 refreshAll 方法刷新所有仓库数据
+      refreshAllCache()
+    },
+  })
 })
 
 onUnmounted(() => {
@@ -493,6 +619,9 @@ onUnmounted(() => {
     clearTimeout(timeoutTimer)
     timeoutTimer = null
   }
+  
+  // 清理 SSE 回调
+  sseService.setCallbacks({})
 })
 
 onShow(() => {
@@ -502,17 +631,134 @@ onShow(() => {
 
 /**
  * 下拉刷新处理
+ * 使用缓存的 refreshAll 方法刷新所有数据
  * @requirements 4.1, 4.2, 4.3
+ * @requirements 7.1 - 使用缓存刷新数据
  */
 onPullDownRefresh(async () => {
   try {
-    await loadData()
+    // 刷新缓存数据
+    await refreshAllCache()
+    
+    // 同时刷新基础数据（待审批数量等）
+    await Promise.allSettled([
+      loadWarehouses(),
+      loadBasicStats(),
+      loadPendingCounts(),
+      loadUnreadCount(),
+    ])
   } finally {
     uni.stopPullDownRefresh()
   }
 })
 
 // ==================== 方法 ====================
+
+/**
+ * 加载老板首页数据
+ * 并发加载统计数据和司机状态数据
+ * 
+ * @param warehouseId - 仓库ID
+ * @returns 老板首页数据
+ * @requirements 7.1 - 老板首页数据加载
+ */
+async function loadBossHomeData(warehouseId: number): Promise<BossHomeData> {
+  try {
+    // 获取今日日期字符串（使用本地时间）
+    const todayStr = getLocalDateString()
+    
+    // 获取本月第一天
+    const monthStartStr = getMonthStartStr()
+    
+    // 并发加载所有数据
+    const [
+      attendanceRecords,
+      todayPieceStats,
+      monthPieceStats,
+      warehouseUsers,
+      pieceWorkRecords,
+    ] = await Promise.all([
+      // 加载今日考勤记录
+      (async () => {
+        const { getAttendanceRecords } = await import('@/api')
+        return getAttendanceRecords({
+          start_date: todayStr,
+          end_date: todayStr,
+          warehouse_id: warehouseId,
+          limit: 1000,
+        })
+      })(),
+      // 加载今日计件统计
+      (async () => {
+        const { getPieceWorkStats } = await import('@/api')
+        return getPieceWorkStats({
+          start_date: todayStr,
+          end_date: todayStr,
+          warehouse_id: warehouseId,
+        })
+      })(),
+      // 加载本月计件统计
+      (async () => {
+        const { getPieceWorkStats } = await import('@/api')
+        return getPieceWorkStats({
+          start_date: monthStartStr,
+          end_date: todayStr,
+          warehouse_id: warehouseId,
+        })
+      })(),
+      // 加载仓库用户
+      getWarehouseUsers(warehouseId),
+      // 加载今日计件记录
+      getPieceWorkRecords({
+        start_date: todayStr,
+        end_date: todayStr,
+        warehouse_id: warehouseId,
+        limit: 1000,
+      }),
+    ])
+    
+    // 统计今日出勤人数（去重）
+    const uniqueUserIds = new Set(attendanceRecords.map(r => r.user_id))
+    const todayAttendanceCount = uniqueUserIds.size
+    
+    // 获取司机列表
+    const drivers = warehouseUsers.filter(u => u.role === UserRole.DRIVER)
+    
+    // 统计已打卡司机（今日有打卡记录的）
+    const onlineDriverIds = new Set(attendanceRecords.map(r => r.user_id))
+    
+    // 统计已计数司机（今日有计件记录的）
+    const busyDriverIds = new Set(pieceWorkRecords.map(r => r.user_id))
+    const busyDriverCount = busyDriverIds.size
+    
+    // 未计数司机 = 已打卡司机 - 已计数司机
+    const idleDriverCount = Math.max(0, onlineDriverIds.size - busyDriverCount)
+    
+    // 获取当前仓库的计量单位
+    const warehouseType = warehouseTypeMap.value.get(warehouseId)
+    const unit = warehouseType ? getWarehousePresetUnit(warehouseType) : '件'
+    
+    // 构造返回数据
+    return {
+      stats: {
+        todayAttendance: todayAttendanceCount,
+        todayPieceCount: todayPieceStats.total_quantity || 0,
+        pendingCount: totalPendingCount.value,
+        monthlyPieceCount: monthPieceStats.total_quantity || 0,
+        unit,
+      },
+      driverStats: {
+        totalDrivers: drivers.length,
+        onlineDrivers: onlineDriverIds.size,
+        busyDrivers: busyDriverCount,
+        idleDrivers: idleDriverCount,
+      },
+    }
+  } catch (error) {
+    console.error('[loadBossHomeData] 加载失败:', error)
+    throw error
+  }
+}
 
 /**
  * 显示欢迎通知（首次访问）
@@ -573,6 +819,16 @@ function clearTimeoutTimer(): void {
 function handleRetry(): void {
   loadTimeout.value = false
   loadData()
+}
+
+/**
+ * 处理当前仓库重试
+ * 当前仓库数据加载失败时，点击重试按钮重新加载
+ * @requirements 6.3 - 重试触发重新加载
+ */
+async function handleRetryCurrentWarehouse(): Promise<void> {
+  console.log('[老板首页] 重试加载当前仓库数据')
+  await refreshCurrentCache()
 }
 
 /**
@@ -717,7 +973,7 @@ async function loadDriverStats(): Promise<void> {
     const idleDriverCount = Math.max(0, onlineDriverIds.size - busyDriverCount)
     
     // 更新司机统计数据
-    driverStats.value = {
+    driverStatsRef.value = {
       totalDrivers: drivers.length,
       onlineDrivers: onlineDriverIds.size,
       busyDrivers: busyDriverCount,
@@ -725,7 +981,7 @@ async function loadDriverStats(): Promise<void> {
     }
   } catch (error) {
     console.error('加载司机统计失败:', error)
-    driverStats.value = {
+    driverStatsRef.value = {
       totalDrivers: 0,
       onlineDrivers: 0,
       busyDrivers: 0,
@@ -742,10 +998,11 @@ async function loadDriverStats(): Promise<void> {
  * @param url - 目标页面路径
  */
 function navigateTo(url: string): void {
-  // tabBar 页面列表
+  console.log('[BossHome] navigateTo 被调用，目标路径:', url)
+  
+  // tabBar 页面列表（只包含实际的 tabBar 页面）
   const tabBarPages = [
     '/pages/index/index',
-    '/pages/notifications/index',
     '/pages/profile/index',
   ]
   
@@ -754,22 +1011,48 @@ function navigateTo(url: string): void {
   
   if (isTabBarPage) {
     // tabBar 页面使用 switchTab
-    uni.switchTab({ url })
+    console.log('[BossHome] 使用 switchTab 跳转')
+    uni.switchTab({ 
+      url,
+      success: () => console.log('[BossHome] switchTab 成功'),
+      fail: (err) => console.error('[BossHome] switchTab 失败:', err),
+    })
   } else {
     // 普通页面使用 navigateTo
-    uni.navigateTo({ url })
+    console.log('[BossHome] 使用 navigateTo 跳转')
+    uni.navigateTo({ 
+      url,
+      success: () => console.log('[BossHome] navigateTo 成功'),
+      fail: (err) => {
+        console.error('[BossHome] navigateTo 失败:', err)
+        // 如果 navigateTo 失败，尝试使用 redirectTo
+        uni.redirectTo({
+          url,
+          fail: (err2) => console.error('[BossHome] redirectTo 也失败:', err2),
+        })
+      },
+    })
   }
 }
 
 /**
  * 处理仓库切换
+ * 使用缓存实现无感切换
  * @param index - 新选中的仓库索引
  * @requirements 1.3 - 仓库切换时数据更新
+ * @requirements 7.1 - 使用缓存实现无感切换
  */
-function handleWarehouseChange(index: number): void {
-  currentWarehouseIndex.value = index
-  // 切换仓库后重新加载数据
-  loadData()
+async function handleWarehouseChange(index: number): Promise<void> {
+  // 使用缓存切换仓库（无感切换）
+  await switchWarehouseCache(index)
+  
+  // 如果缓存未命中，需要重新加载待审批数量等基础数据
+  if (!isCached(parseInt(warehousesWithDataOrDrivers.value[index]?.id || '0'))) {
+    await Promise.allSettled([
+      loadPendingCounts(),
+      loadUnreadCount(),
+    ])
+  }
 }
 
 /**
@@ -911,6 +1194,7 @@ function onScrollToLower(): void {
   &.green { background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); }
   &.orange { background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); }
   &.purple { background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%); }
+  &.teal { background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%); }
   &.red { background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%); }
 }
 
@@ -927,5 +1211,73 @@ function onScrollToLower(): void {
   font-size: 26rpx;
   font-weight: 500;
   color: #374151;
+}
+
+/* ==================== 错误提示 ==================== */
+.error-container {
+  padding: 0 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.error-card {
+  background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+  border: 2rpx solid #FCA5A5;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.error-icon {
+  font-size: 48rpx;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.error-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #991B1B;
+}
+
+.error-message {
+  font-size: 24rpx;
+  color: #B91C1C;
+  line-height: 1.5;
+}
+
+.error-actions {
+  flex-shrink: 0;
+}
+
+.retry-button {
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.retry-icon {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+.retry-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #ffffff;
 }
 </style>

@@ -413,3 +413,42 @@ class DriverLicense(SQLModel, table=True):
 
     # 关联关系
     user: Optional[User] = Relationship(back_populates="driver_license")
+
+
+class AppVersion(SQLModel, table=True):
+    """
+    应用版本表
+    存储应用版本信息，支持热更新（wgt）和整包更新（apk）
+    用于版本检查、更新下载和版本历史管理
+    """
+    __tablename__ = "app_versions"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    # 版本名称，如 "1.2.0"
+    version_name: str = Field(max_length=20, index=True)
+    # 版本号（整数），用于比较版本新旧，如 120
+    version_code: int = Field(index=True)
+    # 平台：android, ios
+    platform: str = Field(sa_column=Column(String(20), index=True))
+    # 更新类型：wgt（热更新）, apk（整包更新）
+    update_type: str = Field(sa_column=Column(String(10)))
+    # 下载地址
+    download_url: str = Field(max_length=500)
+    # 文件大小（字节）
+    file_size: int = Field(default=0)
+    # MD5 校验值
+    md5: str = Field(max_length=32)
+    # 更新说明
+    description: Optional[str] = Field(default=None, max_length=1000)
+    # 是否强制更新
+    is_force_update: bool = Field(default=False)
+    # 最低兼容版本号，低于此版本必须整包更新
+    min_compatible_version: int = Field(default=0)
+    # 下载次数统计
+    download_count: int = Field(default=0)
+    # 是否启用
+    is_active: bool = Field(default=True)
+    # 创建时间
+    created_at: datetime = Field(default_factory=datetime.now)
+    # 创建人ID
+    created_by: Optional[int] = Field(default=None, foreign_key="users.id")

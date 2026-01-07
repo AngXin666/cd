@@ -177,6 +177,59 @@ def migrate_warehouse_types():
         raise
 
 
+def migrate_app_versions_table():
+    """
+    数据迁移：确保 app_versions 表存在并具有正确的结构
+    
+    此函数用于创建或验证 app_versions 表的存在。
+    由于 SQLModel 的 create_all 会自动创建表，此函数主要用于：
+    1. 验证表是否存在
+    2. 记录迁移日志
+    3. 为未来可能的表结构变更提供扩展点
+    
+    此迁移是幂等的，可以安全地多次执行。
+    
+    Returns:
+        bool: True 表示表存在或创建成功
+    
+    Example:
+        >>> success = migrate_app_versions_table()
+        >>> print(f"app_versions 表迁移: {'成功' if success else '失败'}")
+    
+    Requirements: 7.1 - 版本信息持久化
+    """
+    from sqlmodel import text
+    
+    try:
+        with Session(engine) as session:
+            # 检查表是否存在
+            # SQLite 和 PostgreSQL 使用不同的查询方式
+            if database_url.startswith("sqlite"):
+                result = session.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='app_versions'")
+                )
+            else:
+                # PostgreSQL
+                result = session.execute(
+                    text("SELECT tablename FROM pg_tables WHERE tablename='app_versions'")
+                )
+            
+            table_exists = result.fetchone() is not None
+            
+            if table_exists:
+                logger.info("app_versions 表已存在，跳过创建")
+            else:
+                # 表不存在，SQLModel.metadata.create_all 应该已经创建了
+                # 这里记录警告，因为正常情况下表应该已经存在
+                logger.warning("app_versions 表不存在，将由 SQLModel 自动创建")
+            
+            return True
+            
+    except Exception as e:
+        logger.error(f"app_versions 表迁移检查失败: {e}")
+        raise
+
+
 def run_migrations():
     """
     运行所有数据库迁移
@@ -186,17 +239,21 @@ def run_migrations():
     
     当前包含的迁移：
     1. migrate_warehouse_types - 为现有仓库设置默认类型
+    2. migrate_app_versions_table - 确保 app_versions 表存在
     
     Example:
         >>> run_migrations()
     
-    Requirements: 5.1 - 数据迁移
+    Requirements: 5.1 - 数据迁移, 7.1 - 版本信息持久化
     """
     logger.info("开始执行数据库迁移...")
     
     try:
         # 迁移 1: 仓库类型
         migrate_warehouse_types()
+        
+        # 迁移 2: 应用版本表
+        migrate_app_versions_table()
         
         logger.info("所有数据库迁移执行完成")
         

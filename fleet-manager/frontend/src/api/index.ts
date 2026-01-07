@@ -42,12 +42,15 @@ import type {
   SupplementedPhotosResponse,
   Notification,
   NotificationCreate,
+  NotificationFromTemplateCreate,
   UnreadCountResponse,
   MessageResponse,
   PaginationParams,
   OCRDrivingLicenseRequest,
   OCRDrivingLicenseResponse,
   OCRStatusResponse,
+  UpdateCheckRequest,
+  UpdateCheckResult,
 } from './types';
 import { UserRole, LeaveStatus, VehicleStatus } from './types';
 
@@ -870,6 +873,34 @@ export const recognizeDrivingLicense = (image: string) =>
 export const getOCRStatus = () =>
   get<OCRStatusResponse>('/ocr/status');
 
+// ==================== 热更新 API ====================
+
+/**
+ * 检查应用更新
+ * 向服务器发送版本检查请求，获取是否有可用更新
+ * 
+ * @param data - 版本检查请求，包含当前版本号、版本名称和平台信息
+ * @returns 版本检查结果，包含是否有更新及更新详情
+ * @throws Error - 网络请求失败时抛出错误
+ * 
+ * Requirements: 1.2, 1.3 - 版本检查功能
+ * 
+ * @example
+ * // 检查更新
+ * const result = await checkAppUpdate({
+ *   current_version: '1.2.0',
+ *   current_version_code: 120,
+ *   platform: 'android'
+ * });
+ * 
+ * if (result.has_update) {
+ *   console.log('有新版本:', result.latest_version);
+ *   console.log('更新类型:', result.update_type);
+ * }
+ */
+export const checkAppUpdate = (data: UpdateCheckRequest) =>
+  get<UpdateCheckResult>('/app/version/check', data, false);
+
 // 导出 SSE 服务
 export { sseService, SSEConnectionState } from '@/utils/sse';
 export type { SSENotification, SSEHeartbeat, SSECallbacks } from '@/utils/sse';
@@ -988,4 +1019,17 @@ export const createDriverLicense = (userId: number, data: DriverLicenseCreate) =
  */
 export const updateDriverLicense = (userId: number, data: DriverLicenseUpdate) =>
   put<DriverLicenseResponse>(`/users/${userId}/license`, data);
+
+// ==================== 报表 API ====================
+
+export {
+  getWarehouseStats,
+  getWarehouseDriverStats,
+  getDriverRecords,
+} from './report';
+
+export type {
+  PieceWorkRecordItem,
+  DriverRecordsResponse,
+} from './report';
 

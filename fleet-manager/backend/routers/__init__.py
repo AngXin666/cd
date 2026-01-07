@@ -14,6 +14,7 @@
 - ocr.py: OCR 识别路由（驾驶证、行驶证识别）
 - upload.py: 图片上传路由（车辆照片、证件照片、头像）
 - admin.py: 系统管理路由（超级管理员、权限配置）
+- app_version.py: 应用版本管理路由（版本检查、发布、历史）
 
 Requirements: 9.1 - 创建 routers/ 目录包含各功能模块路由
 """
@@ -30,6 +31,8 @@ from .notifications import router as notifications_router
 from .ocr import router as ocr_router
 from .upload import router as upload_router
 from .admin import router as admin_router
+from .app_version import router as app_version_router
+from .report import router as report_router
 
 # 导出所有路由器
 __all__ = [
@@ -44,4 +47,6 @@ __all__ = [
     "ocr_router",
     "upload_router",
     "admin_router",
+    "app_version_router",
+    "report_router",
 ]

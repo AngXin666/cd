@@ -5,6 +5,250 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.11] - 2026-01-07
+
+### ✨ 新功能
+
+#### 仓库切换无感优化
+- 实现数据预加载和缓存策略，消除仓库切换时的"加载中"闪动
+- 新增 `useWarehouseDataCache` composable 统一管理仓库数据缓存
+- 支持智能缓存（5分钟过期，后台静默更新）
+- 支持 SSE 实时更新缓存数据
+- 单个仓库加载失败不影响其他仓库
+
+#### 已集成页面
+- ✅ 老板首页 (`pages/boss/index/index.vue`)
+- ✅ 车队长首页 (`pages/manager/index/index.vue`)
+- ✅ 司机首页 (`pages/driver/index/index.vue`)
+- ✅ 司机管理页面 (`pages/manager/drivers/index.vue`)
+- ✅ 用户管理页面 (`pages/boss/users/index.vue`)
+
+### 🔧 优化
+
+- 优化仓库切换体验，缓存命中时切换时间 < 100ms
+- 优化页面初始加载，当前仓库优先加载，其他仓库后台预加载
+- 优化错误处理，提供重试机制
+
+### 📦 技术细节
+
+**核心文件**：
+- `src/composables/useWarehouseDataCache.ts` - 仓库数据缓存 composable
+- 缓存过期时间：5分钟（可配置）
+- 预加载延迟：500ms（避免阻塞当前仓库渲染）
+- 后台更新间隔：1分钟检查一次过期缓存
+
+**设计文档**：`.kiro/specs/warehouse-switch-optimization/`
+
+---
+
+## [1.0.10] - 2026-01-06
+
+### ✨ 新功能
+
+#### 首页报表入口
+- 老板首页"系统功能"板块新增"数据报表"入口
+- 车队长首页"快捷功能"板块新增"数据报表"入口
+
+#### 登录页更新检查
+- 登录页面增加应用更新检查
+- 确保用户在登录前能看到更新提示
+
+#### 数据报表功能
+- 完整的数据报表功能（日报/周报/月报）
+- 仓库统计、司机统计、计件记录明细
+
+### 🐛 Bug 修复
+
+- 修复司机端首页"今天收入"在计件后不更新的问题
+- 修复报表 API 在生产服务器上 404 的问题
+
+### 🔧 优化
+
+- 优化司机端首页数据加载顺序，确保统计数据准确
+- 部署报表 API 到生产服务器
+
+### 🐛 Bug 修复
+- 修复热更新检测问题
+
+### 📦 发布信息
+- **APK 文件**: `FleetManager-v1.0.10.apk` (6.0 MB)
+- **WGT 热更新包**: `FleetManager-v1.0.10.wgt` (392 KB)
+- **版本号**: 1.0.10 (110)
+- **构建时间**: 2026-01-06 16:10
+
+---
+
+## [1.0.9] - 2026-01-06
+
+### ✨ 新功能
+
+#### 数据统计报表功能
+- 新增报表入口（老板端和车队长端数据统计页面）
+- 支持日报/周报/月报三种周期切换
+- 支持日期导航（上一天/周/月、下一天/周/月）
+- 仓库卡片展示：显示仓库名称、总件数、司机人数
+- 仓库详情页：显示该仓库的司机统计列表
+- 司机详情页：显示该司机的计件记录明细
+- 权限控制：老板可查看所有仓库，车队长只能查看管辖仓库
+
+### 新增文件
+- `pages/common/report/index.vue` - 报表主页
+- `pages/common/report/warehouse.vue` - 仓库详情页
+- `pages/common/report/driver.vue` - 司机详情页
+- `api/report.ts` - 报表 API 封装
+- `types/report.ts` - 报表类型定义
+- `utils/report.ts` - 报表工具函数
+- `backend/routers/report.py` - 报表后端 API
+
+### 📦 发布信息
+- **APK 文件**: `FleetManager-v1.0.9.apk` (6.0 MB)
+- **WGT 热更新包**: `FleetManager-v1.0.9.wgt` (392 KB)
+- **版本号**: 1.0.9 (109)
+- **构建时间**: 2026-01-06 15:45
+- **签名状态**: 已签名（Release）
+
+### 热更新说明
+- 已发布 wgt 热更新包到服务器
+- 1.0.8 及以上版本用户可通过热更新升级
+- 打开 APP 后会自动检测并提示更新
+
+---
+
+## [1.0.8] - 2026-01-06
+
+### 🐛 Bug 修复
+
+#### 老板端发送通知按钮修复
+- 修复老板端"发送通知"按钮点击无响应的问题
+- 原因：跳转路径 `/pages/boss/templates/index` 不存在
+- 修复：改为复用车队长的发送通知页面 `/pages/manager/notify/index`
+
+### 修复的文件
+- `pages/boss/index/index.vue` - 老板工作台发送通知跳转路径修复
+
+### 📦 发布信息
+- **APK 文件**: `FleetManager-v1.0.8.apk` (6.1 MB)
+- **版本号**: 1.0.8 (108)
+- **构建时间**: 2026-01-06 10:12
+- **签名状态**: 已签名（Release）
+
+### 安装说明
+1. 下载 `FleetManager-v1.0.8.apk`
+2. 在 Android 设备上安装
+3. 如果已安装旧版本，会自动覆盖更新
+4. 打开应用验证老板端发送通知功能
+
+---
+
+## [1.0.7] - 2026-01-06
+
+### 🐛 Bug 修复
+
+#### 司机端通知中心跳转问题修复
+- 修复司机工作台点击通知中心没响应的问题
+- 从 tabBar 页面列表中移除 `/pages/notifications/index`
+- 通知中心不是 tabBar 页面，应使用 `uni.navigateTo` 而非 `uni.switchTab`
+- 添加详细调试日志和错误处理
+- 添加 `redirectTo` 作为备选跳转方案
+
+### 修复的文件
+- `pages/driver/index/index.vue` - 司机工作台 navigateTo 函数修复
+
+### 📦 发布信息
+- **APK 文件**: `FleetManager-v1.0.7.apk` (6.8 MB)
+- **版本号**: 1.0.7 (107)
+- **构建时间**: 2026-01-06 09:59
+- **签名状态**: 已签名（Release）
+
+### 安装说明
+1. 下载 `FleetManager-v1.0.7.apk`
+2. 在 Android 设备上安装
+3. 如果已安装旧版本，会自动覆盖更新
+4. 打开应用验证司机端通知中心跳转功能
+
+---
+
+## [1.0.6] - 2026-01-05
+
+### 🐛 Bug 修复
+
+#### 通知中心跳转问题深度修复
+- 在 `navigateTo` 函数中添加详细调试日志
+- 添加 `success` 和 `fail` 回调以捕获跳转错误
+- 如果 `navigateTo` 失败，自动尝试 `redirectTo` 作为备选方案
+- 通知页面 SSE 初始化添加 try-catch 防止错误阻塞页面加载
+
+### 修复的文件
+- `pages/boss/index/index.vue` - 老板工作台 navigateTo 函数增强
+- `pages/manager/index/index.vue` - 车队长工作台 navigateTo 函数增强
+- `pages/notifications/index.vue` - SSE 初始化错误处理
+
+### 📦 发布信息
+- **APK 文件**: `FleetManager-v1.0.6.apk` (6.0 MB)
+- **版本号**: 1.0.6 (106)
+- **构建时间**: 2026-01-05 17:46
+- **签名状态**: 已签名（Release）
+
+### 安装说明
+1. 下载 `FleetManager-v1.0.6.apk`
+2. 在 Android 设备上安装
+3. 如果已安装旧版本，会自动覆盖更新
+4. 打开应用验证通知中心跳转功能
+5. 如果仍有问题，请查看 Android 日志（adb logcat）中的 `[BossHome]` 或 `[ManagerHome]` 标签
+
+---
+
+## [1.0.5] - 2026-01-05
+
+### 🐛 Bug 修复
+
+#### 通知中心跳转问题修复
+- 修复老板和车队长工作台点击通知中心没响应的问题
+- 从 tabBar 页面列表中移除 `/pages/notifications/index`
+- 通知中心不是 tabBar 页面，应使用 `uni.navigateTo` 而非 `uni.switchTab`
+
+### 修复的文件
+- `pages/boss/index/index.vue` - 老板工作台 navigateTo 函数
+- `pages/manager/index/index.vue` - 车队长工作台 navigateTo 函数
+
+### 📦 发布信息
+- **APK 文件**: `FleetManager-v1.0.5.apk` (6.0 MB)
+- **版本号**: 1.0.5 (105)
+- **构建时间**: 2026-01-05 16:45
+- **签名状态**: 已签名（Release）
+
+### 安装说明
+1. 下载 `FleetManager-v1.0.5.apk`
+2. 在 Android 设备上安装
+3. 如果已安装旧版本，会自动覆盖更新
+4. 打开应用验证通知中心跳转功能
+
+---
+
+## [1.3.3] - 2026-01-05
+
+### 🔧 导航修复
+
+修复多个页面的导航问题，提升用户体验。
+
+### 修复内容
+
+#### 工作台页面禁用左滑返回
+- 登录页、司机工作台、车队长工作台、老板管理后台禁用左滑返回
+- 防止工作台页面左滑导致应用最小化
+- 配置 `disableSwipeBack: true` 和 `app-plus.popGesture: "none"`
+
+#### 自定义导航页面添加返回按钮
+- `pages/boss/categories/index.vue` - 计件品类管理
+- `pages/manager/piece-work/detail.vue` - 件数报表详情
+- `pages/manager/warehouse-categories/index.vue` - 仓库品类配置
+- `components/AttendancePage/index.vue` - 考勤管理组件（Boss/Manager 共用）
+
+#### 通知中心导航修复
+- `NotificationBell` 和 `RealNotificationBar` 组件使用 `uni.switchTab` 跳转
+
+---
+
 ## [1.2.0] - 2026-01-05
 
 ### 🎉 动态计量单位功能

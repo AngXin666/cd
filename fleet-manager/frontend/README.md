@@ -58,6 +58,8 @@ frontend/
 │   │   ├── profile/     # 个人中心
 │   │   └── notifications/ # 通知中心
 │   ├── components/      # 公共组件
+│   ├── composables/     # Vue Composables（可复用逻辑）
+│   │   └── useWarehouseDataCache.ts  # 仓库数据缓存（无感切换）
 │   ├── api/             # API 请求封装
 │   ├── store/           # Pinia 状态管理
 │   ├── types/           # TypeScript 类型定义
@@ -128,6 +130,63 @@ VITE_API_BASE_URL=/api
 ```
 
 ## 开发说明
+
+### 仓库切换优化
+
+系统实现了仓库切换的无感优化，通过数据预加载和缓存策略消除切换时的"加载中"闪动。
+
+**核心特性**：
+- 🚀 **数据预加载**: 页面加载时自动预加载所有仓库数据
+- 💾 **智能缓存**: 5分钟缓存过期，后台静默更新
+- ⚡ **无感切换**: 切换仓库时立即显示数据，无加载闪动
+- 🔄 **实时更新**: 支持 SSE 实时更新缓存数据
+- 🛡️ **容错处理**: 单个仓库加载失败不影响其他仓库
+
+**使用方法**：
+
+```typescript
+import { useWarehouseDataCache } from '@/composables/useWarehouseDataCache'
+
+// 定义页面数据类型
+interface PageData {
+  stats: { /* ... */ }
+  records: any[]
+}
+
+// 数据加载函数
+async function loadPageData(warehouseId: number): Promise<PageData> {
+  // 加载指定仓库的数据
+  return { /* ... */ }
+}
+
+// 使用缓存 composable
+const {
+  currentData,      // 当前仓库数据
+  isLoading,        // 加载状态
+  switchWarehouse,  // 切换仓库
+  refreshAll,       // 刷新所有数据
+} = useWarehouseDataCache<PageData>({
+  loadDataFn: loadPageData,
+  warehouses: warehousesRef,
+  currentIndex: currentIndexRef,
+  enablePreload: true,  // 启用预加载
+})
+```
+
+**已集成页面**：
+- ✅ 老板首页 (`pages/boss/index/index.vue`)
+- ✅ 车队长首页 (`pages/manager/index/index.vue`)
+- ✅ 司机首页 (`pages/driver/index/index.vue`)
+- ✅ 司机管理页面 (`pages/manager/drivers/index.vue`)
+- ✅ 用户管理页面 (`pages/boss/users/index.vue`)
+
+**实现细节**：
+- 核心 Composable: `src/composables/useWarehouseDataCache.ts`
+- 缓存过期时间: 5分钟（可配置）
+- 预加载延迟: 500ms（避免阻塞当前仓库渲染）
+- 后台更新间隔: 1分钟检查一次过期缓存
+
+详细设计文档请参考：`.kiro/specs/warehouse-switch-optimization/`
 
 ### API 请求
 

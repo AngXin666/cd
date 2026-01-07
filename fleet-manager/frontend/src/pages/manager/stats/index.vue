@@ -2,14 +2,19 @@
   <!-- 
     数据汇总页面
     显示计件统计数据，支持仓库筛选、司机搜索、快捷日期筛选
-    Requirements: 3.1-3.10
+    Requirements: 3.1-3.10, 1.1 (报表入口)
   -->
   <view class="stats-page">
     <!-- 筛选条件区域 -->
     <view class="filter-section">
-      <!-- 仓库选择器 -->
-      <!-- Requirements: 3.1, 3.9, 3.10 -->
-      <view class="filter-row">
+      <!-- 报表入口和仓库选择器 -->
+      <!-- Requirements: 1.1, 3.1, 3.9, 3.10 -->
+      <view class="filter-row filter-row-with-report">
+        <!-- 报表入口按钮 - Requirements: 1.1 -->
+        <view class="report-btn" @click="goToReport">
+          <text class="report-btn-icon">📈</text>
+          <text class="report-btn-text">报表</text>
+        </view>
         <text class="filter-label">仓库</text>
         <picker 
           mode="selector" 
@@ -234,6 +239,7 @@
  * @module pages/manager/stats
  * 
  * Requirements:
+ * - 1.1: 报表入口 - 车队长点击报表入口跳转到报表页面
  * - 3.1: 显示仓库选择器（包含"所有仓库"选项）
  * - 3.2: 支持姓名、手机号和拼音首字母匹配
  * - 3.3: 搜索关键词变化时重置选中的司机
@@ -564,6 +570,14 @@ onShow(() => {
 // ==================== 方法 ====================
 
 /**
+ * 跳转到报表页面
+ * Requirements: 1.1 - 车队长点击报表入口跳转到报表页面
+ */
+function goToReport(): void {
+  uni.navigateTo({ url: '/pages/common/report/index' })
+}
+
+/**
  * 加载仓库列表
  * 同时获取每个仓库的计件数据，用于过滤有数据的仓库
  * Requirements: 3.9, 3.10 - 根据用户角色加载仓库列表
@@ -880,6 +894,26 @@ function getRecordUnit(record: PieceWorkRecord): string {
     margin-bottom: 0;
   }
 }
+
+/* 带报表按钮的筛选行 */
+.filter-row-with-report {
+  gap: 16rpx;
+}
+
+/* 报表入口按钮样式 - Requirements: 1.1 */
+.report-btn { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center;
+  background-color: #4a90e2; 
+  padding: 16rpx 24rpx; 
+  border-radius: 12rpx; 
+  min-width: 100rpx;
+  flex-shrink: 0;
+}
+.report-btn-icon { font-size: 32rpx; }
+.report-btn-text { font-size: 24rpx; color: #ffffff; margin-top: 4rpx; }
 
 .filter-label {
   width: 80rpx;

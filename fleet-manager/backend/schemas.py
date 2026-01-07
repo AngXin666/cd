@@ -1712,3 +1712,315 @@ class DriverLicenseResponse(DriverLicenseBase):
             created_at=license_obj.created_at,
             updated_at=license_obj.updated_at
         )
+
+
+# ==================== 应用版本相关模式 ====================
+# 用于热更新功能的版本检查、创建和响应
+# Requirements: 8.1, 8.4, 8.5 - 版本检查响应格式
+
+
+class VersionCheckRequest(BaseModel):
+    """
+    版本检查请求模式
+    客户端发送当前版本信息，服务端返回是否有更新
+    
+    Attributes:
+        current_version: 当前版本名称，如 "1.2.0"
+        current_version_code: 当前版本号（整数），如 120
+        platform: 平台类型，支持 android、ios、h5
+        
+    Requirements: 1.3 - 版本检查请求包含当前版本号、版本名称和平台信息
+    
+    Example:
+        >>> request = VersionCheckRequest(
+        ...     current_version="1.2.0",
+        ...     current_version_code=120,
+        ...     platform="android"
+        ... )
+    """
+    current_version: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=20, 
+        description="当前版本名称，如 '1.2.0'"
+    )
+    current_version_code: int = Field(
+        ..., 
+        ge=0, 
+        description="当前版本号（整数），如 120"
+    )
+    platform: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=20, 
+        description="平台类型：android、ios、h5"
+    )
+
+
+class VersionCheckResponse(BaseModel):
+    """
+    版本检查响应模式
+    返回是否有更新及更新详情
+    
+    Attributes:
+        has_update: 是否有可用更新
+        update_type: 更新类型，"wgt"（热更新）或 "apk"（整包更新）
+        latest_version: 最新版本名称
+        latest_version_code: 最新版本号
+        download_url: 更新包下载地址
+        file_size: 文件大小（字节）
+        md5: MD5 校验值
+        description: 更新说明
+        is_force_update: 是否强制更新
+        
+    Requirements: 
+        - 8.1: 返回 JSON 格式的版本检查响应
+        - 8.2: 有可用更新时返回 has_update: true 和更新详情
+        - 8.3: 无可用更新时返回 has_update: false
+        - 8.4: 响应中包含 update_type 字段，值为 "wgt" 或 "apk"
+        - 8.5: 返回 latest_version、latest_version_code、download_url、
+               file_size、md5、description、is_force_update 字段
+    
+    Example:
+        >>> # 有更新时的响应
+        >>> response = VersionCheckResponse(
+        ...     has_update=True,
+        ...     update_type="wgt",
+        ...     latest_version="1.3.0",
+        ...     latest_version_code=130,
+        ...     download_url="https://example.com/update.wgt",
+        ...     file_size=1024000,
+        ...     md5="abc123...",
+        ...     description="修复了一些问题",
+        ...     is_force_update=False
+        ... )
+        >>> # 无更新时的响应
+        >>> response = VersionCheckResponse(has_update=False)
+    """
+    has_update: bool = Field(..., description="是否有可用更新")
+    update_type: Optional[str] = Field(
+        default=None, 
+        description="更新类型：'wgt'（热更新）或 'apk'（整包更新）"
+    )
+    latest_version: Optional[str] = Field(
+        default=None, 
+        description="最新版本名称"
+    )
+    latest_version_code: Optional[int] = Field(
+        default=None, 
+        description="最新版本号"
+    )
+    download_url: Optional[str] = Field(
+        default=None, 
+        description="更新包下载地址"
+    )
+    file_size: Optional[int] = Field(
+        default=None, 
+        description="文件大小（字节）"
+    )
+    md5: Optional[str] = Field(
+        default=None, 
+        description="MD5 校验值"
+    )
+    description: Optional[str] = Field(
+        default=None, 
+        description="更新说明"
+    )
+    is_force_update: bool = Field(
+        default=False, 
+        description="是否强制更新"
+    )
+
+
+class VersionCreate(BaseModel):
+    """
+    创建版本请求模式
+    管理员发布新版本时使用
+    
+    Attributes:
+        version_name: 版本名称，如 "1.3.0"
+        version_code: 版本号（整数），如 130
+        platform: 平台类型：android、ios
+        update_type: 更新类型：wgt（热更新）、apk（整包更新）
+        download_url: 下载地址
+        file_size: 文件大小（字节）
+        md5: MD5 校验值
+        description: 更新说明（可选）
+        is_force_update: 是否强制更新，默认 False
+        min_compatible_version: 最低兼容版本号，默认 0
+        
+    Requirements: 
+        - 6.4: 发布新版本时支持上传 wgt 包和 APK 文件
+        - 7.2: 存储版本号、版本名称、更新类型、下载地址、MD5 校验值、
+               更新内容、是否强制更新、发布时间
+    
+    Example:
+        >>> create_data = VersionCreate(
+        ...     version_name="1.3.0",
+        ...     version_code=130,
+        ...     platform="android",
+        ...     update_type="wgt",
+        ...     download_url="https://example.com/update.wgt",
+        ...     file_size=1024000,
+        ...     md5="abc123def456...",
+        ...     description="1. 修复了登录问题\n2. 优化了性能",
+        ...     is_force_update=False,
+        ...     min_compatible_version=100
+        ... )
+    """
+    version_name: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=20, 
+        description="版本名称，如 '1.3.0'"
+    )
+    version_code: int = Field(
+        ..., 
+        ge=1, 
+        description="版本号（整数），如 130"
+    )
+    platform: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=20, 
+        description="平台类型：android、ios"
+    )
+    update_type: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=10, 
+        description="更新类型：wgt（热更新）、apk（整包更新）"
+    )
+    download_url: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=500, 
+        description="下载地址"
+    )
+    file_size: int = Field(
+        ..., 
+        ge=0, 
+        description="文件大小（字节）"
+    )
+    md5: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=64, 
+        description="MD5 校验值"
+    )
+    description: Optional[str] = Field(
+        default=None, 
+        max_length=2000, 
+        description="更新说明"
+    )
+    is_force_update: bool = Field(
+        default=False, 
+        description="是否强制更新"
+    )
+    min_compatible_version: int = Field(
+        default=0, 
+        ge=0, 
+        description="最低兼容版本号，低于此版本必须整包更新"
+    )
+
+
+class VersionResponse(BaseModel):
+    """
+    版本响应模式
+    返回版本详细信息
+    
+    Attributes:
+        id: 版本ID
+        version_name: 版本名称
+        version_code: 版本号
+        platform: 平台类型
+        update_type: 更新类型
+        download_url: 下载地址
+        file_size: 文件大小（字节）
+        md5: MD5 校验值
+        description: 更新说明
+        is_force_update: 是否强制更新
+        min_compatible_version: 最低兼容版本号
+        download_count: 下载次数
+        is_active: 是否启用
+        created_at: 创建时间
+        created_by: 创建人ID
+        
+    Requirements:
+        - 6.5: 存储版本历史记录，包括版本号、更新内容、发布时间、下载次数
+        - 7.1: 将版本信息存储在数据库中
+        - 7.2: 包含版本号、版本名称、更新类型、下载地址、MD5 校验值、
+               更新内容、是否强制更新、发布时间
+    
+    Example:
+        >>> response = VersionResponse(
+        ...     id=1,
+        ...     version_name="1.3.0",
+        ...     version_code=130,
+        ...     platform="android",
+        ...     update_type="wgt",
+        ...     download_url="https://example.com/update.wgt",
+        ...     file_size=1024000,
+        ...     md5="abc123def456...",
+        ...     description="修复了一些问题",
+        ...     is_force_update=False,
+        ...     min_compatible_version=100,
+        ...     download_count=1000,
+        ...     is_active=True,
+        ...     created_at=datetime.now(),
+        ...     created_by=1
+        ... )
+    """
+    id: int = Field(..., description="版本ID")
+    version_name: str = Field(..., description="版本名称")
+    version_code: int = Field(..., description="版本号")
+    platform: str = Field(..., description="平台类型")
+    update_type: str = Field(..., description="更新类型")
+    download_url: str = Field(..., description="下载地址")
+    file_size: int = Field(..., description="文件大小（字节）")
+    md5: str = Field(..., description="MD5 校验值")
+    description: Optional[str] = Field(default=None, description="更新说明")
+    is_force_update: bool = Field(..., description="是否强制更新")
+    min_compatible_version: int = Field(..., description="最低兼容版本号")
+    download_count: int = Field(default=0, description="下载次数")
+    is_active: bool = Field(default=True, description="是否启用")
+    created_at: datetime = Field(..., description="创建时间")
+    created_by: Optional[int] = Field(default=None, description="创建人ID")
+
+    class Config:
+        """Pydantic 配置类"""
+        from_attributes = True
+
+
+class AppUpdateUploadResponse(BaseModel):
+    """
+    应用更新包上传响应模式
+    返回上传成功后的更新包信息
+    
+    Attributes:
+        success: 是否上传成功
+        url: 更新包访问URL
+        filename: 文件名
+        file_size: 文件大小（字节）
+        md5: MD5 校验值
+        update_type: 更新类型（wgt/apk）
+        
+    Requirements:
+        - 6.4: 发布新版本时支持上传 wgt 包和 APK 文件
+    
+    Example:
+        >>> response = AppUpdateUploadResponse(
+        ...     success=True,
+        ...     url="/uploads/app_updates/update_1.3.0.wgt",
+        ...     filename="update_1.3.0.wgt",
+        ...     file_size=1024000,
+        ...     md5="abc123def456...",
+        ...     update_type="wgt"
+        ... )
+    """
+    success: bool = Field(..., description="是否上传成功")
+    url: str = Field(..., description="更新包访问URL")
+    filename: str = Field(..., description="文件名")
+    file_size: int = Field(..., description="文件大小（字节）")
+    md5: str = Field(..., description="MD5 校验值")
+    update_type: str = Field(..., description="更新类型（wgt/apk）")

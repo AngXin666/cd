@@ -4,12 +4,13 @@
     显示计件统计和用户统计
     考勤和请假统计已移至考勤管理页面
     仅老板角色可访问
-    Requirements: 5.1-5.6
+    Requirements: 5.1-5.6, 1.1 (报表入口)
   -->
   <view class="stats-page">
-    <!-- 日期筛选 -->
+    <!-- 日期筛选和报表入口 -->
     <view class="filter-section">
-      <view class="date-filter">
+      <view class="filter-row">
+        <view class="date-filter">
         <picker mode="date" :value="startDate" @change="handleStartDateChange">
           <view class="date-picker">
             <text class="date-text">{{ startDate || '开始日期' }}</text>
@@ -23,6 +24,12 @@
             <text class="date-icon">📅</text>
           </view>
         </picker>
+        </view>
+        <!-- 报表入口按钮 - Requirements: 1.1 -->
+        <view class="report-btn" @click="goToReport">
+          <text class="report-btn-icon">📈</text>
+          <text class="report-btn-text">报表</text>
+        </view>
       </view>
     </view>
 
@@ -92,7 +99,7 @@
  * 计件报表页面
  * 显示计件统计和用户统计
  * 考勤和请假统计已移至考勤管理页面
- * Requirements: 5.1-5.6
+ * Requirements: 5.1-5.6, 1.1 (报表入口)
  */
 import { ref, reactive, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
@@ -122,6 +129,14 @@ onMounted(() => {
 })
 
 onShow(() => { loadData() })
+
+/**
+ * 跳转到报表页面
+ * Requirements: 1.1 - 老板点击报表入口跳转到报表页面
+ */
+function goToReport(): void {
+  uni.navigateTo({ url: '/pages/common/report/index' })
+}
 
 /**
  * 加载统计数据
@@ -171,11 +186,25 @@ function handleEndDateChange(e: any): void { endDate.value = e.detail.value; loa
 <style lang="scss" scoped>
 /**
  * 计件报表页面样式
- * Requirements: 5.1-5.6
+ * Requirements: 5.1-5.6, 1.1 (报表入口)
  */
 .stats-page { min-height: 100vh; background-color: #f5f5f5; padding-bottom: 24rpx; }
 .filter-section { padding: 24rpx; }
-.date-filter { display: flex; align-items: center; background-color: #ffffff; padding: 16rpx 24rpx; border-radius: 12rpx; }
+.filter-row { display: flex; align-items: center; gap: 16rpx; }
+.date-filter { display: flex; align-items: center; background-color: #ffffff; padding: 16rpx 24rpx; border-radius: 12rpx; flex: 1; }
+/* 报表入口按钮样式 - Requirements: 1.1 */
+.report-btn { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center;
+  background-color: #4a90e2; 
+  padding: 16rpx 24rpx; 
+  border-radius: 12rpx; 
+  min-width: 100rpx;
+}
+.report-btn-icon { font-size: 32rpx; }
+.report-btn-text { font-size: 24rpx; color: #ffffff; margin-top: 4rpx; }
 .date-picker { display: flex; align-items: center; flex: 1; }
 .date-text { font-size: 28rpx; color: #333333; flex: 1; }
 .date-icon { font-size: 32rpx; }

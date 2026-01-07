@@ -8,9 +8,19 @@
     Requirements: 统一老板端和车队长端的品类管理
   -->
   <view class="categories-page">
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-left" @click="handleBack">
+        <text class="back-icon">‹</text>
+      </view>
+      <view class="nav-title">
+        <text class="title-text">计件品类管理</text>
+      </view>
+      <view class="nav-right" />
+    </view>
+
     <!-- 页面标题区 -->
     <view class="page-header">
-      <text class="header-title">计件品类管理</text>
       <text class="header-subtitle">管理各仓库的计件品类和单价配置</text>
     </view>
 
@@ -348,6 +358,18 @@ function cancelEdit(): void {
 }
 
 /**
+ * 返回上一页
+ */
+function handleBack(): void {
+  uni.navigateBack({
+    fail: () => {
+      // 如果没有上一页，跳转到首页
+      uni.switchTab({ url: '/pages/index/index' })
+    }
+  })
+}
+
+/**
  * 验证表单
  */
 function validateForm(): boolean {
@@ -478,25 +500,52 @@ function handleDelete(category: PieceWorkCategory): void {
 .categories-page {
   min-height: 100vh;
   background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
-  padding: 24rpx;
+  padding-bottom: 24rpx;
   box-sizing: border-box;
+}
+
+/* 导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 24rpx;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+}
+
+.nav-left {
+  width: 80rpx;
+  display: flex;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+}
+
+.title-text {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.nav-right {
+  width: 80rpx;
 }
 
 /* 页面标题区 */
 .page-header {
   background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
-  border-radius: 16rpx;
-  padding: 48rpx 32rpx;
+  padding: 24rpx 32rpx 48rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(30, 58, 138, 0.3);
-}
-
-.header-title {
-  display: block;
-  font-size: 40rpx;
-  font-weight: bold;
-  color: #ffffff;
-  margin-bottom: 12rpx;
 }
 
 .header-subtitle {
@@ -511,6 +560,7 @@ function handleDelete(category: PieceWorkCategory): void {
   justify-content: center;
   align-items: center;
   padding: 100rpx 0;
+  margin: 0 24rpx;
 }
 
 .loading-text {
@@ -526,6 +576,7 @@ function handleDelete(category: PieceWorkCategory): void {
   padding: 100rpx 0;
   background-color: #ffffff;
   border-radius: 16rpx;
+  margin: 0 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 

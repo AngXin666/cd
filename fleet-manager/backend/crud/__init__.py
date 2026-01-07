@@ -106,6 +106,17 @@ from crud.notifications import (
 # 初始化数据（依赖 users, piece_work）
 from crud.init_data import init_default_data
 
+# 应用版本相关 CRUD
+from crud.app_version import (
+    create_version,
+    get_latest_version,
+    get_version_history,
+    increment_download_count,
+    check_update,
+    get_version_by_id,
+    update_version_status,
+)
+
 # 导出所有函数（保持向后兼容）
 __all__ = [
     # 用户
@@ -140,6 +151,10 @@ __all__ = [
     # 驾驶证
     'get_driver_license_by_user_id', 'create_driver_license',
     'update_driver_license', 'create_or_update_driver_license',
+    # 应用版本
+    'create_version', 'get_latest_version', 'get_version_history',
+    'increment_download_count', 'check_update', 'get_version_by_id',
+    'update_version_status',
     # 初始化
     'init_default_data',
 ]

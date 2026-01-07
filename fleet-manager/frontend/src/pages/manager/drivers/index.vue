@@ -368,7 +368,7 @@
  * @requirements 10 - 可折叠搜索
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import {
   getWarehouses,
@@ -387,6 +387,9 @@ import {
   shouldShowWarehouseSwitcher,
   getWarehouseDriverCount as getWarehouseDriverCountUtil,
 } from '@/utils/warehouse'
+import { useWarehouseDataCache } from '@/composables/useWarehouseDataCache'
+import { sseService } from '@/utils/sse'
+import type { AssignmentUpdateEvent } from '@/types/sse-events'
 
 // ==================== 类型定义 ====================
 
@@ -428,10 +431,23 @@ interface DriverWithDetails extends User {
   driver_type?: 'pure' | 'with_vehicle'
 }
 
-// ==================== 状态定义 ====================
+/**
+ * 司机管理页面数据类型
+ * 包含司机列表、仓库列表和司机-仓库映射
+ * @requirements 7.4 - 司机管理页面数据结构
+ */
+interface DriverManagementData {
+  /** 司机列表（带详细信息） */
+  drivers: DriverWithDetails[]
+  /** 仓库列表 */
+  warehouses: Warehouse[]
+  /** 司机-仓库映射（司机ID -> 仓库ID列表） */
+  driverWarehouseMap: Map<number, number[]>
+  /** 所有车辆列表（用于统计司机车辆数量） */
+  allVehicles: Vehicle[]
+}
 
-/** 加载状态 */
-const loading = ref(false)
+// ==================== 状态定义 ====================
 
 /** 司机列表 */
 const drivers = ref<DriverWithDetails[]>([])
@@ -444,6 +460,25 @@ const driverWarehouseMap = ref<Map<number, number[]>>(new Map())
 
 /** 当前仓库索引 - Requirements 1 */
 const currentWarehouseIndex = ref(0)
+
+/** 所有车辆列表 */
+const allVehicles = ref<Vehicle[]>([])
+
+// 使用仓库数据缓存 composable - Requirements 7.4
+const {
+  currentData,
+  isLoading,
+  switchWarehouse: switchWarehouseCache,
+  refreshAll,
+} = useWarehouseDataCache<DriverManagementData>({
+  loadDataFn: loadDriverManagementData,
+  warehouses,
+  currentIndex: currentWarehouseIndex,
+  enablePreload: true,
+})
+
+// 从缓存数据中提取状态
+const loading = computed(() => isLoading.value)
 
 /** 搜索关键词 */
 const searchKeyword = ref('')
@@ -534,15 +569,122 @@ const filteredDrivers = computed(() => {
 // ==================== 生命周期 ====================
 
 onMounted(() => {
-  loadData()
+  // 初始化时加载仓库列表
+  loadInitialWarehouses()
+  
+  // 监听仓库分配更新事件
+  // Requirements: 3.3 - 仓库分配变更时重新加载数据
+  sseService.setCallbacks({
+    onAssignmentUpdate: (data: AssignmentUpdateEvent) => {
+      console.log('[司机管理页面] 收到仓库分配更新事件，重新加载数据')
+      // 使用 composable 的 refreshAll 方法刷新所有仓库数据
+      refreshAll()
+    },
+  })
 })
 
 onShow(() => {
   // 每次显示页面时刷新数据
-  loadData()
+  if (warehouses.value.length > 0) {
+    refreshAll()
+  }
 })
 
+onUnmounted(() => {
+  // 清理 SSE 回调
+  sseService.setCallbacks({})
+})
+
+// 监听缓存数据变化，同步到本地状态
+watch(currentData, (data) => {
+  if (data) {
+    drivers.value = data.drivers
+    warehouses.value = data.warehouses
+    driverWarehouseMap.value = data.driverWarehouseMap
+    allVehicles.value = data.allVehicles
+  }
+}, { immediate: true })
+
 // ==================== 方法定义 ====================
+
+/**
+ * 加载指定仓库的司机管理数据
+ * 获取该仓库的司机列表、车辆信息和司机-仓库映射
+ * @param warehouseId - 仓库ID
+ * @returns 司机管理数据
+ * @requirements 7.4 - 司机管理页面数据加载
+ */
+async function loadDriverManagementData(warehouseId: number): Promise<DriverManagementData> {
+  try {
+    // 1. 获取所有启用的仓库
+    const warehousesData = await getWarehouses({ is_active: true })
+
+    // 2. 获取所有车辆信息（用于统计司机车辆数量）
+    const allVehicles = await getVehicles()
+
+    // 3. 为每个仓库获取司机列表
+    const newDriverWarehouseMap = new Map<number, number[]>()
+    const allDriversMap = new Map<number, DriverWithDetails>()
+
+    // 并行获取所有仓库的司机
+    const warehouseUsersPromises = warehousesData.map(async (warehouse) => {
+      try {
+        const users = await getWarehouseUsers(warehouse.id)
+        // 只保留司机角色的用户
+        const warehouseDrivers = users.filter((u) => u.role === UserRole.DRIVER)
+        // 建立司机-仓库映射
+        warehouseDrivers.forEach((driver) => {
+          // 更新司机-仓库映射
+          const existingWarehouses = newDriverWarehouseMap.get(driver.id) || []
+          existingWarehouses.push(warehouse.id)
+          newDriverWarehouseMap.set(driver.id, existingWarehouses)
+          // 收集司机信息
+          if (!allDriversMap.has(driver.id)) {
+            allDriversMap.set(driver.id, {
+              ...driver,
+              warehouse_id: warehouse.id,
+              detail: createDriverDetail(driver, allVehicles),
+            })
+          }
+        })
+        return warehouseDrivers
+      } catch (error) {
+        console.error(`获取仓库 ${warehouse.name} 的司机失败:`, error)
+        return []
+      }
+    })
+
+    await Promise.all(warehouseUsersPromises)
+
+    return {
+      drivers: Array.from(allDriversMap.values()),
+      warehouses: warehousesData,
+      driverWarehouseMap: newDriverWarehouseMap,
+      allVehicles,
+    }
+  } catch (error) {
+    console.error('加载司机管理数据失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 初始化加载仓库列表
+ * 在 composable 初始化之前需要先加载仓库列表
+ * @requirements 7.4 - 司机管理页面初始化
+ */
+async function loadInitialWarehouses(): Promise<void> {
+  try {
+    const warehousesData = await getWarehouses({ is_active: true })
+    warehouses.value = warehousesData
+  } catch (error) {
+    console.error('加载仓库列表失败:', error)
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none',
+    })
+  }
+}
 
 /**
  * 获取仓库的司机数量
@@ -560,11 +702,13 @@ function getWarehouseDriverCount(warehouseId: number): number {
 
 /**
  * 处理仓库切换
+ * 使用缓存 composable 实现无感切换
  * @param e - Swiper change 事件
  * @requirements 1 - 仓库切换器
+ * @requirements 7.4 - 使用缓存优化切换体验
  */
 function handleWarehouseChange(e: { detail: { current: number } }): void {
-  currentWarehouseIndex.value = e.detail.current
+  switchWarehouseCache(e.detail.current)
 }
 
 /**
@@ -610,68 +754,6 @@ function toggleNewDriverWarehouse(warehouseId: number): void {
     newDriverWarehouseIds.value.push(warehouseId)
   } else {
     newDriverWarehouseIds.value.splice(index, 1)
-  }
-}
-
-/**
- * 加载数据
- * 获取仓库列表和司机列表
- */
-async function loadData(): Promise<void> {
-  loading.value = true
-  try {
-    // 1. 获取所有启用的仓库
-    const warehousesData = await getWarehouses({ is_active: true })
-    warehouses.value = warehousesData
-
-    // 2. 获取所有车辆信息（用于统计司机车辆数量）
-    const allVehicles = await getVehicles()
-
-    // 3. 为每个仓库获取司机列表
-    const newDriverWarehouseMap = new Map<number, number[]>()
-    const allDriversMap = new Map<number, DriverWithDetails>()
-
-    // 并行获取所有仓库的司机
-    const warehouseUsersPromises = warehousesData.map(async (warehouse) => {
-      try {
-        const users = await getWarehouseUsers(warehouse.id)
-        // 只保留司机角色的用户
-        const warehouseDrivers = users.filter((u) => u.role === UserRole.DRIVER)
-        // 建立司机-仓库映射
-        warehouseDrivers.forEach((driver) => {
-          // 更新司机-仓库映射
-          const existingWarehouses = newDriverWarehouseMap.get(driver.id) || []
-          existingWarehouses.push(warehouse.id)
-          newDriverWarehouseMap.set(driver.id, existingWarehouses)
-          // 收集司机信息
-          if (!allDriversMap.has(driver.id)) {
-            allDriversMap.set(driver.id, {
-              ...driver,
-              warehouse_id: warehouse.id,
-              detail: createDriverDetail(driver, allVehicles),
-            })
-          }
-        })
-        return warehouseDrivers
-      } catch (error) {
-        console.error(`获取仓库 ${warehouse.name} 的司机失败:`, error)
-        return []
-      }
-    })
-
-    await Promise.all(warehouseUsersPromises)
-
-    // 4. 更新状态
-    driverWarehouseMap.value = newDriverWarehouseMap
-    drivers.value = Array.from(allDriversMap.values())
-  } catch (error) {
-    console.error('加载数据失败:', error)
-    uni.showToast({
-      title: '加载失败',
-      icon: 'none',
-    })
-  } finally {
-    loading.value = false
   }
 }
 
@@ -816,7 +898,7 @@ async function handleAddDriver(): Promise<void> {
           newDriverWarehouseIds.value = []
           showAddDriver.value = false
           // 刷新数据
-          loadData()
+          refreshAll()
         },
       })
     } else {
@@ -956,7 +1038,7 @@ async function handleSaveWarehouseAssignment(driverId: number): Promise<void> {
           // 关闭面板并刷新数据
           warehouseAssignExpanded.value = null
           selectedWarehouseIds.value = []
-          await loadData()
+          await refreshAll()
         } catch (error) {
           uni.hideLoading()
           console.error('保存仓库分配失败:', error)
@@ -996,7 +1078,7 @@ async function handleToggleDriverType(driver: DriverWithDetails): Promise<void> 
           uni.showToast({ title: `已切换为${newTypeText}`, icon: 'success' })
 
           // 刷新数据
-          await loadData()
+          await refreshAll()
         } catch (error) {
           uni.hideLoading()
           console.error('切换司机类型失败:', error)

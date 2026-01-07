@@ -1290,3 +1290,213 @@ export interface AllPermissionsResponse {
   role_permissions: Record<string, string[]>;
 }
 
+
+
+// ==================== 热更新相关类型 ====================
+
+/**
+ * 更新类型枚举
+ * 定义热更新的两种模式
+ * Requirements: 2.2, 2.4, 2.5
+ */
+export enum UpdateType {
+  /** 热更新（wgt 包）- 仅更新前端资源 */
+  WGT = 'wgt',
+  /** 整包更新（APK）- 需要重新安装 */
+  APK = 'apk',
+}
+
+/**
+ * 平台类型枚举
+ * 定义支持的平台
+ * Requirements: 1.3, 7.3
+ */
+export enum AppPlatform {
+  /** Android 平台 */
+  ANDROID = 'android',
+  /** iOS 平台 */
+  IOS = 'ios',
+  /** H5 网页平台 */
+  H5 = 'h5',
+}
+
+/**
+ * 版本检查请求接口
+ * 客户端向服务器发送的版本检查请求
+ * Requirements: 1.3
+ * 
+ * @example
+ * const request: UpdateCheckRequest = {
+ *   current_version: '1.2.0',
+ *   current_version_code: 120,
+ *   platform: 'android'
+ * };
+ */
+export interface UpdateCheckRequest {
+  /** 当前版本名称，如 "1.2.0" */
+  current_version: string;
+  /** 当前版本号（整数），如 120，用于版本比较 */
+  current_version_code: number;
+  /** 平台类型：android, ios, h5 */
+  platform: AppPlatform | 'android' | 'ios' | 'h5';
+}
+
+/**
+ * 版本检查响应/更新检查结果接口
+ * 服务器返回的版本检查结果
+ * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
+ * 
+ * @example
+ * // 有更新时的响应
+ * const result: UpdateCheckResult = {
+ *   has_update: true,
+ *   update_type: 'wgt',
+ *   latest_version: '1.3.0',
+ *   latest_version_code: 130,
+ *   download_url: 'https://example.com/app.wgt',
+ *   file_size: 1024000,
+ *   md5: 'abc123...',
+ *   description: '修复了一些问题',
+ *   is_force_update: false
+ * };
+ * 
+ * // 无更新时的响应
+ * const noUpdate: UpdateCheckResult = {
+ *   has_update: false
+ * };
+ */
+export interface UpdateCheckResult {
+  /** 是否有可用更新 */
+  has_update: boolean;
+  /** 更新类型：wgt（热更新）或 apk（整包更新） */
+  update_type?: UpdateType | 'wgt' | 'apk';
+  /** 最新版本名称，如 "1.3.0" */
+  latest_version?: string;
+  /** 最新版本号（整数），如 130 */
+  latest_version_code?: number;
+  /** 更新包下载地址 */
+  download_url?: string;
+  /** 文件大小（字节） */
+  file_size?: number;
+  /** MD5 校验值，用于验证下载文件完整性 */
+  md5?: string;
+  /** 更新说明/更新内容描述 */
+  description?: string;
+  /** 是否强制更新，true 时用户必须更新才能继续使用 */
+  is_force_update?: boolean;
+  /** 最低兼容版本号，低于此版本必须整包更新 */
+  min_compatible_version?: number;
+}
+
+/**
+ * 下载进度接口
+ * 用于跟踪更新包下载进度
+ * Requirements: 3.1, 4.1, 4.4, 5.4
+ * 
+ * @example
+ * const progress: DownloadProgress = {
+ *   downloaded: 512000,
+ *   total: 1024000,
+ *   percent: 50
+ * };
+ */
+export interface DownloadProgress {
+  /** 已下载字节数 */
+  downloaded: number;
+  /** 总字节数 */
+  total: number;
+  /** 下载百分比（0-100） */
+  percent: number;
+}
+
+/**
+ * 版本信息接口
+ * 当前应用的版本信息
+ * Requirements: 1.3
+ */
+export interface VersionInfo {
+  /** 版本名称，如 "1.2.0" */
+  versionName: string;
+  /** 版本号（整数），如 120 */
+  versionCode: number;
+  /** 平台类型 */
+  platform: AppPlatform | 'android' | 'ios' | 'h5';
+}
+
+/**
+ * 安装结果接口
+ * 更新包安装后的结果
+ * Requirements: 3.4, 3.6
+ */
+export interface InstallResult {
+  /** 是否安装成功 */
+  success: boolean;
+  /** 错误信息（安装失败时） */
+  error?: string;
+}
+
+/**
+ * 创建版本请求接口（管理员使用）
+ * 用于发布新版本
+ * Requirements: 6.2, 6.4, 7.2
+ */
+export interface VersionCreate {
+  /** 版本名称，如 "1.3.0" */
+  version_name: string;
+  /** 版本号（整数），如 130 */
+  version_code: number;
+  /** 平台类型：android, ios */
+  platform: AppPlatform | 'android' | 'ios';
+  /** 更新类型：wgt 或 apk */
+  update_type: UpdateType | 'wgt' | 'apk';
+  /** 下载地址 */
+  download_url: string;
+  /** 文件大小（字节） */
+  file_size: number;
+  /** MD5 校验值 */
+  md5: string;
+  /** 更新说明 */
+  description?: string;
+  /** 是否强制更新 */
+  is_force_update?: boolean;
+  /** 最低兼容版本号 */
+  min_compatible_version?: number;
+}
+
+/**
+ * 版本响应接口
+ * 服务器返回的完整版本信息
+ * Requirements: 6.3, 6.5, 7.1, 7.2
+ */
+export interface VersionResponse {
+  /** 版本记录ID */
+  id: number;
+  /** 版本名称 */
+  version_name: string;
+  /** 版本号 */
+  version_code: number;
+  /** 平台类型 */
+  platform: string;
+  /** 更新类型 */
+  update_type: string;
+  /** 下载地址 */
+  download_url: string;
+  /** 文件大小（字节） */
+  file_size: number;
+  /** MD5 校验值 */
+  md5: string;
+  /** 更新说明 */
+  description: string | null;
+  /** 是否强制更新 */
+  is_force_update: boolean;
+  /** 最低兼容版本号 */
+  min_compatible_version: number;
+  /** 下载次数 */
+  download_count: number;
+  /** 是否启用 */
+  is_active: boolean;
+  /** 创建时间 */
+  created_at: string;
+  /** 创建人ID */
+  created_by: number | null;
+}

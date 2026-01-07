@@ -9,6 +9,9 @@
     <!-- 顶部操作栏 -->
     <view class="header-bar">
       <view class="header-left">
+        <view class="back-btn" @click="handleBack">
+          <text class="back-icon">‹</text>
+        </view>
         <text class="header-title">通知中心</text>
         <text v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</text>
         <!-- SSE 连接状态指示器 -->
@@ -151,11 +154,17 @@ let currentPage = 0
 // ==================== 生命周期 ====================
 
 onMounted(() => {
+  console.log('[通知页面] onMounted 开始')
   loadNotifications()
   loadUnreadCount()
   
-  // 初始化 SSE 连接
-  initSSE()
+  // 初始化 SSE 连接（使用 try-catch 防止错误阻塞页面）
+  try {
+    initSSE()
+  } catch (error) {
+    console.error('[通知页面] SSE 初始化失败:', error)
+  }
+  console.log('[通知页面] onMounted 完成')
 })
 
 onUnmounted(() => {
@@ -371,6 +380,18 @@ async function handleItemClick(item: Notification) {
 }
 
 /**
+ * 返回上一页或首页
+ */
+function handleBack() {
+  uni.navigateBack({
+    fail: () => {
+      // 如果没有上一页，跳转到首页
+      uni.switchTab({ url: '/pages/index/index' })
+    }
+  })
+}
+
+/**
  * 标记全部已读
  */
 async function handleMarkAllRead() {
@@ -435,6 +456,21 @@ async function handleMarkAllRead() {
 .header-left {
   display: flex;
   align-items: center;
+}
+
+.back-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8rpx;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #333333;
+  font-weight: bold;
 }
 
 .header-title {

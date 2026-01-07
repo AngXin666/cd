@@ -6,6 +6,17 @@
     Requirements: 8.1
   -->
   <view class="piece-work-detail-page">
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-left" @click="handleBack">
+        <text class="back-icon">‹</text>
+      </view>
+      <view class="nav-title">
+        <text class="title-text">件数报表详情</text>
+      </view>
+      <view class="nav-right" />
+    </view>
+
     <!-- 加载状态 -->
     <view v-if="loading" class="loading-container">
       <text class="loading-text">加载中...</text>
@@ -242,6 +253,18 @@ async function loadData(): Promise<void> {
 }
 
 /**
+ * 返回上一页
+ */
+function handleBack(): void {
+  uni.navigateBack({
+    fail: () => {
+      // 如果没有上一页，跳转到首页
+      uni.switchTab({ url: '/pages/index/index' })
+    }
+  })
+}
+
+/**
  * 计算单价
  * 根据金额和数量计算单价
  * 
@@ -259,6 +282,43 @@ function getUnitPrice(record: PieceWorkRecord): number {
   min-height: 100vh;
   background-color: #f5f5f5;
   padding-bottom: 48rpx;
+}
+
+/* 导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 24rpx;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+}
+
+.nav-left {
+  width: 80rpx;
+  display: flex;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+}
+
+.title-text {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.nav-right {
+  width: 80rpx;
 }
 
 /* 加载状态 */

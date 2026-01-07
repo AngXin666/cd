@@ -1,21 +1,29 @@
 <!--
   App.vue - 应用根组件
   配置应用生命周期和全局样式
-  集成临时文件清理功能和 SSE 实时更新服务
+  集成临时文件清理功能、SSE 实时更新服务和热更新检查
   
-  Requirements: 6.3, 6.4 - 权限状态集成实时更新
+  Requirements: 
+  - 6.3, 6.4 - 权限状态集成实时更新
+  - 1.1 - 应用启动时自动检查热更新
 -->
 <script setup lang="ts">
 /**
  * 应用根组件
  * 处理应用级别的生命周期事件
- * 包括用户状态初始化、临时文件清理和 SSE 实时更新
+ * 包括用户状态初始化、临时文件清理、SSE 实时更新和热更新检查
  * 
  * SSE 实时更新功能：
  * - 权限更新：当用户权限变化时自动更新本地状态
  * - 用户状态更新：当用户被禁用时强制登出
  * 
- * Requirements: 6.3, 6.4, 7.3, 7.4 - 权限和用户状态实时更新
+ * 热更新功能：
+ * - 应用启动时延迟 2 秒自动检查更新
+ * - 支持 wgt 热更新和 APK 整包更新
+ * 
+ * Requirements: 
+ * - 6.3, 6.4, 7.3, 7.4 - 权限和用户状态实时更新
+ * - 1.1 - 应用启动时自动检查热更新
  */
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
@@ -26,6 +34,7 @@ import {
   performLaunchCleanup,
   performForegroundCleanup
 } from '@/utils/cleanup';
+import { checkUpdateOnLaunch } from '@/utils/update';
 
 /**
  * 初始化 SSE 服务并注册回调
@@ -147,6 +156,10 @@ onLaunch(async () => {
   
   // 注意：SSE 和权限加载移到登录成功后执行
   // 这样可以避免启动时的网络请求导致 "连接服务器超时" 错误
+  
+  // 热更新检查（延迟 2 秒后执行，不影响启动速度）
+  // Requirements: 1.1 - 应用启动时延迟 2 秒后自动检查更新
+  checkUpdateOnLaunch();
   
   // 初始化清理管理器（延迟执行，不影响启动）
   setTimeout(async () => {

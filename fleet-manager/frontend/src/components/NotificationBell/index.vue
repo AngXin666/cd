@@ -101,6 +101,7 @@ async function loadUnreadCount(): Promise<void> {
 /**
  * 点击铃铛跳转到通知列表
  * @requirements 2.3 - 点击跳转到通知列表页面
+ * 通知中心已改为普通页面，使用 navigateTo 支持左滑返回
  */
 function handleClick(): void {
   uni.navigateTo({

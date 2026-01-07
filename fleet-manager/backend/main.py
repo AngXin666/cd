@@ -43,7 +43,8 @@ from routers import (
     attendance_router, piece_work_router,
     leave_router, vehicles_router,
     notifications_router,
-    ocr_router, upload_router, admin_router
+    ocr_router, upload_router, admin_router,
+    app_version_router, report_router
 )
 
 
@@ -110,8 +111,15 @@ from pathlib import Path
 UPLOAD_BASE_DIR = Path("uploads")
 UPLOAD_BASE_DIR.mkdir(parents=True, exist_ok=True)
 
-# 挂载静态文件服务，用于访问上传的图片
+# 创建应用更新包目录（如果不存在）
+# Requirements: 6.4 - 支持上传 wgt 包和 APK 文件
+APP_UPDATES_DIR = UPLOAD_BASE_DIR / "app_updates"
+APP_UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+
+# 挂载静态文件服务，用于访问上传的图片和更新包
 # URL 路径 /uploads 映射到本地 uploads 目录
+# 包含：/uploads/images/* 图片文件
+#       /uploads/app_updates/* 应用更新包（wgt/apk）
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_BASE_DIR)), name="uploads")
 
 
@@ -149,6 +157,14 @@ app.include_router(upload_router)
 
 # 注册系统管理路由（老板管理、权限配置）
 app.include_router(admin_router)
+
+# 注册应用版本管理路由（版本检查、发布、历史）
+# Requirements: 6.1 - 提供版本检查 API
+app.include_router(app_version_router)
+
+# 注册数据报表路由（日报、周报、月报）
+# Requirements: 报表功能
+app.include_router(report_router)
 
 
 # ==================== 健康检查 ====================

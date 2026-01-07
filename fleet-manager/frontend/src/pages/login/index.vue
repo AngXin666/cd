@@ -182,6 +182,7 @@
 
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/store/user'
+import { checkUpdateOnLaunch } from '@/utils/update'
 
 // ==================== 背景图片配置 ====================
 
@@ -261,6 +262,10 @@ onMounted(() => {
   
   // 随机选择背景图片
   randomizeBgImage()
+  
+  // 检查应用更新（登录页面也检查一次，确保用户能看到更新提示）
+  // Requirements: 1.1 - 应用启动时自动检查更新
+  checkUpdateOnLaunch()
 })
 
 // ==================== 方法 ====================

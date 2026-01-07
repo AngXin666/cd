@@ -303,9 +303,10 @@
  * @requirements 4.7 - 显示功能入口网格（计件录入、计件记录、请假申请等）
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
+import { useWarehouseDataCache } from '@/composables/useWarehouseDataCache'
 import { WelcomeCard, LogoutCard, QuickActions } from '@/components'
 import type { QuickActionItem } from '@/components/QuickActions/types'
 import { 
@@ -324,18 +325,94 @@ import {
 } from '@/utils/warehouse'
 import { getLocalDateString, getMonthStartStr } from '@/utils/date'
 import { formatTime } from '@/utils/dateFormat'
+import { sseService } from '@/utils/sse'
+import type { AssignmentUpdateEvent } from '@/types/sse-events'
+
+// ==================== 类型定义 ====================
+
+/**
+ * 司机首页数据类型
+ * 包含统计数据和考勤记录
+ */
+interface DriverHomeData {
+  /** 统计数据 */
+  stats: {
+    /** 今日计件数量 */
+    todayPieceCount: number
+    /** 今日收入 */
+    todayIncome: number
+    /** 本月计件数量 */
+    monthPieceCount: number
+    /** 本月收入 */
+    monthIncome: number
+    /** 本月出勤天数 */
+    attendanceDays: number
+    /** 本月请假天数 */
+    leaveDays: number
+  }
+  /** 考勤记录（用于计算出勤天数） */
+  attendanceRecords: any[]
+}
 
 // ==================== Store ====================
 
 const userStore = useUserStore()
 
+// ==================== 数据加载函数 ====================
+
+/**
+ * 加载司机首页数据
+ * 根据仓库ID加载统计数据和考勤记录
+ * @param warehouseId - 仓库ID
+ * @returns 司机首页数据
+ */
+async function loadDriverHomeData(warehouseId: number): Promise<DriverHomeData> {
+  // 获取今日日期字符串（使用本地时间）
+  const todayStr = getLocalDateString()
+  
+  // 获取本月第一天（使用共享工具函数）
+  const monthStartStr = getMonthStartStr()
+  
+  // 并行获取今日和本月统计、考勤记录（按仓库过滤）
+  const [todayStats, monthStats, attendanceRecords] = await Promise.all([
+    getPieceWorkStats({
+      start_date: todayStr,
+      end_date: todayStr,
+      warehouse_id: warehouseId,
+    }),
+    getPieceWorkStats({
+      start_date: monthStartStr,
+      end_date: todayStr,
+      warehouse_id: warehouseId,
+    }),
+    // 获取本月考勤记录用于计算出勤天数（按仓库过滤）
+    getAttendanceRecords({
+      start_date: monthStartStr,
+      end_date: todayStr,
+      warehouse_id: warehouseId,
+    }),
+  ])
+  
+  // 计算出勤天数（有打卡记录的天数）
+  const attendanceDays = attendanceRecords.filter(r => r.clock_in).length
+  
+  return {
+    stats: {
+      todayPieceCount: todayStats.total_quantity || 0,
+      todayIncome: todayStats.total_amount || 0,
+      monthPieceCount: monthStats.total_quantity || 0,
+      monthIncome: monthStats.total_amount || 0,
+      attendanceDays,
+      leaveDays: 0, // 请假天数在 loadLeaveStatus 中计算
+    },
+    attendanceRecords,
+  }
+}
+
 // ==================== 状态 ====================
 
 /** 加载考勤状态 */
 const loadingAttendance = ref(false)
-
-/** 加载统计状态 */
-const loadingStats = ref(false)
 
 /** 是否在请假中 */
 const onLeave = ref(false)
@@ -345,7 +422,6 @@ const todayAttendance = ref<(TodayAttendance & { warehouse_name?: string }) | nu
 
 /** 未读通知数量 */
 const unreadCount = ref(0)
-
 
 /** 统计数据 - 扩展为6个统计项，与主项目对齐 */
 const stats = ref({
@@ -371,6 +447,31 @@ const currentWarehouseIndex = ref(0)
 
 /** 加载仓库状态 */
 const loadingWarehouses = ref(false)
+
+// ==================== 使用 Composable ====================
+
+/**
+ * 使用仓库数据缓存 Composable
+ * 提供数据预加载、缓存管理和无感切换功能
+ */
+const {
+  currentData: cachedData,
+  isLoading: loadingStats,
+  switchWarehouse,
+  refreshAll,
+} = useWarehouseDataCache<DriverHomeData>({
+  loadDataFn: loadDriverHomeData,
+  warehouses: computed(() => warehousesWithData.value),
+  currentIndex: currentWarehouseIndex,
+  enablePreload: true,
+})
+
+// 监听缓存数据变化，同步到 stats
+watch(cachedData, (data) => {
+  if (data) {
+    stats.value = data.stats
+  }
+}, { immediate: true })
 
 // ==================== 计算属性 ====================
 
@@ -448,6 +549,16 @@ const currentUnit = computed(() => {
 
 onMounted(() => {
   loadData()
+  
+  // 监听仓库分配更新事件
+  // Requirements: 3.3 - 仓库分配变更时重新加载数据
+  sseService.setCallbacks({
+    onAssignmentUpdate: (data: AssignmentUpdateEvent) => {
+      console.log('[司机首页] 收到仓库分配更新事件，重新加载数据')
+      // 使用 composable 的 refreshAll 方法刷新所有仓库数据
+      refreshAll()
+    },
+  })
 })
 
 onShow(() => {
@@ -455,22 +566,31 @@ onShow(() => {
   loadData()
 })
 
+onUnmounted(() => {
+  // 清理 SSE 回调
+  sseService.setCallbacks({})
+})
+
 
 // ==================== 方法 ====================
 
 /**
  * 加载页面数据
- * 并行加载所有数据以提高性能
+ * 先加载仓库数据，composable 会自动处理统计数据的预加载
  */
 async function loadData(): Promise<void> {
   try {
-    // 并行加载数据
+    // 先加载仓库数据（因为统计数据依赖仓库选择）
+    await loadWarehouses()
+    
+    // composable 会自动预加载所有仓库的统计数据
+    // 不需要手动调用 loadAllWarehousesStats()
+    
+    // 并行加载其他数据
     await Promise.all([
       loadAttendance(),
-      loadStats(),
       loadLeaveStatus(),
       loadUnreadCount(),
-      loadWarehouses(),
     ])
   } catch (error) {
     console.error('加载数据失败:', error)
@@ -494,64 +614,6 @@ async function loadAttendance(): Promise<void> {
     loadingAttendance.value = false
   }
 }
-
-/**
- * 加载计件统计数据
- * 根据当前选中的仓库过滤数据
- * @requirements 4.4, 4.5
- */
-async function loadStats(): Promise<void> {
-  loadingStats.value = true
-  
-  try {
-    // 获取今日日期字符串（使用本地时间）
-    const todayStr = getLocalDateString()
-    
-    // 获取本月第一天（使用共享工具函数）
-    const monthStartStr = getMonthStartStr()
-    
-    // 获取当前选中的仓库ID
-    const currentWarehouse = warehousesWithData.value[currentWarehouseIndex.value]
-    const warehouseId = currentWarehouse ? currentWarehouse.id : undefined
-    
-    // 并行获取今日和本月统计、考勤记录（按仓库过滤）
-    const [todayStats, monthStats, attendanceRecords] = await Promise.all([
-      getPieceWorkStats({
-        start_date: todayStr,
-        end_date: todayStr,
-        warehouse_id: warehouseId,
-      }),
-      getPieceWorkStats({
-        start_date: monthStartStr,
-        end_date: todayStr,
-        warehouse_id: warehouseId,
-      }),
-      // 获取本月考勤记录用于计算出勤天数（按仓库过滤）
-      getAttendanceRecords({
-        start_date: monthStartStr,
-        end_date: todayStr,
-        warehouse_id: warehouseId,
-      }),
-    ])
-    
-    // 计算出勤天数（有打卡记录的天数）
-    const attendanceDays = attendanceRecords.filter(r => r.clock_in).length
-    
-    stats.value = {
-      todayPieceCount: todayStats.total_quantity || 0,
-      todayIncome: todayStats.total_amount || 0,
-      monthPieceCount: monthStats.total_quantity || 0,
-      monthIncome: monthStats.total_amount || 0,
-      attendanceDays,
-      leaveDays: 0, // 请假天数在 loadLeaveStatus 中计算
-    }
-  } catch (error) {
-    console.error('加载统计数据失败:', error)
-  } finally {
-    loadingStats.value = false
-  }
-}
-
 
 /**
  * 加载司机分配的仓库列表
@@ -700,25 +762,43 @@ function formatWorkHours(hours: number | null): string {
 /**
  * 页面跳转
  * 自动判断是否为 tabBar 页面，使用正确的跳转方法
+ * 注意：/pages/notifications/index 不是 tabBar 页面，应使用 navigateTo
  * @param url - 目标页面路径
  */
 function navigateTo(url: string): void {
-  // tabBar 页面列表
+  // tabBar 页面列表（仅包含 pages.json 中定义的 tabBar 页面）
   const tabBarPages = [
     '/pages/index/index',
-    '/pages/notifications/index',
     '/pages/profile/index',
   ]
   
   // 判断是否为 tabBar 页面
   const isTabBarPage = tabBarPages.some(page => url.startsWith(page))
   
+  console.log('[司机端导航] 目标:', url, '是否tabBar:', isTabBarPage)
+  
   if (isTabBarPage) {
     // tabBar 页面使用 switchTab
-    uni.switchTab({ url })
+    uni.switchTab({ 
+      url,
+      success: () => console.log('[司机端导航] switchTab 成功:', url),
+      fail: (err) => console.error('[司机端导航] switchTab 失败:', url, err),
+    })
   } else {
     // 普通页面使用 navigateTo
-    uni.navigateTo({ url })
+    uni.navigateTo({ 
+      url,
+      success: () => console.log('[司机端导航] navigateTo 成功:', url),
+      fail: (err) => {
+        console.error('[司机端导航] navigateTo 失败:', url, err)
+        // 失败时尝试 redirectTo 作为备选
+        uni.redirectTo({
+          url,
+          success: () => console.log('[司机端导航] redirectTo 成功:', url),
+          fail: (err2) => console.error('[司机端导航] redirectTo 也失败:', url, err2),
+        })
+      },
+    })
   }
 }
 
@@ -762,13 +842,13 @@ function onScrollToLower(): void {
 
 /**
  * 处理仓库切换（Swiper 滑动）
- * 切换仓库后重新加载统计数据
+ * 使用 composable 的 switchWarehouse 方法实现无感切换
  * @param e - Swiper 事件
  */
 function handleWarehouseChange(e: any): void {
-  currentWarehouseIndex.value = e.detail.current
-  // 切换仓库后重新加载统计数据
-  loadStats()
+  const newIndex = e.detail.current
+  // 使用 composable 的切换方法，自动处理缓存
+  switchWarehouse(newIndex)
 }
 
 /**

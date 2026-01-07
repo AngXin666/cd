@@ -67,13 +67,15 @@ export type {
   NotificationCreate,
   UnreadCountResponse,
 
-  // 版本相关
-  AppVersion,
-  AppVersionCreate,
-  AppVersionUpdate,
-  AppVersionCheckRequest,
-  AppVersionCheckResponse,
+  // 热更新相关
   UpdateType,
+  AppPlatform,
+  UpdateCheckRequest,
+  UpdateCheckResult,
+  DownloadProgress,
+  VersionInfo,
+  InstallResult,
+  VersionCreate,
 
   // 车辆历史相关
   VehicleHistory,

@@ -17,6 +17,17 @@
     @requirements 1.1, 1.2, 1.3, 1.4
   -->
   <view class="attendance-page">
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-left" @click="handleBack">
+        <text class="back-icon">‹</text>
+      </view>
+      <view class="nav-title">
+        <text class="title-text">考勤管理</text>
+      </view>
+      <view class="nav-right" />
+    </view>
+
     <!-- 数据驾驶舱 - 圆形指标风格 -->
     <view class="dashboard-panel">
       <view class="dashboard-title-row">
@@ -721,6 +732,20 @@ const filteredDrivers = computed(() => {
 
   return result
 })
+
+// ==================== 导航方法 ====================
+
+/**
+ * 返回上一页
+ */
+function handleBack(): void {
+  uni.navigateBack({
+    fail: () => {
+      // 如果没有上一页，跳转到首页
+      uni.switchTab({ url: '/pages/index/index' })
+    }
+  })
+}
 
 // ==================== 生命周期 ====================
 

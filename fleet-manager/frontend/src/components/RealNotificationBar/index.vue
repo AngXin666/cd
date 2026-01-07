@@ -124,9 +124,9 @@ async function loadNotifications(): Promise<void> {
 /**
  * 点击通知栏跳转
  * @requirements 3.3 - 点击通知栏跳转到对应的详情页面
+ * 通知中心已改为普通页面，使用 navigateTo 支持左滑返回
  */
 function handleClick(): void {
-  // 跳转到通知列表页面
   uni.navigateTo({
     url: '/pages/notifications/index'
   })

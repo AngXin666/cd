@@ -11,21 +11,33 @@
       "path": "pages/login/index",
       "style": {
         "navigationBarTitleText": "登录",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "disableSwipeBack": true,
+        "app-plus": {
+          "popGesture": "none"
+        }
       }
     },
     {
       "path": "pages/driver/index/index",
       "style": {
         "navigationBarTitleText": "司机工作台",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "disableSwipeBack": true,
+        "app-plus": {
+          "popGesture": "none"
+        }
       }
     },
     {
       "path": "pages/manager/index/index",
       "style": {
         "navigationBarTitleText": "车队长工作台",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "disableSwipeBack": true,
+        "app-plus": {
+          "popGesture": "none"
+        }
       }
     },
     {
@@ -33,7 +45,11 @@
       "style": {
         "navigationBarTitleText": "管理后台",
         "navigationStyle": "custom",
-        "enablePullDownRefresh": true
+        "enablePullDownRefresh": true,
+        "disableSwipeBack": true,
+        "app-plus": {
+          "popGesture": "none"
+        }
       }
     },
     {
@@ -352,6 +368,27 @@
       "style": {
         "navigationBarTitleText": "通知中心"
       }
+    },
+    {
+      "path": "pages/common/report/index",
+      "style": {
+        "navigationBarTitleText": "数据报表",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/common/report/warehouse",
+      "style": {
+        "navigationBarTitleText": "仓库详情",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/common/report/driver",
+      "style": {
+        "navigationBarTitleText": "司机详情",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {
@@ -371,12 +408,6 @@
         "text": "首页",
         "iconPath": "static/tabbar/home.png",
         "selectedIconPath": "static/tabbar/home-active.png"
-      },
-      {
-        "pagePath": "pages/notifications/index",
-        "text": "通知",
-        "iconPath": "static/tabbar/notification.png",
-        "selectedIconPath": "static/tabbar/notification-active.png"
       },
       {
         "pagePath": "pages/profile/index",

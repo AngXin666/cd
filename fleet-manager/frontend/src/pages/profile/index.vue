@@ -54,6 +54,14 @@
       </view>
 
       <view class="menu-group">
+        <view class="menu-item" @click="handleCheckUpdate">
+          <text class="menu-icon">📲</text>
+          <text class="menu-text">检查更新</text>
+          <view class="menu-right">
+            <text v-if="checkingUpdate" class="menu-loading">检查中...</text>
+            <text class="menu-arrow">›</text>
+          </view>
+        </view>
         <view class="menu-item" @click="handleAbout">
           <text class="menu-icon">ℹ️</text>
           <text class="menu-text">关于我们</text>
@@ -144,6 +152,7 @@ import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
 import { changePassword } from '@/api'
 import { UserRole } from '@/api/types'
+import { checkForUpdate, showUpdateDialog } from '@/utils/update'
 
 // ==================== Store ====================
 
@@ -157,6 +166,9 @@ const showPasswordModal = ref(false)
 
 /** 是否正在修改密码 */
 const changingPassword = ref(false)
+
+/** 是否正在检查更新 */
+const checkingUpdate = ref(false)
 
 /** 密码表单 */
 const passwordForm = ref({
@@ -341,6 +353,44 @@ function handleAbout() {
     confirmText: '知道了',
   })
 }
+
+/**
+ * 检查应用更新
+ * 手动触发检查更新，显示检查结果
+ * 
+ * Requirements: 1.2 - 用户手动触发检查更新时立即发送请求
+ */
+async function handleCheckUpdate() {
+  // 防止重复点击
+  if (checkingUpdate.value) return
+  
+  checkingUpdate.value = true
+  
+  try {
+    const updateInfo = await checkForUpdate()
+    
+    if (updateInfo?.has_update) {
+      // 有新版本，显示更新弹窗
+      showUpdateDialog(updateInfo)
+    } else {
+      // 已是最新版本
+      uni.showToast({
+        title: '已是最新版本',
+        icon: 'success',
+        duration: 2000,
+      })
+    }
+  } catch (error) {
+    console.error('[Profile] 检查更新失败:', error)
+    uni.showToast({
+      title: '检查更新失败',
+      icon: 'none',
+      duration: 2000,
+    })
+  } finally {
+    checkingUpdate.value = false
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -480,6 +530,17 @@ function handleAbout() {
   flex: 1;
   font-size: 30rpx;
   color: #333333;
+}
+
+.menu-right {
+  display: flex;
+  align-items: center;
+}
+
+.menu-loading {
+  font-size: 24rpx;
+  color: #999999;
+  margin-right: 8rpx;
 }
 
 .menu-arrow {

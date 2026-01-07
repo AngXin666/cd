@@ -28,6 +28,7 @@ export * from './submitRecovery'
 export * from './imagePreloader'
 export * from './sort'
 export * from './completionRate'
+export * from './report'
 
 /**
  * 格式化日期
