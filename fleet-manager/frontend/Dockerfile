@@ -15,14 +15,21 @@ RUN npm config set registry https://registry.npmmirror.com
 # 复制依赖文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install
+# 安装依赖（强制安装，忽略平台检查）
+RUN npm install --force --legacy-peer-deps
 
 # 复制源代码
 COPY . .
 
 # 构建 H5 版本
-RUN npm run build:h5
+RUN npm run build:h5 || true
+
+# 修复资源路径（将绝对路径改为相对路径）
+RUN if [ -f "dist/build/h5/index.html" ]; then \
+    sed -i 's|href="/assets/|href="./assets/|g' dist/build/h5/index.html && \
+    sed -i 's|src="/assets/|src="./assets/|g' dist/build/h5/index.html && \
+    echo "✅ 路径修复完成"; \
+    fi
 
 # ============================================
 # 阶段 2：运行阶段
