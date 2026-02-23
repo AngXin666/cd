@@ -1,0 +1,30 @@
+name: Build Linux Deployment Package
+
+on:
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Build deployment package
+      run: |
+        cd fleet-manager/backend
+        chmod +x build_linux.sh
+        ./build_linux.sh
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: fleet-manager-linux
+        path: fleet-manager/backend/fleet-manager-linux.zip
+        retention-days: 7
