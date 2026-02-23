@@ -92,15 +92,6 @@ def init_default_data(session: Session) -> None:
         )
         print("✅ 已创建默认司机3账号: driver3 / driver123")
 
-    # 检查是否已有计件分类
-    categories = get_piece_work_categories(session)
-    if not categories:
-        default_categories = [
-            ("装车", 10.0, "车"),
-            ("卸车", 8.0, "车"),
-            ("搬运", 5.0, "件"),
-            ("分拣", 3.0, "件"),
-        ]
-        for name, price, unit in default_categories:
-            create_piece_work_category(session, name, price, unit)
-        print("✅ 已创建默认计件分类")
+    # 不再自动创建计件分类，因为分类需要关联仓库
+    # 用户需要先创建仓库，然后在仓库中创建分类
+    print("ℹ️  计件分类需要在创建仓库后手动添加")

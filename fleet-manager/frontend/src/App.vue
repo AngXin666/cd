@@ -34,7 +34,9 @@ import {
   performLaunchCleanup,
   performForegroundCleanup
 } from '@/utils/cleanup';
+// #ifndef MP-WEIXIN
 import { checkUpdateOnLaunch } from '@/utils/update';
+// #endif
 
 /**
  * 初始化 SSE 服务并注册回调
@@ -159,7 +161,9 @@ onLaunch(async () => {
   
   // 热更新检查（延迟 2 秒后执行，不影响启动速度）
   // Requirements: 1.1 - 应用启动时延迟 2 秒后自动检查更新
+  // #ifndef MP-WEIXIN
   checkUpdateOnLaunch();
+  // #endif
   
   // 初始化清理管理器（延迟执行，不影响启动）
   setTimeout(async () => {

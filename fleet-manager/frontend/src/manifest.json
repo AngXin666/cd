@@ -2,8 +2,8 @@
     "name" : "车队管家",
     "appid" : "__UNI__50B10E7",
     "description" : "车队管理系统",
-    "versionName" : "1.0.10",
-    "versionCode" : "110",
+    "versionName" : "1.0.11",
+    "versionCode" : "111",
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
@@ -66,11 +66,25 @@
     },
     "quickapp" : {},
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wxf11a504cd3e01346",
         "setting" : {
-            "urlCheck" : false
+            "urlCheck" : true,
+            "es6" : true,
+            "postcss" : true,
+            "minified" : true
         },
-        "usingComponents" : true
+        "usingComponents" : true,
+        "permission" : {
+            "scope.userLocation" : {
+                "desc" : "需要获取位置信息用于打卡定位"
+            },
+            "scope.writePhotosAlbum" : {
+                "desc" : "需要保存图片到相册"
+            },
+            "scope.camera" : {
+                "desc" : "需要使用相机拍照上传车辆照片"
+            }
+        }
     },
     "mp-alipay" : {
         "usingComponents" : true

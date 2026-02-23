@@ -168,6 +168,11 @@
           </button>
         </view>
       </view>
+
+      <!-- 版本信息 -->
+      <view class="version-section">
+        <text class="version-text">版本 1.0.11</text>
+      </view>
     </view>
   </view>
 </template>
@@ -441,6 +446,9 @@ function handleLogin(): void {
 async function handlePasswordLogin(): Promise<void> {
   const { account, password } = formData.value
   
+  console.log('[登录页] ========== 开始密码登录 ==========')
+  console.log('[登录页] 账号:', account)
+  
   if (!account || !password) {
     uni.showToast({ title: '请输入账号和密码', icon: 'none' })
     return
@@ -450,7 +458,16 @@ async function handlePasswordLogin(): Promise<void> {
   
   try {
     // 调用登录方法
+    console.log('[登录页] 调用 userStore.login()')
     await userStore.login(account.trim(), password)
+    console.log('[登录页] userStore.login() 成功')
+    console.log('[登录页] 登录后 userStore 状态:', {
+      isLoggedIn: userStore.isLoggedIn,
+      role: userStore.role,
+      userName: userStore.userName,
+      userId: userStore.userId,
+      token: userStore.token ? '存在' : '不存在'
+    })
     
     // 保存或清除记住的账号密码
     if (rememberMe.value) {
@@ -467,12 +484,22 @@ async function handlePasswordLogin(): Promise<void> {
     uni.showToast({ title: '登录成功', icon: 'success' })
     
     // 延迟跳转，让用户看到成功提示
+    console.log('[登录页] 500ms 后跳转到 /pages/index/index')
     setTimeout(() => {
       // 跳转到首页
-      uni.reLaunch({ url: '/pages/index/index' })
+      console.log('[登录页] 执行 reLaunch 到 /pages/index/index')
+      uni.reLaunch({ 
+        url: '/pages/index/index',
+        success: () => {
+          console.log('[登录页] reLaunch 成功')
+        },
+        fail: (err) => {
+          console.error('[登录页] reLaunch 失败:', err)
+        }
+      })
     }, 500)
   } catch (error) {
-    console.error('登录失败:', error)
+    console.error('[登录页] 登录失败:', error)
     const errorMessage = error instanceof Error ? error.message : '账号或密码错误'
     uni.showToast({ title: errorMessage, icon: 'none', duration: 2000 })
   } finally {
@@ -775,5 +802,17 @@ async function handleQuickLogin(username: string, password: string): Promise<voi
 .role-name {
   font-size: 24rpx;
   font-weight: 500;
+}
+
+/* 版本信息 */
+.version-section {
+  text-align: center;
+  margin-top: 40rpx;
+  padding-bottom: 20rpx;
+}
+
+.version-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
 }
 </style>

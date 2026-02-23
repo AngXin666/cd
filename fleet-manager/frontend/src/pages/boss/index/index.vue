@@ -353,9 +353,13 @@ const {
 })
 
 /**
- * 当前选中的仓库ID（用于 useHomeStats）
+ * 有数据或有司机的仓库列表
+ * 使用统一的工具函数过滤，按今日件数排序（从多到少）
+ * 
+ * 注意：必须在 useHomeStats 和 useWarehouseDataCache 之前定义
  */
-const currentWarehouseIdForStats = computed(() => {
+const warehousesWithDataOrDrivers = computed(() => {
+  // 将 Warehouse 类型转换为工具函数需要的类型
   const warehouseList = warehouses.value.map(w => ({
     id: parseInt(w.id),
     name: w.name,
@@ -365,15 +369,21 @@ const currentWarehouseIdForStats = computed(() => {
     warehouse_type: WarehouseType.PIECE,
     preset_unit: '件',
   }))
-  const filtered = filterWarehousesWithDataOrDrivers({
+  return filterWarehousesWithDataOrDrivers({
     warehouses: warehouseList,
     warehouseDataMap: warehouseDataMap.value,
     warehouseDriverCountMap: warehouseDriverCountMap.value,
     warehouseTodayPieceCountMap: warehouseTodayPieceCountMap.value,
     sortBy: 'todayPieceCount',
-  })
-  const id = filtered[currentWarehouseIndex.value]?.id
-  return id ? parseInt(String(id)) : undefined
+  }).map(w => ({ id: String(w.id), name: w.name }))
+})
+
+/**
+ * 当前选中的仓库ID（用于 useHomeStats）
+ */
+const currentWarehouseIdForStats = computed(() => {
+  const id = warehousesWithDataOrDrivers.value[currentWarehouseIndex.value]?.id
+  return id ? parseInt(id) : undefined
 })
 
 /**
@@ -460,30 +470,6 @@ const displayName = computed(() => {
  */
 const todayDate = computed(() => {
   return new Date().toLocaleDateString('zh-CN')
-})
-
-/**
- * 有数据或有司机的仓库列表
- * 使用统一的工具函数过滤，按今日件数排序（从多到少）
- */
-const warehousesWithDataOrDrivers = computed(() => {
-  // 将 Warehouse 类型转换为工具函数需要的类型
-  const warehouseList = warehouses.value.map(w => ({
-    id: parseInt(w.id),
-    name: w.name,
-    address: null,
-    is_active: true,
-    created_at: '',
-    warehouse_type: WarehouseType.PIECE,
-    preset_unit: '件',
-  }))
-  return filterWarehousesWithDataOrDrivers({
-    warehouses: warehouseList,
-    warehouseDataMap: warehouseDataMap.value,
-    warehouseDriverCountMap: warehouseDriverCountMap.value,
-    warehouseTodayPieceCountMap: warehouseTodayPieceCountMap.value,
-    sortBy: 'todayPieceCount',
-  }).map(w => ({ id: String(w.id), name: w.name }))
 })
 
 /**
@@ -658,6 +644,8 @@ onPullDownRefresh(async () => {
  * 加载老板首页数据
  * 并发加载统计数据和司机状态数据
  * 
+ * 注意：老板和调度应该能看到所有司机，不管他们是否分配到仓库
+ * 
  * @param warehouseId - 仓库ID
  * @returns 老板首页数据
  * @requirements 7.1 - 老板首页数据加载
@@ -675,7 +663,7 @@ async function loadBossHomeData(warehouseId: number): Promise<BossHomeData> {
       attendanceRecords,
       todayPieceStats,
       monthPieceStats,
-      warehouseUsers,
+      allUsers,
       pieceWorkRecords,
     ] = await Promise.all([
       // 加载今日考勤记录
@@ -706,8 +694,8 @@ async function loadBossHomeData(warehouseId: number): Promise<BossHomeData> {
           warehouse_id: warehouseId,
         })
       })(),
-      // 加载仓库用户
-      getWarehouseUsers(warehouseId),
+      // 加载所有用户（老板和调度应该能看到所有司机）
+      getUsers(),
       // 加载今日计件记录
       getPieceWorkRecords({
         start_date: todayStr,
@@ -721,8 +709,8 @@ async function loadBossHomeData(warehouseId: number): Promise<BossHomeData> {
     const uniqueUserIds = new Set(attendanceRecords.map(r => r.user_id))
     const todayAttendanceCount = uniqueUserIds.size
     
-    // 获取司机列表
-    const drivers = warehouseUsers.filter(u => u.role === UserRole.DRIVER)
+    // 获取所有司机列表（不限制仓库）
+    const drivers = allUsers.filter(u => u.role === UserRole.DRIVER)
     
     // 统计已打卡司机（今日有打卡记录的）
     const onlineDriverIds = new Set(attendanceRecords.map(r => r.user_id))
@@ -923,6 +911,9 @@ async function loadUnreadCount(): Promise<void> {
 /**
  * 加载司机统计数据
  * 根据当前选中的仓库过滤数据
+ * 
+ * 注意：老板和调度应该能看到所有司机，不管他们是否分配到仓库
+ * 
  * @requirements 1.2, 1.3
  */
 async function loadDriverStats(): Promise<void> {
@@ -935,15 +926,9 @@ async function loadDriverStats(): Promise<void> {
     // 获取当前选中的仓库ID
     const warehouseId = currentWarehouseId.value ? parseInt(currentWarehouseId.value) : undefined
     
-    // 获取司机数量（如果选中了仓库，获取该仓库的司机）
-    let drivers: User[] = []
-    if (warehouseId) {
-      const warehouseUsers = await getWarehouseUsers(warehouseId)
-      drivers = warehouseUsers.filter(u => u.role === UserRole.DRIVER)
-    } else {
-      const users = await getUsers()
-      drivers = users.filter(u => u.role === UserRole.DRIVER)
-    }
+    // 获取所有司机（老板和调度应该能看到所有司机）
+    const users = await getUsers()
+    const drivers = users.filter(u => u.role === UserRole.DRIVER)
     
     // 获取今日考勤记录（按仓库过滤）
     const { getAttendanceRecords } = await import('@/api')

@@ -308,7 +308,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
 import { useWarehouseDataCache } from '@/composables/useWarehouseDataCache'
 import { WelcomeCard, LogoutCard, QuickActions } from '@/components'
-import type { QuickActionItem } from '@/components/QuickActions/types'
+import type { QuickAction } from '@/components/QuickActions/types'
 import { 
   getPieceWorkStats, 
   getTodayAttendance, 
@@ -327,6 +327,12 @@ import { getLocalDateString, getMonthStartStr } from '@/utils/date'
 import { formatTime } from '@/utils/dateFormat'
 import { sseService } from '@/utils/sse'
 import type { AssignmentUpdateEvent } from '@/types/sse-events'
+import { logger } from '@/utils/logger'
+
+// ==================== 立即执行的日志 ====================
+logger.log('[司机首页] ========== 脚本开始执行 ==========')
+logger.log('[司机首页] 当前时间:', new Date().toISOString())
+logger.log('[司机首页] 当前 URL:', window.location.href)
 
 // ==================== 类型定义 ====================
 
@@ -356,7 +362,14 @@ interface DriverHomeData {
 
 // ==================== Store ====================
 
+logger.log('[司机首页] 初始化 userStore')
 const userStore = useUserStore()
+logger.log('[司机首页] userStore 初始化完成:', {
+  isLoggedIn: userStore.isLoggedIn,
+  role: userStore.role,
+  userName: userStore.userName,
+  userId: userStore.userId
+})
 
 // ==================== 数据加载函数 ====================
 
@@ -435,6 +448,7 @@ const stats = ref({
 
 /** 司机分配的仓库列表 */
 const warehouses = ref<Warehouse[]>([])
+logger.log('[司机首页] warehouses ref 创建完成')
 
 /** 仓库数据映射（warehouseId -> hasData） */
 const warehouseDataMap = ref<Map<number, boolean>>(new Map())
@@ -448,8 +462,25 @@ const currentWarehouseIndex = ref(0)
 /** 加载仓库状态 */
 const loadingWarehouses = ref(false)
 
+// ==================== 计算属性（必须在 Composable 之前定义） ====================
+
+/**
+ * 有数据的仓库列表
+ * 使用统一的工具函数过滤，按今日件数排序（从多到少）
+ * 注意：必须在 useWarehouseDataCache 之前定义，因为 composable 需要使用它
+ */
+const warehousesWithData = computed(() => {
+  return filterWarehousesWithData({
+    warehouses: warehouses.value,
+    warehouseDataMap: warehouseDataMap.value,
+    warehouseTodayPieceCountMap: warehouseTodayPieceCountMap.value,
+    sortBy: 'todayPieceCount',
+  })
+})
+
 // ==================== 使用 Composable ====================
 
+logger.log('[司机首页] 开始初始化 useWarehouseDataCache')
 /**
  * 使用仓库数据缓存 Composable
  * 提供数据预加载、缓存管理和无感切换功能
@@ -465,11 +496,18 @@ const {
   currentIndex: currentWarehouseIndex,
   enablePreload: true,
 })
+logger.log('[司机首页] useWarehouseDataCache 初始化完成')
 
 // 监听缓存数据变化，同步到 stats
 watch(cachedData, (data) => {
-  if (data) {
-    stats.value = data.stats
+  try {
+    logger.log('[司机首页] cachedData 变化:', data)
+    if (data) {
+      stats.value = data.stats
+      logger.log('[司机首页] stats 已更新:', stats.value)
+    }
+  } catch (error) {
+    logger.error('[司机首页] watch cachedData 错误:', error)
   }
 }, { immediate: true })
 
@@ -479,7 +517,7 @@ watch(cachedData, (data) => {
  * 快捷功能列表
  * 定义司机端的快捷功能入口
  */
-const quickActions = computed<QuickActionItem[]>(() => [
+const quickActions = computed<QuickAction[]>(() => [
   { key: 'piece-work', icon: '📝', text: '计件录入', color: 'blue' },
   { key: 'clock', icon: '🕐', text: '考勤打卡', color: 'orange' },
   { key: 'leave', icon: '📅', text: '请假申请', color: 'purple' },
@@ -487,19 +525,6 @@ const quickActions = computed<QuickActionItem[]>(() => [
   { key: 'vehicle', icon: '🚗', text: '车辆管理', color: 'cyan' },
   { key: 'notifications', icon: '🔔', text: '通知消息', color: 'red', badge: unreadCount.value },
 ])
-
-/**
- * 有数据的仓库列表
- * 使用统一的工具函数过滤，按今日件数排序（从多到少）
- */
-const warehousesWithData = computed(() => {
-  return filterWarehousesWithData({
-    warehouses: warehouses.value,
-    warehouseDataMap: warehouseDataMap.value,
-    warehouseTodayPieceCountMap: warehouseTodayPieceCountMap.value,
-    sortBy: 'todayPieceCount',
-  })
-})
 
 
 /**
@@ -547,21 +572,44 @@ const currentUnit = computed(() => {
 
 // ==================== 生命周期 ====================
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  logger.log('[司机首页] ========== onMounted 开始 ==========')
+  logger.log('[司机首页] userStore 状态:', {
+    isLoggedIn: userStore.isLoggedIn,
+    role: userStore.role,
+    userName: userStore.userName,
+    userId: userStore.userId,
+    token: userStore.token ? '存在' : '不存在'
+  })
+  logger.log('[司机首页] warehouses 初始值:', warehouses.value)
+  
+  try {
+    logger.log('[司机首页] 准备调用 loadData()')
+    await loadData()
+    logger.log('[司机首页] loadData() 调用完成')
+  } catch (error) {
+    logger.error('[司机首页] loadData() 调用失败:', error)
+    uni.showToast({
+      title: '加载失败: ' + error,
+      icon: 'none',
+      duration: 5000
+    })
+  }
   
   // 监听仓库分配更新事件
   // Requirements: 3.3 - 仓库分配变更时重新加载数据
   sseService.setCallbacks({
     onAssignmentUpdate: (data: AssignmentUpdateEvent) => {
-      console.log('[司机首页] 收到仓库分配更新事件，重新加载数据')
+      logger.log('[司机首页] 收到仓库分配更新事件，重新加载数据')
       // 使用 composable 的 refreshAll 方法刷新所有仓库数据
       refreshAll()
     },
   })
+  logger.log('[司机首页] ========== onMounted 完成 ==========')
 })
 
 onShow(() => {
+  logger.log('[司机首页] ========== onShow 触发 ==========')
   // 页面显示时刷新数据
   loadData()
 })
@@ -579,21 +627,59 @@ onUnmounted(() => {
  * 先加载仓库数据，composable 会自动处理统计数据的预加载
  */
 async function loadData(): Promise<void> {
+  logger.log('[司机首页] ========== loadData 开始 ==========')
+  
+  // 显示加载提示
+  logger.log('[司机首页] 显示加载提示')
+  uni.showLoading({
+    title: '加载中...',
+    mask: true
+  })
+  
   try {
     // 先加载仓库数据（因为统计数据依赖仓库选择）
+    logger.log('[司机首页] 步骤 1: 开始加载仓库数据')
     await loadWarehouses()
+    logger.log('[司机首页] 步骤 1: 仓库数据加载完成，仓库数量:', warehouses.value.length)
+    logger.log('[司机首页] 步骤 1: 仓库列表:', warehouses.value.map(w => ({ id: w.id, name: w.name })))
     
     // composable 会自动预加载所有仓库的统计数据
     // 不需要手动调用 loadAllWarehousesStats()
     
     // 并行加载其他数据
+    logger.log('[司机首页] 步骤 2: 开始并行加载其他数据')
     await Promise.all([
       loadAttendance(),
       loadLeaveStatus(),
       loadUnreadCount(),
     ])
+    logger.log('[司机首页] 步骤 2: 所有数据加载完成')
+    
+    // 隐藏加载提示
+    logger.log('[司机首页] 隐藏加载提示')
+    uni.hideLoading()
+    
+    logger.log('[司机首页] ========== loadData 完成 ==========')
   } catch (error) {
-    console.error('加载数据失败:', error)
+    logger.error('[司机首页] ========== loadData 失败 ==========')
+    logger.error('[司机首页] 错误详情:', error)
+    
+    // 隐藏加载提示
+    uni.hideLoading()
+    
+    // 检查是否是认证错误
+    if (error instanceof Error && error.message.includes('登录已过期')) {
+      // 认证错误，handleAuthError 已经处理了跳转，不需要显示错误提示
+      logger.log('[司机首页] 认证错误，等待跳转到登录页')
+      return
+    }
+    
+    // 其他错误，显示错误提示
+    uni.showToast({
+      title: '加载失败: ' + (error as Error).message,
+      icon: 'none',
+      duration: 5000
+    })
   }
 }
 
@@ -602,13 +688,15 @@ async function loadData(): Promise<void> {
  * @requirements 4.1, 4.2, 4.3
  */
 async function loadAttendance(): Promise<void> {
+  logger.log('[司机首页] loadAttendance 开始')
   loadingAttendance.value = true
   
   try {
     const data = await getTodayAttendance()
+    logger.log('[司机首页] loadAttendance 成功:', data)
     todayAttendance.value = data
   } catch (error) {
-    console.error('加载打卡状态失败:', error)
+    logger.error('[司机首页] loadAttendance 失败:', error)
     todayAttendance.value = null
   } finally {
     loadingAttendance.value = false
@@ -621,12 +709,16 @@ async function loadAttendance(): Promise<void> {
  * 同时获取每个仓库的计件数据，用于过滤有数据的仓库
  */
 async function loadWarehouses(): Promise<void> {
+  logger.log('[司机首页] loadWarehouses 开始')
   loadingWarehouses.value = true
   
   try {
     // 获取所有启用的仓库
+    logger.log('[司机首页] 调用 getWarehouses API')
     const data = await getWarehouses({ is_active: true })
+    logger.log('[司机首页] getWarehouses API 返回:', data)
     warehouses.value = data || []
+    logger.log('[司机首页] warehouses.value 已更新:', warehouses.value.length, '个仓库')
     
     // 获取本月第一天（使用共享工具函数）
     const monthStartStr = getMonthStartStr()
@@ -672,7 +764,16 @@ async function loadWarehouses(): Promise<void> {
     warehouseDataMap.value = dataMap
     warehouseTodayPieceCountMap.value = todayPieceCountMap
   } catch (error) {
-    console.error('加载仓库列表失败:', error)
+    logger.error('[司机首页] 加载仓库列表失败:', error)
+    
+    // 检查是否是认证错误（401）
+    if (error instanceof Error && error.message.includes('登录已过期')) {
+      // 认证错误，不处理，让 handleAuthError 跳转到登录页
+      logger.log('[司机首页] 检测到认证错误，停止加载')
+      throw error // 重新抛出，让上层知道是认证错误
+    }
+    
+    // 其他错误，设置空数据
     warehouses.value = []
     warehouseDataMap.value = new Map()
   } finally {

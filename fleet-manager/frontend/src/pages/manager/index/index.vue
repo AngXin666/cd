@@ -218,6 +218,31 @@ const {
 })
 
 /**
+ * 有数据或有司机的仓库列表
+ * 使用统一的工具函数过滤，按今日出勤排序（从多到少）
+ * 
+ * 注意：必须在 useWarehouseDataCache 之前定义，因为 composable 初始化时需要使用
+ */
+const warehousesWithDataOrDrivers = computed(() => {
+  const warehouseList = warehouses.value.map(w => ({
+    id: parseInt(w.id),
+    name: w.name,
+    address: null,
+    is_active: true,
+    created_at: '',
+    warehouse_type: 'NORMAL' as const,
+    preset_unit: '',
+  }))
+  return filterWarehousesWithDataOrDrivers({
+    warehouses: warehouseList,
+    warehouseDataMap: warehouseDataMap.value,
+    warehouseDriverCountMap: warehouseDriverCountMap.value,
+    warehouseTodayAttendanceMap: warehouseTodayAttendanceMap.value,
+    sortBy: 'todayAttendance',
+  }).map(w => ({ id: String(w.id), name: w.name }))
+})
+
+/**
  * 当前选中的仓库ID（用于 useHomeStats）
  */
 const currentWarehouseIdForStats = computed(() => {
@@ -311,29 +336,6 @@ const driverStatsRef = ref<DriverStatsData | null>(null)
 
 const displayName = computed(() => userStore.userName || '车队长')
 const todayDate = computed(() => new Date().toLocaleDateString('zh-CN'))
-
-/**
- * 有数据或有司机的仓库列表
- * 使用统一的工具函数过滤，按今日出勤排序（从多到少）
- */
-const warehousesWithDataOrDrivers = computed(() => {
-  const warehouseList = warehouses.value.map(w => ({
-    id: parseInt(w.id),
-    name: w.name,
-    address: null,
-    is_active: true,
-    created_at: '',
-    warehouse_type: 'NORMAL' as const,
-    preset_unit: '',
-  }))
-  return filterWarehousesWithDataOrDrivers({
-    warehouses: warehouseList,
-    warehouseDataMap: warehouseDataMap.value,
-    warehouseDriverCountMap: warehouseDriverCountMap.value,
-    warehouseTodayAttendanceMap: warehouseTodayAttendanceMap.value,
-    sortBy: 'todayAttendance',
-  }).map(w => ({ id: String(w.id), name: w.name }))
-})
 
 /**
  * 是否显示仓库切换器
@@ -567,6 +569,20 @@ async function loadData(): Promise<void> {
     ])
   } catch (error) {
     console.error('加载数据失败:', error)
+    
+    // 检查是否是认证错误
+    if (error instanceof Error && error.message.includes('登录已过期')) {
+      // 认证错误，handleAuthError 已经处理了跳转，不需要显示错误提示
+      console.log('[车队长首页] 认证错误，等待跳转到登录页')
+      return
+    }
+    
+    // 其他错误，显示错误提示
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none',
+      duration: 2000
+    })
   } finally {
     driverStatsLoading.value = false
   }

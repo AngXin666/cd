@@ -79,7 +79,7 @@
 
     <!-- 版本信息 -->
     <view class="version-section">
-      <text class="version-text">版本 1.0.0</text>
+      <text class="version-text">版本 {{ appVersion }}</text>
     </view>
 
     <!-- 修改密码弹窗 -->
@@ -169,6 +169,9 @@ const changingPassword = ref(false)
 
 /** 是否正在检查更新 */
 const checkingUpdate = ref(false)
+
+/** 应用版本号 */
+const appVersion = ref('1.0.11')
 
 /** 密码表单 */
 const passwordForm = ref({

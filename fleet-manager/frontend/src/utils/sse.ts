@@ -186,7 +186,8 @@ export class SSENotificationService {
     // 检查是否已连接
     if (this.state === SSEConnectionState.CONNECTED || 
         this.state === SSEConnectionState.CONNECTING) {
-      return;
+      console.log('[SSE] 已有连接，先断开旧连接');
+      this.disconnect();
     }
 
     // 获取用户 Token
@@ -331,6 +332,39 @@ export class SSENotificationService {
       // 连接错误
       this.eventSource.onerror = (error) => {
         console.error('[SSE] 连接错误:', error);
+        
+        // 检查是否是 401 错误（认证失败）
+        // EventSource 不提供状态码，但我们可以通过 readyState 判断
+        if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
+          console.warn('[SSE] 连接已关闭，可能是认证失败（401），清除登录状态');
+          this.setState(SSEConnectionState.ERROR);
+          
+          // 关闭当前连接
+          this.eventSource?.close();
+          this.eventSource = null;
+          
+          // 清除登录状态并跳转到登录页
+          // 注意：需要延迟执行，避免在 SSE 错误处理中直接操作 store
+          setTimeout(() => {
+            try {
+              // 动态导入 store，避免循环依赖
+              const { useUserStore } = require('@/store/user');
+              const userStore = useUserStore();
+              
+              // 只有在用户确实登录的情况下才清除状态
+              if (userStore.isLoggedIn) {
+                console.log('[SSE] Token 已过期，清除登录状态并跳转到登录页');
+                userStore.logout();
+                uni.reLaunch({ url: '/pages/login/index' });
+              }
+            } catch (err) {
+              console.error('[SSE] 处理认证失败时出错:', err);
+            }
+          }, 100);
+          
+          return;
+        }
+        
         this.setState(SSEConnectionState.ERROR);
         this.callbacks.onError?.(new Error('SSE 连接错误'));
         
@@ -362,10 +396,18 @@ export class SSENotificationService {
       console.log(`[SSE] 将在 ${this.reconnectDelay / 1000} 秒后重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       
       setTimeout(() => {
+        // 重连前检查是否有新的 token
+        const userStore = useUserStore();
+        if (!userStore.token) {
+          console.warn('[SSE] Token 不存在，停止重连，降级到轮询');
+          this.startPolling();
+          return;
+        }
         this.connect();
       }, this.reconnectDelay);
     } else {
       console.warn('[SSE] 重连次数已达上限，降级到轮询模式');
+      // 降级到轮询，让页面继续工作
       this.startPolling();
     }
   }

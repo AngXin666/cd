@@ -28,13 +28,27 @@
  * 简化逻辑：不做任何网络请求，直接根据本地存储状态跳转
  */
 
+console.log('[Index] ========== 脚本开始执行 ==========')
+console.log('[Index] 当前时间:', new Date().toISOString())
+console.log('[Index] 当前 URL:', window.location.href)
+
 import { onLoad } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
 import { UserRole } from '@/api/types'
 
+console.log('[Index] 导入完成')
+
 // ==================== Store ====================
 
+console.log('[Index] 初始化 userStore')
 const userStore = useUserStore()
+console.log('[Index] userStore 初始化完成:', {
+  isLoggedIn: userStore.isLoggedIn,
+  role: userStore.role,
+  userName: userStore.userName,
+  userId: userStore.userId,
+  token: userStore.token ? '存在' : '不存在'
+})
 
 /** 是否已跳转（防止重复跳转） */
 let hasRedirected = false
@@ -43,16 +57,26 @@ let hasRedirected = false
 
 // 使用 onLoad 替代 onMounted，更早执行
 onLoad(() => {
+  console.log('[Index] ========== onLoad 触发 ==========')
   console.log('[Index] 页面加载，开始检查登录状态')
   
   // 立即隐藏 tabBar，避免闪屏
   uni.hideTabBar({ animation: false })
   
   // 确保从存储初始化
+  console.log('[Index] 调用 userStore.initFromStorage()')
   userStore.initFromStorage()
+  console.log('[Index] initFromStorage 完成，当前状态:', {
+    isLoggedIn: userStore.isLoggedIn,
+    role: userStore.role,
+    userName: userStore.userName,
+    userId: userStore.userId
+  })
   
   // 立即执行跳转，不再延迟
   checkAndRedirect()
+  
+  console.log('[Index] ========== onLoad 完成 ==========')
 })
 
 // ==================== 方法 ====================
@@ -62,7 +86,12 @@ onLoad(() => {
  * 纯本地检查，不做任何网络请求
  */
 function checkAndRedirect(): void {
-  if (hasRedirected) return
+  console.log('[Index] ========== checkAndRedirect 开始 ==========')
+  
+  if (hasRedirected) {
+    console.log('[Index] 已经跳转过，跳过')
+    return
+  }
   
   console.log('[Index] 检查登录状态:', {
     isLoggedIn: userStore.isLoggedIn,
@@ -90,6 +119,8 @@ function checkAndRedirect(): void {
   // 根据角色跳转
   console.log('[Index] 已登录，角色:', role)
   redirectByRole(role)
+  
+  console.log('[Index] ========== checkAndRedirect 完成 ==========')
 }
 
 /**
@@ -97,25 +128,34 @@ function checkAndRedirect(): void {
  * @param role - 用户角色
  */
 function redirectByRole(role: string): void {
+  console.log('[Index] ========== redirectByRole 开始 ==========')
+  console.log('[Index] 角色:', role)
+  
   // 根据角色跳转到对应的工作台
   switch (role) {
     case UserRole.DRIVER:
+      console.log('[Index] 司机角色，跳转到 /pages/driver/index/index')
       redirectTo('/pages/driver/index/index')
       break
       
     case UserRole.MANAGER:
+      console.log('[Index] 车队长角色，跳转到 /pages/manager/index/index')
       redirectTo('/pages/manager/index/index')
       break
       
     case UserRole.BOSS:
     case UserRole.PEER_ADMIN:
+      console.log('[Index] 老板/调度角色，跳转到 /pages/boss/index/index')
       redirectTo('/pages/boss/index/index')
       break
       
     default:
       // 未知角色 → 登录页
+      console.log('[Index] 未知角色，跳转到登录页')
       redirectTo('/pages/login/index')
   }
+  
+  console.log('[Index] ========== redirectByRole 完成 ==========')
 }
 
 /**
@@ -123,25 +163,37 @@ function redirectByRole(role: string): void {
  * @param url - 目标页面路径
  */
 function redirectTo(url: string): void {
-  if (hasRedirected) return
+  if (hasRedirected) {
+    console.log('[Index] 已经跳转过，跳过:', url)
+    return
+  }
   hasRedirected = true
   
-  console.log('[Index] 跳转到:', url)
+  console.log('[Index] ========== redirectTo 开始 ==========')
+  console.log('[Index] 目标 URL:', url)
   
   // 使用 reLaunch 确保跳转成功
   uni.reLaunch({
     url,
+    success: () => {
+      console.log('[Index] reLaunch 成功:', url)
+    },
     fail: (err) => {
       console.error('[Index] reLaunch 失败:', err)
       // 备用方案
       uni.navigateTo({ 
         url,
-        fail: () => {
-          console.error('[Index] navigateTo 也失败了')
+        success: () => {
+          console.log('[Index] navigateTo 成功:', url)
+        },
+        fail: (err2) => {
+          console.error('[Index] navigateTo 也失败了:', err2)
         }
       })
     }
   })
+  
+  console.log('[Index] ========== redirectTo 完成 ==========')
 }
 </script>
 

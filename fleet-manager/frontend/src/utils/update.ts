@@ -15,10 +15,10 @@ import type { UpdateCheckResult, DownloadProgress, VersionInfo, InstallResult } 
 // ==================== 常量定义 ====================
 
 /** 当前应用版本名称（应与 manifest.json 中的版本保持一致） */
-const CURRENT_VERSION = '1.0.10'
+const CURRENT_VERSION = '1.0.11'
 
 /** 当前应用版本号（整数，用于版本比较） */
-const CURRENT_VERSION_CODE = 110
+const CURRENT_VERSION_CODE = 111
 
 /** 启动时检查更新的延迟时间（毫秒） */
 const UPDATE_CHECK_DELAY = 2000
@@ -205,16 +205,58 @@ export class HotUpdateService {
    * Requirements: 1.1 - 应用启动时延迟 2 秒后自动检查更新
    */
   async checkUpdateOnLaunch(): Promise<void> {
+    // 显示调试信息
+    uni.showToast({ 
+      title: '正在检查更新...', 
+      icon: 'none',
+      duration: 2000
+    })
+    
     // 延迟检查，避免影响启动速度
     setTimeout(async () => {
       try {
+        console.log('[HotUpdate] 开始检查更新...')
+        
+        // 显示调试信息
+        uni.showToast({ 
+          title: '检查更新中...', 
+          icon: 'none',
+          duration: 2000
+        })
+        
         const updateInfo = await this.checkForUpdate()
+        console.log('[HotUpdate] 检查更新完成:', updateInfo)
+        
         if (updateInfo?.has_update) {
+          console.log('[HotUpdate] 发现新版本，显示更新弹窗')
+          
+          // 显示调试信息
+          uni.showToast({ 
+            title: `发现新版本 ${updateInfo.latest_version}`, 
+            icon: 'none',
+            duration: 2000
+          })
+          
           this.showUpdateDialog(updateInfo)
+        } else {
+          console.log('[HotUpdate] 已是最新版本')
+          
+          // 显示调试信息
+          uni.showToast({ 
+            title: '已是最新版本', 
+            icon: 'none',
+            duration: 2000
+          })
         }
       } catch (error) {
-        // 静默处理错误，不影响用户正常使用
+        // 显示错误信息
         console.error('[HotUpdate] 启动时检查更新失败:', error)
+        
+        uni.showToast({ 
+          title: `检查更新失败: ${error}`, 
+          icon: 'none',
+          duration: 3000
+        })
       }
     }, UPDATE_CHECK_DELAY)
   }
@@ -235,6 +277,17 @@ export class HotUpdateService {
       const versionInfo = this.getCurrentVersion()
       console.log('[HotUpdate] 检查更新，当前版本:', versionInfo)
       
+      // 显示调试信息
+      uni.showToast({ 
+        title: `当前版本: ${versionInfo.versionName}`, 
+        icon: 'none',
+        duration: 2000
+      })
+      
+      // 构建请求 URL（用于调试）
+      const apiUrl = `http://45.197.148.64:8000/api/app/version/check?platform=${versionInfo.platform}&current_version=${versionInfo.versionName}&current_version_code=${versionInfo.versionCode}`
+      console.log('[HotUpdate] 请求 URL:', apiUrl)
+      
       const result = await checkAppUpdate({
         current_version: versionInfo.versionName,
         current_version_code: versionInfo.versionCode,
@@ -242,10 +295,25 @@ export class HotUpdateService {
       })
       
       console.log('[HotUpdate] 检查更新结果:', result)
+      
+      // 显示调试信息
+      uni.showToast({ 
+        title: result?.has_update ? '有更新' : '无更新', 
+        icon: 'none',
+        duration: 2000
+      })
+      
       return result
     } catch (error) {
-      // 静默处理错误，记录日志
+      // 记录错误并显示
       console.error('[HotUpdate] 检查更新失败:', error)
+      
+      uni.showToast({ 
+        title: `请求失败: ${error}`, 
+        icon: 'none',
+        duration: 3000
+      })
+      
       return null
     }
   }

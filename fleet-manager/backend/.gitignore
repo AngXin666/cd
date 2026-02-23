@@ -62,3 +62,4 @@ Thumbs.db
 
 # 上传的文件（不提交到版本控制）
 uploads/
+.vercel

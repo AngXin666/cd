@@ -389,6 +389,12 @@
         "navigationBarTitleText": "司机详情",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/debug/logs",
+      "style": {
+        "navigationBarTitleText": "调试日志"
+      }
     }
   ],
   "globalStyle": {

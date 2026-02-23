@@ -11,10 +11,10 @@ ASSETS_DIR="$SCRIPT_DIR/app/src/main/assets/www"
 
 echo "=== 准备 H5 资源 ==="
 
-# 1. 构建 H5 版本
-echo "1. 构建 H5 版本..."
+# 1. 构建 H5 版本（使用生产环境配置）
+echo "1. 构建 H5 版本（生产环境）..."
 cd "$FRONTEND_DIR"
-npm run build:h5
+NODE_ENV=production npm run build:h5
 
 # 2. 清理旧资源
 echo "2. 清理旧资源..."
