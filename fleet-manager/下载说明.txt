@@ -1,0 +1,27 @@
+车队管家 v1.2 - 下载说明
+========================
+
+📱 直接下载链接（推荐）
+https://github.com/AngXin666/cd/releases/download/v1.2/fleet-manager-v1.2.apk
+
+使用方法：
+1. 手机浏览器直接访问上面的链接
+2. 自动开始下载 APK 文件（7.3 MB）
+3. 下载完成后点击安装
+4. 如提示"未知来源"，请在设置中允许安装
+
+测试账号：
+- 老板：admin / admin123
+- 车队长：manager / manager123  
+- 司机：driver / driver123
+
+更多信息：
+- GitHub Release 页面: https://github.com/AngXin666/cd/releases/tag/v1.2
+- 下载页面（美化版）: fleet-manager/download.html
+
+优点：
+✅ 完全免费
+✅ 无需服务器
+✅ 全球 CDN 加速
+✅ 稳定可靠
+✅ Android 自动识别
