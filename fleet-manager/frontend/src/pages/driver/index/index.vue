@@ -572,6 +572,12 @@ const currentUnit = computed(() => {
 
 // ==================== 生命周期 ====================
 
+// 监听计件录入成功事件，刷新数据（必须在 onMounted 之前注册）
+uni.$on('refreshDriverHome', () => {
+  logger.log('[司机首页] 收到刷新事件，重新加载数据')
+  loadData()
+})
+
 onMounted(async () => {
   logger.log('[司机首页] ========== onMounted 开始 ==========')
   logger.log('[司机首页] userStore 状态:', {
@@ -617,6 +623,8 @@ onShow(() => {
 onUnmounted(() => {
   // 清理 SSE 回调
   sseService.setCallbacks({})
+  // 移除刷新事件监听
+  uni.$off('refreshDriverHome')
 })
 
 
