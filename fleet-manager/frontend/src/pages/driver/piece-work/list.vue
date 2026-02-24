@@ -915,28 +915,44 @@ async function confirmEditAction(): Promise<void> {
     }
   }
   
+  // 保存编辑数据的副本（因为关闭弹窗后会清空）
+  const recordId = editingRecord.value.id
+  const editData = {
+    quantity,
+    unitPrice,
+    needUpstairs: editForm.value.needUpstairs,
+    upstairsPrice,
+    needSorting: editForm.value.needSorting,
+    sortingQuantity,
+    sortingUnitPrice,
+    remark: editForm.value.remark,
+  }
+  
+  // 先关闭编辑弹窗，避免确认对话框被遮挡
+  closeEditModal()
+  
   // 二次确认
   const confirmed = await confirmEdit('确认修改', '确定要保存对这条记录的修改吗？')
   if (!confirmed) return
   
   try {
     // 计算总金额
-    const baseAmount = quantity * unitPrice
-    const upstairsAmount = editForm.value.needUpstairs ? quantity * upstairsPrice : 0
-    const sortingAmount = editForm.value.needSorting ? sortingQuantity * sortingUnitPrice : 0
+    const baseAmount = editData.quantity * editData.unitPrice
+    const upstairsAmount = editData.needUpstairs ? editData.quantity * editData.upstairsPrice : 0
+    const sortingAmount = editData.needSorting ? editData.sortingQuantity * editData.sortingUnitPrice : 0
     const totalAmount = baseAmount + upstairsAmount + sortingAmount
     
     // 调用 API 更新记录（包含所有字段）
-    await updatePieceWorkRecord(editingRecord.value.id, {
-      quantity,
-      unit_price: unitPrice,
-      need_upstairs: editForm.value.needUpstairs,
-      upstairs_price: upstairsPrice,
-      need_sorting: editForm.value.needSorting,
-      sorting_quantity: sortingQuantity,
-      sorting_unit_price: sortingUnitPrice,
+    await updatePieceWorkRecord(recordId, {
+      quantity: editData.quantity,
+      unit_price: editData.unitPrice,
+      need_upstairs: editData.needUpstairs,
+      upstairs_price: editData.upstairsPrice,
+      need_sorting: editData.needSorting,
+      sorting_quantity: editData.sortingQuantity,
+      sorting_unit_price: editData.sortingUnitPrice,
       amount: totalAmount,
-      remark: editForm.value.remark || undefined,
+      remark: editData.remark || undefined,
     })
     
     uni.showToast({
@@ -944,8 +960,7 @@ async function confirmEditAction(): Promise<void> {
       icon: 'success',
     })
     
-    // 关闭弹窗并刷新数据
-    closeEditModal()
+    // 刷新数据
     loadData()
   } catch (error) {
     console.error('更新记录失败:', error)
