@@ -616,8 +616,8 @@ onMounted(async () => {
 
 onShow(() => {
   logger.log('[司机首页] ========== onShow 触发 ==========')
-  // 页面显示时刷新数据
-  loadData()
+  // 页面显示时静默刷新数据（不显示 loading）
+  loadData(true) // 传入 silent 参数
 })
 
 onUnmounted(() => {
@@ -633,16 +633,20 @@ onUnmounted(() => {
 /**
  * 加载页面数据
  * 先加载仓库数据，composable 会自动处理统计数据的预加载
+ * @param silent - 是否静默加载（不显示 loading 提示）
  */
-async function loadData(): Promise<void> {
+async function loadData(silent = false): Promise<void> {
   logger.log('[司机首页] ========== loadData 开始 ==========')
+  logger.log('[司机首页] 静默模式:', silent)
   
-  // 显示加载提示
-  logger.log('[司机首页] 显示加载提示')
-  uni.showLoading({
-    title: '加载中...',
-    mask: true
-  })
+  // 只在非静默模式下显示加载提示
+  if (!silent) {
+    logger.log('[司机首页] 显示加载提示')
+    uni.showLoading({
+      title: '加载中...',
+      mask: true
+    })
+  }
   
   try {
     // 先加载仓库数据（因为统计数据依赖仓库选择）
@@ -663,17 +667,21 @@ async function loadData(): Promise<void> {
     ])
     logger.log('[司机首页] 步骤 2: 所有数据加载完成')
     
-    // 隐藏加载提示
-    logger.log('[司机首页] 隐藏加载提示')
-    uni.hideLoading()
+    // 只在非静默模式下隐藏加载提示
+    if (!silent) {
+      logger.log('[司机首页] 隐藏加载提示')
+      uni.hideLoading()
+    }
     
     logger.log('[司机首页] ========== loadData 完成 ==========')
   } catch (error) {
     logger.error('[司机首页] ========== loadData 失败 ==========')
     logger.error('[司机首页] 错误详情:', error)
     
-    // 隐藏加载提示
-    uni.hideLoading()
+    // 只在非静默模式下隐藏加载提示
+    if (!silent) {
+      uni.hideLoading()
+    }
     
     // 检查是否是认证错误
     if (error instanceof Error && error.message.includes('登录已过期')) {
@@ -682,12 +690,14 @@ async function loadData(): Promise<void> {
       return
     }
     
-    // 其他错误，显示错误提示
-    uni.showToast({
-      title: '加载失败: ' + (error as Error).message,
-      icon: 'none',
-      duration: 5000
-    })
+    // 其他错误，只在非静默模式下显示错误提示
+    if (!silent) {
+      uni.showToast({
+        title: '加载失败: ' + (error as Error).message,
+        icon: 'none',
+        duration: 5000
+      })
+    }
   }
 }
 
